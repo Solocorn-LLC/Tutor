@@ -6,7 +6,13 @@ type VideoOverlayState = {
   roomUrl: string | null
   token: string | null
   autoRecord: boolean
-  openOverlay: (input: { roomUrl: string; token?: string | null; autoRecord?: boolean }) => void
+  isTutor: boolean
+  openOverlay: (input: {
+    roomUrl: string
+    token?: string | null
+    autoRecord?: boolean
+    isTutor?: boolean
+  }) => void
   closeOverlay: () => void
 }
 
@@ -16,12 +22,14 @@ export const useVideoOverlayStore = create<VideoOverlayState>()(
     roomUrl: null,
     token: null,
     autoRecord: false,
+    isTutor: false,
     openOverlay: input =>
       set(draft => {
         draft.open = true
         draft.roomUrl = input.roomUrl
         draft.token = input.token || null
         draft.autoRecord = !!input.autoRecord
+        draft.isTutor = !!input.isTutor
       }),
     closeOverlay: () =>
       set(draft => {

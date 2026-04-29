@@ -6,7 +6,7 @@ import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 
 export function FloatingVideoOverlay() {
-  const { open, roomUrl, token, autoRecord, closeOverlay } = useVideoOverlayStore()
+  const { open, roomUrl, token, autoRecord, isTutor, closeOverlay } = useVideoOverlayStore()
   const [frame, setFrame] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const dragRef = useRef<{
     pointerId: number
@@ -24,13 +24,21 @@ export function FloatingVideoOverlay() {
   } | null>(null)
 
   useEffect(() => {
+    if (!open && frame) {
+      setFrame(null)
+      return
+    }
     if (!open) return
     if (frame) return
     if (typeof window === 'undefined') return
+    if (isTutor) {
+      setFrame({ x: 0, y: 0, w: 360, h: 240 })
+      return
+    }
     const w = Math.min(560, Math.max(360, Math.floor(window.innerWidth * 0.4)))
     const h = Math.min(420, Math.max(240, Math.floor(window.innerHeight * 0.35)))
     setFrame({ x: 24, y: 24, w, h })
-  }, [open, frame])
+  }, [open, frame, isTutor])
 
   useEffect(() => {
     if (!open || !frame) return

@@ -924,6 +924,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       token: string | null
     } | null>(null)
     const [sessionStudents, setSessionStudents] = useState<any[]>([])
+    const activeSession = insightsProps?.sessionId
+      ? insightsProps.sessions?.find(s => s.id === insightsProps.sessionId)
+      : null
+    const isSessionActive = activeSession?.status === 'active'
 
     const [importTypeModalData, setImportTypeModalData] = useState<{
       target: { nodeId: string; lessonId: string }
@@ -941,34 +945,47 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
     const [loadedAssessmentId, setLoadedAssessmentId] = useState<string | null>(null)
 
+    const canMirrorToStudents = !!(
+      insightsProps?.sessionId &&
+      insightsProps?.socket &&
+      !isStudentView &&
+      isSessionActive &&
+      isMirroringToStudents
+    )
+
     // Sync tutor's active state to students for "Screen Mirroring"
     useEffect(() => {
-      if (
-        mainTab === 'live' &&
-        insightsProps?.sessionId &&
-        insightsProps?.socket &&
-        !isStudentView &&
-        isMirroringToStudents
-      ) {
-        const statePayload = {
-          activeTab: testPciActiveTab,
-          activeTaskId: loadedTaskId || loadedAssessmentId || null,
-        }
-        insightsProps.socket.emit('insight:send', {
-          roomId: insightsProps.sessionId,
-          type: 'tutor:state_sync',
-          payload: statePayload,
-        })
+      if (!canMirrorToStudents) {
+        return
       }
+
+      const activeTab =
+        testPciActiveTab === 'student1'
+          ? 'whiteboards'
+          : testPciActiveTab === 'classroom'
+            ? 'classroom'
+            : null
+
+      if (!activeTab) return
+
+      const statePayload = {
+        activeTab,
+        activeTaskId: loadedTaskId || loadedAssessmentId || null,
+      }
+      insightsProps.socket.emit('insight:send', {
+        roomId: insightsProps.sessionId,
+        type: 'tutor:state_sync',
+        payload: statePayload,
+      })
     }, [
-      mainTab,
       testPciActiveTab,
       loadedTaskId,
       loadedAssessmentId,
       insightsProps?.sessionId,
       insightsProps?.socket,
       isStudentView,
-      isMirroringToStudents,
+      isSessionActive,
+      canMirrorToStudents,
     ])
 
     const [extractedTextFontSizeMap, setExtractedTextFontSizeMap] = useState<
@@ -5008,10 +5025,6 @@ FEEDBACK: [your explanation]`
         .filter(Boolean) as typeof nodes
     }, [nodes, searchQuery])
 
-    const activeSession = insightsProps?.sessionId
-      ? insightsProps.sessions?.find(s => s.id === insightsProps.sessionId)
-      : null
-    const isSessionActive = activeSession?.status === 'active'
     const isLiveMode = saveMode !== undefined ? saveMode === 'live' : coursePropsModal.isLive
 
     // Check if the portal target exists
@@ -5072,6 +5085,7 @@ FEEDBACK: [your explanation]`
                               roomUrl: sessionContext.roomUrl,
                               token: sessionContext.token,
                               autoRecord: !isStudentView,
+                              isTutor: true,
                             })
                           }}
                           disabled={!sessionContext?.roomUrl}
@@ -5080,9 +5094,49 @@ FEEDBACK: [your explanation]`
                           <VideoIcon className="h-4 w-4" />
                           Video
                         </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (!isSessionActive) return
+                            setIsMirroringToStudents(true)
+                            setTestPciActiveTab('classroom')
+                          }}
+                          disabled={!isSessionActive}
+                          className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
+                          title={
+                            !isSessionActive
+                              ? 'Available when session is active'
+                              : 'Mirror classroom'
+                          }
+                        >
+                          <LayoutPanelTop className="h-4 w-4" />
+                          Mirror Class
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (!isSessionActive) return
+                            setIsMirroringToStudents(true)
+                            setTestPciActiveTab('student1')
+                          }}
+                          disabled={!isSessionActive}
+                          className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
+                          title={
+                            !isSessionActive
+                              ? 'Available when session is active'
+                              : 'Mirror whiteboard'
+                          }
+                        >
+                          <PenTool className="h-4 w-4" />
+                          Mirror Board
+                        </Button>
                       </div>
 
-                      {mainTab === 'live' && isSessionActive && (
+                      {(insightsProps?.onToggleRecording || insightsProps?.onEndSession) && (
                         <div className="flex items-center gap-2 pr-1">
                           {insightsProps?.isRecording &&
                             insightsProps?.recordingDuration != null && (
@@ -5094,9 +5148,19 @@ FEEDBACK: [your explanation]`
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={insightsProps.onToggleRecording}
-                              className="h-8 w-8 rounded-full p-0 hover:bg-slate-100"
-                              title={insightsProps.isRecording ? 'Stop Recording' : 'Record'}
+                              onClick={() => {
+                                if (!isSessionActive) return
+                                insightsProps.onToggleRecording?.()
+                              }}
+                              disabled={!isSessionActive}
+                              className="h-8 w-8 rounded-full p-0 hover:bg-slate-100 disabled:hover:bg-transparent"
+                              title={
+                                !isSessionActive
+                                  ? 'Recording available when session is active'
+                                  : insightsProps.isRecording
+                                    ? 'Stop Recording'
+                                    : 'Record'
+                              }
                             >
                               {insightsProps.isRecording ? (
                                 <Square className="h-4 w-4 fill-current text-red-500" />
@@ -5109,9 +5173,15 @@ FEEDBACK: [your explanation]`
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={insightsProps.onEndSession}
-                              disabled={insightsProps.endingSession}
-                              className="h-8 gap-2 rounded-full px-3 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => {
+                                if (!isSessionActive) return
+                                insightsProps.onEndSession?.()
+                              }}
+                              disabled={!isSessionActive || insightsProps.endingSession}
+                              className="h-8 gap-2 rounded-full px-3 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-600 disabled:hover:bg-transparent"
+                              title={
+                                !isSessionActive ? 'End available when session is active' : 'End'
+                              }
                             >
                               {insightsProps.endingSession ? 'Ending…' : 'End'}
                             </Button>
