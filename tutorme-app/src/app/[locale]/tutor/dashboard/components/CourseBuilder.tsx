@@ -565,6 +565,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         folder?: string
       }[]
     >([])
+    const assetsLoadedRef = useRef(false)
+    const skipNextAssetsSaveRef = useRef(false)
     const [loadAsModalOpen, setLoadAsModalOpen] = useState(false)
     const [isSplitting, setIsSplitting] = useState(false)
     const [assetToLoad, setAssetToLoad] = useState<{
@@ -1257,16 +1259,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           const res = await fetch('/api/tutor/assets', { credentials: 'include' })
           if (res.ok) {
             const data = await res.json()
+            assetsLoadedRef.current = true
             if (data.assets && Array.isArray(data.assets)) {
-              setCourseAssets(
-                data.assets.map((a: any) => ({
-                  ...a,
-                  folder:
-                    (a.metadata?.folder as string) ||
-                    (a.metadata?.folderName as string) ||
-                    undefined,
-                }))
-              )
+              skipNextAssetsSaveRef.current = true
+              setCourseAssets(prev => {
+                const merged = new Map<string, any>()
+                prev.forEach(a => merged.set(a.id, a))
+                data.assets.forEach((a: any) => {
+                  merged.set(a.id, {
+                    ...a,
+                    folder:
+                      (a.metadata?.folder as string) ||
+                      (a.metadata?.folderName as string) ||
+                      undefined,
+                  })
+                })
+                return Array.from(merged.values())
+              })
             }
           }
         } catch (error) {
@@ -1413,6 +1422,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Debounced assets save
     useEffect(() => {
       if (insightsProps) return
+      if (!assetsLoadedRef.current) return
+      if (skipNextAssetsSaveRef.current) {
+        skipNextAssetsSaveRef.current = false
+        return
+      }
       if (saveAssetsTimeoutRef.current) {
         clearTimeout(saveAssetsTimeoutRef.current)
       }
