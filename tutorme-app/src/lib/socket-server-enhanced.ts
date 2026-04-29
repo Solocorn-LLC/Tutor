@@ -21,6 +21,7 @@ import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
 import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
+import { notifyMany } from '@/lib/notifications/notify'
 
 // Types from original socket-server.ts
 export type StudentStatus = 'on_track' | 'needs_help' | 'struggling' | 'idle'
@@ -901,6 +902,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
       io.to(roomId).emit('task:deployed', normalizedTask)
       io.to(roomId).emit('task:updated', { task: normalizedTask })
 
+      // Create persistent notifications for students in the room
+      try {
+        const studentIds = Array.from(room!.students.keys())
+        if (studentIds.length > 0) {
+          void notifyMany({
+            userIds: studentIds,
+            type: 'assignment',
+            title: `New ${normalizedTask.source === 'assessment' ? 'Assessment' : 'Task'}: ${normalizedTask.title}`,
+            message: `Your tutor deployed "${normalizedTask.title}" in the live session.`,
+            data: { deployType: normalizedTask.source, taskId: normalizedTask.id, roomId },
+            actionUrl: `/student/feedback?sessionId=${roomId}`,
+          })
+        }
+      } catch (notifyErr) {
+        console.error('Failed to create task deployment notifications:', notifyErr)
+      }
+
       // Persist to Database for Student Directory and Replays
       try {
         const { drizzleDb } = await import('./db/drizzle')
@@ -1006,6 +1024,58 @@ export async function initEnhancedSocketServer(server: NetServer) {
             tutorId: socket.data.userId,
           })
         })
+
+        // Create persistent notifications for students
+        try {
+          const studentIds = Array.from(room!.students.keys())
+          if (studentIds.length > 0) {
+            void notifyMany({
+              userIds: studentIds,
+              type: 'assignment',
+              title: `New Homework: ${homework.title}`,
+              message: `Your tutor assigned "${homework.title}" as homework.`,
+              data: { deployType: 'homework', homeworkId: homework.id, roomId },
+              actionUrl: `/student/feedback?sessionId=${roomId}`,
+            })
+          }
+        } catch (notifyErr) {
+          console.error('Failed to create homework assignment notifications:', notifyErr)
+        }
+      }
+    )
+
+    socket.on(
+      'tutor:whiteboard:update',
+      (data: { roomId: string; board: { pages: unknown[]; pageIndex: number; updatedAt?: number } }) => {
+        if (socket.data.role !== 'tutor') return
+        const { roomId, board } = data || ({} as any)
+        if (!roomId || !board) return
+
+        let room = activeRooms.get(roomId)
+        if (!room) {
+          room = {
+            id: roomId,
+            tutorId: socket.data.userId || '',
+            students: new Map(),
+            chatHistory: [],
+            tasks: [],
+            polls: [],
+            whiteboardData: undefined,
+            codeEditorContent: '',
+            codeLanguage: 'javascript',
+            createdAt: new Date(),
+            lastActivity: Date.now(),
+          }
+          activeRooms.set(roomId, room)
+        }
+
+        room.lastActivity = Date.now()
+        room.whiteboardData = {
+          ...(room.whiteboardData || {}),
+          tutorBoard: board,
+        }
+        void persistRoomToRedis(roomId, room)
+        io.to(roomId).emit('tutor:whiteboard:update', board)
       }
     )
 

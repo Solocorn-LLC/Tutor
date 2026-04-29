@@ -8,6 +8,7 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  type ComponentProps,
 } from 'react'
 import NextImage from 'next/image'
 import { createPortal } from 'react-dom'
@@ -581,6 +582,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assetPickerTarget, setAssetPickerTarget] = useState<'task' | 'assessment' | null>(null)
     const [assetViewSearch, setAssetViewSearch] = useState('')
     const [assetViewFolder, setAssetViewFolder] = useState<string>('All')
+    type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
+    type WhiteboardPage = WhiteboardPages[number]
+    const createDefaultWhiteboardPages = (): WhiteboardPages => [
+      {
+        id: 'page-1',
+        name: 'Page 1',
+        strokes: [],
+        texts: [],
+        shapes: [],
+        backgroundColor: '#ffffff',
+        backgroundStyle: 'solid',
+      },
+    ]
+    const [tutorBoardPages, setTutorBoardPages] = useState<WhiteboardPage[]>(
+      createDefaultWhiteboardPages
+    )
+    const [tutorBoardPageIndex, setTutorBoardPageIndex] = useState(0)
+    const tutorBoardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const designatedFolder = useMemo(() => {
       const liveCourse = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
@@ -992,6 +1011,45 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       canMirrorToStudents,
     ])
 
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId) return
+      if (isStudentView) return
+      if (!isSessionActive) return
+      if (!isMirroringToStudents) return
+
+      if (tutorBoardSyncTimeoutRef.current) {
+        clearTimeout(tutorBoardSyncTimeoutRef.current)
+      }
+
+      const payload = {
+        pages: tutorBoardPages,
+        pageIndex: tutorBoardPageIndex,
+        updatedAt: Date.now(),
+      }
+
+      tutorBoardSyncTimeoutRef.current = setTimeout(() => {
+        insightsProps.socket.emit('tutor:whiteboard:update', {
+          roomId: insightsProps.sessionId,
+          board: payload,
+        })
+      }, 150)
+
+      return () => {
+        if (tutorBoardSyncTimeoutRef.current) {
+          clearTimeout(tutorBoardSyncTimeoutRef.current)
+        }
+      }
+    }, [
+      insightsProps?.socket,
+      insightsProps?.sessionId,
+      isStudentView,
+      isSessionActive,
+      isMirroringToStudents,
+      testPciActiveTab,
+      tutorBoardPages,
+      tutorBoardPageIndex,
+    ])
+
     const [extractedTextFontSizeMap, setExtractedTextFontSizeMap] = useState<
       Record<string, number>
     >({})
@@ -1253,7 +1311,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Load tutor assets from API on mount
     useEffect(() => {
-      if (insightsProps) return
       const loadAssets = async () => {
         try {
           const res = await fetch('/api/tutor/assets', { credentials: 'include' })
@@ -1388,7 +1445,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const saveAssetsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const saveAssetsToApi = useCallback(
       async (assets: typeof courseAssets) => {
-        if (insightsProps) return
         try {
           const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
           const csrfData = await csrfRes.json().catch(() => ({}))
@@ -1421,7 +1477,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Debounced assets save
     useEffect(() => {
-      if (insightsProps) return
       if (!assetsLoadedRef.current) return
       if (skipNextAssetsSaveRef.current) {
         skipNextAssetsSaveRef.current = false
@@ -7474,7 +7529,13 @@ FEEDBACK: [your explanation]`
                                                         </Button>
                                                       </div>
                                                       <div className="min-h-0 flex-1">
-                                                        <EnhancedWhiteboard videoOverlay={false} />
+                                                        <EnhancedWhiteboard
+                                                          videoOverlay={false}
+                                                          pages={tutorBoardPages}
+                                                          currentPageIndex={tutorBoardPageIndex}
+                                                          onPagesChange={setTutorBoardPages}
+                                                          onPageIndexChange={setTutorBoardPageIndex}
+                                                        />
                                                       </div>
                                                     </div>
                                                   </DialogContent>
@@ -7484,7 +7545,13 @@ FEEDBACK: [your explanation]`
 
                                             return (
                                               <div className="flex h-full w-full flex-col">
-                                                <EnhancedWhiteboard videoOverlay={false} />
+                                                <EnhancedWhiteboard
+                                                  videoOverlay={false}
+                                                  pages={tutorBoardPages}
+                                                  currentPageIndex={tutorBoardPageIndex}
+                                                  onPagesChange={setTutorBoardPages}
+                                                  onPageIndexChange={setTutorBoardPageIndex}
+                                                />
                                               </div>
                                             )
                                           }

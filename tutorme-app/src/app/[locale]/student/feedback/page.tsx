@@ -386,9 +386,16 @@ function StudentFeedbackContent() {
       userId: session.user.id,
       name: session.user.name || 'Student',
       role: 'student' as const,
-      onRoomState: (state: { tasks?: LiveTask[] }) => {
+      onRoomState: (state: { tasks?: LiveTask[]; whiteboardData?: any }) => {
         if (state.tasks) {
           setTasks(state.tasks)
+        }
+        const tutorBoard = state?.whiteboardData?.tutorBoard
+        if (tutorBoard?.pages && Array.isArray(tutorBoard.pages)) {
+          setTutorBoardPages(tutorBoard.pages)
+        }
+        if (typeof tutorBoard?.pageIndex === 'number') {
+          setTutorBoardPageIndex(tutorBoard.pageIndex)
         }
       },
     }
@@ -406,6 +413,53 @@ function StudentFeedbackContent() {
     setTutorBoardPages(createDefaultWhiteboardPages())
     setTutorBoardPageIndex(0)
     setChatMessages([])
+  }, [selectedSessionId])
+
+  // Refs to track notification IDs for tasks/homework so we can mark them as read
+  const taskNotifMap = useRef<Map<string, string>>(new Map())
+  const hwNotifMap = useRef<Map<string, string>>(new Map())
+
+  // Load persistent notifications on mount to populate counters
+  useEffect(() => {
+    async function loadNotifications() {
+      try {
+        const res = await fetch('/api/notifications?unread=true&limit=100', {
+          credentials: 'include',
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const notifications = data.notifications || []
+        const taskIds: string[] = []
+        const hwIds: string[] = []
+
+        for (const n of notifications) {
+          const deployType = n.data?.deployType
+          if (deployType === 'task' || deployType === 'assessment') {
+            const taskId = n.data?.taskId || n.data?.itemId
+            if (taskId) {
+              taskNotifMap.current.set(taskId, n.notificationId)
+              if (!taskIds.includes(taskId)) taskIds.push(taskId)
+            }
+          } else if (deployType === 'homework') {
+            const hwId = n.data?.homeworkId || n.data?.itemId
+            if (hwId) {
+              hwNotifMap.current.set(hwId, n.notificationId)
+              if (!hwIds.includes(hwId)) hwIds.push(hwId)
+            }
+          }
+        }
+
+        if (taskIds.length > 0) {
+          setUnseenTaskIds(prev => [...new Set([...prev, ...taskIds])])
+        }
+        if (hwIds.length > 0) {
+          setUnseenHomeworkIds(prev => [...new Set([...prev, ...hwIds])])
+        }
+      } catch (e) {
+        console.error('Failed to load notifications:', e)
+      }
+    }
+    loadNotifications()
   }, [selectedSessionId])
 
   // Fetch CSRF token helper
@@ -614,12 +668,25 @@ function StudentFeedbackContent() {
       toast.success(`New homework assigned: ${hw.title}`)
     }
 
+    const handleTutorBoardUpdate = (payload: {
+      pages?: WhiteboardPage[]
+      pageIndex?: number
+    }) => {
+      if (payload?.pages && Array.isArray(payload.pages)) {
+        setTutorBoardPages(payload.pages)
+      }
+      if (typeof payload?.pageIndex === 'number') {
+        setTutorBoardPageIndex(payload.pageIndex)
+      }
+    }
+
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
+    socket.on('tutor:whiteboard:update', handleTutorBoardUpdate)
 
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
@@ -628,6 +695,7 @@ function StudentFeedbackContent() {
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
+      socket.off('tutor:whiteboard:update', handleTutorBoardUpdate)
     }
   }, [socket])
 
@@ -693,6 +761,21 @@ function StudentFeedbackContent() {
     }
   }
 
+  const markNotificationsRead = useCallback(async (notifIds: string[]) => {
+    if (notifIds.length === 0) return
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notificationIds: notifIds }),
+      })
+      if (!res.ok) console.error('Failed to mark notifications as read')
+    } catch (e) {
+      console.error('Error marking notifications as read:', e)
+    }
+  }, [])
+
   const handleSelectDirectoryItem = useCallback((item: any) => {
     // Handle live tasks / homework (LiveTask objects from socket)
     if (item.source === 'task' || item.source === 'assessment' || item.source === 'homework') {
@@ -701,6 +784,12 @@ function StudentFeedbackContent() {
       setActiveCourseName(item.courseName || null)
       setUnseenTaskIds(prev => prev.filter(id => id !== item.id))
       setUnseenHomeworkIds(prev => prev.filter(id => id !== item.id))
+      const notifId = taskNotifMap.current.get(item.id) || hwNotifMap.current.get(item.id)
+      if (notifId) {
+        void markNotificationsRead([notifId])
+        taskNotifMap.current.delete(item.id)
+        hwNotifMap.current.delete(item.id)
+      }
       setShowTasksPanel(false)
       return
     }
@@ -721,16 +810,27 @@ function StudentFeedbackContent() {
         setActiveCourseName(item.courseName || null)
         setUnseenTaskIds(prev => prev.filter(id => id !== parsed.id))
         setUnseenHomeworkIds(prev => prev.filter(id => id !== parsed.id))
+        const notifId = taskNotifMap.current.get(parsed.id) || hwNotifMap.current.get(parsed.id)
+        if (notifId) {
+          void markNotificationsRead([notifId])
+          taskNotifMap.current.delete(parsed.id)
+          hwNotifMap.current.delete(parsed.id)
+        }
         setShowTasksPanel(false)
       } catch (e) {
         console.error('Failed to parse task content', e)
       }
     }
-  }, [])
+  }, [markNotificationsRead])
 
   const handleSelectTask = (taskId: string) => {
     setActiveTaskId(taskId)
     setUnseenTaskIds(prev => prev.filter(id => id !== taskId))
+    const notifId = taskNotifMap.current.get(taskId)
+    if (notifId) {
+      void markNotificationsRead([notifId])
+      taskNotifMap.current.delete(taskId)
+    }
     setShowTasksPanel(false)
   }
 
@@ -1103,6 +1203,11 @@ function StudentFeedbackContent() {
                                                 }))
                                                 // Mark homework as seen when folder is opened
                                                 setUnseenHomeworkIds([])
+                                                const hwNotifIds = Array.from(hwNotifMap.current.values())
+                                                if (hwNotifIds.length > 0) {
+                                                  void markNotificationsRead(hwNotifIds)
+                                                  hwNotifMap.current.clear()
+                                                }
                                               }}
                                             >
                                               {foldersOpen.homework ? (
