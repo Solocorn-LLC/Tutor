@@ -67,6 +67,8 @@ import {
   GripVertical,
   RefreshCw,
   ExternalLink,
+  Loader2,
+  Wand2,
 } from 'lucide-react'
 
 // Date manipulation
@@ -305,6 +307,14 @@ export function InteractiveCalendar({
   ])
   const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   const [categoriesLoaded, setCategoriesLoaded] = useState(false)
+
+  // Conflict resolution state
+  const [showConflictDialog, setShowConflictDialog] = useState(false)
+  const [conflictRecommendations, setConflictRecommendations] = useState<
+    Map<string, Array<{ date: string; startTime: string; endTime: string }>>
+  >(new Map())
+  const [recommendationsLoading, setRecommendationsLoading] = useState<Set<string>>(new Set())
+  const [rescheduling, setRescheduling] = useState<string | null>(null)
 
   useEffect(() => {
     if (mode === 'student' && initialEvents) {
@@ -860,8 +870,9 @@ export function InteractiveCalendar({
                       to see conflicts.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setView('week')}>
-                    View
+                  <Button variant="outline" size="sm" onClick={() => setShowConflictDialog(true)}>
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Resolve
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setShowConflictWarning([])}>
                     <X className="h-4 w-4" />
@@ -1317,6 +1328,222 @@ export function InteractiveCalendar({
                   <Button onClick={syncCalendars} className="gap-2">
                     <RefreshCw className="h-4 w-4" />
                     Sync All
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Conflict Resolution Dialog */}
+            <Dialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
+              <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="h-5 w-5" />
+                    Resolve Scheduling Conflicts
+                  </DialogTitle>
+                  <DialogDescription>
+                    {Math.round(showConflictWarning.length / 2)} overlapping session
+                    {Math.round(showConflictWarning.length / 2) !== 1 ? 's' : ''} detected.
+                    Click &quot;Find alternatives&quot; to see recommended new times based on your availability.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                  {(() => {
+                    // Reconstruct conflict pairs
+                    const pairs: Array<[CalendarEvent, CalendarEvent]> = []
+                    const seen = new Set<string>()
+                    events.forEach((event1, i) => {
+                      events.forEach((event2, j) => {
+                        if (i >= j) return
+                        if (event1.date.toDateString() === event2.date.toDateString()) {
+                          const start1 = event1.date.getTime()
+                          const end1 = start1 + event1.duration * 60000
+                          const start2 = event2.date.getTime()
+                          const end2 = start2 + event2.duration * 60000
+                          if (start1 < end2 && end1 > start2) {
+                            const key = [event1.id, event2.id].sort().join('-')
+                            if (!seen.has(key)) {
+                              seen.add(key)
+                              pairs.push([event1, event2])
+                            }
+                          }
+                        }
+                      })
+                    })
+
+                    return pairs.map(([ev1, ev2], idx) => (
+                      <div key={idx} className="rounded-lg border border-red-200 bg-red-50/50 p-4">
+                        <p className="mb-2 text-xs font-medium text-red-600 uppercase tracking-wide">
+                          Conflict #{idx + 1}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {[ev1, ev2].map(ev => {
+                            const recs = conflictRecommendations.get(ev.id) || []
+                            const loading = recommendationsLoading.has(ev.id)
+                            return (
+                              <div key={ev.id} className="rounded-md border bg-white p-3">
+                                <p className="font-medium text-sm">{ev.title}</p>
+                                <p className="text-xs text-gray-500">
+                                  {ev.date.toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}{' '}
+                                  •{' '}
+                                  {ev.date.toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}{' '}
+                                  ({ev.duration} min)
+                                </p>
+
+                                {recs.length === 0 && !loading && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2 w-full text-xs"
+                                    onClick={async () => {
+                                      setRecommendationsLoading(prev => new Set(prev).add(ev.id))
+                                      try {
+                                        const res = await fetch(
+                                          `/api/tutor/calendar/recommendations?sessionId=${ev.sessionId || ev.id}`,
+                                          { credentials: 'include' }
+                                        )
+                                        const data = await res.json().catch(() => ({}))
+                                        setConflictRecommendations(prev => {
+                                          const next = new Map(prev)
+                                          next.set(ev.id, data.recommendations || [])
+                                          return next
+                                        })
+                                      } catch {
+                                        toast.error('Failed to load recommendations')
+                                      } finally {
+                                        setRecommendationsLoading(prev => {
+                                          const next = new Set(prev)
+                                          next.delete(ev.id)
+                                          return next
+                                        })
+                                      }
+                                    }}
+                                  >
+                                    <Wand2 className="mr-1 h-3 w-3" />
+                                    Find alternatives
+                                  </Button>
+                                )}
+
+                                {loading && (
+                                  <div className="mt-2 flex items-center justify-center py-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                  </div>
+                                )}
+
+                                {recs.length > 0 && (
+                                  <div className="mt-2 space-y-1.5">
+                                    <p className="text-xs font-medium text-gray-600">Suggested times:</p>
+                                    {recs.map((rec, rIdx) => {
+                                      const recDate = new Date(`${rec.date}T${rec.startTime}`)
+                                      return (
+                                        <Button
+                                          key={rIdx}
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-auto w-full justify-start px-2 py-1.5 text-xs hover:bg-green-50"
+                                          disabled={rescheduling === ev.id}
+                                          onClick={async () => {
+                                            setRescheduling(ev.id)
+                                            try {
+                                              const res = await fetch(
+                                                `/api/tutor/calendar/events/${ev.id}/reschedule`,
+                                                {
+                                                  method: 'PATCH',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  credentials: 'include',
+                                                  body: JSON.stringify({
+                                                    newStartTime: `${rec.date}T${rec.startTime}:00`,
+                                                  }),
+                                                }
+                                              )
+                                              if (!res.ok) {
+                                                const err = await res.json().catch(() => ({}))
+                                                throw new Error(err.error || 'Reschedule failed')
+                                              }
+                                              toast.success(`${ev.title} rescheduled successfully`)
+                                              // Refresh events
+                                              const refreshed = await fetch(
+                                                `/api/tutor/calendar/events?start=${encodeURIComponent(
+                                                  new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString()
+                                                )}&end=${encodeURIComponent(
+                                                  new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59).toISOString()
+                                                )}`,
+                                                { credentials: 'include' }
+                                              )
+                                              const data = await refreshed.json().catch(() => ({}))
+                                              const apiEvents = Array.isArray(data?.events) ? data.events : []
+                                              setEvents(
+                                                apiEvents.map((e: any) => ({
+                                                  id: e.id,
+                                                  title: e.title,
+                                                  date: new Date(e.scheduledAt),
+                                                  duration: e.duration || 60,
+                                                  type: 'class',
+                                                  status:
+                                                    e.status === 'live'
+                                                      ? 'live'
+                                                      : e.status === 'ended'
+                                                        ? 'completed'
+                                                        : 'scheduled',
+                                                  subject: e.subject,
+                                                  location: e.location,
+                                                  isOnline: e.isVirtual,
+                                                  description: e.meetingUrl,
+                                                  sessionId: e.sessionId,
+                                                  color:
+                                                    e.status === 'live'
+                                                      ? 'bg-emerald-500'
+                                                      : e.status === 'ended'
+                                                        ? 'bg-slate-400'
+                                                        : 'bg-blue-500',
+                                                }))
+                                              )
+                                              setShowConflictWarning([])
+                                              setConflictRecommendations(new Map())
+                                              setShowConflictDialog(false)
+                                            } catch (err: any) {
+                                              toast.error(err.message || 'Failed to reschedule')
+                                            } finally {
+                                              setRescheduling(null)
+                                            }
+                                          }}
+                                        >
+                                          {rescheduling === ev.id ? (
+                                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <CheckCircle2 className="mr-1 h-3 w-3 text-green-600" />
+                                          )}
+                                          {recDate.toLocaleDateString('en-US', {
+                                            weekday: 'short',
+                                            month: 'short',
+                                            day: 'numeric',
+                                          })}{' '}
+                                          {rec.startTime} – {rec.endTime}
+                                        </Button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowConflictDialog(false)}>
+                    Close
                   </Button>
                 </DialogFooter>
               </DialogContent>
