@@ -485,10 +485,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
   io.use(socketAuthMiddleware)
 
   // Apply Redis adapter if available
-  if (redisClient) {
+  if (redisClient && redisPubClient && redisSubClient) {
     try {
       const { createAdapter } = await import('@socket.io/redis-adapter')
-      io.adapter(createAdapter(redisPubClient, redisSubClient))
+      io.adapter(createAdapter(redisPubClient as any, redisSubClient as any))
       console.log('Redis adapter configured for Socket.io')
     } catch (error) {
       console.error('Failed to configure Redis adapter - using in-memory:', error)

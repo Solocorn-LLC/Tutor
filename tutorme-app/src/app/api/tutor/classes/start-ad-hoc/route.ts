@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { getPool } from '@/lib/db/drizzle'
-import { user, course } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { user, course, courseEnrollment } from '@/lib/db/schema'
+import { eq, inArray } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -180,8 +180,26 @@ export const POST = withAuth(
 
         if (isPublished) {
           // Find enrolled students and notify them
-          // Note: In a real app, we would query courseEnrollment table to find students
-          // For now, we'll assume the notification logic exists elsewhere or we trigger it via an event
+          const enrollments = await drizzleDb
+            .select({ studentId: courseEnrollment.studentId })
+            .from(courseEnrollment)
+            .where(eq(courseEnrollment.courseId, courseId))
+
+          const studentIds = enrollments.map(e => e.studentId).filter(Boolean)
+          if (studentIds.length > 0) {
+            await Promise.all(
+              studentIds.map(studentId =>
+                notify({
+                  userId: studentId,
+                  type: 'class',
+                  title: 'Your class is live!',
+                  message: `${courseRecord.name} has started. Join now to participate in the live session.`,
+                  data: { sessionId, courseId, type: 'session-live' },
+                  actionUrl: `/student/feedback?sessionId=${sessionId}`,
+                }).catch(() => {})
+              )
+            )
+          }
         }
 
         return NextResponse.json({ success: true, sessionId })

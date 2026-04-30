@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -210,7 +210,7 @@ function DraggableEvent({
   event: CalendarEvent
   onClick: () => void
   hasConflict?: boolean
-  style?: React.CSSProperties
+  style?: CSSProperties
   disabled?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -1595,7 +1595,7 @@ function DroppableDay({
   className,
 }: {
   date: Date
-  children: React.ReactNode
+  children: ReactNode
   className?: string
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -1621,7 +1621,7 @@ function DroppableHour({
 }: {
   date: Date
   hour: number
-  children?: React.ReactNode
+  children?: ReactNode
   className?: string
 }) {
   const { setNodeRef, isOver } = useDroppable({

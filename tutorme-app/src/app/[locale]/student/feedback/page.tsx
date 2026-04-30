@@ -576,7 +576,28 @@ function StudentFeedbackContent() {
 
   const [activeTab, setActiveTab] = useState<string>('task')
   const [isMirroringToTutor, setIsMirroringToTutor] = useState<boolean>(true)
+  const [followTutor, setFollowTutor] = useState<boolean>(true)
   const openVideoOverlay = useVideoOverlayStore(s => s.openOverlay)
+
+  useEffect(() => {
+    if (!selectedSessionId || typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(`student-follow-tutor:${selectedSessionId}`)
+      if (raw === '0') setFollowTutor(false)
+      if (raw === '1') setFollowTutor(true)
+    } catch {
+      // ignore
+    }
+  }, [selectedSessionId])
+
+  useEffect(() => {
+    if (!selectedSessionId || typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(`student-follow-tutor:${selectedSessionId}`, followTutor ? '1' : '0')
+    } catch {
+      // ignore
+    }
+  }, [selectedSessionId, followTutor])
 
   // Sync Student state to Tutor
   useEffect(() => {
@@ -635,6 +656,7 @@ function StudentFeedbackContent() {
       payload: { activeTab?: string; activeTaskId?: string | null }
     }) => {
       if (payload.type === 'tutor:state_sync') {
+        if (!followTutor) return
         const state = payload.payload
         if (state.activeTab === 'whiteboards') {
           setActiveTab('tutor-board')
@@ -697,7 +719,7 @@ function StudentFeedbackContent() {
       socket.off('homework:received', handleHomeworkReceived)
       socket.off('tutor:whiteboard:update', handleTutorBoardUpdate)
     }
-  }, [socket])
+  }, [socket, followTutor])
 
   useEffect(() => {
     if (!activeTaskId && tasks.length > 0) {
@@ -1500,7 +1522,20 @@ function StudentFeedbackContent() {
 
           <div className="flex flex-1 flex-col overflow-hidden">
             {sessionContext?.roomUrl && (
-              <div className="flex items-center justify-end gap-2 border-b bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-2 border-b bg-white px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={followTutor ? 'default' : 'secondary'}
+                    size="sm"
+                    onClick={() => setFollowTutor(!followTutor)}
+                    className="gap-2 shadow-sm"
+                  >
+                    <div
+                      className={`h-2 w-2 rounded-full ${followTutor ? 'animate-pulse bg-green-400' : 'bg-red-400'}`}
+                    />
+                    {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                  </Button>
+                </div>
                 <Button
                   variant={isMirroringToTutor ? 'default' : 'secondary'}
                   size="sm"
@@ -1533,26 +1568,26 @@ function StudentFeedbackContent() {
 
             <div className="flex-1">
               <div className="flex h-full flex-col gap-6">
-                <Tabs defaultValue="task" className="flex flex-1 flex-col">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col">
                   {portalTarget ? (
                     createPortal(
                       <div className="mb-0 min-h-[48px] w-full shrink-0">
-                        <TabsList className="grid h-[48px] w-full grid-cols-3 gap-2 border-0 bg-transparent p-0 shadow-none">
+                        <TabsList className="grid h-[40px] w-full grid-cols-3 gap-2 border-0 bg-transparent p-0 shadow-none">
                           <TabsTrigger
                             value="task"
-                            className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
+                            className="flex items-center justify-center gap-2 rounded-full border-0 px-3 py-2 text-xs font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
                           >
                             Classroom
                           </TabsTrigger>
                           <TabsTrigger
                             value="my-board"
-                            className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
+                            className="flex items-center justify-center gap-2 rounded-full border-0 px-3 py-2 text-xs font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
                           >
                             My Board
                           </TabsTrigger>
                           <TabsTrigger
                             value="tutor-board"
-                            className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
+                            className="flex items-center justify-center gap-2 rounded-full border-0 px-3 py-2 text-xs font-semibold transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)] data-[state=inactive]:shadow-[0_10px_24px_rgba(0,0,0,0.16)]"
                           >
                             Tutor Board
                           </TabsTrigger>
