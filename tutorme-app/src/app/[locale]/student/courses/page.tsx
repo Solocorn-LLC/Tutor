@@ -58,7 +58,6 @@ interface Course {
   estimatedHours: number
   tutorHandle?: string | null
   hasOutline?: boolean
-  maxStudents?: number | null
   _count: {
     modules: number
     lessons: number
@@ -370,7 +369,6 @@ function CoursePageInner() {
             description: e.course?.description || null,
             subject: e.course?.categories?.[0] || 'general',
             tutorHandle: e.course?.tutorHandle || null,
-            maxStudents: e.course?.maxStudents ?? 50,
             difficulty: 'All Levels',
             estimatedHours: 0,
             _count: {
@@ -395,9 +393,15 @@ function CoursePageInner() {
         })
 
         setCourses(mappedCourses)
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        console.error('Failed to load enrollments:', res.status, errData)
+        toast.error(errData?.error || 'Failed to load your courses. Please try again.')
+        setCourses([])
       }
     } catch (error) {
       console.error('Failed to load courses:', error)
+      toast.error('Failed to load your courses. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -1071,13 +1075,9 @@ function CourseCard({
           <div className="flex items-start gap-2">
             <div
               className="flex h-8 w-8 items-center justify-center rounded-md bg-[rgba(255,255,255,0.08)] text-slate-300"
-              title={course.maxStudents === 1 ? 'One-on-One course' : 'Group course'}
+              title="Group course"
             >
-              {course.maxStudents === 1 ? (
-                <User className="h-4 w-4" />
-              ) : (
-                <Users className="h-4 w-4" />
-              )}
+              <Users className="h-4 w-4" />
             </div>
             <Button
               variant="ghost"

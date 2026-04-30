@@ -280,7 +280,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         languageOfInstruction: course.languageOfInstruction,
         creatorId: course.creatorId,
         isLiveOnline: course.isLiveOnline,
-        maxStudents: course.maxStudents,
       })
       .from(course)
       .where(and(eq(course.courseId, templateCourseId), eq(course.creatorId, userId)))
@@ -531,7 +530,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 description: templateCourse.description ?? null,
                 scheduledAt: session.scheduledAt,
                 status: 'scheduled',
-                maxStudents: templateCourse.maxStudents ?? 50,
+                maxStudents: 50,
                 durationMinutes: session.durationMinutes,
                 roomId: room.id,
                 roomUrl: room.url,
@@ -555,7 +554,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 location: 'Online',
                 meetingUrl: room.url,
                 courseId: publishedCourseId,
-                maxAttendees: templateCourse.maxStudents ?? 50,
+                maxAttendees: 50,
                 createdBy: userId,
                 isCancelled: false,
                 externalId: liveSessionId,

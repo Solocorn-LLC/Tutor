@@ -41,7 +41,6 @@ export const course = pgTable(
     price: doublePrecision('price'),
     currency: text('currency'),
     isFree: boolean('isFree').notNull().default(false),
-    maxStudents: integer('maxStudents').default(50),
     schedule: jsonb('schedule'),
     deletedAt: timestamp('deletedAt', { withTimezone: true }),
   },
