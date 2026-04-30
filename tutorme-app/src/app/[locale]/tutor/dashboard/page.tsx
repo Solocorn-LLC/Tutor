@@ -839,7 +839,7 @@ function TutorDashboardContent() {
                               ) : (
                                 <Video className="mr-1 h-3 w-3" />
                               )}
-                              Launch
+                              Create session
                             </Button>
                             <Button asChild variant="outline" size="sm">
                               <Link
@@ -927,7 +927,7 @@ function TutorDashboardContent() {
                       ) : (
                         <Video className="mr-1 h-3 w-3" />
                       )}
-                      Launch Classroom
+                      Create session
                     </Button>
                   )}
                 </div>

@@ -42,6 +42,7 @@ interface DashboardCalendarProps {
 
 interface ClassItem {
   id: string
+  sessionId?: string | null
   title: string
   subject: string
   tutorName: string
@@ -140,6 +141,7 @@ export function DashboardCalendar({
         isBooked: true,
         status,
         meetingUrl: (ev as any).meetingUrl || null,
+        sessionId: (ev as any).sessionId || ev.id,
       }
     })
     // Reverse chronological: newest first
@@ -269,11 +271,13 @@ export function DashboardCalendar({
                         </div>
                       </div>
 
-                      {cls.meetingUrl ? (
+                      {cls.sessionId ? (
                         <Button
                           size="sm"
                           className="bg-emerald-600 text-white hover:bg-emerald-500"
-                          onClick={() => window.open(cls.meetingUrl!, '_blank')}
+                          onClick={() =>
+                            router.push(`/student/feedback?sessionId=${cls.sessionId}`)
+                          }
                         >
                           {cls.status === 'live' ? 'Join' : 'Enter'}
                         </Button>

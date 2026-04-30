@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -88,6 +89,7 @@ interface CalendarEvent {
   duration: number
   type: 'class' | 'office_hours' | 'personal' | 'deadline'
   status: 'scheduled' | 'live' | 'completed' | 'cancelled'
+  sessionId?: string
   studentCount?: number
   maxStudents?: number
   subject?: string
@@ -267,6 +269,13 @@ export function InteractiveCalendar({
   availabilityOnly = false,
 }: InteractiveCalendarProps) {
   const isStudent = mode === 'student'
+  const router = useRouter()
+  const params = useParams()
+  const locale = (params as any)?.locale as string | undefined
+  const withLocalePath = useCallback(
+    (path: string) => (locale ? `/${locale}${path}` : path),
+    [locale]
+  )
   const [events, setEvents] = useState<CalendarEvent[]>(
     initialEvents || (isStudent ? [] : generateDemoEvents())
   )
@@ -383,6 +392,7 @@ export function InteractiveCalendar({
             location: e.location,
             isOnline: e.isVirtual,
             description: e.meetingUrl,
+            sessionId: e.sessionId,
             color: e.status === 'live' ? 'bg-emerald-500' : e.status === 'ended' ? 'bg-slate-400' : 'bg-blue-500',
           }))
         )
@@ -1111,37 +1121,26 @@ export function InteractiveCalendar({
                   <Button variant="outline" onClick={() => setSelectedEvent(null)}>
                     Close
                   </Button>
-                  {selectedEvent.description &&
-                    typeof selectedEvent.description === 'string' &&
-                    selectedEvent.description.startsWith('http') && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          window.open(selectedEvent.description, '_blank')
-                          setSelectedEvent(null)
-                        }}
-                      >
-                        <Video className="mr-2 h-4 w-4" />
-                        Join Session
-                      </Button>
-                    )}
                   <Button
                     className="bg-gradient-to-r from-purple-600 to-blue-600"
                     onClick={() => {
-                      if (
-                        selectedEvent.description &&
-                        typeof selectedEvent.description === 'string' &&
-                        selectedEvent.description.startsWith('http')
-                      ) {
-                        window.open(selectedEvent.description, '_blank')
-                      } else {
-                        toast.success('Opening class...')
+                      if (!selectedEvent.sessionId) {
+                        toast.error('This event is not linked to a TutorMekimi session.')
+                        setSelectedEvent(null)
+                        return
                       }
+                      router.push(
+                        withLocalePath(
+                          isStudent
+                            ? `/student/feedback?sessionId=${selectedEvent.sessionId}`
+                            : `/tutor/insights?sessionId=${selectedEvent.sessionId}`
+                        )
+                      )
                       setSelectedEvent(null)
                     }}
                   >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Open
+                    <Video className="mr-2 h-4 w-4" />
+                    Open Session
                   </Button>
                 </DialogFooter>
               </>

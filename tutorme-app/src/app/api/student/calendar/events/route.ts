@@ -110,6 +110,7 @@ export const GET = withAuth(
     const merged = [
       ...calEvents.map(e => ({
         id: e.eventId,
+        sessionId: e.externalId,
         bookingId: e.eventId,
         title: e.title,
         subject: e.description || 'Class',
@@ -130,6 +131,7 @@ export const GET = withAuth(
         .filter(ls => !coveredExternalIds.has(ls.sessionId))
         .map(ls => ({
           id: ls.sessionId,
+          sessionId: ls.sessionId,
           bookingId: ls.sessionId,
           title: ls.title || 'Live Session',
           subject: ls.description || 'Class',
