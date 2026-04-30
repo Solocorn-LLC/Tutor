@@ -445,8 +445,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             minScheduledAt && maxScheduledAt
               ? tx
                   .select({
+                    sessionId: liveSession.sessionId,
                     scheduledAt: liveSession.scheduledAt,
                     durationMinutes: liveSession.durationMinutes,
+                    courseId: liveSession.courseId,
+                    roomUrl: liveSession.roomUrl,
                   })
                   .from(liveSession)
                   .where(
@@ -509,11 +512,65 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             const sessionStart = session.scheduledAt
             const sessionEnd = new Date(sessionStart.getTime() + session.durationMinutes * 60000)
 
-            const hasConflict =
-              existingLiveSessions.some(ls => overlaps(sessionStart, sessionEnd, ls)) ||
-              existingCalendarEvents.some(ce => overlaps(sessionStart, sessionEnd, ce))
+            const conflictingLs = existingLiveSessions.find(ls =>
+              overlaps(sessionStart, sessionEnd, ls)
+            )
+            const conflictingCe = existingCalendarEvents.find(ce =>
+              overlaps(sessionStart, sessionEnd, ce)
+            )
 
-            if (hasConflict) continue
+            if (conflictingCe) {
+              // Hard conflict with another CalendarEvent — skip
+              continue
+            }
+
+            if (conflictingLs) {
+              if (conflictingLs.courseId === publishedCourseId) {
+                // Same-course existing session: ensure it has a CalendarEvent
+                const [existingCe] = await tx
+                  .select({ eventId: calendarEvent.eventId })
+                  .from(calendarEvent)
+                  .where(
+                    and(
+                      eq(calendarEvent.externalId, conflictingLs.sessionId),
+                      isNull(calendarEvent.deletedAt)
+                    )
+                  )
+                  .limit(1)
+
+                if (!existingCe && conflictingLs.scheduledAt) {
+                  const lsEndTime = new Date(
+                    conflictingLs.scheduledAt.getTime() +
+                      (conflictingLs.durationMinutes || 60) * 60000
+                  )
+                  await tx.insert(calendarEvent).values({
+                    eventId: crypto.randomUUID(),
+                    tutorId: userId,
+                    title: session.title,
+                    description: templateCourse.description ?? null,
+                    type: 'LESSON',
+                    status: 'CONFIRMED',
+                    startTime: conflictingLs.scheduledAt,
+                    endTime: lsEndTime,
+                    timezone: 'UTC',
+                    isAllDay: false,
+                    isRecurring: false,
+                    isVirtual: true,
+                    location: 'Online',
+                    meetingUrl: conflictingLs.roomUrl,
+                    courseId: publishedCourseId,
+                    maxAttendees: 50,
+                    createdBy: userId,
+                    isCancelled: false,
+                    externalId: conflictingLs.sessionId,
+                  })
+                }
+                continue
+              } else {
+                // Conflict with a different course — skip
+                continue
+              }
+            }
 
             try {
               const liveSessionId = crypto.randomUUID()

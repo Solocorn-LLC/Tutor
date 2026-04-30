@@ -85,7 +85,7 @@ export function DashboardCalendar({
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
-  const monthEnd = useMemo(() => new Date(month.getFullYear(), month.getMonth() + 1, 0), [month])
+  const monthEnd = useMemo(() => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59), [month])
 
   // Fetch calendar events
   useEffect(() => {

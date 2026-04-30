@@ -1,15 +1,15 @@
 /**
  * GET /api/student/calendar/events
  * Returns calendar events for the current student.
- * Queries CalendarEvent joined with CourseEnrollment to show sessions
- * for courses the student is enrolled in.
+ * Queries CalendarEvent joined with CourseEnrollment, and also queries
+ * LiveSession directly as a fallback for courses that don't have CalendarEvent rows.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarEvent, courseEnrollment, profile, liveSession } from '@/lib/db/schema'
-import { eq, and, gte, lte, inArray } from 'drizzle-orm'
+import { eq, and, gte, lte, inArray, isNull } from 'drizzle-orm'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -37,19 +37,21 @@ export const GET = withAuth(
       return NextResponse.json({ events: [] })
     }
 
-    const filters = [
+    // --- Primary source: CalendarEvent ---
+    const calFilters = [
       inArray(calendarEvent.courseId, courseIds),
       eq(calendarEvent.isCancelled, false),
+      isNull(calendarEvent.deletedAt),
     ]
 
     if (startParam) {
-      filters.push(gte(calendarEvent.startTime, startDate))
+      calFilters.push(gte(calendarEvent.startTime, startDate))
     }
     if (endParam) {
-      filters.push(lte(calendarEvent.startTime, endDate))
+      calFilters.push(lte(calendarEvent.startTime, endDate))
     }
 
-    const events = await drizzleDb
+    const calEvents = await drizzleDb
       .select({
         eventId: calendarEvent.eventId,
         title: calendarEvent.title,
@@ -67,11 +69,89 @@ export const GET = withAuth(
       })
       .from(calendarEvent)
       .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
-      .where(and(...filters))
+      .where(and(...calFilters))
       .orderBy(calendarEvent.startTime)
 
+    // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
+    const lsFilters = [
+      inArray(liveSession.courseId, courseIds),
+      inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
+    ]
+
+    if (startParam) {
+      lsFilters.push(gte(liveSession.scheduledAt, startDate))
+    }
+    if (endParam) {
+      lsFilters.push(lte(liveSession.scheduledAt, endDate))
+    }
+
+    const liveSessions = await drizzleDb
+      .select({
+        sessionId: liveSession.sessionId,
+        title: liveSession.title,
+        description: liveSession.description,
+        scheduledAt: liveSession.scheduledAt,
+        status: liveSession.status,
+        roomUrl: liveSession.roomUrl,
+        courseId: liveSession.courseId,
+        durationMinutes: liveSession.durationMinutes,
+        tutorId: liveSession.tutorId,
+      })
+      .from(liveSession)
+      .where(and(...lsFilters))
+      .orderBy(liveSession.scheduledAt)
+
+    // Build a set of externalIds already covered by CalendarEvent to avoid duplicates
+    const coveredExternalIds = new Set(
+      calEvents.map(e => e.externalId).filter(Boolean) as string[]
+    )
+
+    // Merge fallback LiveSessions that aren't already covered
+    const merged = [
+      ...calEvents.map(e => ({
+        id: e.eventId,
+        bookingId: e.eventId,
+        title: e.title,
+        subject: e.description || 'Class',
+        start: e.startTime?.toISOString() ?? new Date().toISOString(),
+        end: e.endTime?.toISOString() ?? new Date().toISOString(),
+        duration:
+          e.endTime && e.startTime
+            ? Math.round((new Date(e.endTime).getTime() - new Date(e.startTime).getTime()) / 60000)
+            : 60,
+        type: 'class' as const,
+        tutorId: e.tutorId,
+        meetingUrl: e.meetingUrl,
+        location: e.location,
+        isVirtual: e.isVirtual,
+        status: e.sessionStatus || 'scheduled',
+      })),
+      ...liveSessions
+        .filter(ls => !coveredExternalIds.has(ls.sessionId))
+        .map(ls => ({
+          id: ls.sessionId,
+          bookingId: ls.sessionId,
+          title: ls.title || 'Live Session',
+          subject: ls.description || 'Class',
+          start: ls.scheduledAt?.toISOString() ?? new Date().toISOString(),
+          end: ls.scheduledAt
+            ? new Date(ls.scheduledAt.getTime() + (ls.durationMinutes || 60) * 60000).toISOString()
+            : new Date().toISOString(),
+          duration: ls.durationMinutes || 60,
+          type: 'class' as const,
+          tutorId: ls.tutorId,
+          meetingUrl: ls.roomUrl,
+          location: 'Online',
+          isVirtual: true,
+          status: ls.status,
+        })),
+    ]
+
+    // Sort by start time
+    merged.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+
     // Fetch tutor names from profile
-    const tutorIds = [...new Set(events.map(e => e.tutorId).filter(Boolean))]
+    const tutorIds = [...new Set(merged.map(e => e.tutorId).filter(Boolean))]
     const tutorProfiles =
       tutorIds.length > 0
         ? await drizzleDb
@@ -82,29 +162,10 @@ export const GET = withAuth(
 
     const tutorMap = new Map(tutorProfiles.map(t => [t.userId, t.name]))
 
-    const formatted = events.map(e => {
-      const durationMs =
-        e.endTime && e.startTime
-          ? new Date(e.endTime).getTime() - new Date(e.startTime).getTime()
-          : 3600000
-      const durationMinutes = Math.round(durationMs / 60000)
-
-      return {
-        id: e.eventId,
-        bookingId: e.eventId,
-        title: e.title,
-        subject: e.description || 'Class',
-        start: e.startTime?.toISOString() ?? new Date().toISOString(),
-        end: e.endTime?.toISOString() ?? new Date().toISOString(),
-        duration: durationMinutes,
-        type: 'class' as const,
-        tutorName: e.tutorId ? (tutorMap.get(e.tutorId) ?? 'Tutor') : 'Tutor',
-        meetingUrl: e.meetingUrl,
-        location: e.location,
-        isVirtual: e.isVirtual,
-        status: e.sessionStatus || 'scheduled',
-      }
-    })
+    const formatted = merged.map(e => ({
+      ...e,
+      tutorName: e.tutorId ? (tutorMap.get(e.tutorId) ?? 'Tutor') : 'Tutor',
+    }))
 
     return NextResponse.json({ events: formatted })
   },
