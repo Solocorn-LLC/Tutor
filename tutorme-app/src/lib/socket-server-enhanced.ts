@@ -1083,6 +1083,47 @@ export async function initEnhancedSocketServer(server: NetServer) {
     )
 
     socket.on(
+      'student:whiteboard:update',
+      (data: { roomId: string; board: { pages: unknown[]; pageIndex: number; updatedAt?: number } }) => {
+        if (socket.data.role !== 'student') return
+        const { roomId, board } = data || ({} as any)
+        if (!roomId || !board) return
+
+        let room = activeRooms.get(roomId)
+        if (!room) {
+          room = {
+            id: roomId,
+            tutorId: '',
+            students: new Map(),
+            chatHistory: [],
+            tasks: [],
+            polls: [],
+            whiteboardData: undefined,
+            codeEditorContent: '',
+            codeLanguage: 'javascript',
+            createdAt: new Date(),
+            lastActivity: Date.now(),
+          }
+          activeRooms.set(roomId, room)
+        }
+
+        room.lastActivity = Date.now()
+        const studentId = socket.data.userId
+        const existing = (room.whiteboardData || {}) as Record<string, unknown>
+        const studentBoards = (existing.studentBoards || {}) as Record<string, typeof board>
+        room.whiteboardData = {
+          ...existing,
+          studentBoards: {
+            ...studentBoards,
+            [studentId]: board,
+          },
+        }
+        void persistRoomToRedis(roomId, room)
+        io.to(roomId).emit('student:whiteboard:update', { studentId, ...board })
+      }
+    )
+
+    socket.on(
       'insight:send',
       async (data: {
         roomId: string

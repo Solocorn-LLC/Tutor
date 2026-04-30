@@ -312,6 +312,7 @@ export interface CourseBuilderInsightsProps {
   endingSession?: boolean
   socket?: any
   tutorId?: string
+  studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
 }
 
 export interface CourseBuilderProps {

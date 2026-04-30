@@ -613,6 +613,36 @@ function StudentFeedbackContent() {
     socket.emit('student:state_sync', { roomId: selectedSessionId, payload })
   }, [socket, selectedSessionId, activeTab, activeTaskId])
 
+  // Sync student whiteboard to tutor when mirroring is enabled
+  const studentBoardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    if (!isMirroringToTutor) return
+
+    if (studentBoardSyncTimeoutRef.current) {
+      clearTimeout(studentBoardSyncTimeoutRef.current)
+    }
+
+    const payload = {
+      pages: myBoardPages,
+      pageIndex: myBoardPageIndex,
+      updatedAt: Date.now(),
+    }
+
+    studentBoardSyncTimeoutRef.current = setTimeout(() => {
+      socket.emit('student:whiteboard:update', {
+        roomId: selectedSessionId,
+        board: payload,
+      })
+    }, 150)
+
+    return () => {
+      if (studentBoardSyncTimeoutRef.current) {
+        clearTimeout(studentBoardSyncTimeoutRef.current)
+      }
+    }
+  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex, isMirroringToTutor])
+
   useEffect(() => {
     if (!socket) return
 

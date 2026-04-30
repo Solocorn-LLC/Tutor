@@ -64,4 +64,5 @@ export interface CourseBuilderInsightsProps {
   onToggleRecording?: () => void
   socket?: any
   tutorId?: string
+  studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
 }

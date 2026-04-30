@@ -52,6 +52,9 @@ function TutorInsightsPageInner() {
   const [sessionCategory, setSessionCategory] = useState<string | null>(null)
   const [sessionNationality, setSessionNationality] = useState<string | null>(null)
   const [liveTasks, setLiveTasks] = useState<LiveTask[]>([])
+  const [studentBoards, setStudentBoards] = useState<
+    Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
+  >({})
   const [students, setStudents] = useState<LiveStudent[]>([])
   const [metrics, setMetrics] = useState<EngagementMetrics | null>(null)
   const [classDuration, setClassDuration] = useState(0)
@@ -587,6 +590,7 @@ function TutorInsightsPageInner() {
 
   useEffect(() => {
     setLiveTasks([])
+    setStudentBoards({})
   }, [sessionId])
 
   const socketOptions = useMemo(() => {
@@ -596,9 +600,12 @@ function TutorInsightsPageInner() {
       userId: session.user.id,
       name: session.user.name || 'Tutor',
       role: 'tutor' as const,
-      onRoomState: (state: { tasks?: LiveTask[] }) => {
+      onRoomState: (state: { tasks?: LiveTask[]; whiteboardData?: any }) => {
         if (state.tasks) {
           setLiveTasks(state.tasks)
+        }
+        if (state.whiteboardData?.studentBoards) {
+          setStudentBoards(state.whiteboardData.studentBoards)
         }
       },
     }
@@ -666,12 +673,30 @@ function TutorInsightsPageInner() {
       toast.error(data.error || 'Cannot deploy right now')
     }
 
+    const handleStudentWhiteboardUpdate = (data: {
+      studentId: string
+      pages?: unknown[]
+      pageIndex?: number
+      updatedAt?: number
+    }) => {
+      if (!data?.studentId) return
+      setStudentBoards(prev => ({
+        ...prev,
+        [data.studentId]: {
+          pages: data.pages ?? [],
+          pageIndex: typeof data.pageIndex === 'number' ? data.pageIndex : 0,
+          updatedAt: data.updatedAt,
+        },
+      }))
+    }
+
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('session:ending-soon', handleSessionEndingSoon)
     socket.on('session:ended', handleSessionEnded)
     socket.on('task:deploy:error', handleDeployError)
     socket.on('insight:send:error', handleDeployError)
+    socket.on('student:whiteboard:update', handleStudentWhiteboardUpdate)
 
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
@@ -680,6 +705,7 @@ function TutorInsightsPageInner() {
       socket.off('session:ended', handleSessionEnded)
       socket.off('task:deploy:error', handleDeployError)
       socket.off('insight:send:error', handleDeployError)
+      socket.off('student:whiteboard:update', handleStudentWhiteboardUpdate)
     }
   }, [socket, sessionId, endingAlertShown, handleStopRecording])
 
@@ -886,6 +912,7 @@ function TutorInsightsPageInner() {
           recordingDuration: recordingDurationSeconds,
           onToggleRecording: handleToggleRecording,
           socket,
+          studentBoards,
           tutorId: session?.user?.id,
         }}
         sessionCategory={sessionCategory}

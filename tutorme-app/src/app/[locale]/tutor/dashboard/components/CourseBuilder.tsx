@@ -7506,6 +7506,9 @@ FEEDBACK: [your explanation]`
                                         {(() => {
                                           if (mainTab === 'live' && tab.id === 'student1') {
                                             if (monitorSelectedStudent) {
+                                              const studentBoard = insightsProps?.studentBoards?.[monitorSelectedStudent.id]
+                                              const studentPages = (studentBoard?.pages as WhiteboardPages) || createDefaultWhiteboardPages()
+                                              const studentPageIndex = typeof studentBoard?.pageIndex === 'number' ? studentBoard.pageIndex : 0
                                               return (
                                                 <Dialog
                                                   open
@@ -7536,10 +7539,9 @@ FEEDBACK: [your explanation]`
                                                       <div className="min-h-0 flex-1">
                                                         <EnhancedWhiteboard
                                                           videoOverlay={false}
-                                                          pages={tutorBoardPages}
-                                                          currentPageIndex={tutorBoardPageIndex}
-                                                          onPagesChange={setTutorBoardPages}
-                                                          onPageIndexChange={setTutorBoardPageIndex}
+                                                          pages={studentPages}
+                                                          currentPageIndex={studentPageIndex}
+                                                          readOnly
                                                         />
                                                       </div>
                                                     </div>
