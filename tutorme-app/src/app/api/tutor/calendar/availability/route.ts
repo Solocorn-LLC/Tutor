@@ -153,6 +153,7 @@ export const POST = withAuth(
           .returning()
         availability = updated
       } else {
+        const now = new Date()
         const [created] = await drizzleDb
           .insert(calendarAvailability)
           .values({
@@ -165,6 +166,8 @@ export const POST = withAuth(
             isAvailable: data.isAvailable,
             validFrom: data.validFrom ? new Date(data.validFrom) : null,
             validUntil: data.validUntil ? new Date(data.validUntil) : null,
+            createdAt: now,
+            updatedAt: now,
           })
           .returning()
         availability = created
@@ -179,10 +182,10 @@ export const POST = withAuth(
         )
       }
 
-      console.error('Create availability error:', error)
+      console.error('Save availability error:', error)
       return handleApiError(
         error,
-        'Failed to create availability',
+        'Failed to save availability',
         'api/tutor/calendar/availability/route.ts'
       )
     }
