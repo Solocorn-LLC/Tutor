@@ -600,6 +600,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         strokes: [],
         texts: [],
         shapes: [],
+        formulas: [],
+        graphs: [],
         backgroundColor: '#ffffff',
         backgroundStyle: 'solid',
       },

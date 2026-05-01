@@ -67,6 +67,8 @@ const createDefaultWhiteboardPages = (): WhiteboardPages => [
     strokes: [],
     texts: [],
     shapes: [],
+    formulas: [],
+    graphs: [],
     backgroundColor: '#ffffff',
     backgroundStyle: 'solid',
   },

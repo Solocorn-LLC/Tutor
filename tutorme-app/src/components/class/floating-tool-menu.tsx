@@ -15,6 +15,8 @@ import {
   Minus,
   ArrowUpRight,
   ChevronLeft,
+  Sigma,
+  TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -156,6 +158,10 @@ export function FloatingToolMenu({
         return <Type className="h-6 w-6" />
       case 'select':
         return <MousePointer2 className="h-6 w-6" />
+      case 'formula':
+        return <Sigma className="h-6 w-6" />
+      case 'graph':
+        return <TrendingUp className="h-6 w-6" />
       default:
         return <Pencil className="h-6 w-6" />
     }
@@ -320,6 +326,18 @@ export function FloatingToolMenu({
             label: 'Select',
             action: () => onToolChange('select'),
             active: currentTool === 'select',
+          },
+          {
+            icon: <Sigma className="h-5 w-5" />,
+            label: 'Formula',
+            action: () => onToolChange('formula'),
+            active: currentTool === 'formula',
+          },
+          {
+            icon: <TrendingUp className="h-5 w-5" />,
+            label: 'Graph',
+            action: () => onToolChange('graph'),
+            active: currentTool === 'graph',
           },
         ]
     }

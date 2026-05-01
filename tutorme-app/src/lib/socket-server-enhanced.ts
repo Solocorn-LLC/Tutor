@@ -23,7 +23,7 @@ import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket
 import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
-import type { StrokeDelta, ShapeDelta, TextDelta, CursorDelta } from './socket/whiteboard-delta'
+import type { StrokeDelta, ShapeDelta, TextDelta, CursorDelta, FormulaDelta, GraphDelta } from './socket/whiteboard-delta'
 
 // Types from original socket-server.ts
 export type StudentStatus = 'on_track' | 'needs_help' | 'struggling' | 'idle'
@@ -1205,6 +1205,42 @@ export async function initEnhancedSocketServer(server: NetServer) {
     )
 
     socket.on(
+      'whiteboard:formula:add',
+      (data: { roomId: string; formula: FormulaDelta }) => {
+        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+        const { roomId, formula } = data || ({} as any)
+        if (!roomId || !formula) return
+
+        const room = activeRooms.get(roomId)
+        if (!room) return
+
+        room.lastActivity = Date.now()
+        const wb = (room.whiteboardData || {}) as Record<string, unknown>
+        const formulas = (wb.formulas || []) as FormulaDelta[]
+        room.whiteboardData = { ...wb, formulas: [...formulas, formula] }
+        io.to(roomId).emit('whiteboard:formula:added', formula)
+      }
+    )
+
+    socket.on(
+      'whiteboard:graph:add',
+      (data: { roomId: string; graph: GraphDelta }) => {
+        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+        const { roomId, graph } = data || ({} as any)
+        if (!roomId || !graph) return
+
+        const room = activeRooms.get(roomId)
+        if (!room) return
+
+        room.lastActivity = Date.now()
+        const wb = (room.whiteboardData || {}) as Record<string, unknown>
+        const graphs = (wb.graphs || []) as GraphDelta[]
+        room.whiteboardData = { ...wb, graphs: [...graphs, graph] }
+        io.to(roomId).emit('whiteboard:graph:added', graph)
+      }
+    )
+
+    socket.on(
       'whiteboard:page:clear',
       (data: { roomId: string; pageIndex: number }) => {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
@@ -1219,11 +1255,15 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const strokes = ((wb.strokes || []) as StrokeDelta[]).filter(s => s.pageIndex !== pageIndex)
         const shapes = ((wb.shapes || []) as ShapeDelta[]).filter(s => s.pageIndex !== pageIndex)
         const texts = ((wb.texts || []) as TextDelta[]).filter(t => t.pageIndex !== pageIndex)
+        const formulas = ((wb.formulas || []) as FormulaDelta[]).filter(f => f.pageIndex !== pageIndex)
+        const graphs = ((wb.graphs || []) as GraphDelta[]).filter(g => g.pageIndex !== pageIndex)
         room.whiteboardData = {
           ...wb,
           strokes,
           shapes,
           texts,
+          formulas,
+          graphs,
         }
         io.to(roomId).emit('whiteboard:page:cleared', { pageIndex })
       }

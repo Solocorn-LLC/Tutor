@@ -55,6 +55,34 @@ export interface CursorDelta {
   pageIndex: number
 }
 
+export interface FormulaDelta {
+  id: string
+  latex: string
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  scale: number
+  svgDataUrl?: string
+  userId: string
+  pageIndex: number
+}
+
+export interface GraphDelta {
+  id: string
+  expression: string
+  color: string
+  lineWidth: number
+  xMin: number
+  xMax: number
+  yMin?: number
+  yMax?: number
+  samples?: number
+  userId: string
+  pageIndex: number
+}
+
 export interface WhiteboardBatchDelta {
   roomId: string
   strokes?: StrokeDelta[]

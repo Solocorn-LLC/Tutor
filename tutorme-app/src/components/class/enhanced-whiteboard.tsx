@@ -23,6 +23,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { TeachingAssistant } from './teaching-assistant'
 import { FloatingToolMenu } from './floating-tool-menu'
+import { GraphDialog } from './graph-dialog'
+import { LatexFormulaDialog } from './latex-formula-dialog'
+import { sampleGraph, drawGraphOnCanvas, svgToDataUrl } from '@/lib/whiteboard/math-render'
 import {
   Plus,
   Trash2,
@@ -59,6 +62,7 @@ import {
   ChevronUp,
   ChevronDown,
   Maximize2,
+  Magnet,
 } from 'lucide-react'
 
 interface Point {
@@ -117,14 +121,40 @@ interface Stroke {
   type: 'pen' | 'eraser'
 }
 
+interface FormulaElement {
+  id: string
+  latex: string
+  x: number
+  y: number
+  width: number
+  height: number
+  color: string
+  scale: number
+  svgDataUrl: string
+}
+
+interface GraphElement {
+  id: string
+  expression: string
+  color: string
+  lineWidth: number
+  xMin: number
+  xMax: number
+  yMin?: number
+  yMax?: number
+  samples?: number
+}
+
 interface Page {
   id: string
   name: string
   strokes: Stroke[]
   texts: TextElement[]
   shapes: ShapeElement[]
+  formulas: FormulaElement[]
+  graphs: GraphElement[]
   backgroundColor: string
-  backgroundStyle: 'solid' | 'grid' | 'dots' | 'lines'
+  backgroundStyle: 'solid' | 'grid' | 'dots' | 'lines' | 'coordinate-plane'
   backgroundImage?: string
 }
 
@@ -137,7 +167,7 @@ interface Asset {
 }
 
 interface SelectedObject {
-  type: 'text' | 'shape' | 'stroke'
+  type: 'text' | 'shape' | 'stroke' | 'formula' | 'graph'
   id: string
   x: number
   y: number
@@ -234,6 +264,8 @@ export function EnhancedWhiteboard({
       strokes: [],
       texts: [],
       shapes: [],
+      formulas: [],
+      graphs: [],
       backgroundColor: '#ffffff',
       backgroundStyle: 'solid',
     },
@@ -314,6 +346,8 @@ export function EnhancedWhiteboard({
     | 'triangle'
     | 'select'
     | 'marquee-zoom'
+    | 'formula'
+    | 'graph'
   >('pen')
 
   // Line drawing state
@@ -369,6 +403,15 @@ export function EnhancedWhiteboard({
   const [isDraggingVideo, setIsDraggingVideo] = useState(false)
   const [videoDragOffset, setVideoDragOffset] = useState({ x: 0, y: 0 })
   const [showTeachingAssistant, setShowTeachingAssistant] = useState(false)
+
+  // Math tools state
+  const [showGraphDialog, setShowGraphDialog] = useState(false)
+  const [showFormulaDialog, setShowFormulaDialog] = useState(false)
+  const [snapToGrid, setSnapToGrid] = useState(false)
+  const gridStep = 20
+
+  // Formula image cache (SVG data URL -> Image)
+  const formulaImageCache = useRef<Map<string, HTMLImageElement>>(new Map())
 
   // Real-time collaboration state
   const [remoteCursors, setRemoteCursors] = useState<Map<string, CursorDelta>>(new Map())
@@ -509,6 +552,8 @@ export function EnhancedWhiteboard({
 
     currentPage.shapes.forEach(shape => drawShape(ctx, shape))
     currentPage.texts.forEach(text => drawTextElement(ctx, text))
+    currentPage.formulas.forEach(formula => drawFormulaElement(ctx, formula))
+    currentPage.graphs.forEach(graph => drawGraphElement(ctx, graph))
 
     if (currentStroke.length > 0) {
       if (tool === 'eraser') drawEraserStroke(ctx, currentStroke, lineWidth)
@@ -635,6 +680,79 @@ export function EnhancedWhiteboard({
           ctx.stroke()
         }
         break
+      case 'coordinate-plane': {
+        const isDark = bgColor !== '#ffffff' && bgColor !== '#fef3c7'
+        const axisColor = isDark ? '#ffffff' : '#1f2937'
+        const minorColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'
+        const labelColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'
+        const gridStep = 50
+
+        // Minor grid lines
+        ctx.strokeStyle = minorColor
+        ctx.lineWidth = 1
+        const gsX = Math.floor(viewport.left / gridStep) * gridStep
+        const geX = Math.ceil(viewport.right / gridStep) * gridStep
+        const gsY = Math.floor(viewport.top / gridStep) * gridStep
+        const geY = Math.ceil(viewport.bottom / gridStep) * gridStep
+
+        for (let x = gsX; x <= geX; x += gridStep) {
+          if (x === 0) continue
+          ctx.beginPath()
+          ctx.moveTo(x, gsY)
+          ctx.lineTo(x, geY)
+          ctx.stroke()
+        }
+        for (let y = gsY; y <= geY; y += gridStep) {
+          if (y === 0) continue
+          ctx.beginPath()
+          ctx.moveTo(gsX, y)
+          ctx.lineTo(geX, y)
+          ctx.stroke()
+        }
+
+        // Axes
+        ctx.strokeStyle = axisColor
+        ctx.lineWidth = 2
+        // X-axis
+        if (viewport.top <= 0 && viewport.bottom >= 0) {
+          ctx.beginPath()
+          ctx.moveTo(viewport.left, 0)
+          ctx.lineTo(viewport.right, 0)
+          ctx.stroke()
+        }
+        // Y-axis
+        if (viewport.left <= 0 && viewport.right >= 0) {
+          ctx.beginPath()
+          ctx.moveTo(0, viewport.top)
+          ctx.lineTo(0, viewport.bottom)
+          ctx.stroke()
+        }
+
+        // Tick labels
+        ctx.fillStyle = labelColor
+        ctx.font = `${12 / scale}px sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'top'
+
+        for (let x = gsX; x <= geX; x += gridStep) {
+          if (x === 0) continue
+          if (x < viewport.left || x > viewport.right) continue
+          // X-axis tick label (place near x-axis or bottom of viewport)
+          const labelY = viewport.top <= 0 && viewport.bottom >= 0 ? 4 / scale : viewport.bottom - 16 / scale
+          ctx.fillText(String(Math.round(x)), x, labelY)
+        }
+
+        ctx.textAlign = 'right'
+        ctx.textBaseline = 'middle'
+        for (let y = gsY; y <= geY; y += gridStep) {
+          if (y === 0) continue
+          if (y < viewport.top || y > viewport.bottom) continue
+          // Y-axis tick label
+          const labelX = viewport.left <= 0 && viewport.right >= 0 ? -4 / scale : viewport.left + 4 / scale
+          ctx.fillText(String(Math.round(-y)), labelX, y)
+        }
+        break
+      }
     }
   }
 
@@ -756,6 +874,37 @@ export function EnhancedWhiteboard({
     }
   }
 
+  const drawFormulaElement = (ctx: CanvasRenderingContext2D, formula: FormulaElement) => {
+    const cached = formulaImageCache.current.get(formula.svgDataUrl)
+    if (cached && cached.complete) {
+      ctx.drawImage(cached, formula.x, formula.y, formula.width * formula.scale, formula.height * formula.scale)
+      return
+    }
+    // Load and cache
+    const img = new Image()
+    img.onload = () => {
+      formulaImageCache.current.set(formula.svgDataUrl, img)
+      redrawCanvas()
+    }
+    img.src = formula.svgDataUrl
+    // Fallback: draw placeholder rectangle
+    ctx.strokeStyle = formula.color
+    ctx.lineWidth = 1
+    ctx.strokeRect(formula.x, formula.y, formula.width * formula.scale, formula.height * formula.scale)
+  }
+
+  const drawGraphElement = (ctx: CanvasRenderingContext2D, graph: GraphElement) => {
+    const points = sampleGraph({
+      expression: graph.expression,
+      xMin: graph.xMin,
+      xMax: graph.xMax,
+      yMin: graph.yMin,
+      yMax: graph.yMax,
+      samples: graph.samples ?? 500,
+    })
+    drawGraphOnCanvas(ctx, points, graph.color, graph.lineWidth)
+  }
+
   const drawSelectionHighlight = (ctx: CanvasRenderingContext2D, selected: SelectedObject) => {
     ctx.strokeStyle = '#3b82f6'
     ctx.lineWidth = 2 / scale
@@ -795,14 +944,16 @@ export function EnhancedWhiteboard({
     ctx.restore()
   }
 
-  const screenToCanvas = (screenX: number, screenY: number): Point => {
+  const snap = (v: number): number => Math.round(v / gridStep) * gridStep
+
+  const screenToCanvas = (screenX: number, screenY: number, shouldSnap = snapToGrid): Point => {
     const container = containerRef.current
     if (!container) return { x: 0, y: 0 }
     const rect = container.getBoundingClientRect()
-    return {
-      x: (screenX - rect.left - pan.x) / scale,
-      y: (screenY - rect.top - pan.y) / scale,
-    }
+    const x = (screenX - rect.left - pan.x) / scale
+    const y = (screenY - rect.top - pan.y) / scale
+    if (!shouldSnap) return { x, y }
+    return { x: snap(x), y: snap(y) }
   }
 
   const hitTest = (point: Point): SelectedObject | null => {
@@ -857,6 +1008,54 @@ export function EnhancedWhiteboard({
             y: shape.y,
             width: shape.width,
             height: shape.height,
+          }
+        }
+      }
+    }
+
+    for (let i = currentPage.formulas.length - 1; i >= 0; i--) {
+      const formula = currentPage.formulas[i]
+      const w = formula.width * formula.scale
+      const h = formula.height * formula.scale
+      if (
+        point.x >= formula.x &&
+        point.x <= formula.x + w &&
+        point.y >= formula.y &&
+        point.y <= formula.y + h
+      ) {
+        return {
+          type: 'formula',
+          id: formula.id,
+          x: formula.x,
+          y: formula.y,
+          width: w,
+          height: h,
+        }
+      }
+    }
+
+    for (let i = currentPage.graphs.length - 1; i >= 0; i--) {
+      const graph = currentPage.graphs[i]
+      // Graph hit test: check if point is within the graph's domain and near any sample
+      if (point.x >= graph.xMin && point.x <= graph.xMax) {
+        const samples = sampleGraph({
+          expression: graph.expression,
+          xMin: graph.xMin,
+          xMax: graph.xMax,
+          yMin: graph.yMin,
+          yMax: graph.yMax,
+          samples: 100,
+        })
+        for (const s of samples) {
+          if (s.y !== null && Math.abs(s.y - point.y) < 15) {
+            return {
+              type: 'graph',
+              id: graph.id,
+              x: graph.xMin,
+              y: (graph.yMin ?? -10),
+              width: graph.xMax - graph.xMin,
+              height: ((graph.yMax ?? 10) - (graph.yMin ?? -10)),
+            }
           }
         }
       }
@@ -1037,6 +1236,16 @@ export function EnhancedWhiteboard({
       })
       // Also clear any existing overlays
       setTextOverlays(prev => prev.filter(o => o.text.trim()))
+      return
+    }
+
+    if (tool === 'formula') {
+      setShowFormulaDialog(true)
+      return
+    }
+
+    if (tool === 'graph') {
+      setShowGraphDialog(true)
       return
     }
 
@@ -1365,6 +1574,8 @@ export function EnhancedWhiteboard({
       strokes: [],
       texts: [],
       shapes: [],
+      formulas: [],
+      graphs: [],
       backgroundColor: '#ffffff',
       backgroundStyle: 'solid',
     }
@@ -1403,12 +1614,26 @@ export function EnhancedWhiteboard({
         ...currentPage,
         strokes: currentPage.strokes.filter(s => s.id !== selectedObject.id),
       })
+    } else if (selectedObject.type === 'formula') {
+      updateCurrentPage({
+        ...currentPage,
+        formulas: currentPage.formulas.filter(f => f.id !== selectedObject.id),
+      })
+    } else if (selectedObject.type === 'graph') {
+      updateCurrentPage({
+        ...currentPage,
+        graphs: currentPage.graphs.filter(g => g.id !== selectedObject.id),
+      })
     }
     setSelectedObject(null)
   }
 
   const undoLast = () => {
-    if (currentPage.shapes.length > 0) {
+    if (currentPage.graphs.length > 0) {
+      updateCurrentPage({ ...currentPage, graphs: currentPage.graphs.slice(0, -1) })
+    } else if (currentPage.formulas.length > 0) {
+      updateCurrentPage({ ...currentPage, formulas: currentPage.formulas.slice(0, -1) })
+    } else if (currentPage.shapes.length > 0) {
       updateCurrentPage({ ...currentPage, shapes: currentPage.shapes.slice(0, -1) })
     } else if (currentPage.strokes.length > 0) {
       updateCurrentPage({ ...currentPage, strokes: currentPage.strokes.slice(0, -1) })
@@ -1416,9 +1641,9 @@ export function EnhancedWhiteboard({
   }
 
   const clearPage = () => {
-    updateCurrentPage({ ...currentPage, strokes: [], texts: [], shapes: [] })
+    updateCurrentPage({ ...currentPage, strokes: [], texts: [], shapes: [], formulas: [], graphs: [] })
     if (socket && roomId) {
-      socket.emit('whiteboard:page:clear', { roomId })
+      socket.emit('whiteboard:page:clear', { roomId, pageIndex: currentPageIndex })
     }
     setSelectedObject(null)
     setTextOverlays([])
@@ -1434,6 +1659,69 @@ export function EnhancedWhiteboard({
   const updateBackground = (bgColor: string, style: Page['backgroundStyle']) => {
     updateCurrentPage({ ...currentPage, backgroundColor: bgColor, backgroundStyle: style })
     setShowBackgroundPanel(false)
+  }
+
+  const handlePlaceFormula = async (options: { latex: string; scale: number; color: string }) => {
+    try {
+      const res = await fetch('/api/whiteboard/render-formula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latex: options.latex, display: true }),
+      })
+      if (!res.ok) throw new Error('Render failed')
+      const data = await res.json()
+      const svgDataUrl = svgToDataUrl(data.svg)
+
+      // Place at viewport center
+      const container = containerRef.current
+      const cx = container ? (container.clientWidth / 2 - pan.x) / scale : 200
+      const cy = container ? (container.clientHeight / 2 - pan.y) / scale : 200
+
+      const formula: FormulaElement = {
+        id: `formula-${Date.now()}`,
+        latex: options.latex,
+        x: cx - (data.width * options.scale) / 2,
+        y: cy - (data.height * options.scale) / 2,
+        width: data.width,
+        height: data.height,
+        color: options.color,
+        scale: options.scale,
+        svgDataUrl,
+      }
+
+      updateCurrentPage({ ...currentPage, formulas: [...currentPage.formulas, formula] })
+      if (socket && roomId) {
+        socket.emit('whiteboard:formula:add', { roomId, formula })
+      }
+    } catch (err) {
+      console.error('Failed to place formula:', err)
+    }
+  }
+
+  const handlePlotGraph = (options: {
+    expression: string
+    color: string
+    lineWidth: number
+    xMin: number
+    xMax: number
+    yMin?: number
+    yMax?: number
+  }) => {
+    const graph: GraphElement = {
+      id: `graph-${Date.now()}`,
+      expression: options.expression,
+      color: options.color,
+      lineWidth: options.lineWidth,
+      xMin: options.xMin,
+      xMax: options.xMax,
+      yMin: options.yMin,
+      yMax: options.yMax,
+      samples: 500,
+    }
+    updateCurrentPage({ ...currentPage, graphs: [...currentPage.graphs, graph] })
+    if (socket && roomId) {
+      socket.emit('whiteboard:graph:add', { roomId, graph })
+    }
   }
 
   // Handle inline text input key presses
@@ -1553,12 +1841,32 @@ export function EnhancedWhiteboard({
       })
     }
 
-    const handlePageCleared = (_data: { roomId: string }) => {
+    const handleFormulaAdded = (data: { formula: FormulaElement }) => {
       const idx = currentPageIndexRef.current
       const currentPages = pagesRef.current
       if (idx < 0 || idx >= currentPages.length) return
       const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], strokes: [], texts: [], shapes: [] }
+      newPages[idx] = { ...newPages[idx], formulas: [...newPages[idx].formulas, data.formula] }
+      setInternalPages(newPages)
+      onPagesChange?.(newPages)
+    }
+
+    const handleGraphAdded = (data: { graph: GraphElement }) => {
+      const idx = currentPageIndexRef.current
+      const currentPages = pagesRef.current
+      if (idx < 0 || idx >= currentPages.length) return
+      const newPages = [...currentPages]
+      newPages[idx] = { ...newPages[idx], graphs: [...newPages[idx].graphs, data.graph] }
+      setInternalPages(newPages)
+      onPagesChange?.(newPages)
+    }
+
+    const handlePageCleared = (_data: { roomId: string; pageIndex?: number }) => {
+      const idx = currentPageIndexRef.current
+      const currentPages = pagesRef.current
+      if (idx < 0 || idx >= currentPages.length) return
+      const newPages = [...currentPages]
+      newPages[idx] = { ...newPages[idx], strokes: [], texts: [], shapes: [], formulas: [], graphs: [] }
       setInternalPages(newPages)
       onPagesChange?.(newPages)
       setSelectedObject(null)
@@ -1568,6 +1876,8 @@ export function EnhancedWhiteboard({
     socket.on('whiteboard:stroke:added', handleStrokeAdded)
     socket.on('whiteboard:shape:added', handleShapeAdded)
     socket.on('whiteboard:text:added', handleTextAdded)
+    socket.on('whiteboard:formula:added', handleFormulaAdded)
+    socket.on('whiteboard:graph:added', handleGraphAdded)
     socket.on('whiteboard:cursor:moved', handleCursorMoved)
     socket.on('whiteboard:page:cleared', handlePageCleared)
 
@@ -1575,6 +1885,8 @@ export function EnhancedWhiteboard({
       socket.off('whiteboard:stroke:added', handleStrokeAdded)
       socket.off('whiteboard:shape:added', handleShapeAdded)
       socket.off('whiteboard:text:added', handleTextAdded)
+      socket.off('whiteboard:formula:added', handleFormulaAdded)
+      socket.off('whiteboard:graph:added', handleGraphAdded)
       socket.off('whiteboard:cursor:moved', handleCursorMoved)
       socket.off('whiteboard:page:cleared', handlePageCleared)
     }
@@ -2259,21 +2571,37 @@ export function EnhancedWhiteboard({
               {/* Background Styles */}
               <div>
                 <label className="mb-2 block text-sm text-slate-400">Style</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['solid', 'grid', 'dots', 'lines'] as const).map(style => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(['solid', 'grid', 'dots', 'lines', 'coordinate-plane'] as const).map(style => (
                     <button
                       key={style}
                       onClick={() => updateBackground(currentPage.backgroundColor, style)}
-                      className={`rounded border px-3 py-2 text-sm capitalize ${
+                      className={`rounded border px-2 py-2 text-xs capitalize ${
                         currentPage.backgroundStyle === style
                           ? 'border-blue-500 bg-blue-500/20 text-blue-300'
                           : 'border-slate-600 text-slate-300 hover:border-gray-400'
                       }`}
                     >
-                      {style}
+                      {style === 'coordinate-plane' ? 'Coords' : style}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Snap to Grid */}
+              <div>
+                <label className="mb-2 block text-sm text-slate-400">Grid Snap</label>
+                <button
+                  onClick={() => setSnapToGrid(v => !v)}
+                  className={`flex w-full items-center gap-2 rounded border px-3 py-2 text-sm ${
+                    snapToGrid
+                      ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                      : 'border-slate-600 text-slate-300 hover:border-gray-400'
+                  }`}
+                >
+                  <Magnet className="h-4 w-4" />
+                  {snapToGrid ? 'Snap On' : 'Snap Off'}
+                </button>
               </div>
             </div>
           </div>
@@ -2291,6 +2619,19 @@ export function EnhancedWhiteboard({
           />
         )}
       </div>
+
+      {/* Math Dialogs */}
+      <GraphDialog
+        open={showGraphDialog}
+        onOpenChange={setShowGraphDialog}
+        onPlot={handlePlotGraph}
+        defaultColor={color}
+      />
+      <LatexFormulaDialog
+        open={showFormulaDialog}
+        onOpenChange={setShowFormulaDialog}
+        onPlace={handlePlaceFormula}
+      />
 
       {/* Bottom Page Navigation - only show when using internal state */}
       {true && (
