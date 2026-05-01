@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course as courseTable, courseLesson, liveSession, courseEnrollment } from '@/lib/db/schema'
+import {
+  course as courseTable,
+  courseLesson,
+  liveSession,
+  courseEnrollment,
+  courseVariant,
+} from '@/lib/db/schema'
 import { CreateCourseSchema } from '@/lib/validation/schemas'
 import { ZodError } from 'zod'
-import { sql, inArray } from 'drizzle-orm'
+import { sql, inArray, and, eq } from 'drizzle-orm'
 
 export const GET = withAuth(
-  async (_req: NextRequest, session) => {
+  async (req: NextRequest, session) => {
     try {
+      const hideTemplatesWithPublishedVariants =
+        req.nextUrl.searchParams.get('hideTemplatesWithPublishedVariants') === 'true'
       const coursesData = await drizzleDb.query.course.findMany({
         where: (course, { eq }) => eq(course.creatorId, session.user.id),
         orderBy: (course, { desc }) => [desc(course.createdAt)],
@@ -26,6 +34,26 @@ export const GET = withAuth(
       })
 
       const courseIds = coursesData.map(c => c.courseId)
+      const templateIdsWithPublishedVariants =
+        hideTemplatesWithPublishedVariants && courseIds.length > 0
+          ? new Set(
+              (
+                await drizzleDb
+                  .select({ templateCourseId: courseVariant.templateCourseId })
+                  .from(courseVariant)
+                  .innerJoin(
+                    courseTable,
+                    eq(courseTable.courseId, courseVariant.publishedCourseId)
+                  )
+                  .where(
+                    and(
+                      inArray(courseVariant.templateCourseId, courseIds),
+                      eq(courseTable.isPublished, true)
+                    )
+                  )
+              ).map(r => r.templateCourseId)
+            )
+          : new Set<string>()
 
       const [sessionAgg, enrollmentAgg] = await Promise.all([
         courseIds.length > 0
@@ -61,7 +89,13 @@ export const GET = withAuth(
       const enrollmentMap = new Map(enrollmentAgg.map(e => [e.courseId, e]))
 
       // Map courseId to id for frontend compatibility
-      const courses = coursesData.map(c => {
+      const courses = coursesData
+        .filter(c =>
+          hideTemplatesWithPublishedVariants
+            ? !(c.isPublished === false && templateIdsWithPublishedVariants.has(c.courseId))
+            : true
+        )
+        .map(c => {
         const sessionMeta = sessionMap.get(c.courseId)
         const enrollmentMeta = enrollmentMap.get(c.courseId)
         return {

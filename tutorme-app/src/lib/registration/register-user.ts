@@ -186,6 +186,9 @@ async function insertTutorApplication(
     certificateSubjects: string | null
     tutoringExperienceRange: string
     globalExams: unknown
+    tutoringCountries: string[]
+    countrySubjectSelections: Record<string, string[]>
+    categories: string[]
     username: string
     socialLinks: unknown
   }
@@ -387,6 +390,9 @@ export async function performRegistration(
         certificateSubjects: tutorData.certificateSubjects ?? null,
         tutoringExperienceRange: tutorData.tutoringExperienceRange,
         globalExams: tutorData.globalExams,
+        tutoringCountries: tutorData.tutoringCountries ?? [],
+        countrySubjectSelections: tutorData.countrySubjectSelections ?? {},
+        categories: tutorData.categories ?? [],
         username: finalHandle,
         socialLinks: tutorData.socialLinks ?? null,
       }

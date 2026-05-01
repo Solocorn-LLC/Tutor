@@ -99,7 +99,10 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
   const loadCourses = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/tutor/courses?includeSessions=true', { credentials: 'include' })
+      const res = await fetch(
+        '/api/tutor/courses?includeSessions=true&hideTemplatesWithPublishedVariants=true',
+        { credentials: 'include' }
+      )
       if (res.ok) {
         const data = await res.json()
         setCourses(data.courses || [])
