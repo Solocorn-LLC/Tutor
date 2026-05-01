@@ -30,7 +30,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result.body, { status: result.status, headers: result.headers })
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
+    const pgError =
+      error && typeof error === 'object' && 'cause' in error
+        ? (error as { cause?: { message?: string; code?: string; detail?: string } }).cause
+        : null
     console.error('Tutor registration error:', err.message, err.stack)
+    if (pgError) {
+      console.error('PostgreSQL error:', pgError.message, 'code:', pgError.code, 'detail:', pgError.detail)
+    }
     if (error && typeof error === 'object' && 'issues' in error) {
       const zodError = error as { issues: Array<{ message: string }> }
       return NextResponse.json(
@@ -44,16 +51,23 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    if (error && typeof error === 'object' && 'code' in error) {
-      const e = error as { code: string }
-      if (e.code === '23505') {
-        return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
+    const errorCode =
+      (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code) ||
+      pgError?.code
+    if (errorCode === '23505') {
+      const detail = pgError?.detail || ''
+      if (detail.includes('username')) {
+        return NextResponse.json({ error: 'Username already taken' }, { status: 400 })
       }
+      if (detail.includes('userId')) {
+        return NextResponse.json({ error: 'User already has a tutor application' }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
     }
     const message =
       process.env.NODE_ENV === 'development'
-        ? err.message || 'Internal server error. Please try again.'
-        : err.message || 'Internal server error. Please try again.'
+        ? (pgError?.message || err.message || 'Internal server error. Please try again.')
+        : 'Internal server error. Please try again.'
     return handleApiError(error, message, 'api/auth/register/tutor/route.ts')
   }
 }
