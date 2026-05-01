@@ -339,7 +339,6 @@ export async function performRegistration(
       isOnboarded: role !== 'TUTOR',
       hourlyRate: null,
       oneOnOneEnabled: false,
-      specialties: [],
       credentials: null,
       availability: null,
       paidClassesEnabled: false,
@@ -347,8 +346,6 @@ export async function performRegistration(
       currency: null,
       nationality: profileData?.nationality ?? null,
       countryOfResidence: null,
-      tutorNationalities: profileData?.tutorNationalities ?? [],
-      categoryNationalityCombinations: profileData?.categoryNationalityCombinations ?? [],
       createdAt: now,
       updatedAt: now,
     }
