@@ -1239,16 +1239,6 @@ export function EnhancedWhiteboard({
       return
     }
 
-    if (tool === 'formula') {
-      setShowFormulaDialog(true)
-      return
-    }
-
-    if (tool === 'graph') {
-      setShowGraphDialog(true)
-      return
-    }
-
     const hit = hitTest(point)
     if (hit) {
       setSelectedObject(hit)
@@ -1756,6 +1746,21 @@ export function EnhancedWhiteboard({
     },
     [inlineTextInput, currentPage, color]
   )
+
+  // Open math dialogs immediately when tool is selected
+  useEffect(() => {
+    if (tool === 'formula') {
+      setShowFormulaDialog(true)
+      setTool('select')
+    }
+  }, [tool])
+
+  useEffect(() => {
+    if (tool === 'graph') {
+      setShowGraphDialog(true)
+      setTool('select')
+    }
+  }, [tool])
 
   // Keyboard shortcuts
   useEffect(() => {
