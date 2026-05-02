@@ -13,38 +13,52 @@ import { HANDLE_REGEX, isReservedHandle, normalizeHandle } from '@/lib/mentions/
 
 const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/
 
+// Helper to preprocess null values for optional fields
+const nullToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((val) => (val === null ? undefined : val), schema)
+
+const nullToEmptyArray = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((val) => (val === null ? [] : val), schema)
+
+const nullToEmptyObject = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((val) => (val === null ? {} : val), schema)
+
 export const tutorAdditionalDataSchema = z
   .object({
     firstName: z.string().min(1, 'First name is required').max(50),
-    middleName: z.string().max(50).optional(),
+    middleName: nullToUndefined(z.string().max(50).optional()),
     lastName: z.string().min(1, 'Last name is required').max(50),
-    legalName: z.string().max(120).optional(),
-    nationality: z.string().min(2, 'Nationality is required').max(100).optional(),
-    countryOfResidence: z.string().max(100).optional().or(z.literal('')),
+    legalName: nullToUndefined(z.string().max(120).optional()),
+    nationality: nullToUndefined(z.string().min(2, 'Nationality is required').max(100).optional()),
+    countryOfResidence: nullToUndefined(z.string().max(100).optional().or(z.literal(''))),
     phoneCountryCode: z.string().min(1, 'Phone country code is required').max(10),
     phoneNumber: z.string().regex(phoneRegex, 'Valid phone number required'),
     educationLevel: z.enum(['High School Diploma', 'Bachelor', 'Masters', 'PhD']),
     hasTeachingCertificate: z.boolean(),
-    certificateName: z.string().max(200).optional(),
-    certificateSubjects: z.string().max(500).optional(),
+    certificateName: nullToUndefined(z.string().max(200).optional()),
+    certificateSubjects: nullToUndefined(z.string().max(500).optional()),
     tutoringExperienceRange: z.enum(['0-2', '3-5', '6-10', '10+']),
-    globalExams: z
-      .object({
-        standardizedEnglish: z.array(z.string()).optional().default([]),
-        undergradAdmissions: z.array(z.string()).optional().default([]),
-        apAdvancedPlacement: z.array(z.string()).optional().default([]),
-        internationalAS: z.array(z.string()).optional().default([]),
-      })
-      .optional()
-      .default({
-        standardizedEnglish: [],
-        undergradAdmissions: [],
-        apAdvancedPlacement: [],
-        internationalAS: [],
-      }),
-    tutoringCountries: z.array(z.string()).optional().default([]),
-    countrySubjectSelections: z.record(z.string(), z.array(z.string())).optional().default({}),
-    categories: z.array(z.string()).optional().default([]),
+    globalExams: nullToEmptyObject(
+      z
+        .object({
+          standardizedEnglish: z.array(z.string()).optional().default([]),
+          undergradAdmissions: z.array(z.string()).optional().default([]),
+          apAdvancedPlacement: z.array(z.string()).optional().default([]),
+          internationalAS: z.array(z.string()).optional().default([]),
+        })
+        .optional()
+        .default({
+          standardizedEnglish: [],
+          undergradAdmissions: [],
+          apAdvancedPlacement: [],
+          internationalAS: [],
+        })
+    ),
+    tutoringCountries: nullToEmptyArray(z.array(z.string()).optional().default([])),
+    countrySubjectSelections: nullToEmptyObject(
+      z.record(z.string(), z.array(z.string())).optional().default({})
+    ),
+    categories: nullToEmptyArray(z.array(z.string()).optional().default([])),
     username: z
       .string()
       .min(3, 'Handle must be at least 3 characters')
@@ -52,15 +66,17 @@ export const tutorAdditionalDataSchema = z
       .regex(HANDLE_REGEX, 'Handle may only contain letters, numbers, and underscores')
       .refine(value => !isReservedHandle(value), 'This handle is reserved')
       .transform(value => normalizeHandle(value)),
-    socialLinks: z
-      .object({
-        instagram: z.string().max(100).optional(),
-        tiktok: z.string().max(100).optional(),
-        youtube: z.string().max(100).optional(),
-        facebook: z.string().max(100).optional(),
-      })
-      .optional(),
-    hourlyRate: z.number().min(0).max(10000).optional(),
+    socialLinks: nullToEmptyObject(
+      z
+        .object({
+          instagram: nullToUndefined(z.string().max(100).optional()),
+          tiktok: nullToUndefined(z.string().max(100).optional()),
+          youtube: nullToUndefined(z.string().max(100).optional()),
+          facebook: nullToUndefined(z.string().max(100).optional()),
+        })
+        .optional()
+    ),
+    hourlyRate: nullToUndefined(z.number().min(0).max(10000).optional()),
   })
   .superRefine((data, ctx) => {
     if (data.hasTeachingCertificate && !data.certificateName) {

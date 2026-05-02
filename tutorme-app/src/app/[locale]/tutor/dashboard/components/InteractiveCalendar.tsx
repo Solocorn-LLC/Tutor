@@ -1777,7 +1777,7 @@ function WeekView({ currentDate, events, onEventClick, onDateClick, conflicts, r
                 .map((event: CalendarEvent) => {
                   const hour = event.date.getHours()
                   const minute = event.date.getMinutes()
-                  const top = (hour - 8) * 64 + (minute / 60) * 64
+                  const top = hour * 64 + (minute / 60) * 64
                   const height = (event.duration / 60) * 64
                   const hasConflict = conflicts.find((e: CalendarEvent) => e.id === event.id)
 
@@ -1829,7 +1829,7 @@ function DayView({ currentDate, events, onEventClick, conflicts, readOnly = fals
         {dayEvents.map((event: CalendarEvent) => {
           const hour = event.date.getHours()
           const minute = event.date.getMinutes()
-          const top = (hour - 7) * 80 + (minute / 60) * 80
+          const top = hour * 80 + (minute / 60) * 80
           const height = (event.duration / 60) * 80
           const hasConflict = conflicts.find((e: CalendarEvent) => e.id === event.id)
 

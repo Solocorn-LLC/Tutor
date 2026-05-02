@@ -312,9 +312,7 @@ function CourseBuilderInsightsRouteInner({
       }
     }
 
-    const courseTitle = courseName || detachedCourseName || 'Untitled Course'
-
-    // 3. Create course in DB
+    // 3. Save lessons to the existing course, then navigate to schedule page
     try {
       let csrfToken: string | null = null
       try {
@@ -325,36 +323,7 @@ function CourseBuilderInsightsRouteInner({
         // proceed without CSRF
       }
 
-      const createRes = await fetch('/api/tutor/courses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: courseTitle,
-          categories: [],
-          schedule: [],
-          isLiveOnline: false,
-        }),
-      })
-
-      if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}))
-        toast.error(err.error || 'Failed to create course')
-        return
-      }
-
-      const newCourseData = await createRes.json()
-      const newCourseId = newCourseData.courses?.[0]?.id
-      if (!newCourseId) {
-        toast.error('Course created but ID is missing')
-        return
-      }
-
-      // 4. Save lessons to the new course
-      const saveRes = await fetch(`/api/tutor/courses/${newCourseId}/course`, {
+      const saveRes = await fetch(`/api/tutor/courses/${courseId}/course`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -383,7 +352,7 @@ function CourseBuilderInsightsRouteInner({
         return
       }
 
-      model.router.push(`/tutor/courses/${newCourseId}`)
+      model.router.push(`/tutor/courses/${courseId}`)
     } catch (err: any) {
       console.error('Publish draft error:', err)
       const errMsg = err?.message || String(err) || 'Unknown error'
