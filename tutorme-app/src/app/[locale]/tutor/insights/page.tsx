@@ -77,6 +77,49 @@ function TutorInsightsPageInner() {
     [session?.user?.id]
   )
 
+  // Auto-detect saveMode when courseId is set from URL or dropdown
+  useEffect(() => {
+    if (!courseId || courseId === 'insights-draft') return
+    // If a sessionId is in the URL, force live mode
+    if (searchParams.get('sessionId')) {
+      setSaveMode('live')
+      return
+    }
+    // Otherwise detect from which list the course belongs to
+    const isLive = courses.some(c => c.id === courseId)
+    const isDraft = draftCourses.some(c => c.id === courseId)
+    if (isLive && !isDraft) {
+      setSaveMode('live')
+    } else if (isDraft && !isLive) {
+      setSaveMode('draft')
+    }
+    // If both or neither (e.g., during loading), leave current value
+  }, [courseId, courses, draftCourses, searchParams])
+
+  // Migrate legacy draft data saved under `modules` in lesson-bank-courses-v1
+  // to the new `insights-course-builder:${courseId}` key with `lessons`
+  useEffect(() => {
+    if (!courseId || courseId === 'insights-draft') return
+    const builderKey = `insights-course-builder:${courseId}`
+    if (localStorage.getItem(builderKey)) return // Already migrated or saved
+    try {
+      const raw = localStorage.getItem(draftStorageKey)
+      const parsed = raw ? JSON.parse(raw) : []
+      const course = parsed.find((c: any) => c.id === courseId)
+      if (course && Array.isArray(course.modules) && course.modules.length > 0) {
+        localStorage.setItem(
+          builderKey,
+          JSON.stringify({
+            lessons: course.modules,
+            savedAt: course.updatedAt || new Date().toISOString(),
+          })
+        )
+      }
+    } catch {
+      // ignore
+    }
+  }, [courseId, draftStorageKey])
+
   // Load draft courses from lesson bank localStorage
   useEffect(() => {
     try {
@@ -254,10 +297,20 @@ function TutorInsightsPageInner() {
       if (!courseId || courseId === 'insights-draft') return
       if (saveMode === 'draft') {
         try {
+          // Save builder content to the detached builder key (matches load path)
+          const builderKey = `insights-course-builder:${courseId}`
+          localStorage.setItem(
+            builderKey,
+            JSON.stringify({
+              lessons,
+              savedAt: new Date().toISOString(),
+            })
+          )
+          // Also update metadata timestamp in the draft list
           const raw = localStorage.getItem(draftStorageKey)
           const parsed = raw ? JSON.parse(raw) : []
           const updated = parsed.map((c: any) =>
-            c.id === courseId ? { ...c, modules: lessons, updatedAt: new Date().toISOString() } : c
+            c.id === courseId ? { ...c, updatedAt: new Date().toISOString() } : c
           )
           localStorage.setItem(draftStorageKey, JSON.stringify(updated))
           if (!options?.isAutoSave) toast.success('Draft saved')
@@ -314,6 +367,11 @@ function TutorInsightsPageInner() {
         const parsed = raw ? JSON.parse(raw) : []
         const updated = [...parsed, newCourse]
         localStorage.setItem(draftStorageKey, JSON.stringify(updated))
+        // Initialize empty builder content so loadCourse finds the key
+        localStorage.setItem(
+          `insights-course-builder:${newCourse.id}`,
+          JSON.stringify({ lessons: [], savedAt: new Date().toISOString() })
+        )
         setDraftCourses(prev => [
           ...prev,
           { id: newCourse.id, name: newCourse.name, updatedAt: newCourse.updatedAt },
@@ -378,6 +436,8 @@ function TutorInsightsPageInner() {
         const parsed = raw ? JSON.parse(raw) : []
         const updated = parsed.filter((c: any) => c.id !== courseId)
         localStorage.setItem(draftStorageKey, JSON.stringify(updated))
+        // Also clean up detached builder content
+        localStorage.removeItem(`insights-course-builder:${courseId}`)
         const remaining = draftCourses.filter(c => c.id !== courseId)
         setDraftCourses(remaining)
         setCourseId(remaining[0].id)

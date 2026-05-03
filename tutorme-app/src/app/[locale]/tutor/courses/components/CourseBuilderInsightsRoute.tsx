@@ -566,8 +566,11 @@ function CourseBuilderInsightsRouteInner({
                           className="gap-2 font-medium text-slate-700 hover:text-slate-900"
                           onClick={async () => {
                             const cb = (model.courseBuilderRef.current as any)?.saveAll
-                            if (typeof cb === 'function') await cb()
-                            else if (onSaveCourse) onSaveCourse([])
+                            if (typeof cb === 'function') {
+                              await cb()
+                            } else {
+                              toast.error('Builder not ready to save')
+                            }
                           }}
                         >
                           <Save className="h-4 w-4" />

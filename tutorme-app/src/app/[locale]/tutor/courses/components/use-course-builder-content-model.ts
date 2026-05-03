@@ -97,6 +97,8 @@ export function useCourseBuilderContentModel({
   const loadCourse = useCallback(async () => {
     if (!courseId) return
     setLoading(true)
+    // Reset lessons immediately to prevent stale data from previous course
+    setLoadedLessons(null)
     const isDetached = dataMode === 'detached'
     const storageKey = detachedStorageKey || `insights-course-builder:${courseId}`
     try {
@@ -112,11 +114,7 @@ export function useCourseBuilderContentModel({
           const parsed = JSON.parse(stored) as { lessons?: CourseBuilderLesson[] }
           if (Array.isArray(parsed.lessons) && parsed.lessons.length > 0) {
             setLoadedLessons(parsed.lessons)
-          } else {
-            setLoadedLessons(null)
           }
-        } else {
-          setLoadedLessons(null)
         }
         return
       }
@@ -133,12 +131,13 @@ export function useCourseBuilderContentModel({
         const currData = await currRes.json()
         if (Array.isArray(currData.lessons) && currData.lessons.length > 0) {
           setLoadedLessons(currData.lessons)
-        } else {
-          setLoadedLessons(null)
         }
+      } else {
+        // Explicitly null out on API failure so we don't show stale lessons
+        setLoadedLessons(null)
       }
     } catch {
-      // ignore
+      setLoadedLessons(null)
     } finally {
       setLoading(false)
     }
