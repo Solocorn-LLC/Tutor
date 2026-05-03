@@ -1021,7 +1021,7 @@ export default function TutorMyPage() {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-5">
                 <div className="relative">
-                  <Avatar className="h-24 w-24 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+                  <Avatar className="h-28 w-28 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
                     <AvatarImage src={avatarPreview ?? avatarUrl ?? undefined} alt="Tutor avatar" />
                     <AvatarFallback className="rounded-2xl bg-white/15 text-lg font-semibold text-white">
                       {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
@@ -1156,7 +1156,7 @@ export default function TutorMyPage() {
               <Textarea
                 value={bio}
                 readOnly
-                className="min-h-0 flex-1 resize-none border-slate-200 bg-white text-sm text-slate-700"
+                className="h-full min-h-[420px] flex-1 resize-none border-slate-200 bg-white text-base leading-relaxed text-slate-700 lg:min-h-0"
               />
             </div>
           </div>

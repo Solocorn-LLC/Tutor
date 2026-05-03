@@ -893,7 +893,7 @@ export default function PublicTutorPage() {
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-5">
-                <Avatar className="h-24 w-24 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+                <Avatar className="h-28 w-28 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
                   <AvatarImage src={tutor.avatarUrl || undefined} alt="Tutor avatar" />
                   <AvatarFallback className="rounded-2xl bg-white/15 text-lg font-semibold text-white">
                     {tutor.name ? tutor.name.slice(0, 2).toUpperCase() : 'TU'}
@@ -981,7 +981,7 @@ export default function PublicTutorPage() {
               <div className="text-lg font-semibold text-slate-900">About Me</div>
             </div>
 
-            <div className="mt-4 flex min-h-0 flex-1 flex-col text-sm text-slate-700">
+            <div className="mt-4 flex min-h-0 flex-1 flex-col text-base text-slate-700">
               <div className="flex-1">
                 {tutor.bio?.trim() ? (
                   <p className="whitespace-pre-wrap leading-relaxed">{tutor.bio}</p>
