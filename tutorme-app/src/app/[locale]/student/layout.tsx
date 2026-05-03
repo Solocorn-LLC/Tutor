@@ -201,36 +201,29 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </div>
       )}
 
-      {/* Mobile Navigation Header */}
       {!isFeedbackRoute && (
-        <div className="fixed left-0 right-0 top-0 z-50 border-b bg-white lg:hidden">
-          <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-              <Link
-                href="/student/dashboard"
-                className="inline-flex items-center"
-                aria-label="Student dashboard"
-              >
-                <span className="sr-only">Dashboard</span>
-              </Link>
-            </div>
-            <div className="flex items-center gap-2">
+        <>
+          <div className="fixed left-4 top-4 z-50 flex items-center gap-2 lg:hidden">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="h-10 w-10 rounded-full bg-white shadow-[0_12px_30px_rgba(0,0,0,0.14)] ring-1 ring-black/5 hover:bg-slate-50"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
+          <div className="fixed right-4 top-4 z-50 lg:hidden">
+            <div className="rounded-full bg-white p-1 shadow-[0_12px_30px_rgba(0,0,0,0.14)] ring-1 ring-black/5">
               <UserNav />
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Mobile Navigation Menu */}
       {!isFeedbackRoute && mobileMenuOpen && (
-        <div className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white p-4 lg:hidden">
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-white p-4 pt-20 lg:hidden">
           <nav className="space-y-3">
             {isLiveClassRoute ? (
               <div>
@@ -290,7 +283,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <main
         className={cn(
           'min-h-screen flex-1',
-          isFeedbackRoute || isLiveClassRoute ? 'pt-0' : 'pt-16 lg:pt-0'
+          'pt-0'
         )}
       >
         {children}
