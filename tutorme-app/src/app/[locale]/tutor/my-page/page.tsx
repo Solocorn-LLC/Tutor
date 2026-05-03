@@ -989,8 +989,22 @@ export default function TutorMyPage() {
     }
   }
 
+  const hasSocialLinks = Boolean(
+    socialAccounts.tiktok ||
+      socialAccounts.youtube ||
+      socialAccounts.instagram ||
+      socialAccounts.facebook
+  )
+
+  const headerCardClass =
+    'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(0,0,0,0.10)]'
+  const headerInnerClass =
+    'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-6 text-white'
+  const panelCardClass =
+    'group rounded-[18px] bg-white p-6 shadow-[0_6px_20px_rgba(0,0,0,0.06)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)]'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-white to-[#EEF2FF] text-[#1F2933]">
+    <div className="min-h-screen bg-white text-[#1F2933]">
       <div className="border-b border-[#E2E8F0] bg-white/90 backdrop-blur">
         <div className="mx-auto flex w-full items-center justify-between px-6 py-4">
           <BackButton
@@ -999,211 +1013,267 @@ export default function TutorMyPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1600px] space-y-8 px-6 py-8">
-        <section className="relative overflow-hidden rounded-[32px] border border-[#E2E8F0] bg-white/95 p-8 shadow-lg">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-[#1D4ED8]/10 via-[#4FD1C5]/10 to-[#F17623]/10" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch">
-            <div className="flex w-full flex-shrink-0 flex-col items-center gap-3 text-center lg:w-[260px]">
-              <div className="relative">
-                <Avatar className="h-28 w-28 border-2 border-white shadow-lg">
-                  <AvatarImage src={avatarPreview ?? avatarUrl ?? undefined} alt="Tutor avatar" />
-                  <AvatarFallback className="text-lg font-semibold">
-                    {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
-                  </AvatarFallback>
-                </Avatar>
-                {/* Edit/Delete overlay buttons */}
-                <div className="absolute -bottom-2 -right-2 flex gap-1">
-                  <Button
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-white text-[#1F2933] shadow hover:bg-[#F8FAFC]"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                    aria-label="Edit profile photo"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {avatarUrl && (
+      <div className="mx-auto w-full max-w-7xl space-y-8 px-6 py-8">
+        <section className={headerCardClass}>
+          <div className={headerInnerClass}>
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-5">
+                <div className="relative">
+                  <Avatar className="h-24 w-24 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+                    <AvatarImage src={avatarPreview ?? avatarUrl ?? undefined} alt="Tutor avatar" />
+                    <AvatarFallback className="rounded-2xl bg-white/15 text-lg font-semibold text-white">
+                      {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-2 -right-2 flex gap-1">
                     <Button
                       size="icon"
-                      className="h-8 w-8 rounded-full bg-red-500 text-white shadow hover:bg-red-600"
-                      onClick={() => void handleDeleteAvatar()}
+                      className="h-8 w-8 rounded-full bg-white text-[#1F2933] shadow hover:bg-white/90"
+                      onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingAvatar}
-                      aria-label="Delete profile photo"
+                      aria-label="Edit profile photo"
                     >
-                      <X className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) void handleAvatarSelect(file)
-                  }}
-                  className="hidden"
-                />
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-[#0F172A]">
-                  {displayName || normalizedUsername || 'Tutor'}
-                </div>
-                <div className="text-xs text-[#64748B]">Solocorn Tutor</div>
-              </div>
-              <div className="flex w-full flex-col items-center gap-3">
-                <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  Verified
-                </div>
-                <div className="w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-                  <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">
-                    Tutor since
+                    {avatarUrl && (
+                      <Button
+                        size="icon"
+                        className="h-8 w-8 rounded-full bg-red-500 text-white shadow hover:bg-red-600"
+                        onClick={() => void handleDeleteAvatar()}
+                        disabled={uploadingAvatar}
+                        aria-label="Delete profile photo"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <div className="mt-1 text-sm font-medium text-[#0F172A]">{tutorSince || '—'}</div>
-                </div>
-                <div className="w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-                  <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">
-                    Active Courses
-                  </div>
-                  <div className="mt-1 text-sm font-medium text-[#0F172A]">
-                    {activeCourses ?? '—'}
-                  </div>
-                </div>
-                <div className="w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-                  <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">Country</div>
-                  <div className="mt-1 text-sm font-medium text-[#0F172A]">{country || '—'}</div>
-                </div>
-              </div>
-            </div>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-              {/* Preview + Save */}
-              <div className="flex flex-wrap items-center gap-2 text-sm text-[#1F2933]">
-                {publicUrl ? (
-                  <Link href={publicPath} className="inline-flex" target="_blank" rel="noreferrer">
-                    <Button size="sm" className="bg-[#1D4ED8] text-white hover:bg-[#1B45C2]">
-                      Preview My Public Page
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button size="sm" disabled className="bg-[#CBD5F5] text-white">
-                    Preview My Public Page
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  className="bg-[#4FD1C5] text-[#1F2933] hover:bg-[#3CC6B9]"
-                  onClick={() => void save()}
-                  disabled={loading || saving}
-                >
-                  {saving ? 'Saving...' : 'Save Public Page'}
-                </Button>
-              </div>
-
-              <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2 lg:items-stretch">
-                <div className="flex min-h-[220px] flex-col rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 lg:min-h-0">
-                  <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">Bio</div>
-                  <Textarea
-                    value={bio}
-                    readOnly
-                    className="mt-2 min-h-0 flex-1 resize-none border-[#E2E8F0] bg-white focus-visible:ring-[#4FD1C5]"
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) void handleAvatarSelect(file)
+                    }}
+                    className="hidden"
                   />
                 </div>
 
-                <div className="flex min-h-0 flex-col gap-4">
-                  <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                    <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">
-                      Public URL
-                    </div>
-                    {publicUrl ? (
-                      <>
-                        <div className="mt-2 break-all text-sm font-medium text-[#1F2933]">
-                          {publicUrl}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-[#F17623]">
-                          {normalizedUsername ? `@${normalizedUsername}` : '@username'}
-                        </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-[#1D4ED8]"
-                            onClick={handleCopyProfile}
-                            disabled={!publicUrl}
-                          >
-                            <Copy className="mr-1 h-3.5 w-3.5" />
-                            Copy link
-                          </Button>
-                          {canShare ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-[#1D4ED8]"
-                              onClick={handleShareProfile}
-                            >
-                              <Share2 className="mr-1 h-3.5 w-3.5" />
-                              Share
-                            </Button>
-                          ) : null}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="mt-2 rounded-2xl border border-dashed border-[#CBD5F5] p-4 text-sm text-[#64748B]">
-                        Add a username in profile settings to generate your public link.
-                      </div>
-                    )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="truncate text-3xl font-bold leading-tight text-white">
+                      {displayName || normalizedUsername || 'Tutor'}
+                    </h1>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-300/30">
+                      <CheckCircle className="h-4 w-4" />
+                      Verified
+                    </span>
                   </div>
+                  <div className="mt-1 text-sm font-medium text-white/80">Solocorn Tutor</div>
 
-                  <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4">
-                    <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">
-                      Social Media Accounts
+                  <div className="mt-4 flex flex-wrap items-center gap-6 rounded-full bg-white/10 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Award className="h-4 w-4 text-white/70" />
+                      <div className="leading-tight">
+                        <div className="text-xs font-semibold text-white/70">Tutor Since</div>
+                        <div className="text-sm font-semibold">{tutorSince || '—'}</div>
+                      </div>
                     </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      <div className="text-sm text-[#1F2933]">
-                        <span className="font-semibold text-[#64748B]">TikTok:</span>{' '}
-                        {socialAccounts.tiktok ? `@${socialAccounts.tiktok}` : '—'}
+                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
+                    <div className="flex items-center gap-3">
+                      <BookOpen className="h-4 w-4 text-white/70" />
+                      <div className="leading-tight">
+                        <div className="text-xs font-semibold text-white/70">Active Courses</div>
+                        <div className="text-sm font-semibold">{activeCourses ?? '—'}</div>
                       </div>
-                      <div className="text-sm text-[#1F2933]">
-                        <span className="font-semibold text-[#64748B]">YouTube:</span>{' '}
-                        {socialAccounts.youtube ? `@${socialAccounts.youtube}` : '—'}
-                      </div>
-                      <div className="text-sm text-[#1F2933]">
-                        <span className="font-semibold text-[#64748B]">Instagram:</span>{' '}
-                        {socialAccounts.instagram ? `@${socialAccounts.instagram}` : '—'}
-                      </div>
-                      <div className="text-sm text-[#1F2933]">
-                        <span className="font-semibold text-[#64748B]">Facebook:</span>{' '}
-                        {socialAccounts.facebook ? `@${socialAccounts.facebook}` : '—'}
+                    </div>
+                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-4 w-4 text-white/70" />
+                      <div className="leading-tight">
+                        <div className="text-xs font-semibold text-white/70">Country</div>
+                        <div className="text-sm font-semibold">{country || '—'}</div>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                    <div className="text-xs uppercase tracking-[0.15em] text-[#64748B]">
-                      Categories
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {publishedCourseCategories.length > 0 ? (
-                        publishedCourseCategories.map((cat, i) => (
-                          <span
-                            key={`${cat}-${i}`}
-                            className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-[#0F172A] shadow-sm ring-1 ring-[#E2E8F0]"
-                          >
-                            {cat}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-[#64748B]">
-                          Categories appear here after you publish a course
-                        </span>
-                      )}
-                    </div>
-                  </div>
+              <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl bg-white/10 p-4 lg:w-auto">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  {publicUrl ? (
+                    <Link
+                      href={publicPath}
+                      className="inline-flex w-full sm:w-auto"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full border-white/50 bg-transparent text-white hover:bg-white/10 sm:w-auto"
+                      >
+                        Preview My Public Page
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      disabled
+                      className="w-full border-white/30 bg-transparent text-white/60 sm:w-auto"
+                    >
+                      Preview My Public Page
+                    </Button>
+                  )}
+
+                  <Button
+                    size="lg"
+                    className="w-full bg-white text-[#0B3A9B] hover:bg-white/90 sm:w-auto"
+                    onClick={() => void save()}
+                    disabled={loading || saving}
+                  >
+                    {saving ? 'Saving...' : 'Save Public Page'}
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
         </section>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className={panelCardClass}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                <Globe className="h-4 w-4 text-slate-700" />
+              </div>
+              <div className="text-lg font-semibold text-slate-900">About Me</div>
+            </div>
+
+            <div className="mt-4">
+              <Textarea
+                value={bio}
+                readOnly
+                className="min-h-[220px] resize-none border-slate-200 bg-white text-sm text-slate-700"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className={panelCardClass}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                  <Globe className="h-4 w-4 text-slate-700" />
+                </div>
+                <div className="text-lg font-semibold text-slate-900">My Public Page</div>
+              </div>
+
+              {publicUrl ? (
+                <div className="mt-4">
+                  <div className="break-all text-lg font-semibold text-slate-900">{publicUrl}</div>
+                  <div className="mt-1 text-sm font-semibold text-[#F17623]">
+                    {normalizedUsername ? `@${normalizedUsername}` : '@username'}
+                  </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-[#1D4ED8]"
+                      onClick={handleCopyProfile}
+                      disabled={!publicUrl}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy link
+                    </Button>
+                    {canShare ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-[#1D4ED8]"
+                        onClick={handleShareProfile}
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                  Add a username in profile settings to generate your public link.
+                </div>
+              )}
+            </div>
+
+            <div className={panelCardClass}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                  <Share2 className="h-4 w-4 text-slate-700" />
+                </div>
+                <div className="text-lg font-semibold text-slate-900">Social Media Accounts</div>
+              </div>
+
+              <div className="mt-4">
+                {hasSocialLinks ? (
+                  <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    {socialAccounts.tiktok ? (
+                      <div>
+                        <span className="font-semibold text-slate-900">TikTok:</span> @
+                        {socialAccounts.tiktok}
+                      </div>
+                    ) : null}
+                    {socialAccounts.youtube ? (
+                      <div>
+                        <span className="font-semibold text-slate-900">YouTube:</span> @
+                        {socialAccounts.youtube}
+                      </div>
+                    ) : null}
+                    {socialAccounts.instagram ? (
+                      <div>
+                        <span className="font-semibold text-slate-900">Instagram:</span> @
+                        {socialAccounts.instagram}
+                      </div>
+                    ) : null}
+                    {socialAccounts.facebook ? (
+                      <div>
+                        <span className="font-semibold text-slate-900">Facebook:</span> @
+                        {socialAccounts.facebook}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500">No accounts linked</div>
+                )}
+              </div>
+            </div>
+
+            <div className={panelCardClass}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                  <BookOpen className="h-4 w-4 text-slate-700" />
+                </div>
+                <div className="text-lg font-semibold text-slate-900">Categories</div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {publishedCourseCategories.length > 0 ? (
+                  publishedCourseCategories.map((cat, i) => (
+                    <span
+                      key={`${cat}-${i}`}
+                      className="rounded-full bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-800 shadow-sm"
+                    >
+                      {cat}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm text-slate-500">
+                    Categories appear here after you publish a course
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Avatar crop/upload dialog (client-side validation + centered square crop) */}
         <Dialog

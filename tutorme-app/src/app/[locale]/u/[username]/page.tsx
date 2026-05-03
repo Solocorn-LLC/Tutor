@@ -900,7 +900,7 @@ export default function PublicTutorPage() {
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="truncate text-3xl font-bold leading-tight">
+                    <h1 className="truncate text-3xl font-bold leading-tight text-white">
                       {tutor.name || '@'}
                     </h1>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-300/30">
@@ -964,17 +964,6 @@ export default function PublicTutorPage() {
                     <UserPlus className="mr-2 h-4 w-4" />
                     {followState.isFollowing ? 'Following' : 'Follow'}
                   </Button>
-                </div>
-                <div className="flex items-start gap-3 text-sm text-white/85">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                    <Star className="h-4 w-4 text-white/80" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold">
-                      Let&apos;s learn and achieve your goals together.
-                    </div>
-                    <div className="text-white/70">Book a session or follow to stay updated.</div>
-                  </div>
                 </div>
               </div>
             </div>
