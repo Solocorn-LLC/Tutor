@@ -1056,6 +1056,11 @@ export default function TutorRegistrationPage() {
                     <p className="text-sm">
                       <strong>Username:</strong> {formData.username}
                     </p>
+                    {formData.nationality && (
+                      <p className="text-sm">
+                        <strong>Nationality:</strong> {formData.nationality}
+                      </p>
+                    )}
                   </div>
 
                   <div className="rounded-lg bg-gray-50 p-4">

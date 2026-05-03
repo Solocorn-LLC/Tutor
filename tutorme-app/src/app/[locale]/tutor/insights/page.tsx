@@ -71,10 +71,16 @@ function TutorInsightsPageInner() {
   )
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
+  // User-specific localStorage key so drafts don't leak across accounts on shared devices
+  const draftStorageKey = useMemo(
+    () => `lesson-bank-courses-v1:${session?.user?.id || 'anonymous'}`,
+    [session?.user?.id]
+  )
+
   // Load draft courses from lesson bank localStorage
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('lesson-bank-courses-v1')
+      const raw = localStorage.getItem(draftStorageKey)
       if (raw) {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
@@ -92,7 +98,7 @@ function TutorInsightsPageInner() {
     } catch {
       // ignore
     }
-  }, [isCreateDialogOpen, isDeleteDialogOpen])
+  }, [draftStorageKey, isCreateDialogOpen, isDeleteDialogOpen])
 
   useEffect(() => {
     const activeList = saveMode === 'live' ? courses : draftCourses
@@ -114,14 +120,14 @@ function TutorInsightsPageInner() {
 
       if (saveMode === 'draft') {
         try {
-          const raw = localStorage.getItem('lesson-bank-courses-v1')
+          const raw = localStorage.getItem(draftStorageKey)
           const parsed = raw ? JSON.parse(raw) : []
           const updated = parsed.map((c: any) =>
             c.id === courseId
               ? { ...c, name: newName.trim(), updatedAt: new Date().toISOString() }
               : c
           )
-          localStorage.setItem('lesson-bank-courses-v1', JSON.stringify(updated))
+          localStorage.setItem(draftStorageKey, JSON.stringify(updated))
         } catch {
           // silent fail
         }
@@ -248,12 +254,12 @@ function TutorInsightsPageInner() {
       if (!courseId || courseId === 'insights-draft') return
       if (saveMode === 'draft') {
         try {
-          const raw = localStorage.getItem('lesson-bank-courses-v1')
+          const raw = localStorage.getItem(draftStorageKey)
           const parsed = raw ? JSON.parse(raw) : []
           const updated = parsed.map((c: any) =>
             c.id === courseId ? { ...c, modules: lessons, updatedAt: new Date().toISOString() } : c
           )
-          localStorage.setItem('lesson-bank-courses-v1', JSON.stringify(updated))
+          localStorage.setItem(draftStorageKey, JSON.stringify(updated))
           if (!options?.isAutoSave) toast.success('Draft saved')
         } catch {
           if (!options?.isAutoSave) toast.error('Failed to save draft')
@@ -304,10 +310,10 @@ function TutorInsightsPageInner() {
         updatedAt: new Date().toISOString(),
       }
       try {
-        const raw = localStorage.getItem('lesson-bank-courses-v1')
+        const raw = localStorage.getItem(draftStorageKey)
         const parsed = raw ? JSON.parse(raw) : []
         const updated = [...parsed, newCourse]
-        localStorage.setItem('lesson-bank-courses-v1', JSON.stringify(updated))
+        localStorage.setItem(draftStorageKey, JSON.stringify(updated))
         setDraftCourses(prev => [
           ...prev,
           { id: newCourse.id, name: newCourse.name, updatedAt: newCourse.updatedAt },
@@ -368,10 +374,10 @@ function TutorInsightsPageInner() {
         return
       }
       try {
-        const raw = localStorage.getItem('lesson-bank-courses-v1')
+        const raw = localStorage.getItem(draftStorageKey)
         const parsed = raw ? JSON.parse(raw) : []
         const updated = parsed.filter((c: any) => c.id !== courseId)
-        localStorage.setItem('lesson-bank-courses-v1', JSON.stringify(updated))
+        localStorage.setItem(draftStorageKey, JSON.stringify(updated))
         const remaining = draftCourses.filter(c => c.id !== courseId)
         setDraftCourses(remaining)
         setCourseId(remaining[0].id)
