@@ -175,7 +175,7 @@ export function StudentHeroSection() {
                 >
                   {d.getDate()}
                 </span>
-                <div className="mt-2 flex flex-col items-center gap-0.5 min-h-[18px]">
+                <div className="mt-2 flex min-h-[18px] flex-col items-center gap-0.5">
                   {dayEvents.slice(0, 1).map(evt => (
                     <span key={evt.id} className="text-[10px] font-medium text-indigo-600">
                       {evt.timeLabel}

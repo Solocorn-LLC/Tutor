@@ -15,13 +15,13 @@ const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/
 
 // Helper to preprocess null values for optional fields
 const nullToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
-  z.preprocess((val) => (val === null ? undefined : val), schema)
+  z.preprocess(val => (val === null ? undefined : val), schema)
 
 const nullToEmptyArray = <T extends z.ZodTypeAny>(schema: T) =>
-  z.preprocess((val) => (val === null ? [] : val), schema)
+  z.preprocess(val => (val === null ? [] : val), schema)
 
 const nullToEmptyObject = <T extends z.ZodTypeAny>(schema: T) =>
-  z.preprocess((val) => (val === null ? {} : val), schema)
+  z.preprocess(val => (val === null ? {} : val), schema)
 
 export const tutorAdditionalDataSchema = z
   .object({

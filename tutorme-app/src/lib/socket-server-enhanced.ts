@@ -23,7 +23,14 @@ import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket
 import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
-import type { StrokeDelta, ShapeDelta, TextDelta, CursorDelta, FormulaDelta, GraphDelta } from './socket/whiteboard-delta'
+import type {
+  StrokeDelta,
+  ShapeDelta,
+  TextDelta,
+  CursorDelta,
+  FormulaDelta,
+  GraphDelta,
+} from './socket/whiteboard-delta'
 
 // Types from original socket-server.ts
 export type StudentStatus = 'on_track' | 'needs_help' | 'struggling' | 'idle'
@@ -1050,7 +1057,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
     socket.on(
       'tutor:whiteboard:update',
-      (data: { roomId: string; board: { pages: unknown[]; pageIndex: number; updatedAt?: number } }) => {
+      (data: {
+        roomId: string
+        board: { pages: unknown[]; pageIndex: number; updatedAt?: number }
+      }) => {
         if (socket.data.role !== 'tutor') return
         const { roomId, board } = data || ({} as any)
         if (!roomId || !board) return
@@ -1085,7 +1095,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
     socket.on(
       'student:whiteboard:update',
-      (data: { roomId: string; board: { pages: unknown[]; pageIndex: number; updatedAt?: number } }) => {
+      (data: {
+        roomId: string
+        board: { pages: unknown[]; pageIndex: number; updatedAt?: number }
+      }) => {
         if (socket.data.role !== 'student') return
         const { roomId, board } = data || ({} as any)
         if (!roomId || !board) return
@@ -1125,149 +1138,130 @@ export async function initEnhancedSocketServer(server: NetServer) {
     )
 
     // Incremental whiteboard delta sync handlers
-    socket.on(
-      'whiteboard:stroke:add',
-      (data: { roomId: string; stroke: StrokeDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, stroke } = data || ({} as any)
-        if (!roomId || !stroke) return
+    socket.on('whiteboard:stroke:add', (data: { roomId: string; stroke: StrokeDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, stroke } = data || ({} as any)
+      if (!roomId || !stroke) return
 
-        const room = activeRooms.get(roomId)
-        if (!room) return
+      const room = activeRooms.get(roomId)
+      if (!room) return
 
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const strokes = (wb.strokes || []) as StrokeDelta[]
-        room.whiteboardData = {
-          ...wb,
-          strokes: [...strokes, stroke],
-        }
-        io.to(roomId).emit('whiteboard:stroke:added', stroke)
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const strokes = (wb.strokes || []) as StrokeDelta[]
+      room.whiteboardData = {
+        ...wb,
+        strokes: [...strokes, stroke],
       }
-    )
+      io.to(roomId).emit('whiteboard:stroke:added', stroke)
+    })
 
-    socket.on(
-      'whiteboard:shape:add',
-      (data: { roomId: string; shape: ShapeDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, shape } = data || ({} as any)
-        if (!roomId || !shape) return
+    socket.on('whiteboard:shape:add', (data: { roomId: string; shape: ShapeDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, shape } = data || ({} as any)
+      if (!roomId || !shape) return
 
-        const room = activeRooms.get(roomId)
-        if (!room) return
+      const room = activeRooms.get(roomId)
+      if (!room) return
 
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const shapes = (wb.shapes || []) as ShapeDelta[]
-        room.whiteboardData = {
-          ...wb,
-          shapes: [...shapes, shape],
-        }
-        io.to(roomId).emit('whiteboard:shape:added', shape)
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const shapes = (wb.shapes || []) as ShapeDelta[]
+      room.whiteboardData = {
+        ...wb,
+        shapes: [...shapes, shape],
       }
-    )
+      io.to(roomId).emit('whiteboard:shape:added', shape)
+    })
 
-    socket.on(
-      'whiteboard:text:add',
-      (data: { roomId: string; text: TextDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, text } = data || ({} as any)
-        if (!roomId || !text) return
+    socket.on('whiteboard:text:add', (data: { roomId: string; text: TextDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, text } = data || ({} as any)
+      if (!roomId || !text) return
 
-        const room = activeRooms.get(roomId)
-        if (!room) return
+      const room = activeRooms.get(roomId)
+      if (!room) return
 
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const texts = (wb.texts || []) as TextDelta[]
-        room.whiteboardData = {
-          ...wb,
-          texts: [...texts, text],
-        }
-        io.to(roomId).emit('whiteboard:text:added', text)
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const texts = (wb.texts || []) as TextDelta[]
+      room.whiteboardData = {
+        ...wb,
+        texts: [...texts, text],
       }
-    )
+      io.to(roomId).emit('whiteboard:text:added', text)
+    })
 
-    socket.on(
-      'whiteboard:cursor:move',
-      (data: { roomId: string; cursor: CursorDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, cursor } = data || ({} as any)
-        if (!roomId || !cursor) return
+    socket.on('whiteboard:cursor:move', (data: { roomId: string; cursor: CursorDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, cursor } = data || ({} as any)
+      if (!roomId || !cursor) return
 
-        const room = activeRooms.get(roomId)
-        if (!room) return
+      const room = activeRooms.get(roomId)
+      if (!room) return
 
-        room.lastActivity = Date.now()
-        // Cursor movements are ephemeral — no persistence
-        io.to(roomId).emit('whiteboard:cursor:moved', cursor)
+      room.lastActivity = Date.now()
+      // Cursor movements are ephemeral — no persistence
+      io.to(roomId).emit('whiteboard:cursor:moved', cursor)
+    })
+
+    socket.on('whiteboard:formula:add', (data: { roomId: string; formula: FormulaDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, formula } = data || ({} as any)
+      if (!roomId || !formula) return
+
+      const room = activeRooms.get(roomId)
+      if (!room) return
+
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const formulas = (wb.formulas || []) as FormulaDelta[]
+      room.whiteboardData = { ...wb, formulas: [...formulas, formula] }
+      io.to(roomId).emit('whiteboard:formula:added', formula)
+    })
+
+    socket.on('whiteboard:graph:add', (data: { roomId: string; graph: GraphDelta }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, graph } = data || ({} as any)
+      if (!roomId || !graph) return
+
+      const room = activeRooms.get(roomId)
+      if (!room) return
+
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const graphs = (wb.graphs || []) as GraphDelta[]
+      room.whiteboardData = { ...wb, graphs: [...graphs, graph] }
+      io.to(roomId).emit('whiteboard:graph:added', graph)
+    })
+
+    socket.on('whiteboard:page:clear', (data: { roomId: string; pageIndex: number }) => {
+      if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
+      const { roomId, pageIndex } = data || ({} as any)
+      if (!roomId || typeof pageIndex !== 'number') return
+
+      const room = activeRooms.get(roomId)
+      if (!room) return
+
+      room.lastActivity = Date.now()
+      const wb = (room.whiteboardData || {}) as Record<string, unknown>
+      const strokes = ((wb.strokes || []) as StrokeDelta[]).filter(s => s.pageIndex !== pageIndex)
+      const shapes = ((wb.shapes || []) as ShapeDelta[]).filter(s => s.pageIndex !== pageIndex)
+      const texts = ((wb.texts || []) as TextDelta[]).filter(t => t.pageIndex !== pageIndex)
+      const formulas = ((wb.formulas || []) as FormulaDelta[]).filter(
+        f => f.pageIndex !== pageIndex
+      )
+      const graphs = ((wb.graphs || []) as GraphDelta[]).filter(g => g.pageIndex !== pageIndex)
+      room.whiteboardData = {
+        ...wb,
+        strokes,
+        shapes,
+        texts,
+        formulas,
+        graphs,
       }
-    )
-
-    socket.on(
-      'whiteboard:formula:add',
-      (data: { roomId: string; formula: FormulaDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, formula } = data || ({} as any)
-        if (!roomId || !formula) return
-
-        const room = activeRooms.get(roomId)
-        if (!room) return
-
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const formulas = (wb.formulas || []) as FormulaDelta[]
-        room.whiteboardData = { ...wb, formulas: [...formulas, formula] }
-        io.to(roomId).emit('whiteboard:formula:added', formula)
-      }
-    )
-
-    socket.on(
-      'whiteboard:graph:add',
-      (data: { roomId: string; graph: GraphDelta }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, graph } = data || ({} as any)
-        if (!roomId || !graph) return
-
-        const room = activeRooms.get(roomId)
-        if (!room) return
-
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const graphs = (wb.graphs || []) as GraphDelta[]
-        room.whiteboardData = { ...wb, graphs: [...graphs, graph] }
-        io.to(roomId).emit('whiteboard:graph:added', graph)
-      }
-    )
-
-    socket.on(
-      'whiteboard:page:clear',
-      (data: { roomId: string; pageIndex: number }) => {
-        if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
-        const { roomId, pageIndex } = data || ({} as any)
-        if (!roomId || typeof pageIndex !== 'number') return
-
-        const room = activeRooms.get(roomId)
-        if (!room) return
-
-        room.lastActivity = Date.now()
-        const wb = (room.whiteboardData || {}) as Record<string, unknown>
-        const strokes = ((wb.strokes || []) as StrokeDelta[]).filter(s => s.pageIndex !== pageIndex)
-        const shapes = ((wb.shapes || []) as ShapeDelta[]).filter(s => s.pageIndex !== pageIndex)
-        const texts = ((wb.texts || []) as TextDelta[]).filter(t => t.pageIndex !== pageIndex)
-        const formulas = ((wb.formulas || []) as FormulaDelta[]).filter(f => f.pageIndex !== pageIndex)
-        const graphs = ((wb.graphs || []) as GraphDelta[]).filter(g => g.pageIndex !== pageIndex)
-        room.whiteboardData = {
-          ...wb,
-          strokes,
-          shapes,
-          texts,
-          formulas,
-          graphs,
-        }
-        io.to(roomId).emit('whiteboard:page:cleared', { pageIndex })
-      }
-    )
+      io.to(roomId).emit('whiteboard:page:cleared', { pageIndex })
+    })
 
     socket.on(
       'insight:send',
@@ -1313,7 +1307,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
             const [material] = await drizzleDb
               .select({ content: deployedMaterial.content })
               .from(deployedMaterial)
-              .where(and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, taskId)))
+              .where(
+                and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, taskId))
+              )
               .limit(1)
             const content = material?.content as any
             if (content?.id) {

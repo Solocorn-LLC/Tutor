@@ -44,7 +44,10 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid query params', details: error.issues }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Invalid query params', details: error.issues },
+        { status: 400 }
+      )
     }
     console.error('[backfill] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

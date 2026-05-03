@@ -263,14 +263,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         })
         .from(payment)
         .where(
-          and(
-            eq(payment.courseId, id),
-            eq(payment.status, 'COMPLETED'),
-            isNull(payment.refundedAt)
-          )
+          and(eq(payment.courseId, id), eq(payment.status, 'COMPLETED'), isNull(payment.refundedAt))
         )
 
-      const batches: typeof payments[] = []
+      const batches: (typeof payments)[] = []
       for (let i = 0; i < payments.length; i += 5) {
         batches.push(payments.slice(i, i + 5))
       }

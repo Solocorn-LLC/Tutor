@@ -116,9 +116,7 @@ export function decompressPoints(flat: CompressedPoints): PointDelta[] {
 }
 
 // Batch compression: group consecutive strokes by page
-export function batchDeltasByPage<T extends { pageIndex: number }>(
-  deltas: T[]
-): Map<number, T[]> {
+export function batchDeltasByPage<T extends { pageIndex: number }>(deltas: T[]): Map<number, T[]> {
   const map = new Map<number, T[]>()
   for (const d of deltas) {
     const arr = map.get(d.pageIndex) || []

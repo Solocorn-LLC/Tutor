@@ -89,7 +89,10 @@ export function DashboardCalendar({
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
-  const monthEnd = useMemo(() => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59), [month])
+  const monthEnd = useMemo(
+    () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
+    [month]
+  )
 
   // Fetch calendar events
   useEffect(() => {
@@ -169,9 +172,14 @@ export function DashboardCalendar({
         status,
         subject: ev.subject,
         isOnline: true,
-        description: (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
+        description:
+          (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
         color:
-          status === 'live' ? 'bg-emerald-500' : status === 'completed' ? 'bg-slate-400' : 'bg-blue-500',
+          status === 'live'
+            ? 'bg-emerald-500'
+            : status === 'completed'
+              ? 'bg-slate-400'
+              : 'bg-blue-500',
       }
     })
   }, [events])

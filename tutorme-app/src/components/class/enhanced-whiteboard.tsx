@@ -738,7 +738,8 @@ export function EnhancedWhiteboard({
           if (x === 0) continue
           if (x < viewport.left || x > viewport.right) continue
           // X-axis tick label (place near x-axis or bottom of viewport)
-          const labelY = viewport.top <= 0 && viewport.bottom >= 0 ? 4 / scale : viewport.bottom - 16 / scale
+          const labelY =
+            viewport.top <= 0 && viewport.bottom >= 0 ? 4 / scale : viewport.bottom - 16 / scale
           ctx.fillText(String(Math.round(x)), x, labelY)
         }
 
@@ -748,7 +749,8 @@ export function EnhancedWhiteboard({
           if (y === 0) continue
           if (y < viewport.top || y > viewport.bottom) continue
           // Y-axis tick label
-          const labelX = viewport.left <= 0 && viewport.right >= 0 ? -4 / scale : viewport.left + 4 / scale
+          const labelX =
+            viewport.left <= 0 && viewport.right >= 0 ? -4 / scale : viewport.left + 4 / scale
           ctx.fillText(String(Math.round(-y)), labelX, y)
         }
         break
@@ -877,7 +879,13 @@ export function EnhancedWhiteboard({
   const drawFormulaElement = (ctx: CanvasRenderingContext2D, formula: FormulaElement) => {
     const cached = formulaImageCache.current.get(formula.svgDataUrl)
     if (cached && cached.complete) {
-      ctx.drawImage(cached, formula.x, formula.y, formula.width * formula.scale, formula.height * formula.scale)
+      ctx.drawImage(
+        cached,
+        formula.x,
+        formula.y,
+        formula.width * formula.scale,
+        formula.height * formula.scale
+      )
       return
     }
     // Load and cache
@@ -890,7 +898,12 @@ export function EnhancedWhiteboard({
     // Fallback: draw placeholder rectangle
     ctx.strokeStyle = formula.color
     ctx.lineWidth = 1
-    ctx.strokeRect(formula.x, formula.y, formula.width * formula.scale, formula.height * formula.scale)
+    ctx.strokeRect(
+      formula.x,
+      formula.y,
+      formula.width * formula.scale,
+      formula.height * formula.scale
+    )
   }
 
   const drawGraphElement = (ctx: CanvasRenderingContext2D, graph: GraphElement) => {
@@ -1052,9 +1065,9 @@ export function EnhancedWhiteboard({
               type: 'graph',
               id: graph.id,
               x: graph.xMin,
-              y: (graph.yMin ?? -10),
+              y: graph.yMin ?? -10,
               width: graph.xMax - graph.xMin,
-              height: ((graph.yMax ?? 10) - (graph.yMin ?? -10)),
+              height: (graph.yMax ?? 10) - (graph.yMin ?? -10),
             }
           }
         }
@@ -1631,7 +1644,14 @@ export function EnhancedWhiteboard({
   }
 
   const clearPage = () => {
-    updateCurrentPage({ ...currentPage, strokes: [], texts: [], shapes: [], formulas: [], graphs: [] })
+    updateCurrentPage({
+      ...currentPage,
+      strokes: [],
+      texts: [],
+      shapes: [],
+      formulas: [],
+      graphs: [],
+    })
     if (socket && roomId) {
       socket.emit('whiteboard:page:clear', { roomId, pageIndex: currentPageIndex })
     }
@@ -1871,7 +1891,14 @@ export function EnhancedWhiteboard({
       const currentPages = pagesRef.current
       if (idx < 0 || idx >= currentPages.length) return
       const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], strokes: [], texts: [], shapes: [], formulas: [], graphs: [] }
+      newPages[idx] = {
+        ...newPages[idx],
+        strokes: [],
+        texts: [],
+        shapes: [],
+        formulas: [],
+        graphs: [],
+      }
       setInternalPages(newPages)
       onPagesChange?.(newPages)
       setSelectedObject(null)

@@ -87,10 +87,7 @@ export const PATCH = withCsrf(
             durationMinutes: actualDuration,
           })
           .where(
-            and(
-              eq(liveSession.sessionId, calEvent.externalId),
-              eq(liveSession.tutorId, tutorId)
-            )
+            and(eq(liveSession.sessionId, calEvent.externalId), eq(liveSession.tutorId, tutorId))
           )
       }
 

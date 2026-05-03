@@ -90,10 +90,10 @@ export async function PATCH(request: NextRequest) {
         }
 
         // Create a Daily.co room for the 1-on-1 session
-        const room = await dailyProvider.createRoom(
-          `1on1-${existingRequest.requestId}`,
-          { maxParticipants: 2, durationMinutes: existingRequest.durationMinutes }
-        )
+        const room = await dailyProvider.createRoom(`1on1-${existingRequest.requestId}`, {
+          maxParticipants: 2,
+          durationMinutes: existingRequest.durationMinutes,
+        })
 
         // Unified session creation (LiveSession + CalendarEvent)
         const { calendarEvent: newEvent } = await createSession(

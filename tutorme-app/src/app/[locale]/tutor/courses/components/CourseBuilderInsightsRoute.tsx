@@ -598,14 +598,12 @@ function CourseBuilderInsightsRouteInner({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {courseId &&
-                              courseId !== 'insights-draft' &&
-                              saveMode === 'draft' && (
-                                <DropdownMenuItem onClick={handleStartSessionClick}>
-                                  <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
-                                  Go Live
-                                </DropdownMenuItem>
-                              )}
+                            {courseId && courseId !== 'insights-draft' && saveMode === 'draft' && (
+                              <DropdownMenuItem onClick={handleStartSessionClick}>
+                                <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
+                                Go Live
+                              </DropdownMenuItem>
+                            )}
                             {onDeleteCourse &&
                               !insightsProps.sessionId &&
                               saveMode === 'draft' &&

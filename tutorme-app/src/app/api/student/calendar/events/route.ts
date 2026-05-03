@@ -8,7 +8,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, courseEnrollment, profile, liveSession, course, sessionParticipant } from '@/lib/db/schema'
+import {
+  calendarEvent,
+  courseEnrollment,
+  profile,
+  liveSession,
+  course,
+  sessionParticipant,
+} from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 
 export const GET = withAuth(
@@ -102,9 +109,7 @@ export const GET = withAuth(
       .orderBy(liveSession.scheduledAt)
 
     // Build a set of externalIds already covered by CalendarEvent to avoid duplicates
-    const coveredExternalIds = new Set(
-      calEvents.map(e => e.externalId).filter(Boolean) as string[]
-    )
+    const coveredExternalIds = new Set(calEvents.map(e => e.externalId).filter(Boolean) as string[])
 
     // Merge fallback LiveSessions that aren't already covered
     const merged = [

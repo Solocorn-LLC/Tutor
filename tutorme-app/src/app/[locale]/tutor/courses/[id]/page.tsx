@@ -7,30 +7,13 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   ArrowLeft,
   BookOpen,
@@ -140,6 +123,11 @@ export default function TutorCoursePage() {
   const [course, setCourse] = useState<CourseData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const variantManagerRef = useRef<VariantManagerHandle | null>(null)
+  const [variantStats, setVariantStats] = useState<{ total: number; published: number }>({
+    total: 0,
+    published: 0,
+  })
 
   const [courseName, setCourseName] = useState('')
   const [description, setDescription] = useState('')
@@ -157,6 +145,11 @@ export default function TutorCoursePage() {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [categoryTab, setCategoryTab] = useState('global')
+
+  const totalLessons = useMemo(
+    () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
+    [course?.modules]
+  )
   const [categorySearch, setCategorySearch] = useState('')
   const [scheduleSummary, setScheduleSummary] = useState<ScheduleItem[]>([])
 
@@ -576,15 +569,6 @@ export default function TutorCoursePage() {
     0
   )
   const totalDurationHours = (totalDurationMinutes / 60).toFixed(1)
-  const totalLessons = useMemo(
-    () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
-    [course?.modules]
-  )
-  const variantManagerRef = useRef<VariantManagerHandle | null>(null)
-  const [variantStats, setVariantStats] = useState<{ total: number; published: number }>({
-    total: 0,
-    published: 0,
-  })
 
   if (!id) {
     return (
@@ -615,7 +599,12 @@ export default function TutorCoursePage() {
             </div>
           </div>
 
-          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+          <Card
+            variant="floating"
+            elevation={2}
+            padding="none"
+            className="overflow-hidden rounded-[16px]"
+          >
             <div className="panel-header panel-header-metallic">
               <div className="flex items-center gap-3">
                 <div className="panel-header-icon">
@@ -644,7 +633,9 @@ export default function TutorCoursePage() {
                 </div>
 
                 <div className="form-group space-y-2">
-                  <Label className="form-label font-semibold text-slate-700">Course Description</Label>
+                  <Label className="form-label font-semibold text-slate-700">
+                    Course Description
+                  </Label>
                   <Textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
@@ -657,7 +648,12 @@ export default function TutorCoursePage() {
             </CardContent>
           </Card>
 
-          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+          <Card
+            variant="floating"
+            elevation={2}
+            padding="none"
+            className="overflow-hidden rounded-[16px]"
+          >
             <div className="panel-header panel-header-metallic">
               <div className="flex items-center gap-3">
                 <div className="panel-header-icon">
@@ -673,7 +669,6 @@ export default function TutorCoursePage() {
             </div>
 
             <CardContent spacing="default">
-
               <div className="flex flex-col gap-6">
                 {/* Top Panel - Region & Country Selection Dropdowns */}
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
@@ -1101,7 +1096,12 @@ export default function TutorCoursePage() {
             </CardContent>
           </Card>
 
-          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+          <Card
+            variant="floating"
+            elevation={2}
+            padding="none"
+            className="overflow-hidden rounded-[16px]"
+          >
             <div className="panel-header panel-header-metallic">
               <div className="flex items-center gap-3">
                 <div className="panel-header-icon">

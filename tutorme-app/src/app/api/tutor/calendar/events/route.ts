@@ -89,9 +89,7 @@ export const GET = withAuth(
       .orderBy(liveSession.scheduledAt)
 
     // Build a set of sessionIds already covered by CalendarEvent to avoid duplicates
-    const coveredSessionIds = new Set(
-      calEvents.map(e => e.externalId).filter(Boolean) as string[]
-    )
+    const coveredSessionIds = new Set(calEvents.map(e => e.externalId).filter(Boolean) as string[])
 
     // Merge fallback LiveSessions that aren't already covered
     const merged = [

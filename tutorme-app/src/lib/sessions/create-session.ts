@@ -49,10 +49,7 @@ const TYPE_TO_EVENT_TYPE: Record<SessionType, 'LESSON' | 'CONSULTATION' | 'CLINI
  * Create a LiveSession + its CalendarEvent projection atomically.
  * Returns the created LiveSession row.
  */
-export async function createSession(
-  input: CreateSessionInput,
-  tx?: DbClient
-) {
+export async function createSession(input: CreateSessionInput, tx?: DbClient) {
   const db = tx ?? drizzleDb
   const sessionId = crypto.randomUUID()
   const now = new Date()
@@ -145,12 +142,7 @@ export async function backfillCalendarEventsForLiveSessions(
     })
     .from(liveSession)
     .leftJoin(calendarEvent, eq(calendarEvent.externalId, liveSession.sessionId))
-    .where(
-      and(
-        isNull(calendarEvent.eventId),
-        not(eq(liveSession.status, 'ended'))
-      )
-    )
+    .where(and(isNull(calendarEvent.eventId), not(eq(liveSession.status, 'ended'))))
     .limit(limit)
 
   const results: Array<{ sessionId: string; eventId: string; dryRun: boolean }> = []
@@ -158,11 +150,10 @@ export async function backfillCalendarEventsForLiveSessions(
   for (const ls of orphaned) {
     if (!ls.scheduledAt) continue
 
-    const endTime = new Date(
-      ls.scheduledAt.getTime() + (ls.durationMinutes ?? 120) * 60_000
-    )
-    const eventType: 'LESSON' | 'CONSULTATION' | 'CLINIC' | 'OTHER' =
-      ls.courseId ? 'LESSON' : 'OTHER'
+    const endTime = new Date(ls.scheduledAt.getTime() + (ls.durationMinutes ?? 120) * 60_000)
+    const eventType: 'LESSON' | 'CONSULTATION' | 'CLINIC' | 'OTHER' = ls.courseId
+      ? 'LESSON'
+      : 'OTHER'
 
     if (dryRun) {
       results.push({

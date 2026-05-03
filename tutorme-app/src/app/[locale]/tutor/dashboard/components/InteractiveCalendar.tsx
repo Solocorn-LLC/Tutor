@@ -1,6 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react'
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -406,7 +413,12 @@ export function InteractiveCalendar({
             sessionId: e.sessionId,
             courseName: e.courseName,
             studentCount: e.enrolledCount ?? 0,
-            color: e.status === 'live' ? 'bg-emerald-500' : e.status === 'ended' ? 'bg-slate-400' : 'bg-blue-500',
+            color:
+              e.status === 'live'
+                ? 'bg-emerald-500'
+                : e.status === 'ended'
+                  ? 'bg-slate-400'
+                  : 'bg-blue-500',
           }))
         )
       } catch {
@@ -767,7 +779,9 @@ export function InteractiveCalendar({
                     <Button variant="outline" size="icon" onClick={() => navigatePeriod(-1)}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <h2 className="min-w-[150px] text-center text-lg font-semibold">{headerLabel}</h2>
+                    <h2 className="min-w-[150px] text-center text-lg font-semibold">
+                      {headerLabel}
+                    </h2>
                     <Button variant="outline" size="icon" onClick={() => navigatePeriod(1)}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -869,8 +883,8 @@ export function InteractiveCalendar({
                       {showConflictWarning.length / 2} scheduling conflicts detected
                     </p>
                     <p className="text-xs text-red-600">
-                      Some classes overlap in time. Drag events to reschedule or click &quot;View&quot;
-                      to see conflicts.
+                      Some classes overlap in time. Drag events to reschedule or click
+                      &quot;View&quot; to see conflicts.
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setShowConflictDialog(true)}>
@@ -1100,7 +1114,8 @@ export function InteractiveCalendar({
                       <Users className="h-5 w-5 text-gray-500" />
                       <div>
                         <p className="font-medium">
-                          {selectedEvent.studentCount ?? 0} / {selectedEvent.maxStudents ?? 50} students
+                          {selectedEvent.studentCount ?? 0} / {selectedEvent.maxStudents ?? 50}{' '}
+                          students
                         </p>
                         <p className="text-sm text-gray-500">
                           {Math.max(
@@ -1348,8 +1363,9 @@ export function InteractiveCalendar({
                   </DialogTitle>
                   <DialogDescription>
                     {Math.round(showConflictWarning.length / 2)} overlapping session
-                    {Math.round(showConflictWarning.length / 2) !== 1 ? 's' : ''} detected.
-                    Click &quot;Find alternatives&quot; to see recommended new times based on your availability.
+                    {Math.round(showConflictWarning.length / 2) !== 1 ? 's' : ''} detected. Click
+                    &quot;Find alternatives&quot; to see recommended new times based on your
+                    availability.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1379,7 +1395,7 @@ export function InteractiveCalendar({
 
                     return pairs.map(([ev1, ev2], idx) => (
                       <div key={idx} className="rounded-lg border border-red-200 bg-red-50/50 p-4">
-                        <p className="mb-2 text-xs font-medium text-red-600 uppercase tracking-wide">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-red-600">
                           Conflict #{idx + 1}
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -1388,7 +1404,7 @@ export function InteractiveCalendar({
                             const loading = recommendationsLoading.has(ev.id)
                             return (
                               <div key={ev.id} className="rounded-md border bg-white p-3">
-                                <p className="font-medium text-sm">{ev.title}</p>
+                                <p className="text-sm font-medium">{ev.title}</p>
                                 <p className="text-xs text-gray-500">
                                   {ev.date.toLocaleDateString('en-US', {
                                     weekday: 'short',
@@ -1420,7 +1436,9 @@ export function InteractiveCalendar({
                                         )
                                         const data = await res.json().catch(() => ({}))
                                         if (!res.ok) {
-                                          toast.error(data.error || 'Failed to load recommendations')
+                                          toast.error(
+                                            data.error || 'Failed to load recommendations'
+                                          )
                                           return
                                         }
                                         setConflictRecommendations(prev => {
@@ -1450,15 +1468,20 @@ export function InteractiveCalendar({
                                   </div>
                                 )}
 
-                                {recs.length === 0 && !loading && conflictRecommendations.has(ev.id) && (
-                                  <p className="mt-2 text-xs text-gray-500">
-                                    No available slots found. Try dragging the event to reschedule manually, or update your availability settings.
-                                  </p>
-                                )}
+                                {recs.length === 0 &&
+                                  !loading &&
+                                  conflictRecommendations.has(ev.id) && (
+                                    <p className="mt-2 text-xs text-gray-500">
+                                      No available slots found. Try dragging the event to reschedule
+                                      manually, or update your availability settings.
+                                    </p>
+                                  )}
 
                                 {recs.length > 0 && (
                                   <div className="mt-2 space-y-1.5">
-                                    <p className="text-xs font-medium text-gray-600">Suggested times:</p>
+                                    <p className="text-xs font-medium text-gray-600">
+                                      Suggested times:
+                                    </p>
                                     {recs.map((rec, rIdx) => {
                                       const recDate = new Date(`${rec.date}T${rec.startTime}`)
                                       return (
@@ -1490,14 +1513,27 @@ export function InteractiveCalendar({
                                               // Refresh events
                                               const refreshed = await fetch(
                                                 `/api/tutor/calendar/events?start=${encodeURIComponent(
-                                                  new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString()
+                                                  new Date(
+                                                    currentDate.getFullYear(),
+                                                    currentDate.getMonth(),
+                                                    1
+                                                  ).toISOString()
                                                 )}&end=${encodeURIComponent(
-                                                  new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59).toISOString()
+                                                  new Date(
+                                                    currentDate.getFullYear(),
+                                                    currentDate.getMonth() + 1,
+                                                    0,
+                                                    23,
+                                                    59,
+                                                    59
+                                                  ).toISOString()
                                                 )}`,
                                                 { credentials: 'include' }
                                               )
                                               const data = await refreshed.json().catch(() => ({}))
-                                              const apiEvents = Array.isArray(data?.events) ? data.events : []
+                                              const apiEvents = Array.isArray(data?.events)
+                                                ? data.events
+                                                : []
                                               setEvents(
                                                 apiEvents.map((e: any) => ({
                                                   id: e.id,
@@ -1725,7 +1761,14 @@ function MonthView({
   )
 }
 
-function WeekView({ currentDate, events, onEventClick, onDateClick, conflicts, readOnly = false }: any) {
+function WeekView({
+  currentDate,
+  events,
+  onEventClick,
+  onDateClick,
+  conflicts,
+  readOnly = false,
+}: any) {
   const weekStart = new Date(currentDate)
   weekStart.setDate(currentDate.getDate() - currentDate.getDay())
 

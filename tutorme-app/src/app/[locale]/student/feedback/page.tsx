@@ -608,7 +608,10 @@ function StudentFeedbackContent() {
   useEffect(() => {
     if (!selectedSessionId || typeof window === 'undefined') return
     try {
-      window.localStorage.setItem(`student-follow-tutor:${selectedSessionId}`, followTutor ? '1' : '0')
+      window.localStorage.setItem(
+        `student-follow-tutor:${selectedSessionId}`,
+        followTutor ? '1' : '0'
+      )
     } catch {
       // ignore
     }
@@ -803,52 +806,55 @@ function StudentFeedbackContent() {
     }
   }, [])
 
-  const handleSelectDirectoryItem = useCallback((item: any) => {
-    // Handle live tasks / homework (LiveTask objects from socket)
-    if (item.source === 'task' || item.source === 'assessment' || item.source === 'homework') {
-      setSelectedDirectoryItem(item)
-      setActiveTaskId(item.id)
-      setActiveCourseName(item.courseName || null)
-      setUnseenTaskIds(prev => prev.filter(id => id !== item.id))
-      setUnseenHomeworkIds(prev => prev.filter(id => id !== item.id))
-      const notifId = taskNotifMap.current.get(item.id) || hwNotifMap.current.get(item.id)
-      if (notifId) {
-        void markNotificationsRead([notifId])
-        taskNotifMap.current.delete(item.id)
-        hwNotifMap.current.delete(item.id)
-      }
-      setShowTasksPanel(false)
-      return
-    }
-    if (
-      item.type === 'task' ||
-      item.type === 'assessment' ||
-      item.type === 'homework' ||
-      item.type === 'recording'
-    ) {
-      try {
-        const parsed = typeof item.content === 'string' ? JSON.parse(item.content) : item.content
-        parsed.title = item.title
-        parsed.id = item.itemId || item.id // Use itemId or fallback to id
-        parsed.courseName = item.courseName
-
-        setSelectedDirectoryItem(parsed)
-        setActiveTaskId(parsed.id)
+  const handleSelectDirectoryItem = useCallback(
+    (item: any) => {
+      // Handle live tasks / homework (LiveTask objects from socket)
+      if (item.source === 'task' || item.source === 'assessment' || item.source === 'homework') {
+        setSelectedDirectoryItem(item)
+        setActiveTaskId(item.id)
         setActiveCourseName(item.courseName || null)
-        setUnseenTaskIds(prev => prev.filter(id => id !== parsed.id))
-        setUnseenHomeworkIds(prev => prev.filter(id => id !== parsed.id))
-        const notifId = taskNotifMap.current.get(parsed.id) || hwNotifMap.current.get(parsed.id)
+        setUnseenTaskIds(prev => prev.filter(id => id !== item.id))
+        setUnseenHomeworkIds(prev => prev.filter(id => id !== item.id))
+        const notifId = taskNotifMap.current.get(item.id) || hwNotifMap.current.get(item.id)
         if (notifId) {
           void markNotificationsRead([notifId])
-          taskNotifMap.current.delete(parsed.id)
-          hwNotifMap.current.delete(parsed.id)
+          taskNotifMap.current.delete(item.id)
+          hwNotifMap.current.delete(item.id)
         }
         setShowTasksPanel(false)
-      } catch (e) {
-        console.error('Failed to parse task content', e)
+        return
       }
-    }
-  }, [markNotificationsRead])
+      if (
+        item.type === 'task' ||
+        item.type === 'assessment' ||
+        item.type === 'homework' ||
+        item.type === 'recording'
+      ) {
+        try {
+          const parsed = typeof item.content === 'string' ? JSON.parse(item.content) : item.content
+          parsed.title = item.title
+          parsed.id = item.itemId || item.id // Use itemId or fallback to id
+          parsed.courseName = item.courseName
+
+          setSelectedDirectoryItem(parsed)
+          setActiveTaskId(parsed.id)
+          setActiveCourseName(item.courseName || null)
+          setUnseenTaskIds(prev => prev.filter(id => id !== parsed.id))
+          setUnseenHomeworkIds(prev => prev.filter(id => id !== parsed.id))
+          const notifId = taskNotifMap.current.get(parsed.id) || hwNotifMap.current.get(parsed.id)
+          if (notifId) {
+            void markNotificationsRead([notifId])
+            taskNotifMap.current.delete(parsed.id)
+            hwNotifMap.current.delete(parsed.id)
+          }
+          setShowTasksPanel(false)
+        } catch (e) {
+          console.error('Failed to parse task content', e)
+        }
+      }
+    },
+    [markNotificationsRead]
+  )
 
   const handleSelectTask = (taskId: string) => {
     setActiveTaskId(taskId)
@@ -1231,7 +1237,9 @@ function StudentFeedbackContent() {
                                                 }))
                                                 // Mark homework as seen when folder is opened
                                                 setUnseenHomeworkIds([])
-                                                const hwNotifIds = Array.from(hwNotifMap.current.values())
+                                                const hwNotifIds = Array.from(
+                                                  hwNotifMap.current.values()
+                                                )
                                                 if (hwNotifIds.length > 0) {
                                                   void markNotificationsRead(hwNotifIds)
                                                   hwNotifMap.current.clear()
@@ -1529,111 +1537,119 @@ function StudentFeedbackContent() {
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1">
               <div className="flex h-full flex-col gap-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="flex flex-1 flex-col"
+                >
                   {(() => {
                     const controlRow = (
                       <div className="sticky top-3 z-50 w-full px-4">
                         <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3">
                           <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-md">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setFollowTutor(!followTutor)}
-                            className={cn(
-                              'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                              followTutor
-                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                            )}
-                          >
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setFollowTutor(!followTutor)}
+                              className={cn(
+                                'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
+                                followTutor
+                                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  'mr-2 h-2 w-2 rounded-full',
+                                  followTutor ? 'bg-white' : 'bg-slate-500'
+                                )}
+                              />
+                              {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                            </Button>
+
                             <div
                               className={cn(
-                                'mr-2 h-2 w-2 rounded-full',
-                                followTutor ? 'bg-white' : 'bg-slate-500'
+                                'flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold',
+                                isConnected
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : error
+                                    ? 'border-red-200 bg-red-50 text-red-700'
+                                    : 'border-slate-200 bg-slate-50 text-slate-700'
                               )}
-                            />
-                            {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                          </Button>
+                            >
+                              <div
+                                className={cn(
+                                  'h-2 w-2 rounded-full',
+                                  isConnected
+                                    ? 'bg-emerald-500'
+                                    : error
+                                      ? 'bg-red-500'
+                                      : 'bg-slate-400'
+                                )}
+                              />
+                              {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+                            </div>
 
-                          <div
-                            className={cn(
-                              'flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold',
-                              isConnected
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : error
-                                  ? 'border-red-200 bg-red-50 text-red-700'
-                                  : 'border-slate-200 bg-slate-50 text-slate-700'
-                            )}
-                          >
-                            <div
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setIsMirroringToTutor(!isMirroringToTutor)}
                               className={cn(
-                                'h-2 w-2 rounded-full',
-                                isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-slate-400'
+                                'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
+                                isMirroringToTutor
+                                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                               )}
-                            />
-                            {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                          </div>
+                            >
+                              <div
+                                className={cn(
+                                  'mr-2 h-2 w-2 rounded-full',
+                                  isMirroringToTutor ? 'bg-white' : 'bg-slate-500'
+                                )}
+                              />
+                              {isMirroringToTutor ? 'Mirroring On' : 'Mirror to Tutor'}
+                            </Button>
 
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setIsMirroringToTutor(!isMirroringToTutor)}
-                            className={cn(
-                              'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                              isMirroringToTutor
-                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                'mr-2 h-2 w-2 rounded-full',
-                                isMirroringToTutor ? 'bg-white' : 'bg-slate-500'
-                              )}
-                            />
-                            {isMirroringToTutor ? 'Mirroring On' : 'Mirror to Tutor'}
-                          </Button>
-
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={!sessionContext?.roomUrl}
-                            onClick={() => {
-                              if (!sessionContext?.roomUrl) return
-                              openVideoOverlay({
-                                roomUrl: sessionContext.roomUrl,
-                                token: sessionContext.token,
-                                autoRecord: false,
-                              })
-                            }}
-                            className="h-8 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm"
-                          >
-                            <Video className="h-4 w-4" />
-                            Video
-                          </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!sessionContext?.roomUrl}
+                              onClick={() => {
+                                if (!sessionContext?.roomUrl) return
+                                openVideoOverlay({
+                                  roomUrl: sessionContext.roomUrl,
+                                  token: sessionContext.token,
+                                  autoRecord: false,
+                                })
+                              }}
+                              className="h-8 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm"
+                            >
+                              <Video className="h-4 w-4" />
+                              Video
+                            </Button>
                           </div>
 
                           <TabsList className="flex h-8 items-center gap-2 border-0 bg-transparent p-0 shadow-none">
-                          <TabsTrigger
-                            value="task"
-                            className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
-                          >
-                            Classroom
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="my-board"
-                            className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
-                          >
-                            My Board
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="tutor-board"
-                            className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
-                          >
-                            Tutor Board
-                          </TabsTrigger>
-                        </TabsList>
-                      </div>
+                            <TabsTrigger
+                              value="task"
+                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                            >
+                              Classroom
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="my-board"
+                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                            >
+                              My Board
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="tutor-board"
+                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                            >
+                              Tutor Board
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
                       </div>
                     )
 

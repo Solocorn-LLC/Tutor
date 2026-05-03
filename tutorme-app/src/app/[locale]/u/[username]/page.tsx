@@ -872,9 +872,9 @@ export default function PublicTutorPage() {
 
   const hasSocialLinks = Boolean(
     tutor.socialLinks?.tiktok ||
-      tutor.socialLinks?.youtube ||
-      tutor.socialLinks?.instagram ||
-      tutor.socialLinks?.facebook
+    tutor.socialLinks?.youtube ||
+    tutor.socialLinks?.instagram ||
+    tutor.socialLinks?.facebook
   )
 
   const headerCardClass =
@@ -900,7 +900,9 @@ export default function PublicTutorPage() {
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="truncate text-3xl font-bold leading-tight">{tutor.name || '@'}</h1>
+                    <h1 className="truncate text-3xl font-bold leading-tight">
+                      {tutor.name || '@'}
+                    </h1>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-300/30">
                       <CheckCircle className="h-4 w-4" />
                       Verified
@@ -968,7 +970,9 @@ export default function PublicTutorPage() {
                     <Star className="h-4 w-4 text-white/80" />
                   </div>
                   <div className="min-w-0">
-                    <div className="font-semibold">Let&apos;s learn and achieve your goals together.</div>
+                    <div className="font-semibold">
+                      Let&apos;s learn and achieve your goals together.
+                    </div>
                     <div className="text-white/70">Book a session or follow to stay updated.</div>
                   </div>
                 </div>
@@ -1070,26 +1074,26 @@ export default function PublicTutorPage() {
                   <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
                     {tutor.socialLinks?.tiktok ? (
                       <div>
-                        <span className="font-semibold text-slate-900">TikTok:</span>{' '}
-                        @{stripAt(tutor.socialLinks.tiktok)}
+                        <span className="font-semibold text-slate-900">TikTok:</span> @
+                        {stripAt(tutor.socialLinks.tiktok)}
                       </div>
                     ) : null}
                     {tutor.socialLinks?.youtube ? (
                       <div>
-                        <span className="font-semibold text-slate-900">YouTube:</span>{' '}
-                        @{stripAt(tutor.socialLinks.youtube)}
+                        <span className="font-semibold text-slate-900">YouTube:</span> @
+                        {stripAt(tutor.socialLinks.youtube)}
                       </div>
                     ) : null}
                     {tutor.socialLinks?.instagram ? (
                       <div>
-                        <span className="font-semibold text-slate-900">Instagram:</span>{' '}
-                        @{stripAt(tutor.socialLinks.instagram)}
+                        <span className="font-semibold text-slate-900">Instagram:</span> @
+                        {stripAt(tutor.socialLinks.instagram)}
                       </div>
                     ) : null}
                     {tutor.socialLinks?.facebook ? (
                       <div>
-                        <span className="font-semibold text-slate-900">Facebook:</span>{' '}
-                        @{stripAt(tutor.socialLinks.facebook)}
+                        <span className="font-semibold text-slate-900">Facebook:</span> @
+                        {stripAt(tutor.socialLinks.facebook)}
                       </div>
                     ) : null}
                   </div>
@@ -1125,14 +1129,21 @@ export default function PublicTutorPage() {
           </div>
         </div>
 
-        <div className={cn(panelCardClass, 'mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between')}>
+        <div
+          className={cn(
+            panelCardClass,
+            'mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'
+          )}
+        >
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50">
               <UserCheck className="h-5 w-5 text-emerald-700" />
             </div>
             <div>
               <div className="text-sm font-semibold text-slate-900">Verified Tutor</div>
-              <div className="text-sm text-slate-600">This tutor has been verified by Solocorn.</div>
+              <div className="text-sm text-slate-600">
+                This tutor has been verified by Solocorn.
+              </div>
             </div>
           </div>
           <a

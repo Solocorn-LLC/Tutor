@@ -98,7 +98,9 @@ export function svgToDataUrl(svgHtml: string): string {
   const svg = svgMatch ? svgMatch[0] : svgHtml
 
   // Ensure xmlns is present
-  const svgWithNs = svg.includes('xmlns=') ? svg : svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
+  const svgWithNs = svg.includes('xmlns=')
+    ? svg
+    : svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
 
   const encoded = encodeURIComponent(svgWithNs)
   return `data:image/svg+xml;charset=utf-8,${encoded}`

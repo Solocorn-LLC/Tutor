@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseVariant, liveSession, tutorAsset, calendarEvent, calendarAvailability, calendarException } from '@/lib/db/schema'
+import {
+  course,
+  courseLesson,
+  courseVariant,
+  liveSession,
+  tutorAsset,
+  calendarEvent,
+  calendarAvailability,
+  calendarException,
+} from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { eq, and, inArray, gte, lte, sql, or, isNull } from 'drizzle-orm'
@@ -227,9 +236,7 @@ async function findAlternativeSlots(
     }
 
     // Check exceptions
-    const dayException = exceptions.find(
-      e => e.date.toISOString().split('T')[0] === dateStr
-    )
+    const dayException = exceptions.find(e => e.date.toISOString().split('T')[0] === dateStr)
     if (dayException && !dayException.isAvailable) {
       cursor.setDate(cursor.getDate() + 1)
       continue
@@ -495,7 +502,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
           // Fetch all existing sessions/events that could overlap with the generated range
           const sessionEndMax = maxScheduledAt
-            ? new Date(maxScheduledAt.getTime() + Math.max(...sessionDates.map(s => s.durationMinutes || 60)) * 60000)
+            ? new Date(
+                maxScheduledAt.getTime() +
+                  Math.max(...sessionDates.map(s => s.durationMinutes || 60)) * 60000
+              )
             : null
 
           const [existingLiveSessions, existingCalendarEvents] = await Promise.all([
@@ -555,7 +565,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           function overlaps(
             start: Date,
             end: Date,
-            existing: { startTime?: Date | null; endTime?: Date | null; scheduledAt?: Date | null; durationMinutes?: number | null }
+            existing: {
+              startTime?: Date | null
+              endTime?: Date | null
+              scheduledAt?: Date | null
+              durationMinutes?: number | null
+            }
           ): boolean {
             const existingStart = existing.scheduledAt || existing.startTime
             if (!existingStart) return false

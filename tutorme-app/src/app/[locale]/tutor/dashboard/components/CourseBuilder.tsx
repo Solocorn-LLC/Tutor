@@ -1003,7 +1003,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // Only sync activeTaskId if the task has been deployed to the session
       const deployedTaskIds = new Set(insightsProps?.liveTasks?.map((t: any) => t.id) ?? [])
       const candidateTaskId = loadedTaskId || loadedAssessmentId || null
-      const activeTaskId = candidateTaskId && deployedTaskIds.has(candidateTaskId) ? candidateTaskId : null
+      const activeTaskId =
+        candidateTaskId && deployedTaskIds.has(candidateTaskId) ? candidateTaskId : null
 
       const statePayload = {
         activeTab,
@@ -1639,12 +1640,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [builderNodes, cloneNodes, setLiveNodes])
 
     // Expose save method via ref
-    useImperativeHandle(ref, () => ({
-      save: doSave,
-      saveAll: doSave,
-      syncToLive: handleSyncToLive,
-      getLessons: () => nodes.map(n => n.lessons[0]),
-    }), [doSave, handleSyncToLive, nodes])
+    useImperativeHandle(
+      ref,
+      () => ({
+        save: doSave,
+        saveAll: doSave,
+        syncToLive: handleSyncToLive,
+        getLessons: () => nodes.map(n => n.lessons[0]),
+      }),
+      [doSave, handleSyncToLive, nodes]
+    )
 
     const trackObjectUrl = useCallback((url: string) => {
       if (url.startsWith('blob:')) {
@@ -7476,9 +7481,17 @@ FEEDBACK: [your explanation]`
                                         {(() => {
                                           if (mainTab === 'live' && tab.id === 'student1') {
                                             if (monitorSelectedStudent) {
-                                              const studentBoard = insightsProps?.studentBoards?.[monitorSelectedStudent.id]
-                                              const studentPages = (studentBoard?.pages as WhiteboardPages) || createDefaultWhiteboardPages()
-                                              const studentPageIndex = typeof studentBoard?.pageIndex === 'number' ? studentBoard.pageIndex : 0
+                                              const studentBoard =
+                                                insightsProps?.studentBoards?.[
+                                                  monitorSelectedStudent.id
+                                                ]
+                                              const studentPages =
+                                                (studentBoard?.pages as WhiteboardPages) ||
+                                                createDefaultWhiteboardPages()
+                                              const studentPageIndex =
+                                                typeof studentBoard?.pageIndex === 'number'
+                                                  ? studentBoard.pageIndex
+                                                  : 0
                                               return (
                                                 <Dialog
                                                   open
@@ -7532,7 +7545,9 @@ FEEDBACK: [your explanation]`
                                                   roomId={insightsProps?.sessionId ?? undefined}
                                                   userId={insightsProps?.tutorId ?? undefined}
                                                   userName={insightsProps?.tutorName || 'Tutor'}
-                                                  userColor={stringToColor(insightsProps?.tutorId || '')}
+                                                  userColor={stringToColor(
+                                                    insightsProps?.tutorId || ''
+                                                  )}
                                                 />
                                               </div>
                                             )

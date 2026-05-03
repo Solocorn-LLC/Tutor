@@ -41,10 +41,7 @@ export const GET = withAuth(
                 await drizzleDb
                   .select({ templateCourseId: courseVariant.templateCourseId })
                   .from(courseVariant)
-                  .innerJoin(
-                    courseTable,
-                    eq(courseTable.courseId, courseVariant.publishedCourseId)
-                  )
+                  .innerJoin(courseTable, eq(courseTable.courseId, courseVariant.publishedCourseId))
                   .where(
                     and(
                       inArray(courseVariant.templateCourseId, courseIds),
@@ -96,27 +93,27 @@ export const GET = withAuth(
             : true
         )
         .map(c => {
-        const sessionMeta = sessionMap.get(c.courseId)
-        const enrollmentMeta = enrollmentMap.get(c.courseId)
-        return {
-          id: c.courseId,
-          name: c.name,
-          description: c.description,
-          categories: c.categories,
-          isPublished: c.isPublished,
-          isLiveOnline: c.isLiveOnline,
-          schedule: c.schedule,
-          createdAt: c.createdAt,
-          updatedAt: c.updatedAt,
-          hasSessions: sessionMeta?.hasSessions ?? false,
-          studentCount: enrollmentMeta?.studentCount ?? 0,
-          _count: {
-            enrollments: enrollmentMeta?.studentCount ?? 0,
-          },
-          lastSessionDate: sessionMeta?.lastSessionDate ?? null,
-          upcomingSessionsCount: sessionMeta?.upcomingSessionsCount ?? 0,
-        }
-      })
+          const sessionMeta = sessionMap.get(c.courseId)
+          const enrollmentMeta = enrollmentMap.get(c.courseId)
+          return {
+            id: c.courseId,
+            name: c.name,
+            description: c.description,
+            categories: c.categories,
+            isPublished: c.isPublished,
+            isLiveOnline: c.isLiveOnline,
+            schedule: c.schedule,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+            hasSessions: sessionMeta?.hasSessions ?? false,
+            studentCount: enrollmentMeta?.studentCount ?? 0,
+            _count: {
+              enrollments: enrollmentMeta?.studentCount ?? 0,
+            },
+            lastSessionDate: sessionMeta?.lastSessionDate ?? null,
+            upcomingSessionsCount: sessionMeta?.upcomingSessionsCount ?? 0,
+          }
+        })
 
       return NextResponse.json({ courses })
     } catch (error) {

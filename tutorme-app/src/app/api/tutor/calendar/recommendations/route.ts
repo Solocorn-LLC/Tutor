@@ -6,7 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession, calendarAvailability, calendarException, calendarEvent } from '@/lib/db/schema'
+import {
+  liveSession,
+  calendarAvailability,
+  calendarException,
+  calendarEvent,
+} from '@/lib/db/schema'
 import { eq, and, gte, lte } from 'drizzle-orm'
 
 export const GET = withAuth(
@@ -36,21 +41,14 @@ export const GET = withAuth(
       const [ce] = await drizzleDb
         .select({ externalId: calendarEvent.externalId })
         .from(calendarEvent)
-        .where(
-          and(
-            eq(calendarEvent.eventId, eventIdParam),
-            eq(calendarEvent.tutorId, tutorId)
-          )
-        )
+        .where(and(eq(calendarEvent.eventId, eventIdParam), eq(calendarEvent.tutorId, tutorId)))
         .limit(1)
 
       if (ce?.externalId) {
         const rows = await drizzleDb
           .select()
           .from(liveSession)
-          .where(
-            and(eq(liveSession.sessionId, ce.externalId), eq(liveSession.tutorId, tutorId))
-          )
+          .where(and(eq(liveSession.sessionId, ce.externalId), eq(liveSession.tutorId, tutorId)))
           .limit(1)
         ls = rows[0]
       }
@@ -138,9 +136,7 @@ export const GET = withAuth(
         continue
       }
 
-      const dayException = exceptions.find(
-        e => e.date.toISOString().split('T')[0] === dateStr
-      )
+      const dayException = exceptions.find(e => e.date.toISOString().split('T')[0] === dateStr)
       if (dayException && !dayException.isAvailable) {
         cursor.setDate(cursor.getDate() + 1)
         continue

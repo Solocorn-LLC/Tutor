@@ -36,7 +36,14 @@ export async function POST(request: NextRequest) {
         : null
     console.error('Tutor registration error:', err.message, err.stack)
     if (pgError) {
-      console.error('PostgreSQL error:', pgError.message, 'code:', pgError.code, 'detail:', pgError.detail)
+      console.error(
+        'PostgreSQL error:',
+        pgError.message,
+        'code:',
+        pgError.code,
+        'detail:',
+        pgError.detail
+      )
     }
     if (error && typeof error === 'object' && 'issues' in error) {
       const zodError = error as { issues: Array<{ message: string }> }
@@ -66,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
     const message =
       process.env.NODE_ENV === 'development'
-        ? (pgError?.message || err.message || 'Internal server error. Please try again.')
+        ? pgError?.message || err.message || 'Internal server error. Please try again.'
         : 'Internal server error. Please try again.'
     return handleApiError(error, message, 'api/auth/register/tutor/route.ts')
   }

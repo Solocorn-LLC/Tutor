@@ -30,7 +30,12 @@ const PRESETS = [
   { label: 'Logarithm', expr: 'log(abs(x))' },
 ]
 
-export function GraphDialog({ open, onOpenChange, onPlot, defaultColor = '#3b82f6' }: GraphDialogProps) {
+export function GraphDialog({
+  open,
+  onOpenChange,
+  onPlot,
+  defaultColor = '#3b82f6',
+}: GraphDialogProps) {
   const [expression, setExpression] = useState('sin(x)')
   const [color, setColor] = useState(defaultColor)
   const [lineWidth, setLineWidth] = useState([2])
@@ -49,7 +54,9 @@ export function GraphDialog({ open, onOpenChange, onPlot, defaultColor = '#3b82f
     const fn = compileExpression(trimmed)
     const testVal = fn(1)
     if (testVal === null) {
-      setError('Invalid expression. Use x as variable. Allowed: sin, cos, tan, sqrt, log, exp, abs, etc.')
+      setError(
+        'Invalid expression. Use x as variable. Allowed: sin, cos, tan, sqrt, log, exp, abs, etc.'
+      )
       return false
     }
     const min = parseFloat(xMin)
@@ -98,7 +105,10 @@ export function GraphDialog({ open, onOpenChange, onPlot, defaultColor = '#3b82f
             <Input
               id="expr"
               value={expression}
-              onChange={e => { setExpression(e.target.value); setError('') }}
+              onChange={e => {
+                setExpression(e.target.value)
+                setError('')
+              }}
               placeholder="sin(x) + 0.5"
               className="font-mono"
             />
@@ -133,11 +143,21 @@ export function GraphDialog({ open, onOpenChange, onPlot, defaultColor = '#3b82f
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="ymin">y Min (optional)</Label>
-              <Input id="ymin" value={yMin} onChange={e => setYMin(e.target.value)} placeholder="auto" />
+              <Input
+                id="ymin"
+                value={yMin}
+                onChange={e => setYMin(e.target.value)}
+                placeholder="auto"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ymax">y Max (optional)</Label>
-              <Input id="ymax" value={yMax} onChange={e => setYMax(e.target.value)} placeholder="auto" />
+              <Input
+                id="ymax"
+                value={yMax}
+                onChange={e => setYMax(e.target.value)}
+                placeholder="auto"
+              />
             </div>
           </div>
 

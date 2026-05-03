@@ -29,25 +29,29 @@ async function getStorage() {
     const gcs = await import('@google-cloud/storage')
     Storage = gcs.Storage
   }
-  if (!SA_KEY) {
-    throw new Error('GCP_SA_KEY is not configured')
+  if (SA_KEY) {
+    let credentials: Record<string, unknown>
+    try {
+      credentials = JSON.parse(SA_KEY) as Record<string, unknown>
+    } catch {
+      throw new Error('GCP_SA_KEY must be valid JSON')
+    }
+    cachedStorage = new Storage({
+      projectId: PROJECT_ID || (credentials.project_id as string | undefined),
+      credentials,
+    })
+    return cachedStorage
   }
-  let credentials: Record<string, unknown>
-  try {
-    credentials = JSON.parse(SA_KEY) as Record<string, unknown>
-  } catch (error) {
-    throw new Error('GCP_SA_KEY must be valid JSON')
-  }
+
   cachedStorage = new Storage({
-    projectId: PROJECT_ID || (credentials.project_id as string | undefined),
-    credentials,
+    ...(PROJECT_ID ? { projectId: PROJECT_ID } : {}),
   })
   return cachedStorage
 }
 
 // Check if GCS is configured
 export function isGcsConfigured(): boolean {
-  return !!(BUCKET && PROJECT_ID && SA_KEY)
+  return !!BUCKET
 }
 
 function buildPublicUrl(key: string): string {

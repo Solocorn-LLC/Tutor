@@ -9,11 +9,7 @@ import { Sigma, Loader2, AlertCircle } from 'lucide-react'
 interface LatexFormulaDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onPlace: (options: {
-    latex: string
-    scale: number
-    color: string
-  }) => void
+  onPlace: (options: { latex: string; scale: number; color: string }) => void
 }
 
 const PRESETS = [
@@ -118,7 +114,10 @@ export function LatexFormulaDialog({ open, onOpenChange, onPlace }: LatexFormula
             <Input
               id="latex"
               value={latex}
-              onChange={e => { setLatex(e.target.value); setError('') }}
+              onChange={e => {
+                setLatex(e.target.value)
+                setError('')
+              }}
               placeholder="\\frac{a}{b}"
               className="font-mono text-sm"
             />
