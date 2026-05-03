@@ -88,7 +88,7 @@ export function useSocket(options?: UseSocketOptions) {
         if (connectionTimeout) clearTimeout(connectionTimeout)
 
         // Join class room only when identity context is provided.
-        if (options?.roomId && options.userId && options.name && options.role) {
+        if (options?.roomId && options?.userId && options?.name && options?.role) {
           socket.emit('join_class', {
             roomId: options.roomId,
             userId: options.userId,

@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -74,7 +74,7 @@ import {
   type CountryData,
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
-import { VariantManager } from './components/VariantManager'
+import { VariantManager, type VariantManagerHandle } from './components/VariantManager'
 
 // Flatten all categories into a single list
 const ALL_CATEGORIES = [
@@ -576,6 +576,15 @@ export default function TutorCoursePage() {
     0
   )
   const totalDurationHours = (totalDurationMinutes / 60).toFixed(1)
+  const totalLessons = useMemo(
+    () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
+    [course?.modules]
+  )
+  const variantManagerRef = useRef<VariantManagerHandle | null>(null)
+  const [variantStats, setVariantStats] = useState<{ total: number; published: number }>({
+    total: 0,
+    published: 0,
+  })
 
   if (!id) {
     return (
@@ -589,49 +598,81 @@ export default function TutorCoursePage() {
   }
 
   return (
-    <div className="h-full min-h-[calc(100vh-64px)] bg-[#F8FAFC] pb-12">
+    <div className="h-full min-h-[calc(100vh-64px)] bg-white pb-12">
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-8 sm:px-6">
-        {/* Master Panel */}
-        <div className="rounded-[20px] bg-[#FFFFFF] px-6 py-8 shadow-[0_12px_30px_rgba(0,0,0,0.08)] sm:px-8 sm:py-10">
-          {/* Header Row */}
-          <div className="mb-10 flex items-center gap-4">
-            <BackButton href={`/tutor/insights?tab=builder&courseId=${id}`} />
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
-              <BookOpen className="h-6 w-6 text-indigo-500" />
-              Course Details
-            </h1>
+        <div className="space-y-6">
+          <div className="panel-header panel-header-metallic course-top-header">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute left-0">
+                <BackButton href={`/tutor/insights?tab=builder&courseId=${id}`} />
+              </div>
+              <div className="text-center">
+                <div className="panel-header-title">Course Details</div>
+                <div className="panel-header-subtext">
+                  Manage all information and settings for your course.
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-10">
-            {/* Section 1: Basic Info */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold text-slate-700">Course Name</Label>
-                <Input
-                  value={courseName}
-                  onChange={e => setCourseName(e.target.value)}
-                  placeholder="Course name"
-                  className="bg-transparent"
-                />
+          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+            <div className="panel-header panel-header-metallic">
+              <div className="flex items-center gap-3">
+                <div className="panel-header-icon">
+                  <BookOpen className="h-5 w-5 text-slate-900" />
+                </div>
+                <div>
+                  <div className="panel-header-title">Course Information</div>
+                  <div className="panel-header-subtext">Add the basic details of your course.</div>
+                </div>
               </div>
+            </div>
+            <CardContent spacing="default">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="form-group space-y-2">
+                  <Label className="form-label font-semibold text-slate-700">Course Name</Label>
+                  <Input
+                    value={courseName}
+                    onChange={e => setCourseName(e.target.value)}
+                    placeholder="Course name"
+                    className="bg-transparent"
+                  />
+                  <div className="mt-3 flex items-center gap-3 text-sm text-slate-700">
+                    <span className="font-semibold">No. of Lessons</span>
+                    <span>{totalLessons}</span>
+                  </div>
+                </div>
 
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold text-slate-700">Course Description</Label>
-                <Textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="What will students learn in this course?"
-                  rows={1}
-                  className="min-h-[40px] resize-y bg-transparent"
-                />
+                <div className="form-group space-y-2">
+                  <Label className="form-label font-semibold text-slate-700">Course Description</Label>
+                  <Textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="What will students learn in this course?"
+                    rows={1}
+                    className="min-h-[40px] resize-y bg-transparent"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+            <div className="panel-header panel-header-metallic">
+              <div className="flex items-center gap-3">
+                <div className="panel-header-icon">
+                  <Globe className="h-5 w-5 text-slate-900" />
+                </div>
+                <div>
+                  <div className="panel-header-title">Categories</div>
+                  <div className="panel-header-subtext">
+                    Select the categories and exams relevant to your course.
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="border-b border-[rgba(0,0,0,0.06)]" />
-
-            {/* Section 2: Categories */}
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-slate-800">Categories</h2>
+            <CardContent spacing="default">
 
               <div className="flex flex-col gap-6">
                 {/* Top Panel - Region & Country Selection Dropdowns */}
@@ -1057,25 +1098,30 @@ export default function TutorCoursePage() {
                   </span>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card variant="floating" elevation={2} padding="none" className="overflow-hidden rounded-[16px]">
+            <div className="panel-header panel-header-metallic">
+              <div className="flex items-center gap-3">
+                <div className="panel-header-icon">
+                  <DollarSign className="h-5 w-5 text-slate-900" />
+                </div>
+                <div>
+                  <div className="panel-header-title">Publish</div>
+                  <div className="panel-header-subtext">Pricing structure and publishing.</div>
+                </div>
+              </div>
             </div>
 
-            <div className="border-b border-[rgba(0,0,0,0.06)]" />
-
-            {/* Section 3: Pricing */}
-            <div className="space-y-6">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
-                <DollarSign className="h-5 w-5 text-indigo-500" />
-                Pricing Structure
-              </h2>
-              <div className="space-y-8 pt-2">
+            <CardContent spacing="default">
+              <div className="space-y-8">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
-                    <Label htmlFor="isFree" className="text-sm font-semibold text-slate-700">
+                    <Label htmlFor="isFree" className="form-label font-semibold text-slate-700">
                       Free course
                     </Label>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Students can enroll without payment.
-                    </p>
+                    <p className="text-sm text-slate-500">Students can enroll without payment.</p>
                   </div>
                   <Switch
                     id="isFree"
@@ -1088,8 +1134,8 @@ export default function TutorCoursePage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div className="space-y-3">
-                    <Label htmlFor="price" className="text-sm font-semibold text-slate-700">
+                  <div className="form-group space-y-2">
+                    <Label htmlFor="price" className="form-label font-semibold text-slate-700">
                       Cost per 1 hour session
                     </Label>
                     <Input
@@ -1104,8 +1150,8 @@ export default function TutorCoursePage() {
                       className="border-slate-200 bg-transparent"
                     />
                   </div>
-                  <div className="space-y-3">
-                    <Label htmlFor="currency" className="text-sm font-semibold text-slate-700">
+                  <div className="form-group space-y-2">
+                    <Label htmlFor="currency" className="form-label font-semibold text-slate-700">
                       Currency
                     </Label>
                     <Input
@@ -1130,51 +1176,49 @@ export default function TutorCoursePage() {
                     This course will be listed as free.
                   </div>
                 )}
-              </div>
-            </div>
 
-            <div className="border-b border-[rgba(0,0,0,0.06)]" />
-
-            {/* Section 4: Variant Manager */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
-                  <Globe className="h-5 w-5 text-indigo-500" />
-                  Publish
-                </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  Configure and publish course variants for each category and country combination.
-                </p>
+                <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+                  <div className="text-sm text-slate-700">
+                    <span className="font-semibold">{variantStats.published}</span> published out of{' '}
+                    <span className="font-semibold">{variantStats.total}</span> variants
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => void variantManagerRef.current?.publish()}
+                    disabled={variantStats.total === 0}
+                    className="rounded-full bg-indigo-600 px-6 text-white shadow-sm transition-all duration-300 hover:bg-indigo-700"
+                  >
+                    Publish Variants
+                  </Button>
+                </div>
               </div>
-              <div className="pt-4">
-                <VariantManager
-                  templateCourseId={id}
-                  selectedCategories={selectedCategories}
-                  selectedCountryCodes={selectedCountries.length > 0 ? selectedCountries : ['GL']}
-                  defaultPrice={price === '' ? null : Number(price)}
-                  defaultCurrency="USD"
-                  defaultLanguage={languageOfInstruction || 'English'}
-                  defaultSchedule={schedule}
-                  onSaved={() => {
-                    // Optionally refresh course data after variants are saved
-                  }}
-                />
-              </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Bottom Actions */}
-            <div className="flex justify-end gap-4 pt-8">
-              <Button
-                size="lg"
-                variant="default"
-                onClick={handleSaveAll}
-                disabled={saving}
-                className="rounded-full bg-indigo-600 px-8 text-white hover:bg-indigo-700"
-              >
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
+          <VariantManager
+            ref={variantManagerRef}
+            templateCourseId={id}
+            selectedCategories={selectedCategories}
+            selectedCountryCodes={selectedCountries.length > 0 ? selectedCountries : ['GL']}
+            defaultPrice={price === '' ? null : Number(price)}
+            defaultCurrency="USD"
+            defaultLanguage={languageOfInstruction || 'English'}
+            defaultSchedule={schedule}
+            onStatsChange={setVariantStats}
+            hidePublishAction
+          />
+
+          <div className="flex justify-end gap-4 pt-2">
+            <Button
+              size="lg"
+              variant="default"
+              onClick={handleSaveAll}
+              disabled={saving}
+              className="rounded-full bg-indigo-600 px-8 text-white hover:bg-indigo-700"
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
           </div>
         </div>
       </div>

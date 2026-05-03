@@ -2,6 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .panel-header {
+    min-height: 64px;
+    padding: 16px 24px;
+  }
+
+  .panel-header-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .panel-header-subtext {
+    font-size: 13px;
+    color: #D1D5DB;
+    margin-top: 2px;
+  }
+
+  .panel-header-icon {
+    background: #FFFFFF;
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .panel-header-metallic {
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(145deg, rgba(17, 24, 39, 0.88), rgba(31, 41, 55, 0.84));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #F9FAFB;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+  }
+
+  .panel-header-metallic:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .course-top-header {
+    border-radius: 16px;
+  }
+
+  .form-label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+}
+
 /* ============================================
    DESIGN SYSTEM - Three Premium Themes
    ============================================ */

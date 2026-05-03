@@ -1063,42 +1063,7 @@ export default function TutorRegistrationPage() {
                     )}
                   </div>
 
-                  <div className="rounded-lg bg-gray-50 p-4">
-                    <h4 className="mb-2 flex items-center gap-2 font-semibold">
-                      <Globe className="h-4 w-4" />
-                      Categories
-                    </h4>
-                    {selectedCategories.length === 0 ? (
-                      <p className="text-sm text-gray-500">No categories selected.</p>
-                    ) : (
-                      <ul className="list-inside list-disc text-sm text-gray-700">
-                        {selectedCategories.map(category => (
-                          <li key={category}>{category}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div className="rounded-lg bg-gray-50 p-4">
-                    <h4 className="mb-2 flex items-center gap-2 font-semibold">
-                      <ShieldCheck className="h-4 w-4" />
-                      Countries
-                    </h4>
-                    {selectedCountries.length === 0 ? (
-                      <p className="text-sm text-gray-500">No countries selected.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {getCountryNamesFromCodes(selectedCountries).map(country => (
-                          <span
-                            key={country}
-                            className="rounded border bg-white px-2 py-1 text-sm text-gray-700"
-                          >
-                            {country}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Categories and Countries sections removed — no selection UI in current form */}
                 </div>
 
                 <div className="flex gap-3">
