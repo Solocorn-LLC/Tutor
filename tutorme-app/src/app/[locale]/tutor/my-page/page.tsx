@@ -1015,7 +1015,7 @@ export default function TutorMyPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-7xl space-y-8 px-6 py-8">
+      <div className="w-full space-y-8 px-6 py-8">
         <section className={headerCardClass}>
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">

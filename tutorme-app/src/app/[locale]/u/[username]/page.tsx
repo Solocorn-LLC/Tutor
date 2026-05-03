@@ -888,7 +888,7 @@ export default function PublicTutorPage() {
 
   return (
     <div className="min-h-screen w-full bg-white p-4 sm:p-6">
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="w-full">
         <section className={headerCardClass}>
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
