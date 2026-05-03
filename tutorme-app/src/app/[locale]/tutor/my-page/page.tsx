@@ -253,7 +253,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
   )
 
   return (
-    <Card className="border border-[#E2E8F0] shadow-sm">
+    <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg text-[#1F2933]">My Courses</CardTitle>
@@ -269,7 +269,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-[#E2E8F0]">
+        <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
           {(['active', 'unpublished', 'catalogued'] as const).map(tab => (
             <button
               key={tab}
@@ -999,11 +999,11 @@ export default function TutorMyPage() {
   }
 
   const headerCardClass =
-    'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(0,0,0,0.10)]'
+    'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_18px_60px_rgba(0,0,0,0.18)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_24px_80px_rgba(0,0,0,0.22)]'
   const headerInnerClass =
     'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-6 text-white'
   const panelCardClass =
-    'group rounded-[18px] bg-white p-6 shadow-[0_6px_20px_rgba(0,0,0,0.06)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)]'
+    'group rounded-[18px] bg-white p-6 shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
 
   return (
     <div className="min-h-screen bg-white text-[#1F2933]">
@@ -1357,9 +1357,9 @@ export default function TutorMyPage() {
           </DialogContent>
         </Dialog>
 
-        <Card className="border border-[#E2E8F0] shadow-sm">
+    <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           <CardHeader
-            className="cursor-pointer select-none pb-3"
+            className="cursor-pointer select-none bg-white pb-3"
             onClick={() => setProfileSettingsOpen(prev => !prev)}
           >
             <div className="flex items-center justify-between">
@@ -1372,7 +1372,7 @@ export default function TutorMyPage() {
             </div>
           </CardHeader>
           {profileSettingsOpen && (
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-5 bg-white">
               <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
                 <div className="flex min-h-[280px] flex-col gap-2 lg:min-h-0">
                   <Label className="text-[#1F2933]">Edit Bio</Label>
