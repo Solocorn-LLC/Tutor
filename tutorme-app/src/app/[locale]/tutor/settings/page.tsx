@@ -58,6 +58,9 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
+const SECTION_CARD_CLASS =
+  'border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+
 interface PaymentMethod {
   id: string
   type: 'card' | 'paypal'
@@ -137,7 +140,7 @@ function OneOnOneSettingsCard() {
 
   if (loading) {
     return (
-      <Card>
+      <Card className={SECTION_CARD_CLASS}>
         <CardHeader>
           <CardTitle>One-on-One Booking</CardTitle>
         </CardHeader>
@@ -151,7 +154,7 @@ function OneOnOneSettingsCard() {
   }
 
   return (
-    <Card>
+    <Card className={SECTION_CARD_CLASS}>
       <CardHeader>
         <CardTitle>One-on-One Booking</CardTitle>
         <CardDescription>Allow students to book private sessions with you</CardDescription>
@@ -589,7 +592,7 @@ export default function TutorSettings() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-500" />
           <p className="text-gray-600">Loading account...</p>
@@ -599,8 +602,8 @@ export default function TutorSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <header className="sticky top-0 z-10 w-full bg-gray-50 px-4 pb-2 pt-4 sm:px-6">
+    <div className="min-h-screen bg-white pb-12">
+      <header className="sticky top-0 z-10 w-full bg-white px-4 pb-2 pt-4 sm:px-6">
         <div className="mx-auto max-w-5xl">
           <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -662,7 +665,7 @@ export default function TutorSettings() {
 
           {/* Profile & Identity */}
           <TabsContent value="profile" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Profile & Identity</CardTitle>
               </CardHeader>
@@ -722,7 +725,7 @@ export default function TutorSettings() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={formData.name} disabled className="bg-gray-50" />
+                    <Input id="name" value={formData.name} disabled className="bg-white" />
                     <p className="text-xs text-gray-500">
                       Contact{' '}
                       <a
@@ -736,7 +739,7 @@ export default function TutorSettings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" value={formData.email} disabled className="bg-gray-50" />
+                    <Input id="email" value={formData.email} disabled className="bg-white" />
                     <p className="text-xs text-gray-500">
                       Contact{' '}
                       <a
@@ -775,7 +778,7 @@ export default function TutorSettings() {
                       id="timezone"
                       value={formData.timezone}
                       disabled
-                      className="bg-gray-50"
+                      className="bg-white"
                     />
                     <p className="text-xs text-gray-500">Automatically detected</p>
                   </div>
@@ -800,7 +803,7 @@ export default function TutorSettings() {
             </Card>
 
             {/* Tax Information */}
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Tax Information</CardTitle>
                 <CardDescription>Required for payout and tax reporting</CardDescription>
@@ -901,7 +904,7 @@ export default function TutorSettings() {
             </Card>
 
             {/* Tutor Information */}
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Tutor Information</CardTitle>
                 <CardDescription>
@@ -916,7 +919,7 @@ export default function TutorSettings() {
                     <Input
                       value={formData.nationality || 'Not specified'}
                       disabled
-                      className="bg-gray-50"
+                      className="bg-white"
                     />
                     <p className="text-xs text-gray-500">
                       Your nationality as selected during registration
@@ -927,7 +930,7 @@ export default function TutorSettings() {
                     <Input
                       value={formData.countryOfResidence || 'Not specified'}
                       disabled
-                      className="bg-gray-50"
+                      className="bg-white"
                     />
                     <p className="text-xs text-gray-500">Your current country of residence</p>
                   </div>
@@ -1013,7 +1016,7 @@ export default function TutorSettings() {
 
           {/* Billing & Payment */}
           <TabsContent value="billing" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Payment Methods</CardTitle>
                 <CardDescription>Manage your payment methods for subscription</CardDescription>
@@ -1060,7 +1063,7 @@ export default function TutorSettings() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Subscription Plan</CardTitle>
                 <CardDescription>Manage your tutor subscription</CardDescription>
@@ -1082,7 +1085,7 @@ export default function TutorSettings() {
                   </div>
                   <div className="space-y-2">
                     <Label>Subscription Cost</Label>
-                    <div className="h-10 rounded-md border bg-gray-50 px-3 py-2 text-sm">$15</div>
+                    <div className="h-10 rounded-md border bg-white px-3 py-2 text-sm">$15</div>
                   </div>
                   <div className="space-y-2">
                     <Label>Action</Label>
@@ -1121,7 +1124,7 @@ export default function TutorSettings() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Payout Settings</CardTitle>
                 <CardDescription>Manage your earnings and withdrawals</CardDescription>
@@ -1131,7 +1134,7 @@ export default function TutorSettings() {
                   <div className="space-y-2">
                     <Label>Payout Available Balance</Label>
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 rounded-md border bg-gray-50 px-3 py-2 text-sm">
+                      <div className="flex-1 rounded-md border bg-white px-3 py-2 text-sm">
                         {payoutBalance}
                       </div>
                       <Button
@@ -1166,7 +1169,7 @@ export default function TutorSettings() {
 
           {/* Billing History */}
           <TabsContent value="history" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Billing History</CardTitle>
                 <CardDescription>View and download your invoices and receipts</CardDescription>
@@ -1217,7 +1220,7 @@ export default function TutorSettings() {
 
           {/* Notifications */}
           <TabsContent value="notifications" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
                 <CardDescription>Control how and when we contact you</CardDescription>
@@ -1321,7 +1324,7 @@ export default function TutorSettings() {
 
           {/* Privacy & Security */}
           <TabsContent value="security" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Privacy & Security</CardTitle>
                 <CardDescription>Manage your password and account security</CardDescription>
@@ -1423,7 +1426,7 @@ export default function TutorSettings() {
 
           {/* Account Controls */}
           <TabsContent value="controls" className="space-y-6">
-            <Card>
+            <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Account Controls</CardTitle>
                 <CardDescription>

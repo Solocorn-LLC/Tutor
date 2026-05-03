@@ -142,7 +142,7 @@ export default function StudentSettings() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-500" />
           <p className="text-gray-600">Loading settings...</p>
@@ -150,6 +150,9 @@ export default function StudentSettings() {
       </div>
     )
   }
+
+  const sectionCardClass =
+    'border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
   const copyValue = async (kind: 'studentId' | 'accountId', value: string) => {
     if (!value) return
@@ -160,7 +163,7 @@ export default function StudentSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-white pb-12">
       <header className="safe-top sticky top-0 z-10 border-b bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-4">
           <Link href="/student/dashboard">
@@ -212,7 +215,7 @@ export default function StudentSettings() {
           <div className="flex-1 space-y-6">
             <form onSubmit={handleSubmit}>
               {activeTab === 'profile' && (
-                <Card>
+                <Card className={sectionCardClass}>
                   <CardHeader>
                     <CardTitle>Profile Details</CardTitle>
                     <CardDescription>Manage your public profile and preferences.</CardDescription>
@@ -255,7 +258,7 @@ export default function StudentSettings() {
                     <div className="grid gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" value={formData.name} disabled className="bg-gray-50" />
+                        <Input id="name" value={formData.name} disabled className="bg-white" />
                         <p className="text-xs text-gray-500">
                           Contact{' '}
                           <a
@@ -303,7 +306,7 @@ export default function StudentSettings() {
                       </div>
                     </div>
                   </CardContent>
-                  <div className="flex justify-end rounded-b-lg border-t bg-gray-50 p-6">
+                  <div className="flex justify-end rounded-b-lg border-t bg-white p-6">
                     <Button type="submit" disabled={saving}>
                       {saving ? (
                         <>
@@ -324,7 +327,7 @@ export default function StudentSettings() {
               {activeTab === 'notifications' && <NotificationSettings />}
 
               {activeTab === 'account' && (
-                <Card>
+                <Card className={sectionCardClass}>
                   <CardHeader>
                     <CardTitle>Account Security</CardTitle>
                     <CardDescription>Manage your account credentials.</CardDescription>
@@ -333,7 +336,7 @@ export default function StudentSettings() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" value={formData.email} disabled className="bg-gray-50" />
+                        <Input id="email" value={formData.email} disabled className="bg-white" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="accountId">Account ID</Label>
@@ -342,7 +345,7 @@ export default function StudentSettings() {
                             id="accountId"
                             value={formData.userId}
                             disabled
-                            className="bg-gray-50 font-mono text-xs"
+                            className="bg-white font-mono text-xs"
                           />
                           <Button
                             type="button"

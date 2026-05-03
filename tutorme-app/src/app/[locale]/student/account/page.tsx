@@ -269,9 +269,12 @@ export default function StudentAccount() {
     toast.success('Payment method removed')
   }
 
+  const sectionCardClass =
+    'border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-500" />
           <p className="text-gray-600">Loading account...</p>
@@ -281,8 +284,8 @@ export default function StudentAccount() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <header className="sticky top-0 z-10 w-full bg-gray-50 px-4 pb-2 pt-4 sm:px-6">
+    <div className="min-h-screen bg-white pb-12">
+      <header className="sticky top-0 z-10 w-full bg-white px-4 pb-2 pt-4 sm:px-6">
         <div className="mx-auto max-w-5xl">
           <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -344,7 +347,7 @@ export default function StudentAccount() {
 
           {/* Profile & Identity */}
           <TabsContent value="profile" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Profile & Identity</CardTitle>
               </CardHeader>
@@ -415,7 +418,7 @@ export default function StudentAccount() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={formData.name} disabled className="bg-gray-50" />
+                    <Input id="name" value={formData.name} disabled className="bg-white" />
                     <p className="text-xs text-gray-500">
                       Contact{' '}
                       <a
@@ -429,7 +432,7 @@ export default function StudentAccount() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" value={formData.email} disabled className="bg-gray-50" />
+                    <Input id="email" value={formData.email} disabled className="bg-white" />
                     <p className="text-xs text-gray-500">
                       Contact{' '}
                       <a
@@ -468,7 +471,7 @@ export default function StudentAccount() {
                       id="timezone"
                       value={formData.timezone}
                       disabled
-                      className="bg-gray-50"
+                      className="bg-white"
                     />
                     <p className="text-xs text-gray-500">Automatically detected</p>
                   </div>
@@ -495,7 +498,7 @@ export default function StudentAccount() {
 
           {/* Billing & Payment */}
           <TabsContent value="billing" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Billing & Payment Methods</CardTitle>
                 <CardDescription>
@@ -558,7 +561,7 @@ export default function StudentAccount() {
 
           {/* Billing History */}
           <TabsContent value="history" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Billing History</CardTitle>
                 <CardDescription>View and download your invoices and receipts</CardDescription>
@@ -609,7 +612,7 @@ export default function StudentAccount() {
 
           {/* Notifications */}
           <TabsContent value="notifications" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
                 <CardDescription>Control how and when we contact you</CardDescription>
@@ -713,7 +716,7 @@ export default function StudentAccount() {
 
           {/* Privacy & Security */}
           <TabsContent value="security" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Privacy & Security</CardTitle>
                 <CardDescription>Manage your password and account security</CardDescription>
@@ -815,7 +818,7 @@ export default function StudentAccount() {
 
           {/* Account Controls */}
           <TabsContent value="controls" className="space-y-6">
-            <Card>
+            <Card className={sectionCardClass}>
               <CardHeader>
                 <CardTitle>Account Controls</CardTitle>
                 <CardDescription>

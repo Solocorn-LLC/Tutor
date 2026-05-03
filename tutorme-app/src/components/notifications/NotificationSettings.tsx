@@ -168,11 +168,13 @@ export function NotificationSettings() {
   }
 
   if (!prefs) return null
+  const sectionCardClass =
+    'border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
   return (
     <div className="space-y-6">
       {/* Global Channels */}
-      <Card>
+      <Card className={sectionCardClass}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bell className="h-5 w-5" />
@@ -250,11 +252,11 @@ export function NotificationSettings() {
       </Card>
 
       {/* Per-Type Overrides */}
-      <Card>
+      <Card className={sectionCardClass}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Settings2 className="h-5 w-5" />
-            Per-Category Settings
+            Notification Types
           </CardTitle>
           <CardDescription>
             Fine-tune which channels are used for each notification type
@@ -308,7 +310,7 @@ export function NotificationSettings() {
       </Card>
 
       {/* Quiet Hours */}
-      <Card>
+      <Card className={sectionCardClass}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Moon className="h-5 w-5" />
