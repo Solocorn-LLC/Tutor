@@ -1204,6 +1204,7 @@ const CountdownTimer = () => {
 }
 
 const Panel2SearchResults = ({ query }: { query: string }) => {
+  const q = query.trim()
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
   const [courses, setCourses] = useState<any[]>([])
@@ -1219,41 +1220,41 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   })()
 
   useEffect(() => {
-    const q = query.trim()
-    if (!q) {
-      setCourses([])
-      setTutors([])
-      setIsLoading(false)
-      setLoadError(null)
-      return
-    }
-
     const controller = new AbortController()
     const run = async () => {
       setIsLoading(true)
       setLoadError(null)
       try {
+        const qp = q ? `?q=${encodeURIComponent(q)}&page=1&pageSize=24` : '?page=1&pageSize=24'
         const [coursesRes, tutorsRes] = await Promise.all([
-          fetch(`/api/public/courses?q=${encodeURIComponent(q)}&page=1&pageSize=24`, {
+          fetch(`/api/public/courses${qp}`, {
             signal: controller.signal,
           }),
-          fetch(`/api/public/tutors?q=${encodeURIComponent(q)}&page=1&pageSize=24`, {
+          fetch(`/api/public/tutors${qp}`, {
             signal: controller.signal,
           }),
         ])
 
-        const coursesJson = coursesRes.ok ? await coursesRes.json() : null
-        const tutorsJson = tutorsRes.ok ? await tutorsRes.json() : null
+        const parseJsonSafe = async (res: Response) => {
+          const ct = res.headers.get('content-type') || ''
+          if (!ct.includes('application/json')) return null
+          return await res.json()
+        }
+
+        const [coursesJson, tutorsJson] = await Promise.all([
+          coursesRes.ok ? parseJsonSafe(coursesRes) : null,
+          tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
+        ])
 
         setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
         setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
 
-        if (!coursesRes.ok || !tutorsRes.ok) {
-          setLoadError('Failed to load results')
+        if (!coursesRes.ok && !tutorsRes.ok) {
+          setLoadError('Unable to load results.')
         }
       } catch (err: any) {
         if (err?.name !== 'AbortError') {
-          setLoadError('Failed to load results')
+          setLoadError('Unable to load results.')
         }
       } finally {
         setIsLoading(false)
@@ -1401,7 +1402,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       </div>
       {!isLoading && items.length === 0 && (
         <div className="mt-3 text-xs font-medium text-slate-500">
-          {loadError ? 'Unable to load results.' : 'No results found.'}
+          {loadError || 'No results found.'}
         </div>
       )}
     </div>
@@ -1465,7 +1466,9 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                 AI Assistant
               </div>
               <div className="min-h-[44px] text-xs leading-relaxed text-slate-600">
-                Showing results for “{query.trim()}”. Tap a course or tutor to refine recommendations.
+                {q
+                  ? `Showing results for “${q}”. Tap a course or tutor to refine recommendations.`
+                  : 'Browse popular tutors and courses. Tap a card to view details.'}
               </div>
               <div className="flex h-11 w-full items-center rounded-full bg-white shadow-[0_12px_30px_rgba(0,0,0,0.16)]">
                 <input
@@ -2762,18 +2765,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <AnimatePresence>
-          {searchQuery.trim().length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              transition={{ duration: 0.22 }}
-            >
-              <Panel2SearchResults query={searchQuery} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Panel2SearchResults query={searchQuery} />
 
         <div id="how-it-works" />
 

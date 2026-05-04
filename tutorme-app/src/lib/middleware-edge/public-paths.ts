@@ -20,7 +20,9 @@ export function isPublicNormalizedPath(normalizedPath: string): boolean {
   if (PUBLIC_EXACT_PATHS.includes(normalizedPath as (typeof PUBLIC_EXACT_PATHS)[number])) {
     return true
   }
-  return PUBLIC_PREFIX_PATHS.some(p =>
-    p.endsWith('/') ? normalizedPath.startsWith(p) : normalizedPath === p
-  )
+  return PUBLIC_PREFIX_PATHS.some(p => {
+    if (normalizedPath === p) return true
+    const prefix = p.endsWith('/') ? p : `${p}/`
+    return normalizedPath.startsWith(prefix)
+  })
 }
