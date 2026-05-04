@@ -1858,10 +1858,12 @@ export function EnhancedWhiteboard({
       onPagesChange?.(newPages)
     }
 
-    const handleCursorMoved = (data: { cursor: CursorDelta }) => {
+    const handleCursorMoved = (data: { cursor?: CursorDelta }) => {
+      const cursor = data?.cursor
+      if (!cursor?.userId) return
       setRemoteCursors(prev => {
         const next = new Map(prev)
-        next.set(data.cursor.userId, { ...data.cursor, timestamp: Date.now() })
+        next.set(cursor.userId, { ...cursor, timestamp: Date.now() })
         return next
       })
     }

@@ -49,6 +49,7 @@ export function useSocket(options?: UseSocketOptions) {
   useEffect(() => {
     let socket: Socket
     let connectionTimeout: NodeJS.Timeout | null = null
+    let cancelled = false
 
     const connect = async () => {
       // Don't attempt connection if required options are missing
@@ -58,8 +59,8 @@ export function useSocket(options?: UseSocketOptions) {
       }
 
       const token = await import('@/lib/socket-auth').then(m => m.getSocketToken(5000))
-      if (!token) {
-        setError('Authentication required')
+      if (!token || cancelled) {
+        if (!cancelled) setError('Authentication required')
         return
       }
 
@@ -71,6 +72,10 @@ export function useSocket(options?: UseSocketOptions) {
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       })
+      if (cancelled) {
+        socket.disconnect()
+        return
+      }
       socketRef.current = socket
 
       // Set connection timeout
@@ -121,7 +126,8 @@ export function useSocket(options?: UseSocketOptions) {
       })
 
       socket.on('student_left', data => {
-        options?.onStudentLeft?.(data.userId)
+        const id = data?.userId
+        if (id) options?.onStudentLeft?.(id)
       })
 
       socket.on('student_state_update', data => {
@@ -175,6 +181,7 @@ export function useSocket(options?: UseSocketOptions) {
     }
     connect()
     return () => {
+      cancelled = true
       if (connectionTimeout) clearTimeout(connectionTimeout)
       if (socketRef.current) {
         socketRef.current.disconnect()

@@ -21,10 +21,11 @@ export function useSimpleSocket(roomId: string, options: SimpleSocketOptions = {
 
   useEffect(() => {
     if (!roomId) return
+    let cancelled = false
 
     const connect = async () => {
       const token = await import('@/lib/socket-auth').then(m => m.getSocketToken())
-      if (!token) return
+      if (!token || cancelled) return
       const socket = io({
         path: '/api/socket',
         transports: ['websocket', 'polling'],
@@ -34,6 +35,10 @@ export function useSimpleSocket(roomId: string, options: SimpleSocketOptions = {
         reconnectionDelay: 500,
         auth: { token },
       })
+      if (cancelled) {
+        socket.disconnect()
+        return
+      }
       socketRef.current = socket
 
       socket.on('connect', () => {
@@ -62,6 +67,7 @@ export function useSimpleSocket(roomId: string, options: SimpleSocketOptions = {
     }
     connect()
     return () => {
+      cancelled = true
       socketRef.current?.disconnect()
       socketRef.current = null
     }
