@@ -1206,6 +1206,10 @@ const CountdownTimer = () => {
 const Panel2SearchResults = ({ query }: { query: string }) => {
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
+  const [courses, setCourses] = useState<any[]>([])
+  const [tutors, setTutors] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const coursesRef = useRef<HTMLDivElement>(null)
   const tutorsRef = useRef<HTMLDivElement>(null)
 
@@ -1214,6 +1218,55 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     return region ? region.countries : []
   })()
 
+  useEffect(() => {
+    const q = query.trim()
+    if (!q) {
+      setCourses([])
+      setTutors([])
+      setIsLoading(false)
+      setLoadError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const run = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        const [coursesRes, tutorsRes] = await Promise.all([
+          fetch(`/api/public/courses?q=${encodeURIComponent(q)}&page=1&pageSize=24`, {
+            signal: controller.signal,
+          }),
+          fetch(`/api/public/tutors?q=${encodeURIComponent(q)}&page=1&pageSize=24`, {
+            signal: controller.signal,
+          }),
+        ])
+
+        const coursesJson = coursesRes.ok ? await coursesRes.json() : null
+        const tutorsJson = tutorsRes.ok ? await tutorsRes.json() : null
+
+        setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
+        setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
+
+        if (!coursesRes.ok || !tutorsRes.ok) {
+          setLoadError('Failed to load results')
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          setLoadError('Failed to load results')
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const t = setTimeout(run, 200)
+    return () => {
+      controller.abort()
+      clearTimeout(t)
+    }
+  }, [query])
+
   const scrollRow = (ref: React.RefObject<HTMLDivElement>, direction: 1 | -1) => {
     const el = ref.current
     if (!el) return
@@ -1221,14 +1274,85 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     el.scrollBy({ left: direction * amount, behavior: 'smooth' })
   }
 
+  const CourseSlot = ({ item }: { item: any }) => (
+    <Link
+      href={`/u/${encodeURIComponent(item?.tutor?.username || '')}`}
+      className="block h-full w-full"
+    >
+      <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
+        <div className="flex h-full flex-col p-4">
+          <div className="min-w-0">
+            <div className="line-clamp-2 text-sm font-semibold text-slate-800">{item?.name}</div>
+            <div className="mt-1 text-xs font-medium text-slate-500">
+              @{item?.tutor?.username || 'tutor'}
+            </div>
+            {Array.isArray(item?.categories) && item.categories[0] ? (
+              <div className="mt-2 w-fit rounded-full bg-[#1D4ED8] px-3 py-1 text-[10px] font-semibold text-white">
+                {item.categories[0]}
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-3 flex-1 rounded-[14px] border border-slate-200/60 bg-white/80 px-3 py-2">
+            <div className="line-clamp-4 text-[11px] leading-relaxed text-slate-700">
+              {(item?.description || '').trim() || 'No course description provided yet.'}
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
+            <div className="truncate">
+              {item?.isFree ? 'Free' : item?.price != null ? `$${item.price}` : 'Free'}
+            </div>
+            <div className="text-[#1D4ED8]">View</div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+
+  const TutorSlot = ({ item }: { item: any }) => (
+    <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
+      <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
+        <div className="flex h-full flex-col p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 overflow-hidden rounded-full border border-white/40 bg-white/60">
+              {item?.avatarUrl ? (
+                <img src={item.avatarUrl} alt={item?.name || 'Tutor'} className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-slate-800">
+                {item?.name || 'Tutor'}
+              </div>
+              <div className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                @{item?.username || 'tutor'}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex-1 rounded-[14px] border border-slate-200/60 bg-white/80 px-3 py-2">
+            <div className="line-clamp-4 text-[11px] leading-relaxed text-slate-700">
+              {(item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'}
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs font-semibold text-slate-600">
+            <div className="truncate">{typeof item?.courseCount === 'number' ? `${item.courseCount} courses` : ''}</div>
+            <div className="text-[#1D4ED8]">View</div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+
   const CarouselRow = ({
     title,
     icon,
     rowRef,
+    items,
+    kind,
   }: {
     title: string
     icon: React.ReactNode
     rowRef: React.RefObject<HTMLDivElement>
+    items: any[]
+    kind: 'courses' | 'tutors'
   }) => (
     <div className="w-full">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -1259,14 +1383,27 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             className="flex w-full gap-4 overflow-x-auto scroll-smooth py-1"
             style={{ scrollSnapType: 'x mandatory' }}
           >
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md" />
-              </div>
-            ))}
+            {(isLoading ? Array.from({ length: 10 }).map((_, i) => ({ __skeleton: true, id: `s-${i}` })) : items)
+              .slice(0, 24)
+              .map((item: any, i: number) => (
+                <div key={item?.id || item?.__skeleton || i} className="shrink-0" style={{ scrollSnapAlign: 'start' }}>
+                  {item?.__skeleton ? (
+                    <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] rounded-[22px] border border-white/20 bg-white/25 shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur-md" />
+                  ) : kind === 'courses' ? (
+                    <CourseSlot item={item} />
+                  ) : (
+                    <TutorSlot item={item} />
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       </div>
+      {!isLoading && items.length === 0 && (
+        <div className="mt-3 text-xs font-medium text-slate-500">
+          {loadError ? 'Unable to load results.' : 'No results found.'}
+        </div>
+      )}
     </div>
   )
 
@@ -1349,8 +1486,20 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         </div>
 
         <div className="mt-8 space-y-10">
-          <CarouselRow title="Courses" icon={<BookOpen className="h-4 w-4" />} rowRef={coursesRef} />
-          <CarouselRow title="Tutors" icon={<Users className="h-4 w-4" />} rowRef={tutorsRef} />
+          <CarouselRow
+            title="Courses"
+            icon={<BookOpen className="h-4 w-4" />}
+            rowRef={coursesRef}
+            items={courses}
+            kind="courses"
+          />
+          <CarouselRow
+            title="Tutors"
+            icon={<Users className="h-4 w-4" />}
+            rowRef={tutorsRef}
+            items={tutors}
+            kind="tutors"
+          />
         </div>
       </div>
     </section>
