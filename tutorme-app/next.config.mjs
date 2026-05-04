@@ -44,7 +44,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
   },
-  serverExternalPackages: ['pg', 'pg-native', 'jspdf', 'jspdf-autotable'],
+  serverExternalPackages: ['pg', 'pg-native', 'jspdf', 'jspdf-autotable', 'mathjax'],
   webpack: (config, { isServer }) => {
     // Fix for jspdf/fflate Node.js worker issue
     // Redirect node-specific fflate to browser version
