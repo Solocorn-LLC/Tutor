@@ -90,6 +90,7 @@ export async function GET(
         updatedAt: course.updatedAt,
         categories: course.categories,
         country: courseVariant.nationality,
+        templateCourseId: courseVariant.templateCourseId,
       })
       .from(course)
       .leftJoin(courseVariant, eq(courseVariant.publishedCourseId, course.courseId))
@@ -97,6 +98,32 @@ export async function GET(
 
     const publishedCourses = Array.from(
       new Map(publishedCoursesRows.map(row => [row.courseId, row])).values()
+    )
+
+    const templateCourseIds = Array.from(
+      new Set(
+        publishedCourses
+          .filter(c => (c.description ?? '').trim().length === 0)
+          .map(c => c.templateCourseId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      )
+    )
+
+    const templateDescriptions =
+      templateCourseIds.length > 0
+        ? await drizzleDb
+            .select({ courseId: course.courseId, description: course.description })
+            .from(course)
+            .where(inArray(course.courseId, templateCourseIds))
+        : []
+
+    const templateDescriptionMap = templateDescriptions.reduce(
+      (acc, row) => {
+        if (!row.courseId) return acc
+        acc[row.courseId] = row.description ?? null
+        return acc
+      },
+      {} as Record<string, string | null>
     )
 
     // Derive specialties from published course categories
@@ -154,7 +181,12 @@ export async function GET(
       return {
         id: c.courseId,
         name: c.name,
-        description: c.description,
+        description:
+          c.description && c.description.trim().length > 0
+            ? c.description
+            : c.templateCourseId
+              ? templateDescriptionMap[c.templateCourseId] ?? null
+              : null,
         categories: c.categories || [],
 
         enrollmentCount: 0, // Placeholder
