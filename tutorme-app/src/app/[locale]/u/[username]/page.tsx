@@ -1067,28 +1067,36 @@ export default function PublicTutorPage() {
                   {[
                     {
                       key: 'tiktok',
-                      value: tutor.socialLinks?.tiktok ? `@${stripAt(tutor.socialLinks.tiktok)}` : '—',
+                      value: tutor.socialLinks?.tiktok
+                        ? `@${stripAt(tutor.socialLinks.tiktok)}`
+                        : '—',
                       icon: TikTokIcon,
                       iconClassName: 'text-slate-900',
                       muted: !tutor.socialLinks?.tiktok,
                     },
                     {
                       key: 'youtube',
-                      value: tutor.socialLinks?.youtube ? `@${stripAt(tutor.socialLinks.youtube)}` : '—',
+                      value: tutor.socialLinks?.youtube
+                        ? `@${stripAt(tutor.socialLinks.youtube)}`
+                        : '—',
                       icon: Youtube,
                       iconClassName: 'text-red-600',
                       muted: !tutor.socialLinks?.youtube,
                     },
                     {
                       key: 'instagram',
-                      value: tutor.socialLinks?.instagram ? `@${stripAt(tutor.socialLinks.instagram)}` : '—',
+                      value: tutor.socialLinks?.instagram
+                        ? `@${stripAt(tutor.socialLinks.instagram)}`
+                        : '—',
                       icon: Instagram,
                       iconClassName: 'text-pink-600',
                       muted: !tutor.socialLinks?.instagram,
                     },
                     {
                       key: 'facebook',
-                      value: tutor.socialLinks?.facebook ? `@${stripAt(tutor.socialLinks.facebook)}` : '—',
+                      value: tutor.socialLinks?.facebook
+                        ? `@${stripAt(tutor.socialLinks.facebook)}`
+                        : '—',
                       icon: Facebook,
                       iconClassName: 'text-blue-600',
                       muted: !tutor.socialLinks?.facebook,
@@ -1104,7 +1112,13 @@ export default function PublicTutorPage() {
                         )}
                       >
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
-                          <Icon className={cn('h-5 w-5', item.iconClassName, item.muted && 'opacity-40')} />
+                          <Icon
+                            className={cn(
+                              'h-5 w-5',
+                              item.iconClassName,
+                              item.muted && 'opacity-40'
+                            )}
+                          />
                         </div>
                         <div className="min-w-0 truncate">{item.value}</div>
                       </div>
@@ -1269,10 +1283,9 @@ export default function PublicTutorPage() {
           ) : (
             <div
               className={cn(
-                catalogLayout === 'grid' &&
-                  'grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:aspect-square',
+                catalogLayout === 'grid' && 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
                 catalogLayout === 'compact' &&
-                  'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 [&>*]:aspect-square',
+                  'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
                 catalogLayout === 'list' && 'flex flex-col gap-4'
               )}
             >
@@ -1293,8 +1306,8 @@ export default function PublicTutorPage() {
                       : liveDone > 0
                         ? `${liveDone} live session(s) completed`
                         : 'No live sessions on record yet'
-                  const desc =
-                    course.description?.trim() || 'No description provided for this course yet.'
+                  const description = course.description?.trim() || ''
+                  const hasDescription = description.length > 0
                   const isList = catalogLayout === 'list'
                   const isCompact = catalogLayout === 'compact'
 
@@ -1319,95 +1332,154 @@ export default function PublicTutorPage() {
                     >
                       <div
                         className={cn(
-                          'flex flex-1 p-4',
-                          isList && 'min-w-0 flex-col pr-3 sm:flex-row sm:items-center sm:gap-6',
-                          isCompact && 'p-3'
+                          'flex flex-1',
+                          isList
+                            ? 'min-w-0 flex-col pr-3 sm:flex-row sm:items-center sm:gap-6'
+                            : 'flex-col p-4',
+                          isCompact && !isList && 'p-3'
                         )}
                       >
-                        <div
-                          className={cn('flex min-w-0 flex-col', isList ? 'flex-1' : 'flex-1 pr-4')}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <h3
-                              className={cn(
-                                'line-clamp-2 font-semibold text-slate-100',
-                                isCompact ? 'text-sm' : 'text-base'
-                              )}
+                        {isList ? (
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="line-clamp-2 text-base font-semibold text-slate-100">
+                                {course.name}
+                              </h3>
+                            </div>
+                            <p className="mt-0.5 text-xs font-medium text-slate-300">
+                              @{tutor.username}
+                            </p>
+                            <Badge
+                              variant="secondary"
+                              className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
                             >
-                              {course.name}
-                            </h3>
+                              {course.categories[0] || 'general'}
+                            </Badge>
+                            <p className="mt-2 line-clamp-3 text-sm text-slate-400">
+                              {hasDescription
+                                ? description
+                                : 'No description provided for this course yet.'}
+                            </p>
                           </div>
-                          <p className="mt-0.5 text-xs font-medium text-slate-300">
-                            @{tutor.username}
-                          </p>
-                          <p
-                            className={cn(
-                              'mt-2 line-clamp-3 text-slate-400',
-                              isCompact ? 'line-clamp-2 text-[11px]' : 'text-sm'
-                            )}
-                          >
-                            {desc}
-                          </p>
-
-                          {!isList && (
-                            <dl
+                        ) : (
+                          <div className="flex flex-1 flex-col">
+                            <div
                               className={cn(
-                                'mt-auto space-y-1.5 pt-3 text-slate-300',
-                                isCompact ? 'text-[11px]' : 'text-xs sm:text-sm'
+                                'flex items-start justify-between gap-4',
+                                isCompact && 'gap-3'
                               )}
                             >
-                              <div className="flex gap-1">
-                                <dd className="font-medium text-slate-200">
-                                  {course.lessonCount} lessons
-                                </dd>
-                              </div>
-                              <div className="flex items-start gap-1">
-                                <dd className="min-w-0 text-slate-200">
-                                  {course.scheduleSummary ? (
-                                    <button
-                                      type="button"
-                                      onClick={e => {
-                                        e.preventDefault()
-                                        setScheduleCourse(course)
-                                      }}
-                                      className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
-                                    >
-                                      <CalendarDays className="h-3.5 w-3.5" />
-                                      Schedule <ExternalLink className="h-3 w-3" />
-                                    </button>
-                                  ) : (
-                                    <span className="flex shrink-0 items-center gap-0.5 font-medium text-slate-300">
-                                      <CalendarDays className="h-3.5 w-3.5" />
-                                      Schedule to be announced
-                                    </span>
-                                  )}
-                                </dd>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <Badge
-                                  variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
+                              <div className="min-w-0 flex-1">
+                                <h3
                                   className={cn(
-                                    'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
-                                    enrollmentStatus === 'ongoing'
-                                      ? 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600'
-                                      : 'border-[rgba(255,255,255,0.2)] text-slate-300'
+                                    'line-clamp-2 font-semibold text-slate-100',
+                                    isCompact ? 'text-sm' : 'text-base'
                                   )}
                                 >
-                                  {enrollmentStatus === 'ended'
-                                    ? 'Enrollment ended'
-                                    : 'Enrollment ongoing'}
+                                  {course.name}
+                                </h3>
+                                <p className="mt-0.5 text-xs font-medium text-slate-300">
+                                  @{tutor.username}
+                                </p>
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    'mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
+                                    isCompact && 'mt-1.5'
+                                  )}
+                                >
+                                  {course.categories[0] || 'general'}
                                 </Badge>
                               </div>
-                            </dl>
-                          )}
-                        </div>
+
+                              <div
+                                className={cn(
+                                  'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
+                                  isCompact ? 'h-20 w-20' : 'h-24 w-24 sm:h-[104px] sm:w-[104px]'
+                                )}
+                              >
+                                {tutor.avatarUrl ? (
+                                  <img
+                                    src={tutor.avatarUrl}
+                                    alt={course.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                                    <User className="h-8 w-8 opacity-50" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {hasDescription ? (
+                              <div
+                                className={cn(
+                                  'mt-4 rounded-[16px] border border-[rgba(15,23,42,0.10)] bg-white px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
+                                  isCompact && 'mt-3 rounded-[14px] px-3 py-2.5'
+                                )}
+                              >
+                                <p
+                                  className={cn(
+                                    'line-clamp-5 text-sm leading-relaxed text-slate-800',
+                                    isCompact && 'text-[11px]'
+                                  )}
+                                >
+                                  {description}
+                                </p>
+                              </div>
+                            ) : (
+                              <p
+                                className={cn(
+                                  'mt-4 text-xs text-slate-300/80',
+                                  isCompact && 'mt-3 text-[11px]'
+                                )}
+                              >
+                                No course description provided yet.
+                              </p>
+                            )}
+
+                            <div
+                              className={cn(
+                                'mt-4 flex items-center gap-3 text-xs text-slate-300',
+                                isCompact && 'mt-3 text-[11px]'
+                              )}
+                            >
+                              <div className="flex items-center gap-1.5 font-medium text-slate-200">
+                                <BookOpen className="h-4 w-4 text-slate-400" />
+                                {course.lessonCount} sessions
+                              </div>
+                              <div className="h-4 w-px bg-[rgba(255,255,255,0.12)]" />
+                              <div className="min-w-0">
+                                {course.scheduleSummary ? (
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.preventDefault()
+                                      setScheduleCourse(course)
+                                    }}
+                                    className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                                  >
+                                    <CalendarDays className="h-4 w-4" />
+                                    Schedule <ExternalLink className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 font-medium text-slate-300">
+                                    <CalendarDays className="h-4 w-4 text-slate-400" />
+                                    Schedule to be announced
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Middle column (ONLY IN LIST MODE): Lessons, Schedule, Enrollment */}
                         {isList && (
                           <div className="flex min-w-[200px] shrink-0 flex-col gap-2.5 py-1">
                             <div className="flex items-center gap-2 text-sm text-slate-200">
                               <BookOpen className="h-4 w-4 text-slate-400" />
-                              <span>{course.lessonCount} lessons</span>
+                              <span>{course.lessonCount} sessions</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-200">
                               <CalendarDays className="h-4 w-4 text-slate-400" />
@@ -1446,33 +1518,23 @@ export default function PublicTutorPage() {
                           </div>
                         )}
 
-                        {/* Right column: Badge + Avatar */}
-                        <div
-                          className={cn(
-                            'flex w-24 shrink-0 flex-col items-end justify-between sm:w-28',
-                            isList && 'ml-4 h-full py-1'
-                          )}
-                        >
-                          <Badge
-                            variant="secondary"
-                            className="mb-2 shrink-0 border-0 bg-blue-600 text-[10px] text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
-                          >
-                            {course.categories[0] || 'general'}
-                          </Badge>
-                          <div className="mt-auto h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)] sm:h-28 sm:w-28">
-                            {tutor.avatarUrl ? (
-                              <img
-                                src={tutor.avatarUrl}
-                                alt={tutor.username}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
-                                <User className="h-8 w-8 opacity-50" />
-                              </div>
-                            )}
+                        {isList && (
+                          <div className="flex w-[104px] shrink-0 items-end justify-center py-1">
+                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
+                              {tutor.avatarUrl ? (
+                                <img
+                                  src={tutor.avatarUrl}
+                                  alt={course.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                                  <User className="h-8 w-8 opacity-50" />
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       <div
@@ -1486,11 +1548,19 @@ export default function PublicTutorPage() {
                       >
                         {!isList && (
                           <div className="flex w-full flex-wrap items-center justify-between gap-2">
-                            <StarRating
-                              rating={course.rating ?? null}
-                              count={course.reviewCount}
-                              className="text-slate-200"
-                            />
+                            <Badge
+                              variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
+                              className={cn(
+                                'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
+                                enrollmentStatus === 'ongoing'
+                                  ? 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600'
+                                  : 'border-[rgba(255,255,255,0.2)] text-slate-300'
+                              )}
+                            >
+                              {enrollmentStatus === 'ended'
+                                ? 'Enrollment ended'
+                                : 'Enrollment ongoing'}
+                            </Badge>
                             {course.isFree ? (
                               <span className="text-sm font-bold text-emerald-400">Free</span>
                             ) : course.price != null && course.price > 0 ? (
@@ -1648,7 +1718,7 @@ export default function PublicTutorPage() {
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-gray-600">Sessions</div>
                   <div className="text-base font-semibold text-gray-900">
-                    {detailsCourse?.lessonCount} lessons
+                    {detailsCourse?.lessonCount} sessions
                   </div>
                 </div>
                 <div className="space-y-1">

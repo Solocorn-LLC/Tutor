@@ -1120,7 +1120,7 @@ function CourseCard({
           <div className="flex flex-wrap gap-4 text-sm text-slate-300">
             <div className="flex items-center gap-1">
               <Target className="h-4 w-4" />
-              <span>{course._count.lessons} lessons</span>
+              <span>{course._count.lessons} sessions</span>
             </div>
           </div>
 
