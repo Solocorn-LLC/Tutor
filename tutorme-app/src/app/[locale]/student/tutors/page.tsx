@@ -26,6 +26,7 @@ import {
   Heart,
   Video,
   Calendar,
+  UserPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
@@ -265,17 +266,13 @@ export default function StudentTutorDirectoryPage() {
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.10)]">
-            <p className="text-xs uppercase tracking-wide text-slate-500">
-              Published Courses
-            </p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Published Courses</p>
             <p className="mt-1 text-xl font-semibold text-slate-900">
               {headlineMetrics.totalCourses}
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.10)]">
-            <p className="text-xs uppercase tracking-wide text-slate-500">
-              Total Enrollments
-            </p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Total Enrollments</p>
             <p className="mt-1 text-xl font-semibold text-slate-900">
               {headlineMetrics.totalEnrollments}
             </p>
@@ -340,7 +337,7 @@ export default function StudentTutorDirectoryPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           Array.from({ length: 6 }).map((_, index) => (
             <Card
@@ -377,7 +374,7 @@ export default function StudentTutorDirectoryPage() {
                 'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)]',
                 'hover:-translate-y-[2px] hover:brightness-105',
                 'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]',
-                'h-full min-h-[420px]'
+                ''
               )}
               style={{
                 backgroundImage:
@@ -385,9 +382,9 @@ export default function StudentTutorDirectoryPage() {
               }}
               onClick={() => router.push(`/${locale}/u/${tutor.username}`)}
             >
-              <div className="flex h-full flex-col p-5">
-                {/* Header Zone — fixed height */}
-                <div className="flex min-h-[96px] items-start gap-4">
+              <div className="flex flex-col p-5">
+                {/* Header */}
+                <div className="flex items-start gap-4">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)] sm:h-24 sm:w-24">
                     <img
                       src={tutor.avatarUrl || undefined}
@@ -395,102 +392,102 @@ export default function StudentTutorDirectoryPage() {
                       className="h-full w-full object-cover"
                     />
                   </div>
-
                   <div className="flex min-w-0 flex-1 flex-col pt-1">
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1 pr-2">
-                        <h3 className="truncate text-lg font-semibold leading-tight text-slate-50">
-                          {tutor.name}
-                        </h3>
-                        <p className="mt-1 text-xs font-medium text-slate-300">@{tutor.username}</p>
-                      </div>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation()
-                          toggleFollow(tutor.id)
-                        }}
-                        className="shrink-0 rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] px-3 py-1 text-xs font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)]"
-                      >
-                        {following.has(tutor.id) ? 'Following' : 'Follow'}
-                      </button>
-                    </div>
-
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-300">
-                      {tutor.bio || 'Experienced tutor ready to help you improve quickly.'}
+                    <h3 className="truncate text-lg font-semibold leading-tight text-slate-50">
+                      {tutor.name}
+                    </h3>
+                    <p className="text-xs font-medium text-slate-300">@{tutor.username}</p>
+                    <p className="mt-1 truncate text-xs text-slate-300">
+                      {tutor.specialties?.[0] ||
+                        tutor.categories?.[0] ||
+                        'Experienced tutor ready to help'}
                     </p>
                   </div>
                 </div>
 
-                {/* Rating Zone */}
-                <div className="mt-3 min-h-[28px]">
+                {/* Bio — supports up to ~500 chars */}
+                <div className="mt-3 text-sm leading-relaxed text-slate-100">
+                  {tutor.bio || 'Experienced tutor ready to help you improve quickly.'}
+                </div>
+
+                {/* Rating */}
+                <div className="mt-3">
                   <StarRating
                     rating={tutor.averageRating || 0}
                     count={tutor.totalReviewCount || 0}
                   />
                 </div>
 
-                {/* Tags Zone — fixed height, overflow hidden */}
-                <div className="mt-3 max-h-[56px] min-h-[56px] overflow-hidden">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                {/* Tags */}
+                <div className="mt-3 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {tutor.categories.slice(0, 3).map(category => (
                       <span
                         key={`${tutor.id}:${category}`}
-                        className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200"
+                        className="rounded-full border border-[rgba(255,255,255,0.2)] px-2.5 py-0.5 text-[11px] text-slate-200"
                       >
                         {category}
                       </span>
                     ))}
-                    {tutor.categories.length > 3 ? (
-                      <span className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200">
-                        +{tutor.categories.length - 3}
-                      </span>
-                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
                     {(tutor.tutorNationalities || []).slice(0, 3).map(nat => (
                       <span
                         key={`${tutor.id}:nat:${nat}`}
-                        className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200"
+                        className="rounded-full border border-[rgba(255,255,255,0.2)] px-2.5 py-0.5 text-[11px] text-slate-200"
                       >
                         {nat}
                       </span>
                     ))}
-                    {(tutor.tutorNationalities || []).length > 3 && (
-                      <span className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200">
-                        +{(tutor.tutorNationalities || []).length - 3}
-                      </span>
-                    )}
                   </div>
                 </div>
 
                 {/* Divider */}
                 <div className="my-3 border-b border-[rgba(255,255,255,0.1)]" />
 
-                {/* Stats Zone — fixed height */}
-                <div className="grid min-h-[72px] grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] p-2.5">
-                    <p className="mb-0.5 text-[10px] text-slate-300">Courses</p>
-                    <p className="text-base font-semibold text-slate-100">{tutor.courseCount}</p>
+                {/* Stats — icon + label + number on one line */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
+                    <BookOpen className="h-4 w-4 text-slate-300" />
+                    <span className="text-xs text-slate-300">Courses</span>
+                    <span className="ml-auto text-sm font-semibold text-slate-100">
+                      {tutor.courseCount}
+                    </span>
                   </div>
-                  <div className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] p-2.5">
-                    <p className="mb-0.5 text-[10px] text-slate-300">Enrollments</p>
-                    <p className="text-base font-semibold text-slate-100">
+                  <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
+                    <Users className="h-4 w-4 text-slate-300" />
+                    <span className="text-xs text-slate-300">Enrollments</span>
+                    <span className="ml-auto text-sm font-semibold text-slate-100">
                       {tutor.totalEnrollments}
-                    </p>
+                    </span>
                   </div>
                 </div>
 
-                {/* Spacer */}
-                <div className="flex-grow" />
-
-                {/* CTA Zone — bottom anchored */}
-                <div className="mt-auto pt-2">
+                {/* Action Buttons */}
+                <div className="mt-3 grid grid-cols-2 gap-3">
                   <Link
                     href={`/${locale}/u/${tutor.username}?book=1`}
                     onClick={e => e.stopPropagation()}
-                    className="flex w-full items-center justify-center gap-2 rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] py-2 text-sm font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)] hover:text-white"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
                   >
-                    <Calendar className="h-4 w-4 text-[rgba(255,255,255,0.8)]" />
+                    <Video className="h-4 w-4" />
                     Book 1 on 1
                   </Link>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation()
+                      toggleFollow(tutor.id)
+                    }}
+                    className={cn(
+                      'flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors',
+                      following.has(tutor.id)
+                        ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30'
+                        : 'border-white/30 bg-blue-600/40 text-white hover:bg-blue-600/50'
+                    )}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    {following.has(tutor.id) ? 'Following' : 'Follow'}
+                  </button>
                 </div>
               </div>
             </div>
