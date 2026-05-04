@@ -1272,6 +1272,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
 
   return (
     <section
+      id="panel-2-search-results"
       className="relative w-full overflow-hidden"
       style={{
         backgroundColor: '#D7DCE2',
@@ -2470,6 +2471,13 @@ export default function LandingPage() {
   const [termsOpen, setTermsOpen] = useState(false)
 
   const t = (key: string) => translations[key]?.[language] || translations[key]?.['en'] || key
+  const scrollToSearchResults = () => {
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById('panel-2-search-results')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 
   return (
     <div className={`relative min-h-screen ${mode === 'dark' ? 'text-zinc-100' : 'text-zinc-900'}`}>
@@ -2535,17 +2543,32 @@ export default function LandingPage() {
             </h1>
 
             <div className="mt-10 w-full">
-              <div className="mx-auto flex h-14 w-[min(64vw,1040px)] max-w-full items-center rounded-full bg-white px-6">
-                <Search className="h-5 w-5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search tutors, courses, categories..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="ml-4 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                />
-                <QrCode className="h-5 w-5 text-slate-400" />
-              </div>
+              <form
+                onSubmit={e => {
+                  e.preventDefault()
+                  if (!searchQuery.trim()) return
+                  scrollToSearchResults()
+                  ;(e.currentTarget.querySelector('input') as HTMLInputElement | null)?.blur()
+                }}
+              >
+                <div className="mx-auto flex h-14 w-[min(64vw,1040px)] max-w-full items-center rounded-full bg-white px-6">
+                  <Search className="h-5 w-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search tutors, courses, categories..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="ml-4 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:shadow-none"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                    aria-label="Search"
+                  >
+                    <QrCode className="h-5 w-5 text-slate-400" />
+                  </button>
+                </div>
+              </form>
             </div>
 
             <a
