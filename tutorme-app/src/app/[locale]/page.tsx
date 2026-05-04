@@ -1791,7 +1791,17 @@ const ComingSoonModal = ({
   )
 }
 
-const SpecialAccessSection = ({ lang }: { lang: Language }) => {
+const SpecialAccessSection = ({
+  lang,
+  triggerLabel,
+  triggerClassName,
+  popoverPlacement = 'top',
+}: {
+  lang: Language
+  triggerLabel: string
+  triggerClassName: string
+  popoverPlacement?: 'top' | 'bottom'
+}) => {
   const [code, setCode] = useState('')
   const [error, setError] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -1801,6 +1811,7 @@ const SpecialAccessSection = ({ lang }: { lang: Language }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (SPECIAL_CODES.includes(code.trim())) {
+      setExpanded(false)
       router.push('/login')
     } else {
       setError(true)
@@ -1813,9 +1824,9 @@ const SpecialAccessSection = ({ lang }: { lang: Language }) => {
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="rounded-full border border-white/55 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+        className={triggerClassName}
       >
-        {t('accessWithCode')}
+        {triggerLabel}
       </button>
 
       <AnimatePresence>
@@ -1826,7 +1837,9 @@ const SpecialAccessSection = ({ lang }: { lang: Language }) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute bottom-full right-0 z-50 mb-3 w-[320px] overflow-hidden rounded-[16px] border border-white/25 bg-[#0B4DFF]/10 p-4 backdrop-blur-xl"
+              className={`absolute right-0 z-50 w-[320px] overflow-hidden rounded-[16px] border border-white/25 bg-[#0B4DFF]/10 p-4 backdrop-blur-xl ${
+                popoverPlacement === 'top' ? 'bottom-full mb-3' : 'top-full mt-3'
+              }`}
             >
               <form onSubmit={handleSubmit} className="flex items-center gap-3">
                 <Input
@@ -2528,12 +2541,12 @@ export default function LandingPage() {
               >
                 JOIN
               </button>
-              <Link
-                href="/login"
-                className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0B4DFF]"
-              >
-                Sign In
-              </Link>
+              <SpecialAccessSection
+                lang={language}
+                triggerLabel="Sign In"
+                triggerClassName="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0B4DFF]"
+                popoverPlacement="bottom"
+              />
             </div>
           </header>
 
@@ -2595,10 +2608,6 @@ export default function LandingPage() {
                   <span className="text-2xl font-semibold tracking-[0.04em]">0346</span>
                   <span className="text-sm font-medium">Courses</span>
                 </div>
-              </div>
-
-              <div className="flex justify-end">
-                <SpecialAccessSection lang={language} />
               </div>
             </div>
           </div>
