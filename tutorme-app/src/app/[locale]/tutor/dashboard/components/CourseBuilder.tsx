@@ -610,6 +610,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       createDefaultWhiteboardPages
     )
     const [tutorBoardPageIndex, setTutorBoardPageIndex] = useState(0)
+
+    // Sync tutor board state to students via full-state snapshot
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId) return
+      const timeout = setTimeout(() => {
+        insightsProps.socket!.emit('tutor:whiteboard:update', {
+          roomId: insightsProps.sessionId,
+          board: {
+            pages: tutorBoardPages,
+            pageIndex: tutorBoardPageIndex,
+            updatedAt: Date.now(),
+          },
+        })
+      }, 300)
+      return () => clearTimeout(timeout)
+    }, [tutorBoardPages, tutorBoardPageIndex, insightsProps?.socket, insightsProps?.sessionId])
     const designatedFolder = useMemo(() => {
       const liveCourse = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
       if (liveCourse && (liveCourse as any).categories?.length > 0) {

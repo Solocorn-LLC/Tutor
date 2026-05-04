@@ -712,12 +712,26 @@ function StudentFeedbackContent() {
       toast.success(`New homework assigned: ${hw.title}`)
     }
 
+    const handleTutorWhiteboardUpdate = (board: {
+      pages?: any[]
+      pageIndex?: number
+      updatedAt?: number
+    }) => {
+      if (board?.pages && Array.isArray(board.pages)) {
+        setTutorBoardPages(board.pages)
+      }
+      if (typeof board?.pageIndex === 'number') {
+        setTutorBoardPageIndex(board.pageIndex)
+      }
+    }
+
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
+    socket.on('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
 
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
@@ -726,6 +740,7 @@ function StudentFeedbackContent() {
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
+      socket.off('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
     }
   }, [socket, followTutor])
 
