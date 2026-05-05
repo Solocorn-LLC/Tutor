@@ -212,8 +212,10 @@ function StudentFeedbackContent() {
     recordedSessions: true,
   })
 
-  // Portal target for TabsList
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  const [portalTarget] = useState<HTMLElement | null>(() => {
+    if (typeof document === 'undefined') return null
+    return document.getElementById('student-live-tabs-portal')
+  })
   useEffect(() => {
     const loadDirectory = async () => {
       setDirectoryLoading(true)
@@ -298,13 +300,6 @@ function StudentFeedbackContent() {
     }
     loadDirectory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    const el = document.getElementById('student-live-tabs-portal')
-    if (el) {
-      setPortalTarget(el)
-    }
   }, [])
 
   useEffect(() => {
@@ -1670,7 +1665,7 @@ function StudentFeedbackContent() {
                       </div>
                     )
 
-                    return portalTarget ? createPortal(controlRow, portalTarget) : controlRow
+                    return portalTarget ? createPortal(controlRow, portalTarget) : null
                   })()}
 
                   <TabsContent value="task" className="flex flex-1 flex-col outline-none">
