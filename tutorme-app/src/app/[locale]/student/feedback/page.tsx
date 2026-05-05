@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useLayoutEffect,
   Suspense,
   type ComponentProps,
 } from 'react'
@@ -212,6 +213,7 @@ function StudentFeedbackContent() {
     recordedSessions: true,
   })
 
+  const portalRef = useRef<HTMLDivElement | null>(null)
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   useEffect(() => {
     const loadDirectory = async () => {
@@ -299,27 +301,8 @@ function StudentFeedbackContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    let attempts = 0
-
-    const trySet = () => {
-      if (cancelled) return
-      const el = document.getElementById('student-live-tabs-portal')
-      if (el) {
-        setPortalTarget(el)
-        return
-      }
-      attempts += 1
-      if (attempts < 20) {
-        window.setTimeout(trySet, 50)
-      }
-    }
-
-    trySet()
-    return () => {
-      cancelled = true
-    }
+  useLayoutEffect(() => {
+    if (portalRef.current) setPortalTarget(portalRef.current)
   }, [])
 
   useEffect(() => {
@@ -1015,7 +998,7 @@ function StudentFeedbackContent() {
             </div>
           )}
 
-          <div id="student-live-tabs-portal" className="mt-4 w-full" />
+          <div id="student-live-tabs-portal" ref={portalRef} className="mt-4 w-full" />
         </div>
 
         {/* Content Wrapper */}
@@ -1685,7 +1668,7 @@ function StudentFeedbackContent() {
                       </div>
                     )
 
-                    return portalTarget ? createPortal(controlRow, portalTarget) : null
+                    return portalTarget ? createPortal(controlRow, portalTarget) : controlRow
                   })()}
 
                   <TabsContent value="task" className="flex flex-1 flex-col outline-none">
