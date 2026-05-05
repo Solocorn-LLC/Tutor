@@ -765,6 +765,7 @@ function TutorInsightsPageInner() {
       stroke: any
       pageIndex?: number
     }) => {
+      console.log('[Tutor] whiteboard:stroke:added', payload.userId, payload.stroke?.id, payload.pageIndex)
       if (!payload?.userId) return
       setStudentBoards(prev => {
         const board = getOrCreateBoard(prev, payload.userId)

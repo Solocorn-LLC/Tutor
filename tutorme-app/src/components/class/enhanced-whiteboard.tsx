@@ -1816,6 +1816,7 @@ export function EnhancedWhiteboard({
       userId?: string
       stroke: Stroke & { points?: number[] | Point[] }
     }) => {
+      console.log('[WB] stroke:added', data.userId, data.stroke?.id, filterByUserId)
       if (filterByUserId && data.userId !== filterByUserId) return
       const stroke: Stroke = {
         ...data.stroke,

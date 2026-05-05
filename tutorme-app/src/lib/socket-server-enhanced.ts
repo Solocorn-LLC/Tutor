@@ -1153,6 +1153,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         ...wb,
         strokes: [...strokes, { ...stroke, pageIndex }],
       }
+      console.log(`[WB] stroke:add from ${socket.data.userId} in ${roomId}, broadcasting to ${roomId}`)
       io.to(roomId).emit('whiteboard:stroke:added', { userId: socket.data.userId, stroke, pageIndex })
     })
 
