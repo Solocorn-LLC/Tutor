@@ -971,7 +971,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       roomUrl: string | null
       token: string | null
     } | null>(null)
-    const [sessionStudents, setSessionStudents] = useState<any[]>([])
+    // Student roster is maintained upstream in insights/page.tsx (socket handlers)
+    // and passed via insightsProps.students so it survives remounts.
     const activeSession = insightsProps?.sessionId
       ? insightsProps.sessions?.find(s => s.id === insightsProps.sessionId)
       : null
@@ -1357,7 +1358,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             roomUrl: data?.session?.roomUrl ?? null,
             token: data?.session?.token ?? null,
           })
-          setSessionStudents(Array.isArray(data?.students) ? data.students : [])
+          // Student roster maintained upstream in insights/page.tsx
         } catch {
           // ignore
         }
@@ -1368,71 +1369,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [insightsProps?.sessionId])
 
-    useEffect(() => {
-      if (mainTab !== 'live') return
-      if (!insightsProps?.socket || !insightsProps?.sessionId) return
-      const socket = insightsProps.socket
-
-      const handleRoomState = (state: any) => {
-        const liveStudents = Array.isArray(state?.students) ? state.students : []
-        if (liveStudents.length === 0) return
-        setSessionStudents(prev => {
-          const map = new Map<string, any>()
-          prev.forEach(s => {
-            const id = s?.id ?? s?.userId
-            if (id) map.set(id, s)
-          })
-          liveStudents.forEach((s: any) => {
-            const id = s?.userId ?? s?.id
-            if (!id) return
-            const existing = map.get(id) || {}
-            map.set(id, {
-              ...existing,
-              id,
-              name: existing?.name ?? s?.name ?? 'Student',
-              status: 'online',
-            })
-          })
-          return Array.from(map.values())
-        })
-      }
-
-      const handleStudentJoined = (payload: any) => {
-        const id = payload?.userId
-        if (!id) return
-        setSessionStudents(prev => {
-          const exists = prev.some(s => (s?.id ?? s?.userId) === id)
-          if (exists) {
-            return prev.map(s => ((s?.id ?? s?.userId) === id ? { ...s, status: 'online' } : s))
-          }
-          return [
-            ...prev,
-            {
-              id,
-              name: payload?.name ?? 'Student',
-              status: 'online',
-            },
-          ]
-        })
-      }
-
-      const handleStudentLeft = (payload: any) => {
-        const id = payload?.userId
-        if (!id) return
-        setSessionStudents(prev =>
-          prev.map(s => ((s?.id ?? s?.userId) === id ? { ...s, status: 'offline' } : s))
-        )
-      }
-
-      socket.on('room_state', handleRoomState)
-      socket.on('student_joined', handleStudentJoined)
-      socket.on('student_left', handleStudentLeft)
-      return () => {
-        socket.off('room_state', handleRoomState)
-        socket.off('student_joined', handleStudentJoined)
-        socket.off('student_left', handleStudentLeft)
-      }
-    }, [insightsProps?.sessionId, insightsProps?.socket, mainTab])
+    // Student roster is maintained upstream in insights/page.tsx via socket
+    // onStudentJoined / onStudentLeft / onRoomState so it survives CourseBuilder remounts.
 
     // Countdown timer removed — kept in CourseBuilderInsightsRoute header instead
 
@@ -7597,7 +7535,7 @@ FEEDBACK: [your explanation]`
                                                     socket={insightsProps.socket}
                                                     sessionId={insightsProps.sessionId}
                                                     tutorId={insightsProps.tutorId}
-                                                    students={sessionStudents}
+                                                    students={insightsProps?.students || []}
                                                     selectedStudentId={
                                                       monitorSelectedStudent?.id ?? null
                                                     }

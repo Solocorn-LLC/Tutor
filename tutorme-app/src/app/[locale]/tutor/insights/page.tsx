@@ -666,13 +666,54 @@ function TutorInsightsPageInner() {
       userId: session.user.id,
       name: session.user.name || 'Tutor',
       role: 'tutor' as const,
-      onRoomState: (state: { tasks?: LiveTask[]; whiteboardData?: any }) => {
+      onRoomState: (state: { tasks?: LiveTask[]; whiteboardData?: any; students?: any[] }) => {
         if (state.tasks) {
           setLiveTasks(state.tasks)
         }
         if (state.whiteboardData?.studentBoards) {
           setStudentBoards(state.whiteboardData.studentBoards)
         }
+        if (state.students && Array.isArray(state.students)) {
+          setStudents(prev => {
+            const map = new Map<string, any>()
+            prev.forEach(s => {
+              const id = (s as any)?.userId ?? s?.id
+              if (id) map.set(id, s)
+            })
+            state.students!.forEach((s: any) => {
+              const id = s?.userId ?? s?.id
+              if (!id) return
+              const existing = map.get(id) || {}
+              map.set(id, { ...existing, ...s, id, status: s.status || existing.status || 'online' })
+            })
+            return Array.from(map.values())
+          })
+        }
+      },
+      onStudentJoined: (student: any) => {
+        const id = student?.userId ?? student?.id
+        if (!id) return
+        setStudents(prev => {
+          const exists = prev.some(s => ((s as any)?.userId ?? s?.id) === id)
+          if (exists) {
+            return prev.map(s =>
+              ((s as any)?.userId ?? s?.id) === id ? { ...s, ...student, status: 'online' } : s
+            )
+          }
+          return [...prev, { ...student, id, status: 'online' }]
+        })
+      },
+      onStudentLeft: (userId: string) => {
+        setStudents(prev =>
+          prev.map(s => (((s as any)?.userId ?? s?.id) === userId ? { ...s, status: 'offline' } : s))
+        )
+      },
+      onStudentStateUpdate: (data: { userId: string; state: any }) => {
+        setStudents(prev =>
+          prev.map(s =>
+            ((s as any)?.userId ?? s?.id) === data.userId ? { ...s, ...data.state } : s
+          )
+        )
       },
     }
   }, [session?.user?.id, session?.user?.name, sessionId])
@@ -765,7 +806,6 @@ function TutorInsightsPageInner() {
       stroke: any
       pageIndex?: number
     }) => {
-      console.log('[Tutor] whiteboard:stroke:added', payload.userId, payload.stroke?.id, payload.pageIndex)
       if (!payload?.userId) return
       setStudentBoards(prev => {
         const board = getOrCreateBoard(prev, payload.userId)
