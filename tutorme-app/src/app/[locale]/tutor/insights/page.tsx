@@ -39,6 +39,24 @@ interface InsightsSessionOption {
   durationMinutes: number
 }
 
+// Stroke points may be compressed (flat number array) from socket delta sync.
+// Decompress to {x,y} Point[] so the canvas can render them.
+function decompressPoints(flat: number[]): { x: number; y: number }[] {
+  const pts: { x: number; y: number }[] = []
+  for (let i = 0; i < flat.length; i += 2) pts.push({ x: flat[i], y: flat[i + 1] })
+  return pts
+}
+
+function normalizeStroke(stroke: any): any {
+  if (!stroke) return stroke
+  const pts = stroke.points
+  if (!pts || !Array.isArray(pts) || pts.length === 0) return stroke
+  // Already decompressed?
+  if (typeof pts[0] === 'object' && pts[0] !== null && 'x' in pts[0]) return stroke
+  // Compressed flat array
+  return { ...stroke, points: decompressPoints(pts) }
+}
+
 function TutorInsightsPageInner() {
   const { data: session } = useSession()
   const searchParams = useSearchParams()
@@ -671,7 +689,16 @@ function TutorInsightsPageInner() {
           setLiveTasks(state.tasks)
         }
         if (state.whiteboardData?.studentBoards) {
-          setStudentBoards(state.whiteboardData.studentBoards)
+          const boards = state.whiteboardData.studentBoards as Record<string, any>
+          const normalizedBoards: typeof studentBoards = {}
+          Object.entries(boards).forEach(([uid, board]) => {
+            const pages = (board as any)?.pages?.map((page: any) => ({
+              ...page,
+              strokes: (page.strokes || []).map((s: any) => normalizeStroke(s)),
+            }))
+            normalizedBoards[uid] = { ...(board as any), pages }
+          })
+          setStudentBoards(normalizedBoards)
         }
         if (state.students && Array.isArray(state.students)) {
           setStudents(prev => {
@@ -830,7 +857,8 @@ function TutorInsightsPageInner() {
         }
         const page = pages[pageIdx]
         if (!page) return prev
-        pages[pageIdx] = { ...page, strokes: [...(page.strokes || []), payload.stroke] }
+        const normalizedStroke = normalizeStroke(payload.stroke)
+        pages[pageIdx] = { ...page, strokes: [...(page.strokes || []), normalizedStroke] }
         return { ...prev, [payload.userId]: { ...board, pages, updatedAt: Date.now() } }
       })
     }
@@ -901,6 +929,30 @@ function TutorInsightsPageInner() {
       })
     }
 
+    const handleStudentWhiteboardUpdate = (data: {
+      studentId?: string
+      pages?: any[]
+      pageIndex?: number
+      updatedAt?: number
+    }) => {
+      const studentId = data?.studentId
+      if (!studentId || !data?.pages) return
+      setStudentBoards(prev => {
+        const pages = data.pages!.map((page: any) => ({
+          ...page,
+          strokes: (page.strokes || []).map((s: any) => normalizeStroke(s)),
+        }))
+        return {
+          ...prev,
+          [studentId]: {
+            pages,
+            pageIndex: data.pageIndex ?? 0,
+            updatedAt: data.updatedAt ?? Date.now(),
+          },
+        }
+      })
+    }
+
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('session:ending-soon', handleSessionEndingSoon)
@@ -910,6 +962,7 @@ function TutorInsightsPageInner() {
     socket.on('whiteboard:stroke:added', handleWhiteboardStrokeAdded)
     socket.on('whiteboard:shape:added', handleWhiteboardShapeAdded)
     socket.on('whiteboard:text:added', handleWhiteboardTextAdded)
+    socket.on('student:whiteboard:update', handleStudentWhiteboardUpdate)
 
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
@@ -921,6 +974,7 @@ function TutorInsightsPageInner() {
       socket.off('whiteboard:stroke:added', handleWhiteboardStrokeAdded)
       socket.off('whiteboard:shape:added', handleWhiteboardShapeAdded)
       socket.off('whiteboard:text:added', handleWhiteboardTextAdded)
+      socket.off('student:whiteboard:update', handleStudentWhiteboardUpdate)
     }
   }, [socket, sessionId, endingAlertShown, handleStopRecording])
 

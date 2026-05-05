@@ -594,6 +594,19 @@ function StudentFeedbackContent() {
   const [followTutor, setFollowTutor] = useState<boolean>(true)
   const openVideoOverlay = useVideoOverlayStore(s => s.openOverlay)
 
+  // Emit debounced full-board snapshot so tutors can see existing strokes
+  // when they open the monitor (delta sync only carries new strokes).
+  useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    const timeout = setTimeout(() => {
+      socket.emit('student:whiteboard:update', {
+        roomId: selectedSessionId,
+        board: { pages: myBoardPages, pageIndex: myBoardPageIndex, updatedAt: Date.now() },
+      })
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex])
+
   useEffect(() => {
     if (!selectedSessionId || typeof window === 'undefined') return
     try {
