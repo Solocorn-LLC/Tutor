@@ -661,7 +661,21 @@ export default function TutorMyPage() {
   useEffect(() => {
     if (!cropDialogOpen) return
     const el = cropViewportRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
+    if (!el) return
+
+    const measure = () => {
+      const rect = el.getBoundingClientRect()
+      if (rect.width > 0) setCropViewportSize(Math.round(rect.width))
+    }
+
+    measure()
+    requestAnimationFrame(measure)
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure)
+      return () => window.removeEventListener('resize', measure)
+    }
+
     const ro = new ResizeObserver(entries => {
       const entry = entries[0]
       if (!entry) return
@@ -1008,7 +1022,10 @@ export default function TutorMyPage() {
   const confirmCropAndUpload = async () => {
     if (!cropSourceUrl || !cropSourceFile) return
     const cropData = getCropData()
-    if (!cropData) return
+    if (!cropData) {
+      setCropError('Crop is not ready yet. Please wait a moment and try again.')
+      return
+    }
     if (cropData.width < 256 || cropData.height < 256) {
       setCropError('Crop is too small (min 256 × 256)')
       return
@@ -1572,7 +1589,14 @@ export default function TutorMyPage() {
               </Button>
               <Button
                 onClick={() => void confirmCropAndUpload()}
-                disabled={cropping || uploadingAvatar || !cropSourceUrl || !cropSourceFile}
+                disabled={
+                  cropping ||
+                  uploadingAvatar ||
+                  !cropSourceUrl ||
+                  !cropSourceFile ||
+                  !cropImageSize ||
+                  !cropViewportSize
+                }
               >
                 {cropping ? 'Cropping...' : 'Crop & Upload'}
               </Button>
