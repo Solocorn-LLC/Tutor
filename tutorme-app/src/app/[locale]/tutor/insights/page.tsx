@@ -739,6 +739,27 @@ function TutorInsightsPageInner() {
       toast.error(data.error || 'Cannot deploy right now')
     }
 
+    const getOrCreateBoard = (prev: typeof studentBoards, userId: string) => {
+      const existing = prev[userId]
+      if (existing) return existing
+      return {
+        pages: [
+          {
+            id: 'page-1',
+            name: 'Page 1',
+            strokes: [],
+            shapes: [],
+            texts: [],
+            formulas: [],
+            graphs: [],
+            backgroundColor: '#ffffff',
+            backgroundStyle: 'solid',
+          },
+        ],
+        pageIndex: 0,
+      }
+    }
+
     const handleWhiteboardStrokeAdded = (payload: {
       userId: string
       stroke: any
@@ -746,10 +767,26 @@ function TutorInsightsPageInner() {
     }) => {
       if (!payload?.userId) return
       setStudentBoards(prev => {
-        const board = prev[payload.userId]
-        if (!board) return prev
+        const board = getOrCreateBoard(prev, payload.userId)
         const pages = [...(board.pages as any[])]
-        const pageIdx = payload.pageIndex ?? board.pageIndex ?? 0
+        const pageIdx =
+          payload.pageIndex ?? payload.stroke?.pageIndex ?? board.pageIndex ?? 0
+        if (pageIdx >= pages.length) {
+          // Ensure the page exists
+          while (pages.length <= pageIdx) {
+            pages.push({
+              id: `page-${pages.length + 1}`,
+              name: `Page ${pages.length + 1}`,
+              strokes: [],
+              shapes: [],
+              texts: [],
+              formulas: [],
+              graphs: [],
+              backgroundColor: '#ffffff',
+              backgroundStyle: 'solid',
+            })
+          }
+        }
         const page = pages[pageIdx]
         if (!page) return prev
         pages[pageIdx] = { ...page, strokes: [...(page.strokes || []), payload.stroke] }
@@ -764,10 +801,25 @@ function TutorInsightsPageInner() {
     }) => {
       if (!payload?.userId) return
       setStudentBoards(prev => {
-        const board = prev[payload.userId]
-        if (!board) return prev
+        const board = getOrCreateBoard(prev, payload.userId)
         const pages = [...(board.pages as any[])]
-        const pageIdx = payload.pageIndex ?? board.pageIndex ?? 0
+        const pageIdx =
+          payload.pageIndex ?? payload.shape?.pageIndex ?? board.pageIndex ?? 0
+        if (pageIdx >= pages.length) {
+          while (pages.length <= pageIdx) {
+            pages.push({
+              id: `page-${pages.length + 1}`,
+              name: `Page ${pages.length + 1}`,
+              strokes: [],
+              shapes: [],
+              texts: [],
+              formulas: [],
+              graphs: [],
+              backgroundColor: '#ffffff',
+              backgroundStyle: 'solid',
+            })
+          }
+        }
         const page = pages[pageIdx]
         if (!page) return prev
         pages[pageIdx] = { ...page, shapes: [...(page.shapes || []), payload.shape] }
@@ -782,10 +834,25 @@ function TutorInsightsPageInner() {
     }) => {
       if (!payload?.userId) return
       setStudentBoards(prev => {
-        const board = prev[payload.userId]
-        if (!board) return prev
+        const board = getOrCreateBoard(prev, payload.userId)
         const pages = [...(board.pages as any[])]
-        const pageIdx = payload.pageIndex ?? board.pageIndex ?? 0
+        const pageIdx =
+          payload.pageIndex ?? payload.text?.pageIndex ?? board.pageIndex ?? 0
+        if (pageIdx >= pages.length) {
+          while (pages.length <= pageIdx) {
+            pages.push({
+              id: `page-${pages.length + 1}`,
+              name: `Page ${pages.length + 1}`,
+              strokes: [],
+              shapes: [],
+              texts: [],
+              formulas: [],
+              graphs: [],
+              backgroundColor: '#ffffff',
+              backgroundStyle: 'solid',
+            })
+          }
+        }
         const page = pages[pageIdx]
         if (!page) return prev
         pages[pageIdx] = { ...page, texts: [...(page.texts || []), payload.text] }
