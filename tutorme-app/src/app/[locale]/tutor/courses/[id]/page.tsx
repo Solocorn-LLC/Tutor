@@ -1167,7 +1167,7 @@ export default function TutorCoursePage() {
                 }
               }}
               disabled={variantStats.total === 0 || publishingVariants}
-              className="rounded-full border border-indigo-600 bg-white px-8 text-indigo-700 hover:bg-indigo-50"
+              className="h-11 w-full rounded-full bg-[#6D59D8] px-8 text-white hover:translate-y-0 hover:bg-white hover:text-[#6D59D8] hover:shadow-[0_0_0_2px_rgba(109,89,216,0.10)] hover:ring-2 hover:ring-[#6D59D8] active:scale-100 sm:w-[220px]"
             >
               {publishingVariants ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {publishingVariants ? 'Publishing…' : 'Publish'}
@@ -1177,7 +1177,7 @@ export default function TutorCoursePage() {
               variant="default"
               onClick={handleSaveAll}
               disabled={saving}
-              className="rounded-full bg-indigo-600 px-8 text-white hover:bg-indigo-700"
+              className="h-11 w-full rounded-full bg-[#1D4ED8] px-8 text-white hover:translate-y-0 hover:bg-white hover:text-[#1D4ED8] hover:shadow-[0_0_0_2px_rgba(29,78,216,0.10)] hover:ring-2 hover:ring-[#1D4ED8] active:scale-100 sm:w-[220px]"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {saving ? 'Saving…' : 'Save'}

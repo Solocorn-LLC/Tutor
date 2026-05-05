@@ -171,6 +171,19 @@ const buttonVariants = cva(
           'hover:shadow-hover-lift hover:-translate-y-0.5',
           'active:shadow-active-press active:translate-y-0',
         ],
+
+        'solocorn-book': [
+          'bg-white text-[#0B3A9B]',
+          'shadow-elevation-1',
+          'hover:bg-slate-600/80 hover:text-white',
+          'hover:shadow-elevation-2',
+        ],
+
+        'solocorn-follow': [
+          'border-2 border-white/50 bg-transparent text-white',
+          'hover:border-transparent hover:bg-white hover:text-[#0B3A9B]',
+          'hover:shadow-elevation-1',
+        ],
       },
 
       size: {

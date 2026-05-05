@@ -63,8 +63,7 @@ export function LessonSelectorDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        theme="default"
-        className="max-w-md rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md"
+        className="max-w-md"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -72,53 +71,55 @@ export function LessonSelectorDialog({
             Select Target Lesson
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <p className="text-muted-foreground text-sm">
-            Choose which lesson to save this {itemType} to:
-          </p>
+        <div className="pt-4">
+          <div className="space-y-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+            <p className="text-sm font-medium text-slate-700">
+              Choose which lesson to save this {itemType} to:
+            </p>
 
-          <div className="space-y-2">
-            <Label>Lesson</Label>
-            <Select
-              value={selectedCourseBuilderNodeId}
-              onValueChange={value => {
-                setSelectedCourseBuilderNodeId(value)
-                const selectedMod = nodes.find(m => m.id === value)
-                if (selectedMod && selectedMod.lessons.length > 0) {
-                  setSelectedLessonId(selectedMod.lessons[0].id)
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a lesson" />
-              </SelectTrigger>
-              <SelectContent>
-                {nodes.map(module => (
-                  <SelectItem key={module.id} value={module.id}>
-                    {module.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {lessons.length > 0 && (
             <div className="space-y-2">
-              <Label>Topic</Label>
-              <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
+              <Label>Lesson</Label>
+              <Select
+                value={selectedCourseBuilderNodeId}
+                onValueChange={value => {
+                  setSelectedCourseBuilderNodeId(value)
+                  const selectedMod = nodes.find(m => m.id === value)
+                  if (selectedMod && selectedMod.lessons.length > 0) {
+                    setSelectedLessonId(selectedMod.lessons[0].id)
+                  }
+                }}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a topic" />
+                  <SelectValue placeholder="Select a lesson" />
                 </SelectTrigger>
                 <SelectContent>
-                  {lessons.map(lesson => (
-                    <SelectItem key={lesson.id} value={lesson.id}>
-                      {lesson.title}
+                  {nodes.map(module => (
+                    <SelectItem key={module.id} value={module.id}>
+                      {module.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
+
+            {lessons.length > 0 && (
+              <div className="space-y-2">
+                <Label>Topic</Label>
+                <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lessons.map(topic => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        {topic.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

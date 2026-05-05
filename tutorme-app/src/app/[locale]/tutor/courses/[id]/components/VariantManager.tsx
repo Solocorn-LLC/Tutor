@@ -639,18 +639,24 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             }
           }}
         >
-          <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden p-0 sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[800px]">
-            <div className="flex h-full flex-col bg-white">
-              <DialogHeader className="border-b px-6 py-4">
-                <DialogTitle>Edit Schedule</DialogTitle>
-                <DialogDescription>
+          <DialogContent
+            className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-0 bg-[rgba(31,41,51,0.72)] p-0 shadow-[0_24px_64px_rgba(15,23,42,0.32)] backdrop-blur-[18px] sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
+            rounded="lg"
+          >
+            <div className="flex h-full flex-col p-7 sm:p-8">
+              <DialogHeader className="p-0">
+                <DialogTitle>
                   {dialogVariant
                     ? `Configure schedule for ${dialogVariant.category} - ${dialogVariant.nationality}`
                     : 'Configure schedule'}
+                </DialogTitle>
+                <DialogDescription>
+                  Click a time slot to add or remove a 1-hour session.
                 </DialogDescription>
               </DialogHeader>
+
               {dialogVariant && (
-                <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="mt-6 flex-1 overflow-y-auto pr-2">
                   <VariantScheduleEditor
                     key={scheduleEditorKey}
                     schedule={Array.isArray(dialogVariant?.schedule) ? dialogVariant.schedule : []}
@@ -673,21 +679,15 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                   />
                 </div>
               )}
-              <div className="border-t px-6 py-4">
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={closeScheduleDialog}
-                    className="text-white"
-                    style={{
-                      background: '#1D4ED8',
-                      borderRadius: '12px',
-                      boxShadow: '0 8px 18px rgba(29,78,216,0.28)',
-                    }}
-                  >
-                    Save
-                  </Button>
-                </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button
+                  type="button"
+                  onClick={closeScheduleDialog}
+                  className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90 hover:translate-y-0 hover:shadow-none active:scale-100"
+                >
+                  Save
+                </Button>
               </div>
             </div>
           </DialogContent>

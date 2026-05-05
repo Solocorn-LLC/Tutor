@@ -301,15 +301,15 @@ export function SubmissionsPanel({
       )}
 
       <Dialog open={!!selected} onOpenChange={o => !o && setSelected(null)}>
-        <DialogContent className="h-[90vh] w-[90vw] max-w-none overflow-hidden rounded-2xl border border-slate-200 bg-white p-0">
+        <DialogContent className="h-[90vh] w-[90vw] max-w-none overflow-hidden p-6">
           {selected && (
             <div className="flex h-full w-full flex-col">
-              <div className="flex items-center justify-between border-b px-4 py-3">
+              <div className="flex items-center justify-between border-b border-white/15 px-1 pb-4">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">
+                  <div className="truncate text-sm font-semibold text-white">
                     {selected.itemTitle}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-600">
+                  <div className="mt-0.5 text-xs text-white/70">
                     {selected.studentName} · {selected.sessionTitle}
                   </div>
                 </div>
@@ -317,7 +317,7 @@ export function SubmissionsPanel({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs"
+                    className="h-8 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
                     onClick={() => window.open('/tutor/reports', '_blank')}
                   >
                     Open Tutor Reports
@@ -325,7 +325,7 @@ export function SubmissionsPanel({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs"
+                    className="h-8 text-white hover:bg-white/10 hover:text-white"
                     onClick={() => setSelected(null)}
                   >
                     Close
@@ -333,7 +333,7 @@ export function SubmissionsPanel({
                 </div>
               </div>
 
-              <ScrollArea className="min-h-0 flex-1 p-4">
+              <ScrollArea className="min-h-0 flex-1 pr-1">
                 <div className="grid gap-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">

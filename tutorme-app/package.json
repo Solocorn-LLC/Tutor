@@ -5,6 +5,7 @@
   "description": "Production-only development. All development uses production Neon database.",
   "scripts": {
     "dev": "NODE_ENV=production tsx server.ts",
+    "dev:next": "npm run dev",
     "build": "npm run build:sw && next build --webpack",
     "build:sw": "node scripts/build-sw.js",
     "start": "NODE_ENV=production next start",
@@ -15,6 +16,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:a11y": "playwright test src/__tests__/accessibility",
+    "test:load": "k6 run scripts/load/concurrent-users.js",
+    "test:load:ai": "k6 run scripts/load/ai-stress.js",
+    "test:load:ws": "k6 run scripts/load/websocket.js",
     "lint": "eslint .",
     "lint:check": "eslint .",
     "lint:fix": "eslint . --fix",

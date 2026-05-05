@@ -6,45 +6,45 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ValidationError, handleApiError } from '@/lib/api/middleware'
 import { performRegistration } from '@/lib/registration/register-user'
-import type { RegisterUserInput } from '@/lib/validation/schemas'
+import { RegisterUserSchema } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   try {
-    let body: RegisterUserInput
+    let bodyUnknown: unknown
     try {
-      body = await request.json()
+      bodyUnknown = await request.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
 
+    const parsed = RegisterUserSchema.safeParse(bodyUnknown)
+    if (!parsed.success) {
+      const messages = parsed.error.issues
+        .map(issue => `${issue.path.join('.') || 'body'}: ${issue.message}`)
+        .join(', ')
+      return NextResponse.json({ error: messages }, { status: 400 })
+    }
+    const body = parsed.data
+
     const result = await performRegistration(request, body)
     return NextResponse.json(result.body, { status: result.status, headers: result.headers })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error))
-    console.error('Registration error:', err.message, err.stack)
-    if (error && typeof error === 'object' && 'issues' in error) {
-      const zodError = error as { issues: Array<{ message: string }> }
-      return NextResponse.json(
-        { error: zodError.issues.map(i => i.message).join(', ') },
-        { status: 400 }
-      )
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    if (error instanceof ValidationError || (error as Error)?.name === 'ValidationError') {
-      return NextResponse.json(
-        { error: (error as Error).message || 'Validation error' },
-        { status: 400 }
-      )
+    const directCode =
+      error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : null
+    const causeCode =
+      error && typeof error === 'object' && 'cause' in error
+        ? ((error as { cause?: { code?: string } }).cause?.code ?? null)
+        : null
+    if (directCode === '23505' || causeCode === '23505') {
+      return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
     }
-    if (error && typeof error === 'object' && 'code' in error) {
-      const e = error as { code: string }
-      if (e.code === '23505') {
-        return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
-      }
-    }
-    const message =
-      process.env.NODE_ENV === 'development'
-        ? err.message || 'Internal server error. Please try again.'
-        : err.message || 'Internal server error. Please try again.'
-    return handleApiError(error, message, 'api/auth/register/route.ts')
+    return handleApiError(
+      error,
+      'Internal server error. Please try again.',
+      'api/auth/register/route.ts'
+    )
   }
 }

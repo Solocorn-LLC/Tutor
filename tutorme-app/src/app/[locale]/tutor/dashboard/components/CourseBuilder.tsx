@@ -3838,7 +3838,7 @@ FEEDBACK: [your explanation]`
     }, [courseAssets, assetViewFolder, assetViewSearch])
 
     const renderAssetsFolder = () => (
-      <div className="mt-4 rounded-xl border bg-white shadow-sm">
+      <div className="mt-3 rounded-xl border bg-white shadow-sm">
         {/* Header row matching image 1 */}
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-sm font-semibold text-slate-700">Assets</span>
@@ -3928,7 +3928,7 @@ FEEDBACK: [your explanation]`
         </div>
 
         {/* Only show 2 most recent files */}
-        <div className="flex flex-col gap-2 px-3 pb-3">
+        <div className="flex flex-col gap-2 px-2 pb-2">
           {recentAssets.length === 0 ? (
             <p className="text-muted-foreground w-full py-2 text-center text-xs">
               No assets imported.
@@ -4019,16 +4019,16 @@ FEEDBACK: [your explanation]`
           }}
         >
           <DialogContent
-            theme="default"
-            className="rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-w-md"
+            className="sm:max-w-md"
           >
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-slate-900">Load as...</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">Load as...</DialogTitle>
             </DialogHeader>
-            <div className="flex flex-col gap-4 py-4">
-              <p className="text-sm font-medium text-slate-700">
-                Select how you would like to load &quot;{assetToLoad?.name}&quot;:
-              </p>
+            <div className="pt-4">
+              <div className="flex flex-col gap-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-5 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                <p className="text-sm font-medium text-slate-700">
+                  Select how you would like to load &quot;{assetToLoad?.name}&quot;:
+                </p>
 
               {/* Option 1: Tasks (One task per page) */}
               <Button
@@ -4565,6 +4565,7 @@ FEEDBACK: [your explanation]`
                   </span>
                 </div>
               </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -5318,11 +5319,11 @@ FEEDBACK: [your explanation]`
                 ref={leftPanelRef}
                 style={{ width: leftPanelWidth }}
               >
-                <div className="flex h-full min-h-0 flex-col pr-4">
+                <div className="flex h-full min-h-0 flex-col pr-2">
                   <Card className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5">
+                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-1">
                       {/* Header with Hide, Import, and +Lesson buttons */}
-                      <div className="mb-4 flex min-h-[58px] items-center justify-between px-1.5 pt-1.5">
+                      <div className="mb-3 flex min-h-[58px] items-center justify-between px-1.5 pt-1.5">
                         <div className="flex flex-col justify-center gap-1">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-semibold text-[#1F2933]">Directory</div>
@@ -5343,7 +5344,7 @@ FEEDBACK: [your explanation]`
                       </div>
 
                       {!hideDirectorySearch && (
-                        <div className="relative mb-4">
+                        <div className="relative mb-3">
                           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                           <input
                             placeholder="Search course..."
@@ -5354,14 +5355,14 @@ FEEDBACK: [your explanation]`
                         </div>
                       )}
 
-                      <ScrollArea className="min-h-0 flex-1 pr-1.5">
+                      <ScrollArea className="min-h-0 flex-1 pr-1">
                         <DndContext
                           sensors={sensors}
                           collisionDetection={closestCenter}
                           onDragStart={handleDragStart}
                           onDragEnd={handleDragEnd}
                         >
-                          <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-3">
                             {/* Lessons (formerly nodes) - with drag sorting */}
                             <SortableContext
                               items={filteredCourseBuilderNodes.map(node => node.id)}
@@ -5499,7 +5500,7 @@ FEEDBACK: [your explanation]`
                                       </div>
 
                                       {expandedCourseBuilderNodes.has(node.id) && (
-                                        <div className="mt-1 flex flex-col gap-2 px-3 pb-3">
+                                        <div className="mt-1 flex flex-col gap-1.5 px-2 pb-2">
                                           {/* Tasks - droppable so homework can be moved here */}
                                           <TreeItem
                                             depth={0}
@@ -5561,7 +5562,7 @@ FEEDBACK: [your explanation]`
                                             </DroppableTaskZone>
                                           </TreeItem>
                                           {!isSectionCollapsed(node.id, 'task') && (
-                                            <div className="mt-2 space-y-1">
+                                            <div className="mt-1.5 space-y-1">
                                               <SortableContext
                                                 items={primaryLesson.tasks?.map(t => t.id) || []}
                                                 strategy={verticalListSortingStrategy}
@@ -5579,7 +5580,7 @@ FEEDBACK: [your explanation]`
                                                     >
                                                       <div
                                                         className={cn(
-                                                          'group/item relative mb-2 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
+                                                          'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                           selectedItem?.type === 'task' &&
                                                             selectedItem?.id === task.id
                                                             ? 'border-[#4A90FF] bg-[#F2F7FF] ring-1 ring-[#4A90FF]'
@@ -6295,7 +6296,7 @@ FEEDBACK: [your explanation]`
                                             </DroppableAssessmentZone>
                                           </TreeItem>
                                           {!isSectionCollapsed(node.id, 'assessment') && (
-                                            <div className="mt-2 space-y-1">
+                                            <div className="mt-1.5 space-y-1">
                                               <SortableContext
                                                 items={assessments.map(h => h.id)}
                                                 strategy={verticalListSortingStrategy}
@@ -6310,7 +6311,7 @@ FEEDBACK: [your explanation]`
                                                   >
                                                     <div
                                                       className={cn(
-                                                        'group/item relative mb-2 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
+                                                        'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                         selectedItem?.type === 'homework' &&
                                                           selectedItem?.id === hw.id
                                                           ? 'border-[#8B6DFF] bg-[#F3EEFF] ring-1 ring-[#8B6DFF]'
@@ -6654,7 +6655,7 @@ FEEDBACK: [your explanation]`
                                                   </DroppableHomeworkZone>
                                                 </TreeItem>
                                                 {!isSectionCollapsed(node.id, 'homework') && (
-                                                  <div className="mt-2 space-y-1">
+                                                  <div className="mt-1.5 space-y-1">
                                                     <SortableContext
                                                       items={hwItems.map(h => h.id)}
                                                       strategy={verticalListSortingStrategy}
@@ -6669,7 +6670,7 @@ FEEDBACK: [your explanation]`
                                                         >
                                                           <div
                                                             className={cn(
-                                                              'group/item relative mb-2 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
+                                                              'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                               selectedItem?.type === 'homework' &&
                                                                 selectedItem?.id === hw.id
                                                                 ? 'border-[#2FC98F] bg-[#ECFBF4] ring-1 ring-[#2FC98F]'
@@ -7459,10 +7460,10 @@ FEEDBACK: [your explanation]`
                                                     }
                                                   }}
                                                 >
-                                                  <DialogContent className="h-[90vh] w-[90vw] max-w-none overflow-hidden rounded-2xl border border-slate-200 bg-white p-0">
-                                                    <div className="flex h-full w-full flex-col">
-                                                      <div className="flex items-center justify-between border-b bg-white px-4 py-2 text-sm">
-                                                        <div className="font-medium text-slate-800">
+                                                  <DialogContent className="h-[90vh] w-[90vw] max-w-none overflow-hidden p-6">
+                                                    <div className="flex h-full w-full flex-col overflow-hidden rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                                                      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 text-sm">
+                                                        <div className="font-semibold text-slate-800">
                                                           Viewing: {monitorSelectedStudent.name}
                                                         </div>
                                                         <Button
@@ -9183,13 +9184,13 @@ FEEDBACK: [your explanation]`
           onOpenChange={open => !open && setImportTypeModalData(null)}
         >
           <DialogContent
-            theme="default"
-            className="rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md sm:max-w-md"
+            className="sm:max-w-md"
           >
             <DialogHeader>
               <DialogTitle>Import as...</DialogTitle>
             </DialogHeader>
-            <div className="flex flex-col gap-3 py-4">
+            <div className="pt-4">
+              <div className="flex flex-col gap-3 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-5 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
               <Button
                 variant="outline"
                 className="justify-start gap-2"
@@ -9313,6 +9314,7 @@ FEEDBACK: [your explanation]`
                 <Home className="h-4 w-4 text-emerald-500" />
                 Homework
               </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -9401,8 +9403,7 @@ FEEDBACK: [your explanation]`
         {/* DMI Version History Modal */}
         <Dialog open={showDmiVersionList} onOpenChange={open => setShowDmiVersionList(open)}>
           <DialogContent
-            theme="default"
-            className="rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md sm:max-w-md"
+            className="sm:max-w-md"
           >
             <DialogHeader>
               <DialogTitle>DMI Version History</DialogTitle>
@@ -9411,7 +9412,8 @@ FEEDBACK: [your explanation]`
                 {mainBuilderTab === 'task' ? 'Task' : 'Assessment'}.
               </DialogDescription>
             </DialogHeader>
-            <div className="max-h-[400px] overflow-y-auto py-4">
+            <div className="pt-4">
+              <div className="max-h-[400px] overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
               {(mainBuilderTab === 'task' ? taskDmiVersions : assessmentDmiVersions).length ===
               0 ? (
                 <div className="text-muted-foreground py-6 text-center text-sm">
@@ -9425,7 +9427,7 @@ FEEDBACK: [your explanation]`
                     .map(version => (
                       <div
                         key={version.id}
-                        className="hover:bg-muted/50 flex items-center justify-between rounded-lg border p-3"
+                        className="flex items-center justify-between rounded-lg border bg-white p-3 hover:bg-slate-50"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -9467,6 +9469,7 @@ FEEDBACK: [your explanation]`
                     ))}
                 </div>
               )}
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowDmiVersionList(false)}>
@@ -9484,8 +9487,7 @@ FEEDBACK: [your explanation]`
           }}
         >
           <DialogContent
-            theme="default"
-            className="rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md sm:max-w-lg"
+            className="sm:max-w-lg"
           >
             <DialogHeader>
               <DialogTitle>DMI Preview — Version {previewDmiVersion?.versionNumber}</DialogTitle>
@@ -9497,7 +9499,8 @@ FEEDBACK: [your explanation]`
                   : ''}
               </DialogDescription>
             </DialogHeader>
-            <div className="max-h-[500px] overflow-y-auto py-4">
+            <div className="pt-4">
+              <div className="max-h-[500px] overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
               {!previewDmiVersion || previewDmiVersion.items.length === 0 ? (
                 <div className="text-muted-foreground py-6 text-center text-sm">
                   No questions in this version.
@@ -9514,6 +9517,7 @@ FEEDBACK: [your explanation]`
                   ))}
                 </div>
               )}
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -9542,8 +9546,7 @@ FEEDBACK: [your explanation]`
           }}
         >
           <DialogContent
-            theme="default"
-            className="rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md sm:max-w-md"
+            className="sm:max-w-md"
           >
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -9554,7 +9557,8 @@ FEEDBACK: [your explanation]`
                 How would you like to use &quot;{pptUploadDialog.file?.name}&quot;?
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="pt-4">
+              <div className="space-y-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-5 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
               <Button
                 variant="outline"
                 className="h-auto w-full justify-start gap-3 px-4 py-4"
@@ -9585,6 +9589,7 @@ FEEDBACK: [your explanation]`
                   </p>
                 </div>
               </Button>
+              </div>
             </div>
             <DialogFooter>
               <Button

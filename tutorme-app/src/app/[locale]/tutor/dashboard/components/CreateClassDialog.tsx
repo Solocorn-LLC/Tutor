@@ -168,8 +168,7 @@ export function CreateClassDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        theme="default"
-        className="border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md sm:max-w-[500px]"
+        className="sm:max-w-[500px]"
         aria-busy={creating}
         aria-describedby={apiError ? 'create-class-api-error' : undefined}
       >
@@ -179,8 +178,9 @@ export function CreateClassDialog({
             Schedule a new live class session for your students.
           </DialogDescription>
         </DialogHeader>
-        <div className="px-6 py-4">
-          <DialogPanel className="space-y-4">
+        <div className="pt-4">
+          <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+            <DialogPanel className="space-y-4">
             {apiError && (
               <p
                 id="create-class-api-error"
@@ -269,7 +269,8 @@ export function CreateClassDialog({
                 </Select>
               </div>
             </div>
-          </DialogPanel>
+            </DialogPanel>
+          </div>
         </div>
         <DialogFooter className="gap-3">
           <Button

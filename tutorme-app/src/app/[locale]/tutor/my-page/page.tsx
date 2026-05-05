@@ -1027,10 +1027,10 @@ export default function TutorMyPage() {
                       {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-2 -right-2 flex gap-1">
+                  <div className="absolute bottom-2 right-2 flex -space-x-2">
                     <Button
                       size="icon"
-                      className="h-8 w-8 rounded-full bg-white text-[#1F2933] shadow hover:bg-white/90"
+                      className="h-8 w-8 rounded-full border border-white/40 bg-white text-[#1F2933] shadow hover:bg-white/90"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       aria-label="Edit profile photo"
@@ -1040,7 +1040,7 @@ export default function TutorMyPage() {
                     {avatarUrl && (
                       <Button
                         size="icon"
-                        className="h-8 w-8 rounded-full bg-red-500 text-white shadow hover:bg-red-600"
+                        className="h-8 w-8 rounded-full border border-white/40 bg-red-500 text-white shadow hover:bg-red-600"
                         onClick={() => void handleDeleteAvatar()}
                         disabled={uploadingAvatar}
                         aria-label="Delete profile photo"
@@ -1073,35 +1073,35 @@ export default function TutorMyPage() {
                   </div>
                   <div className="mt-1 text-sm font-medium text-white/80">Solocorn Tutor</div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-6 rounded-full bg-white/10 px-4 py-3">
-                    <div className="flex items-center gap-3">
+                  <div className="mt-4 inline-flex flex-wrap items-center gap-4 rounded-full bg-white/10 px-5 py-2.5 text-white ring-1 ring-white/15 backdrop-blur">
+                    <div className="flex items-center gap-2">
                       <Award className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Tutor Since</div>
-                        <div className="text-sm font-semibold">{tutorSince || '—'}</div>
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Tutor Since</span>
+                        <span className="text-sm font-semibold">{tutorSince || '—'}</span>
                       </div>
                     </div>
-                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
-                    <div className="flex items-center gap-3">
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Active Courses</div>
-                        <div className="text-sm font-semibold">{activeCourses ?? '—'}</div>
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Active Courses</span>
+                        <span className="text-sm font-semibold">{activeCourses ?? '—'}</span>
                       </div>
                     </div>
-                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
-                    <div className="flex items-center gap-3">
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Country</div>
-                        <div className="text-sm font-semibold">{country || '—'}</div>
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Country</span>
+                        <span className="text-sm font-semibold">{country || '—'}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl bg-white/10 p-4 lg:w-auto">
+              <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl bg-white/10 p-4 ring-1 ring-white/10 lg:w-auto">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                   {publicUrl ? (
                     <Link

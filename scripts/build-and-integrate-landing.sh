@@ -3,6 +3,11 @@
 
 set -e
 
+if [ "${INTEGRATE_LEGACY_VITE_LANDING}" != "true" ]; then
+  echo "Landing integration skipped. Set INTEGRATE_LEGACY_VITE_LANDING=true to run."
+  exit 0
+fi
+
 echo "🚀 Building landing page..."
 cd landing-page
 npm install
@@ -19,8 +24,8 @@ echo "✅ Landing page integrated!"
 echo ""
 echo "Next steps:"
 echo "1. Start your Next.js app: cd tutorme-app && npm run dev"
-echo "2. Visit http://localhost:3003 - you should see the landing page"
+echo "2. Visit http://localhost:3003"
 echo ""
 echo "To deploy:"
 echo "- Build production: cd tutorme-app && npm run build"
-echo "- Your landing page will be served at the root URL"
+echo "- Ensure your root landing is wired in Next.js routing"

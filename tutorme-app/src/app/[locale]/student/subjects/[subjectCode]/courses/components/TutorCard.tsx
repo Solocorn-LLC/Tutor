@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Star, Video, Users, BookOpen, UserPlus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface Tutor {
@@ -147,20 +148,18 @@ export function TutorCard({ tutor, subjectCode }: TutorCardProps) {
 
         {/* Action Buttons */}
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <Link
-            href={`/u/${tutor.username || tutor.id}?book=1`}
-            className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
-          >
-            <Video className="h-4 w-4" />
-            Book 1 on 1
-          </Link>
-          <Link
-            href={`/u/${tutor.username || tutor.id}`}
-            className="flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-blue-600/40 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600/50"
-          >
-            <UserPlus className="h-4 w-4" />
-            Follow
-          </Link>
+          <Button asChild variant="solocorn-book" className="h-auto rounded-xl py-2.5 text-sm">
+            <Link href={`/u/${tutor.username || tutor.id}?book=1`}>
+              <Video className="h-4 w-4" />
+              Book 1 on 1
+            </Link>
+          </Button>
+          <Button asChild variant="solocorn-follow" className="h-auto rounded-xl py-2.5 text-sm">
+            <Link href={`/u/${tutor.username || tutor.id}`}>
+              <UserPlus className="h-4 w-4" />
+              Follow
+            </Link>
+          </Button>
         </div>
 
         {/* Price & availability row (preserved from original) */}

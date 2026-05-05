@@ -1212,8 +1212,9 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   const [isLoading, setIsLoading] = useState(true)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const coursesRef = useRef<HTMLDivElement>(null)
-  const tutorsRef = useRef<HTMLDivElement>(null)
+  const PAGE_SIZE = 5
+  const [coursesPage, setCoursesPage] = useState(0)
+  const [tutorsPage, setTutorsPage] = useState(0)
 
   const availableCountries = (() => {
     const region = REGIONS.find(r => r.id === selectedRegion)
@@ -1225,6 +1226,8 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     const run = async () => {
       setIsLoading(true)
       setLoadError(null)
+      setCoursesPage(0)
+      setTutorsPage(0)
       try {
         const qp = q ? `?q=${encodeURIComponent(q)}&page=1&pageSize=24` : '?page=1&pageSize=24'
         const [coursesRes, tutorsRes] = await Promise.all([
@@ -1270,19 +1273,12 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     }
   }, [query])
 
-  const scrollRow = (ref: React.RefObject<HTMLDivElement>, direction: 1 | -1) => {
-    const el = ref.current
-    if (!el) return
-    const amount = Math.max(360, Math.floor(el.clientWidth * 0.85))
-    el.scrollBy({ left: direction * amount, behavior: 'smooth' })
-  }
-
   const CourseSlot = ({ item }: { item: any }) => (
     <Link
       href={`/u/${encodeURIComponent(item?.tutor?.username || '')}`}
       className="block h-full w-full"
     >
-      <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
+      <div className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
         <div className="flex h-full flex-col p-4">
           <div className="min-w-0">
             <div className="line-clamp-2 text-sm font-semibold text-slate-800">{item?.name}</div>
@@ -1313,7 +1309,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
 
   const TutorSlot = ({ item }: { item: any }) => (
     <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
-      <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
+      <div className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-white/20 bg-white/30 shadow-[0_14px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-shadow hover:shadow-[0_22px_55px_rgba(0,0,0,0.22)]">
         <div className="flex h-full flex-col p-4">
           <div className="flex items-start gap-3">
             <div className="h-10 w-10 overflow-hidden rounded-full border border-white/40 bg-white/60">
@@ -1347,61 +1343,89 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   const CarouselRow = ({
     title,
     icon,
-    rowRef,
     items,
     kind,
+    page,
+    setPage,
   }: {
     title: string
     icon: React.ReactNode
-    rowRef: React.RefObject<HTMLDivElement>
     items: any[]
     kind: 'courses' | 'tutors'
+    page: number
+    setPage: (next: number) => void
   }) => (
     <div className="w-full">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
         <span className="text-slate-500">{icon}</span>
         <span>{title}</span>
       </div>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => scrollRow(rowRef, -1)}
-          className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#1F2933] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
-          aria-label={`Scroll ${title} left`}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollRow(rowRef, 1)}
-          className="absolute right-0 top-1/2 z-10 flex h-10 w-10 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#1F2933] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
-          aria-label={`Scroll ${title} right`}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+      {(() => {
+        const totalPages = isLoading ? 1 : Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+        const currentPage = Math.min(Math.max(page, 0), totalPages - 1)
+        const canPrev = !isLoading && currentPage > 0
+        const canNext = !isLoading && currentPage < totalPages - 1
+        const visible = isLoading
+          ? Array.from({ length: PAGE_SIZE }).map((_, i) => ({
+              __skeleton: true,
+              id: `s-${kind}-${i}`,
+            }))
+          : items.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE)
+        const placeholders = Math.max(0, PAGE_SIZE - visible.length)
 
-        <div className="relative px-10">
+        return (
           <div
-            ref={rowRef}
-            className="flex w-full gap-4 overflow-x-auto scroll-smooth py-1"
-            style={{ scrollSnapType: 'x mandatory' }}
+            className="flex w-full items-center justify-center gap-[18px]"
+            style={{
+              ['--card-width' as any]: '240px',
+              ['--card-gap' as any]: '20px',
+            }}
           >
-            {(isLoading ? Array.from({ length: 10 }).map((_, i) => ({ __skeleton: true, id: `s-${i}` })) : items)
-              .slice(0, 24)
-              .map((item: any, i: number) => (
-                <div key={item?.id || item?.__skeleton || i} className="shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                  {item?.__skeleton ? (
-                    <div className="h-[clamp(220px,18vw,280px)] w-[clamp(190px,14vw,250px)] rounded-[22px] border border-white/20 bg-white/25 shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur-md" />
-                  ) : kind === 'courses' ? (
-                    <CourseSlot item={item} />
-                  ) : (
-                    <TutorSlot item={item} />
-                  )}
-                </div>
-              ))}
+            <button
+              type="button"
+              onClick={() => setPage(Math.max(currentPage - 1, 0))}
+              disabled={!canPrev}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1F2933] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label={`Previous ${title}`}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="w-[calc((var(--card-width)*5)+(var(--card-gap)*4))] overflow-hidden">
+              <div className="grid grid-cols-5 gap-[var(--card-gap)]">
+                {visible.map((item: any, i: number) => (
+                  <div key={item?.id || item?.__skeleton || i} className="w-[var(--card-width)]">
+                    {item?.__skeleton ? (
+                      <div className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] rounded-[22px] border border-white/20 bg-white/25 shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur-md" />
+                    ) : kind === 'courses' ? (
+                      <CourseSlot item={item} />
+                    ) : (
+                      <TutorSlot item={item} />
+                    )}
+                  </div>
+                ))}
+                {Array.from({ length: placeholders }).map((_, i) => (
+                  <div
+                    key={`placeholder-${kind}-${currentPage}-${i}`}
+                    className="w-[var(--card-width)]"
+                    aria-hidden="true"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPage(Math.min(currentPage + 1, totalPages - 1))}
+              disabled={!canNext}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1F2933] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label={`Next ${title}`}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
-        </div>
-      </div>
+        )
+      })()}
       {!isLoading && hasLoaded && items.length === 0 && (
         <div className="mt-3 text-xs font-medium text-slate-500">
           {loadError || 'No results found.'}
@@ -1494,16 +1518,18 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           <CarouselRow
             title="Courses"
             icon={<BookOpen className="h-4 w-4" />}
-            rowRef={coursesRef}
             items={courses}
             kind="courses"
+            page={coursesPage}
+            setPage={setCoursesPage}
           />
           <CarouselRow
             title="Tutors"
             icon={<Users className="h-4 w-4" />}
-            rowRef={tutorsRef}
             items={tutors}
             kind="tutors"
+            page={tutorsPage}
+            setPage={setTutorsPage}
           />
         </div>
       </div>

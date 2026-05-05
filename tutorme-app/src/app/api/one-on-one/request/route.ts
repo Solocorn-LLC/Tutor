@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession, authOptions } from '@/lib/auth'
 import { eq, and, or } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, profile, user } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
+import { withAuth, withCsrf, ForbiddenError, ValidationError, NotFoundError } from '@/lib/api/middleware'
+import { parseJson } from '@/lib/api/parse'
 
 const requestSchema = z.object({
   tutorId: z.string().min(1),
@@ -23,23 +24,13 @@ const requestSchema = z.object({
   studentNotes: z.string().max(1000).optional(),
 })
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions, request)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+export const POST = withCsrf(
+  withAuth(async (request: NextRequest, session) => {
     if (session.user.role !== 'STUDENT') {
-      return NextResponse.json(
-        { error: 'Only students can request one-on-one sessions' },
-        { status: 403 }
-      )
+      throw new ForbiddenError('Only students can request one-on-one sessions')
     }
 
-    const body = await request.json()
-    const validated = requestSchema.parse(body)
+    const validated = await parseJson(request, requestSchema)
 
     // Get tutor profile to check rate and availability
     const tutorProfile = await drizzleDb.query.profile.findFirst({
@@ -52,22 +43,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (!tutorProfile) {
-      return NextResponse.json({ error: 'Tutor not found' }, { status: 404 })
-    }
+    if (!tutorProfile) throw new NotFoundError('Tutor not found')
 
     if (!tutorProfile.oneOnOneEnabled) {
-      return NextResponse.json(
-        { error: 'Tutor does not offer one-on-one sessions' },
-        { status: 400 }
-      )
+      throw new ValidationError('Tutor does not offer one-on-one sessions')
     }
 
     if (!tutorProfile.hourlyRate || tutorProfile.hourlyRate <= 0) {
-      return NextResponse.json(
-        { error: 'Tutor has not set an hourly rate yet. Please check back later.' },
-        { status: 400 }
-      )
+      throw new ValidationError('Tutor has not set an hourly rate yet. Please check back later.')
     }
 
     // Check for existing pending request with this tutor
@@ -133,7 +116,7 @@ export async function POST(request: NextRequest) {
       message: `A student has requested a 1-on-1 session. Please review and accept or reject.`,
       data: { requestId: newRequest[0].requestId, type: 'one-on-one-request' },
       actionUrl: '/tutor/dashboard',
-    }).catch(console.error)
+    }).catch(() => {})
 
     return NextResponse.json(
       {
@@ -142,31 +125,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request data',
-          details: error.issues,
-        },
-        { status: 400 }
-      )
-    }
-
-    console.error('Error creating one-on-one request:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
+  })
+)
 
 // Get all pending requests for the current user (student or tutor)
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions, request)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+export const GET = withAuth(async (request: NextRequest, session) => {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role') // 'sent' or 'received'
     const requestId = searchParams.get('requestId')
@@ -176,14 +139,12 @@ export async function GET(request: NextRequest) {
         where: eq(oneOnOneBookingRequest.requestId, requestId),
       })
 
-      if (!requestRow) {
-        return NextResponse.json({ error: 'Request not found' }, { status: 404 })
-      }
+      if (!requestRow) throw new NotFoundError('Request not found')
 
       const isOwner =
         requestRow.studentId === session.user.id || requestRow.tutorId === session.user.id
       if (!isOwner && session.user.role !== 'ADMIN') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        throw new ForbiddenError('Unauthorized')
       }
 
       const [tutorRow] = await drizzleDb
@@ -239,12 +200,8 @@ export async function GET(request: NextRequest) {
         },
       })
     } else {
-      return NextResponse.json({ error: 'Invalid role parameter' }, { status: 400 })
+      throw new ValidationError('Invalid role parameter')
     }
 
     return NextResponse.json({ requests })
-  } catch (error) {
-    console.error('Error fetching one-on-one requests:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
+})

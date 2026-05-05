@@ -912,45 +912,46 @@ export default function PublicTutorPage() {
                   </div>
                   <div className="mt-1 text-sm font-medium text-white/80">Solocorn Tutor</div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-6 rounded-full bg-white/10 px-4 py-3">
-                    <div className="flex items-center gap-3">
+                  <div className="mt-4 inline-flex flex-wrap items-center gap-4 rounded-full bg-white/10 px-5 py-2.5 text-white ring-1 ring-white/15 backdrop-blur">
+                    <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Tutor Since</div>
-                        <div className="text-sm font-semibold">
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Tutor Since</span>
+                        <span className="text-sm font-semibold">
                           {tutor.tutorSince ? new Date(tutor.tutorSince).toLocaleDateString() : '—'}
-                        </div>
+                        </span>
                       </div>
                     </div>
-                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
-                    <div className="flex items-center gap-3">
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Active Courses</div>
-                        <div className="text-sm font-semibold">
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Active Courses</span>
+                        <span className="text-sm font-semibold">
                           {typeof tutor.activeCourses === 'number'
                             ? tutor.activeCourses
                             : (data?.courses?.length ?? 0)}
-                        </div>
+                        </span>
                       </div>
                     </div>
-                    <div className="hidden h-8 w-px bg-white/15 lg:block" />
-                    <div className="flex items-center gap-3">
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-white/70" />
-                      <div className="leading-tight">
-                        <div className="text-xs font-semibold text-white/70">Country</div>
-                        <div className="text-sm font-semibold">{tutor.country || '—'}</div>
+                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                        <span className="text-xs font-semibold text-white/70">Country</span>
+                        <span className="text-sm font-semibold">{tutor.country || '—'}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white/10 p-4 lg:w-auto">
+              <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/10 lg:w-auto">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Button
                     size="lg"
-                    className="w-full bg-white text-[#0B3A9B] hover:bg-white/90 sm:w-auto"
+                    variant="solocorn-book"
+                    className="w-full sm:w-auto"
                     onClick={() => setBookDialogOpen(true)}
                   >
                     <Video className="mr-2 h-4 w-4" />
@@ -958,8 +959,8 @@ export default function PublicTutorPage() {
                   </Button>
                   <Button
                     size="lg"
-                    variant="outline"
-                    className="w-full border-white/50 bg-transparent text-white hover:bg-white/10 sm:w-auto"
+                    variant="solocorn-follow"
+                    className="w-full sm:w-auto"
                     onClick={() => void toggleFollow()}
                     disabled={followState.loading}
                   >
@@ -1308,6 +1309,11 @@ export default function PublicTutorPage() {
                         : 'No live sessions on record yet'
                   const description = course.description?.trim() || ''
                   const hasDescription = description.length > 0
+                  const descriptionText = hasDescription
+                    ? description
+                    : 'No description provided for this course yet.'
+                  const descriptionPreview =
+                    descriptionText.length > 200 ? `${descriptionText.slice(0, 197)}...` : descriptionText
                   const isList = catalogLayout === 'list'
                   const isCompact = catalogLayout === 'compact'
 
@@ -1334,32 +1340,35 @@ export default function PublicTutorPage() {
                         className={cn(
                           'flex flex-1',
                           isList
-                            ? 'min-w-0 flex-col pr-3 sm:flex-row sm:items-center sm:gap-6'
+                            ? 'min-w-0 flex-col py-4 pl-10 pr-4 sm:flex-row sm:items-center sm:gap-6 sm:pl-12'
                             : 'flex-col p-4',
                           isCompact && !isList && 'p-3'
                         )}
                       >
                         {isList ? (
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="line-clamp-2 text-base font-semibold text-slate-100">
-                                {course.name}
-                              </h3>
+                          <div className="flex min-w-0 flex-1 items-center gap-6">
+                            <div className="w-[260px] min-w-0 shrink-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="line-clamp-2 text-base font-semibold text-slate-100">
+                                  {course.name}
+                                </h3>
+                              </div>
+                              <p className="mt-0.5 text-xs font-medium text-slate-300">
+                                @{tutor.username}
+                              </p>
+                              <Badge
+                                variant="secondary"
+                                className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
+                              >
+                                {course.categories[0] || 'general'}
+                              </Badge>
                             </div>
-                            <p className="mt-0.5 text-xs font-medium text-slate-300">
-                              @{tutor.username}
-                            </p>
-                            <Badge
-                              variant="secondary"
-                              className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
-                            >
-                              {course.categories[0] || 'general'}
-                            </Badge>
-                            <p className="mt-2 line-clamp-3 text-sm text-slate-400">
-                              {hasDescription
-                                ? description
-                                : 'No description provided for this course yet.'}
-                            </p>
+
+                            <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.045)] px-[18px] py-[14px] text-[rgba(255,255,255,0.86)]">
+                              <p className="line-clamp-3 text-sm leading-[1.45]">
+                                {descriptionPreview}
+                              </p>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex flex-1 flex-col">
@@ -1476,7 +1485,7 @@ export default function PublicTutorPage() {
 
                         {/* Middle column (ONLY IN LIST MODE): Lessons, Schedule, Enrollment */}
                         {isList && (
-                          <div className="flex min-w-[200px] shrink-0 flex-col gap-2.5 py-1">
+                          <div className="flex min-w-[200px] shrink-0 flex-col gap-2.5 border-l border-[rgba(255,255,255,0.10)] py-1 pl-6">
                             <div className="flex items-center gap-2 text-sm text-slate-200">
                               <BookOpen className="h-4 w-4 text-slate-400" />
                               <span>{course.lessonCount} sessions</span>
@@ -1519,12 +1528,12 @@ export default function PublicTutorPage() {
                         )}
 
                         {isList && (
-                          <div className="flex w-[104px] shrink-0 items-end justify-center py-1">
-                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
+                          <div className="flex w-[148px] shrink-0 items-center justify-center border-l border-[rgba(255,255,255,0.10)] py-1 pl-6">
+                            <div className="h-24 w-[120px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
                               {tutor.avatarUrl ? (
                                 <img
                                   src={tutor.avatarUrl}
-                                  alt={course.name}
+                                  alt={tutor.name}
                                   className="h-full w-full object-cover"
                                 />
                               ) : (

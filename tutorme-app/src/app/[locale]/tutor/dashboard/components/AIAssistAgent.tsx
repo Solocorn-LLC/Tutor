@@ -125,8 +125,7 @@ Format your response clearly and concisely.`
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        theme="default"
-        className="flex max-h-[90vh] max-w-2xl flex-col rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md"
+        className="flex max-h-[90vh] max-w-2xl flex-col"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -135,39 +134,41 @@ Format your response clearly and concisely.`
           </DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[400px] min-h-[300px] flex-1 space-y-4 overflow-y-auto py-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+        <div className="flex-1 pt-4">
+          <div className="max-h-[420px] min-h-[300px] space-y-4 overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+            {messages.map((msg, idx) => (
               <div
-                className={`max-w-[80%] rounded-lg p-3 text-sm ${
-                  msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800'
-                }`}
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 text-sm ${
+                    msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-800'
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                </div>
               </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="flex items-center gap-2 rounded-lg bg-gray-100 p-3">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-gray-600">Thinking...</span>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-lg bg-slate-100 p-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-600" />
+                  <span className="text-sm text-slate-600">Thinking...</span>
+                </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        <div className="border-t pt-4">
+        <div className="border-t border-white/15 pt-4">
           <div className="relative flex gap-2">
             <Textarea
               value={input}
               onChange={(e: any) => setInput(e.target.value)}
               placeholder="Ask me anything about your content or PCI instructions..."
-              className="min-h-[80px] flex-1 pr-12"
+              className="min-h-[80px] flex-1 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white pr-12 text-[#1F2933]"
               onKeyDown={(e: any) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()

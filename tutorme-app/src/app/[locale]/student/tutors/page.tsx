@@ -465,24 +465,29 @@ export default function StudentTutorDirectoryPage() {
 
                 {/* Action Buttons */}
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Link
-                    href={`/${locale}/u/${tutor.username}?book=1`}
-                    onClick={e => e.stopPropagation()}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
+                  <Button
+                    asChild
+                    variant="solocorn-book"
+                    className="h-auto rounded-xl py-2.5 text-sm"
                   >
-                    <Video className="h-4 w-4" />
-                    Book 1 on 1
-                  </Link>
+                    <Link
+                      href={`/${locale}/u/${tutor.username}?book=1`}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <Video className="h-4 w-4" />
+                      Book 1 on 1
+                    </Link>
+                  </Button>
                   <button
                     onClick={e => {
                       e.stopPropagation()
                       toggleFollow(tutor.id)
                     }}
                     className={cn(
-                      'flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors',
+                      'flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-all duration-200',
                       following.has(tutor.id)
                         ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30'
-                        : 'border-white/30 bg-blue-600/40 text-white hover:bg-blue-600/50'
+                        : 'border-white/50 bg-transparent text-white hover:border-transparent hover:bg-white hover:text-[#0B3A9B]'
                     )}
                   >
                     <UserPlus className="h-4 w-4" />

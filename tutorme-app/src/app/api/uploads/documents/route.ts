@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, withCsrf } from '@/lib/api/middleware'
+import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import type { Session } from 'next-auth'
 import path from 'path'
 import os from 'os'
@@ -216,12 +216,7 @@ export const POST = withCsrf(
         isPdf: finalMime === 'application/pdf',
       })
     } catch (err: any) {
-      console.error('UPLOAD ERROR:', err)
-      // Return the actual error message to the client for debugging
-      return NextResponse.json(
-        { error: `Upload failed: ${err.message}`, stack: err.stack },
-        { status: 400 }
-      )
+      return handleApiError(err, 'Upload failed', 'api/uploads/documents/route.ts')
     }
   })
 )

@@ -879,7 +879,8 @@ function CoursePageInner() {
             </DialogTitle>
             <DialogDescription>Select a session to enter.</DialogDescription>
           </DialogHeader>
-          <div className="p-6">
+          <div className="pt-4">
+            <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
             {isLoadingSessions ? (
               <DialogPanel className="p-6">
                 <div className="flex justify-center p-8">
@@ -958,6 +959,7 @@ function CoursePageInner() {
                 requestingSessionId={requestingSessionId}
               />
             )}
+            </div>
           </div>
           <DialogFooter align="end" className="gap-3">
             <Button

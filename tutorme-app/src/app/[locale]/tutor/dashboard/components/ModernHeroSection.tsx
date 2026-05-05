@@ -38,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
 } from '@/components/ui/dialog'
 
 interface ModernHeroSectionProps {
@@ -213,7 +214,7 @@ export function ModernHeroSection({
 
         {/* Day Detail Modal */}
         <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
-          <DialogContent theme="default" className="border-border bg-card border sm:max-w-md">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {selectedDay?.date.toLocaleDateString('en-US', {
@@ -229,28 +230,29 @@ export function ModernHeroSection({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-3 py-4">
+            <DialogBody className="space-y-3" spacing="default">
               {selectedDay?.events.map(event => (
-                <div key={event.id} className="bg-muted/60 flex items-center gap-3 rounded-lg p-3">
-                  <div className="bg-primary/15 flex h-10 w-10 items-center justify-center rounded-lg">
-                    <BookOpen className="text-primary h-5 w-5" />
+                <div
+                  key={event.id}
+                  className="flex items-center gap-3 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933]"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50">
+                    <BookOpen className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-foreground font-medium">{event.title}</p>
-                    <p className="text-muted-foreground text-sm">
-                      {event.time} • {event.duration} min
-                    </p>
+                    <p className="font-semibold">{event.title}</p>
+                    <p className="text-sm text-slate-600">{event.time} • {event.duration} min</p>
                   </div>
                 </div>
               ))}
 
               {(!selectedDay || selectedDay.events.length === 0) && (
-                <div className="text-muted-foreground py-8 text-center">
-                  <Calendar className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
-                  <p>No classes scheduled for this day</p>
+                <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-6 py-10 text-center text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.10)]">
+                  <Calendar className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                  <p className="font-medium">No classes scheduled for this day</p>
                 </div>
               )}
-            </div>
+            </DialogBody>
           </DialogContent>
         </Dialog>
 

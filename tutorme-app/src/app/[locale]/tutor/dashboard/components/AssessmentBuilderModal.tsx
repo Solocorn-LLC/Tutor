@@ -120,8 +120,7 @@ export function AssessmentBuilderModal({
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent
-          theme="default"
-          className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md"
+          className="max-h-[90vh] max-w-3xl overflow-y-auto"
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

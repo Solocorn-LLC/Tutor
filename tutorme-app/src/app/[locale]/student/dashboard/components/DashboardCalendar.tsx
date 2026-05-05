@@ -188,13 +188,21 @@ export function DashboardCalendar({
     <div className="w-full overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="p-6 pb-3">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="classes" className="flex items-center gap-2">
+          <TabsList variant="pills" fullWidth className="grid w-full grid-cols-2 gap-2 bg-transparent p-0">
+            <TabsTrigger
+              value="classes"
+              fullWidth
+              className="h-11 gap-2 rounded-full border px-4 font-semibold shadow-[0_6px_18px_rgba(15,23,42,0.08)] transition-all duration-200 data-[state=inactive]:border-[rgba(31,41,51,0.08)] data-[state=inactive]:bg-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:border-[rgba(31,41,51,0.16)] data-[state=inactive]:hover:bg-slate-50 data-[state=inactive]:hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)] data-[state=active]:border-[rgba(255,255,255,0.10)] data-[state=active]:bg-[linear-gradient(135deg,rgba(63,61,57,0.92),rgba(31,41,51,0.96))] data-[state=active]:text-white data-[state=active]:shadow-[0_8px_18px_rgba(15,23,42,0.16)]"
+            >
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Sessions</span>
               <span className="sm:hidden">Sessions</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <TabsTrigger
+              value="calendar"
+              fullWidth
+              className="h-11 gap-2 rounded-full border px-4 font-semibold shadow-[0_6px_18px_rgba(15,23,42,0.08)] transition-all duration-200 data-[state=inactive]:border-[rgba(31,41,51,0.08)] data-[state=inactive]:bg-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:border-[rgba(31,41,51,0.16)] data-[state=inactive]:hover:bg-slate-50 data-[state=inactive]:hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)] data-[state=active]:border-[rgba(255,255,255,0.10)] data-[state=active]:bg-[linear-gradient(135deg,rgba(63,61,57,0.92),rgba(31,41,51,0.96))] data-[state=active]:text-white data-[state=active]:shadow-[0_8px_18px_rgba(15,23,42,0.16)]"
+            >
               <CalendarDays className="h-4 w-4" />
               <span className="hidden sm:inline">Calendar</span>
               <span className="sm:hidden">Calendar</span>

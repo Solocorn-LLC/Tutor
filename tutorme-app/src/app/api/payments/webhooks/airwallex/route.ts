@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
+import { handleApiError } from '@/lib/api/middleware'
 import {
   webhookEvent,
   payment,
@@ -26,172 +27,141 @@ import {
 import { eq, and, sql } from 'drizzle-orm'
 
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text()
-  const timestamp = req.headers.get('x-timestamp') ?? ''
-  const signature = req.headers.get('x-signature') ?? ''
-
-  const gateway = new AirwallexGateway()
-  const isValid = gateway.verifyWebhook({ rawBody, timestamp }, signature)
-  if (!isValid) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
-  }
-
-  let payload: unknown
   try {
-    payload = JSON.parse(rawBody)
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
+    const rawBody = await req.text()
+    const timestamp = req.headers.get('x-timestamp') ?? ''
+    const signature = req.headers.get('x-signature') ?? ''
 
-  const body = payload as {
-    id?: string
-    name?: string
-    data?: { id?: string; status?: string; payment_attempt_id?: string }
-  }
-  const eventName = body?.name ?? 'unknown'
-  const gatewayPaymentId = body?.data?.id
-  const paymentAttemptId = body?.data?.payment_attempt_id
-  const eventId = body?.id
+    const gateway = new AirwallexGateway()
+    const isValid = gateway.verifyWebhook({ rawBody, timestamp }, signature)
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    }
 
-  if (eventId) {
-    const [existing] = await drizzleDb
-      .select()
-      .from(webhookEvent)
-      .where(
-        and(
-          eq(webhookEvent.gateway, 'AIRWALLEX'),
-          eq(webhookEvent.processed, true),
-          sql`${webhookEvent.payload}->>'id' = ${eventId}`
-        )
-      )
-      .limit(1)
-    if (existing) return NextResponse.json({ received: true })
-  }
+    let payload: unknown
+    try {
+      payload = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
 
-  let paymentIdForEvent: string | null = null
-  if (gatewayPaymentId) {
-    const [p] = await drizzleDb
-      .select()
-      .from(payment)
-      .where(and(eq(payment.gatewayPaymentId, gatewayPaymentId), eq(payment.gateway, 'AIRWALLEX')))
-      .limit(1)
-    paymentIdForEvent = p?.paymentId ?? null
-  }
+    const body = payload as {
+      id?: string
+      name?: string
+      data?: { id?: string; status?: string; payment_attempt_id?: string }
+    }
+    const eventName = body?.name ?? 'unknown'
+    const gatewayPaymentId = body?.data?.id
+    const paymentAttemptId = body?.data?.payment_attempt_id
+    const eventId = body?.id
 
-  const webhookEventId = crypto.randomUUID()
-  await drizzleDb.insert(webhookEvent).values({
-    eventId: webhookEventId,
-    paymentId: paymentIdForEvent,
-    gateway: 'AIRWALLEX',
-    eventType: eventName,
-    payload: payload as object,
-    processed: false,
-  })
-
-  const result = await gateway.processWebhook(payload)
-
-  if (result.success && result.paymentId && result.status === 'succeeded') {
-    const [paymentRow] = await drizzleDb
-      .select()
-      .from(payment)
-      .where(and(eq(payment.gatewayPaymentId, result.paymentId), eq(payment.gateway, 'AIRWALLEX')))
-      .limit(1)
-    if (paymentRow) {
-      const existingMeta = (paymentRow.metadata as Record<string, unknown>) || {}
-      const metadata = paymentAttemptId
-        ? { ...existingMeta, payment_attempt_id: paymentAttemptId }
-        : existingMeta
-      await drizzleDb
-        .update(payment)
-        .set({
-          status: 'COMPLETED',
-          paidAt: new Date(),
-          ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
-        })
-        .where(eq(payment.paymentId, paymentRow.paymentId))
-      const meta = paymentRow.metadata as Record<string, unknown> | null
-      if (
-        !paymentRow.bookingId &&
-        meta?.type === 'course' &&
-        typeof meta.courseId === 'string' &&
-        typeof meta.studentId === 'string'
-      ) {
-        const { enrollStudentInCourse } = await import('@/lib/enrollment')
-        enrollStudentInCourse(
-          meta.studentId as string,
-          meta.courseId as string,
-          meta.startDate as string | undefined
-        )
-          .then(async () => {
-            const [enrollment] = await drizzleDb
-              .select({
-                enrollmentId: courseEnrollment.enrollmentId,
-                creatorId: course.creatorId,
-              })
-              .from(courseEnrollment)
-              .innerJoin(course, eq(course.courseId, courseEnrollment.courseId))
-              .where(
-                and(
-                  eq(courseEnrollment.studentId, meta.studentId as string),
-                  eq(courseEnrollment.courseId, meta.courseId as string)
-                )
-              )
-              .limit(1)
-            if (enrollment) {
-              await drizzleDb
-                .update(payment)
-                .set({
-                  enrollmentId: enrollment.enrollmentId,
-                  tutorId: enrollment.creatorId ?? paymentRow.tutorId,
-                })
-                .where(eq(payment.paymentId, paymentRow.paymentId))
-            }
-          })
-          .catch(err => console.error('[Airwallex Webhook] Enrollment failed:', err))
-        const [userRow] = await drizzleDb
-          .select({
-            email: user.email,
-            name: profile.name,
-          })
-          .from(user)
-          .leftJoin(profile, eq(profile.userId, user.userId))
-          .where(eq(user.userId, meta.studentId as string))
-          .limit(1)
-        const description = 'Course enrollment'
-        if (userRow?.email) {
-          sendPaymentConfirmation({
-            paymentId: paymentRow.paymentId,
-            studentEmail: userRow.email,
-            studentName: userRow.name ?? undefined,
-            amount: paymentRow.amount,
-            currency: paymentRow.currency,
-            description,
-          }).catch(err =>
-            console.error('[Airwallex Webhook] Failed to send confirmation email:', err)
+    if (eventId) {
+      const [existing] = await drizzleDb
+        .select()
+        .from(webhookEvent)
+        .where(
+          and(
+            eq(webhookEvent.gateway, 'AIRWALLEX'),
+            eq(webhookEvent.processed, true),
+            sql`${webhookEvent.payload}->>'id' = ${eventId}`
           )
-        }
-      } else if (meta?.type === 'one-on-one' && typeof meta.requestId === 'string') {
+        )
+        .limit(1)
+      if (existing) return NextResponse.json({ received: true })
+    }
+
+    let paymentIdForEvent: string | null = null
+    if (gatewayPaymentId) {
+      const [p] = await drizzleDb
+        .select()
+        .from(payment)
+        .where(and(eq(payment.gatewayPaymentId, gatewayPaymentId), eq(payment.gateway, 'AIRWALLEX')))
+        .limit(1)
+      paymentIdForEvent = p?.paymentId ?? null
+    }
+
+    const webhookEventId = crypto.randomUUID()
+    await drizzleDb.insert(webhookEvent).values({
+      eventId: webhookEventId,
+      paymentId: paymentIdForEvent,
+      gateway: 'AIRWALLEX',
+      eventType: eventName,
+      payload: payload as object,
+      processed: false,
+    })
+
+    const result = await gateway.processWebhook(payload)
+
+    if (result.success && result.paymentId && result.status === 'succeeded') {
+      const [paymentRow] = await drizzleDb
+        .select()
+        .from(payment)
+        .where(
+          and(eq(payment.gatewayPaymentId, result.paymentId), eq(payment.gateway, 'AIRWALLEX'))
+        )
+        .limit(1)
+      if (paymentRow) {
+        const existingMeta = (paymentRow.metadata as Record<string, unknown>) || {}
+        const metadata = paymentAttemptId
+          ? { ...existingMeta, payment_attempt_id: paymentAttemptId }
+          : existingMeta
         await drizzleDb
-          .update(oneOnOneBookingRequest)
-          .set({ status: 'PAID', paidAt: new Date() })
-          .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
-
-        const [requestRow] = await drizzleDb
-          .select({
-            studentId: oneOnOneBookingRequest.studentId,
-            tutorId: oneOnOneBookingRequest.tutorId,
+          .update(payment)
+          .set({
+            status: 'COMPLETED',
+            paidAt: new Date(),
+            ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
           })
-          .from(oneOnOneBookingRequest)
-          .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
-          .limit(1)
-
-        if (requestRow) {
+          .where(eq(payment.paymentId, paymentRow.paymentId))
+        const meta = paymentRow.metadata as Record<string, unknown> | null
+        if (
+          !paymentRow.bookingId &&
+          meta?.type === 'course' &&
+          typeof meta.courseId === 'string' &&
+          typeof meta.studentId === 'string'
+        ) {
+          const { enrollStudentInCourse } = await import('@/lib/enrollment')
+          enrollStudentInCourse(
+            meta.studentId as string,
+            meta.courseId as string,
+            meta.startDate as string | undefined
+          )
+            .then(async () => {
+              const [enrollment] = await drizzleDb
+                .select({
+                  enrollmentId: courseEnrollment.enrollmentId,
+                  creatorId: course.creatorId,
+                })
+                .from(courseEnrollment)
+                .innerJoin(course, eq(course.courseId, courseEnrollment.courseId))
+                .where(
+                  and(
+                    eq(courseEnrollment.studentId, meta.studentId as string),
+                    eq(courseEnrollment.courseId, meta.courseId as string)
+                  )
+                )
+                .limit(1)
+              if (enrollment) {
+                await drizzleDb
+                  .update(payment)
+                  .set({
+                    enrollmentId: enrollment.enrollmentId,
+                    tutorId: enrollment.creatorId ?? paymentRow.tutorId,
+                  })
+                  .where(eq(payment.paymentId, paymentRow.paymentId))
+              }
+            })
+            .catch(err => console.error('[Airwallex Webhook] Enrollment failed:', err))
           const [userRow] = await drizzleDb
-            .select({ email: user.email, name: profile.name })
+            .select({
+              email: user.email,
+              name: profile.name,
+            })
             .from(user)
             .leftJoin(profile, eq(profile.userId, user.userId))
-            .where(eq(user.userId, requestRow.studentId))
+            .where(eq(user.userId, meta.studentId as string))
             .limit(1)
+          const description = 'Course enrollment'
           if (userRow?.email) {
             sendPaymentConfirmation({
               paymentId: paymentRow.paymentId,
@@ -199,17 +169,51 @@ export async function POST(req: NextRequest) {
               studentName: userRow.name ?? undefined,
               amount: paymentRow.amount,
               currency: paymentRow.currency,
-              description: '1-on-1 tutoring session',
+              description,
             }).catch(err =>
               console.error('[Airwallex Webhook] Failed to send confirmation email:', err)
             )
           }
+        } else if (meta?.type === 'one-on-one' && typeof meta.requestId === 'string') {
+          await drizzleDb
+            .update(oneOnOneBookingRequest)
+            .set({ status: 'PAID', paidAt: new Date() })
+            .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
+
+          const [requestRow] = await drizzleDb
+            .select({
+              studentId: oneOnOneBookingRequest.studentId,
+              tutorId: oneOnOneBookingRequest.tutorId,
+            })
+            .from(oneOnOneBookingRequest)
+            .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
+            .limit(1)
+
+          if (requestRow) {
+            const [userRow] = await drizzleDb
+              .select({ email: user.email, name: profile.name })
+              .from(user)
+              .leftJoin(profile, eq(profile.userId, user.userId))
+              .where(eq(user.userId, requestRow.studentId))
+              .limit(1)
+            if (userRow?.email) {
+              sendPaymentConfirmation({
+                paymentId: paymentRow.paymentId,
+                studentEmail: userRow.email,
+                studentName: userRow.name ?? undefined,
+                amount: paymentRow.amount,
+                currency: paymentRow.currency,
+                description: '1-on-1 tutoring session',
+              }).catch(err =>
+                console.error('[Airwallex Webhook] Failed to send confirmation email:', err)
+              )
+            }
+          }
+        } else if (paymentRow.bookingId) {
+          // Clinics removed: no booking notifications.
         }
-      } else if (paymentRow.bookingId) {
-        // Clinics removed: no booking notifications.
       }
     }
-  }
 
   if (
     result.success &&
@@ -236,4 +240,7 @@ export async function POST(req: NextRequest) {
     .where(eq(webhookEvent.eventId, webhookEventId))
 
   return NextResponse.json({ received: true })
+  } catch (error) {
+    return handleApiError(error, 'Webhook failed', 'api/payments/webhooks/airwallex/route.ts')
+  }
 }

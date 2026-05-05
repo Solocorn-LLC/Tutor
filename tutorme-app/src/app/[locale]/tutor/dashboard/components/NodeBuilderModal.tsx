@@ -30,8 +30,7 @@ export function NodeBuilderModal({ isOpen, onClose, onSave, initialData }: NodeB
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        theme="default"
-        className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl border border-slate-400 bg-white/95 shadow-2xl backdrop-blur-md"
+        className="max-h-[90vh] max-w-2xl overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -39,30 +38,32 @@ export function NodeBuilderModal({ isOpen, onClose, onSave, initialData }: NodeB
             Lesson Builder
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Lesson Title *</Label>
-            <Input
-              value={data.title}
-              onChange={(e: any) => setData({ ...data, title: e.target.value })}
-              placeholder="Enter node title"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <AutoTextarea
-              value={data.description}
-              onChange={(e: any) => setData({ ...data, description: e.target.value })}
-              placeholder="What will students learn in this node?"
-              rows={3}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={data.isPublished}
-              onCheckedChange={checked => setData({ ...data, isPublished: checked })}
-            />
-            <Label>Published (visible to students)</Label>
+        <div className="pt-4">
+          <div className="space-y-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+            <div className="space-y-2">
+              <Label>Lesson Title *</Label>
+              <Input
+                value={data.title}
+                onChange={(e: any) => setData({ ...data, title: e.target.value })}
+                placeholder="Enter node title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <AutoTextarea
+                value={data.description}
+                onChange={(e: any) => setData({ ...data, description: e.target.value })}
+                placeholder="What will students learn in this node?"
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={data.isPublished}
+                onCheckedChange={checked => setData({ ...data, isPublished: checked })}
+              />
+              <Label>Published (visible to students)</Label>
+            </div>
           </div>
         </div>
         <DialogFooter>
