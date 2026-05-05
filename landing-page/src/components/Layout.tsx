@@ -62,13 +62,16 @@ export const TutorStrip = () => {
     <div className="relative overflow-hidden py-12 border-y border-white/5 bg-white/[0.02]">
       <div className="flex animate-marquee whitespace-nowrap">
         {[...CELEBRITY_TUTORS, ...CELEBRITY_TUTORS].map((tutor, i) => (
-          <div key={i} className="inline-flex items-center mx-8 group">
-            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-500/30 mr-4 group-hover:border-emerald-400 transition-colors">
+          <div
+            key={i}
+            className="inline-flex items-center mx-6 group rounded-[20px] border border-white/10 bg-[rgba(30,40,50,0.65)] px-5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] hover:brightness-105"
+          >
+            <div className="w-16 h-16 rounded-full overflow-hidden border border-white/15 mr-4">
               <img src={tutor.image} alt={tutor.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div>
-              <div className="text-lg font-bold text-white">{tutor.name}</div>
-              <div className="text-sm text-zinc-500">{tutor.subject}</div>
+              <div className="text-lg font-bold text-slate-100">{tutor.name}</div>
+              <div className="text-sm text-slate-300">{tutor.subject}</div>
             </div>
           </div>
         ))}

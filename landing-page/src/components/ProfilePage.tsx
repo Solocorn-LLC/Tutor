@@ -78,21 +78,29 @@ export const ProfilePage = ({ tutor }: { tutor: any }) => {
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-display font-bold flex items-center gap-3">
-                <BookOpen className="w-6 h-6 text-emerald-400" />
+                <BookOpen className="w-6 h-6 text-slate-200" />
                 Course List
               </h2>
               <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{courses.length} Courses</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {courses.map(course => (
-                <motion.div key={course.id} whileHover={{ scale: 1.02 }} className="glass p-6 rounded-2xl group cursor-pointer">
-                  <div className="h-32 bg-white/5 rounded-xl mb-4 overflow-hidden">
+                <motion.div
+                  key={course.id}
+                  whileHover={{ scale: 1.02 }}
+                  className="group cursor-pointer overflow-hidden rounded-[20px] border border-white/10 bg-[rgba(30,40,50,0.65)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px]"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
+                  }}
+                >
+                  <div className="h-32 rounded-xl mb-4 overflow-hidden bg-[rgba(255,255,255,0.08)]">
                     <img src={`https://picsum.photos/seed/course${course.id}/400/200`} className="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity" referrerPolicy="no-referrer" />
                   </div>
-                  <h4 className="font-bold mb-2">{course.title}</h4>
+                  <h4 className="font-bold mb-2 text-slate-100">{course.title}</h4>
                   <div className="flex justify-between items-center">
-                    <span className="text-emerald-400 font-bold">{course.price}</span>
-                    <span className="text-xs text-zinc-500">{course.students} Students</span>
+                    <span className="text-slate-100 font-bold">{course.price}</span>
+                    <span className="text-xs text-slate-300">{course.students} Students</span>
                   </div>
                 </motion.div>
               ))}
