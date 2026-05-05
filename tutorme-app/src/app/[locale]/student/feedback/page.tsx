@@ -1647,19 +1647,19 @@ function StudentFeedbackContent() {
                           <TabsList className="flex h-8 items-center gap-2 border-0 bg-transparent p-0 shadow-none">
                             <TabsTrigger
                               value="task"
-                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
                             >
                               Classroom
                             </TabsTrigger>
                             <TabsTrigger
                               value="my-board"
-                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
                             >
                               My Board
                             </TabsTrigger>
                             <TabsTrigger
                               value="tutor-board"
-                              className="h-8 rounded-full border-0 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933]"
+                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
                             >
                               Tutor Board
                             </TabsTrigger>
