@@ -2036,9 +2036,10 @@ const SpecialAccessSection = ({
   }, [expanded, popoverPlacement])
 
   const checkAccess = () => {
-    if (SPECIAL_CODES.includes(code.trim())) {
+    const trimmed = code.trim()
+    if (SPECIAL_CODES.includes(trimmed)) {
       setExpanded(false)
-      router.push('/login')
+      window.location.assign('/login')
     } else {
       setError(true)
       setTimeout(() => setError(false), 2000)
@@ -2084,13 +2085,13 @@ const SpecialAccessSection = ({
                   autoFocus
                   className={`h-10 flex-1 rounded-full border border-white/20 bg-white/10 text-white placeholder:text-white/60 ${error ? 'border-red-400' : ''}`}
                 />
-                <Button
+                <button
                   type="button"
                   onClick={checkAccess}
-                  className="h-10 cursor-pointer rounded-full bg-white px-5 text-sm font-semibold text-[#0B4DFF] shadow-sm transition-all duration-200 hover:-translate-y-px hover:bg-slate-100 hover:shadow-md active:translate-y-0 active:scale-95"
+                  className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-[#0B4DFF] shadow-sm transition-all duration-200 hover:-translate-y-px hover:bg-slate-100 hover:shadow-md active:translate-y-0 active:scale-95"
                 >
                   {t('access')}
-                </Button>
+                </button>
               </form>
               {error && <p className="mt-2 text-xs font-medium text-red-200">{t('invalidCode')}</p>}
             </motion.div>
