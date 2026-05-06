@@ -152,7 +152,7 @@ export default function TutorSessionInsightsPage() {
               className={
                 session.status === 'ended'
                   ? 'bg-[#D6DBE3] text-[#7F7C77]'
-                  : 'bg-[#4FD1C5] text-white'
+                  : 'bg-[#1D4ED8] text-white'
               }
             >
               {session.status === 'ended' ? 'Ended' : session.status}
@@ -179,7 +179,7 @@ export default function TutorSessionInsightsPage() {
           <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
-                <MessageSquare className="h-4 w-4 text-[#4FD1C5]" />
+                <MessageSquare className="h-4 w-4 text-[#2563EB]" />
                 Messages
               </CardTitle>
             </CardHeader>

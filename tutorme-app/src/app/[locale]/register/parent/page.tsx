@@ -874,7 +874,7 @@ export default function ParentRegistrationPage() {
                     void handleSubmit()
                   }}
                   disabled={isLoading}
-                  className="bg-[#4FD1C5] hover:bg-[#3bc4b2]"
+                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
                 >
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Button>

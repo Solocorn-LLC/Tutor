@@ -272,7 +272,7 @@ export function StudentProfile() {
                   <Card>
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-cyan-500" />
+                        <TrendingUp className="h-5 w-5 text-blue-500" />
                         <div>
                           <p className="text-2xl font-bold">{stats.averageScore}%</p>
                           <p className="text-xs text-gray-500">Average Score</p>

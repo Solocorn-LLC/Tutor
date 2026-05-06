@@ -202,7 +202,7 @@ export default function TutorOnboarding() {
             <BookOpen className="h-4 w-4 text-[#1D4ED8]" />
             <h4 className="font-semibold text-gray-900">{category.label}</h4>
             {selectedCount > 0 && (
-              <Badge variant="secondary" className="bg-[#4FD1C5]/20 text-xs text-[#1F2933]">
+              <Badge variant="secondary" className="bg-[#1D4ED8]/20 text-xs text-[#1F2933]">
                 {selectedCount}
               </Badge>
             )}
@@ -234,7 +234,7 @@ export default function TutorOnboarding() {
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-md p-2 transition-colors',
                 selectedCategories.includes(exam)
-                  ? 'border border-[#4FD1C5]/30 bg-[#4FD1C5]/10'
+                  ? 'border border-[#1D4ED8]/30 bg-[#1D4ED8]/10'
                   : 'border border-transparent hover:bg-gray-50'
               )}
             >
@@ -385,7 +385,7 @@ export default function TutorOnboarding() {
                       {/* Region Selection */}
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2 text-sm font-medium">
-                          <Globe className="h-4 w-4 text-[#4FD1C5]" />
+                          <Globe className="h-4 w-4 text-[#1D4ED8]" />
                           Regions
                         </Label>
                         <div className="max-h-[150px] overflow-y-auto rounded-md border p-2">
@@ -555,7 +555,7 @@ export default function TutorOnboarding() {
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="flex items-center gap-2 text-base">
-                          <Plus className="h-4 w-4 text-[#4FD1C5]" />
+                          <Plus className="h-4 w-4 text-[#1D4ED8]" />
                           Your Own Category
                         </CardTitle>
                         <CardDescription className="text-xs">
@@ -588,7 +588,7 @@ export default function TutorOnboarding() {
                     <Card className="flex h-[300px] flex-col">
                       <CardHeader className="pb-2">
                         <CardTitle className="flex items-center gap-2 text-base">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4FD1C5] text-xs text-white">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1D4ED8] text-xs text-white">
                             {selectedCategories.length}
                           </span>
                           Selected
@@ -606,7 +606,7 @@ export default function TutorOnboarding() {
                               <Badge
                                 key={cat}
                                 variant="secondary"
-                                className="cursor-pointer bg-[#4FD1C5]/20 pr-1 text-[#1F2933] hover:bg-[#4FD1C5]/30"
+                                className="cursor-pointer bg-[#1D4ED8]/20 pr-1 text-[#1F2933] hover:bg-[#1D4ED8]/30"
                               >
                                 {cat}
                                 <button

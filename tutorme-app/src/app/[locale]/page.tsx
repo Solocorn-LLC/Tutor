@@ -940,8 +940,8 @@ const AtomOrbit = ({
       nucleus: 'bg-emerald-400',
       shadow: 'shadow-emerald-500/50',
       ring: 'border-emerald-500/20',
-      electron: 'bg-cyan-400',
-      electronShadow: 'shadow-cyan-500/50',
+      electron: 'bg-blue-400',
+      electronShadow: 'shadow-blue-500/50',
     },
     ocean: {
       nucleus: 'bg-sky-400',
@@ -1050,8 +1050,8 @@ const FuturisticBackground = ({ theme, mode }: { theme: ColorTheme; mode: ThemeM
   const orbColors = {
     emerald:
       mode === 'dark'
-        ? ['bg-emerald-500/20', 'bg-cyan-500/20', 'bg-purple-500/10']
-        : ['bg-emerald-400/30', 'bg-cyan-400/30', 'bg-purple-400/20'],
+        ? ['bg-emerald-500/20', 'bg-blue-500/20', 'bg-purple-500/10']
+        : ['bg-emerald-400/30', 'bg-blue-400/30', 'bg-purple-400/20'],
     ocean:
       mode === 'dark'
         ? ['bg-sky-500/20', 'bg-indigo-500/20', 'bg-blue-500/10']
@@ -1557,7 +1557,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
 
 const BlankTutorCard = ({ theme, mode }: { theme: ColorTheme; mode: ThemeMode }) => {
   const themeColors = {
-    emerald: 'from-emerald-500/10 to-cyan-500/10 border-emerald-500/20',
+    emerald: 'from-emerald-500/10 to-blue-500/10 border-emerald-500/20',
     ocean: 'from-sky-500/10 to-indigo-500/10 border-sky-500/20',
     sunset: 'from-amber-500/10 to-rose-500/10 border-amber-500/20',
     galaxy: 'from-purple-500/10 to-pink-500/10 border-purple-500/20',

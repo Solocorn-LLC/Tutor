@@ -36,9 +36,9 @@ function Stepper({ currentStep }: { currentStep: number }) {
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors duration-200 ${
                 currentStep > s.num
-                  ? 'border-[#4FD1C5] bg-[#4FD1C5] text-white'
+                  ? 'border-[#1D4ED8] bg-[#1D4ED8] text-white'
                   : currentStep === s.num
-                    ? 'border-[#4FD1C5] bg-white text-[#4FD1C5]'
+                    ? 'border-[#1D4ED8] bg-white text-[#1D4ED8]'
                     : 'border-gray-200 bg-white text-gray-400'
               }`}
             >
@@ -61,7 +61,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
       <div className="relative mb-8 mt-[-2rem]">
         <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-gray-200" />
         <div
-          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-[#4FD1C5] transition-all duration-300 ease-in-out"
+          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-[#1D4ED8] transition-all duration-300 ease-in-out"
           style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
         />
       </div>
@@ -202,8 +202,8 @@ export default function StudentRegistrationPage() {
         <BackButton href="/register" className="mb-4" />
 
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#4FD1C5]/20">
-            <BookOpen className="h-8 w-8 text-[#4FD1C5]" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#1D4ED8]/20">
+            <BookOpen className="h-8 w-8 text-[#1D4ED8]" />
           </div>
           <h1 className="text-3xl font-bold text-[#1F2933]">Student Registration</h1>
         </div>
@@ -428,7 +428,7 @@ export default function StudentRegistrationPage() {
               </Button>
               {step < 4 ? (
                 <Button
-                  className="bg-[#4FD1C5] hover:bg-[#3bc4b2]"
+                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
                   onClick={handleNext}
                   disabled={isLoading}
                 >
@@ -436,7 +436,7 @@ export default function StudentRegistrationPage() {
                 </Button>
               ) : (
                 <Button
-                  className="bg-[#4FD1C5] hover:bg-[#3bc4b2]"
+                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
                   onClick={handleSubmit}
                   disabled={isLoading}
                 >

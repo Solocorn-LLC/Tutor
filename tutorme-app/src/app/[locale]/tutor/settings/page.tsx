@@ -1104,7 +1104,7 @@ export default function TutorSettings() {
                   <div className="space-y-2">
                     <Label>Action</Label>
                     <Button
-                      className="w-full bg-[#4FD1C5] text-[#1F2933] hover:bg-[#3CC6B9]"
+                      className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
                       onClick={() => toast.message('Subscription renewal queued')}
                     >
                       Renew

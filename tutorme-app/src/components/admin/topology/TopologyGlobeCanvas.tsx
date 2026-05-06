@@ -463,7 +463,7 @@ export default function TopologyGlobeCanvas({
           <Line
             key={`country-${idx}`}
             points={line}
-            color="#a5f3fc"
+            color="#93c5fd"
             transparent
             opacity={0.2}
             lineWidth={1.1}
@@ -477,7 +477,7 @@ export default function TopologyGlobeCanvas({
             <group key={edge.id}>
               <Line
                 points={edge.points}
-                color={edge.isActive ? '#5eead4' : '#38bdf8'}
+                color={edge.isActive ? '#60a5fa' : '#38bdf8'}
                 transparent
                 opacity={edge.isActive ? activeOpacity : focusBoost ? 0.35 : 0.2}
                 lineWidth={edge.isActive ? (focusBoost ? 3.0 : 2.4) : focusBoost ? 1.5 : 0.95}
@@ -522,8 +522,8 @@ export default function TopologyGlobeCanvas({
                 }}
               >
                 <meshStandardMaterial
-                  color={node.role === 'TUTOR' ? '#22d3ee' : '#a5b4fc'}
-                  emissive={node.role === 'TUTOR' ? '#0ea5e9' : '#6366f1'}
+                  color={node.role === 'TUTOR' ? '#3b82f6' : '#a5b4fc'}
+                  emissive={node.role === 'TUTOR' ? '#2563eb' : '#6366f1'}
                   emissiveIntensity={node.activeSessions > 0 || isFocusedTutor ? 1.12 : 0.55}
                 />
               </Sphere>
@@ -554,7 +554,7 @@ export default function TopologyGlobeCanvas({
 
       {hoveredNode ? (
         <div
-          className="pointer-events-none absolute z-30 w-72 -translate-y-2 rounded-xl border border-slate-500/60 bg-slate-950/95 p-3 text-slate-100 shadow-[0_0_24px_rgba(34,211,238,0.2)]"
+          className="pointer-events-none absolute z-30 w-72 -translate-y-2 rounded-xl border border-slate-500/60 bg-slate-950/95 p-3 text-slate-100 shadow-[0_0_24px_rgba(59,130,246,0.2)]"
           style={{
             left: Math.max(
               8,
@@ -583,7 +583,7 @@ export default function TopologyGlobeCanvas({
               <p className="truncate text-xs text-slate-300">{hoveredNode.node.email}</p>
             </div>
             <span
-              className={`rounded px-2 py-1 text-[10px] font-semibold ${hoveredNode.node.role === 'TUTOR' ? 'bg-cyan-500/20 text-cyan-200' : 'bg-indigo-500/20 text-indigo-200'}`}
+              className={`rounded px-2 py-1 text-[10px] font-semibold ${hoveredNode.node.role === 'TUTOR' ? 'bg-blue-500/20 text-blue-200' : 'bg-indigo-500/20 text-indigo-200'}`}
             >
               {hoveredNode.node.role}
             </span>

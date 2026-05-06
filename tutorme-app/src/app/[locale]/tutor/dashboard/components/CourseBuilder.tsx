@@ -321,15 +321,15 @@ function InsightsReportView({
   ]
 
   return (
-    <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-100 bg-white/60 p-3 shadow-sm backdrop-blur-md">
-      <div className="mb-3 flex items-center justify-between border-b border-cyan-100 pb-2">
-        <span className="text-sm font-semibold uppercase tracking-wider text-cyan-800">
+    <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/60 p-3 shadow-sm backdrop-blur-md">
+      <div className="mb-3 flex items-center justify-between border-b border-blue-100 pb-2">
+        <span className="text-sm font-semibold uppercase tracking-wider text-blue-800">
           {type === 'poll' ? 'Poll Results' : 'Question Results'}
         </span>
         <Button
           variant="outline"
           size="sm"
-          className="h-7 bg-white text-xs text-cyan-700 hover:bg-cyan-50"
+          className="h-7 bg-white text-xs text-blue-700 hover:bg-blue-50"
           onClick={() => setReportType(r => (r === 'simple' ? 'detailed' : 'simple'))}
         >
           {reportType === 'simple' ? 'Detailed Report' : 'Simple Report'}
@@ -341,18 +341,18 @@ function InsightsReportView({
             {simpleData.map(item => (
               <div
                 key={item.label}
-                className="cursor-pointer rounded-xl border border-transparent p-2 shadow-sm transition-colors hover:border-cyan-100 hover:bg-white"
+                className="cursor-pointer rounded-xl border border-transparent p-2 shadow-sm transition-colors hover:border-blue-100 hover:bg-white"
                 onClick={() => setSelectedGroup({ label: item.label, students: item.students })}
               >
                 <div className="mb-1.5 flex justify-between text-xs font-medium text-slate-700">
                   <span>{item.label}</span>
-                  <span className="text-cyan-600">
+                  <span className="text-blue-600">
                     {item.count} ({item.percent}%)
                   </span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-cyan-500"
+                    className="h-full rounded-full bg-blue-500"
                     style={{ width: `${item.percent}%` }}
                   />
                 </div>
@@ -376,10 +376,10 @@ function InsightsReportView({
                         })
                       }
                     >
-                      <span className="text-xs text-slate-600 group-hover/item:text-cyan-700">
+                      <span className="text-xs text-slate-600 group-hover/item:text-blue-700">
                         {item.label}
                       </span>
-                      <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-600">
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
                         {item.count}
                       </span>
                     </div>
@@ -408,7 +408,7 @@ function InsightsReportView({
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-100 text-xs font-medium text-cyan-700">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
                       {s.charAt(0)}
                     </div>
                     <span className="text-sm font-medium text-slate-700">{s}</span>
@@ -416,7 +416,7 @@ function InsightsReportView({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 text-xs text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700"
+                    className="h-8 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                   >
                     @ Mention
                   </Button>
@@ -4597,7 +4597,7 @@ FEEDBACK: [your explanation]`
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full gap-1 rounded-full border-0 bg-teal-400 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-500"
+                    className="w-full gap-1 rounded-full border-0 bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                     onClick={() => {
                       const name = prompt('Folder name:')
                       if (name && name.trim()) {
@@ -7135,7 +7135,7 @@ FEEDBACK: [your explanation]`
                                   >
                                     {tab.id === 'insights' ? (
                                       insightsProps ? (
-                                        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-200/70 bg-gradient-to-br from-white via-slate-50 to-cyan-50 p-1 shadow-[0_10px_40px_-20px_rgba(14,116,144,0.65)] ring-1 ring-cyan-200/60">
+                                        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
                                           {/* Recording status removed from Insights tab */}
 
                                           <Tabs
@@ -7150,19 +7150,19 @@ FEEDBACK: [your explanation]`
                                             <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
                                               <TabsTrigger
                                                 value="analytics"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-cyan-200/70 data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm"
+                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
                                               >
                                                 Analytics
                                               </TabsTrigger>
                                               <TabsTrigger
                                                 value="poll"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-cyan-200/70 data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm"
+                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
                                               >
                                                 Poll
                                               </TabsTrigger>
                                               <TabsTrigger
                                                 value="question"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-cyan-200/70 data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-900 data-[state=active]:shadow-sm"
+                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
                                               >
                                                 Question
                                               </TabsTrigger>
@@ -7188,7 +7188,7 @@ FEEDBACK: [your explanation]`
                                               className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
                                             >
                                               {showAIPoll ? (
-                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-cyan-100 bg-white/60 shadow-sm backdrop-blur-md">
+                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
                                                   <AITeachingAssistant
                                                     mode="poll"
                                                     currentTopic={
@@ -7217,7 +7217,7 @@ FEEDBACK: [your explanation]`
                                               )}
                                               <div
                                                 className={cn(
-                                                  'flex flex-col rounded-2xl border border-cyan-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
+                                                  'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
                                                   showAIPoll
                                                     ? 'h-[30%] min-h-[120px]'
                                                     : 'h-[40%] min-h-[150px]'
@@ -7225,10 +7225,10 @@ FEEDBACK: [your explanation]`
                                               >
                                                 <div className="flex flex-1 flex-col space-y-0.5 p-1">
                                                   <div className="flex items-center justify-between">
-                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-cyan-700">
+                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
                                                       Poll question
                                                     </Label>
-                                                    <span className="text-xs font-medium text-cyan-600">
+                                                    <span className="text-xs font-medium text-blue-600">
                                                       {selectedContextLabel ?? 'No item selected'}
                                                     </span>
                                                   </div>
@@ -7248,10 +7248,10 @@ FEEDBACK: [your explanation]`
                                                         size="icon"
                                                         variant="ghost"
                                                         className={cn(
-                                                          'h-9 w-9 rounded-xl hover:bg-cyan-100 hover:text-cyan-700 disabled:opacity-30',
+                                                          'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
                                                           showAIPoll
-                                                            ? 'bg-cyan-100 text-cyan-700'
-                                                            : 'text-cyan-600'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'text-blue-600'
                                                         )}
                                                         title="Generate with Socratic AI"
                                                         onClick={() => setShowAIPoll(!showAIPoll)}
@@ -7261,7 +7261,7 @@ FEEDBACK: [your explanation]`
                                                       </Button>
                                                       <Button
                                                         size="icon"
-                                                        className="h-9 w-9 rounded-xl bg-cyan-600 shadow-lg hover:bg-cyan-700 disabled:opacity-30"
+                                                        className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
                                                         disabled={
                                                           !activeInsightsTaskId ||
                                                           !activeInsightsTask ||
@@ -7287,7 +7287,7 @@ FEEDBACK: [your explanation]`
                                                     </div>
                                                   </div>
                                                 </div>
-                                                <div className="border-t border-cyan-50/50 bg-cyan-50/20 px-1 py-1">
+                                                <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1">
                                                   <div className="flex items-center justify-between gap-3">
                                                     <div className="flex items-center gap-2">
                                                       <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
@@ -7297,14 +7297,14 @@ FEEDBACK: [your explanation]`
                                                         {[1, 2, 3, 4, 5].map(v => (
                                                           <span
                                                             key={v}
-                                                            className="flex h-5 w-5 items-center justify-center rounded-md border border-cyan-100 bg-white text-[10px] font-medium text-cyan-600 shadow-sm"
+                                                            className="flex h-5 w-5 items-center justify-center rounded-md border border-blue-100 bg-white text-[10px] font-medium text-blue-600 shadow-sm"
                                                           >
                                                             {v}
                                                           </span>
                                                         ))}
                                                       </div>
                                                     </div>
-                                                    <p className="max-w-[140px] truncate text-[10px] font-medium text-cyan-600">
+                                                    <p className="max-w-[140px] truncate text-[10px] font-medium text-blue-600">
                                                       Task:{' '}
                                                       {activeInsightsTask?.title || 'None Selected'}
                                                     </p>
@@ -7318,7 +7318,7 @@ FEEDBACK: [your explanation]`
                                               className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
                                             >
                                               {showAIQuestion ? (
-                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-cyan-100 bg-white/60 shadow-sm backdrop-blur-md">
+                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
                                                   <AITeachingAssistant
                                                     mode="question"
                                                     currentTopic={
@@ -7347,7 +7347,7 @@ FEEDBACK: [your explanation]`
                                               )}
                                               <div
                                                 className={cn(
-                                                  'flex flex-col rounded-2xl border border-cyan-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
+                                                  'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
                                                   showAIQuestion
                                                     ? 'h-[30%] min-h-[120px]'
                                                     : 'h-[40%] min-h-[150px]'
@@ -7355,10 +7355,10 @@ FEEDBACK: [your explanation]`
                                               >
                                                 <div className="flex flex-1 flex-col space-y-0.5 p-1">
                                                   <div className="flex items-center justify-between">
-                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-cyan-700">
+                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
                                                       Question prompt
                                                     </Label>
-                                                    <span className="text-xs font-medium text-cyan-600">
+                                                    <span className="text-xs font-medium text-blue-600">
                                                       {selectedContextLabel ?? 'No item selected'}
                                                     </span>
                                                   </div>
@@ -7378,10 +7378,10 @@ FEEDBACK: [your explanation]`
                                                         size="icon"
                                                         variant="ghost"
                                                         className={cn(
-                                                          'h-9 w-9 rounded-xl hover:bg-cyan-100 hover:text-cyan-700 disabled:opacity-30',
+                                                          'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
                                                           showAIQuestion
-                                                            ? 'bg-cyan-100 text-cyan-700'
-                                                            : 'text-cyan-600'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'text-blue-600'
                                                         )}
                                                         title="Generate with Socratic AI"
                                                         onClick={() =>
@@ -7393,7 +7393,7 @@ FEEDBACK: [your explanation]`
                                                       </Button>
                                                       <Button
                                                         size="icon"
-                                                        className="h-9 w-9 rounded-xl bg-cyan-600 shadow-lg hover:bg-cyan-700 disabled:opacity-30"
+                                                        className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
                                                         disabled={
                                                           !activeInsightsTaskId ||
                                                           !activeInsightsTask ||
@@ -7419,15 +7419,15 @@ FEEDBACK: [your explanation]`
                                                     </div>
                                                   </div>
                                                 </div>
-                                                <div className="border-t border-cyan-50/50 bg-cyan-50/20 px-1 py-1 text-[10px]">
+                                                <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1 text-[10px]">
                                                   <div className="flex items-center justify-between">
-                                                    <p className="font-medium text-cyan-600">
+                                                    <p className="font-medium text-blue-600">
                                                       Topic:{' '}
                                                       {activeInsightsTask?.title || 'General'}
                                                     </p>
                                                     <Badge
                                                       variant="outline"
-                                                      className="border-cyan-200 bg-white/50 text-cyan-700"
+                                                      className="border-blue-200 bg-white/50 text-blue-700"
                                                     >
                                                       AI Integrated
                                                     </Badge>

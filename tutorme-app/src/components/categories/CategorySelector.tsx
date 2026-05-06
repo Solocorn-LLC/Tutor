@@ -143,7 +143,7 @@ export function CategorySelector({
             {/* Region Dropdown */}
             <div className="space-y-1.5">
               <Label className="flex items-center gap-2 text-xs text-gray-500">
-                <Globe className="h-3.5 w-3.5 text-[#4FD1C5]" />
+                <Globe className="h-3.5 w-3.5 text-[#1D4ED8]" />
                 Region
               </Label>
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
@@ -300,7 +300,7 @@ function ExamCategorySection({
           <BookOpen className="h-4 w-4 text-[#1D4ED8]" />
           <h4 className="font-semibold text-gray-900">{category.label}</h4>
           {selectedCount > 0 && (
-            <Badge variant="secondary" className="bg-[#4FD1C5]/20 text-xs text-[#1F2933]">
+            <Badge variant="secondary" className="bg-[#1D4ED8]/20 text-xs text-[#1F2933]">
               {selectedCount}/{category.exams.length}
             </Badge>
           )}
@@ -334,7 +334,7 @@ function ExamCategorySection({
             className={cn(
               'flex cursor-pointer items-center gap-2 rounded-md p-2 transition-colors',
               selectedCategories.includes(exam)
-                ? 'border border-[#4FD1C5]/30 bg-[#4FD1C5]/10'
+                ? 'border border-[#1D4ED8]/30 bg-[#1D4ED8]/10'
                 : 'border border-transparent hover:bg-gray-50'
             )}
           >

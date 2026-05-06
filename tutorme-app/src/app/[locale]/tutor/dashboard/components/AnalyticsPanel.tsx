@@ -163,7 +163,7 @@ export function AnalyticsPanel({
           sub={metrics?.engagementTrend}
         />
         <StatCard
-          icon={<MessageSquare className="h-4 w-4 text-cyan-500" />}
+          icon={<MessageSquare className="h-4 w-4 text-blue-500" />}
           label="Chat Messages"
           value={String(metrics?.totalChatMessages ?? 0)}
           sub="total"

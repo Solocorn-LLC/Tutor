@@ -20,7 +20,7 @@ export interface DashboardTheme {
 
 // ============================================
 // REDESIGNED THEMES - Following Design System
-// Primary: Teal (#4FD1C5), Secondary: Blue (#1D4ED8)
+// Primary: Blue (#1D4ED8), Secondary: Slate
 // ============================================
 
 export const DASHBOARD_THEMES: DashboardTheme[] = [
@@ -36,7 +36,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '40 4% 87%', // #DFDFDF
       surface: '40 2% 83%', // #D4D4D3
       accent: '25 16% 75%', // #CABDB4 (warm accent)
-      accentStrong: '174 56% 56%', // #4FD1C5 (teal)
+      accentStrong: '224 76% 48%', // #1D4ED8 (blue)
       divider: '40 4% 69%', // #B0AEAB
       textPrimary: '42 6% 24%', // #3F3D39
       textSecondary: '42 4% 48%', // #7F7C77
@@ -51,7 +51,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '210 14% 93%', // #E9ECEF
       surface: '210 14% 89%', // #DEE2E6
       accent: '210 14% 72%', // #ADB5BD (cool accent)
-      accentStrong: '174 56% 56%', // #4FD1C5 (teal)
+      accentStrong: '224 76% 48%', // #1D4ED8 (blue)
       divider: '210 14% 83%', // #CED4DA
       textPrimary: '210 11% 15%', // #212529
       textSecondary: '208 7% 46%', // #6C757D
@@ -66,7 +66,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '36 20% 90%', // #EDE7DE
       surface: '36 20% 86%', // #E5DDD2
       accent: '32 30% 76%', // #D4C4B0 (warm sand)
-      accentStrong: '174 52% 49%', // #3CBDB2 (deeper teal)
+      accentStrong: '226 71% 40%', // deeper blue
       divider: '32 20% 77%', // #C9B8A2
       textPrimary: '36 14% 22%', // #3D3830
       textSecondary: '36 10% 45%', // #7A7165
@@ -89,7 +89,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '220 15% 92%', // Light cool gray
       surface: '220 10% 88%', // Soft surface
       accent: '220 15% 80%', // Muted blue-gray
-      accentStrong: '174 56% 56%', // Teal primary
+      accentStrong: '224 76% 48%', // Blue primary
       divider: '220 10% 75%', // Soft divider
       textPrimary: '220 15% 20%', // Dark cool gray
       textSecondary: '220 10% 45%', // Medium cool gray
@@ -119,7 +119,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '40 8% 88%', // Light warm gray
       surface: '45 6% 84%', // Soft warm surface
       accent: '40 12% 76%', // Warm metallic
-      accentStrong: '174 56% 56%', // Teal primary
+      accentStrong: '224 76% 48%', // Blue primary
       divider: '40 8% 70%', // Warm divider
       textPrimary: '40 12% 20%', // Deep warm
       textSecondary: '40 8% 45%', // Medium warm
@@ -134,7 +134,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '175 12% 91%', // Light cyan gray
       surface: '180 10% 87%', // Soft cyan surface
       accent: '175 15% 79%', // Muted cyan
-      accentStrong: '174 56% 56%', // Teal primary
+      accentStrong: '224 76% 48%', // Blue primary
       divider: '180 10% 73%', // Cyan divider
       textPrimary: '180 15% 18%', // Deep cyan gray
       textSecondary: '180 10% 43%', // Medium cyan gray
@@ -149,7 +149,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '0 0% 92%', // Light pearl
       surface: '0 0% 88%', // Soft pearl
       accent: '0 0% 80%', // Muted pearl
-      accentStrong: '174 56% 56%', // Teal primary
+      accentStrong: '224 76% 48%', // Blue primary
       divider: '0 0% 74%', // Pearl divider
       textPrimary: '0 0% 18%', // Deep charcoal
       textSecondary: '0 0% 42%', // Medium gray
@@ -179,7 +179,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '220 12% 18%', // Charcoal panel
       surface: '220 10% 22%', // Charcoal surface
       accent: '220 8% 35%', // Muted charcoal
-      accentStrong: '174 45% 50%', // Softer teal for dark
+      accentStrong: '217 70% 55%', // Softer blue for dark
       divider: '220 10% 28%', // Charcoal divider
       textPrimary: '0 0% 95%', // Near white
       textSecondary: '0 0% 65%', // Light gray
@@ -209,7 +209,7 @@ export const DASHBOARD_THEMES: DashboardTheme[] = [
       panel: '0 0% 95%', // Very light
       surface: '0 0% 100%', // Pure white surface
       accent: '220 10% 88%', // Very light accent
-      accentStrong: '174 56% 56%', // Teal primary
+      accentStrong: '224 76% 48%', // Blue primary
       divider: '220 10% 90%', // Very light divider
       textPrimary: '220 15% 15%', // Near black
       textSecondary: '220 10% 42%', // Medium gray

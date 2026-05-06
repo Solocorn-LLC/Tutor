@@ -125,7 +125,7 @@ export default function CourseTasksPage() {
         : type === 'assignment'
           ? 'bg-purple-100 text-purple-700'
           : type === 'project'
-            ? 'bg-teal-100 text-teal-700'
+            ? 'bg-blue-100 text-blue-700'
             : 'bg-orange-100 text-orange-700'
     return <Badge className={`${color} border-0 capitalize`}>{type}</Badge>
   }

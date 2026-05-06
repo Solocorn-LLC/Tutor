@@ -87,10 +87,13 @@ export async function saveAvatar(
   const sharpMod = await import('sharp')
   const sharp = sharpMod.default ?? sharpMod
 
-  const input = sharp(bytes, { failOnError: false }).rotate()
-  const meta = await input.metadata()
-  const width = meta.width ?? null
-  const height = meta.height ?? null
+  const meta = await sharp(bytes, { failOnError: false }).metadata()
+  const orientation = meta.orientation ?? 1
+  const isSwapped = orientation >= 5 && orientation <= 8
+  const rawWidth = meta.width ?? 0
+  const rawHeight = meta.height ?? 0
+  const width = isSwapped ? rawHeight : rawWidth
+  const height = isSwapped ? rawWidth : rawHeight
   const format = meta.format ?? null
 
   if (!width || !height) {
@@ -100,6 +103,8 @@ export async function saveAvatar(
   if (width < 512 || height < 512) {
     throw new ValidationError('Minimum dimensions: 512 × 512 px')
   }
+
+  const input = sharp(bytes, { failOnError: false }).rotate()
 
   if (format && !['jpeg', 'png', 'webp'].includes(format)) {
     throw new ValidationError('Accepted formats: JPG, PNG, WEBP only')

@@ -1830,7 +1830,7 @@ export const LANDING_CATEGORIES = [
     name: 'IB Diploma',
     icon: BookOpen,
     description: 'International Baccalaureate',
-    color: 'bg-teal-500',
+    color: 'bg-blue-600',
     category: 'Courses',
   },
   {

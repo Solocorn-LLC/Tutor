@@ -124,7 +124,7 @@ export function AdminTopologyPanel({ days }: { days: number }) {
         />
         {showLiveData && (
           <>
-            <MetricPill title="Live Users" value={filteredStats.liveUsers} color="#4FD1C5" />
+            <MetricPill title="Live Users" value={filteredStats.liveUsers} color="#1D4ED8" />
             <MetricPill
               title="Active Sessions"
               value={filteredStats.liveSessions}
@@ -137,10 +137,10 @@ export function AdminTopologyPanel({ days }: { days: number }) {
       {/* Filters Panel - Top Right */}
       <div className="pointer-events-none absolute right-2 top-24 z-30 w-[360px] space-y-3">
         {/* Live Data Toggle */}
-        <div className="pointer-events-auto rounded-xl border border-cyan-300/30 bg-slate-950/65 p-4 backdrop-blur-md">
+        <div className="pointer-events-auto rounded-xl border border-blue-300/30 bg-slate-950/65 p-4 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">Live Data Mode</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-blue-300">Live Data Mode</p>
               <p className="mt-1 text-xs text-slate-400">Show real-time user locations</p>
             </div>
             <Switch checked={showLiveData} onCheckedChange={setShowLiveData} />
@@ -149,8 +149,8 @@ export function AdminTopologyPanel({ days }: { days: number }) {
 
         {/* Traditional Filters */}
         {!showLiveData && (
-          <div className="pointer-events-auto rounded-xl border border-cyan-300/30 bg-slate-950/65 p-4 backdrop-blur-md">
-            <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">Topology Filters</p>
+          <div className="pointer-events-auto rounded-xl border border-blue-300/30 bg-slate-950/65 p-4 backdrop-blur-md">
+            <p className="text-xs uppercase tracking-[0.16em] text-blue-300">Topology Filters</p>
             <p className="mt-1 text-sm text-slate-200">
               Floating overlays for mission-control feel.
             </p>
@@ -211,8 +211,8 @@ export function AdminTopologyPanel({ days }: { days: number }) {
 
         {/* Rotation Control */}
         {showLiveData && (
-          <div className="pointer-events-auto flex items-center justify-between rounded-xl border border-cyan-300/30 bg-slate-950/65 p-3 backdrop-blur-md">
-            <span className="text-xs uppercase tracking-[0.16em] text-cyan-300">
+          <div className="pointer-events-auto flex items-center justify-between rounded-xl border border-blue-300/30 bg-slate-950/65 p-3 backdrop-blur-md">
+            <span className="text-xs uppercase tracking-[0.16em] text-blue-300">
               Globe Rotation
             </span>
             <button
@@ -241,10 +241,10 @@ export function AdminTopologyPanel({ days }: { days: number }) {
         )}
 
         {/* Legend */}
-        <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-slate-950/65 p-3 backdrop-blur-md">
+        <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-blue-300/30 bg-slate-950/65 p-3 backdrop-blur-md">
           {showLiveData ? (
             <>
-              <Badge className="bg-[#4FD1C5]/20 text-[#4FD1C5] hover:bg-[#4FD1C5]/30">Tutor</Badge>
+              <Badge className="bg-[#1D4ED8]/20 text-[#1D4ED8] hover:bg-[#1D4ED8]/30">Tutor</Badge>
               <Badge className="bg-[#3A7CFF]/20 text-[#3A7CFF] hover:bg-[#3A7CFF]/30">
                 Student
               </Badge>
@@ -254,7 +254,7 @@ export function AdminTopologyPanel({ days }: { days: number }) {
             </>
           ) : (
             <>
-              <Badge className="bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20">
+              <Badge className="bg-blue-500/15 text-blue-200 hover:bg-blue-500/20">
                 Tutor Node
               </Badge>
               <Badge className="bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/20">
@@ -283,7 +283,7 @@ function MetricPill({
   color?: string
 }) {
   return (
-    <div className="rounded-xl border border-cyan-300/30 bg-slate-950/65 p-3 text-slate-100 backdrop-blur-md">
+    <div className="rounded-xl border border-blue-300/30 bg-slate-950/65 p-3 text-slate-100 backdrop-blur-md">
       <p className="text-[11px] uppercase tracking-[0.16em] text-slate-300">{title}</p>
       <p
         className="mt-1 text-2xl font-bold"

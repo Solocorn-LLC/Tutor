@@ -229,7 +229,7 @@ function AssignmentsTab() {
         : type === 'assignment' || type === 'homework'
           ? 'bg-purple-100 text-purple-700'
           : type === 'project'
-            ? 'bg-teal-100 text-teal-700'
+              ? 'bg-blue-100 text-blue-700'
             : 'bg-gray-100 text-gray-700'
     return <Badge className={`${color} border-0 capitalize`}>{type}</Badge>
   }

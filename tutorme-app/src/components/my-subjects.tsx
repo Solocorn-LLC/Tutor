@@ -87,7 +87,7 @@ const subjectColors: Record<string, string> = {
   cs: 'bg-gray-700',
   music: 'bg-pink-500',
   art: 'bg-orange-500',
-  geography: 'bg-cyan-500',
+  geography: 'bg-blue-600',
 }
 
 interface MySubjectsProps {

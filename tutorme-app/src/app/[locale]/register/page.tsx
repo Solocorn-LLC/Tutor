@@ -11,7 +11,7 @@ const roles = [
     title: 'Student',
     icon: BookOpen,
     href: '/register/student',
-    color: 'bg-[#4FD1C5]',
+    color: 'bg-[#1D4ED8]',
   },
   {
     id: 'parent',
@@ -57,7 +57,7 @@ export default async function RoleSelectionPage({
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {roles.map(role => (
             <Link key={role.id} href={`${localePrefix}${role.href}`}>
-              <Card className="h-full cursor-pointer border-2 border-transparent transition-shadow hover:border-[#4FD1C5] hover:shadow-lg">
+              <Card className="h-full cursor-pointer border-2 border-transparent transition-shadow hover:border-[#1D4ED8] hover:shadow-lg">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     <div className={`${role.color} rounded-xl p-4 text-white`}>
@@ -68,7 +68,7 @@ export default async function RoleSelectionPage({
                     </div>
                   </div>
                   <Button
-                    className={`mt-6 w-full ${role.id === 'student' ? 'bg-[#4FD1C5] hover:bg-[#3bc4b2]' : role.id === 'parent' ? 'bg-[#1D4ED8] hover:bg-[#1e40af]' : role.id === 'tutor' ? 'bg-[#F17623] hover:bg-[#e06613]' : 'bg-[#1F2933] hover:bg-[#111820]'}`}
+                    className={`mt-6 w-full ${role.id === 'student' ? 'bg-[#1D4ED8] hover:bg-[#1E40AF]' : role.id === 'parent' ? 'bg-[#1D4ED8] hover:bg-[#1e40af]' : role.id === 'tutor' ? 'bg-[#F17623] hover:bg-[#e06613]' : 'bg-[#1F2933] hover:bg-[#111820]'}`}
                   >
                     Register as {role.title}
                   </Button>

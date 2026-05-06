@@ -391,7 +391,7 @@ export function FloatingToolMenu({
                     className={cn(
                       'absolute flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors',
                       item.active
-                        ? 'border-2 border-cyan-400 bg-cyan-100 text-cyan-600'
+                        ? 'border-2 border-blue-400 bg-blue-100 text-blue-600'
                         : item.isDestructive
                           ? 'bg-white text-rose-500 hover:bg-rose-50'
                           : 'bg-white text-slate-700 hover:bg-slate-50'

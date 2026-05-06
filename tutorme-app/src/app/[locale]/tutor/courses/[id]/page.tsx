@@ -718,7 +718,7 @@ export default function TutorCoursePage() {
                     {/* Region Selection */}
                     <div className="flex-1 space-y-3">
                       <Label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <Globe className="h-4 w-4 text-[#4FD1C5]" />
+                          <Globe className="h-4 w-4 text-[#1D4ED8]" />
                         Region
                       </Label>
                       <DropdownMenu>

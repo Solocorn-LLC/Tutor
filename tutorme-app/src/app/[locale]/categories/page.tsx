@@ -137,7 +137,7 @@ export default function CategoriesPage() {
             <BookOpen className="h-4 w-4 text-[#1D4ED8]" />
             <h4 className="font-semibold text-gray-900">{category.label}</h4>
             {selectedCount > 0 && (
-              <Badge variant="secondary" className="bg-[#4FD1C5]/20 text-xs text-[#1F2933]">
+              <Badge variant="secondary" className="bg-[#1D4ED8]/20 text-xs text-[#1F2933]">
                 {selectedCount}
               </Badge>
             )}
@@ -169,7 +169,7 @@ export default function CategoriesPage() {
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-md p-2 transition-colors',
                 selectedCategories.includes(exam)
-                  ? 'border border-[#4FD1C5]/30 bg-[#4FD1C5]/10'
+                  ? 'border border-[#1D4ED8]/30 bg-[#1D4ED8]/10'
                   : 'border border-transparent hover:bg-gray-50'
               )}
             >
@@ -207,7 +207,7 @@ export default function CategoriesPage() {
               </Link>
             </div>
             <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-[#4FD1C5]" />
+              <BookOpen className="h-6 w-6 text-[#1D4ED8]" />
               <span className="text-xl font-bold text-[#1F2933]">
                 Select your region and exam categories
               </span>
@@ -237,7 +237,7 @@ export default function CategoriesPage() {
                   {/* Region Dropdown */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-sm font-medium">
-                      <Globe className="h-4 w-4 text-[#4FD1C5]" />
+                      <Globe className="h-4 w-4 text-[#1D4ED8]" />
                       Region
                     </Label>
                     <Select
@@ -423,7 +423,7 @@ export default function CategoriesPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Plus className="h-5 w-5 text-[#4FD1C5]" />
+                  <Plus className="h-5 w-5 text-[#1D4ED8]" />
                   Your Own Category
                 </CardTitle>
                 <CardDescription>
@@ -457,7 +457,7 @@ export default function CategoriesPage() {
             <Card className="flex h-[300px] flex-col">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4FD1C5] text-xs text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1D4ED8] text-xs text-white">
                     {selectedCategories.length}
                   </span>
                   Selected
@@ -475,7 +475,7 @@ export default function CategoriesPage() {
                       <Badge
                         key={cat}
                         variant="secondary"
-                        className="cursor-pointer bg-[#4FD1C5]/20 pr-1 text-[#1F2933] hover:bg-[#4FD1C5]/30"
+                        className="cursor-pointer bg-[#1D4ED8]/20 pr-1 text-[#1F2933] hover:bg-[#1D4ED8]/30"
                       >
                         {cat}
                         <button
@@ -504,7 +504,7 @@ export default function CategoriesPage() {
             </Card>
 
             {/* CTA - Now aligned with Your Own Category */}
-            <Card className="border-[#4FD1C5]/30 bg-gradient-to-br from-[#4FD1C5]/10 to-[#1D4ED8]/10">
+            <Card className="border-[#1D4ED8]/30 bg-gradient-to-br from-[#60A5FA]/10 to-[#1D4ED8]/10">
               <CardContent className="pt-6">
                 <p className="mb-4 text-sm text-gray-600">
                   Create an account and start sharing your expertise.

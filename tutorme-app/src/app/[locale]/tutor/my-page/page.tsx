@@ -327,7 +327,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
               {filteredCourses.map(course => (
                 <div
                   key={course.id}
-                  className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-white p-4 hover:border-[#4FD1C5]"
+                  className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-white p-4 hover:border-[#1D4ED8]"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -1530,7 +1530,7 @@ export default function TutorMyPage() {
                       })`,
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 ring-2 ring-[#4FD1C5]/80" />
+                  <div className="pointer-events-none absolute inset-0 ring-2 ring-[#1D4ED8]/70" />
                 </div>
               ) : null}
 
@@ -1628,7 +1628,7 @@ export default function TutorMyPage() {
                     onChange={e => setBio(e.target.value)}
                     disabled={loading || saving}
                     placeholder="Short bio for your public page..."
-                    className="min-h-0 flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#4FD1C5]"
+                    className="min-h-0 flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
                   />
                 </div>
 
@@ -1638,7 +1638,7 @@ export default function TutorMyPage() {
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-1">
                         <Label className="text-xs text-[#64748B]">TikTok</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#4FD1C5] focus-within:ring-offset-0">
+                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1657,7 +1657,7 @@ export default function TutorMyPage() {
 
                       <div className="space-y-1">
                         <Label className="text-xs text-[#64748B]">YouTube</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#4FD1C5] focus-within:ring-offset-0">
+                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1676,7 +1676,7 @@ export default function TutorMyPage() {
 
                       <div className="space-y-1">
                         <Label className="text-xs text-[#64748B]">Instagram</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#4FD1C5] focus-within:ring-offset-0">
+                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1695,7 +1695,7 @@ export default function TutorMyPage() {
 
                       <div className="space-y-1">
                         <Label className="text-xs text-[#64748B]">Facebook</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#4FD1C5] focus-within:ring-offset-0">
+                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1793,7 +1793,7 @@ export default function TutorMyPage() {
                       className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                         active
                           ? 'border-[#1D4ED8] bg-[#1D4ED8] text-white'
-                          : 'border-[#E2E8F0] text-[#1F2933] hover:border-[#4FD1C5]'
+                          : 'border-[#E2E8F0] text-[#1F2933] hover:border-[#1D4ED8]'
                       }`}
                     >
                       {category}

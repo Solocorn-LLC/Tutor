@@ -15,11 +15,11 @@ import { Loader2, MapPin, Wifi, WifiOff } from 'lucide-react'
 
 // Constants
 const GLOBE_RADIUS = 2.2
-const TUTOR_COLOR = '#4FD1C5' // Soft Teal
+const TUTOR_COLOR = '#1D4ED8' // Solocorn Blue
 const STUDENT_COLOR = '#3A7CFF' // Deep Intelligence Blue
-const ARC_COLOR_ACTIVE = '#5eead4'
+const ARC_COLOR_ACTIVE = '#60a5fa'
 const ARC_COLOR_INACTIVE = '#38bdf8'
-const CLUSTER_COLORS = ['#4FD1C5', '#3A7CFF', '#8b5cf6', '#f59e0b', '#10b981']
+const CLUSTER_COLORS = ['#1D4ED8', '#3A7CFF', '#8b5cf6', '#f59e0b', '#10b981']
 
 interface Props {
   users: OnlineUser[]
@@ -710,7 +710,7 @@ function GeoStatsPanel({
       <div className="flex items-center gap-2 text-xs">
         {isLoading ? (
           <>
-            <Loader2 className="h-3 w-3 animate-spin text-cyan-400" />
+            <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
             <span className="text-slate-300">Locating users...</span>
           </>
         ) : (
@@ -729,7 +729,7 @@ function GeoStatsPanel({
       </div>
       <div className="mt-1 h-1 w-24 overflow-hidden rounded-full bg-slate-700">
         <div
-          className="h-full bg-gradient-to-r from-green-400 to-cyan-400 transition-all duration-500"
+          className="h-full bg-gradient-to-r from-green-400 to-blue-400 transition-all duration-500"
           style={{ width: `${realPercent}%` }}
         />
       </div>
