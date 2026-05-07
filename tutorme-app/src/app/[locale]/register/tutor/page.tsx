@@ -959,10 +959,10 @@ export default function TutorRegistrationPage() {
                 <div className="space-y-1">
                   <Label className="text-xs text-white/70">Solocorn Username</Label>
                   <div className="flex items-center gap-2">
-                    <div className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white px-3 py-1.5">
+                    <div className="flex h-8 w-full items-center gap-2 rounded-md border border-white/10 bg-white px-3">
                       <span className="text-sm text-gray-500">@</span>
                       <Input
-                        className="h-auto border-0 bg-transparent p-0 text-sm text-[#1F2933] focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-8 border-0 bg-transparent p-0 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
                         value={formData.username}
                         onChange={e => {
                           setFormData({
@@ -977,39 +977,41 @@ export default function TutorRegistrationPage() {
                       />
                     </div>
                   </div>
-                  {usernameStatus.status === 'checking' && (
-                    <p className="text-xs text-white/50">Checking availability...</p>
-                  )}
-                  {usernameStatus.status === 'available' && (
-                    <p className="text-xs text-green-400">{usernameStatus.message}</p>
-                  )}
-                  {usernameStatus.status === 'taken' && (
-                    <div className="text-xs text-red-400">
-                      <p>{usernameStatus.message}</p>
-                      {usernameStatus.suggestion && (
-                        <button
-                          className="text-blue-400 underline"
-                          type="button"
-                          onClick={applySuggestion}
-                        >
-                          Use {usernameStatus.suggestion}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {usernameStatus.status === 'invalid' && (
-                    <p className="text-xs text-red-400">{usernameStatus.message}</p>
-                  )}
-                  <p className="text-xs text-white/50">
-                    3-15 characters. Only letters, numbers, and underscores allowed.
-                  </p>
+                  <div className="space-y-0.5">
+                    {usernameStatus.status === 'checking' && (
+                      <p className="text-xs text-white/50">Checking availability...</p>
+                    )}
+                    {usernameStatus.status === 'available' && (
+                      <p className="text-xs text-green-400">{usernameStatus.message}</p>
+                    )}
+                    {usernameStatus.status === 'taken' && (
+                      <div className="text-xs text-red-400">
+                        <p>{usernameStatus.message}</p>
+                        {usernameStatus.suggestion && (
+                          <button
+                            className="text-blue-400 underline"
+                            type="button"
+                            onClick={applySuggestion}
+                          >
+                            Use {usernameStatus.suggestion}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {usernameStatus.status === 'invalid' && (
+                      <p className="text-xs text-red-400">{usernameStatus.message}</p>
+                    )}
+                    <p className="text-xs text-white/50">
+                      3-15 characters. Letters, numbers, underscores only.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs text-white/70">Social Media Accounts</Label>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <Input
-                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
                       value={formData.socialLinks.instagram}
                       onChange={e =>
                         setFormData({
@@ -1021,7 +1023,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
                       value={formData.socialLinks.tiktok}
                       onChange={e =>
                         setFormData({
@@ -1033,7 +1035,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
                       value={formData.socialLinks.youtube}
                       onChange={e =>
                         setFormData({
@@ -1045,7 +1047,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
                       value={formData.socialLinks.facebook}
                       onChange={e =>
                         setFormData({
@@ -1062,13 +1064,13 @@ export default function TutorRegistrationPage() {
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    className="flex-1 border-white/20 bg-white/5 text-sm text-white hover:bg-white/10 hover:text-white"
+                    className="h-9 flex-1 border-white/20 bg-white/5 text-sm font-semibold text-white hover:bg-white/10 hover:text-white"
                     onClick={() => setStep(1)}
                   >
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
+                    className="h-9 flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
                     onClick={async () => {
                       const isValid = await validateStepTwo()
                       if (isValid) setStep(3)

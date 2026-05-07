@@ -1961,7 +1961,11 @@ export function EnhancedWhiteboard({
       if (canvas && ctx) drawStrokeDirectly(ctx, stroke)
     }
 
-    const handleShapeAdded = (data: { userId?: string; shape: ShapeElement; pageIndex?: number }) => {
+    const handleShapeAdded = (data: {
+      userId?: string
+      shape: ShapeElement
+      pageIndex?: number
+    }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'shape', pageIndex: idx, shape: data.shape })
@@ -2003,7 +2007,11 @@ export function EnhancedWhiteboard({
       enqueue({ type: 'formula', pageIndex: idx, formula: data.formula })
     }
 
-    const handleGraphAdded = (data: { userId?: string; graph: GraphElement; pageIndex?: number }) => {
+    const handleGraphAdded = (data: {
+      userId?: string
+      graph: GraphElement
+      pageIndex?: number
+    }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'graph', pageIndex: idx, graph: data.graph })

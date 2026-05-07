@@ -267,11 +267,14 @@ export async function saveAvatar(
     }
   }
 
-  // Local filesystem fallback (development or when GCS is not configured)
+  // Local filesystem fallback (development or when GCS is not configured).
+  // Store under tmpdir and serve via /api/public/avatar/... so runtime-created
+  // files remain accessible in production environments (e.g. Cloud Run).
   const path = await import('path')
+  const os = await import('os')
   const { mkdir } = await import('fs/promises')
-  const relativeDir = path.join('uploads', 'avatars', userId)
-  const absoluteDir = path.join(process.cwd(), 'public', relativeDir)
+  const relativeDir = path.join('avatars', userId)
+  const absoluteDir = path.join(os.tmpdir(), 'tutorme_uploads', relativeDir)
   await mkdir(absoluteDir, { recursive: true })
 
   const local256 = path.join(absoluteDir, `${baseName}-256.webp`)
@@ -284,7 +287,7 @@ export async function saveAvatar(
     sharp(buf64).toFile(local64),
   ])
 
-  return `/${relativeDir}/${baseName}-256.webp`
+  return `/api/public/avatar/${userId}/${baseName}-256.webp`
 }
 
 /**
@@ -317,14 +320,40 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
     return
   }
 
-  // Local filesystem deletion
+  // Local filesystem deletion (legacy public path)
   if (avatarUrl.startsWith('/uploads/avatars/')) {
     try {
       const path = await import('path')
       const { unlink } = await import('fs/promises')
-      const localPath = path.join(process.cwd(), 'public', avatarUrl)
+      const safeRelative = avatarUrl.replace(/^\/+/, '')
+      const localPath = path.join(process.cwd(), 'public', safeRelative)
       await unlink(localPath)
       // Also delete sibling sizes
+      const local128 = localPath.replace('-256.webp', '-128.webp')
+      const local64 = localPath.replace('-256.webp', '-64.webp')
+      await unlink(local128).catch(() => {})
+      await unlink(local64).catch(() => {})
+    } catch {
+      // Ignore cleanup errors
+    }
+    return
+  }
+
+  // Local filesystem deletion (new public avatar API path)
+  if (avatarUrl.startsWith('/api/public/avatar/')) {
+    try {
+      const path = await import('path')
+      const os = await import('os')
+      const { unlink } = await import('fs/promises')
+      const relative = avatarUrl.replace('/api/public/avatar/', '')
+      const safeRelative = relative
+        .split('/')
+        .filter(Boolean)
+        .filter(segment => !segment.includes('..'))
+        .join(path.sep)
+      if (!safeRelative) return
+      const localPath = path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', safeRelative)
+      await unlink(localPath).catch(() => {})
       const local128 = localPath.replace('-256.webp', '-128.webp')
       const local64 = localPath.replace('-256.webp', '-64.webp')
       await unlink(local128).catch(() => {})

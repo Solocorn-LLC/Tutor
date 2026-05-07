@@ -1115,7 +1115,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // --- Whiteboard state sync (delta-first with on-demand snapshot) ---
     socket.on(
       'whiteboard:state:request',
-      (data: { roomId: string; target: 'tutorBoard' | 'studentBoard' | 'all'; studentId?: string }) => {
+      (data: {
+        roomId: string
+        target: 'tutorBoard' | 'studentBoard' | 'all'
+        studentId?: string
+      }) => {
         const { roomId, target, studentId } = data || ({} as any)
         if (!roomId || !target) return
         const room = activeRooms.get(roomId)
