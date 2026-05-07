@@ -1,9 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Star, Video, Users, BookOpen, UserPlus } from 'lucide-react'
+import { Star, BookOpen, Users, UserPlus, CalendarDays, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 
 interface Tutor {
   id: string
@@ -18,6 +17,8 @@ interface Tutor {
   nextAvailableSlot: string | null
   totalStudents: number
   totalClasses: number
+  specialties?: string[]
+  countries?: string[]
 }
 
 interface TutorCardProps {
@@ -26,7 +27,6 @@ interface TutorCardProps {
 }
 
 export function TutorCard({ tutor, subjectCode }: TutorCardProps) {
-  // Generate initials for avatar fallback
   const initials = tutor.name
     .split(' ')
     .map(n => n[0])
@@ -34,136 +34,135 @@ export function TutorCard({ tutor, subjectCode }: TutorCardProps) {
     .toUpperCase()
     .slice(0, 2)
 
-  // Format price display
-  const formatPrice = () => {
-    if (tutor.hourlyRate === null) {
-      return <span className="text-slate-300">Contact for pricing</span>
-    }
-    return (
-      <span className="font-semibold text-slate-100">
-        {tutor.currency} {tutor.hourlyRate.toFixed(2)}
-        <span className="text-sm font-normal text-slate-400">/hr</span>
-      </span>
-    )
-  }
+  const categories = (tutor.specialties || []).slice(0, 3)
+  const countries = (tutor.countries || []).slice(0, 3)
 
-  const bioText = tutor.bio || 'Experienced tutor ready to help you improve quickly.'
-  const bioCharCount = bioText.length
-  const bioMaxChars = 500
+  const bioText = tutor.bio || "This area is for the tutor's bio information."
 
   return (
     <div
-      className={cn(
-        'group relative flex flex-col overflow-hidden rounded-[20px] text-left transition-all duration-300',
-        'border border-[rgba(255,255,255,0.12)]',
-        'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
-        'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)]',
-        'hover:-translate-y-[2px] hover:brightness-105',
-        'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]'
-      )}
+      className="relative flex flex-col gap-5 overflow-hidden rounded-[20px] p-5 text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
       style={{
-        backgroundImage:
-          'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
+        background: 'linear-gradient(145deg, #3b5f9e 0%, #2e4d7a 40%, #1e3a5f 100%)',
       }}
     >
-      <div className="flex flex-col p-5">
-        {/* Header */}
-        <div className="flex items-start gap-4">
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)] sm:h-24 sm:w-24">
-            <img
-              src={tutor.avatar || undefined}
-              alt={tutor.name}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col pt-1">
-            <h3 className="truncate text-lg font-semibold leading-tight text-slate-50">
-              {tutor.name}
-            </h3>
-            <p className="text-xs font-medium text-slate-300">
-              @{tutor.username || tutor.name.toLowerCase().replace(/\s+/g, '')}
-            </p>
-
-            {/* Rating below username */}
-            <div className="mt-1.5 flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-medium text-slate-100">{tutor.rating.toFixed(1)}</span>
-              <span className="text-xs text-slate-400">({tutor.reviewCount})</span>
+      {/* Header */}
+      <div className="flex items-start gap-4">
+        {/* Avatar */}
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-lg sm:h-24 sm:w-24">
+          {tutor.avatar ? (
+            <img src={tutor.avatar} alt={tutor.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-white/70">
+              {initials}
             </div>
+          )}
+        </div>
 
-            {/* Subject category pills beside username area */}
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-[rgba(255,255,255,0.2)] px-2 py-0.5 text-[11px] text-slate-200">
-                IGCSE Physics
-              </span>
-              <span className="rounded-full border border-[rgba(255,255,255,0.2)] px-2 py-0.5 text-[11px] text-slate-200">
-                TOEFL iBT
-              </span>
-              <span className="rounded-full border border-[rgba(255,255,255,0.2)] px-2 py-0.5 text-[11px] text-slate-200">
-                General
-              </span>
+        {/* Info */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h3 className="text-xl font-bold text-white">{tutor.name}</h3>
+          <p className="text-sm text-white/70">@{tutor.username || tutor.id}</p>
+          <p className="mt-0.5 text-sm font-medium text-white/90">{subjectCode}</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-semibold text-white">{tutor.rating.toFixed(1)}</span>
+            <span className="text-xs text-white/60">({tutor.reviewCount})</span>
+          </div>
+        </div>
+
+        {/* Pills */}
+        <div className="hidden flex-col gap-2 sm:flex">
+          {categories.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-2">
+              {categories.map(cat => (
+                <span
+                  key={cat}
+                  className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm"
+                >
+                  {cat}
+                </span>
+              ))}
             </div>
-          </div>
+          )}
+          {countries.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-2">
+              {countries.map(country => (
+                <span
+                  key={country}
+                  className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs text-white/90 backdrop-blur-sm"
+                >
+                  {country}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Bio — expanded area supporting up to 500 chars */}
-        <div className="mt-3 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] p-3">
-          <p className="text-sm leading-relaxed text-slate-100">{bioText}</p>
-          <p className="mt-1.5 text-right text-[10px] text-slate-400">
-            {bioCharCount} / {bioMaxChars}
-          </p>
-        </div>
-
-        {/* Divider */}
-        <div className="my-3 border-b border-[rgba(255,255,255,0.1)]" />
-
-        {/* Stats — icon + label + number on one line */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-            <BookOpen className="h-4 w-4 text-slate-300" />
-            <span className="text-xs text-slate-300">Courses</span>
-            <span className="ml-auto text-sm font-semibold text-slate-100">
-              {tutor.totalClasses}
+      {/* Mobile pills */}
+      {(categories.length > 0 || countries.length > 0) && (
+        <div className="flex flex-wrap gap-2 sm:hidden">
+          {categories.map(cat => (
+            <span
+              key={cat}
+              className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs text-white/90"
+            >
+              {cat}
             </span>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-            <Users className="h-4 w-4 text-slate-300" />
-            <span className="text-xs text-slate-300">Enrollments</span>
-            <span className="ml-auto text-sm font-semibold text-slate-100">
-              {tutor.totalStudents}
+          ))}
+          {countries.map(country => (
+            <span
+              key={country}
+              className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs text-white/90"
+            >
+              {country}
             </span>
-          </div>
+          ))}
         </div>
+      )}
 
-        {/* Action Buttons */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Button
-            asChild
-            variant="outline"
-            className="h-auto rounded-xl border-white/30 bg-white py-2.5 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-          >
-            <Link href={`/u/${tutor.username || tutor.id}?book=1`}>
-              <Video className="mr-1.5 h-4 w-4" />
-              Book 1 on 1
-            </Link>
-          </Button>
-          <Button asChild variant="solocorn-follow" className="h-auto rounded-xl py-2.5 text-sm">
-            <Link href={`/u/${tutor.username || tutor.id}`}>
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              Follow
-            </Link>
-          </Button>
+      {/* Bio */}
+      <div className="flex items-start gap-3 rounded-xl border border-dashed border-white/20 bg-white/5 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
+          <User className="h-5 w-5 text-white/70" />
         </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white">Bio</p>
+          <p className="mt-1 text-sm leading-relaxed text-white/70">{bioText}</p>
+        </div>
+      </div>
 
-        {/* Price & availability row (preserved from original) */}
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-300">
-          <span>{formatPrice()}</span>
-          <span className="text-slate-400">
-            {tutor.nextAvailableSlot
-              ? `Available ${new Date(tutor.nextAvailableSlot).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-              : 'Check availability'}
-          </span>
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-3">
+          <BookOpen className="h-5 w-5 text-white/70" />
+          <span className="text-sm text-white/80">Courses</span>
+          <span className="ml-auto text-lg font-bold text-white">{tutor.totalClasses}</span>
         </div>
+        <div className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-3">
+          <Users className="h-5 w-5 text-white/70" />
+          <span className="text-sm text-white/80">Enrollments</span>
+          <span className="ml-auto text-lg font-bold text-white">{tutor.totalStudents}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-white/80">
+          <CalendarDays className="h-4 w-4 text-white/60" />
+          Book 1 on 1
+        </div>
+        <Button
+          asChild
+          variant="outline"
+          className="ml-auto h-10 rounded-xl border-white/40 bg-white/10 px-6 text-sm font-semibold text-white hover:bg-white/20 hover:text-white"
+        >
+          <Link href={`/u/${tutor.username || tutor.id}`}>
+            <UserPlus className="mr-1.5 h-4 w-4" />
+            Follow
+          </Link>
+        </Button>
       </div>
     </div>
   )

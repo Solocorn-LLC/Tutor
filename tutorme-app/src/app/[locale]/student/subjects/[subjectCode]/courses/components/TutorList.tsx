@@ -20,6 +20,8 @@ interface Tutor {
   nextAvailableSlot: string | null
   totalStudents: number
   totalClasses: number
+  specialties?: string[]
+  countries?: string[]
 }
 
 interface TutorListProps {

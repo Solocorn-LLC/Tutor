@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api/middleware'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { user, profile, liveSession, sessionParticipant } from '@/lib/db/schema'
+import { user, profile, liveSession, sessionParticipant, tutorApplication } from '@/lib/db/schema'
 import { eq, and, ilike, inArray, sql } from 'drizzle-orm'
 
 export async function GET(request: NextRequest) {
@@ -55,6 +55,16 @@ export async function GET(request: NextRequest) {
       .where(inArray(profile.userId, userIds))
     const profileByUserId = new Map(profiles.map(p => [p.userId, p]))
 
+    const tutorApps = await drizzleDb
+      .select({
+        userId: tutorApplication.userId,
+        categories: tutorApplication.categories,
+        tutoringCountries: tutorApplication.tutoringCountries,
+      })
+      .from(tutorApplication)
+      .where(inArray(tutorApplication.userId, userIds))
+    const tutorAppByUserId = new Map(tutorApps.map(a => [a.userId, a]))
+
     const completedSessions = await drizzleDb
       .select({ sessionId: liveSession.sessionId, tutorId: liveSession.tutorId })
       .from(liveSession)
@@ -87,6 +97,9 @@ export async function GET(request: NextRequest) {
     const formattedTutors = userIds.map(userId => {
       const p = profileByUserId.get(userId)
       const u = userMap.get(userId)
+      const app = tutorAppByUserId.get(userId)
+      const appCategories = Array.isArray(app?.categories) ? app.categories : []
+      const appCountries = Array.isArray(app?.tutoringCountries) ? app.tutoringCountries : []
       return {
         id: userId,
         username: u?.handle ?? userId,
@@ -100,6 +113,8 @@ export async function GET(request: NextRequest) {
         nextAvailableSlot: null,
         totalStudents: tutorTotalStudents.get(userId) ?? 0,
         totalClasses: tutorSessionCount.get(userId) ?? 0,
+        specialties: appCategories,
+        countries: appCountries,
       }
     })
 
