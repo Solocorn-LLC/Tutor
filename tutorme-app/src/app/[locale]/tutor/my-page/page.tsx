@@ -932,9 +932,21 @@ export default function TutorMyPage() {
         return
       }
 
+      cropImageRef.current = img
+      setCropImageSize({ width: img.naturalWidth, height: img.naturalHeight })
       setCropSourceUrl(objectUrl)
       setCropSourceFile(file)
       setCropDialogOpen(true)
+
+      // Pre-measure viewport as soon as dialog opens so the upload button
+      // is not blocked waiting for the ResizeObserver.
+      requestAnimationFrame(() => {
+        const el = cropViewportRef.current
+        if (el) {
+          const rect = el.getBoundingClientRect()
+          if (rect.width > 0) setCropViewportSize(Math.round(rect.width))
+        }
+      })
     } catch {
       toast.error('Invalid image file')
       URL.revokeObjectURL(objectUrl)
@@ -969,11 +981,15 @@ export default function TutorMyPage() {
         return
       }
       const newUrl = data?.avatarUrl ?? data?.url ?? null
+      if (!newUrl || typeof newUrl !== 'string') {
+        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
+        return
+      }
       const fullUrl =
-        typeof newUrl === 'string' && newUrl.startsWith('/') && typeof window !== 'undefined'
+        newUrl.startsWith('/') && typeof window !== 'undefined'
           ? `${window.location.origin}${newUrl}`
           : newUrl
-      setAvatarUrl(fullUrl ?? null)
+      setAvatarUrl(fullUrl)
       setAvatarPreview(null)
       setAvatarFile(null)
       toast.success('Profile photo updated')
@@ -1193,7 +1209,13 @@ export default function TutorMyPage() {
               <div className="flex min-w-0 items-center gap-5">
                 <div className="relative">
                   <Avatar className="h-28 w-28 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
-                    <AvatarImage src={avatarPreview ?? avatarUrl ?? undefined} alt="Tutor avatar" />
+                    <AvatarImage
+                      src={avatarPreview ?? avatarUrl ?? undefined}
+                      alt="Tutor avatar"
+                      onError={() => {
+                        console.error('Avatar failed to load:', avatarUrl)
+                      }}
+                    />
                     <AvatarFallback className="rounded-2xl bg-white/15 text-lg font-semibold text-white">
                       {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
                     </AvatarFallback>

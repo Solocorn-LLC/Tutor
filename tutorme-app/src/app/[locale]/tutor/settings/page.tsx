@@ -456,11 +456,15 @@ export default function TutorSettings() {
         return
       }
       const newUrl = data?.avatarUrl ?? data?.url ?? null
+      if (!newUrl || typeof newUrl !== 'string') {
+        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
+        return
+      }
       const fullUrl =
-        typeof newUrl === 'string' && newUrl.startsWith('/') && typeof window !== 'undefined'
+        newUrl.startsWith('/') && typeof window !== 'undefined'
           ? `${window.location.origin}${newUrl}`
           : newUrl
-      setFormData(prev => ({ ...prev, avatarUrl: fullUrl || '' }))
+      setFormData(prev => ({ ...prev, avatarUrl: fullUrl }))
       toast.success('Profile photo updated')
     } catch {
       toast.error('Failed to upload photo')
@@ -693,7 +697,13 @@ export default function TutorSettings() {
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <Avatar className="h-20 w-20 border-2 border-white shadow-sm">
-                      <AvatarImage src={formData.avatarUrl || undefined} alt="Tutor avatar" />
+                      <AvatarImage
+                        src={formData.avatarUrl || undefined}
+                        alt="Tutor avatar"
+                        onError={() => {
+                          console.error('Avatar failed to load:', formData.avatarUrl)
+                        }}
+                      />
                       <AvatarFallback className="text-lg font-semibold">
                         {formData.name.charAt(0).toUpperCase()}
                       </AvatarFallback>

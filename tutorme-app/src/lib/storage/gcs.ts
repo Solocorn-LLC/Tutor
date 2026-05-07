@@ -193,4 +193,36 @@ export async function uploadLocalFile(
   }
 }
 
+// ─── Upload Buffer ────────────────────────────────────────────────────────────
+
+/**
+ * Uploads a Buffer directly to GCS.
+ */
+export async function uploadBuffer(
+  buffer: Buffer,
+  key: string,
+  mimeType: string,
+  isPublic: boolean = false
+): Promise<{ url: string; key: string }> {
+  const storage = await getStorage()
+  const bucket = storage.bucket(BUCKET)
+  const file = bucket.file(key)
+
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      cacheControl: 'public, max-age=31536000',
+    },
+  })
+
+  if (isPublic) {
+    await file.makePublic()
+  }
+
+  return {
+    url: buildPublicUrl(key),
+    key,
+  }
+}
+
 export { MAX_UPLOAD_BYTES }

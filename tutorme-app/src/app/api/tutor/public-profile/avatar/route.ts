@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { withAuth, withCsrf } from '@/lib/api/middleware'
+import { withAuth, withCsrf, ValidationError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { profile } from '@/lib/db/schema'
-import { saveAvatar, type AvatarCropPayload } from '@/lib/registration/register-user'
+import { saveAvatar, deleteAvatar, type AvatarCropPayload } from '@/lib/registration/register-user'
 
 export const POST = withCsrf(
   withAuth(
@@ -29,18 +29,65 @@ export const POST = withCsrf(
         }
       }
 
-      const avatarUrl = await saveAvatar(session.user.id, file, crop)
+      try {
+        // Clean up previous avatar before saving the new one
+        const existing = await drizzleDb
+          .select({ avatarUrl: profile.avatarUrl })
+          .from(profile)
+          .where(eq(profile.userId, session.user.id))
+          .limit(1)
+        if (existing[0]?.avatarUrl) {
+          await deleteAvatar(existing[0].avatarUrl)
+        }
 
-      const [updated] = await drizzleDb
-        .update(profile)
-        .set({ avatarUrl })
-        .where(eq(profile.userId, session.user.id))
-        .returning({ avatarUrl: profile.avatarUrl })
+        const avatarUrl = await saveAvatar(session.user.id, file, crop)
 
-      return NextResponse.json({
-        success: true,
-        avatarUrl: updated?.avatarUrl ?? avatarUrl,
-      })
+        const [updated] = await drizzleDb
+          .update(profile)
+          .set({ avatarUrl })
+          .where(eq(profile.userId, session.user.id))
+          .returning({ avatarUrl: profile.avatarUrl })
+
+        return NextResponse.json({
+          success: true,
+          avatarUrl: updated?.avatarUrl ?? avatarUrl,
+        })
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return NextResponse.json({ error: error.message }, { status: 400 })
+        }
+        console.error('Avatar upload error:', error)
+        return NextResponse.json({ error: 'Failed to upload photo' }, { status: 500 })
+      }
+    },
+    { role: 'TUTOR' }
+  )
+)
+
+export const DELETE = withCsrf(
+  withAuth(
+    async (_req: NextRequest, session) => {
+      try {
+        const existing = await drizzleDb
+          .select({ avatarUrl: profile.avatarUrl })
+          .from(profile)
+          .where(eq(profile.userId, session.user.id))
+          .limit(1)
+
+        if (existing[0]?.avatarUrl) {
+          await deleteAvatar(existing[0].avatarUrl)
+        }
+
+        await drizzleDb
+          .update(profile)
+          .set({ avatarUrl: null })
+          .where(eq(profile.userId, session.user.id))
+
+        return NextResponse.json({ success: true })
+      } catch (error) {
+        console.error('Avatar delete error:', error)
+        return NextResponse.json({ error: 'Failed to delete photo' }, { status: 500 })
+      }
     },
     { role: 'TUTOR' }
   )

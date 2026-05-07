@@ -159,60 +159,126 @@ export async function saveAvatar(
 
     const scaleX = inputWidth / originalWidth
     const scaleY = inputHeight / originalHeight
+    // Use a unified scale to prevent aspect-ratio distortion when browser
+    // and backend report slightly different dimensions.
+    const scale = Math.abs(scaleX - scaleY) < 0.02 ? scaleX : (scaleX + scaleY) / 2
 
-    const left = clampInt(x * scaleX, 0, inputWidth - 1)
-    const top = clampInt(y * scaleY, 0, inputHeight - 1)
-    const w = clampInt(width * scaleX, 1, inputWidth - left)
-    const h = clampInt(height * scaleY, 1, inputHeight - top)
+    const left = clampInt(x * scale, 0, inputWidth - 1)
+    const top = clampInt(y * scale, 0, inputHeight - 1)
+    const w = clampInt(width * scale, 1, inputWidth - left)
+    const h = clampInt(height * scale, 1, inputHeight - top)
     const side = Math.min(w, h)
     if (side < 256) throw new ValidationError('Crop is too small (min 256 × 256)')
 
     return { left, top, width: side, height: side }
   }
 
-  // Save avatar to file system
-  const path = await import('path')
-  const { mkdir } = await import('fs/promises')
-  const timestamp = Date.now()
-  const relativeDir = path.join('uploads', 'avatars', userId)
-  const absoluteDir = path.join(process.cwd(), 'public', relativeDir)
-  await mkdir(absoluteDir, { recursive: true })
-
-  const baseName = `${timestamp}-avatar`
-  const out256 = path.join(absoluteDir, `${baseName}-256.webp`)
-  const out128 = path.join(absoluteDir, `${baseName}-128.webp`)
-  const out64 = path.join(absoluteDir, `${baseName}-64.webp`)
+  const extract = getCropExtract(width, height)
+  const pipeline = extract ? input.clone().extract(extract) : input.clone()
 
   const outputCommon = {
     fit: 'cover' as const,
     position: 'centre' as const,
   }
 
-  const extract = getCropExtract(width, height)
-  const pipeline = extract ? input.clone().extract(extract) : input.clone()
+  const timestamp = Date.now()
+  const baseName = `${timestamp}-avatar`
 
-  await Promise.all([
+  // Generate processed buffers
+  const [buf256, buf128, buf64] = await Promise.all([
     pipeline
       .clone()
       .resize(256, 256, outputCommon)
       .webp({ quality: 84 })
       .withMetadata({})
-      .toFile(out256),
+      .toBuffer(),
     pipeline
       .clone()
       .resize(128, 128, outputCommon)
       .webp({ quality: 84 })
       .withMetadata({})
-      .toFile(out128),
-    pipeline
-      .clone()
-      .resize(64, 64, outputCommon)
-      .webp({ quality: 84 })
-      .withMetadata({})
-      .toFile(out64),
+      .toBuffer(),
+    pipeline.clone().resize(64, 64, outputCommon).webp({ quality: 84 }).withMetadata({}).toBuffer(),
+  ])
+
+  // Try GCS first for cloud persistence; fall back to local filesystem
+  const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
+  if (isGcsConfigured()) {
+    const gcsPrefix = `avatars/${userId}/${baseName}`
+    await Promise.all([
+      uploadBuffer(buf256, `${gcsPrefix}-256.webp`, 'image/webp', true),
+      uploadBuffer(buf128, `${gcsPrefix}-128.webp`, 'image/webp', true),
+      uploadBuffer(buf64, `${gcsPrefix}-64.webp`, 'image/webp', true),
+    ])
+    return `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${gcsPrefix}-256.webp`
+  }
+
+  // Local filesystem fallback (development or when GCS is not configured)
+  const path = await import('path')
+  const { mkdir } = await import('fs/promises')
+  const relativeDir = path.join('uploads', 'avatars', userId)
+  const absoluteDir = path.join(process.cwd(), 'public', relativeDir)
+  await mkdir(absoluteDir, { recursive: true })
+
+  const local256 = path.join(absoluteDir, `${baseName}-256.webp`)
+  const local128 = path.join(absoluteDir, `${baseName}-128.webp`)
+  const local64 = path.join(absoluteDir, `${baseName}-64.webp`)
+
+  await Promise.all([
+    sharp(buf256).toFile(local256),
+    sharp(buf128).toFile(local128),
+    sharp(buf64).toFile(local64),
   ])
 
   return `/${relativeDir}/${baseName}-256.webp`
+}
+
+/**
+ * Delete a previously saved avatar from storage (GCS or local filesystem).
+ */
+export async function deleteAvatar(avatarUrl: string | null | undefined): Promise<void> {
+  if (!avatarUrl || typeof avatarUrl !== 'string') return
+
+  // GCS deletion
+  if (avatarUrl.includes('storage.googleapis.com')) {
+    try {
+      const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')
+      if (!isGcsConfigured()) return
+      const bucketName = process.env.GCS_BUCKET || ''
+      const prefix = `https://storage.googleapis.com/${bucketName}/`
+      if (avatarUrl.startsWith(prefix)) {
+        const key = avatarUrl.slice(prefix.length)
+        if (key) {
+          await deleteObject(key)
+          // Also delete the sibling sizes (128, 64) if they exist
+          const key128 = key.replace('-256.webp', '-128.webp')
+          const key64 = key.replace('-256.webp', '-64.webp')
+          await deleteObject(key128).catch(() => {})
+          await deleteObject(key64).catch(() => {})
+        }
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+    return
+  }
+
+  // Local filesystem deletion
+  if (avatarUrl.startsWith('/uploads/avatars/')) {
+    try {
+      const path = await import('path')
+      const { unlink } = await import('fs/promises')
+      const localPath = path.join(process.cwd(), 'public', avatarUrl)
+      await unlink(localPath)
+      // Also delete sibling sizes
+      const local128 = localPath.replace('-256.webp', '-128.webp')
+      const local64 = localPath.replace('-256.webp', '-64.webp')
+      await unlink(local128).catch(() => {})
+      await unlink(local64).catch(() => {})
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 export interface RegistrationResult {
