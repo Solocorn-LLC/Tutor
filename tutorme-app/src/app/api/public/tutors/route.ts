@@ -11,6 +11,98 @@ import { eq, and, or, inArray, sql, desc, ilike } from 'drizzle-orm'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const idsParam = searchParams.get('ids')?.trim() || ''
+    const requestedIds = idsParam
+      ? Array.from(
+          new Set(
+            idsParam
+              .split(',')
+              .map(id => id.trim())
+              .filter(Boolean)
+          )
+        )
+      : []
+
+    // Fast path for favorites/bookmarks: fetch specific tutors by ids.
+    if (requestedIds.length > 0) {
+      const [tutorProfiles, publishedCourseRows] = await Promise.all([
+        drizzleDb
+          .select({
+            userId: profile.userId,
+            name: profile.name,
+            username: profile.username,
+            bio: profile.bio,
+            avatarUrl: profile.avatarUrl,
+            hourlyRate: profile.hourlyRate,
+            oneOnOneEnabled: profile.oneOnOneEnabled,
+          })
+          .from(profile)
+          .innerJoin(user, eq(profile.userId, user.userId))
+          .where(and(inArray(profile.userId, requestedIds), eq(user.role, 'TUTOR'))),
+        drizzleDb
+          .select({
+            creatorId: course.creatorId,
+            courseId: course.courseId,
+            categories: course.categories,
+          })
+          .from(course)
+          .where(and(eq(course.isPublished, true), inArray(course.creatorId, requestedIds))),
+      ])
+
+      const coursesByTutor = new Map<string, { courseId: string; categories: string[] | null }[]>()
+      for (const row of publishedCourseRows) {
+        if (!row.creatorId || !row.courseId) continue
+        const list = coursesByTutor.get(row.creatorId) || []
+        list.push({ courseId: row.courseId, categories: row.categories || [] })
+        coursesByTutor.set(row.creatorId, list)
+      }
+
+      const profileById = new Map(tutorProfiles.map(p => [p.userId, p]))
+      const tutors = requestedIds
+        .map(tutorId => {
+          const profileData = profileById.get(tutorId)
+          if (!profileData) return null
+          const tutorCourses = coursesByTutor.get(tutorId) || []
+          const categories = Array.from(
+            new Set(tutorCourses.flatMap(c => (Array.isArray(c.categories) ? c.categories : [])))
+          )
+          return {
+            id: tutorId,
+            name: profileData.name || 'Anonymous Tutor',
+            username: profileData.username || tutorId.slice(0, 8),
+            bio: profileData.bio || 'Experienced tutor ready to help you improve quickly.',
+            avatarUrl: profileData.avatarUrl,
+            specialties: categories,
+            hourlyRate: profileData.hourlyRate,
+            oneOnOneEnabled: profileData.oneOnOneEnabled ?? true,
+            tutorNationalities: [],
+            categoryNationalityCombinations: [],
+            courseCount: tutorCourses.length,
+            totalEnrollments: 0,
+            categories,
+            latestCourseUpdatedAt: null,
+            coursePreview: [],
+            averageRating: 0,
+            totalReviewCount: 0,
+          }
+        })
+        .filter((tutor): tutor is NonNullable<typeof tutor> => !!tutor)
+
+      return NextResponse.json({
+        tutors,
+        availableCategories: [],
+        availableCombinations: [],
+        availableNationalities: [],
+        source: 'db',
+        pagination: {
+          page: 1,
+          pageSize: tutors.length,
+          total: tutors.length,
+          totalPages: tutors.length > 0 ? 1 : 0,
+        },
+      })
+    }
+
     const searchQuery = searchParams.get('q')?.toLowerCase().trim() || ''
     const categoryFilter = searchParams.get('subject')?.toLowerCase().trim() || ''
     const combinationFilter = searchParams.get('combination')?.toLowerCase().trim() || ''

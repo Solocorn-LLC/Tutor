@@ -201,16 +201,21 @@ export async function saveAvatar(
     pipeline.clone().resize(64, 64, outputCommon).webp({ quality: 84 }).withMetadata({}).toBuffer(),
   ])
 
-  // Try GCS first for cloud persistence; fall back to local filesystem
+  // Try GCS first for cloud persistence; if unavailable/misconfigured, fall back to local storage.
+  // This avoids hard-failing avatar upload in environments that set GCS_BUCKET but lack valid auth.
   const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
   if (isGcsConfigured()) {
     const gcsPrefix = `avatars/${userId}/${baseName}`
-    await Promise.all([
-      uploadBuffer(buf256, `${gcsPrefix}-256.webp`, 'image/webp', true),
-      uploadBuffer(buf128, `${gcsPrefix}-128.webp`, 'image/webp', true),
-      uploadBuffer(buf64, `${gcsPrefix}-64.webp`, 'image/webp', true),
-    ])
-    return `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${gcsPrefix}-256.webp`
+    try {
+      await Promise.all([
+        uploadBuffer(buf256, `${gcsPrefix}-256.webp`, 'image/webp', true),
+        uploadBuffer(buf128, `${gcsPrefix}-128.webp`, 'image/webp', true),
+        uploadBuffer(buf64, `${gcsPrefix}-64.webp`, 'image/webp', true),
+      ])
+      return `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${gcsPrefix}-256.webp`
+    } catch (error) {
+      console.warn('Avatar GCS upload failed, falling back to local storage:', error)
+    }
   }
 
   // Local filesystem fallback (development or when GCS is not configured)

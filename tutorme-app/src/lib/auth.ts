@@ -92,6 +92,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.id = user.id
+        token.name = user.name
+        token.email = user.email
+        token.picture = user.image ?? null
         token.onboardingComplete = user.onboardingComplete
         token.tosAccepted = user.tosAccepted
 
@@ -130,13 +133,16 @@ export const authOptions: NextAuthOptions = {
           ).user = {
             id: token.id as string,
             role: token.role as string,
-            name: undefined,
-            email: undefined,
-            image: undefined,
+            name: (token.name as string | undefined) ?? undefined,
+            email: (token.email as string | undefined) ?? undefined,
+            image: (token.picture as string | undefined) ?? undefined,
           }
         } else {
           session.user.role = token.role as string
           session.user.id = token.id as string
+          session.user.name = (token.name as string | undefined) ?? session.user.name
+          session.user.email = (token.email as string | undefined) ?? session.user.email
+          session.user.image = (token.picture as string | undefined) ?? session.user.image
         }
         ;(
           session.user as { onboardingComplete?: boolean; tosAccepted?: boolean }

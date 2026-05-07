@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { Heart, BookOpen, Users, Star, Trash2, ExternalLink } from 'lucide-react'
 
@@ -175,14 +176,17 @@ export default function StudentFavoritesPage() {
                   </button>
                   <CardHeader>
                     <div className="flex items-start gap-3 pr-8">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-600">
-                        {tutor.name
-                          .split(' ')
-                          .map(n => n[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={tutor.avatarUrl || undefined} alt={tutor.name} />
+                        <AvatarFallback className="bg-indigo-100 font-bold text-indigo-600">
+                          {tutor.name
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="min-w-0">
                         <CardTitle className="truncate text-lg">{tutor.name}</CardTitle>
                         <CardDescription>@{tutor.username}</CardDescription>
