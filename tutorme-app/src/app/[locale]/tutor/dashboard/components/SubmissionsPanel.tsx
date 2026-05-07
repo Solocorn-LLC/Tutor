@@ -78,11 +78,13 @@ export function SubmissionsPanel({
   width,
   hidden,
   onToggleHidden,
+  headerExtra,
 }: {
   courseId: string
   width: number
   hidden: boolean
   onToggleHidden: (value: boolean) => void
+  headerExtra?: ReactNode
 }) {
   const [data, setData] = useState<SubmissionsTreeResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -209,15 +211,20 @@ export function SubmissionsPanel({
           style={{ width }}
         >
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="text-sm font-semibold text-[#1F2933]">Submissions</div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => onToggleHidden(true)}
-            >
-              Close
-            </Button>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="text-sm font-semibold text-[#1F2933]">Submissions</div>
+              {headerExtra}
+            </div>
+            <div className="ml-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => onToggleHidden(true)}
+              >
+                Close
+              </Button>
+            </div>
           </div>
 
           <ScrollArea className="min-h-0 flex-1 p-3">

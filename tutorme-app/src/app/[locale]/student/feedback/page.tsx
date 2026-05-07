@@ -1615,14 +1615,12 @@ function StudentFeedbackContent() {
             </div>
           )}
 
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex-1">
-              <div className="flex h-full flex-col gap-6">
-                <Tabs
-                  value={activeTab}
-                  onValueChange={setActiveTab}
-                  className="flex flex-1 flex-col"
-                >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="flex min-h-0 flex-1 flex-col"
+            >
                   {(() => {
                     const controlRow = (
                       <div className="sticky top-3 z-50 w-full px-4">
@@ -1737,9 +1735,13 @@ function StudentFeedbackContent() {
                     return portalTarget ? createPortal(controlRow, portalTarget) : controlRow
                   })()}
 
-                  <TabsContent value="task" className="flex flex-1 flex-col outline-none">
+                  <TabsContent
+                    value="task"
+                    padding="none"
+                    className="flex min-h-0 flex-1 flex-col outline-none"
+                  >
                     {/* Classroom viewer */}
-                    <div className="relative flex flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
+                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                       <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
                         <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
                           Classroom
@@ -1868,8 +1870,12 @@ function StudentFeedbackContent() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="my-board" className="flex flex-1 flex-col outline-none">
-                    <div className="flex flex-1 flex-col overflow-hidden">
+                  <TabsContent
+                    value="my-board"
+                    padding="none"
+                    className="flex min-h-0 flex-1 flex-col outline-none"
+                  >
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                       <EnhancedWhiteboard
                         pages={myBoardPages}
                         currentPageIndex={myBoardPageIndex}
@@ -1884,8 +1890,12 @@ function StudentFeedbackContent() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="tutor-board" className="flex flex-1 flex-col outline-none">
-                    <div className="flex flex-1 flex-col overflow-hidden">
+                  <TabsContent
+                    value="tutor-board"
+                    padding="none"
+                    className="flex min-h-0 flex-1 flex-col outline-none"
+                  >
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                       <EnhancedWhiteboard
                         readOnly
                         pages={tutorBoardPages}
@@ -1898,9 +1908,7 @@ function StudentFeedbackContent() {
                       />
                     </div>
                   </TabsContent>
-                </Tabs>
-              </div>
-            </div>
+            </Tabs>
           </div>
 
           {/* Persistent Right Panel */}

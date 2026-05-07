@@ -460,7 +460,6 @@ interface PreviewCardProps {
 
 import { MonitoringPanel } from './MonitoringPanel'
 import { SubmissionsPanel } from './SubmissionsPanel'
-import { LiveSessionSubmissionsPanel } from './LiveSessionSubmissionsPanel'
 
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
@@ -880,8 +879,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       id: string
       name: string
     } | null>(null)
-    const [liveSubmissionsPanelHidden, setLiveSubmissionsPanelHidden] = useState(false)
-    const [liveSubmissionsPanelWidth] = useState(320)
+    const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
+      'submissions'
+    )
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
     const [comingSoonDialog, setComingSoonDialog] = useState(false)
@@ -985,6 +985,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ])
       }
     }, [insightsProps, mainTab])
+
+    const visibleTestPciTabs = useMemo(
+      () =>
+        mainTab === 'live'
+          ? testPciTabs.filter(tab => tab.id !== 'insights')
+          : testPciTabs,
+      [mainTab, testPciTabs]
+    )
+
+    useEffect(() => {
+      if (mainTab !== 'live') return
+      if (testPciActiveTab === 'insights') {
+        setTestPciActiveTab('classroom')
+      }
+    }, [mainTab, testPciActiveTab])
 
     const formatDuration = (seconds: number) => {
       const mins = Math.floor(seconds / 60)
@@ -7086,12 +7101,285 @@ FEEDBACK: [your explanation]`
             )}
 
             {!isStudentView && (
-              <SubmissionsPanel
-                courseId={courseId || ''}
-                width={rightPanelWidth}
-                hidden={rightPanelHidden}
-                onToggleHidden={setRightPanelHidden}
-              />
+              <>
+                {mainTab === 'live' ? (
+                  liveRightPanelTab === 'submissions' ? (
+                    <SubmissionsPanel
+                      courseId={courseId || ''}
+                      width={rightPanelWidth}
+                      hidden={rightPanelHidden}
+                      onToggleHidden={setRightPanelHidden}
+                      headerExtra={
+                        <Tabs
+                          value={liveRightPanelTab}
+                          onValueChange={value =>
+                            setLiveRightPanelTab(value as 'submissions' | 'insights')
+                          }
+                        >
+                          <TabsList className="h-7 border border-slate-200 bg-slate-50 p-0.5">
+                            <TabsTrigger value="submissions" className="h-5 px-2 text-[11px]">
+                              Submissions
+                            </TabsTrigger>
+                            <TabsTrigger value="insights" className="h-5 px-2 text-[11px]">
+                              Insights
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      }
+                    />
+                  ) : (
+                    <>
+                      <div
+                        className="absolute top-1/2 z-50 flex h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l-full border border-r-0 border-[#E5E7EB] bg-white shadow-[-2px_0_8px_rgba(0,0,0,0.08)] transition-all hover:w-10 hover:bg-slate-50"
+                        style={{ right: rightPanelHidden ? 0 : rightPanelWidth - 16 }}
+                        onClick={() => setRightPanelHidden(!rightPanelHidden)}
+                        title={rightPanelHidden ? 'Show insights' : 'Hide insights'}
+                      >
+                        {rightPanelHidden ? (
+                          <ChevronLeft className="h-5 w-5 text-[#2B5FB8]" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-[#2B5FB8]" />
+                        )}
+                      </div>
+                      {!rightPanelHidden && (
+                        <div
+                          className="absolute right-0 top-0 z-40 flex h-full flex-col border-l border-[#E5E7EB] bg-white shadow-[-8px_0_20px_rgba(0,0,0,0.06)]"
+                          style={{ width: rightPanelWidth }}
+                        >
+                          <div className="flex items-center justify-between border-b px-4 py-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="text-sm font-semibold text-[#1F2933]">Insights</div>
+                              <Tabs
+                                value={liveRightPanelTab}
+                                onValueChange={value =>
+                                  setLiveRightPanelTab(value as 'submissions' | 'insights')
+                                }
+                              >
+                                <TabsList className="h-7 border border-slate-200 bg-slate-50 p-0.5">
+                                  <TabsTrigger
+                                    value="submissions"
+                                    className="h-5 px-2 text-[11px]"
+                                  >
+                                    Submissions
+                                  </TabsTrigger>
+                                  <TabsTrigger value="insights" className="h-5 px-2 text-[11px]">
+                                    Insights
+                                  </TabsTrigger>
+                                </TabsList>
+                              </Tabs>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={() => setRightPanelHidden(true)}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                          <div className="min-h-0 flex-1 overflow-hidden p-2">
+                            {insightsProps ? (
+                              <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
+                                <Tabs
+                                  value={insightsTab}
+                                  onValueChange={value =>
+                                    setInsightsTab(value as 'analytics' | 'poll' | 'question')
+                                  }
+                                  className="flex h-full min-h-0 flex-col"
+                                >
+                                  <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+                                    <TabsTrigger
+                                      value="analytics"
+                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                    >
+                                      Analytics
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                      value="poll"
+                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                    >
+                                      Poll
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                      value="question"
+                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                    >
+                                      Question
+                                    </TabsTrigger>
+                                  </TabsList>
+                                  <TabsContent
+                                    value="analytics"
+                                    className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    <AnalyticsPanel
+                                      students={insightsProps.students}
+                                      metrics={insightsProps.metrics}
+                                      liveTasks={insightsProps.liveTasks}
+                                      classDuration={insightsProps.classDuration}
+                                      isRecording={insightsProps.isRecording}
+                                      recordingDuration={insightsProps.recordingDuration}
+                                      sessionId={insightsProps.sessionId}
+                                    />
+                                  </TabsContent>
+                                  <TabsContent
+                                    value="poll"
+                                    className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    <InsightsReportView
+                                      type="poll"
+                                      onMentionStudent={name =>
+                                        setPollPrompt(
+                                          pollPrompt
+                                            ? `${pollPrompt} @[${name}](student:${name}) `
+                                            : `@[${name}](student:${name}) `
+                                        )
+                                      }
+                                    />
+                                    <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                      <div className="relative">
+                                        <MentionTextarea
+                                          mentionItems={mentionItems}
+                                          className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                          placeholder="What should students answer?"
+                                          disableAutoResize
+                                          value={pollPrompt}
+                                          onChange={event => setPollPrompt(event.target.value)}
+                                        />
+                                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className={cn(
+                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                              showAIPoll
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'text-blue-600'
+                                            )}
+                                            title="Generate with Socratic AI"
+                                            onClick={() => setShowAIPoll(!showAIPoll)}
+                                            disabled={!activeInsightsTaskId}
+                                          >
+                                            <Sparkles className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                            disabled={
+                                              !activeInsightsTaskId ||
+                                              !activeInsightsTask ||
+                                              !insightsProps.sessionId ||
+                                              !pollPrompt.trim()
+                                            }
+                                            onClick={() => {
+                                              if (
+                                                !activeInsightsTaskId ||
+                                                !activeInsightsTask ||
+                                                !insightsProps.sessionId
+                                              )
+                                                return
+                                              insightsProps.onSendPoll({
+                                                taskId: currentInsightsId,
+                                                question: pollPrompt,
+                                              })
+                                              setPollPrompt('')
+                                            }}
+                                          >
+                                            <Send className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </TabsContent>
+                                  <TabsContent
+                                    value="question"
+                                    className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    <InsightsReportView
+                                      type="question"
+                                      onMentionStudent={name =>
+                                        setQuestionPrompt(
+                                          questionPrompt
+                                            ? `${questionPrompt} @[${name}](student:${name}) `
+                                            : `@[${name}](student:${name}) `
+                                        )
+                                      }
+                                    />
+                                    <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                      <div className="relative">
+                                        <MentionTextarea
+                                          mentionItems={mentionItems}
+                                          className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                          placeholder="Ask your AI coach or share a reflection..."
+                                          disableAutoResize
+                                          value={questionPrompt}
+                                          onChange={event => setQuestionPrompt(event.target.value)}
+                                        />
+                                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className={cn(
+                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                              showAIQuestion
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'text-blue-600'
+                                            )}
+                                            title="Generate with Socratic AI"
+                                            onClick={() => setShowAIQuestion(!showAIQuestion)}
+                                            disabled={!activeInsightsTaskId}
+                                          >
+                                            <Sparkles className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                            disabled={
+                                              !activeInsightsTaskId ||
+                                              !activeInsightsTask ||
+                                              !insightsProps.sessionId ||
+                                              !questionPrompt.trim()
+                                            }
+                                            onClick={() => {
+                                              if (
+                                                !activeInsightsTaskId ||
+                                                !activeInsightsTask ||
+                                                !insightsProps.sessionId
+                                              )
+                                                return
+                                              insightsProps.onSendQuestion({
+                                                taskId: currentInsightsId,
+                                                prompt: questionPrompt,
+                                              })
+                                              setQuestionPrompt('')
+                                            }}
+                                          >
+                                            <Send className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </TabsContent>
+                                </Tabs>
+                              </div>
+                            ) : (
+                              <div className="flex h-full items-center justify-center rounded-lg border bg-white p-4 text-sm text-slate-500">
+                                Insights unavailable without an active session.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                ) : (
+                  <SubmissionsPanel
+                    courseId={courseId || ''}
+                    width={rightPanelWidth}
+                    hidden={rightPanelHidden}
+                    onToggleHidden={setRightPanelHidden}
+                  />
+                )}
+              </>
             )}
 
             {/* CENTER PANEL - New Three-Section Design */}
@@ -7126,8 +7414,13 @@ FEEDBACK: [your explanation]`
                                 }}
                                 className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
                               >
-                                <TabsList className="mb-4 grid w-full grid-cols-4 gap-2 bg-transparent p-0 shadow-none">
-                                  {testPciTabs.map(tab => (
+                                <TabsList
+                                  className={cn(
+                                    'mb-4 grid w-full gap-2 bg-transparent p-0 shadow-none',
+                                    visibleTestPciTabs.length === 3 ? 'grid-cols-3' : 'grid-cols-4'
+                                  )}
+                                >
+                                  {visibleTestPciTabs.map(tab => (
                                     <div key={tab.id} className="relative w-full">
                                       {editingTabId === tab.id ? (
                                         <Input
@@ -7160,7 +7453,7 @@ FEEDBACK: [your explanation]`
                                     </div>
                                   ))}
                                 </TabsList>
-                                {testPciTabs.map(tab => (
+                                {visibleTestPciTabs.map(tab => (
                                   <TabsContent
                                     key={tab.id}
                                     value={tab.id}
@@ -7561,14 +7854,7 @@ FEEDBACK: [your explanation]`
                                               )
                                             }
                                             return (
-                                              <div
-                                                className="relative h-full w-full"
-                                                style={{
-                                                  paddingRight: liveSubmissionsPanelHidden
-                                                    ? 0
-                                                    : liveSubmissionsPanelWidth + 32,
-                                                }}
-                                              >
+                                              <div className="relative h-full w-full">
                                                 <div className="h-full w-full">
                                                   <MonitoringPanel
                                                     socket={insightsProps.socket}
@@ -7596,22 +7882,6 @@ FEEDBACK: [your explanation]`
                                                     }}
                                                   />
                                                 </div>
-
-                                                <LiveSessionSubmissionsPanel
-                                                  sessionId={insightsProps.sessionId}
-                                                  width={liveSubmissionsPanelWidth}
-                                                  hidden={liveSubmissionsPanelHidden}
-                                                  onToggleHidden={setLiveSubmissionsPanelHidden}
-                                                  selectedStudentId={
-                                                    monitorSelectedStudent?.id ?? null
-                                                  }
-                                                  onSelectStudent={(studentId, studentName) => {
-                                                    setMonitorSelectedStudent({
-                                                      id: studentId,
-                                                      name: studentName,
-                                                    })
-                                                  }}
-                                                />
                                               </div>
                                             )
                                           }

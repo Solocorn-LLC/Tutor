@@ -572,6 +572,14 @@ export default function PublicTutorPage() {
   }, [username])
 
   useEffect(() => {
+    const requestedId = searchParams.get('courseId')
+    if (!requestedId || !data?.courses?.length) return
+    if (detailsCourse?.id === requestedId) return
+    const match = data.courses.find(c => c.id === requestedId) || null
+    if (match) setDetailsCourse(match)
+  }, [searchParams, data?.courses, detailsCourse?.id])
+
+  useEffect(() => {
     if (!data?.tutor?.id) return
     loadFollowState(data.tutor.id)
   }, [data?.tutor?.id])
@@ -908,10 +916,6 @@ export default function PublicTutorPage() {
                     <h1 className="truncate text-3xl font-bold leading-tight text-white">
                       {tutor.name || '@'}
                     </h1>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-300/30">
-                      <CheckCircle className="h-4 w-4" />
-                      Verified
-                    </span>
                   </div>
                   <div className="mt-1 text-sm font-medium text-white/80">@{tutor.username}</div>
 
@@ -1712,7 +1716,18 @@ export default function PublicTutorPage() {
         locale={locale}
       />
 
-      <Dialog open={!!detailsCourse} onOpenChange={open => !open && setDetailsCourse(null)}>
+      <Dialog
+        open={!!detailsCourse}
+        onOpenChange={open => {
+          if (open) return
+          setDetailsCourse(null)
+          if (!publicPath) return
+          const nextParams = new URLSearchParams(searchParams.toString())
+          nextParams.delete('courseId')
+          const qs = nextParams.toString()
+          router.replace(qs ? `${publicPath}?${qs}` : publicPath)
+        }}
+      >
         <DialogContent className="flex h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-2xl">{detailsCourse?.name}</DialogTitle>

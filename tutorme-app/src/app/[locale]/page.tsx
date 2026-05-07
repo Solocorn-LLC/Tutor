@@ -40,6 +40,7 @@ import {
   Search,
   QrCode,
   Users,
+  User,
   Bot,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -1215,6 +1216,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   const PAGE_SIZE = 5
   const [coursesPage, setCoursesPage] = useState(0)
   const [tutorsPage, setTutorsPage] = useState(0)
+  const router = useRouter()
 
   const availableCountries = (() => {
     const region = REGIONS.find(r => r.id === selectedRegion)
@@ -1274,29 +1276,58 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   }, [query])
 
   const CourseSlot = ({ item }: { item: any }) => (
-    <Link
-      href={`/u/${encodeURIComponent(item?.tutor?.username || '')}`}
-      className="block h-full w-full"
+    <div
+      role="button"
+      tabIndex={0}
+      className="block h-full w-full outline-none"
+      onClick={() => {
+        const username = item?.tutor?.username || ''
+        if (!username) return
+        router.push(`/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`)
+      }}
+      onKeyDown={e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        const username = item?.tutor?.username || ''
+        if (!username) return
+        router.push(`/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`)
+      }}
     >
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:brightness-105 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
         }}
       >
         <div className="flex h-full flex-col p-4">
-          <div className="min-w-0">
-            <div className="line-clamp-2 text-sm font-semibold text-slate-100">{item?.name}</div>
-            <div className="mt-1 text-xs font-medium text-slate-300">
-              @{item?.tutor?.username || 'tutor'}
-            </div>
-            {Array.isArray(item?.categories) && item.categories[0] ? (
-              <div className="mt-2 w-fit rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] px-3 py-1 text-[10px] font-semibold text-slate-100">
-                {item.categories[0]}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="line-clamp-2 text-sm font-semibold text-slate-100">{item?.name}</div>
+              <div className="mt-1 text-xs font-medium text-slate-300">
+                @{item?.tutor?.username || 'tutor'}
               </div>
-            ) : null}
+              {Array.isArray(item?.categories) && item.categories[0] ? (
+                <div className="mt-2 w-fit rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] px-3 py-1 text-[10px] font-semibold text-slate-100">
+                  {item.categories[0]}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] h-[72px] w-[72px]">
+              {item?.tutor?.avatarUrl ? (
+                <img
+                  src={item.tutor.avatarUrl}
+                  alt={item?.tutor?.name || item?.tutor?.username || 'Tutor'}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                  <User className="h-7 w-7 opacity-50" />
+                </div>
+              )}
+            </div>
           </div>
+
           <div className="mt-3 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
             <div className="line-clamp-4 text-[11px] leading-relaxed text-slate-200">
               {(item?.description || '').trim() || 'No course description provided yet.'}
@@ -1306,11 +1337,11 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             <div className="truncate text-slate-300">
               {item?.isFree ? 'Free' : item?.price != null ? `$${item.price}` : 'Free'}
             </div>
-            <div className="text-blue-400">View</div>
+            <div className="text-blue-400">Details</div>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   )
 
   const TutorSlot = ({ item }: { item: any }) => (
@@ -1324,7 +1355,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       >
         <div className="flex h-full flex-col p-4">
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 overflow-hidden rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)]">
+            <div className="h-10 w-10 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)]">
               {item?.avatarUrl ? (
                 <img
                   src={item.avatarUrl}
