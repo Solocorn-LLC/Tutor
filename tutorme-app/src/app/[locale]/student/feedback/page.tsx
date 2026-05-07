@@ -601,14 +601,48 @@ function StudentFeedbackContent() {
   // when they open the monitor (delta sync only carries new strokes).
   useEffect(() => {
     if (!socket || !selectedSessionId) return
-    const timeout = setTimeout(() => {
-      socket.emit('student:whiteboard:update', {
-        roomId: selectedSessionId,
-        board: { pages: myBoardPages, pageIndex: myBoardPageIndex, updatedAt: Date.now() },
-      })
-    }, 500)
-    return () => clearTimeout(timeout)
-  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex])
+    if (!isMirroringToTutor) return
+
+    const MIN_INTERVAL_MS = 2500
+    const DEBOUNCE_MS = 1500
+    let cancelled = false
+    let lastSentAt = 0
+    let timeout: ReturnType<typeof setTimeout> | null = null
+
+    const schedule = () => {
+      if (timeout) clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        if (cancelled) return
+        const now = Date.now()
+        if (now - lastSentAt < MIN_INTERVAL_MS) {
+          schedule()
+          return
+        }
+        lastSentAt = now
+        socket.emit('student:whiteboard:update', {
+          roomId: selectedSessionId,
+          board: { pages: myBoardPages, pageIndex: myBoardPageIndex, updatedAt: now },
+        })
+      }, DEBOUNCE_MS)
+    }
+
+    schedule()
+    return () => {
+      cancelled = true
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex, isMirroringToTutor])
+
+  // On join, request latest tutor + student board snapshots (fast hydration).
+  useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    socket.emit('whiteboard:state:request', { roomId: selectedSessionId, target: 'tutorBoard' })
+    socket.emit('whiteboard:state:request', {
+      roomId: selectedSessionId,
+      target: 'studentBoard',
+      studentId: session?.user?.id,
+    })
+  }, [socket, selectedSessionId, session?.user?.id])
 
   useEffect(() => {
     if (!selectedSessionId || typeof window === 'undefined') return
@@ -741,6 +775,20 @@ function StudentFeedbackContent() {
       }
     }
 
+    const handleWhiteboardStateResponse = (payload: any) => {
+      if (!payload || payload.roomId !== selectedSessionId) return
+      if (payload.target === 'tutorBoard' || payload.target === 'all') {
+        const board = payload.tutorBoard
+        if (board?.pages && Array.isArray(board.pages)) setTutorBoardPages(board.pages)
+        if (typeof board?.pageIndex === 'number') setTutorBoardPageIndex(board.pageIndex)
+      }
+      if (payload.target === 'studentBoard' || payload.target === 'all') {
+        const board = payload.studentBoard
+        if (board?.pages && Array.isArray(board.pages)) setMyBoardPages(board.pages)
+        if (typeof board?.pageIndex === 'number') setMyBoardPageIndex(board.pageIndex)
+      }
+    }
+
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
@@ -748,6 +796,7 @@ function StudentFeedbackContent() {
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
     socket.on('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
+    socket.on('whiteboard:state:response', handleWhiteboardStateResponse)
 
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
@@ -757,8 +806,9 @@ function StudentFeedbackContent() {
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
       socket.off('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
+      socket.off('whiteboard:state:response', handleWhiteboardStateResponse)
     }
-  }, [socket, followTutor])
+  }, [socket, followTutor, selectedSessionId])
 
   useEffect(() => {
     if (!activeTaskId && tasks.length > 0) {

@@ -418,6 +418,8 @@ export function EnhancedWhiteboard({
   // Real-time collaboration state
   const [remoteCursors, setRemoteCursors] = useState<Map<string, CursorDelta>>(new Map())
   const cursorThrottleRef = useRef<number | null>(null)
+  const cursorFlushTimerRef = useRef<number | null>(null)
+  const remoteCursorsRef = useRef<Map<string, CursorDelta>>(new Map())
 
   // Mock students fallback
   const mockStudents: Student[] = [
@@ -1112,7 +1114,15 @@ export function EnhancedWhiteboard({
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (readOnly) return
+    // In read-only mode we still want to allow panning (when Pan mode is active),
+    // but we should never allow drawing/selection edits.
+    if (readOnly) {
+      if (tool === 'hand') {
+        setIsPanning(true)
+        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
+      }
+      return
+    }
 
     const point = screenToCanvas(e.clientX, e.clientY)
 
@@ -1274,10 +1284,12 @@ export function EnhancedWhiteboard({
 
     // Emit cursor position for real-time collaboration
     if (socket && roomId && userId) {
+      // Cursor is high-frequency; keep network throttled and UI updates batched separately.
+      const cursorIntervalMs = 80
       if (!cursorThrottleRef.current) {
         cursorThrottleRef.current = window.setTimeout(() => {
           cursorThrottleRef.current = null
-        }, 50)
+        }, cursorIntervalMs)
         socket.emit('whiteboard:cursor:move', {
           roomId,
           cursor: {
@@ -1677,8 +1689,37 @@ export function EnhancedWhiteboard({
   const zoomIn = () => setScale(prev => Math.min(5, prev * 1.2))
   const zoomOut = () => setScale(prev => Math.max(0.1, prev / 1.2))
   const resetView = () => {
+    setTool('select')
+    setActiveLocalZoom(null)
     setScale(1)
     setPan({ x: 0, y: 0 })
+    setIsPanning(false)
+    setIsDrawing(false)
+    setCurrentStroke([])
+    setLineStart(null)
+    setTempLineEnd(null)
+    setShapeStart(null)
+    setTempShape(null)
+    setSelectedObject(null)
+    setTextOverlays([])
+    setDraggingOverlay(null)
+    setResizingOverlay(null)
+  }
+
+  const goToPage = (nextIndex: number) => {
+    const clamped = Math.max(0, Math.min(nextIndex, pages.length - 1))
+    setTool('select')
+    setIsPanning(false)
+    setIsDrawing(false)
+    setSelectedObject(null)
+    setTextOverlays([])
+    setInlineTextInput(null)
+    setCurrentStroke([])
+    setLineStart(null)
+    setTempLineEnd(null)
+    setShapeStart(null)
+    setTempShape(null)
+    setCurrentPageIndex(clamped)
   }
 
   const updateBackground = (bgColor: string, style: Page['backgroundStyle']) => {
@@ -1832,9 +1873,78 @@ export function EnhancedWhiteboard({
   useEffect(() => {
     if (!socket || !roomId) return
 
+    type PendingOp =
+      | { type: 'stroke'; pageIndex: number; stroke: Stroke }
+      | { type: 'shape'; pageIndex: number; shape: ShapeElement }
+      | { type: 'text'; pageIndex: number; text: TextElement }
+      | { type: 'formula'; pageIndex: number; formula: FormulaElement }
+      | { type: 'graph'; pageIndex: number; graph: GraphElement }
+      | { type: 'page:clear'; pageIndex: number }
+
+    const pendingOpsRef = { current: [] as PendingOp[] }
+    let flushRaf: number | null = null
+
+    const safePageIndex = (idx: unknown, fallback: number) => {
+      if (typeof idx === 'number' && Number.isFinite(idx) && idx >= 0) return Math.floor(idx)
+      return fallback
+    }
+
+    const enqueue = (op: PendingOp) => {
+      pendingOpsRef.current.push(op)
+      if (flushRaf) return
+      flushRaf = window.requestAnimationFrame(() => {
+        flushRaf = null
+        const ops = pendingOpsRef.current
+        pendingOpsRef.current = []
+        if (ops.length === 0) return
+
+        const currentPages = pagesRef.current
+        if (!Array.isArray(currentPages) || currentPages.length === 0) return
+
+        const nextPages = [...currentPages]
+        const touched = new Set<number>()
+
+        const ensurePage = (idx: number) => {
+          if (idx < 0) return null
+          if (idx >= nextPages.length) return null
+          if (!touched.has(idx)) {
+            nextPages[idx] = { ...nextPages[idx] }
+            touched.add(idx)
+          }
+          return nextPages[idx]
+        }
+
+        for (const op of ops) {
+          const page = ensurePage(op.pageIndex)
+          if (!page) continue
+          if (op.type === 'stroke') {
+            page.strokes = [...page.strokes, op.stroke]
+          } else if (op.type === 'shape') {
+            page.shapes = [...page.shapes, op.shape]
+          } else if (op.type === 'text') {
+            page.texts = [...page.texts, op.text]
+          } else if (op.type === 'formula') {
+            page.formulas = [...page.formulas, op.formula]
+          } else if (op.type === 'graph') {
+            page.graphs = [...page.graphs, op.graph]
+          } else if (op.type === 'page:clear') {
+            page.strokes = []
+            page.texts = []
+            page.shapes = []
+            page.formulas = []
+            page.graphs = []
+          }
+        }
+
+        setPages(nextPages)
+        onUpdate?.(nextPages)
+      })
+    }
+
     const handleStrokeAdded = (data: {
       userId?: string
       stroke: Stroke & { points?: number[] | Point[] }
+      pageIndex?: number
     }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
       const stroke: Stroke = {
@@ -1843,28 +1953,18 @@ export function EnhancedWhiteboard({
           ? (data.stroke.points as Point[])
           : decompressPoints((data.stroke.points as number[]) || []),
       }
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], strokes: [...newPages[idx].strokes, stroke] }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'stroke', pageIndex: idx, stroke })
       onRemoteStroke?.(stroke)
       const canvas = canvasRef.current
       const ctx = canvas?.getContext('2d')
       if (canvas && ctx) drawStrokeDirectly(ctx, stroke)
     }
 
-    const handleShapeAdded = (data: { userId?: string; shape: ShapeElement }) => {
+    const handleShapeAdded = (data: { userId?: string; shape: ShapeElement; pageIndex?: number }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], shapes: [...newPages[idx].shapes, data.shape] }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'shape', pageIndex: idx, shape: data.shape })
       const canvas = canvasRef.current
       const ctx = canvas?.getContext('2d')
       if (canvas && ctx) {
@@ -1876,64 +1976,42 @@ export function EnhancedWhiteboard({
       }
     }
 
-    const handleTextAdded = (data: { userId?: string; text: TextElement }) => {
+    const handleTextAdded = (data: { userId?: string; text: TextElement; pageIndex?: number }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], texts: [...newPages[idx].texts, data.text] }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'text', pageIndex: idx, text: data.text })
     }
 
     const handleCursorMoved = (data: { cursor?: CursorDelta }) => {
       const cursor = data?.cursor
       if (!cursor?.userId) return
-      setRemoteCursors(prev => {
-        const next = new Map(prev)
-        next.set(cursor.userId, { ...cursor, timestamp: Date.now() })
-        return next
-      })
+      remoteCursorsRef.current.set(cursor.userId, { ...cursor, timestamp: Date.now() })
+      if (cursorFlushTimerRef.current) return
+      cursorFlushTimerRef.current = window.setTimeout(() => {
+        cursorFlushTimerRef.current = null
+        setRemoteCursors(new Map(remoteCursorsRef.current))
+      }, 120)
     }
 
-    const handleFormulaAdded = (data: { userId?: string; formula: FormulaElement }) => {
+    const handleFormulaAdded = (data: {
+      userId?: string
+      formula: FormulaElement
+      pageIndex?: number
+    }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], formulas: [...newPages[idx].formulas, data.formula] }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'formula', pageIndex: idx, formula: data.formula })
     }
 
-    const handleGraphAdded = (data: { userId?: string; graph: GraphElement }) => {
+    const handleGraphAdded = (data: { userId?: string; graph: GraphElement; pageIndex?: number }) => {
       if (filterByUserId && data.userId !== filterByUserId) return
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = { ...newPages[idx], graphs: [...newPages[idx].graphs, data.graph] }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'graph', pageIndex: idx, graph: data.graph })
     }
 
-    const handlePageCleared = (_data: { pageIndex?: number }) => {
-      const idx = currentPageIndexRef.current
-      const currentPages = pagesRef.current
-      if (idx < 0 || idx >= currentPages.length) return
-      const newPages = [...currentPages]
-      newPages[idx] = {
-        ...newPages[idx],
-        strokes: [],
-        texts: [],
-        shapes: [],
-        formulas: [],
-        graphs: [],
-      }
-      setInternalPages(newPages)
-      onPagesChange?.(newPages)
+    const handlePageCleared = (data: { pageIndex?: number }) => {
+      const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
+      enqueue({ type: 'page:clear', pageIndex: idx })
       setSelectedObject(null)
       setTextOverlays([])
     }
@@ -1947,6 +2025,10 @@ export function EnhancedWhiteboard({
     socket.on('whiteboard:page:cleared', handlePageCleared)
 
     return () => {
+      if (flushRaf) {
+        window.cancelAnimationFrame(flushRaf)
+        flushRaf = null
+      }
       socket.off('whiteboard:stroke:added', handleStrokeAdded)
       socket.off('whiteboard:shape:added', handleShapeAdded)
       socket.off('whiteboard:text:added', handleTextAdded)
@@ -2007,116 +2089,113 @@ export function EnhancedWhiteboard({
           </div>
         )}
 
-        {/* Floating Zoom Widget */}
-        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 rounded-2xl border border-white/40 bg-white/70 px-2 py-1 shadow-2xl ring-1 ring-black/[0.05] backdrop-blur-xl">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setScale(s => Math.max(0.1, s - 0.1))}
-            className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-          <span className="w-12 text-center text-xs font-medium text-slate-700">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setScale(s => Math.min(5, s + 0.1))}
-            className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <div className="mx-1 h-6 w-px bg-slate-300" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setTool('marquee-zoom')
-              setActiveLocalZoom(null)
-            }}
-            className={cn(
-              'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
-              tool === 'marquee-zoom' && 'bg-blue-100 text-blue-600'
-            )}
-            title="Area Zoom"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-        </div>
+        {/* (Deduped) Zoom widget and local zoom overlay are rendered once above */}
 
-        {/* Active Local Zoom Overlay */}
-        {activeLocalZoom && (
-          <motion.div
-            drag
-            dragMomentum={false}
-            className="absolute z-40 overflow-hidden rounded-xl border-4 border-blue-500 bg-white shadow-2xl"
-            style={{
-              left: activeLocalZoom.x,
-              top: activeLocalZoom.y,
-              width: activeLocalZoom.width,
-              height: activeLocalZoom.height,
-              touchAction: 'none',
-            }}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-          >
-            <img
-              src={activeLocalZoom.dataUrl}
-              alt="Zoomed area"
-              className="h-full w-full object-contain"
-              draggable={false}
-            />
+        {/* Floating View Controls (zoom/pan/page navigation) */}
+        <div
+          className="absolute bottom-6 right-6 z-20 flex flex-col items-end gap-1 rounded-2xl border border-white/40 bg-white/70 px-2 py-1 shadow-2xl ring-1 ring-black/[0.05] backdrop-blur-xl"
+          onMouseDown={e => e.stopPropagation()}
+        >
+          {/* Row 1: Zoom */}
+          <div className="flex items-center gap-1">
             <Button
-              variant="destructive"
+              variant="ghost"
               size="sm"
-              className="absolute right-2 top-2 h-8 w-8 rounded-full p-0 opacity-80 shadow-md hover:opacity-100"
-              onClick={() => setActiveLocalZoom(null)}
+              onClick={() => setScale(s => Math.max(0.1, s - 0.1))}
+              className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              onMouseDown={e => e.stopPropagation()}
             >
-              <X className="h-4 w-4" />
+              <Minus className="h-4 w-4" />
             </Button>
-          </motion.div>
-        )}
+            <span className="w-12 text-center text-xs font-medium text-slate-700">
+              {Math.round(scale * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setScale(s => Math.min(5, s + 0.1))}
+              className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <div className="mx-1 h-6 w-px bg-slate-300" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setTool('marquee-zoom')
+                setActiveLocalZoom(null)
+              }}
+              className={cn(
+                'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
+                tool === 'marquee-zoom' && 'bg-blue-100 text-blue-600'
+              )}
+              title="Area Zoom"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
 
-        {/* Floating Zoom Widget */}
-        <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1 rounded-2xl border border-white/40 bg-white/70 px-2 py-1 shadow-2xl ring-1 ring-black/[0.05] backdrop-blur-xl">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setScale(s => Math.max(0.1, s - 0.1))}
-            className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-          <span className="w-12 text-center text-xs font-medium text-slate-700">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setScale(s => Math.min(5, s + 0.1))}
-            className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <div className="mx-1 h-6 w-px bg-slate-300" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setTool('marquee-zoom')
-              setActiveLocalZoom(null)
-            }}
-            className={cn(
-              'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
-              tool === 'marquee-zoom' && 'bg-blue-100 text-blue-600'
-            )}
-            title="Area Zoom"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
+          {/* Row 2: Normal view / Pan / Page navigation */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetView}
+              className={cn(
+                'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
+                Math.abs(scale - 1) < 0.001 && 'bg-blue-100 text-blue-600'
+              )}
+              title="Normal view (reset zoom + pan)"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setTool('hand')
+                setActiveLocalZoom(null)
+              }}
+              className={cn(
+                'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
+                tool === 'hand' && 'bg-blue-100 text-blue-600'
+              )}
+              title="Pan (drag to move)"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <Hand className="h-4 w-4" />
+            </Button>
+            <div className="mx-1 h-6 w-px bg-slate-300" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => goToPage(currentPageIndex - 1)}
+              className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              disabled={currentPageIndex <= 0}
+              aria-label="Previous page"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="w-12 text-center text-[10px] font-medium text-slate-700">
+              {currentPageIndex + 1}/{Math.max(1, pages.length)}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => goToPage(currentPageIndex + 1)}
+              className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              disabled={currentPageIndex >= pages.length - 1}
+              aria-label="Next page"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Active Local Zoom Overlay */}

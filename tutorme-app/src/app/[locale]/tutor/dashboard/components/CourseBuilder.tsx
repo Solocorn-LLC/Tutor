@@ -611,21 +611,52 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
     const [tutorBoardPageIndex, setTutorBoardPageIndex] = useState(0)
 
-    // Sync tutor board state to students via full-state snapshot
+    // Delta-first mirroring: send periodic checkpoints (for late joiners / resync),
+    // not full snapshots on every small state change.
     useEffect(() => {
       if (!insightsProps?.socket || !insightsProps?.sessionId) return
-      const timeout = setTimeout(() => {
-        insightsProps.socket!.emit('tutor:whiteboard:update', {
-          roomId: insightsProps.sessionId,
-          board: {
-            pages: tutorBoardPages,
-            pageIndex: tutorBoardPageIndex,
-            updatedAt: Date.now(),
-          },
-        })
-      }, 300)
-      return () => clearTimeout(timeout)
+
+      const socket = insightsProps.socket
+      const roomId = insightsProps.sessionId
+      const MIN_INTERVAL_MS = 2000
+      const DEBOUNCE_MS = 1200
+
+      let cancelled = false
+      let timeout: ReturnType<typeof setTimeout> | null = null
+      let lastSentAt = 0
+
+      const schedule = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => {
+          if (cancelled) return
+          const now = Date.now()
+          if (now - lastSentAt < MIN_INTERVAL_MS) {
+            schedule()
+            return
+          }
+          lastSentAt = now
+          socket.emit('tutor:whiteboard:update', {
+            roomId,
+            board: { pages: tutorBoardPages, pageIndex: tutorBoardPageIndex, updatedAt: now },
+          })
+        }, DEBOUNCE_MS)
+      }
+
+      schedule()
+      return () => {
+        cancelled = true
+        if (timeout) clearTimeout(timeout)
+      }
     }, [tutorBoardPages, tutorBoardPageIndex, insightsProps?.socket, insightsProps?.sessionId])
+
+    // On join, request the latest snapshot to avoid waiting for next checkpoint.
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId) return
+      insightsProps.socket.emit('whiteboard:state:request', {
+        roomId: insightsProps.sessionId,
+        target: 'tutorBoard',
+      })
+    }, [insightsProps?.socket, insightsProps?.sessionId])
     const designatedFolder = useMemo(() => {
       const liveCourse = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
       if (liveCourse && (liveCourse as any).categories?.length > 0) {

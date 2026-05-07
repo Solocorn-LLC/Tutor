@@ -153,9 +153,19 @@ const WHITEBOARD_MAX_AGE = 2 * 60 * 60 * 1000 // 2 hours
 
 // Rate limiting
 const RATE_LIMITS = {
-  maxEventsPerSecond: 10,
-  burstSize: 20,
+  // Whiteboard deltas can be bursty; keep this generous to avoid
+  // introducing latency/jank when drawing or mirroring.
+  maxEventsPerSecond: 60,
+  burstSize: 120,
   windowSize: 1000, // 1 second
+}
+
+// Whiteboard memory caps (per room)
+const WHITEBOARD_MAX_ITEMS_PER_TYPE = 5000
+
+function trimToCap<T>(items: T[], cap: number): T[] {
+  if (items.length <= cap) return items
+  return items.slice(items.length - cap)
 }
 
 // Enhanced interfaces with activity tracking
@@ -351,6 +361,12 @@ async function persistRoomToRedis(roomId: string, room: ClassRoom) {
   if (!redisClient) return
 
   try {
+    const wb = (room.whiteboardData || {}) as Record<string, unknown>
+    // Store only compact snapshots in Redis (avoid huge delta arrays).
+    const compactWhiteboardData = {
+      ...(wb.tutorBoard ? { tutorBoard: wb.tutorBoard } : {}),
+      ...(wb.studentBoards ? { studentBoards: wb.studentBoards } : {}),
+    }
     await redisClient.setex(
       `room:${roomId}`,
       86400,
@@ -360,6 +376,9 @@ async function persistRoomToRedis(roomId: string, room: ClassRoom) {
         students: Array.from(room.students.entries()),
         chatHistory: room.chatHistory,
         tasks: room.tasks,
+        ...(Object.keys(compactWhiteboardData).length > 0
+          ? { whiteboardData: compactWhiteboardData }
+          : {}),
         createdAt: room.createdAt,
         lastActivity: room.lastActivity,
       })
@@ -1093,6 +1112,38 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    // --- Whiteboard state sync (delta-first with on-demand snapshot) ---
+    socket.on(
+      'whiteboard:state:request',
+      (data: { roomId: string; target: 'tutorBoard' | 'studentBoard' | 'all'; studentId?: string }) => {
+        const { roomId, target, studentId } = data || ({} as any)
+        if (!roomId || !target) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+
+        const wb = (room.whiteboardData || {}) as Record<string, any>
+        const payload: Record<string, unknown> = { roomId, target }
+
+        if (target === 'tutorBoard' || target === 'all') {
+          if (wb.tutorBoard) payload.tutorBoard = wb.tutorBoard
+        }
+
+        if (target === 'studentBoard' || target === 'all') {
+          const sid = studentId || socket.data.userId
+          const studentBoards = (wb.studentBoards || {}) as Record<string, unknown>
+          if (sid && studentBoards[sid]) {
+            payload.studentId = sid
+            payload.studentBoard = studentBoards[sid]
+          }
+          if (target === 'all' && wb.studentBoards) {
+            payload.studentBoards = wb.studentBoards
+          }
+        }
+
+        socket.emit('whiteboard:state:response', payload)
+      }
+    )
+
     socket.on(
       'student:whiteboard:update',
       (data: {
@@ -1153,7 +1204,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const strokes = (wb.strokes || []) as StrokeDelta[]
         room.whiteboardData = {
           ...wb,
-          strokes: [...strokes, { ...stroke, pageIndex }],
+          strokes: trimToCap([...strokes, { ...stroke, pageIndex }], WHITEBOARD_MAX_ITEMS_PER_TYPE),
         }
         io.to(roomId).emit('whiteboard:stroke:added', {
           userId: socket.data.userId,
@@ -1178,7 +1229,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const shapes = (wb.shapes || []) as ShapeDelta[]
         room.whiteboardData = {
           ...wb,
-          shapes: [...shapes, { ...shape, pageIndex }],
+          shapes: trimToCap([...shapes, { ...shape, pageIndex }], WHITEBOARD_MAX_ITEMS_PER_TYPE),
         }
         io.to(roomId).emit('whiteboard:shape:added', {
           userId: socket.data.userId,
@@ -1203,7 +1254,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const texts = (wb.texts || []) as TextDelta[]
         room.whiteboardData = {
           ...wb,
-          texts: [...texts, { ...text, pageIndex }],
+          texts: trimToCap([...texts, { ...text, pageIndex }], WHITEBOARD_MAX_ITEMS_PER_TYPE),
         }
         io.to(roomId).emit('whiteboard:text:added', { userId: socket.data.userId, text, pageIndex })
       }
@@ -1235,7 +1286,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         const wb = (room.whiteboardData || {}) as Record<string, unknown>
         const formulas = (wb.formulas || []) as FormulaDelta[]
-        room.whiteboardData = { ...wb, formulas: [...formulas, { ...formula, pageIndex }] }
+        room.whiteboardData = {
+          ...wb,
+          formulas: trimToCap(
+            [...formulas, { ...formula, pageIndex }],
+            WHITEBOARD_MAX_ITEMS_PER_TYPE
+          ),
+        }
         io.to(roomId).emit('whiteboard:formula:added', {
           userId: socket.data.userId,
           formula,
@@ -1257,7 +1314,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         const wb = (room.whiteboardData || {}) as Record<string, unknown>
         const graphs = (wb.graphs || []) as GraphDelta[]
-        room.whiteboardData = { ...wb, graphs: [...graphs, { ...graph, pageIndex }] }
+        room.whiteboardData = {
+          ...wb,
+          graphs: trimToCap([...graphs, { ...graph, pageIndex }], WHITEBOARD_MAX_ITEMS_PER_TYPE),
+        }
         io.to(roomId).emit('whiteboard:graph:added', {
           userId: socket.data.userId,
           graph,
