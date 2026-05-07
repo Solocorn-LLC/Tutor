@@ -104,42 +104,46 @@ export async function saveAvatar(
     throw new ValidationError('Minimum dimensions: 512 × 512 px')
   }
 
-  const input = sharp(bytes, { failOnError: false }).rotate()
+  const inputRaw = sharp(bytes, { failOnError: false })
+  const inputRotated = inputRaw.clone().rotate()
 
   if (format && !['jpeg', 'png', 'webp'].includes(format)) {
     throw new ValidationError('Accepted formats: JPG, PNG, WEBP only')
   }
 
-  // Basic moderation heuristics: reject mostly-transparent and near-blank images.
-  const analysis = await input
-    .clone()
-    .resize(64, 64, { fit: 'cover', position: 'centre' })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
+  const analyzeCandidate = async (candidate: any) => {
+    const analysis = await candidate
+      .clone()
+      .resize(64, 64, { fit: 'cover', position: 'centre' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
 
-  const pixelCount = analysis.info.width * analysis.info.height
-  let sumAlpha = 0
-  let minLum = 255
-  let maxLum = 0
-  for (let i = 0; i < analysis.data.length; i += 4) {
-    const r = analysis.data[i]
-    const g = analysis.data[i + 1]
-    const b = analysis.data[i + 2]
-    const a = analysis.data[i + 3]
-    sumAlpha += a
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    minLum = Math.min(minLum, lum)
-    maxLum = Math.max(maxLum, lum)
+    const pixelCount = analysis.info.width * analysis.info.height
+    let sumAlpha = 0
+    let minLum = 255
+    let maxLum = 0
+
+    for (let i = 0; i < analysis.data.length; i += 4) {
+      const r = analysis.data[i]
+      const g = analysis.data[i + 1]
+      const b = analysis.data[i + 2]
+      const a = analysis.data[i + 3]
+      sumAlpha += a
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+      minLum = Math.min(minLum, lum)
+      maxLum = Math.max(maxLum, lum)
+    }
+
+    const avgAlpha = sumAlpha / (pixelCount * 255)
+    const lumRange = maxLum - minLum
+    return { avgAlpha, lumRange }
   }
 
-  const avgAlpha = sumAlpha / (pixelCount * 255)
-  const lumRange = maxLum - minLum
-  if (avgAlpha < 0.08) {
-    throw new ValidationError('Profile photo failed moderation checks')
-  }
-  if (lumRange < 6 && avgAlpha > 0.2) {
-    throw new ValidationError('Profile photo failed moderation checks')
+  const passesModeration = (avgAlpha: number, lumRange: number) => {
+    if (avgAlpha < 0.08) return false
+    if (lumRange < 6 && avgAlpha > 0.2) return false
+    return true
   }
 
   const isFiniteNumber = (value: unknown): value is number =>
@@ -173,8 +177,53 @@ export async function saveAvatar(
     return { left, top, width: side, height: side }
   }
 
-  const extract = getCropExtract(width, height)
-  const pipeline = extract ? input.clone().extract(extract) : input.clone()
+  // If crop data exists, try extracting from both the rotated and raw
+  // coordinate systems. Then choose the candidate that passes moderation
+  // for the extracted region. This helps with EXIF orientation mismatches
+  // between browser and backend.
+  let pipeline: any = inputRotated.clone()
+  if (crop) {
+    let rotatedCandidate: any | null = null
+    let rawCandidate: any | null = null
+    try {
+      const extractRotated = getCropExtract(width, height)
+      if (extractRotated) rotatedCandidate = inputRotated.clone().extract(extractRotated)
+    } catch {
+      // Ignore and try other candidate.
+    }
+
+    try {
+      const extractRaw = getCropExtract(rawWidth, rawHeight)
+      if (extractRaw) rawCandidate = inputRaw.clone().extract(extractRaw).rotate()
+    } catch {
+      // Ignore and try other candidate.
+    }
+
+    const rotatedEval = rotatedCandidate ? await analyzeCandidate(rotatedCandidate) : null
+    const rawEval = rawCandidate ? await analyzeCandidate(rawCandidate) : null
+
+    const rotatedPass = rotatedEval
+      ? passesModeration(rotatedEval.avgAlpha, rotatedEval.lumRange)
+      : false
+    const rawPass = rawEval ? passesModeration(rawEval.avgAlpha, rawEval.lumRange) : false
+
+    if (!rotatedPass && !rawPass) {
+      throw new ValidationError('Profile photo failed moderation checks')
+    }
+
+    if (rotatedPass && rawPass) {
+      // Pick the candidate with a wider luminance range (more likely to contain useful image detail).
+      const pickRotated = (rotatedEval?.lumRange ?? -Infinity) >= (rawEval?.lumRange ?? -Infinity)
+      pipeline = pickRotated ? rotatedCandidate : rawCandidate
+    } else {
+      pipeline = rotatedPass ? rotatedCandidate : rawCandidate
+    }
+  } else {
+    const eval0 = await analyzeCandidate(pipeline)
+    if (!passesModeration(eval0.avgAlpha, eval0.lumRange)) {
+      throw new ValidationError('Profile photo failed moderation checks')
+    }
+  }
 
   const outputCommon = {
     fit: 'cover' as const,

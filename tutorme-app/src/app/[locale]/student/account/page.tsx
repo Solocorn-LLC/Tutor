@@ -37,7 +37,6 @@ import {
   Pencil,
   X,
 } from 'lucide-react'
-import Image from 'next/image'
 import { BackButton } from '@/components/navigation'
 
 const LANGUAGES = [
@@ -71,6 +70,7 @@ interface BillingRecord {
 export default function StudentAccount() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
@@ -164,9 +164,16 @@ export default function StudentAccount() {
   const handleSaveProfile = async () => {
     setSaving(true)
     try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      const csrfToken = csrfData?.token ?? null
+
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify({
           avatarUrl: formData.avatarUrl,
           preferredLanguage: formData.language,
@@ -183,6 +190,58 @@ export default function StudentAccount() {
       toast.error('Failed to update profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024
+  const ACCEPTED_AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp']
+  const uploadAvatar = async (file: File) => {
+    if (!ACCEPTED_AVATAR_MIME.includes(file.type)) {
+      toast.error('Accepted formats: JPG, PNG, WEBP only')
+      return
+    }
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      toast.error('Maximum size is 10 MB')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      const csrfToken = csrfData?.token ?? null
+
+      const form = new FormData()
+      form.set('avatar', file)
+
+      const res = await fetch('/api/user/avatar', {
+        method: 'POST',
+        headers: {
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        credentials: 'include',
+        body: form,
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data?.error || 'Failed to upload photo')
+        return
+      }
+
+      const newUrl = data?.avatarUrl ?? data?.url ?? null
+      if (!newUrl || typeof newUrl !== 'string') {
+        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
+        return
+      }
+
+      // Stored URLs can be relative (`/uploads/...`) or absolute (GCS). `img` can handle both.
+      setFormData(prev => ({ ...prev, avatarUrl: newUrl }))
+      toast.success('Profile photo updated')
+    } catch {
+      toast.error('Failed to upload photo')
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -356,13 +415,13 @@ export default function StudentAccount() {
                   <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full border-2 border-white bg-gray-200 shadow-sm">
                     {formData.avatarUrl ? (
                       <>
-                        <Image
+                        <img
                           src={formData.avatarUrl}
                           alt="Avatar"
                           width={80}
                           height={80}
-                          unoptimized
                           className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
                         />
                         {/* Edit/Delete overlay */}
                         <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 transition-opacity hover:opacity-100">
@@ -395,15 +454,12 @@ export default function StudentAccount() {
                       id="avatarUpload"
                       type="file"
                       accept="image/*"
+                      disabled={uploadingAvatar}
                       onChange={e => {
                         const file = e.target.files?.[0]
-                        if (file) {
-                          const reader = new FileReader()
-                          reader.onloadend = () => {
-                            setFormData({ ...formData, avatarUrl: reader.result as string })
-                          }
-                          reader.readAsDataURL(file)
-                        }
+                        if (file) void uploadAvatar(file)
+                        // Allow selecting the same file again.
+                        e.currentTarget.value = ''
                       }}
                       className="mt-1"
                     />
