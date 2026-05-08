@@ -207,36 +207,45 @@ jobs:
         id: run-migrations
         run: |
           set -e
-          EXECUTION=$(gcloud run jobs execute "${{ env.MIGRATION_JOB_NAME }}" \
+          echo "=== Execute migration job ==="
+          set +e
+          OUTPUT=$(gcloud run jobs execute "${{ env.MIGRATION_JOB_NAME }}" \
             --region="${{ env.REGION }}" \
             --project="${{ env.PROJECT_ID }}" \
-            --wait --format="value(metadata.name)")
-          echo "EXECUTION=${EXECUTION}" >> $GITHUB_ENV
-          gcloud run jobs executions list \
-            --job="${{ env.MIGRATION_JOB_NAME }}" \
-            --region="${{ env.REGION }}" \
-            --project="${{ env.PROJECT_ID }}" \
-            --limit=1
+            --wait 2>&1)
+          EXIT_CODE=$?
+          set -e
+          echo "${OUTPUT}"
 
-      - name: Fetch migration logs on failure
-        if: failure()
-        run: |
-          echo "=== Migration Job Logs ==="
-          EXECUTION=$(gcloud run jobs executions list \
-            --job="${{ env.MIGRATION_JOB_NAME }}" \
-            --region="${{ env.REGION }}" \
-            --project="${{ env.PROJECT_ID }}" \
-            --limit=1 --format="value(metadata.name)")
-          gcloud logging read "resource.type=cloud_run_job resource.labels.job_name=\"${{ env.MIGRATION_JOB_NAME }}\" resource.labels.location=\"${{ env.REGION }}\" resource.labels.execution_name=\"${EXECUTION}\"" \
-            --project="${{ env.PROJECT_ID }}" \
-            --limit=100 \
-            --format="table(timestamp,severity,textPayload)" || true
-          echo ""
-          echo "=== Execution Details (${EXECUTION}) ==="
-          gcloud run jobs executions describe "${EXECUTION}" \
-            --region="${{ env.REGION }}" \
-            --project="${{ env.PROJECT_ID }}" \
-            --format="yaml" || true
+          EXECUTION=$(echo "${OUTPUT}" | sed -n 's/.*gcloud run jobs executions describe \([^ ]*\).*/\1/p' | tail -n 1)
+          if [ -z "${EXECUTION}" ]; then
+            EXECUTION=$(gcloud run jobs executions list \
+              --job="${{ env.MIGRATION_JOB_NAME }}" \
+              --region="${{ env.REGION }}" \
+              --project="${{ env.PROJECT_ID }}" \
+              --limit=1 --format="value(metadata.name)" 2>/dev/null || true)
+          fi
+          echo "EXECUTION=${EXECUTION}" >> $GITHUB_ENV
+
+          if [ "${EXIT_CODE}" -ne 0 ]; then
+            echo ""
+            echo "=== Migration Job Logs (execution: ${EXECUTION:-unknown}) ==="
+            if [ -n "${EXECUTION}" ]; then
+              gcloud logging read "resource.type=cloud_run_job resource.labels.job_name=\"${{ env.MIGRATION_JOB_NAME }}\" resource.labels.location=\"${{ env.REGION }}\" resource.labels.execution_name=\"${EXECUTION}\"" \
+                --project="${{ env.PROJECT_ID }}" \
+                --limit=200 \
+                --format="table(timestamp,severity,textPayload,jsonPayload.message)" || true
+              echo ""
+              echo "=== Execution Details (${EXECUTION}) ==="
+              gcloud run jobs executions describe "${EXECUTION}" \
+                --region="${{ env.REGION }}" \
+                --project="${{ env.PROJECT_ID }}" \
+                --format="yaml" || true
+            else
+              echo "Unable to resolve execution name from gcloud output."
+            fi
+            exit "${EXIT_CODE}"
+          fi
 
       - name: Deploy to Cloud Run (100% traffic)
         id: deploy-prod
