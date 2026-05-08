@@ -171,16 +171,34 @@ jobs:
             --set-env-vars="NODE_ENV=production,DATABASE_URL=${{ secrets.DATABASE_URL }},DIRECT_URL=${{ secrets.DIRECT_URL }}"
 
       - name: Run migrations (Cloud Run Job)
+        id: run-migrations
         run: |
           set -e
-          gcloud run jobs execute "${{ env.MIGRATION_JOB_NAME }}" \
+          EXECUTION=$(gcloud run jobs execute "${{ env.MIGRATION_JOB_NAME }}" \
             --region="${{ env.REGION }}" \
             --project="${{ env.PROJECT_ID }}" \
-            --wait
+            --wait --format="value(metadata.name)")
+          echo "EXECUTION=${EXECUTION}" >> $GITHUB_ENV
           gcloud run jobs executions list "${{ env.MIGRATION_JOB_NAME }}" \
             --region="${{ env.REGION }}" \
             --project="${{ env.PROJECT_ID }}" \
             --limit=1
+
+      - name: Fetch migration logs on failure
+        if: failure() && steps.run-migrations.outcome == 'failure'
+        run: |
+          echo "=== Migration Job Logs ==="
+          gcloud logging read "resource.type=cloud_run_job \
+            resource.labels.job_name=${{ env.MIGRATION_JOB_NAME }} \
+            resource.labels.location=${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --limit=100 \
+            --format="table(timestamp,severity,textPayload)" || true
+          echo "=== Execution Details ==="
+          gcloud run jobs executions describe "${{ env.EXECUTION }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --format="yaml" || true
 
       - name: Deploy to Cloud Run (100% traffic)
         id: deploy-prod
