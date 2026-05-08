@@ -45,10 +45,28 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
       }
     }
 
+    try {
+      const { isGcsConfigured, downloadBuffer } = await import('@/lib/storage/gcs')
+      if (isGcsConfigured()) {
+        const gcsKey = `avatars/${pathSegments.join('/')}`
+        const data = await downloadBuffer(gcsKey)
+        if (data) {
+          const body = new Uint8Array(data)
+          return new NextResponse(body, {
+            headers: {
+              'Content-Type': getContentType(gcsKey),
+              'Cache-Control': 'public, max-age=31536000, immutable',
+            },
+          })
+        }
+      }
+    } catch {
+      // Ignore and fall through.
+    }
+
     return new NextResponse('File not found', { status: 404 })
   } catch (error) {
     console.error('[public avatar] Error:', error)
     return new NextResponse('Internal Server Error', { status: 500 })
   }
 }
-

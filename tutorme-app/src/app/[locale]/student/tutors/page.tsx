@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,22 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  BookOpen,
-  Compass,
-  ExternalLink,
-  Search,
-  Sparkles,
-  Users,
-  Star,
-  Heart,
-  Video,
-  Calendar,
-  UserPlus,
-} from 'lucide-react'
+import { Compass, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
-import { cn } from '@/lib/utils'
+import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
 
 interface TutorCoursePreview {
   id: string
@@ -62,25 +48,6 @@ interface TutorDirectoryItem {
   coursePreview: TutorCoursePreview[]
   averageRating?: number
   totalReviewCount?: number
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map(part => part[0] || '')
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
-function StarRating({ rating, count }: { rating: number; count?: number }) {
-  return (
-    <div className="flex items-center gap-1 text-xs">
-      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-      <span className="ml-1 text-base font-medium text-slate-100">{rating.toFixed(1)}</span>
-      {count !== undefined && <span className="ml-1 text-slate-400">({count})</span>}
-    </div>
-  )
 }
 
 export default function StudentTutorDirectoryPage() {
@@ -365,137 +332,29 @@ export default function StudentTutorDirectoryPage() {
           </Card>
         ) : (
           tutors.map(tutor => (
-            <div
+            <TutorCard
               key={tutor.id}
-              className={cn(
-                'group relative flex cursor-pointer flex-col overflow-hidden rounded-[20px] text-left transition-all duration-300',
-                'border border-[rgba(255,255,255,0.12)]',
-                'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
-                'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)]',
-                'hover:-translate-y-[2px] hover:brightness-105',
-                'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]',
-                ''
-              )}
-              style={{
-                backgroundImage:
-                  'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
+              tutor={{
+                id: tutor.id,
+                username: tutor.username,
+                name: tutor.name,
+                avatar: tutor.avatarUrl,
+                bio: tutor.bio,
+                rating: tutor.averageRating || 0,
+                reviewCount: tutor.totalReviewCount || 0,
+                hourlyRate: tutor.hourlyRate,
+                currency: 'SGD',
+                nextAvailableSlot: null,
+                totalStudents: tutor.totalEnrollments,
+                totalClasses: tutor.courseCount,
+                specialties: tutor.categories,
+                countries: tutor.tutorNationalities,
               }}
               onClick={() => router.push(`/${locale}/u/${tutor.username}`)}
-            >
-              <div className="flex flex-col p-5">
-                {/* Header */}
-                <div className="flex items-start gap-4">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)] sm:h-24 sm:w-24">
-                    <img
-                      src={tutor.avatarUrl || undefined}
-                      alt={tutor.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col pt-1">
-                    <h3 className="truncate text-lg font-semibold leading-tight text-slate-50">
-                      {tutor.name}
-                    </h3>
-                    <p className="text-xs font-medium text-slate-300">@{tutor.username}</p>
-                    <p className="mt-1 truncate text-xs text-slate-300">
-                      {tutor.specialties?.[0] ||
-                        tutor.categories?.[0] ||
-                        'Experienced tutor ready to help'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bio — supports up to ~500 chars */}
-                <div className="mt-3 text-sm leading-relaxed text-slate-100">
-                  {tutor.bio || 'Experienced tutor ready to help you improve quickly.'}
-                </div>
-
-                {/* Rating */}
-                <div className="mt-3">
-                  <StarRating
-                    rating={tutor.averageRating || 0}
-                    count={tutor.totalReviewCount || 0}
-                  />
-                </div>
-
-                {/* Tags */}
-                <div className="mt-3 space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {tutor.categories.slice(0, 3).map(category => (
-                      <span
-                        key={`${tutor.id}:${category}`}
-                        className="rounded-full border border-[rgba(255,255,255,0.2)] px-2.5 py-0.5 text-[11px] text-slate-200"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(tutor.tutorNationalities || []).slice(0, 3).map(nat => (
-                      <span
-                        key={`${tutor.id}:nat:${nat}`}
-                        className="rounded-full border border-[rgba(255,255,255,0.2)] px-2.5 py-0.5 text-[11px] text-slate-200"
-                      >
-                        {nat}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="my-3 border-b border-[rgba(255,255,255,0.1)]" />
-
-                {/* Stats — icon + label + number on one line */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-                    <BookOpen className="h-4 w-4 text-slate-300" />
-                    <span className="text-xs text-slate-300">Courses</span>
-                    <span className="ml-auto text-sm font-semibold text-slate-100">
-                      {tutor.courseCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] px-3 py-2">
-                    <Users className="h-4 w-4 text-slate-300" />
-                    <span className="text-xs text-slate-300">Enrollments</span>
-                    <span className="ml-auto text-sm font-semibold text-slate-100">
-                      {tutor.totalEnrollments}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Button
-                    asChild
-                    variant="solocorn-book"
-                    className="h-auto rounded-xl py-2.5 text-sm"
-                  >
-                    <Link
-                      href={`/${locale}/u/${tutor.username}?book=1`}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <Video className="h-4 w-4" />
-                      Book 1 on 1
-                    </Link>
-                  </Button>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation()
-                      toggleFollow(tutor.id)
-                    }}
-                    className={cn(
-                      'flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-all duration-200',
-                      following.has(tutor.id)
-                        ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30'
-                        : 'border-white/50 bg-transparent text-white hover:border-transparent hover:bg-white hover:text-[#0B3A9B]'
-                    )}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    {following.has(tutor.id) ? 'Following' : 'Follow'}
-                  </button>
-                </div>
-              </div>
-            </div>
+              followState={following.has(tutor.id) ? 'following' : 'not-following'}
+              onFollowToggle={() => toggleFollow(tutor.id)}
+              bookHref={`/${locale}/u/${tutor.username}?book=1`}
+            />
           ))
         )}
       </div>

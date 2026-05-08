@@ -755,9 +755,10 @@ export default function TutorCoursePage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
-                          style={{ width: regionDropdownWidth }}
+                          style={{ width: regionDropdownWidth || undefined }}
                           align="start"
                           sideOffset={6}
+                          className="min-w-[280px]"
                         >
                           <ScrollArea className="h-[200px]">
                             {REGIONS.map(region => (
@@ -799,8 +800,8 @@ export default function TutorCoursePage() {
                           variant="metallic"
                           align="start"
                           sideOffset={6}
-                          style={{ width: countryDropdownWidth }}
-                          className="max-h-[320px] overflow-y-auto p-4"
+                          style={{ width: countryDropdownWidth || undefined }}
+                          className="max-h-[320px] min-w-[280px] overflow-y-auto p-4"
                         >
                           {availableCountries.length === 0 ? (
                             <div className="py-4 text-center text-xs text-white/70">

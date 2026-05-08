@@ -138,7 +138,7 @@ export async function getAdminSession(req?: NextRequest): Promise<AdminSession |
 
     if (req) {
       // Server-side from request
-      token = req.cookies.get(ADMIN_TOKEN_NAME)?.value
+      token = req.cookies?.get?.(ADMIN_TOKEN_NAME)?.value
     } else {
       // Server component
       const cookieStore = await cookies()

@@ -261,7 +261,7 @@ export async function saveAvatar(
         uploadBuffer(buf128, `${gcsPrefix}-128.webp`, 'image/webp', true),
         uploadBuffer(buf64, `${gcsPrefix}-64.webp`, 'image/webp', true),
       ])
-      return `https://storage.googleapis.com/${process.env.GCS_BUCKET}/${gcsPrefix}-256.webp`
+      return `/api/public/avatar/${userId}/${baseName}-256.webp`
     } catch (error) {
       console.warn('Avatar GCS upload failed, falling back to local storage:', error)
     }
@@ -342,6 +342,15 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
   // Local filesystem deletion (new public avatar API path)
   if (avatarUrl.startsWith('/api/public/avatar/')) {
     try {
+      const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')
+      if (isGcsConfigured()) {
+        const relativeKey = avatarUrl.replace('/api/public/avatar/', '')
+        const key = `avatars/${relativeKey}`
+        await deleteObject(key).catch(() => {})
+        await deleteObject(key.replace('-256.webp', '-128.webp')).catch(() => {})
+        await deleteObject(key.replace('-256.webp', '-64.webp')).catch(() => {})
+      }
+
       const path = await import('path')
       const os = await import('os')
       const { unlink } = await import('fs/promises')

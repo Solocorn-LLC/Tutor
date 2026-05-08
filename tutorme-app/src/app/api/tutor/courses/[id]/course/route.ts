@@ -24,7 +24,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const lessons = await CourseBuilderService.getCourseBuilderData(courseId, userId)
     return NextResponse.json({ lessons })
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error('Unknown error')
     console.error('[CourseBuilder GET] Error:', error.message)
     if (error.message.includes('not found')) {
       return NextResponse.json({ error: 'Not found or not yours' }, { status: 404 })
@@ -47,12 +48,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   console.log('[CourseBuilder PUT] Starting save for courseId:', courseId, 'userId:', userId)
 
   const body = await req.json().catch(() => ({}))
-  const lessons: any[] = body.lessons
+  const lessons = (body as { lessons?: unknown }).lessons
 
   try {
     await CourseBuilderService.updateCourseBuilderData(courseId, userId, lessons)
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error('Unknown error')
     console.error('[CourseBuilder PUT] Error:', error.message)
     if (error.message.includes('not found')) {
       return NextResponse.json({ error: 'Not found or not yours' }, { status: 404 })

@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
-import { withAuth } from '@/lib/api/middleware'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/admin/auth'
+import { Permissions } from '@/lib/admin/permissions'
 
-export const GET = withAuth(
-  async () => {
-    return NextResponse.json({ payments: [] })
-  },
-  { role: 'ADMIN' }
-)
+export const GET = async (req: NextRequest) => {
+  const auth = await requireAdmin(req, Permissions.PAYMENTS_READ)
+  if (!auth.session) return auth.response!
+  return NextResponse.json({ payments: [] })
+}

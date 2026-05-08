@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession, authOptions } from '@/lib/auth'
 import { backfillCalendarEventsForLiveSessions } from '@/lib/sessions/create-session'
+import { requireAdmin } from '@/lib/admin/auth'
+import { Permissions } from '@/lib/admin/permissions'
+import { requireAdminIp } from '@/lib/api/middleware'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -15,15 +17,10 @@ const querySchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions, request)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const auth = await requireAdmin(request, Permissions.SYSTEM_MAINTENANCE)
+    if (!auth.session) return auth.response!
+    const ipErr = requireAdminIp(request)
+    if (ipErr) return ipErr
 
     const { searchParams } = new URL(request.url)
     const parsed = querySchema.parse({

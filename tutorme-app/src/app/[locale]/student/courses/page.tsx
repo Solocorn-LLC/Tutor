@@ -45,7 +45,7 @@ import {
   DialogTitle,
   DialogPanel,
 } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { cn, resolvePublicUrl } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
@@ -777,9 +777,9 @@ function CoursePageInner() {
                         <div className="flex h-full flex-col p-5">
                           <div className="flex items-start gap-4">
                             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)]">
-                              {tutor.avatarUrl ? (
+                              {resolvePublicUrl(tutor.avatarUrl) ? (
                                 <img
-                                  src={tutor.avatarUrl}
+                                  src={resolvePublicUrl(tutor.avatarUrl)}
                                   alt={tutor.name}
                                   className="h-full w-full object-cover"
                                 />

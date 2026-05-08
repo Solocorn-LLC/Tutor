@@ -19,7 +19,7 @@ RUN npm install --no-save --legacy-peer-deps @parcel/watcher-linux-x64-glibc @sw
 # Dummy env for build
 RUN echo "DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy" >> .env.production && \
     echo "DIRECT_URL=postgresql://dummy:dummy@localhost:5432/dummy" >> .env.production && \
-    echo "NEXTAUTH_SECRET=dummy" >> .env.production
+    echo "NEXTAUTH_SECRET=dummy_dummy_dummy_dummy_dummy_dummy_32_chars" >> .env.production
 
 RUN npm run build
 # Compile the custom socket server

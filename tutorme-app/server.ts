@@ -59,11 +59,11 @@ const server = createServer(async (req, res) => {
   try {
     // 1. Check for health check endpoint
     if (req.url === '/api/health' || req.url === '/health') {
-      res.statusCode = isReady ? 200 : 503
+      res.statusCode = isReady && !initError ? 200 : 503
       res.setHeader('Content-Type', 'application/json')
       res.end(
         JSON.stringify({
-          status: isReady ? 'up' : 'initializing',
+          status: isReady && !initError ? 'up' : isReady ? 'degraded' : 'initializing',
           error: initError?.message,
           timestamp: new Date().toISOString(),
         })
@@ -114,17 +114,23 @@ server
       try {
         console.log('[Server] Step 1: Validating Environment...')
         validateEnv()
-      } catch (envErr: any) {
-        console.error('⚠️ [Server] Environment Validation Warning:', envErr?.message)
-        // We log it but do not crash the initialization sequence!
-        initError = envErr
+      } catch (envErr: unknown) {
+        const error = envErr instanceof Error ? envErr : new Error('Environment validation failed')
+        console.error('❌ [Server] Environment Validation Failed:', error.message)
+        initError = error
+        if (process.env.NODE_ENV === 'production') {
+          process.exit(1)
+        }
       }
 
       // Step 1b: Apply idempotent schema drift fixes (dev / local only)
       try {
-        await applyStartupSchemaFixes()
-      } catch (schemaErr: any) {
-        console.error('⚠️ [Server] Schema fix warning:', schemaErr?.message)
+        if (process.env.NODE_ENV !== 'production') {
+          await applyStartupSchemaFixes()
+        }
+      } catch (schemaErr: unknown) {
+        const error = schemaErr instanceof Error ? schemaErr : new Error('Schema fix failed')
+        console.error('⚠️ [Server] Schema fix warning:', error.message)
       }
 
       // Step 2 & 3: Prepare Next.js and Socket.io
@@ -140,9 +146,10 @@ server
 
         console.log('🎉 [Server] FULLY OPERATIONAL.')
         isReady = true
-      } catch (err: any) {
-        console.error('❌ [Server] Background Initialization Failed:', err)
-        initError = err
+      } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error('Background initialization failed')
+        console.error('❌ [Server] Background Initialization Failed:', error)
+        initError = error
 
         // CRITICAL FIX: Only set isReady=true if app.prepare() actually finished
         if (isNextPrepared) {

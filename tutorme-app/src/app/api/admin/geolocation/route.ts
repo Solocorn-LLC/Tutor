@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api/middleware'
-import { getServerSession, authOptions } from '@/lib/auth'
+import { requireAdmin } from '@/lib/admin/auth'
+import { Permissions } from '@/lib/admin/permissions'
 
 export interface GeoCoordinates {
   lat: number
@@ -54,11 +55,8 @@ function setGeoCache(ip: string, coords: GeoCoordinates) {
  * Fetch geolocation for a single IP
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions, request)
-
-  if (!session?.user?.role || !['ADMIN', 'TUTOR'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAdmin(request, Permissions.SECURITY_READ)
+  if (!auth.session) return auth.response!
 
   const ip = request.nextUrl.searchParams.get('ip')
 
@@ -124,11 +122,8 @@ export async function GET(request: NextRequest) {
  * Batch fetch geolocation for multiple IPs
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions, request)
-
-  if (!session?.user?.role || !['ADMIN', 'TUTOR'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAdmin(request, Permissions.SECURITY_READ)
+  if (!auth.session) return auth.response!
 
   try {
     const body = await request.json()

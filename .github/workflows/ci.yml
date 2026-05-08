@@ -49,6 +49,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Build landing page (integrated)
+        run: |
+          cd ../landing-page
+          npm ci
+          npm run build
+          cd ../tutorme-app
+          cp -r ../landing-page/dist/* public/
+
       - name: Install Linux native bindings (Next.js build on ubuntu-latest)
         run: npm install --no-save --legacy-peer-deps @parcel/watcher-linux-x64-glibc @swc/core-linux-x64-gnu @next/swc-linux-x64-gnu
 

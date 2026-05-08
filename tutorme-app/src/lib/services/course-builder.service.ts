@@ -3,6 +3,30 @@ import { course, courseLesson } from '@/lib/db/schema'
 import { eq, and, inArray, asc } from 'drizzle-orm'
 import crypto from 'crypto'
 
+export interface BuilderLessonMedia {
+  videos: unknown[]
+  images: unknown[]
+}
+
+export interface BuilderLessonInput {
+  id?: string
+  title?: string
+  description?: string | null
+  order?: number
+  isPublished?: boolean
+  duration?: number
+  media?: BuilderLessonMedia
+  docs?: unknown[]
+  content?: unknown[]
+  tasks?: unknown[]
+  assessments?: unknown[]
+  homework?: unknown[]
+  quizzes?: unknown[]
+  worksheets?: unknown[]
+  difficultyMode?: string
+  variants?: Record<string, unknown>
+}
+
 export interface BuilderLessonData {
   id: string
   title: string
@@ -10,16 +34,16 @@ export interface BuilderLessonData {
   order: number
   isPublished?: boolean
   duration?: number
-  media?: any
-  docs?: any[]
-  content?: any[]
-  tasks?: any[]
-  assessments?: any[]
-  homework?: any[]
-  quizzes?: any[]
-  worksheets?: any[]
+  media?: BuilderLessonMedia
+  docs?: unknown[]
+  content?: unknown[]
+  tasks?: unknown[]
+  assessments?: unknown[]
+  homework?: unknown[]
+  quizzes?: unknown[]
+  worksheets?: unknown[]
   difficultyMode?: string
-  variants?: any
+  variants?: Record<string, unknown>
 }
 
 export class CourseBuilderService {
@@ -50,24 +74,36 @@ export class CourseBuilderService {
 
     // Transform to expected frontend structure
     return dbLessons.map(l => {
-      const bData = (l.builderData || {}) as any
+      const bData = (l.builderData ?? {}) as Record<string, unknown>
+      const media = (bData.media ?? { videos: [], images: [] }) as BuilderLessonMedia
+      const docs = Array.isArray(bData.docs) ? bData.docs : []
+      const content = Array.isArray(bData.content) ? bData.content : []
+      const tasks = Array.isArray(bData.tasks) ? bData.tasks : []
+      const assessments = Array.isArray(bData.assessments) ? bData.assessments : []
+      const homework = Array.isArray(bData.homework) ? bData.homework : []
+      const quizzes = Array.isArray(bData.quizzes) ? bData.quizzes : []
+      const worksheets = Array.isArray(bData.worksheets) ? bData.worksheets : []
+
       return {
         id: l.lessonId,
         title: l.title,
         description: l.description || '',
         order: l.order || 0,
-        isPublished: bData.isPublished || false,
-        duration: bData.duration || 45,
-        media: bData.media || { videos: [], images: [] },
-        docs: bData.docs || [],
-        content: bData.content || [],
-        tasks: bData.tasks || [],
-        assessments: bData.assessments || [],
-        homework: bData.homework || [],
-        quizzes: bData.quizzes || [],
-        worksheets: bData.worksheets || [],
-        difficultyMode: bData.difficultyMode || 'all',
-        variants: bData.variants || {},
+        isPublished: bData.isPublished === true,
+        duration: typeof bData.duration === 'number' ? bData.duration : 45,
+        media,
+        docs,
+        content,
+        tasks,
+        assessments,
+        homework,
+        quizzes,
+        worksheets,
+        difficultyMode: typeof bData.difficultyMode === 'string' ? bData.difficultyMode : 'all',
+        variants:
+          typeof bData.variants === 'object' && bData.variants !== null
+            ? (bData.variants as Record<string, unknown>)
+            : {},
       }
     })
   }
@@ -79,7 +115,7 @@ export class CourseBuilderService {
   static async updateCourseBuilderData(
     courseId: string,
     userId: string,
-    lessons: any[]
+    lessons: unknown
   ): Promise<void> {
     // Verify ownership
     const [courseRow] = await drizzleDb
@@ -102,7 +138,8 @@ export class CourseBuilderService {
         .where(eq(courseLesson.courseId, courseId))
 
       const existingLessonIds = new Set(existingDbLessons.map(l => l.id))
-      const incomingLessonIds = new Set(lessons.map(l => l.id).filter(Boolean))
+      const incomingLessons = lessons as BuilderLessonInput[]
+      const incomingLessonIds = new Set(incomingLessons.map(l => l.id).filter(Boolean))
 
       const idsToDelete = [...existingLessonIds].filter(id => !incomingLessonIds.has(id))
 
@@ -110,15 +147,16 @@ export class CourseBuilderService {
         await tx.delete(courseLesson).where(inArray(courseLesson.lessonId, idsToDelete))
       }
 
-      for (const [idx, les] of lessons.entries()) {
+      for (const [idx, les] of incomingLessons.entries()) {
         if (!les.id) les.id = crypto.randomUUID()
 
+        const media = les.media ?? { videos: [], images: [] }
         const builderData = {
           isPublished: les.isPublished ?? false,
           duration: les.duration ?? 45,
           difficultyMode: les.difficultyMode ?? 'all',
           variants: les.variants ?? {},
-          media: les.media ?? { videos: [], images: [] },
+          media,
           docs: les.docs ?? [],
           content: les.content ?? [],
           tasks: les.tasks ?? [],

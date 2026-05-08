@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { Heart, BookOpen, Users, Star, Trash2, ExternalLink } from 'lucide-react'
+import { resolvePublicUrl } from '@/lib/utils'
 
 interface FavoriteTutor {
   id: string
@@ -177,7 +178,7 @@ export default function StudentFavoritesPage() {
                   <CardHeader>
                     <div className="flex items-start gap-3 pr-8">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={tutor.avatarUrl || undefined} alt={tutor.name} />
+                        <AvatarImage src={resolvePublicUrl(tutor.avatarUrl)} alt={tutor.name} />
                         <AvatarFallback className="bg-indigo-100 font-bold text-indigo-600">
                           {tutor.name
                             .split(' ')

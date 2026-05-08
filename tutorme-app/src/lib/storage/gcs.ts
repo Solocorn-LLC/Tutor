@@ -225,4 +225,18 @@ export async function uploadBuffer(
   }
 }
 
+export async function downloadBuffer(key: string): Promise<Buffer | null> {
+  const storage = await getStorage()
+  const bucket = storage.bucket(BUCKET)
+  const file = bucket.file(key)
+  try {
+    const [buf] = await file.download()
+    return buf
+  } catch (error: any) {
+    const code = error?.code
+    if (code === 404) return null
+    throw error
+  }
+}
+
 export { MAX_UPLOAD_BYTES }

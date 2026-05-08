@@ -65,7 +65,7 @@ async function invoke(app: ReturnType<typeof createApp>, options: InvokeOptions)
   await new Promise<void>((resolve, reject) => {
     res.once('finish', resolve)
     try {
-      app.handle(req, res)
+      ;(app as unknown as (req: unknown, res: unknown) => void)(req, res)
     } catch (error) {
       reject(error)
     }

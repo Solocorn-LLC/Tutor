@@ -38,6 +38,19 @@ const LiveTranscriptStartedSchema = z.object({
   transcriptId: z.string().min(1),
 })
 
+type LiveTranscriptStartedInput = {
+  sessionId: string
+  tutorId: string
+  roomName: string
+  transcriptId: string
+}
+
+type LlmChatInput = {
+  messages: KimiMessage[]
+  temperature?: number
+  maxTokens?: number
+}
+
 async function generateWithKimi(
   messages: KimiMessage[],
   options: { temperature?: number; maxTokens?: number } = {}
@@ -133,7 +146,8 @@ router.post('/v1/live-transcription/transcript-started', async (req, res) => {
   }
 
   try {
-    await startLiveTranscriptionWorker(parsed.data)
+    const data = parsed.data as LiveTranscriptStartedInput
+    await startLiveTranscriptionWorker(data)
     return res.json({ ok: true })
   } catch (error) {
     return res.status(500).json({ ok: false, error: (error as Error).message })
@@ -184,7 +198,7 @@ router.post('/v1/llm/chat', async (req, res) => {
     return res.status(400).json({ error: 'Invalid request', details: parsed.error })
   }
 
-  const { messages, temperature, maxTokens } = parsed.data
+  const { messages, temperature, maxTokens } = parsed.data as LlmChatInput
 
   try {
     const aiResponse = await generateWithKimi(messages, { temperature, maxTokens })

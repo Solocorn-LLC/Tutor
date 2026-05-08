@@ -10,20 +10,34 @@ ALTER TABLE IF EXISTS "CurriculumLessonProgress" RENAME TO "CourseLessonProgress
 ALTER TABLE IF EXISTS "CurriculumShare" RENAME TO "CourseShare";
 ALTER TABLE IF EXISTS "CurriculumCatalog" RENAME TO "CourseCatalog";
 
--- Step 2: Rename foreign key columns in CourseLesson
-ALTER TABLE "CourseLesson" RENAME COLUMN "curriculumId" TO "courseId";
-
--- Step 3: Rename foreign key columns in CourseEnrollment  
-ALTER TABLE "CourseEnrollment" RENAME COLUMN "curriculumId" TO "courseId";
-
--- Step 4: Rename foreign key columns in CourseProgress
-ALTER TABLE "CourseProgress" RENAME COLUMN "curriculumId" TO "courseId";
-
--- Step 5: Rename foreign key columns in CourseShare
-ALTER TABLE "CourseShare" RENAME COLUMN "curriculumId" TO "courseId";
-
--- Step 6: Rename foreign key columns in LiveSession
-ALTER TABLE "LiveSession" RENAME COLUMN "curriculumId" TO "courseId";
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT *
+    FROM (
+      VALUES
+        ('CourseLesson', 'curriculumId', 'courseId'),
+        ('CourseEnrollment', 'curriculumId', 'courseId'),
+        ('CourseProgress', 'curriculumId', 'courseId'),
+        ('CourseShare', 'curriculumId', 'courseId'),
+        ('LiveSession', 'curriculumId', 'courseId')
+    ) AS t(tbl, from_col, to_col)
+  LOOP
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = r.tbl AND column_name = r.from_col
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = r.tbl AND column_name = r.to_col
+    ) THEN
+      EXECUTE format('ALTER TABLE %I RENAME COLUMN %I TO %I', r.tbl, r.from_col, r.to_col);
+    END IF;
+  END LOOP;
+END $$;
 
 -- Step 7: Update indexes
 DROP INDEX IF EXISTS "Curriculum_isPublished_idx";

@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { AdminSession } from '@/lib/admin/auth'
 
 const mocks = vi.hoisted(() => ({
-  getServerSession: vi.fn(),
+  requireAdmin: vi.fn(),
 }))
 
-vi.mock('@/lib/auth', () => ({
-  getServerSession: mocks.getServerSession,
-  authOptions: {},
+vi.mock('@/lib/admin/auth', () => ({
+  requireAdmin: mocks.requireAdmin,
 }))
 
 import { GET, POST } from './route'
@@ -23,7 +24,10 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('GET returns 401 when unauthenticated', async () => {
-    mocks.getServerSession.mockResolvedValue(null)
+    mocks.requireAdmin.mockResolvedValue({
+      session: null,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    })
     const req = makeNextRequest('http://localhost/api/admin/geolocation?ip=127.0.0.1')
 
     const res = await GET(req)
@@ -33,9 +37,7 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('GET returns 400 when ip is missing', async () => {
-    mocks.getServerSession.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-    })
+    mocks.requireAdmin.mockResolvedValue({ session: { adminId: 'admin-1' } as AdminSession })
     const req = makeNextRequest('http://localhost/api/admin/geolocation')
 
     const res = await GET(req)
@@ -45,9 +47,7 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('GET returns 400 for invalid IPv4 octets', async () => {
-    mocks.getServerSession.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-    })
+    mocks.requireAdmin.mockResolvedValue({ session: { adminId: 'admin-1' } as AdminSession })
     const req = makeNextRequest('http://localhost/api/admin/geolocation?ip=999.1.1.1')
 
     const res = await GET(req)
@@ -57,9 +57,7 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('GET returns 400 for private IPs without calling external API', async () => {
-    mocks.getServerSession.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-    })
+    mocks.requireAdmin.mockResolvedValue({ session: { adminId: 'admin-1' } as AdminSession })
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
@@ -86,9 +84,7 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('POST returns 400 when ips array is invalid', async () => {
-    mocks.getServerSession.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-    })
+    mocks.requireAdmin.mockResolvedValue({ session: { adminId: 'admin-1' } as AdminSession })
     const req = makeNextRequest('http://localhost/api/admin/geolocation', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -102,9 +98,7 @@ describe('/api/admin/geolocation guards', () => {
   })
 
   it('POST returns invalidIps list when one or more IPs are malformed', async () => {
-    mocks.getServerSession.mockResolvedValue({
-      user: { id: 'admin-1', role: 'ADMIN' },
-    })
+    mocks.requireAdmin.mockResolvedValue({ session: { adminId: 'admin-1' } as AdminSession })
     const req = makeNextRequest('http://localhost/api/admin/geolocation', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
