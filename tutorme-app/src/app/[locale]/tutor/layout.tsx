@@ -61,7 +61,11 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const { data: session, status } = useSession()
   const { data: realmSession, status: realmStatus } = useRealmSession('tutor')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [desktopNavOpen, setDesktopNavOpen] = useState(true)
+  const [desktopNavOpen, setDesktopNavOpen] = useState(() => {
+    // Initialize based on current path to prevent sidebar flash on My Page
+    const path = typeof window !== 'undefined' ? window.location.pathname : ''
+    return !(path === '/tutor/my-page' || path.startsWith('/tutor/my-page/'))
+  })
   const localePrefix = useMemo(() => {
     const segments = pathname?.split('/').filter(Boolean) ?? []
     const first = segments[0]

@@ -48,7 +48,6 @@ export function ThemeProvider({
   const [theme, setThemeState] = useState<Theme>(defaultTheme)
   const [mode, setModeState] = useState<Mode>(defaultMode)
   const [resolvedMode, setResolvedMode] = useState<'light' | 'dark'>('light')
-  const [mounted, setMounted] = useState(false)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -62,7 +61,6 @@ export function ThemeProvider({
         // Invalid storage, use defaults
       }
     }
-    setMounted(true)
   }, [storageKey])
 
   // Resolve system mode
@@ -84,22 +82,20 @@ export function ThemeProvider({
 
   // Apply theme and mode to document
   useEffect(() => {
-    if (!mounted) return
-
     const root = window.document.documentElement
 
-    // Remove old theme classes
-    root.classList.remove('aura', 'nimbus', 'sahara', 'light', 'dark')
+    // Remove old mode classes
+    root.classList.remove('light', 'dark')
 
-    // Add new theme class
-    root.classList.add(theme)
+    // Set data-theme attribute (CSS selectors rely on this)
+    root.setAttribute('data-theme', theme)
 
     // Add mode class
     root.classList.add(resolvedMode)
 
     // Store in localStorage
     localStorage.setItem(storageKey, JSON.stringify({ theme, mode }))
-  }, [theme, resolvedMode, mounted, storageKey])
+  }, [theme, resolvedMode, storageKey, mode])
 
   // Theme setter with persistence
   const setTheme = React.useCallback((newTheme: Theme) => {
@@ -137,21 +133,6 @@ export function ThemeProvider({
     setMode,
     toggleMode,
     cycleTheme,
-  }
-
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return (
-      <div
-        style={{
-          visibility: 'hidden',
-          position: 'fixed',
-          inset: 0,
-        }}
-      >
-        {children}
-      </div>
-    )
   }
 
   return (
