@@ -1174,31 +1174,41 @@ const LanguageSelector = ({
 }
 
 const CountdownTimer = () => {
-  const [timeLeft, setTimeLeft] = useState({ days: 14, hours: 5, minutes: 45, seconds: 30 })
+  const [timeLeft, setTimeLeft] = useState({ days: 14, hours: 5, minutes: 40, seconds: 1 })
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
-        if (prev.minutes > 0) return { ...prev, seconds: 59, minutes: prev.minutes - 1 }
-        return prev
+        let { days, hours, minutes, seconds } = prev
+        seconds -= 1
+        if (seconds < 0) { seconds = 59; minutes -= 1 }
+        if (minutes < 0) { minutes = 59; hours -= 1 }
+        if (hours < 0) { hours = 23; days -= 1 }
+        if (days < 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 }
+        return { days, hours, minutes, seconds }
       })
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+  const units = [
+    { value: timeLeft.days, label: 'DAYS' },
+    { value: timeLeft.hours, label: 'HOURS' },
+    { value: timeLeft.minutes, label: 'MINUTES' },
+    { value: timeLeft.seconds, label: 'SECONDS' },
+  ]
   return (
-    <div className="flex items-center gap-2 font-mono">
-      {Object.entries(timeLeft).map(([unit, value]) => (
-        <div
-          key={unit}
-          className="flex h-11 w-11 flex-col items-center justify-center rounded-[10px] border border-white/25 bg-white/90 text-slate-900 shadow-[0_6px_16px_rgba(0,0,0,0.18)]"
-        >
-          <div className="text-[18px] font-bold tabular-nums leading-none">
-            {value.toString().padStart(2, '0')}
+    <div className="flex gap-3 md:gap-4 justify-center items-start font-display">
+      {units.map((unit, i) => (
+        <React.Fragment key={unit.label}>
+          <div className="flex flex-col items-center">
+            <div className="text-3xl md:text-4xl font-bold text-white tabular-nums leading-none">
+              {unit.value.toString().padStart(2, '0')}
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-white/60 mt-1">{unit.label}</div>
           </div>
-          <div className="mt-1 text-[8px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-            {unit}
-          </div>
-        </div>
+          {i < units.length - 1 && (
+            <div className="text-3xl md:text-4xl font-bold text-white/30 leading-none pt-0">:</div>
+          )}
+        </React.Fragment>
       ))}
     </div>
   )
@@ -2752,6 +2762,7 @@ export default function LandingPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false)
 
   const t = (key: string) => translations[key]?.[language] || translations[key]?.['en'] || key
   const formatCount = (value: number | null) =>
@@ -2829,6 +2840,44 @@ export default function LandingPage() {
       <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} mode={mode} />
       <TermsOfServiceModal isOpen={termsOpen} onClose={() => setTermsOpen(false)} mode={mode} />
 
+      {/* How It Works — Coming Soon Modal */}
+      <AnimatePresence>
+        {howItWorksOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-6"
+            onClick={() => setHowItWorksOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
+              <p className="text-gray-500 mb-6">
+                We're working hard to bring you the full experience. Stay tuned!
+              </p>
+              <button
+                onClick={() => setHowItWorksOpen(false)}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <section
           className="relative min-h-screen overflow-hidden"
@@ -2896,34 +2945,37 @@ export default function LandingPage() {
               </form>
             </div>
 
-            <a
-              href="#how-it-works"
+            <button
+              type="button"
+              onClick={() => setHowItWorksOpen(true)}
               className="mt-[22px] rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-[#0B4DFF]"
             >
               How It Works
-            </a>
+            </button>
           </div>
 
-          <div className="absolute bottom-12 left-0 right-0 z-10 px-8">
-            <div className="flex items-end justify-between gap-6">
-              <div className="flex items-center gap-3">
-                <CountdownTimer />
-                <span className="text-sm font-medium text-white">Launch</span>
+          {/* Bottom-right stats + countdown card */}
+          <div className="absolute bottom-6 right-6 z-10">
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-xl shadow-lg w-[280px] md:w-[320px]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-white/90">
+                  <Users className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {typeof tutorTotal === 'number' ? tutorTotal : 5} Tutors
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-white/90">
+                  <BookOpen className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {typeof courseTotal === 'number' ? courseTotal : 36} Courses
+                  </span>
+                </div>
               </div>
-
-              <div className="flex items-center justify-center gap-6">
-                <div className="flex h-11 min-w-[180px] items-center justify-center gap-4 rounded-[10px] border border-white/55 bg-white/5 text-white">
-                  <span className="text-2xl font-semibold tracking-[0.04em]">
-                    {formatCount(tutorTotal)}
-                  </span>
-                  <span className="text-sm font-medium">Tutors</span>
-                </div>
-                <div className="flex h-11 min-w-[180px] items-center justify-center gap-4 rounded-[10px] border border-white/55 bg-white/5 text-white">
-                  <span className="text-2xl font-semibold tracking-[0.04em]">
-                    {formatCount(courseTotal)}
-                  </span>
-                  <span className="text-sm font-medium">Courses</span>
-                </div>
+              <div className="mb-3">
+                <CountdownTimer />
+              </div>
+              <div className="text-center text-sm text-white/70 font-medium">
+                Until Launch
               </div>
             </div>
           </div>
