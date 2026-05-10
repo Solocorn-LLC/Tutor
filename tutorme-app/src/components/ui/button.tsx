@@ -153,6 +153,28 @@ const buttonVariants = cva(
           'disabled:opacity-50',
         ],
 
+        // Modal Primary (Metallic/Dark) - Brand primary action on dark modals
+        'modal-primary-dark': [
+          'bg-[#1D4ED8] text-white',
+          'rounded-[10px]',
+          'h-10 px-6',
+          'shadow-elevation-2',
+          'hover:bg-[#1B45C2]',
+          'active:bg-[#163A9B]',
+          'disabled:opacity-50',
+        ],
+
+        // Modal Secondary (Metallic/Dark) - White cancel on dark modals
+        'modal-secondary-dark': [
+          'bg-white text-black',
+          'border border-white',
+          'rounded-[10px]',
+          'h-10 px-6',
+          'hover:bg-black hover:text-white',
+          'active:bg-black/90',
+          'disabled:opacity-50',
+        ],
+
         // Glass - Translucent effect
         glass: [
           'bg-background/80 backdrop-blur-md',

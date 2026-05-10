@@ -453,11 +453,15 @@ function Book1on1Dialog({
         </div>
 
         <DialogFooter className="gap-3">
-          <Button variant="modal-secondary" onClick={() => onOpenChange(false)} className="h-10">
+          <Button
+            variant="modal-secondary-dark"
+            onClick={() => onOpenChange(false)}
+            className="h-10"
+          >
             Cancel
           </Button>
           <Button
-            variant="modal-primary"
+            variant="modal-primary-dark"
             onClick={handleSubmit}
             disabled={!selectedSlot || submitting || loading}
             className="h-10"

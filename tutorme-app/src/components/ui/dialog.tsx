@@ -454,7 +454,7 @@ function ModalLayout({
             {secondaryAction && (
               <DialogClose asChild>
                 <Button
-                  variant="modal-secondary"
+                  variant={theme === 'metallic' ? 'modal-secondary-dark' : 'modal-secondary'}
                   onClick={secondaryAction.onClick}
                   disabled={secondaryAction.loading}
                 >
@@ -464,7 +464,13 @@ function ModalLayout({
             )}
             {primaryAction && (
               <Button
-                variant={primaryAction.variant === 'destructive' ? 'destructive' : 'modal-primary'}
+                variant={
+                  primaryAction.variant === 'destructive'
+                    ? 'destructive'
+                    : theme === 'metallic'
+                      ? 'modal-primary-dark'
+                      : 'modal-primary'
+                }
                 onClick={primaryAction.onClick}
                 disabled={primaryAction.loading}
               >
@@ -515,12 +521,12 @@ function AlertDialog({
         </DialogHeader>
         <DialogFooter className="sm:justify-end">
           <DialogClose asChild>
-            <Button variant="dialog-secondary" onClick={onCancel}>
+            <Button variant="modal-secondary-dark" onClick={onCancel}>
               {cancelLabel}
             </Button>
           </DialogClose>
           <Button
-            variant="dialog-primary"
+            variant="modal-primary-dark"
             onClick={onConfirm}
             className={variant === 'destructive' ? 'bg-gradient-to-br from-red-500 to-red-700' : ''}
           >

@@ -88,10 +88,10 @@ function LoginForm() {
 
   return (
     <div
-      className="w-full max-w-sm overflow-hidden rounded-[24px] px-6 py-8"
+      className="w-full max-w-sm overflow-hidden rounded-[32px] px-8 py-10"
       style={{
         background:
-          'linear-gradient(135deg, rgba(241,118,35,0.72) 0%, rgba(241,118,35,0.58) 50%, rgba(241,118,35,0.68) 100%)',
+          'linear-gradient(135deg, rgba(241,118,35,0.92) 0%, rgba(241,118,35,0.82) 55%, rgba(241,118,35,0.90) 100%)',
         boxShadow:
           '0 24px 48px rgba(0,0,0,0.12), 0 10px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.25)',
         backdropFilter: 'blur(20px) saturate(140%)',
@@ -103,7 +103,7 @@ function LoginForm() {
         <p className="mt-1 text-sm text-white/75">Enter your email and password to continue</p>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-10">
         {registered && (
           <div className="mb-4 rounded-lg bg-white/20 p-3 text-sm text-white">
             Registration successful! Please log in.
@@ -120,8 +120,8 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
             <Label htmlFor="email" className="text-xs font-medium text-white/85">
               Email
             </Label>
@@ -133,11 +133,11 @@ function LoginForm() {
               onChange={e => setEmail(e.target.value)}
               required
               disabled={isLoading}
-              className="h-10 border-0 bg-white/90 text-[#1F2933] shadow-sm ring-0 placeholder:text-gray-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-white/50"
+              className="h-14 rounded-[18px] border-0 bg-white/85 px-6 text-base text-[#1F2933] shadow-sm ring-0 placeholder:text-gray-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-white/55"
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password" className="text-xs font-medium text-white/85">
                 Password
@@ -158,12 +158,12 @@ function LoginForm() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-10 border-0 bg-white/90 pr-10 text-[#1F2933] shadow-sm ring-0 placeholder:text-gray-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-white/50"
+                className="h-14 rounded-[18px] border-0 bg-white/85 px-6 pr-12 text-base text-[#1F2933] shadow-sm ring-0 placeholder:text-gray-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-white/55"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -177,7 +177,7 @@ function LoginForm() {
               checked={rememberMe}
               onCheckedChange={checked => setRememberMe(checked as boolean)}
               disabled={isLoading}
-              className="border-white/50 data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-[#F17623]"
+              className="h-5 w-5 rounded-full border-white/50 data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-[#F17623]"
             />
             <Label htmlFor="remember" className="text-sm font-normal text-white/80">
               Remember me
@@ -186,7 +186,7 @@ function LoginForm() {
 
           <Button
             type="submit"
-            className="w-full bg-[#1D4ED8] text-white shadow-lg hover:bg-[#1B45C2]"
+            className="h-14 w-full rounded-[18px] bg-[#1D4ED8] text-base font-semibold text-white shadow-lg hover:bg-[#1B45C2]"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -210,7 +210,7 @@ function LoginForm() {
           </Link>
         </div>
 
-        <div className="mt-4 border-t border-white/15 pt-4 text-center">
+        <div className="mt-7 border-t border-white/15 pt-6 text-center">
           <Link href="/" className="text-sm text-white/60 hover:text-white/90">
             ← Back to home
           </Link>
@@ -223,10 +223,10 @@ function LoginForm() {
 function LoginFormFallback() {
   return (
     <div
-      className="w-full max-w-sm overflow-hidden rounded-[24px] px-6 py-8"
+      className="w-full max-w-sm overflow-hidden rounded-[32px] px-8 py-10"
       style={{
         background:
-          'linear-gradient(135deg, rgba(241,118,35,0.72) 0%, rgba(241,118,35,0.58) 50%, rgba(241,118,35,0.68) 100%)',
+          'linear-gradient(135deg, rgba(241,118,35,0.92) 0%, rgba(241,118,35,0.82) 55%, rgba(241,118,35,0.90) 100%)',
         boxShadow:
           '0 24px 48px rgba(0,0,0,0.12), 0 10px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.25)',
         backdropFilter: 'blur(20px) saturate(140%)',
@@ -237,7 +237,7 @@ function LoginFormFallback() {
         <h1 className="text-xl font-bold text-white">Sign In</h1>
         <p className="mt-1 text-sm text-white/75">Enter your email and password to continue</p>
       </div>
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center py-10">
         <Loader2 className="h-8 w-8 animate-spin text-white/80" />
       </div>
     </div>

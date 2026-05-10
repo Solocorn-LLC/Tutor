@@ -144,27 +144,27 @@ export function TutorCard({
       )}
 
       {/* Bio — dashed box with icon */}
-      <div className="flex items-start gap-3 rounded-xl border border-dashed border-white/20 bg-white/5 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
-          <User className="h-5 w-5 text-white/70" />
+      <div className="flex min-h-[150px] items-start gap-6 rounded-[18px] border border-dashed border-white/20 bg-white/5 px-6 py-6">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
+          <User className="h-7 w-7 text-white/70" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white">Bio</p>
-          <p className="mt-1 text-sm leading-relaxed text-white/70">{bioText}</p>
+          <p className="text-base font-semibold text-white">Bio</p>
+          <p className="mt-2 text-sm leading-relaxed text-white/70">{bioText}</p>
         </div>
       </div>
 
       {/* Divider */}
       <div className="border-t border-white/10" />
 
-      {/* Stats — icon + label + number */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3">
+      {/* Stats — pill style */}
+      <div className="flex gap-4">
+        <div className="flex h-14 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-6">
           <BookOpen className="h-5 w-5 text-white/70" />
           <span className="text-sm text-white/80">Courses</span>
           <span className="ml-auto text-lg font-bold text-white">{tutor.totalClasses}</span>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3">
+        <div className="flex h-14 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-6">
           <Users className="h-5 w-5 text-white/70" />
           <span className="text-sm text-white/80">Enrollments</span>
           <span className="ml-auto text-lg font-bold text-white">{tutor.totalStudents}</span>
@@ -196,23 +196,23 @@ export function TutorCard({
               onFollowToggle()
             }}
             className={cn(
-              'flex h-10 items-center gap-1.5 rounded-xl border px-5 text-sm font-semibold transition-all duration-200',
+              'flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full border px-8 text-base font-semibold transition-all duration-200',
               followState === 'following'
                 ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30'
                 : 'border-white/40 bg-white/10 text-white hover:bg-white/20'
             )}
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-5 w-5" />
             {followState === 'following' ? 'Following' : 'Follow'}
           </button>
         ) : (
           <Button
             asChild
             variant="outline"
-            className="h-10 rounded-xl border-white/40 bg-white/10 px-5 text-sm font-semibold text-white hover:bg-white/20 hover:text-white"
+            className="h-14 min-w-[220px] rounded-full border-white/40 bg-white/10 px-8 text-base font-semibold text-white hover:bg-white/20 hover:text-white"
           >
             <Link href={`/u/${tutor.username || tutor.id}`} onClick={e => e.stopPropagation()}>
-              <UserPlus className="mr-1.5 h-4 w-4" />
+              <UserPlus className="mr-2 h-5 w-5" />
               Follow
             </Link>
           </Button>

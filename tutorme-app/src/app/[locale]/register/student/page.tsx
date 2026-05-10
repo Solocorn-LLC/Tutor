@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -16,9 +16,10 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { BookOpen, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { BackButton } from '@/components/navigation'
+import { cn } from '@/lib/utils'
 
 const STEPS = [
   { num: 1, title: 'Account' },
@@ -31,16 +32,17 @@ function Stepper({ currentStep }: { currentStep: number }) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
-        {STEPS.map((s, i) => (
+        {STEPS.map(s => (
           <div key={s.num} className="relative z-10 flex flex-col items-center">
             <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors duration-200 ${
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-colors',
                 currentStep > s.num
-                  ? 'border-[#1D4ED8] bg-[#1D4ED8] text-white'
+                  ? 'bg-[#1D4ED8] text-white'
                   : currentStep === s.num
-                    ? 'border-[#1D4ED8] bg-white text-[#1D4ED8]'
-                    : 'border-gray-200 bg-white text-gray-400'
-              }`}
+                    ? 'bg-[#1D4ED8] text-white'
+                    : 'bg-gray-200 text-gray-500'
+              )}
             >
               {currentStep > s.num ? (
                 <CheckCircle2 className="h-5 w-5" />
@@ -50,7 +52,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
             </div>
             <span
               className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                currentStep >= s.num ? 'text-slate-900' : 'text-gray-400'
+                currentStep >= s.num ? 'text-[#1D4ED8]' : 'text-gray-400'
               }`}
             >
               {s.title}
@@ -58,7 +60,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
           </div>
         ))}
       </div>
-      <div className="relative mb-8 mt-[-2rem]">
+      <div className="relative mb-8 mt-[-2.25rem]">
         <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-gray-200" />
         <div
           className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-[#1D4ED8] transition-all duration-300 ease-in-out"
@@ -82,23 +84,25 @@ export default function StudentRegistrationPage() {
     firstName: '',
     lastName: '',
     age: '',
-    region: '',
-    country: '',
+    nationality: '',
     isSixteen: false,
     tosAccepted: false,
   })
 
-  const selectedRegion = useMemo(
-    () => REGIONS.find(region => region.id === formData.region),
-    [formData.region]
+  const nationalityOptions = useMemo(
+    () =>
+      REGIONS.flatMap(region =>
+        region.countries.map(country => ({
+          ...country,
+          regionName: region.name,
+        }))
+      ),
+    []
   )
-  const countryOptions = useMemo(
-    () => (selectedRegion ? selectedRegion.countries : []),
-    [selectedRegion]
-  )
-  const selectedCountry = useMemo(
-    () => countryOptions.find(country => country.code === formData.country),
-    [countryOptions, formData.country]
+
+  const selectedNationality = useMemo(
+    () => nationalityOptions.find(country => country.code === formData.nationality),
+    [nationalityOptions, formData.nationality]
   )
 
   const goNext = () => setStep(prev => Math.min(4, prev + 1))
@@ -115,8 +119,6 @@ export default function StudentRegistrationPage() {
         toast.error('Please enter your email address')
         return false
       }
-    }
-    if (step === 2) {
       if (!formData.password || !formData.confirmPassword) {
         toast.error('Please enter and confirm your password')
         return false
@@ -125,18 +127,20 @@ export default function StudentRegistrationPage() {
         toast.error('Passwords do not match')
         return false
       }
+      if (!formData.nationality) {
+        toast.error('Please select your nationality')
+        return false
+      }
+    }
+    if (step === 2) {
+      if (!formData.isSixteen) {
+        toast.error('Please confirm if you are 16 years of age or older')
+        return false
+      }
     }
     if (step === 3) {
       if (!formData.age) {
         toast.error('Please enter your age')
-        return false
-      }
-      if (!formData.region || !formData.country) {
-        toast.error('Please select your region and country')
-        return false
-      }
-      if (!formData.isSixteen) {
-        toast.error('Please confirm if you are 16 years of age or older')
         return false
       }
     }
@@ -174,8 +178,8 @@ export default function StudentRegistrationPage() {
           tosAccepted: true,
           profileData: {
             age: Number(formData.age),
-            region: selectedRegion?.name || formData.region,
-            country: selectedCountry?.name || formData.country,
+            region: selectedNationality?.regionName || 'Global',
+            country: selectedNationality?.name || formData.nationality,
             isSixteen: formData.isSixteen,
           },
         }),
@@ -197,27 +201,17 @@ export default function StudentRegistrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white px-4 py-8">
+    <div className="min-h-screen bg-white px-4 py-10">
       <div className="mx-auto max-w-lg">
         <BackButton href="/register" className="mb-4" />
 
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#1D4ED8]/20">
-            <BookOpen className="h-8 w-8 text-[#1D4ED8]" />
-          </div>
-          <h1 className="text-3xl font-bold text-[#1F2933]">Student Registration</h1>
-        </div>
-
         <Stepper currentStep={step} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-[#1F2933]">Create Your Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <Card className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
+          <CardContent className="space-y-6 px-8 py-8">
             {step === 1 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
@@ -226,6 +220,7 @@ export default function StudentRegistrationPage() {
                       value={formData.firstName}
                       onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                       placeholder="John"
+                      className="h-11 rounded-[12px]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -236,6 +231,7 @@ export default function StudentRegistrationPage() {
                       value={formData.lastName}
                       onChange={e => setFormData({ ...formData, lastName: e.target.value })}
                       placeholder="Doe"
+                      className="h-11 rounded-[12px]"
                     />
                   </div>
                 </div>
@@ -249,14 +245,11 @@ export default function StudentRegistrationPage() {
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="student@example.com"
+                    className="h-11 rounded-[12px]"
                   />
                 </div>
-              </>
-            )}
 
-            {step === 2 && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
@@ -268,6 +261,7 @@ export default function StudentRegistrationPage() {
                         value={formData.password}
                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                         placeholder="Create password"
+                        className="h-11 rounded-[12px] pr-10"
                       />
                       <button
                         type="button"
@@ -296,6 +290,7 @@ export default function StudentRegistrationPage() {
                           setFormData({ ...formData, confirmPassword: e.target.value })
                         }
                         placeholder="Confirm password"
+                        className="h-11 rounded-[12px] pr-10"
                       />
                       <button
                         type="button"
@@ -310,62 +305,24 @@ export default function StudentRegistrationPage() {
                         )}
                       </button>
                     </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {step === 3 && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      min={5}
-                      max={100}
-                      value={formData.age}
-                      onChange={e => setFormData({ ...formData, age: e.target.value })}
-                      placeholder="Enter age"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="region">Region</Label>
-                    <Select
-                      value={formData.region}
-                      onValueChange={value =>
-                        setFormData({ ...formData, region: value, country: '' })
-                      }
-                    >
-                      <SelectTrigger id="region">
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REGIONS.map(region => (
-                          <SelectItem key={region.id} value={region.id}>
-                            {region.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {formData.confirmPassword.length > 0 &&
+                      formData.password !== formData.confirmPassword && (
+                        <p className="text-xs text-red-500">Passwords do not match.</p>
+                      )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
+                  <Label htmlFor="nationality">Nationality</Label>
                   <Select
-                    value={formData.country}
-                    onValueChange={value => setFormData({ ...formData, country: value })}
-                    disabled={!formData.region}
+                    value={formData.nationality}
+                    onValueChange={value => setFormData({ ...formData, nationality: value })}
                   >
-                    <SelectTrigger id="country">
-                      <SelectValue
-                        placeholder={formData.region ? 'Select country' : 'Select region first'}
-                      />
+                    <SelectTrigger id="nationality" className="h-11 rounded-[12px]">
+                      <SelectValue placeholder="Select your nationality" />
                     </SelectTrigger>
                     <SelectContent>
-                      {countryOptions.map(country => (
+                      {nationalityOptions.map(country => (
                         <SelectItem key={country.code} value={country.code}>
                           {country.name}
                         </SelectItem>
@@ -373,20 +330,40 @@ export default function StudentRegistrationPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </>
+            )}
 
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <Checkbox
-                    id="isSixteen"
-                    checked={formData.isSixteen}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({ ...prev, isSixteen: checked === true }))
-                    }
+            {step === 2 && (
+              <div className="flex items-start space-x-3 rounded-[14px] border border-slate-200 p-5">
+                <Checkbox
+                  id="isSixteen"
+                  checked={formData.isSixteen}
+                  onCheckedChange={checked =>
+                    setFormData(prev => ({ ...prev, isSixteen: checked === true }))
+                  }
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="isSixteen" className="cursor-pointer font-medium text-slate-900">
+                    I am 16 years of age or older
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="age">Age</Label>
+                  <Input
+                    id="age"
+                    type="number"
+                    min={5}
+                    max={100}
+                    value={formData.age}
+                    onChange={e => setFormData({ ...formData, age: e.target.value })}
+                    placeholder="Enter age"
+                    className="h-11 rounded-[12px]"
                   />
-                  <div className="space-y-1">
-                    <Label htmlFor="isSixteen" className="cursor-pointer font-medium">
-                      I am 16 years of age or older
-                    </Label>
-                  </div>
                 </div>
               </>
             )}
@@ -422,26 +399,38 @@ export default function StudentRegistrationPage() {
               </>
             )}
 
-            <div className="flex items-center justify-between gap-3">
-              <Button variant="outline" onClick={goBack} disabled={step === 1 || isLoading}>
-                Back
-              </Button>
-              {step < 4 ? (
+            <div className={cn(step === 1 ? 'pt-2' : 'pt-1')}>
+              {step === 1 ? (
                 <Button
-                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
+                  className="h-12 w-full rounded-[14px] bg-[#1D4ED8] text-base font-semibold hover:bg-[#1E40AF]"
                   onClick={handleNext}
                   disabled={isLoading}
                 >
                   Continue
                 </Button>
               ) : (
-                <Button
-                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
-                  onClick={handleSubmit}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Creating Account...' : 'Confirm & Create Account'}
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                  <Button variant="outline" onClick={goBack} disabled={step === 1 || isLoading}>
+                    Back
+                  </Button>
+                  {step < 4 ? (
+                    <Button
+                      className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
+                      onClick={handleNext}
+                      disabled={isLoading}
+                    >
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button
+                      className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
+                      onClick={handleSubmit}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Creating Account...' : 'Confirm & Create Account'}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </CardContent>
