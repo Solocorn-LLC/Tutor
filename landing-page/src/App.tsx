@@ -25,6 +25,7 @@ export default function App() {
   const [view, setView] = useState<View>('home');
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleRegistration = (data: any) => {
@@ -84,7 +85,7 @@ export default function App() {
                   transition={{ delay: 0.45, duration: 0.5 }}
                 >
                   <button
-                    onClick={() => setView('register')}
+                    onClick={() => setIsComingSoonOpen(true)}
                     className="px-6 py-2.5 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors shadow-md"
                   >
                     How It Works
@@ -121,6 +122,44 @@ export default function App() {
             className="min-h-screen"
           >
             <ProfilePage tutor={userProfile || {}} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Coming Soon Modal */}
+      <AnimatePresence>
+        {isComingSoonOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-6"
+            onClick={() => setIsComingSoonOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
+              <p className="text-gray-500 mb-6">
+                We're working hard to bring you the full experience. Stay tuned!
+              </p>
+              <button
+                onClick={() => setIsComingSoonOpen(false)}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Got it
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

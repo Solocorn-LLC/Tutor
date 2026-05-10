@@ -144,7 +144,7 @@ let redisSubClient: Redis | null = null
 let ioRef: SocketIOServer | null = null
 
 // Memory management constants
-const ROOM_CLEANUP_INTERVAL = 15 * 60 * 1000 // 15 minutes
+const ROOM_CLEANUP_INTERVAL = 30 * 60 * 1000 // 30 minutes
 const DM_CLEANUP_INTERVAL = 5 * 60 * 1000 // 5 minutes
 const WHITEBOARD_CLEANUP_INTERVAL = 10 * 60 * 1000 // 10 minutes
 const ROOM_MAX_AGE = 4 * 60 * 60 * 1000 // 4 hours
@@ -506,6 +506,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
       methods: ['GET', 'POST'],
       credentials: true,
     },
+    // Keep connections alive through proxies and cloud load balancers
+    pingInterval: 10000,
+    pingTimeout: 15000,
+    transports: ['websocket', 'polling'],
   })
 
   ioRef = io
@@ -814,6 +818,22 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
       // Add user to room with activity tracking
       effectiveRole === 'student' ? addStudentToRoom(socket, room) : addTutorToRoom(socket, room)
+    })
+
+    // Activity ping keeps room and student alive during quiet sessions
+    socket.on('activity_ping', (data: { activity?: string; engagement?: number; understanding?: number; roomId?: string }) => {
+      const roomId = data?.roomId || socket.data.roomId
+      if (!roomId) return
+      const room = activeRooms.get(roomId)
+      if (!room) return
+      room.lastActivity = Date.now()
+      const student = room.students.get(socket.data.userId)
+      if (student) {
+        student.lastActivity = Date.now()
+        if (typeof data?.engagement === 'number') student.engagement = data.engagement
+        if (typeof data?.understanding === 'number') student.understanding = data.understanding
+        if (data?.activity) student.currentActivity = data.activity
+      }
     })
 
     // Poll handlers with DB persistence

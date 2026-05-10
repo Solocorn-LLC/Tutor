@@ -1253,7 +1253,7 @@ export default function PublicTutorPage() {
                   type="button"
                   variant={catalogLayout === 'grid' ? 'default' : 'ghost'}
                   size="sm"
-                  className={cn('h-8 gap-1 px-3', catalogLayout === 'grid' && 'bg-white shadow-sm')}
+                  className="h-8 gap-1 px-3"
                   onClick={() => setCatalogLayout('grid')}
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -1263,7 +1263,7 @@ export default function PublicTutorPage() {
                   type="button"
                   variant={catalogLayout === 'list' ? 'default' : 'ghost'}
                   size="sm"
-                  className={cn('h-8 gap-1 px-3', catalogLayout === 'list' && 'bg-white shadow-sm')}
+                  className="h-8 gap-1 px-3"
                   onClick={() => setCatalogLayout('list')}
                 >
                   <List className="h-4 w-4" />
@@ -1273,10 +1273,7 @@ export default function PublicTutorPage() {
                   type="button"
                   variant={catalogLayout === 'compact' ? 'default' : 'ghost'}
                   size="sm"
-                  className={cn(
-                    'h-8 gap-1 px-3',
-                    catalogLayout === 'compact' && 'bg-white shadow-sm'
-                  )}
+                  className="h-8 gap-1 px-3"
                   onClick={() => setCatalogLayout('compact')}
                 >
                   <PanelsTopLeft className="h-4 w-4" />

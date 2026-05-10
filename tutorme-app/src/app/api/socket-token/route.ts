@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
     }
     const role = session.user.role ?? 'STUDENT'
     const secretEncoded = new TextEncoder().encode(secret)
-    // Longer expiry in dev so tokens survive HMR and short idle; 5m in production
-    const expiry = process.env.NODE_ENV === 'development' ? '24h' : '5m'
+    // Longer expiry so tokens survive reconnection across network blips and session duration
+    const expiry = '24h'
     const socketToken = await new SignJWT({
       id: session.user.id,
       role: typeof role === 'string' ? role : String(role),

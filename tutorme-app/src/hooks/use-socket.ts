@@ -68,9 +68,10 @@ export function useSocket(options?: UseSocketOptions) {
         path: '/api/socket',
         transports: ['websocket', 'polling'],
         auth: { token },
-        timeout: 10000,
-        reconnectionAttempts: 5,
+        timeout: 20000,
+        reconnectionAttempts: 50,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
       })
       if (cancelled) {
         socket.disconnect()

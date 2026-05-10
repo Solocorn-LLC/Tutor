@@ -62,9 +62,9 @@ export class DailyCoProvider implements VideoProvider {
 
     const roomName = `tutorme-${sessionId}-${Date.now()}`
 
-    const expiry = options?.durationMinutes
-      ? new Date(Date.now() + options.durationMinutes * 60 * 1000)
-      : new Date(Date.now() + 4 * 60 * 60 * 1000) // Default 4 hours
+    // Add 60-minute buffer so late starts and overruns don't kick users mid-session
+    const effectiveDuration = (options?.durationMinutes ?? 240) + 60
+    const expiry = new Date(Date.now() + effectiveDuration * 60 * 1000)
 
     const room = await this.fetchDaily('/rooms', {
       method: 'POST',
@@ -149,9 +149,9 @@ export class DailyCoProvider implements VideoProvider {
       return `mock-token-for-${userId}-in-${roomName}`
     }
 
-    const expiry = options?.durationMinutes
-      ? Math.floor(Date.now() / 1000) + options.durationMinutes * 60
-      : Math.floor(Date.now() / 1000) + 4 * 60 * 60 // 4 hours
+    // Add 60-minute buffer so late starts and overruns don't kick users mid-session
+    const effectiveDuration = (options?.durationMinutes ?? 240) + 60
+    const expiry = Math.floor(Date.now() / 1000) + effectiveDuration * 60
 
     const isOwner = options?.isOwner || false
     const isBreakout = roomName.includes('breakout')

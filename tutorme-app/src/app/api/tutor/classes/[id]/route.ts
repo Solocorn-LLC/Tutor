@@ -172,10 +172,11 @@ export const GET = withAuth(
     const linkedCourse = exactNameMatch || containsMatch || subjectSingleton || null
     const deterministicLinkedCourseId = liveSessionRow.courseId || linkedCourse?.id || null
 
+    const sessionDuration = liveSessionRow.durationMinutes ?? 240
     const token = liveSessionRow.roomId
       ? await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
           isOwner: true,
-          durationMinutes: 240,
+          durationMinutes: sessionDuration,
         })
       : null
 

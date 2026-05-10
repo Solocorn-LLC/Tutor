@@ -31,8 +31,9 @@ export function useSimpleSocket(roomId: string, options: SimpleSocketOptions = {
         transports: ['websocket', 'polling'],
         timeout: 20000,
         reconnection: true,
-        reconnectionAttempts: 10,
+        reconnectionAttempts: 50,
         reconnectionDelay: 500,
+        reconnectionDelayMax: 5000,
         auth: { token },
       })
       if (cancelled) {

@@ -60,10 +60,11 @@ export const POST = withCsrf(
     let token = null
     if (classSessionRow.roomId) {
       const isOwner = session.user.id === classSessionRow.tutorId
+      const sessionDuration = classSessionRow.durationMinutes ?? 120
       try {
         token = await dailyProvider.createMeetingToken(classSessionRow.roomId, session.user.id, {
           isOwner,
-          durationMinutes: 120,
+          durationMinutes: sessionDuration,
         })
       } catch (err: any) {
         console.error('[Join] Daily.co token creation failed:', err?.message)
