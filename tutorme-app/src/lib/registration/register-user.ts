@@ -267,25 +267,20 @@ export async function saveAvatar(
     }
   }
 
-  // Local filesystem fallback (development or when GCS is not configured).
-  // Store under tmpdir and serve via /api/public/avatar/... so runtime-created
-  // files remain accessible in production environments (e.g. Cloud Run).
-  const path = await import('path')
-  const os = await import('os')
-  const { mkdir } = await import('fs/promises')
-  const relativeDir = path.join('avatars', userId)
-  const absoluteDir = path.join(os.tmpdir(), 'tutorme_uploads', relativeDir)
-  await mkdir(absoluteDir, { recursive: true })
+  // Database fallback (development or when GCS is not configured).
+  // Stores the avatar as base64-encoded WebP in PostgreSQL so it survives
+  // container restarts on ephemeral filesystems (e.g. GCP Cloud Run).
+  const base64Data = buf256.toString('base64')
+  const dataUrl = `data:image/webp;base64,${base64Data}`
 
-  const local256 = path.join(absoluteDir, `${baseName}-256.webp`)
-  const local128 = path.join(absoluteDir, `${baseName}-128.webp`)
-  const local64 = path.join(absoluteDir, `${baseName}-64.webp`)
-
-  await Promise.all([
-    sharp(buf256).toFile(local256),
-    sharp(buf128).toFile(local128),
-    sharp(buf64).toFile(local64),
-  ])
+  const { avatarStorage } = await import('@/lib/db/schema')
+  await drizzleDb
+    .insert(avatarStorage)
+    .values({ userId, data: dataUrl })
+    .onConflictDoUpdate({
+      target: avatarStorage.userId,
+      set: { data: dataUrl, updatedAt: new Date() },
+    })
 
   return `/api/public/avatar/${userId}/${baseName}-256.webp`
 }
@@ -339,9 +334,17 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
     return
   }
 
-  // Local filesystem deletion (new public avatar API path)
+  // Database + local filesystem deletion (new public avatar API path)
   if (avatarUrl.startsWith('/api/public/avatar/')) {
     try {
+      // Extract userId from path: /api/public/avatar/{userId}/{filename}
+      const parts = avatarUrl.replace('/api/public/avatar/', '').split('/')
+      const userIdFromUrl = parts[0]
+      if (userIdFromUrl) {
+        const { avatarStorage } = await import('@/lib/db/schema')
+        await drizzleDb.delete(avatarStorage).where(eq(avatarStorage.userId, userIdFromUrl)).catch(() => {})
+      }
+
       const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {
         const relativeKey = avatarUrl.replace('/api/public/avatar/', '')

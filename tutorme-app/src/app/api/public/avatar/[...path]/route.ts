@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import os from 'os'
+import { eq } from 'drizzle-orm'
+import { drizzleDb } from '@/lib/db/drizzle'
+import { avatarStorage } from '@/lib/db/schema'
 
 function getContentType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase()
@@ -23,11 +26,46 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
       return new NextResponse('Invalid path', { status: 400 })
     }
 
+    const userId = pathSegments[0]
+
+    // 1. Check database first (persistent storage for Cloud Run / ephemeral fs)
+    try {
+      const row = await drizzleDb
+        .select({ data: avatarStorage.data })
+        .from(avatarStorage)
+        .where(eq(avatarStorage.userId, userId))
+        .limit(1)
+
+      if (row[0]?.data) {
+        const data = row[0].data
+        // If stored as a data URL, extract the base64 part
+        if (data.startsWith('data:image/webp;base64,')) {
+          const base64 = data.slice('data:image/webp;base64,'.length)
+          const buffer = Buffer.from(base64, 'base64')
+          return new NextResponse(buffer, {
+            headers: {
+              'Content-Type': 'image/webp',
+              'Cache-Control': 'public, max-age=3600',
+            },
+          })
+        }
+        // If stored as raw base64 (legacy db entries)
+        const buffer = Buffer.from(data, 'base64')
+        return new NextResponse(buffer, {
+          headers: {
+            'Content-Type': 'image/webp',
+            'Cache-Control': 'public, max-age=3600',
+          },
+        })
+      }
+    } catch (dbError) {
+      console.warn('[public avatar] DB lookup failed:', dbError)
+    }
+
+    // 2. Fallback to local filesystem (legacy / development)
     const relativePath = pathSegments.join(path.sep)
     const candidates = [
-      // New fallback location used by saveAvatar.
       path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', relativePath),
-      // Legacy location used by older avatar uploads.
       path.join(process.cwd(), 'public', 'uploads', 'avatars', relativePath),
     ]
 
@@ -45,6 +83,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
       }
     }
 
+    // 3. Fallback to GCS
     try {
       const { isGcsConfigured, downloadBuffer } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {

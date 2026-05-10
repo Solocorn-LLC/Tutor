@@ -155,3 +155,26 @@ export const tutorApplication = pgTable(
     TutorApplication_username_idx: index('TutorApplication_username_idx').on(table.username),
   })
 )
+
+/**
+ * Avatar image data stored in the database for environments without
+ * persistent local filesystems (e.g. GCP Cloud Run). The actual image
+ * bytes are kept as base64-encoded text so they survive container restarts.
+ */
+export const avatarStorage = pgTable(
+  'AvatarStorage',
+  {
+    userId: text('userId')
+      .primaryKey()
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    data: text('data').notNull(), // base64-encoded WebP image
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    AvatarStorage_userId_idx: index('AvatarStorage_userId_idx').on(table.userId),
+  })
+)
