@@ -99,48 +99,37 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     router.push(adminLoginPath)
   }
 
-  // Show loading state while checking session
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-10 w-10 animate-spin text-blue-600" />
-          <p className="mt-4 text-sm text-slate-500">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // No session: render login/forgot-password page or show spinner while redirecting
-  if (!session) {
-    if (isPublicAdminRoute) {
-      return <div className="min-h-screen bg-slate-50">{children}</div>
-    }
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-      </div>
-    )
-  }
+  const isAuthReady = !isLoading && session
 
   return (
     <AdminContext.Provider value={{ session, logout }}>
       <div className="min-h-screen bg-slate-50">
-        <AdminSidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <AdminHeader collapsed={sidebarCollapsed} />
+        {isAuthReady && (
+          <>
+            <AdminSidebar
+              collapsed={sidebarCollapsed}
+              onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
+            <AdminHeader collapsed={sidebarCollapsed} />
+          </>
+        )}
         <main
           className={cn(
             'pt-16 transition-all duration-300',
             isTopologyRoute ? 'fixed inset-0 pt-16' : '',
             isTopologyRoute ? 'ml-0' : sidebarCollapsed ? 'ml-16' : 'ml-64',
-            isTopologyRoute ? (sidebarCollapsed ? 'left-16' : 'left-64') : 'left-0'
+            isTopologyRoute ? (sidebarCollapsed ? 'left-16' : 'left-64') : 'left-0',
+            !isAuthReady && 'ml-0'
           )}
         >
           <div className={cn(isTopologyRoute ? 'h-full w-full bg-slate-950 p-0' : 'p-6')}>
-            {children}
+            {isAuthReady ? (
+              children
+            ) : (
+              <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+              </div>
+            )}
           </div>
         </main>
       </div>

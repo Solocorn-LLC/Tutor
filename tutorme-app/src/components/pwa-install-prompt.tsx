@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const DISMISS_KEY = 'tutorme-pwa-prompt-dismissed'
 
@@ -45,35 +46,43 @@ export function PWAInstallPrompt() {
     localStorage.setItem(DISMISS_KEY, '1')
   }
 
-  if (!show) return null
-
   return (
-    <div className="bg-background fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-lg border p-4 shadow-lg sm:left-auto sm:right-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-foreground text-sm">将 Solocorn 添加到主屏幕，离线也能使用。</p>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="touch-target h-9 min-h-[44px] w-9 min-w-[44px] shrink-0"
-          onClick={handleDismiss}
-          aria-label="关闭"
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="bg-background fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-lg border p-4 shadow-lg sm:left-auto sm:right-4"
         >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Button size="sm" className="touch-target min-h-[44px]" onClick={handleInstall}>
-          添加
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="touch-target min-h-[44px]"
-          onClick={handleDismiss}
-        >
-          暂不
-        </Button>
-      </div>
-    </div>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-foreground text-sm">将 Solocorn 添加到主屏幕，离线也能使用。</p>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="touch-target h-9 min-h-[44px] w-9 min-w-[44px] shrink-0"
+              onClick={handleDismiss}
+              aria-label="关闭"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" className="touch-target min-h-[44px]" onClick={handleInstall}>
+              添加
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="touch-target min-h-[44px]"
+              onClick={handleDismiss}
+            >
+              暂不
+            </Button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

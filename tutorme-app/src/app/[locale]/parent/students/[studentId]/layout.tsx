@@ -82,14 +82,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     }
   }, [studentId])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[300px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -100,12 +92,24 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{student?.name ?? '学生'}</h1>
+            <h1 className="text-2xl font-bold">
+              {loading ? (
+                <span className="inline-block h-7 w-32 animate-pulse rounded bg-gray-200" />
+              ) : (
+                student?.name ?? '学生'
+              )}
+            </h1>
             <p className="text-sm text-gray-500">
-              {student?.email && `${student.email} · `}
-              {student?.relation}
-              {student?.level != null && ` · 等级 ${student.level}`}
-              {student?.xp != null && ` · ${student.xp} XP`}
+              {loading ? (
+                <span className="inline-block h-4 w-48 animate-pulse rounded bg-gray-200" />
+              ) : (
+                <>
+                  {student?.email && `${student.email} · `}
+                  {student?.relation}
+                  {student?.level != null && ` · 等级 ${student.level}`}
+                  {student?.xp != null && ` · ${student.xp} XP`}
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -127,7 +131,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         })}
       </div>
 
-      {children}
+      {loading ? (
+        <div className="flex min-h-[300px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : (
+        children
+      )}
     </div>
   )
 }

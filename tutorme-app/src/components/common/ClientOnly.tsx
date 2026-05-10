@@ -8,7 +8,7 @@ interface ClientOnlyProps {
   fallback?: ReactNode
 }
 
-export function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
+export function ClientOnly({ children, fallback }: ClientOnlyProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
   }, [])
 
   if (!mounted) {
-    return <>{fallback}</>
+    return <>{fallback ?? <div className="h-full w-full" />}</>
   }
 
   return <>{children}</>

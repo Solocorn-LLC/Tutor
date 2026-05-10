@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -128,86 +129,92 @@ export function PWAInstallPrompt() {
     }
   }
 
-  if (!showPrompt) return null
-
   return (
-    <div
-      className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-      role="dialog"
-      aria-labelledby="pwa-install-title"
-      aria-describedby="pwa-install-desc"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
-            <svg
-              className="h-6 w-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <h3
-            id="pwa-install-title"
-            className="text-sm font-semibold text-gray-900 dark:text-white"
-          >
-            {t('install_title')}
-          </h3>
-
-          <p id="pwa-install-desc" className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {isInstallable ? t('install_description') : t('ios_install_description')}
-          </p>
-
-          {isInstallable ? (
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" onClick={handleInstall} className="bg-blue-600 hover:bg-blue-700">
-                {t('install_button')}
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDismiss}>
-                {t('install_dismiss')}
-              </Button>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <details className="group">
-                <summary className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                  {t('ios_how_to_install')}
-                </summary>
-                <div className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                  <p>1. {t('ios_step_1')}</p>
-                  <p>2. {t('ios_step_2')}</p>
-                  <p>3. {t('ios_step_3')}</p>
-                </div>
-              </details>
-
-              <Button size="sm" variant="outline" className="mt-2" onClick={handleDismiss}>
-                {t('install_got_it')}
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          onClick={handleDismiss}
-          aria-label={t('install_dismiss')}
+    <AnimatePresence>
+      {showPrompt && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+          role="dialog"
+          aria-labelledby="pwa-install-title"
+          aria-describedby="pwa-install-desc"
         >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+                <svg
+                  className="h-6 w-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3
+                id="pwa-install-title"
+                className="text-sm font-semibold text-gray-900 dark:text-white"
+              >
+                {t('install_title')}
+              </h3>
+
+              <p id="pwa-install-desc" className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {isInstallable ? t('install_description') : t('ios_install_description')}
+              </p>
+
+              {isInstallable ? (
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={handleInstall} className="bg-blue-600 hover:bg-blue-700">
+                    {t('install_button')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleDismiss}>
+                    {t('install_dismiss')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                      {t('ios_how_to_install')}
+                    </summary>
+                    <div className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                      <p>1. {t('ios_step_1')}</p>
+                      <p>2. {t('ios_step_2')}</p>
+                      <p>3. {t('ios_step_3')}</p>
+                    </div>
+                  </details>
+
+                  <Button size="sm" variant="outline" className="mt-2" onClick={handleDismiss}>
+                    {t('install_got_it')}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={handleDismiss}
+              aria-label={t('install_dismiss')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

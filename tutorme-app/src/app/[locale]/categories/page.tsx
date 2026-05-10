@@ -569,23 +569,22 @@ const TutorComingSoonModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+    <AnimatePresence mode="wait">
+      {isOpen && (
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="relative w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
         >
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="relative w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
+          >
           <button
             onClick={onClose}
             className="absolute right-4 top-4 p-2 text-zinc-600 transition-colors hover:text-black"
@@ -668,6 +667,7 @@ const TutorComingSoonModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
           )}
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   )
 }

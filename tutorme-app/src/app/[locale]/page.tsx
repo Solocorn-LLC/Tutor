@@ -1141,7 +1141,7 @@ const LanguageSelector = ({
         <span className="hidden sm:inline">{currentLangData?.name}</span>
         <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
       </button>
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
@@ -1960,7 +1960,7 @@ const ComingSoonModal = ({
   )
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2103,7 +2103,7 @@ const SpecialAccessSection = ({
         {triggerLabel}
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {expanded && (
           <>
             <div className="fixed inset-0 z-[990]" onMouseDown={() => setExpanded(false)} />
@@ -2315,7 +2315,7 @@ const ContactModal = ({
   if (!isOpen) return null
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2457,7 +2457,7 @@ const PrivacyPolicyModal = ({
   if (!isOpen) return null
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2530,7 +2530,7 @@ const TermsOfServiceModal = ({
   if (!isOpen) return null
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2635,7 +2635,7 @@ const CategoriesModal = ({
   const categoryOrder = Object.keys(groupedCategories).sort()
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -2841,7 +2841,7 @@ export default function LandingPage() {
       <TermsOfServiceModal isOpen={termsOpen} onClose={() => setTermsOpen(false)} mode={mode} />
 
       {/* How It Works — Coming Soon Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {howItWorksOpen && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2878,7 +2878,7 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
-      <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+      <motion.main initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="relative">
         <section
           className="relative min-h-screen overflow-hidden"
           style={{
