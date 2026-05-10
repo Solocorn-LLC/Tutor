@@ -646,7 +646,14 @@
     -webkit-text-size-adjust: 100%;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    scrollbar-gutter: stable;
+    overflow-y: scroll;
+  }
+
+  @supports (scrollbar-gutter: stable) {
+    html {
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+    }
   }
   
   html[data-scroll-locked] {

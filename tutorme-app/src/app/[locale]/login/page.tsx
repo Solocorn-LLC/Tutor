@@ -201,13 +201,15 @@ function LoginForm() {
         </form>
 
         <div className="mt-5 text-center text-sm">
-          <span className="text-white/70">Don&apos;t have an account?</span>{' '}
-          <Link
-            href={`${localePrefix}/register`}
-            className="font-medium text-white underline underline-offset-2 hover:text-white/90"
-          >
-            Sign up
-          </Link>
+          <span className="text-white/70">Don&apos;t have an account?</span>
+          <div className="mt-1">
+            <Link
+              href={`${localePrefix}/register`}
+              className="font-medium text-white underline underline-offset-2 hover:text-white/90"
+            >
+              Sign up
+            </Link>
+          </div>
         </div>
 
         <div className="mt-7 border-t border-white/15 pt-6 text-center">

@@ -758,7 +758,7 @@ export default function TutorCoursePage() {
                           style={{ width: regionDropdownWidth || undefined }}
                           align="start"
                           sideOffset={6}
-                          className="min-w-[280px]"
+                          className="rounded-[16px]"
                         >
                           <ScrollArea className="h-[200px]">
                             {REGIONS.map(region => (
@@ -801,7 +801,7 @@ export default function TutorCoursePage() {
                           align="start"
                           sideOffset={6}
                           style={{ width: countryDropdownWidth || undefined }}
-                          className="max-h-[320px] min-w-[280px] overflow-y-auto p-4"
+                          className="max-h-[320px] overflow-y-auto rounded-[16px] p-4"
                         >
                           {availableCountries.length === 0 ? (
                             <div className="py-4 text-center text-xs text-white/70">

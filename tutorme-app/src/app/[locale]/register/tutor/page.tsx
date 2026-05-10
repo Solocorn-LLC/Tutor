@@ -742,7 +742,7 @@ export default function TutorRegistrationPage() {
   ]
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-8">
+    <div className="flex min-h-screen flex-col items-center bg-white px-4 pt-[120px] sm:pt-[180px]">
       <div className="w-full max-w-4xl">
         <BackButton href="/register" className="mb-4" />
 

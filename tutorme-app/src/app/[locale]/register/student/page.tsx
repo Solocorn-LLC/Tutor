@@ -276,6 +276,12 @@ export default function StudentRegistrationPage() {
                         )}
                       </button>
                     </div>
+                    <p className="min-h-[18px] text-xs text-red-500">
+                      {formData.confirmPassword.length > 0 &&
+                      formData.password !== formData.confirmPassword
+                        ? 'Passwords do not match.'
+                        : ''}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -305,10 +311,12 @@ export default function StudentRegistrationPage() {
                         )}
                       </button>
                     </div>
-                    {formData.confirmPassword.length > 0 &&
-                      formData.password !== formData.confirmPassword && (
-                        <p className="text-xs text-red-500">Passwords do not match.</p>
-                      )}
+                    <p className="min-h-[18px] text-xs text-red-500">
+                      {formData.confirmPassword.length > 0 &&
+                      formData.password !== formData.confirmPassword
+                        ? 'Passwords do not match.'
+                        : ''}
+                    </p>
                   </div>
                 </div>
 
