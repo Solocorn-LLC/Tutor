@@ -1619,7 +1619,7 @@ function StudentFeedbackContent() {
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex h-full min-h-0 flex-1 flex-col"
             >
                   {(() => {
                     const controlRow = (
@@ -1738,7 +1738,7 @@ function StudentFeedbackContent() {
                   <TabsContent
                     value="task"
                     padding="none"
-                    className="flex min-h-0 flex-1 flex-col outline-none"
+                    className="flex h-full min-h-0 flex-1 flex-col outline-none data-[state=inactive]:hidden"
                   >
                     {/* Classroom viewer */}
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
@@ -1873,7 +1873,7 @@ function StudentFeedbackContent() {
                   <TabsContent
                     value="my-board"
                     padding="none"
-                    className="flex min-h-0 flex-1 flex-col outline-none"
+                    className="flex h-full min-h-0 flex-1 flex-col outline-none data-[state=inactive]:hidden"
                   >
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                       <EnhancedWhiteboard
@@ -1893,7 +1893,7 @@ function StudentFeedbackContent() {
                   <TabsContent
                     value="tutor-board"
                     padding="none"
-                    className="flex min-h-0 flex-1 flex-col outline-none"
+                    className="flex h-full min-h-0 flex-1 flex-col outline-none data-[state=inactive]:hidden"
                   >
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                       <EnhancedWhiteboard
