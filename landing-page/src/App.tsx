@@ -47,7 +47,7 @@ export default function App() {
       </video>
 
       {/* Gradient overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/80 via-blue-600/80 to-blue-800/80" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
 
       <div className="relative z-10">
         <Navbar setView={setView} />

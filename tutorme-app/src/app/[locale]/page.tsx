@@ -2891,7 +2891,7 @@ export default function LandingPage() {
             <source src="/landing-bg-video.mp4" type="video/mp4" />
           </video>
           {/* Gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/80 via-blue-600/80 to-blue-800/80" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
           <header className="relative z-10 flex items-center justify-between px-8 pt-8">
             <div className="flex items-center gap-3">
               <img src="/solocornlogo.png" alt="Solocorn" className="h-9 w-9" />
