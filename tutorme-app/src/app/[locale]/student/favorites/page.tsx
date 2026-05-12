@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { Heart, BookOpen, Users, Star, Trash2, ExternalLink } from 'lucide-react'
@@ -42,6 +43,7 @@ interface FavoriteCourse {
 }
 
 export default function StudentFavoritesPage() {
+  const { showOverlay } = useNavigationOverlay()
   const params = useParams<{ locale?: string }>()
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
 
@@ -219,7 +221,7 @@ export default function StudentFavoritesPage() {
                         {tutor.courseCount} courses
                       </span>
                       <Button asChild size="sm">
-                        <Link href={`/${locale}/u/${tutor.username}`}>
+                        <Link href={`/${locale}/u/${tutor.username}`} onClick={() => showOverlay()}>
                           View Profile
                           <ExternalLink className="ml-1 h-3 w-3" />
                         </Link>
@@ -318,7 +320,7 @@ export default function StudentFavoritesPage() {
                         </span>
                       )}
                       <Button asChild size="sm">
-                        <Link href={`/${locale}/course/${course.id}`}>
+                        <Link href={`/${locale}/course/${course.id}`} onClick={() => showOverlay()}>
                           View Course
                           <ExternalLink className="ml-1 h-3 w-3" />
                         </Link>

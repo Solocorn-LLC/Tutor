@@ -230,8 +230,8 @@ export function MonitoringPanel({
               )}
             >
               <CardHeader className="border-b bg-slate-50/50 px-4 py-3">
-                <CardTitle className="flex items-center justify-between text-base">
-                  <span className="font-semibold text-slate-800">{student.name}</span>
+                <CardTitle className="flex items-center justify-between gap-2 text-base min-w-0">
+                  <span className="font-semibold text-slate-800 min-w-0 truncate">{student.name}</span>
                   <span
                     className={cn(
                       'flex h-2 w-2 rounded-full',
@@ -244,16 +244,16 @@ export function MonitoringPanel({
               <CardContent className="p-4">
                 <div className="space-y-4">
                   <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                    <div className="mb-1 flex items-center justify-between">
-                      <span className="text-slate-500">Current View:</span>
-                      <span className="font-medium capitalize text-indigo-600">
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <span className="flex-shrink-0 text-slate-500">Current View:</span>
+                      <span className="min-w-0 font-medium capitalize text-indigo-600">
                         {activeTab?.replace('-', ' ') || 'No data yet'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Activity:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                      <span className="flex-shrink-0 text-slate-500">Activity:</span>
                       <span
-                        className="max-w-[120px] truncate font-medium text-slate-700"
+                        className="min-w-0 max-w-[120px] truncate font-medium text-slate-700"
                         title={activeTaskId || 'None'}
                       >
                         {isWhiteboard
@@ -267,16 +267,16 @@ export function MonitoringPanel({
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={e => {
                         e.stopPropagation()
                         onOpenWhiteboard?.(student.id, student.name)
                       }}
                       variant="outline"
-                      className="flex-1 gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      className="flex-1 min-w-[100px] gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     >
-                      <MonitorPlay className="h-4 w-4" />
+                      <MonitorPlay className="h-4 w-4 flex-shrink-0" />
                       Whiteboard
                     </Button>
                     <Button
@@ -285,9 +285,9 @@ export function MonitoringPanel({
                         handleSendHelp(student.id, student.name)
                       }}
                       variant="outline"
-                      className="flex-1 gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="flex-1 min-w-[80px] gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
                     >
-                      <HandHeart className="h-4 w-4" />
+                      <HandHeart className="h-4 w-4 flex-shrink-0" />
                       Help
                     </Button>
                   </div>

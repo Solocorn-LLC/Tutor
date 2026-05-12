@@ -5122,7 +5122,7 @@ FEEDBACK: [your explanation]`
               onMainTabChange(v as 'live' | 'builder' | 'test-pci')
             }
           }}
-          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-4 pt-0 sm:px-6"
+          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-3 pt-0 sm:px-4"
         >
           {portalTarget ? (
             createPortal(
@@ -5357,7 +5357,7 @@ FEEDBACK: [your explanation]`
             </div>
           )}
 
-          <div className="relative flex h-full w-full min-w-0 flex-1 gap-0 pb-6 pt-0">
+          <div className="relative flex h-full w-full min-w-0 flex-1 gap-0 pb-4 pt-0">
             {/* LEFT PANEL - Course Structure (resizable, ~75% of original width) */}
             {/* Floating collapsed/expanded pill */}
             <div
@@ -5379,11 +5379,11 @@ FEEDBACK: [your explanation]`
                 ref={leftPanelRef}
                 style={{ width: leftPanelWidth }}
               >
-                <div className="flex h-full min-h-0 flex-col pr-1.5">
+                <div className="flex h-full min-h-0 flex-col pr-1">
                   <Card className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
                     <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-1">
                       {/* Header with Hide, Import, and +Lesson buttons */}
-                      <div className="mb-3 flex min-h-[58px] items-center justify-between px-1 pt-1">
+                      <div className="mb-2 flex min-h-[58px] items-center justify-between px-1 pt-1">
                         <div className="flex flex-col justify-center gap-1">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-semibold text-[#1F2933]">Directory</div>
@@ -5404,7 +5404,7 @@ FEEDBACK: [your explanation]`
                       </div>
 
                       {!hideDirectorySearch && (
-                        <div className="relative mb-3">
+                        <div className="relative mb-2">
                           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                           <input
                             placeholder="Search course..."
@@ -5422,7 +5422,7 @@ FEEDBACK: [your explanation]`
                           onDragStart={handleDragStart}
                           onDragEnd={handleDragEnd}
                         >
-                          <div className="flex flex-col gap-3">
+                          <div className="flex flex-col gap-2">
                             {/* Lessons (formerly nodes) - with drag sorting */}
                             <SortableContext
                               items={filteredCourseBuilderNodes.map(node => node.id)}
@@ -7394,12 +7394,12 @@ FEEDBACK: [your explanation]`
 
             {/* CENTER PANEL - New Three-Section Design */}
             <div
-              className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pl-3"
+              className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pl-2"
               style={{
                 paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth + 16 : 0,
               }}
             >
-              <div className="flex min-h-0 w-full flex-1 grow flex-col items-stretch gap-4">
+              <div className="flex min-h-0 w-full flex-1 grow flex-col items-stretch gap-3">
                 {mainTab !== 'builder' && (
                   <div className="h-full w-full flex-1">
                     <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_6px_16px_rgba(0,0,0,0.06)]">

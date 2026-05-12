@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { BookOpen, Loader2, FileText, GraduationCap, Users, Clock } from 'lucide-react'
+import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorList } from './components/TutorList'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
 import { BackButton } from '@/components/navigation'
@@ -35,6 +36,7 @@ interface CourseListItem {
 }
 
 export default function SubjectCoursesPage() {
+  const { showOverlay } = useNavigationOverlay()
   const params = useParams()
   const subjectCode = typeof params.subjectCode === 'string' ? params.subjectCode : ''
   const [courses, setCourses] = useState<CourseListItem[]>([])
@@ -221,12 +223,14 @@ export default function SubjectCoursesPage() {
                       <div className="flex flex-wrap gap-3 border-t border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.1)] p-4">
                         <Link
                           href={`/student/subjects/${encodeURIComponent(subjectCode)}/courses/${encodeURIComponent(c.id)}`}
+                          onClick={() => showOverlay()}
                           className="inline-flex flex-1 items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
                         >
                           Select Course
                         </Link>
                         <Link
                           href={`/student/subjects/${encodeURIComponent(subjectCode)}/courses/${encodeURIComponent(c.id)}/details`}
+                          onClick={() => showOverlay()}
                           className="inline-flex flex-1 items-center justify-center rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-[rgba(255,255,255,0.15)]"
                         >
                           <FileText className="mr-2 h-4 w-4 text-[rgba(255,255,255,0.7)]" />

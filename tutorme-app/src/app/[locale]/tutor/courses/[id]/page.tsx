@@ -756,8 +756,7 @@ export default function TutorCoursePage() {
                         <DropdownMenuContent
                           style={{ width: regionDropdownWidth || undefined }}
                           align="start"
-                          sideOffset={6}
-                          className="rounded-[16px]"
+                          sideOffset={8}
                         >
                           <ScrollArea className="h-[200px]">
                             {REGIONS.map(region => (
@@ -798,8 +797,7 @@ export default function TutorCoursePage() {
                         <DropdownMenuContent
                           style={{ width: countryDropdownWidth || undefined }}
                           align="start"
-                          sideOffset={6}
-                          className="rounded-[16px]"
+                          sideOffset={8}
                         >
                           <ScrollArea className="h-[200px]">
                             {availableCountries.length === 0 ? (

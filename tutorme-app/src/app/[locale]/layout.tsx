@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/ui/theme-provider'
 import { Toaster } from 'sonner'
 import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt'
 import { FloatingVideoOverlay } from '@/components/class/floating-video-overlay'
+import { NavigationOverlayProvider } from '@/components/navigation/NavigationOverlay'
 
 type Props = {
   children: React.ReactNode
@@ -27,7 +28,9 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <ThemeProvider defaultTheme="aura" defaultMode="system">
-      {children}
+      <NavigationOverlayProvider>
+        {children}
+      </NavigationOverlayProvider>
       <FloatingVideoOverlay />
       <PWAInstallPrompt />
       <Toaster position="top-right" />

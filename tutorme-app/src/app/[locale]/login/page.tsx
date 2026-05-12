@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 
 function LoginForm() {
   const router = useRouter()
@@ -24,6 +25,7 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const registered = searchParams.get('registered')
   const authError = searchParams.get('error')
+  const { showOverlay } = useNavigationOverlay()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -66,6 +68,9 @@ function LoginForm() {
             credentials: 'include',
           })
         }
+
+        // Show navigation overlay before redirecting to prevent loading screen flash
+        showOverlay()
 
         // Redirect based on role
         if (userRole === 'TUTOR') {

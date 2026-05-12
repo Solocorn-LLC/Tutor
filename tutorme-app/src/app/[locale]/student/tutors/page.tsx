@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Compass, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
 
@@ -53,6 +54,7 @@ interface TutorDirectoryItem {
 export default function StudentTutorDirectoryPage() {
   const params = useParams<{ locale?: string }>()
   const router = useRouter()
+  const { showOverlay } = useNavigationOverlay()
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
 
   const [loading, setLoading] = useState(true)
@@ -350,7 +352,10 @@ export default function StudentTutorDirectoryPage() {
                 specialties: tutor.categories,
                 countries: tutor.tutorNationalities,
               }}
-              onClick={() => router.push(`/${locale}/u/${tutor.username}`)}
+              onClick={() => {
+                showOverlay()
+                router.push(`/${locale}/u/${tutor.username}`)
+              }}
               followState={following.has(tutor.id) ? 'following' : 'not-following'}
               onFollowToggle={() => toggleFollow(tutor.id)}
               bookHref={`/${locale}/u/${tutor.username}?book=1`}

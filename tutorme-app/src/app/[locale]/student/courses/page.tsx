@@ -36,6 +36,7 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import {
   Dialog,
   DialogContent,
@@ -249,6 +250,7 @@ function SessionList({
 }
 
 function CoursePageInner() {
+  const { showOverlay } = useNavigationOverlay()
   const { data: session } = useSession()
   const searchParams = useSearchParams()
   const isTutor = session?.user?.role === 'TUTOR'
@@ -817,6 +819,7 @@ function CoursePageInner() {
                           <div className="mt-auto border-t border-[rgba(255,255,255,0.1)] pt-4">
                             <Link
                               href={`/u/${tutor.username}`}
+                              onClick={() => showOverlay()}
                               className="flex w-full items-center justify-center rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] py-2 text-sm font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)] hover:text-white"
                             >
                               View Profile
