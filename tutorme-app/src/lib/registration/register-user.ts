@@ -334,11 +334,20 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
     return
   }
 
-  // Database + local filesystem deletion (new public avatar API path)
-  if (avatarUrl.startsWith('/api/public/avatar/')) {
+  // Database + local filesystem deletion (new public avatar API path).
+  // Also handles absolute URLs like https://domain.com/api/public/avatar/...
+  const publicAvatarPath = '/api/public/avatar/'
+  const hasPublicAvatarPath =
+    avatarUrl.startsWith(publicAvatarPath) || avatarUrl.includes(publicAvatarPath)
+  if (hasPublicAvatarPath) {
     try {
+      // Extract the relative part after /api/public/avatar/
+      const relativePart = avatarUrl.includes(publicAvatarPath)
+        ? avatarUrl.slice(avatarUrl.indexOf(publicAvatarPath) + publicAvatarPath.length)
+        : avatarUrl.replace(publicAvatarPath, '')
+
       // Extract userId from path: /api/public/avatar/{userId}/{filename}
-      const parts = avatarUrl.replace('/api/public/avatar/', '').split('/')
+      const parts = relativePart.split('/')
       const userIdFromUrl = parts[0]
       if (userIdFromUrl) {
         const { avatarStorage } = await import('@/lib/db/schema')
@@ -347,8 +356,7 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
 
       const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {
-        const relativeKey = avatarUrl.replace('/api/public/avatar/', '')
-        const key = `avatars/${relativeKey}`
+        const key = `avatars/${relativePart}`
         await deleteObject(key).catch(() => {})
         await deleteObject(key.replace('-256.webp', '-128.webp')).catch(() => {})
         await deleteObject(key.replace('-256.webp', '-64.webp')).catch(() => {})
@@ -357,8 +365,7 @@ export async function deleteAvatar(avatarUrl: string | null | undefined): Promis
       const path = await import('path')
       const os = await import('os')
       const { unlink } = await import('fs/promises')
-      const relative = avatarUrl.replace('/api/public/avatar/', '')
-      const safeRelative = relative
+      const safeRelative = relativePart
         .split('/')
         .filter(Boolean)
         .filter(segment => !segment.includes('..'))

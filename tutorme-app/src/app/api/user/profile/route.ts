@@ -73,6 +73,16 @@ async function putHandler(req: NextRequest, session: Session) {
       )
     }
 
+    // Reject blob URLs — they are temporary browser-only references and will
+    // break as soon as the user refreshes the page.
+    const rawAvatarUrl = (body as any)?.avatarUrl
+    if (typeof rawAvatarUrl === 'string' && rawAvatarUrl.startsWith('blob:')) {
+      return NextResponse.json(
+        { error: 'Blob URLs are not allowed for avatars. Please upload a file instead.' },
+        { status: 400 }
+      )
+    }
+
     const {
       name,
       bio,

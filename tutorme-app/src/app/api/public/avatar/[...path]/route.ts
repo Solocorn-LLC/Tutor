@@ -28,7 +28,30 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
 
     const userId = pathSegments[0]
 
-    // 1. Check database first (persistent storage for Cloud Run / ephemeral fs)
+    // When GCS is configured it is the primary storage for avatars.
+    // Check GCS first so that current uploads are served immediately
+    // and stale DB entries never shadow them.
+    try {
+      const { isGcsConfigured, downloadBuffer } = await import('@/lib/storage/gcs')
+      if (isGcsConfigured()) {
+        const gcsKey = `avatars/${pathSegments.join('/')}`
+        const data = await downloadBuffer(gcsKey)
+        if (data) {
+          const body = new Uint8Array(data)
+          return new NextResponse(body, {
+            headers: {
+              'Content-Type': getContentType(gcsKey),
+              'Cache-Control': 'public, max-age=31536000, immutable',
+            },
+          })
+        }
+      }
+    } catch {
+      // Ignore and continue to fallback storages.
+    }
+
+    // Fallback 1: database (used when GCS is not configured or file missing in GCS).
+    // Validate the stored data so we never serve an empty / corrupted image.
     try {
       const row = await drizzleDb
         .select({ data: avatarStorage.data })
@@ -37,32 +60,40 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
         .limit(1)
 
       if (row[0]?.data) {
-        const data = row[0].data
-        // If stored as a data URL, extract the base64 part
-        if (data.startsWith('data:image/webp;base64,')) {
-          const base64 = data.slice('data:image/webp;base64,'.length)
-          const buffer = Buffer.from(base64, 'base64')
-          return new NextResponse(buffer, {
-            headers: {
-              'Content-Type': 'image/webp',
-              'Cache-Control': 'public, max-age=3600',
-            },
-          })
+        const data = row[0].data.trim()
+        if (data.length > 0) {
+          let buffer: Buffer | null = null
+          // If stored as a data URL, extract the base64 part
+          if (data.startsWith('data:image/webp;base64,')) {
+            const base64 = data.slice('data:image/webp;base64,'.length)
+            buffer = Buffer.from(base64, 'base64')
+          } else if (data.startsWith('data:')) {
+            // Other data URL formats — extract after the comma
+            const commaIndex = data.indexOf(',')
+            if (commaIndex > 0) {
+              const base64 = data.slice(commaIndex + 1)
+              buffer = Buffer.from(base64, 'base64')
+            }
+          } else {
+            // Raw base64 (legacy db entries)
+            buffer = Buffer.from(data, 'base64')
+          }
+
+          if (buffer && buffer.length > 0) {
+            return new NextResponse(new Uint8Array(buffer), {
+              headers: {
+                'Content-Type': 'image/webp',
+                'Cache-Control': 'public, max-age=3600',
+              },
+            })
+          }
         }
-        // If stored as raw base64 (legacy db entries)
-        const buffer = Buffer.from(data, 'base64')
-        return new NextResponse(buffer, {
-          headers: {
-            'Content-Type': 'image/webp',
-            'Cache-Control': 'public, max-age=3600',
-          },
-        })
       }
     } catch (dbError) {
       console.warn('[public avatar] DB lookup failed:', dbError)
     }
 
-    // 2. Fallback to local filesystem (legacy / development)
+    // Fallback 2: local filesystem (legacy / development)
     const relativePath = pathSegments.join(path.sep)
     const candidates = [
       path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', relativePath),
@@ -81,26 +112,6 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
       } catch {
         // Try next candidate.
       }
-    }
-
-    // 3. Fallback to GCS
-    try {
-      const { isGcsConfigured, downloadBuffer } = await import('@/lib/storage/gcs')
-      if (isGcsConfigured()) {
-        const gcsKey = `avatars/${pathSegments.join('/')}`
-        const data = await downloadBuffer(gcsKey)
-        if (data) {
-          const body = new Uint8Array(data)
-          return new NextResponse(body, {
-            headers: {
-              'Content-Type': getContentType(gcsKey),
-              'Cache-Control': 'public, max-age=31536000, immutable',
-            },
-          })
-        }
-      }
-    } catch {
-      // Ignore and fall through.
     }
 
     return new NextResponse('File not found', { status: 404 })

@@ -30,23 +30,30 @@ export const POST = withCsrf(
       }
 
       try {
-        // Clean up previous avatar before saving the new one
-        const existing = await drizzleDb
+        // Capture the OLD avatar URL before we overwrite it.
+        const [existing] = await drizzleDb
           .select({ avatarUrl: profile.avatarUrl })
           .from(profile)
           .where(eq(profile.userId, session.user.id))
           .limit(1)
-        if (existing[0]?.avatarUrl) {
-          await deleteAvatar(existing[0].avatarUrl)
-        }
+        const oldAvatarUrl = existing?.avatarUrl || null
 
+        // 1. Save new avatar FIRST (never delete old before we know the new one is ready)
         const avatarUrl = await saveAvatar(session.user.id, file, crop)
 
+        // 2. Update DB with the new URL
         const [updated] = await drizzleDb
           .update(profile)
           .set({ avatarUrl })
           .where(eq(profile.userId, session.user.id))
           .returning({ avatarUrl: profile.avatarUrl })
+
+        // 3. Only after DB update succeeds, delete the old avatar from storage
+        if (oldAvatarUrl) {
+          await deleteAvatar(oldAvatarUrl).catch((err: unknown) => {
+            console.warn('Failed to clean up old avatar:', err)
+          })
+        }
 
         return NextResponse.json({
           success: true,
