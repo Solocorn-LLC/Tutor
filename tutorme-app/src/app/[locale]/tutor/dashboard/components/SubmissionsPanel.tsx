@@ -207,12 +207,14 @@ export function SubmissionsPanel({
 
       {!hidden && (
         <div
-          className="absolute right-0 top-0 z-40 flex h-full flex-col border-l border-[#E5E7EB] bg-white shadow-[-8px_0_20px_rgba(0,0,0,0.06)]"
+          className="absolute right-0 top-0 bottom-4 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
           style={{ width }}
         >
-          <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="text-sm font-semibold text-[#1F2933]">Submissions</div>
+              {!headerExtra && (
+                <div className="text-sm font-semibold text-[#1F2933]">Submissions</div>
+              )}
               {headerExtra}
             </div>
             <div className="ml-2 shrink-0">

@@ -7187,11 +7187,17 @@ FEEDBACK: [your explanation]`
                             setLiveRightPanelTab(value as 'submissions' | 'insights')
                           }
                         >
-                          <TabsList className="h-7 border border-slate-200 bg-slate-50 p-0.5">
-                            <TabsTrigger value="submissions" className="h-5 px-2 text-[11px]">
+                          <TabsList className="h-7 rounded-lg bg-slate-100 p-0.5 border-0 shadow-none">
+                            <TabsTrigger
+                              value="submissions"
+                              className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                            >
                               Submissions
                             </TabsTrigger>
-                            <TabsTrigger value="insights" className="h-5 px-2 text-[11px]">
+                            <TabsTrigger
+                              value="insights"
+                              className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                            >
                               Insights
                             </TabsTrigger>
                           </TabsList>
@@ -7214,26 +7220,28 @@ FEEDBACK: [your explanation]`
                       </div>
                       {!rightPanelHidden && (
                         <div
-                          className="absolute right-0 top-0 z-40 flex h-full flex-col border-l border-[#E5E7EB] bg-white shadow-[-8px_0_20px_rgba(0,0,0,0.06)]"
+                          className="absolute right-0 top-0 bottom-4 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
                           style={{ width: rightPanelWidth }}
                         >
-                          <div className="flex items-center justify-between border-b px-4 py-3">
+                          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                             <div className="flex min-w-0 items-center gap-3">
-                              <div className="text-sm font-semibold text-[#1F2933]">Insights</div>
                               <Tabs
                                 value={liveRightPanelTab}
                                 onValueChange={value =>
                                   setLiveRightPanelTab(value as 'submissions' | 'insights')
                                 }
                               >
-                                <TabsList className="h-7 border border-slate-200 bg-slate-50 p-0.5">
+                                <TabsList className="h-7 rounded-lg bg-slate-100 p-0.5 border-0 shadow-none">
                                   <TabsTrigger
                                     value="submissions"
-                                    className="h-5 px-2 text-[11px]"
+                                    className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
                                   >
                                     Submissions
                                   </TabsTrigger>
-                                  <TabsTrigger value="insights" className="h-5 px-2 text-[11px]">
+                                  <TabsTrigger
+                                    value="insights"
+                                    className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                                  >
                                     Insights
                                   </TabsTrigger>
                                 </TabsList>
