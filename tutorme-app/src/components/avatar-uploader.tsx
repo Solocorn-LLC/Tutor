@@ -151,25 +151,34 @@ export function AvatarUploader({
 
   // Compute crop data from current zoom/offset
   const getCropData = useCallback(() => {
-    if (!cropImageSize || !cropViewportSize) return null
+    if (!cropImageSize) return null
+
+    // Measure on demand if ResizeObserver hasn't fired yet
+    let viewportSize = cropViewportSize
+    if (!viewportSize && cropViewportRef.current) {
+      const rect = cropViewportRef.current.getBoundingClientRect()
+      viewportSize = Math.round(rect.width)
+      if (viewportSize > 0) setCropViewportSize(viewportSize)
+    }
+    if (!viewportSize) return null
 
     const baseScale = Math.max(
-      cropViewportSize / cropImageSize.width,
-      cropViewportSize / cropImageSize.height
+      viewportSize / cropImageSize.width,
+      viewportSize / cropImageSize.height
     )
     const scale = baseScale * cropZoom
     const displayW = cropImageSize.width * scale
     const displayH = cropImageSize.height * scale
 
-    const maxOffsetX = Math.max(0, (displayW - cropViewportSize) / 2)
-    const maxOffsetY = Math.max(0, (displayH - cropViewportSize) / 2)
+    const maxOffsetX = Math.max(0, (displayW - viewportSize) / 2)
+    const maxOffsetY = Math.max(0, (displayH - viewportSize) / 2)
     const offsetX = clamp(cropOffset.x, -maxOffsetX, maxOffsetX)
     const offsetY = clamp(cropOffset.y, -maxOffsetY, maxOffsetY)
 
-    const imgLeft = (cropViewportSize - displayW) / 2 + offsetX
-    const imgTop = (cropViewportSize - displayH) / 2 + offsetY
+    const imgLeft = (viewportSize - displayW) / 2 + offsetX
+    const imgTop = (viewportSize - displayH) / 2 + offsetY
 
-    const side = cropViewportSize / scale
+    const side = viewportSize / scale
     const sx = Math.round(clamp(-imgLeft / scale, 0, cropImageSize.width - 1))
     const sy = Math.round(clamp(-imgTop / scale, 0, cropImageSize.height - 1))
     const maxSide = Math.min(cropImageSize.width - sx, cropImageSize.height - sy)
@@ -534,7 +543,7 @@ export function AvatarUploader({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    className="h-8 gap-2 border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
                     onClick={() => {
                       setCropError(null)
                       setCropZoom(1)
@@ -583,7 +592,7 @@ export function AvatarUploader({
               variant="outline"
               onClick={closeCropDialog}
               disabled={cropping || uploading}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              className="border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
             >
               Cancel
             </Button>
@@ -591,7 +600,7 @@ export function AvatarUploader({
               type="button"
               onClick={() => void confirmCropAndUpload()}
               disabled={
-                cropping || uploading || !cropSourceUrl || !cropSourceFile || !cropImageSize || !cropViewportSize
+                cropping || uploading || !cropSourceUrl || !cropSourceFile || !cropImageSize
               }
             >
               {cropping ? 'Processing…' : 'Crop & Upload'}

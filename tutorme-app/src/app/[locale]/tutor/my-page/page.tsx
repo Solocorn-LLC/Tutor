@@ -688,25 +688,35 @@ export default function TutorMyPage() {
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
   const getCropData = () => {
-    if (!cropImageSize || !cropViewportSize) return null
+    if (!cropImageSize) return null
+
+    // Measure on demand if ResizeObserver hasn't fired yet
+    let viewportSize = cropViewportSize
+    if (!viewportSize && cropViewportRef.current) {
+      const rect = cropViewportRef.current.getBoundingClientRect()
+      viewportSize = Math.round(rect.width)
+      if (viewportSize > 0) setCropViewportSize(viewportSize)
+    }
+    if (!viewportSize) return null
+
     const baseScale = Math.max(
-      cropViewportSize / cropImageSize.width,
-      cropViewportSize / cropImageSize.height
+      viewportSize / cropImageSize.width,
+      viewportSize / cropImageSize.height
     )
     const scale = baseScale * cropZoom
     const displayW = cropImageSize.width * scale
     const displayH = cropImageSize.height * scale
-    const maxOffsetX = Math.max(0, (displayW - cropViewportSize) / 2)
-    const maxOffsetY = Math.max(0, (displayH - cropViewportSize) / 2)
+    const maxOffsetX = Math.max(0, (displayW - viewportSize) / 2)
+    const maxOffsetY = Math.max(0, (displayH - viewportSize) / 2)
     const offsetX = clamp(cropOffset.x, -maxOffsetX, maxOffsetX)
     const offsetY = clamp(cropOffset.y, -maxOffsetY, maxOffsetY)
 
-    const imgLeft = (cropViewportSize - displayW) / 2 + offsetX
-    const imgTop = (cropViewportSize - displayH) / 2 + offsetY
+    const imgLeft = (viewportSize - displayW) / 2 + offsetX
+    const imgTop = (viewportSize - displayH) / 2 + offsetY
 
     const sx = (0 - imgLeft) / scale
     const sy = (0 - imgTop) / scale
-    const side = cropViewportSize / scale
+    const side = viewportSize / scale
 
     const x = Math.round(clamp(sx, 0, cropImageSize.width - 1))
     const y = Math.round(clamp(sy, 0, cropImageSize.height - 1))
@@ -1563,7 +1573,7 @@ export default function TutorMyPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-2 text-slate-700"
+                      className="h-8 gap-2 border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
                       onClick={() => {
                         setCropError(null)
                         setCropZoom(1)
@@ -1605,7 +1615,7 @@ export default function TutorMyPage() {
                 variant="outline"
                 onClick={closeCropDialog}
                 disabled={cropping || uploadingAvatar}
-                className="text-slate-700"
+                className="border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
               >
                 Cancel
               </Button>
@@ -1616,8 +1626,7 @@ export default function TutorMyPage() {
                   uploadingAvatar ||
                   !cropSourceUrl ||
                   !cropSourceFile ||
-                  !cropImageSize ||
-                  !cropViewportSize
+                  !cropImageSize
                 }
               >
                 {cropping ? 'Cropping...' : 'Crop & Upload'}
