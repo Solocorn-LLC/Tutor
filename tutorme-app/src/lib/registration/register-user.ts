@@ -123,22 +123,9 @@ export async function saveAvatar(
   const baseName = `${timestamp}-avatar`
   const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
-  // Try GCS first for cloud persistence; fall back to DB on failure.
-  const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
-  if (isGcsConfigured()) {
-    const gcsPrefix = `avatars/${userId}/${baseName}`
-    try {
-      await uploadBuffer(bytes, `${gcsPrefix}-256.${ext}`, avatarFile.type, true)
-      return `/api/public/avatar/${userId}/${baseName}-256.${ext}`
-    } catch (error) {
-      console.warn('[saveAvatar] GCS upload failed, falling back to DB:', error)
-    }
-  }
-
-  // Database fallback — stores the raw image bytes as base64.
+  // Always store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
   const base64Data = bytes.toString('base64')
   const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
-
   const { avatarStorage } = await import('@/lib/db/schema')
   await drizzleDb
     .insert(avatarStorage)
@@ -147,6 +134,17 @@ export async function saveAvatar(
       target: avatarStorage.userId,
       set: { data: dataUrl, updatedAt: new Date() },
     })
+
+  // Try GCS first for cloud persistence.
+  const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
+  if (isGcsConfigured()) {
+    const gcsPrefix = `avatars/${userId}/${baseName}`
+    try {
+      await uploadBuffer(bytes, `${gcsPrefix}-256.${ext}`, avatarFile.type, true)
+    } catch (error) {
+      console.warn('[saveAvatar] GCS upload failed, serving from DB fallback:', error)
+    }
+  }
 
   return `/api/public/avatar/${userId}/${baseName}-256.${ext}`
 }

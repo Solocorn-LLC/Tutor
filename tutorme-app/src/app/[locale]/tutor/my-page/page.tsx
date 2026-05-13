@@ -965,7 +965,7 @@ export default function TutorMyPage() {
     }
   }
 
-  const uploadAvatarFile = async (file: File, crop: any | null) => {
+  const uploadAvatarFile = async (file: File) => {
     setAvatarFile(file)
     setUploadingAvatar(true)
     try {
@@ -975,9 +975,6 @@ export default function TutorMyPage() {
 
       const formData = new FormData()
       formData.set('avatar', file)
-      if (crop) {
-        formData.set('crop', JSON.stringify(crop))
-      }
 
       const res = await fetch('/api/tutor/public-profile/avatar', {
         method: 'POST',
@@ -1052,7 +1049,31 @@ export default function TutorMyPage() {
 
     setCropping(true)
     try {
-      await uploadAvatarFile(cropSourceFile, cropData)
+      // Generate the cropped image from canvas and upload the blob
+      const img = cropImageRef.current
+      if (!img) {
+        setCropError('Image is no longer available. Please select again.')
+        return
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = 512
+      canvas.height = 512
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        setCropError('Failed to process image')
+        return
+      }
+      ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, 512, 512)
+
+      const blob = await new Promise<Blob | null>(resolve =>
+        canvas.toBlob(resolve, 'image/png', 0.95)
+      )
+      if (!blob) {
+        setCropError('Failed to generate cropped image')
+        return
+      }
+      const croppedFile = new File([blob], 'avatar.png', { type: 'image/png' })
+      await uploadAvatarFile(croppedFile)
       closeCropDialog()
     } catch {
       toast.error('Failed to crop/upload photo')
