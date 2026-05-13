@@ -5,7 +5,7 @@ import { withAuth, withCsrf, ValidationError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { cache } from '@/lib/db'
 import { profile } from '@/lib/db/schema'
-import { saveAvatar, deleteAvatar, type AvatarCropPayload } from '@/lib/registration/register-user'
+import { saveAvatar, deleteAvatar } from '@/lib/registration/register-user'
 
 export const POST = withCsrf(
   withAuth(
@@ -24,16 +24,6 @@ export const POST = withCsrf(
       }
       const file = fileEntry as File
 
-      let crop: AvatarCropPayload | null = null
-      const cropRaw = formData.get('crop')
-      if (typeof cropRaw === 'string' && cropRaw.trim()) {
-        try {
-          crop = JSON.parse(cropRaw) as AvatarCropPayload
-        } catch {
-          return NextResponse.json({ error: 'Invalid crop data' }, { status: 400 })
-        }
-      }
-
       try {
         // Capture the OLD avatar URL before we overwrite it.
         const [existing] = await drizzleDb
@@ -43,10 +33,10 @@ export const POST = withCsrf(
           .limit(1)
         const oldAvatarUrl = existing?.avatarUrl || null
 
-        console.log('[avatar upload] Starting upload for user', session.user.id, 'crop:', !!crop)
+        console.log('[avatar upload] Starting upload for user', session.user.id)
 
         // 1. Save new avatar FIRST (never delete old before we know the new one is ready)
-        const avatarUrl = await saveAvatar(session.user.id, file, crop)
+        const avatarUrl = await saveAvatar(session.user.id, file)
         console.log('[avatar upload] saveAvatar returned URL:', avatarUrl)
 
         // 2. Update DB with the new URL

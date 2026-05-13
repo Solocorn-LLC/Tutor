@@ -35,10 +35,9 @@ import {
   Download,
   Check,
   AlertTriangle,
-  Pencil,
-  X,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation'
+import { AvatarUploader } from '@/components/avatar-uploader'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -71,7 +70,6 @@ interface BillingRecord {
 export default function StudentAccount() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
@@ -193,62 +191,6 @@ export default function StudentAccount() {
       toast.error('Failed to update profile')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024
-  const ACCEPTED_AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp']
-  const uploadAvatar = async (file: File) => {
-    if (!ACCEPTED_AVATAR_MIME.includes(file.type)) {
-      toast.error('Accepted formats: JPG, PNG, WEBP only')
-      return
-    }
-    if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      toast.error('Maximum size is 10 MB')
-      return
-    }
-
-    setUploadingAvatar(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const form = new FormData()
-      form.set('avatar', file)
-
-      const res = await fetch('/api/user/avatar', {
-        method: 'POST',
-        headers: {
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-        body: form,
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data?.error || 'Failed to upload photo')
-        return
-      }
-
-      const newUrl = data?.avatarUrl ?? data?.url ?? null
-      if (!newUrl || typeof newUrl !== 'string') {
-        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
-        return
-      }
-
-      // Stored URLs can be relative (`/uploads/...`) or absolute (GCS). `img` can handle both.
-      setFormData(prev => ({ ...prev, avatarUrl: newUrl }))
-      // Refresh next-auth session so JWT token contains new avatar URL
-      await updateSession({ image: newUrl }).catch(() => {
-        // Non-critical: session will refresh on next page load
-      })
-      toast.success('Profile photo updated')
-    } catch {
-      toast.error('Failed to upload photo')
-    } finally {
-      setUploadingAvatar(false)
     }
   }
 
@@ -419,84 +361,24 @@ export default function StudentAccount() {
               <CardContent className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
-                  <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-full border-2 border-white bg-gray-200 shadow-sm">
-                    {formData.avatarUrl ? (
-                      <>
-                        <img
-                          src={formData.avatarUrl}
-                          alt="Avatar"
-                          width={80}
-                          height={80}
-                          className="h-full w-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                        {/* Edit/Delete overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 transition-opacity hover:opacity-100">
-                          <label
-                            htmlFor="avatarUpload"
-                            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/90 text-gray-700 transition-colors hover:bg-white"
-                            title="Change photo"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-                                const csrfData = await csrfRes.json().catch(() => ({}))
-                                const csrfToken = csrfData?.token ?? null
-
-                                const res = await fetch('/api/user/avatar', {
-                                  method: 'DELETE',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-                                  },
-                                  credentials: 'include',
-                                })
-                                const data = await res.json().catch(() => ({}))
-                                if (!res.ok) {
-                                  toast.error(data?.error || 'Failed to delete photo')
-                                  return
-                                }
-                                setFormData(prev => ({ ...prev, avatarUrl: '' }))
-                                await updateSession({ image: null }).catch(() => {
-                                  // Non-critical: session will refresh on next page load
-                                })
-                                toast.success('Profile photo deleted')
-                              } catch {
-                                toast.error('Failed to delete photo')
-                              }
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/90 text-white transition-colors hover:bg-red-600"
-                            title="Delete photo"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gray-100 text-2xl font-bold text-gray-400">
-                        {formData.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+                  <AvatarUploader
+                    avatarUrl={formData.avatarUrl}
+                    uploadUrl="/api/user/avatar"
+                    deleteUrl="/api/user/avatar"
+                    size={80}
+                    fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
+                    onUploadSuccess={url => {
+                      const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+                      setFormData(prev => ({ ...prev, avatarUrl: busted }))
+                      updateSession({ image: busted }).catch(() => {})
+                    }}
+                    onDeleteSuccess={() => {
+                      setFormData(prev => ({ ...prev, avatarUrl: '' }))
+                      updateSession({ image: null }).catch(() => {})
+                    }}
+                  />
                   <div className="flex-1">
-                    <Label htmlFor="avatarUpload">Profile Photo</Label>
-                    <Input
-                      id="avatarUpload"
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingAvatar}
-                      onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) void uploadAvatar(file)
-                        // Allow selecting the same file again.
-                        e.currentTarget.value = ''
-                      }}
-                      className="mt-1"
-                    />
+                    <Label>Profile Photo</Label>
                     <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
                   </div>
                 </div>

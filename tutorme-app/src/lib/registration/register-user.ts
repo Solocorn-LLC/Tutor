@@ -35,15 +35,6 @@ import type { NextRequest } from 'next/server'
 
 const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024
 
-export type AvatarCropPayload = {
-  x: number
-  y: number
-  width: number
-  height: number
-  originalWidth: number
-  originalHeight: number
-}
-
 function normalizeHandleSeed(seed: string): string {
   const cleaned = seed
     .toLowerCase()
@@ -69,10 +60,49 @@ async function generateUniqueHandle(
   return `user${nanoid(8).toLowerCase()}`.slice(0, 30)
 }
 
+/**
+ * Validate image magic bytes to ensure the file is actually an image.
+ * Pure-JS validation — no native dependencies required.
+ */
+function validateImageMagicBytes(buffer: Buffer, mimeType: string): boolean {
+  if (buffer.length < 12) return false
+
+  if (mimeType === 'image/webp') {
+    return (
+      buffer.slice(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.slice(8, 12).toString('ascii') === 'WEBP'
+    )
+  }
+
+  if (mimeType === 'image/png') {
+    return (
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47
+    )
+  }
+
+  if (mimeType === 'image/jpeg') {
+    return buffer[0] === 0xff && buffer[1] === 0xd8
+  }
+
+  return false
+}
+
+/**
+ * Save an avatar image for a user.
+ *
+ * The client is expected to perform all cropping/resizing (via Canvas) before
+ * uploading. The server only validates magic bytes and stores the file.
+ *
+ * @param userId  The user's ID
+ * @param avatarFile  The cropped image File/Blob from the client
+ * @returns  Public URL path for the saved avatar
+ */
 export async function saveAvatar(
   userId: string,
-  avatarFile: File,
-  crop?: AvatarCropPayload | null
+  avatarFile: File
 ): Promise<string> {
   if (avatarFile.size > MAX_AVATAR_SIZE_BYTES) {
     throw new ValidationError('Profile photo is too large (max 10MB)')
@@ -85,227 +115,29 @@ export async function saveAvatar(
 
   const bytes = Buffer.from(await avatarFile.arrayBuffer())
 
-  let sharp: any
-  try {
-    const sharpMod = await import('sharp')
-    sharp = sharpMod.default ?? sharpMod
-  } catch (err) {
-    console.error('[saveAvatar] Failed to import sharp:', err)
-    throw new ValidationError('Image processing is temporarily unavailable. Please try again later.')
-  }
-
-  const meta = await sharp(bytes, { failOnError: false }).metadata()
-  const orientation = meta.orientation ?? 1
-  const isSwapped = orientation >= 5 && orientation <= 8
-  const rawWidth = meta.width ?? 0
-  const rawHeight = meta.height ?? 0
-  const width = isSwapped ? rawHeight : rawWidth
-  const height = isSwapped ? rawWidth : rawHeight
-  const format = meta.format ?? null
-
-  if (!width || !height) {
-    throw new ValidationError('Invalid image')
-  }
-
-  if (width < 512 || height < 512) {
-    throw new ValidationError('Minimum dimensions: 512 × 512 px')
-  }
-
-  const inputRaw = sharp(bytes, { failOnError: false })
-  const inputRotated = inputRaw.clone().rotate()
-
-  if (format && !['jpeg', 'png', 'webp'].includes(format)) {
-    throw new ValidationError('Accepted formats: JPG, PNG, WEBP only')
-  }
-
-  const analyzeCandidate = async (candidate: any) => {
-    const analysis = await candidate
-      .clone()
-      .resize(64, 64, { fit: 'cover', position: 'centre' })
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-
-    const pixelCount = analysis.info.width * analysis.info.height
-    let sumAlpha = 0
-    let minLum = 255
-    let maxLum = 0
-
-    for (let i = 0; i < analysis.data.length; i += 4) {
-      const r = analysis.data[i]
-      const g = analysis.data[i + 1]
-      const b = analysis.data[i + 2]
-      const a = analysis.data[i + 3]
-      sumAlpha += a
-      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-      minLum = Math.min(minLum, lum)
-      maxLum = Math.max(maxLum, lum)
-    }
-
-    const avgAlpha = sumAlpha / (pixelCount * 255)
-    const lumRange = maxLum - minLum
-    return { avgAlpha, lumRange }
-  }
-
-  const passesModeration = (avgAlpha: number, lumRange: number) => {
-    if (avgAlpha < 0.08) return false
-    if (lumRange < 6 && avgAlpha > 0.2) return false
-    return true
-  }
-
-  const isFiniteNumber = (value: unknown): value is number =>
-    typeof value === 'number' && Number.isFinite(value)
-
-  const clampInt = (value: number, min: number, max: number) =>
-    Math.min(max, Math.max(min, Math.round(value)))
-
-  const getCropExtract = (inputWidth: number, inputHeight: number) => {
-    if (!crop) return null
-    const { x, y, width, height, originalWidth, originalHeight } = crop
-    const hasNumbers = [x, y, width, height, originalWidth, originalHeight].every(isFiniteNumber)
-    if (!hasNumbers) throw new ValidationError('Invalid crop data')
-    if (width < 256 || height < 256) throw new ValidationError('Crop is too small (min 256 × 256)')
-    if (originalWidth <= 0 || originalHeight <= 0) throw new ValidationError('Invalid crop data')
-    if (Math.abs(width - height) > 2) throw new ValidationError('Crop must be square')
-
-    const scaleX = inputWidth / originalWidth
-    const scaleY = inputHeight / originalHeight
-    // Use a unified scale to prevent aspect-ratio distortion when browser
-    // and backend report slightly different dimensions.
-    const scale = Math.abs(scaleX - scaleY) < 0.02 ? scaleX : (scaleX + scaleY) / 2
-
-    const left = clampInt(x * scale, 0, inputWidth - 1)
-    const top = clampInt(y * scale, 0, inputHeight - 1)
-    const w = clampInt(width * scale, 1, inputWidth - left)
-    const h = clampInt(height * scale, 1, inputHeight - top)
-    const side = Math.min(w, h)
-    if (side < 256) throw new ValidationError('Crop is too small (min 256 × 256)')
-
-    return { left, top, width: side, height: side }
-  }
-
-  // Apply crop if provided. The frontend sends crop coordinates based on the
-  // browser-oriented image dimensions (after EXIF auto-rotation). We compute
-  // the backend scale factor and try both the rotated and raw coordinate
-  // systems to handle any browser↔backend EXIF orientation mismatch.
-  //
-  // Reliability fix: instead of picking the candidate with the highest
-  // luminance (which can be wrong), we pick the one whose input dimensions
-  // most closely match the frontend's reported originalWidth/originalHeight.
-  let pipeline: any = inputRotated.clone()
-  if (crop) {
-    let rotatedCandidate: any | null = null
-    let rawCandidate: any | null = null
-    let rotatedScaleError = Infinity
-    let rawScaleError = Infinity
-
-    try {
-      const extractRotated = getCropExtract(width, height)
-      if (extractRotated) {
-        rotatedCandidate = inputRotated.clone().extract(extractRotated)
-        // How far are the oriented dimensions from the frontend's reported dims?
-        rotatedScaleError =
-          Math.abs(width - (crop.originalWidth ?? width)) +
-          Math.abs(height - (crop.originalHeight ?? height))
-      }
-    } catch (err) {
-      console.warn('[saveAvatar] Rotated crop extraction failed:', err)
-    }
-
-    try {
-      const extractRaw = getCropExtract(rawWidth, rawHeight)
-      if (extractRaw) {
-        rawCandidate = inputRaw.clone().extract(extractRaw).rotate()
-        rawScaleError =
-          Math.abs(rawWidth - (crop.originalWidth ?? rawWidth)) +
-          Math.abs(rawHeight - (crop.originalHeight ?? rawHeight))
-      }
-    } catch (err) {
-      console.warn('[saveAvatar] Raw crop extraction failed:', err)
-    }
-
-    const rotatedEval = rotatedCandidate ? await analyzeCandidate(rotatedCandidate) : null
-    const rawEval = rawCandidate ? await analyzeCandidate(rawCandidate) : null
-
-    const rotatedPass = rotatedEval
-      ? passesModeration(rotatedEval.avgAlpha, rotatedEval.lumRange)
-      : false
-    const rawPass = rawEval ? passesModeration(rawEval.avgAlpha, rawEval.lumRange) : false
-
-    if (!rotatedPass && !rawPass) {
-      throw new ValidationError('Profile photo failed moderation checks')
-    }
-
-    if (rotatedPass && rawPass) {
-      // Pick the candidate whose dimensions match the frontend report.
-      // This is deterministic and avoids the old luminance-based lottery.
-      const pickRotated = rotatedScaleError <= rawScaleError
-      pipeline = pickRotated ? rotatedCandidate : rawCandidate
-      console.log(
-        '[saveAvatar] Both crop candidates pass moderation; picking',
-        pickRotated ? 'rotated' : 'raw',
-        '(scaleError: rotated=%d raw=%d)',
-        rotatedScaleError,
-        rawScaleError
-      )
-    } else {
-      pipeline = rotatedPass ? rotatedCandidate : rawCandidate
-      console.log('[saveAvatar] Picking', rotatedPass ? 'rotated' : 'raw', 'crop candidate')
-    }
-  } else {
-    const eval0 = await analyzeCandidate(pipeline)
-    if (!passesModeration(eval0.avgAlpha, eval0.lumRange)) {
-      throw new ValidationError('Profile photo failed moderation checks')
-    }
-  }
-
-  const outputCommon = {
-    fit: 'cover' as const,
-    position: 'centre' as const,
+  if (!validateImageMagicBytes(bytes, avatarFile.type)) {
+    throw new ValidationError('Invalid image file')
   }
 
   const timestamp = Date.now()
   const baseName = `${timestamp}-avatar`
+  const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
-  // Generate processed buffers
-  const [buf256, buf128, buf64] = await Promise.all([
-    pipeline
-      .clone()
-      .resize(256, 256, outputCommon)
-      .webp({ quality: 84 })
-      .withMetadata({})
-      .toBuffer(),
-    pipeline
-      .clone()
-      .resize(128, 128, outputCommon)
-      .webp({ quality: 84 })
-      .withMetadata({})
-      .toBuffer(),
-    pipeline.clone().resize(64, 64, outputCommon).webp({ quality: 84 }).withMetadata({}).toBuffer(),
-  ])
-
-  // Try GCS first for cloud persistence; if unavailable/misconfigured, fall back to local storage.
-  // This avoids hard-failing avatar upload in environments that set GCS_BUCKET but lack valid auth.
+  // Try GCS first for cloud persistence; fall back to DB on failure.
   const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
   if (isGcsConfigured()) {
     const gcsPrefix = `avatars/${userId}/${baseName}`
     try {
-      await Promise.all([
-        uploadBuffer(buf256, `${gcsPrefix}-256.webp`, 'image/webp', true),
-        uploadBuffer(buf128, `${gcsPrefix}-128.webp`, 'image/webp', true),
-        uploadBuffer(buf64, `${gcsPrefix}-64.webp`, 'image/webp', true),
-      ])
-      return `/api/public/avatar/${userId}/${baseName}-256.webp`
+      await uploadBuffer(bytes, `${gcsPrefix}-256.${ext}`, avatarFile.type, true)
+      return `/api/public/avatar/${userId}/${baseName}-256.${ext}`
     } catch (error) {
-      console.warn('Avatar GCS upload failed, falling back to local storage:', error)
+      console.warn('[saveAvatar] GCS upload failed, falling back to DB:', error)
     }
   }
 
-  // Database fallback (development or when GCS is not configured).
-  // Stores the avatar as base64-encoded WebP in PostgreSQL so it survives
-  // container restarts on ephemeral filesystems (e.g. GCP Cloud Run).
-  const base64Data = buf256.toString('base64')
-  const dataUrl = `data:image/webp;base64,${base64Data}`
+  // Database fallback — stores the raw image bytes as base64.
+  const base64Data = bytes.toString('base64')
+  const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
 
   const { avatarStorage } = await import('@/lib/db/schema')
   await drizzleDb
@@ -316,7 +148,7 @@ export async function saveAvatar(
       set: { data: dataUrl, updatedAt: new Date() },
     })
 
-  return `/api/public/avatar/${userId}/${baseName}-256.webp`
+  return `/api/public/avatar/${userId}/${baseName}-256.${ext}`
 }
 
 /**

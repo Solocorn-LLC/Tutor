@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,12 +41,10 @@ import {
   Download,
   Check,
   AlertTriangle,
-  Pencil,
-  X,
 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { BackButton } from '@/components/navigation'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { AvatarUploader } from '@/components/avatar-uploader'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -267,8 +265,6 @@ export default function TutorSettings() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [formData, setFormData] = useState({
     name: session?.user?.name || '',
     email: session?.user?.email || '',
@@ -386,130 +382,6 @@ export default function TutorSettings() {
     }
     return ['UTC', 'Asia/Shanghai', 'America/New_York', 'Europe/London']
   }, [])
-
-  const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024
-  const ACCEPTED_AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp']
-
-  const isAcceptedAvatarFile = (file: File) => {
-    const byMime = ACCEPTED_AVATAR_MIME.includes(file.type)
-    if (byMime) return true
-    const name = file.name.toLowerCase()
-    return (
-      name.endsWith('.jpg') ||
-      name.endsWith('.jpeg') ||
-      name.endsWith('.png') ||
-      name.endsWith('.webp')
-    )
-  }
-
-  const handleAvatarSelect = async (file: File) => {
-    if (!isAcceptedAvatarFile(file)) {
-      toast.error('Accepted formats: JPG, PNG, WEBP only')
-      return
-    }
-    if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      toast.error('Maximum size is 10 MB')
-      return
-    }
-
-    if (typeof window === 'undefined') return
-    const objectUrl = URL.createObjectURL(file)
-    try {
-      const img = new window.Image()
-      img.src = objectUrl
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Failed to load image'))
-      })
-      if (img.naturalWidth < 512 || img.naturalHeight < 512) {
-        toast.error('Minimum dimensions: 512 × 512 px')
-        return
-      }
-    } catch {
-      toast.error('Invalid image file')
-      return
-    } finally {
-      URL.revokeObjectURL(objectUrl)
-    }
-
-    setUploadingAvatar(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const formDataObj = new FormData()
-      formDataObj.set('avatar', file)
-
-      const res = await fetch('/api/tutor/public-profile/avatar', {
-        method: 'POST',
-        headers: {
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-        body: formDataObj,
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data?.error || 'Failed to upload photo')
-        return
-      }
-      const newUrl = data?.avatarUrl ?? data?.url ?? null
-      if (!newUrl || typeof newUrl !== 'string') {
-        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
-        return
-      }
-      const fullUrl =
-        newUrl.startsWith('/') && typeof window !== 'undefined'
-          ? `${window.location.origin}${newUrl}`
-          : newUrl
-      setFormData(prev => ({ ...prev, avatarUrl: fullUrl }))
-      await updateSession({ image: fullUrl }).catch(() => {
-        // Non-critical: session will refresh on next page load
-      })
-      toast.success('Profile photo updated')
-    } catch {
-      toast.error('Failed to upload photo')
-    } finally {
-      setUploadingAvatar(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
-
-  const handleDeleteAvatar = async () => {
-    if (!confirm('Are you sure you want to delete your profile photo?')) return
-    setUploadingAvatar(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch('/api/tutor/public-profile/avatar', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data?.error || 'Failed to delete photo')
-        return
-      }
-      setFormData(prev => ({ ...prev, avatarUrl: '' }))
-      await updateSession({ image: null }).catch(() => {
-        // Non-critical: session will refresh on next page load
-      })
-      toast.success('Profile photo deleted')
-    } catch {
-      toast.error('Failed to delete photo')
-    } finally {
-      setUploadingAvatar(false)
-    }
-  }
 
   const handleSaveProfile = async () => {
     setSaving(true)
@@ -700,55 +572,24 @@ export default function TutorSettings() {
               <CardContent className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <Avatar className="h-20 w-20 border-2 border-white shadow-sm">
-                      <AvatarImage
-                        src={formData.avatarUrl || undefined}
-                        alt="Tutor avatar"
-                        onError={() => {
-                          console.error('Avatar failed to load:', formData.avatarUrl)
-                        }}
-                      />
-                      <AvatarFallback className="text-lg font-semibold">
-                        {formData.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Edit/Delete overlay buttons */}
-                    <div className="absolute -bottom-2 -right-2 flex gap-1">
-                      <Button
-                        size="icon"
-                        className="h-8 w-8 rounded-full bg-white text-gray-700 shadow hover:bg-gray-100"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingAvatar}
-                        aria-label="Edit profile photo"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {formData.avatarUrl && (
-                        <Button
-                          size="icon"
-                          className="h-8 w-8 rounded-full bg-red-500 text-white shadow hover:bg-red-600"
-                          onClick={() => void handleDeleteAvatar()}
-                          disabled={uploadingAvatar}
-                          aria-label="Delete profile photo"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <Input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (file) void handleAvatarSelect(file)
-                      }}
-                      className="hidden"
-                    />
-                  </div>
+                  <AvatarUploader
+                    avatarUrl={formData.avatarUrl}
+                    uploadUrl="/api/tutor/public-profile/avatar"
+                    deleteUrl="/api/tutor/public-profile/avatar"
+                    size={80}
+                    fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
+                    onUploadSuccess={url => {
+                      const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+                      setFormData(prev => ({ ...prev, avatarUrl: busted }))
+                      updateSession({ image: busted }).catch(() => {})
+                    }}
+                    onDeleteSuccess={() => {
+                      setFormData(prev => ({ ...prev, avatarUrl: '' }))
+                      updateSession({ image: null }).catch(() => {})
+                    }}
+                  />
                   <div className="flex-1">
-                    <Label htmlFor="avatarUpload">Profile Photo</Label>
+                    <Label>Profile Photo</Label>
                     <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
                   </div>
                 </div>

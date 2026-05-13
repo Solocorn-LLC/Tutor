@@ -80,9 +80,16 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
           }
 
           if (buffer && buffer.length > 0) {
+            // Detect MIME type from the data URL prefix
+            let contentType = 'image/png'
+            if (data.startsWith('data:image/webp;')) contentType = 'image/webp'
+            else if (data.startsWith('data:image/png;')) contentType = 'image/png'
+            else if (data.startsWith('data:image/jpeg;')) contentType = 'image/jpeg'
+            else if (data.startsWith('data:image/jpg;')) contentType = 'image/jpeg'
+
             return new NextResponse(new Uint8Array(buffer), {
               headers: {
-                'Content-Type': 'image/webp',
+                'Content-Type': contentType,
                 'Cache-Control': 'public, max-age=3600',
               },
             })

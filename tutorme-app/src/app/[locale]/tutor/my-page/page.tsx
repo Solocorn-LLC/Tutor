@@ -317,7 +317,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                     : 'No catalogued courses'}
               </p>
               {activeTab === 'active' && (
-                <Button onClick={onCreateCourse} variant="outline" className="mt-4" size="sm">
+                <Button onClick={onCreateCourse} variant="outline" className="mt-4 text-slate-700" size="sm">
                   <Plus className="mr-1 h-4 w-4" />
                   Create your first course
                 </Button>
@@ -987,10 +987,13 @@ export default function TutorMyPage() {
         toast.error('Upload succeeded but no photo URL was returned. Please try again.')
         return
       }
-      const fullUrl =
+      let fullUrl =
         newUrl.startsWith('/') && typeof window !== 'undefined'
           ? `${window.location.origin}${newUrl}`
           : newUrl
+      // Cache-bust so browsers don't reuse a stale/404 cached image
+      const sep = fullUrl.includes('?') ? '&' : '?'
+      fullUrl = `${fullUrl}${sep}t=${Date.now()}`
       setAvatarUrl(fullUrl)
       setAvatarPreview(null)
       setAvatarFile(null)
@@ -1560,7 +1563,7 @@ export default function TutorMyPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-2"
+                      className="h-8 gap-2 text-slate-700"
                       onClick={() => {
                         setCropError(null)
                         setCropZoom(1)
@@ -1602,6 +1605,7 @@ export default function TutorMyPage() {
                 variant="outline"
                 onClick={closeCropDialog}
                 disabled={cropping || uploadingAvatar}
+                className="text-slate-700"
               >
                 Cancel
               </Button>
@@ -1822,7 +1826,7 @@ export default function TutorMyPage() {
             </div>
           </div>
           <DialogFooter className="mt-4">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creatingCourse}>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creatingCourse} className="text-slate-700">
               Cancel
             </Button>
             <Button
