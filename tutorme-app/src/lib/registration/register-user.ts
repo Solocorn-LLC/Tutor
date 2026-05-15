@@ -123,27 +123,43 @@ export async function saveAvatar(
   const baseName = `${timestamp}-avatar`
   const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
-  // Always store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
-  const base64Data = bytes.toString('base64')
-  const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
-  const { avatarStorage } = await import('@/lib/db/schema')
-  await drizzleDb
-    .insert(avatarStorage)
-    .values({ userId, data: dataUrl })
-    .onConflictDoUpdate({
-      target: avatarStorage.userId,
-      set: { data: dataUrl, updatedAt: new Date() },
-    })
+  // Store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
+  // Wrapped in try-catch so missing tables or DB issues don't break the upload
+  // when GCS is available and working.
+  let dbStored = false
+  try {
+    const base64Data = bytes.toString('base64')
+    const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
+    const { avatarStorage } = await import('@/lib/db/schema')
+    await drizzleDb
+      .insert(avatarStorage)
+      .values({ userId, data: dataUrl })
+      .onConflictDoUpdate({
+        target: avatarStorage.userId,
+        set: { data: dataUrl, updatedAt: new Date() },
+      })
+    dbStored = true
+  } catch (dbError) {
+    console.warn('[saveAvatar] DB storage failed (table may not exist):', dbError)
+  }
 
-  // Try GCS first for cloud persistence.
+  // Try GCS for cloud persistence.
+  let gcsStored = false
   const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
   if (isGcsConfigured()) {
     const gcsPrefix = `avatars/${userId}/${baseName}`
     try {
       await uploadBuffer(bytes, `${gcsPrefix}-256.${ext}`, avatarFile.type, true)
+      gcsStored = true
     } catch (error) {
-      console.warn('[saveAvatar] GCS upload failed, serving from DB fallback:', error)
+      console.warn('[saveAvatar] GCS upload failed:', error)
     }
+  }
+
+  if (!dbStored && !gcsStored) {
+    throw new ValidationError(
+      'Unable to store photo. Please check server logs or try again later.'
+    )
   }
 
   return `/api/public/avatar/${userId}/${baseName}-256.${ext}`
