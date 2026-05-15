@@ -70,12 +70,10 @@ export const POST = withCsrf(
           avatarUrl: updated?.avatarUrl ?? avatarUrl,
         })
       } catch (error) {
-        if (error instanceof ValidationError) {
-          console.warn('[avatar upload] Validation error:', error.message)
-          return NextResponse.json({ error: error.message }, { status: 400 })
-        }
-        console.error('[avatar upload] Unexpected error:', error)
-        return NextResponse.json({ error: 'Failed to upload photo' }, { status: 500 })
+        const message = error instanceof Error ? error.message : String(error)
+        const status = error instanceof ValidationError ? 400 : 500
+        console.error('[avatar upload] Error:', message)
+        return NextResponse.json({ error: message }, { status })
       }
     },
     { role: 'STUDENT' }

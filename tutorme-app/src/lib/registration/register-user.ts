@@ -124,9 +124,8 @@ export async function saveAvatar(
   const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
   // Store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
-  // Wrapped in try-catch so missing tables or DB issues don't break the upload
-  // when GCS is available and working.
   let dbStored = false
+  let dbErrorMsg = ''
   try {
     const base64Data = bytes.toString('base64')
     const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
@@ -139,26 +138,31 @@ export async function saveAvatar(
         set: { data: dataUrl, updatedAt: new Date() },
       })
     dbStored = true
-  } catch (dbError) {
-    console.warn('[saveAvatar] DB storage failed (table may not exist):', dbError)
+  } catch (dbError: any) {
+    dbErrorMsg = dbError?.message || String(dbError)
+    console.warn('[saveAvatar] DB storage failed:', dbErrorMsg)
   }
 
   // Try GCS for cloud persistence.
   let gcsStored = false
+  let gcsErrorMsg = ''
   const { isGcsConfigured, uploadBuffer } = await import('@/lib/storage/gcs')
   if (isGcsConfigured()) {
     const gcsPrefix = `avatars/${userId}/${baseName}`
     try {
       await uploadBuffer(bytes, `${gcsPrefix}-256.${ext}`, avatarFile.type, true)
       gcsStored = true
-    } catch (error) {
-      console.warn('[saveAvatar] GCS upload failed:', error)
+    } catch (error: any) {
+      gcsErrorMsg = error?.message || String(error)
+      console.warn('[saveAvatar] GCS upload failed:', gcsErrorMsg)
     }
+  } else {
+    gcsErrorMsg = 'GCS not configured (GCS_BUCKET env var missing)'
   }
 
   if (!dbStored && !gcsStored) {
     throw new ValidationError(
-      'Unable to store photo. Please check server logs or try again later.'
+      `Storage failed — DB: ${dbErrorMsg || 'unknown'} | GCS: ${gcsErrorMsg || 'unknown'}`
     )
   }
 
