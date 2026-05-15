@@ -61,13 +61,16 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="min-h-screen flex flex-col relative"
             >
+              {/* Top spacer: clears navbar and pushes hero toward vertical center */}
+              <div className="flex-1 min-h-[100px]" />
+
               {/* Hero Section */}
-              <section className="flex-1 flex flex-col items-center px-6 pb-32">
+              <section className="flex flex-col items-center px-6">
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2, duration: 0.6 }}
-                  className="text-center max-w-3xl mx-auto w-full mt-[clamp(120px,18vh,220px)]"
+                  className="text-center max-w-3xl mx-auto w-full"
                 >
                   <h1 className="text-3xl md:text-5xl font-sans font-medium tracking-tight mb-10 text-white">
                     Live AI-Augmented Instruction Platform
@@ -109,8 +112,11 @@ export default function App() {
                 </motion.div>
               </section>
 
+              {/* Guaranteed buffer: ensures persistent gap between hero and card */}
+              <div className="flex-1 min-h-[160px]" />
+
               {/* Launch Card — Bottom Right */}
-              <div className="absolute bottom-10 right-6 z-10">
+              <div className="flex-shrink-0 flex justify-end px-6 pb-10">
                 <LaunchCard />
               </div>
             </motion.main>
