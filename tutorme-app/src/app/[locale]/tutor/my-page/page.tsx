@@ -108,6 +108,8 @@ interface Course {
   hasStudents?: boolean
   lastSessionDate?: string | null
   upcomingSessionsCount?: number
+  nationality?: string | null
+  variantCategory?: string | null
 }
 
 function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
@@ -337,7 +339,11 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="truncate font-medium text-[#0F172A]">{course.name}</h4>
+                      <h4 className="truncate font-medium text-[#0F172A]">
+                        {course.nationality && course.nationality !== 'Global'
+                          ? `${course.name} — ${course.nationality}`
+                          : course.name}
+                      </h4>
                       {activeTab === 'catalogued' ? (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                           Catalogued

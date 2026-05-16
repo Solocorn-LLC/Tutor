@@ -116,6 +116,7 @@ export default function TutorClassesPage() {
       duration: number
       status: string
       courseName?: string
+      nationality?: string
     }>
   >([])
 
@@ -835,7 +836,9 @@ export default function TutorClassesPage() {
                               href={`/tutor/insights?sessionId=${event.id}`}
                               className="block truncate rounded bg-blue-100 p-1 text-xs hover:bg-blue-200"
                             >
-                              {event.courseName ? `${event.courseName} — ` : ''}
+                              {event.courseName
+                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                                : ''}
                               {event.title}
                             </Link>
                           ))}
@@ -868,7 +871,9 @@ export default function TutorClassesPage() {
                     >
                       <div>
                         <p className="font-medium">
-                          {event.courseName ? `${event.courseName} — ` : ''}
+                          {event.courseName
+                            ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                            : ''}
                           {event.title}
                         </p>
                         <p className="text-sm text-gray-500">

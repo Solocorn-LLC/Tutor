@@ -109,6 +109,7 @@ interface CalendarEvent {
   isRecurring?: boolean
   recurringPattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly'
   courseName?: string
+  nationality?: string
 }
 
 interface AvailabilityBlock {
@@ -253,7 +254,9 @@ function DraggableEvent({
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-white">
-            {event.courseName ? `${event.courseName} — ` : ''}
+            {event.courseName
+              ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+              : ''}
             {event.title}
           </p>
           <p className="text-white/80">
@@ -415,6 +418,7 @@ export function InteractiveCalendar({
             description: e.meetingUrl,
             sessionId: e.sessionId,
             courseName: e.courseName,
+            nationality: e.nationality,
             studentCount: e.enrolledCount ?? 0,
             color:
               e.status === 'live'
@@ -1055,7 +1059,9 @@ export function InteractiveCalendar({
                   <div className="flex items-start justify-between">
                     <div>
                       <DialogTitle className="text-xl">
-                        {selectedEvent.courseName || selectedEvent.title}
+                        {selectedEvent.courseName
+                          ? `${selectedEvent.courseName}${selectedEvent.nationality && selectedEvent.nationality !== 'Global' ? ` — ${selectedEvent.nationality}` : ''}`
+                          : selectedEvent.title}
                       </DialogTitle>
                       <DialogDescription className="mt-1">
                         {selectedEvent.courseName ? `${selectedEvent.title} • ` : ''}
@@ -1136,7 +1142,12 @@ export function InteractiveCalendar({
                     <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
                       <BookOpen className="h-5 w-5 text-gray-500" />
                       <div>
-                        <p className="font-medium">{selectedEvent.courseName}</p>
+                        <p className="font-medium">
+                          {selectedEvent.courseName}
+                          {selectedEvent.nationality && selectedEvent.nationality !== 'Global'
+                            ? ` — ${selectedEvent.nationality}`
+                            : ''}
+                        </p>
                         <p className="text-sm text-gray-500">Course</p>
                       </div>
                     </div>
@@ -1212,7 +1223,9 @@ export function InteractiveCalendar({
                     <div className={cn('h-3 w-3 rounded-full', event.color || 'bg-blue-500')} />
                     <div className="flex-1">
                       <p className="font-medium">
-                        {event.courseName ? `${event.courseName} — ` : ''}
+                        {event.courseName
+                          ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                          : ''}
                         {event.title}
                       </p>
                       <p className="text-sm text-gray-500">
@@ -1747,7 +1760,9 @@ function MonthView({
                             <span className="truncate font-medium">
                               {event.date.getHours()}:
                               {event.date.getMinutes().toString().padStart(2, '0')}{' '}
-                              {event.courseName ? `${event.courseName} — ` : ''}
+                              {event.courseName
+                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                                : ''}
                               {event.title}
                             </span>
                           </div>

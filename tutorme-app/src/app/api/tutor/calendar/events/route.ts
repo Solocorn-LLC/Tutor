@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, liveSession, course, sessionParticipant } from '@/lib/db/schema'
+import { calendarEvent, liveSession, course, sessionParticipant, courseVariant } from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 
 export const GET = withAuth(
@@ -137,6 +137,19 @@ export const GET = withAuth(
         : []
     const courseMap = new Map(courseRows.map(c => [c.courseId, c.name]))
 
+    // Fetch variant nationalities
+    const variantRows =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              publishedCourseId: courseVariant.publishedCourseId,
+              nationality: courseVariant.nationality,
+            })
+            .from(courseVariant)
+            .where(inArray(courseVariant.publishedCourseId, courseIds))
+        : []
+    const variantMap = new Map(variantRows.map(v => [v.publishedCourseId, v.nationality]))
+
     // Fetch session participant counts
     const sessionIds = [...new Set(merged.map(e => e.sessionId).filter(Boolean))] as string[]
     const participantRows =
@@ -156,6 +169,7 @@ export const GET = withAuth(
       ...e,
       courseName: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
       category: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
+      nationality: e.courseId ? (variantMap.get(e.courseId) ?? undefined) : undefined,
       enrolledCount: e.sessionId ? (participantMap.get(e.sessionId) ?? 0) : 0,
     }))
 

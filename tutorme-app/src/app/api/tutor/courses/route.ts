@@ -85,6 +85,22 @@ export const GET = withAuth(
       const sessionMap = new Map(sessionAgg.map(s => [s.courseId, s]))
       const enrollmentMap = new Map(enrollmentAgg.map(e => [e.courseId, e]))
 
+      // Fetch variant info for published courses
+      const variantRows =
+        courseIds.length > 0
+          ? await drizzleDb
+              .select({
+                publishedCourseId: courseVariant.publishedCourseId,
+                nationality: courseVariant.nationality,
+                category: courseVariant.category,
+              })
+              .from(courseVariant)
+              .where(inArray(courseVariant.publishedCourseId, courseIds))
+          : []
+      const variantMap = new Map(
+        variantRows.map(v => [v.publishedCourseId, { nationality: v.nationality, category: v.category }])
+      )
+
       // Map courseId to id for frontend compatibility
       const courses = coursesData
         .filter(c =>
@@ -95,6 +111,7 @@ export const GET = withAuth(
         .map(c => {
           const sessionMeta = sessionMap.get(c.courseId)
           const enrollmentMeta = enrollmentMap.get(c.courseId)
+          const variant = variantMap.get(c.courseId)
           return {
             id: c.courseId,
             name: c.name,
@@ -112,6 +129,8 @@ export const GET = withAuth(
             },
             lastSessionDate: sessionMeta?.lastSessionDate ?? null,
             upcomingSessionsCount: sessionMeta?.upcomingSessionsCount ?? 0,
+            nationality: variant?.nationality ?? undefined,
+            variantCategory: variant?.category ?? undefined,
           }
         })
 
