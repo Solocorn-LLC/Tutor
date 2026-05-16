@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { courseEnrollment, user, profile } from '@/lib/db/schema'
 
 export const GET = withAuth(
   async (_req, session, context) => {
-    const tutorId = session.user.id
-
-    const safeUrl = _req.nextUrl?.href || _req.url || ''
-    const match = safeUrl.match(/\/courses\/([^/]+)\/enrollments/)
-    const courseId = match ? match[1] : ''
+    const courseId = await getParamAsync(context.params, 'id')
 
     if (!courseId || courseId === 'undefined' || courseId === 'null') {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })

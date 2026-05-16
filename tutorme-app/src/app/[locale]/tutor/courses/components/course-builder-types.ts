@@ -1,5 +1,9 @@
-import type { LiveTask } from '@/lib/socket'
-import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
+import type {
+  InsightsSessionOption,
+  CourseBuilderInsightsProps as BaseCourseBuilderInsightsProps,
+} from '../../dashboard/components/builder-types'
+
+export type { InsightsSessionOption }
 
 export interface BatchItem {
   id: string
@@ -33,37 +37,4 @@ export interface BatchItem {
   }>
 }
 
-export interface InsightsSessionOption {
-  id: string
-  title: string
-  subject: string
-  scheduledAt: string
-  status: string
-  durationMinutes: number
-}
-
-export interface CourseBuilderInsightsProps {
-  courseId?: string | null
-  courses?: Array<{ id: string; name: string; categories?: string[]; isPublished?: boolean }>
-  onCourseChange?: (courseId: string) => void
-  sessionId: string | null
-  sessions: InsightsSessionOption[]
-  onSessionChange: (sessionId: string) => void
-  onStartSession?: () => void
-  onEndSession?: () => void
-  endingSession?: boolean
-  liveTasks: LiveTask[]
-  onDeployTask: (task: LiveTask) => void
-  onSendPoll: (payload: { taskId: string; question: string }) => void
-  onSendQuestion: (payload: { taskId: string; prompt: string }) => void
-  students?: LiveStudent[]
-  metrics?: EngagementMetrics | null
-  classDuration?: number
-  isRecording?: boolean
-  recordingDuration?: number
-  onToggleRecording?: () => void
-  socket?: any
-  tutorId?: string
-  tutorName?: string
-  studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
-}
+export interface CourseBuilderInsightsProps extends BaseCourseBuilderInsightsProps {}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   course,
@@ -16,11 +17,13 @@ import { and, eq, inArray, isNull, asc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request, session) => {
-  const safeUrl = request.nextUrl?.href || request.url || ''
-  const match = safeUrl.match(/\/courses\/([^/]+)\/submissions-tree/)
-  const courseId = match ? match[1] : ''
+export const GET = withAuth(async (request, session, context) => {
+  const courseId = await getParamAsync(context.params, 'id')
   const tutorId = session.user.id
+
+  if (!courseId || courseId === 'undefined' || courseId === 'null') {
+    return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
+  }
 
   const courseRow = await drizzleDb
     .select({

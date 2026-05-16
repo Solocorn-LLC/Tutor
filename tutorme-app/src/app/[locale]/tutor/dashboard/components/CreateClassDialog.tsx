@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { Loader2 } from 'lucide-react'
 
 const SUBJECTS = [
@@ -105,17 +106,9 @@ export function CreateClassDialog({
         return
       }
 
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch('/api/class/rooms', {
+      const res = await fetchWithCsrf('/api/class/rooms', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
           subject: form.subject,

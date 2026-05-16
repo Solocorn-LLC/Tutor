@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Loader2, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSocket } from '@/hooks/use-socket'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 
@@ -200,16 +201,9 @@ function TutorInsightsPageInner() {
       const match = courses.find(c => c.id === courseId)
       if (match && newName !== match.name) {
         try {
-          const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-          const csrfData = await csrfRes.json().catch(() => ({}))
-          const csrfToken = csrfData?.token ?? null
-          const res = await fetch(`/api/tutor/courses/${courseId}`, {
+          const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}`, {
             method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-            },
-            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: newName.trim() }),
           })
         } catch {
@@ -338,17 +332,9 @@ function TutorInsightsPageInner() {
         return
       }
       try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        const csrfToken = csrfData?.token ?? null
-
-        const res = await fetch(`/api/tutor/courses/${courseId}/course`, {
+        const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}/course`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lessons }),
         })
 
@@ -405,17 +391,9 @@ function TutorInsightsPageInner() {
       return
     }
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch('/api/tutor/courses', {
+      const res = await fetchWithCsrf('/api/tutor/courses', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newCourseName.trim(),
           categories: [],
@@ -473,15 +451,9 @@ function TutorInsightsPageInner() {
       return
     }
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
       const doDelete = async (confirmed: boolean) =>
-        fetch(`/api/tutor/courses/${courseId}${confirmed ? '?confirm=true' : ''}`, {
+        fetchWithCsrf(`/api/tutor/courses/${courseId}${confirmed ? '?confirm=true' : ''}`, {
           method: 'DELETE',
-          headers: { ...(csrfToken && { 'X-CSRF-Token': csrfToken }) },
-          credentials: 'include',
         })
 
       const res = await doDelete(false)

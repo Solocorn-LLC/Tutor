@@ -6,24 +6,23 @@
 
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { eq, and, asc, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, course } from '@/lib/db/schema'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
 
 export const GET = withAuth(
-  async (req, session) => {
+  async (req, session, context) => {
     const tutorId = session.user.id
 
-    // Ultimate source of truth: extract directly from the URL pathname
-    const safeUrl = req.nextUrl?.href || req.url || ''
-    const match = safeUrl.match(/\/courses\/([^/]+)\/sessions/)
-    const courseId = match ? match[1] : ''
+    const courseId = await getParamAsync(context.params, 'id')
 
     if (!courseId || courseId === 'undefined' || courseId === 'null') {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
     }
 
+    const safeUrl = req.nextUrl?.href || req.url || ''
     const urlObj = new URL(safeUrl, 'http://localhost:3000')
     const statusParam = urlObj.searchParams.get('status')
     const allowedStatuses = statusParam

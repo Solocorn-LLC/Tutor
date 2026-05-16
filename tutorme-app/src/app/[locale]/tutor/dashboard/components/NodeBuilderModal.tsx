@@ -33,7 +33,7 @@ export function NodeBuilderModal({ isOpen, onClose, onSave, initialData }: NodeB
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-blue-500" />
-            Lesson Builder
+            Module Builder
           </DialogTitle>
         </DialogHeader>
         <div className="pt-4">

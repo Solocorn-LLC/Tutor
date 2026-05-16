@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { eq, and, asc } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, courseEnrollment, course } from '@/lib/db/schema'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
@@ -9,9 +10,7 @@ export const GET = withAuth(async (req, session, context) => {
   try {
     const studentId = session.user.id
 
-    const safeUrl = req.nextUrl?.href || req.url || ''
-    const match = safeUrl.match(/\/courses\/([^/]+)\/sessions/)
-    const courseId = match ? match[1] : ''
+    const courseId = await getParamAsync(context.params, 'id')
 
     if (!courseId || courseId === 'undefined' || courseId === 'null') {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
@@ -84,10 +83,11 @@ export const GET = withAuth(async (req, session, context) => {
     const merged = mergeSessions(formattedReal, virtualSessions)
 
     return NextResponse.json({ sessions: merged })
-  } catch (err: any) {
-    console.error('[Student Sessions API] Error:', err)
+  } catch (err: unknown) {
+    const e = err as Error
+    console.error('[Student Sessions API] Error:', e)
     return NextResponse.json(
-      { error: 'Internal server error', detail: err?.message || String(err) },
+      { error: 'Internal server error', detail: e?.message || String(e) },
       { status: 500 }
     )
   }

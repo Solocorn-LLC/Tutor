@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, sessionReplayArtifact } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -11,9 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: any }) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const safeUrl = req.nextUrl?.href || req.url || ''
-  const match = safeUrl.match(/\/live-sessions\/([^/]+)\/recording/)
-  const liveSessionId = match ? match[1] : ''
+  const liveSessionId = await getParamAsync(params, 'sessionId')
 
   if (!liveSessionId || liveSessionId === 'undefined' || liveSessionId === 'null') {
     return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })

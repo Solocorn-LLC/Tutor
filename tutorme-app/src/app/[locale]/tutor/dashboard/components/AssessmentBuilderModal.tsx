@@ -38,13 +38,8 @@ import {
 import { toast } from 'sonner'
 import type { Task, Assessment, QuizQuestion } from './builder-types'
 import { DEFAULT_TASK, DEFAULT_HOMEWORK } from './builder-utils'
-import {
-  ResourceImportPanel,
-  MatchingPairsEditor,
-  QuestionsPreview,
-  ManualQuestionComposer,
-  formatMatchingExplanation,
-} from './builder-components'
+import { ResourceImportPanel, QuestionsPreview } from './builder-components'
+import { QuestionEditor } from './QuestionEditor'
 import { LessonSelectorDialog } from './LessonSelectorDialog'
 
 interface BuilderModalProps {
@@ -80,41 +75,6 @@ export function AssessmentBuilderModal({
   const isHomework = builderType === 'homework'
   const titleLabel = isTask ? 'Task' : isHomework ? 'Homework' : 'Assessment'
   const assessmentData = data as Assessment
-
-  const addQuestion = (type: QuizQuestion['type']) => {
-    const matchingPairs =
-      type === 'matching'
-        ? [
-            { left: '', right: '' },
-            { left: '', right: '' },
-          ]
-        : undefined
-    const newQuestion: QuizQuestion = {
-      id: `q-${Date.now()}`,
-      type,
-      question: '',
-      points: 1,
-      options:
-        type === 'mcq' || type === 'multiselect'
-          ? ['', '', '', '']
-          : type === 'truefalse'
-            ? ['True', 'False']
-            : undefined,
-      matchingPairs,
-      correctAnswer: matchingPairs ? matchingPairs.map(pair => pair.right) : undefined,
-    }
-    setData({ ...data, questions: [...(data.questions || []), newQuestion] })
-  }
-
-  const updateQuestion = (index: number, updates: Partial<QuizQuestion>) => {
-    const newQuestions = [...(data.questions || [])]
-    newQuestions[index] = { ...newQuestions[index], ...updates }
-    setData({ ...data, questions: newQuestions })
-  }
-
-  const removeQuestion = (index: number) => {
-    setData({ ...data, questions: (data.questions || []).filter((_, i) => i !== index) })
-  }
 
   return (
     <>
@@ -232,213 +192,12 @@ export function AssessmentBuilderModal({
                 {/* Questions Section - Only when submissionType is 'questions' */}
                 {data.submissionType === 'questions' && (
                   <div className="space-y-4 rounded-lg border bg-purple-50/30 p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="flex items-center gap-2 font-medium">
-                        <FileQuestion className="h-4 w-4 text-purple-500" />
-                        Questions ({data.questions?.length || 0})
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => addQuestion('mcq')}>
-                          <Plus className="mr-1 h-4 w-4" /> MCQ
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addQuestion('truefalse')}
-                        >
-                          <Plus className="mr-1 h-4 w-4" /> T/F
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addQuestion('shortanswer')}
-                        >
-                          <Plus className="mr-1 h-4 w-4" /> Short
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => addQuestion('essay')}>
-                          <Plus className="mr-1 h-4 w-4" /> Essay
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addQuestion('multiselect')}
-                        >
-                          <Plus className="mr-1 h-4 w-4" /> Multi-select
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => addQuestion('matching')}>
-                          <Plus className="mr-1 h-4 w-4" /> Matching
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addQuestion('fillblank')}
-                        >
-                          <Plus className="mr-1 h-4 w-4" /> Fill Blank
-                        </Button>
-                      </div>
-                    </div>
-                    <ManualQuestionComposer
-                      onImport={incomingQuestions =>
-                        setData({
-                          ...data,
-                          questions: [...(data.questions || []), ...incomingQuestions],
-                        })
-                      }
+                    <QuestionEditor
+                      questions={data.questions || []}
+                      onChange={next => setData({ ...data, questions: next })}
+                      showMultiselect
+                      showManualComposer
                     />
-                    <div className="space-y-3">
-                      {(data.questions || []).map((q, idx) => (
-                        <div key={q.id} className="space-y-3 rounded-lg border bg-white p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Badge variant="secondary">
-                                Q{idx + 1} - {q.type.toUpperCase()}
-                              </Badge>
-                              <label className="text-muted-foreground flex items-center gap-1 text-xs">
-                                <input
-                                  type="checkbox"
-                                  checked={q.extendEnabled ?? false}
-                                  onChange={(e: any) =>
-                                    updateQuestion(idx, { extendEnabled: e.target.checked })
-                                  }
-                                />
-                                Extend
-                              </label>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                className="h-8 w-20"
-                                value={q.points}
-                                onChange={(e: any) =>
-                                  updateQuestion(idx, { points: parseInt(e.target.value) || 1 })
-                                }
-                              />
-                              <span className="text-muted-foreground text-sm">pts</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => removeQuestion(idx)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <AutoTextarea
-                            value={q.question}
-                            onChange={(e: any) => updateQuestion(idx, { question: e.target.value })}
-                            placeholder="Enter question"
-                            rows={2}
-                          />
-                          {q.type === 'mcq' && q.options && (
-                            <div className="space-y-2 pl-4">
-                              {q.options.map((opt, optIdx) => (
-                                <div key={optIdx} className="flex items-center gap-2">
-                                  <input
-                                    type="radio"
-                                    name={`correct-${q.id}`}
-                                    checked={q.correctAnswer === opt}
-                                    onChange={() => updateQuestion(idx, { correctAnswer: opt })}
-                                  />
-                                  <Input
-                                    value={opt}
-                                    onChange={(e: any) => {
-                                      const newOptions = [...q.options!]
-                                      newOptions[optIdx] = e.target.value
-                                      updateQuestion(idx, { options: newOptions })
-                                    }}
-                                    placeholder={`Option ${optIdx + 1}`}
-                                    className="flex-1"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {q.type === 'multiselect' && q.options && (
-                            <div className="space-y-2 pl-4">
-                              {q.options.map((opt, optIdx) => {
-                                const selectedAnswers = Array.isArray(q.correctAnswer)
-                                  ? q.correctAnswer
-                                  : []
-                                const checked = selectedAnswers.includes(opt)
-                                return (
-                                  <div key={optIdx} className="flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={(e: any) => {
-                                        const next = new Set(selectedAnswers)
-                                        if (e.target.checked) next.add(opt)
-                                        else next.delete(opt)
-                                        updateQuestion(idx, { correctAnswer: Array.from(next) })
-                                      }}
-                                    />
-                                    <Input
-                                      value={opt}
-                                      onChange={(e: any) => {
-                                        const newOptions = [...q.options!]
-                                        newOptions[optIdx] = e.target.value
-                                        updateQuestion(idx, { options: newOptions })
-                                      }}
-                                      placeholder={`Option ${optIdx + 1}`}
-                                      className="flex-1"
-                                    />
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                          {q.type === 'truefalse' && (
-                            <div className="flex gap-4 pl-4">
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  name={`correct-${q.id}`}
-                                  checked={q.correctAnswer === 'True'}
-                                  onChange={() => updateQuestion(idx, { correctAnswer: 'True' })}
-                                />
-                                <span>True</span>
-                              </label>
-                              <label className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  name={`correct-${q.id}`}
-                                  checked={q.correctAnswer === 'False'}
-                                  onChange={() => updateQuestion(idx, { correctAnswer: 'False' })}
-                                />
-                                <span>False</span>
-                              </label>
-                            </div>
-                          )}
-                          {q.type === 'matching' && (
-                            <MatchingPairsEditor
-                              pairs={
-                                q.matchingPairs ?? [
-                                  { left: '', right: '' },
-                                  { left: '', right: '' },
-                                ]
-                              }
-                              onChange={nextPairs =>
-                                updateQuestion(idx, {
-                                  matchingPairs: nextPairs,
-                                  correctAnswer: nextPairs.map(pair => pair.right),
-                                  explanation: formatMatchingExplanation(nextPairs),
-                                })
-                              }
-                            />
-                          )}
-                          <Textarea
-                            value={q.explanation || ''}
-                            onChange={(e: any) =>
-                              updateQuestion(idx, { explanation: e.target.value })
-                            }
-                            placeholder="Explanation (shown after answering)"
-                            rows={2}
-                            className="text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
 

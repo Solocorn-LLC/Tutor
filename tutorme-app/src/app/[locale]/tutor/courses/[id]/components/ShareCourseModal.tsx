@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 
 interface ShareCourseModalProps {
   open: boolean
@@ -54,17 +55,9 @@ export function ShareCourseModal({
     setSharing(true)
     setResults(null)
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch('/api/tutor/courses/share', {
+      const res = await fetchWithCsrf('/api/tutor/courses/share', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           courseId,
           recipientEmails: emailList,

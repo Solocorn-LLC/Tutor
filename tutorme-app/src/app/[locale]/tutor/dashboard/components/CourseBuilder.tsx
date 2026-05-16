@@ -126,6 +126,7 @@ import { cn } from '@/lib/utils'
 import { extractTextFromFile } from '@/lib/extract-file-text'
 import { toast } from 'sonner'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 import type {
@@ -1487,22 +1488,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const saveAssetsToApi = useCallback(
       async (assets: typeof courseAssets) => {
         try {
-          const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-          const csrfData = await csrfRes.json().catch(() => ({}))
-          const csrfToken = csrfData?.token ?? null
-
           const payloadAssets = assets.map(a => ({
             ...a,
             metadata: a.folder ? { folder: a.folder } : undefined,
           }))
 
-          const res = await fetch('/api/tutor/assets', {
+          const res = await fetchWithCsrf('/api/tutor/assets', {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-            },
-            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ assets: payloadAssets }),
           })
 
@@ -3702,17 +3695,9 @@ FEEDBACK: [your explanation]`
             const uploadForm = new FormData()
             uploadForm.append('file', f)
 
-            const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-            const csrfData = await csrfRes.json().catch(() => ({}))
-            const csrfToken = csrfData?.token ?? null
-
-            const uploadRes = await fetch('/api/uploads/documents', {
+            const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
               method: 'POST',
-              headers: {
-                ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-              },
               body: uploadForm,
-              credentials: 'include',
             })
             if (uploadRes.ok) {
               const uploadData = await uploadRes.json()
@@ -3996,17 +3981,9 @@ FEEDBACK: [your explanation]`
                         const uploadForm = new FormData()
                         uploadForm.append('file', f)
 
-                        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-                        const csrfData = await csrfRes.json().catch(() => ({}))
-                        const csrfToken = csrfData?.token ?? null
-
-                        const uploadRes = await fetch('/api/uploads/documents', {
+                        const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
                           method: 'POST',
-                          headers: {
-                            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-                          },
                           body: uploadForm,
-                          credentials: 'include',
                         })
                         if (uploadRes.ok) {
                           const uploadData = await uploadRes.json()
@@ -4219,10 +4196,6 @@ FEEDBACK: [your explanation]`
                         const pdfDoc = await PDFDocument.load(pdfBytes)
                         const pageCount = pdfDoc.getPageCount()
 
-                        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-                        const csrfData = await csrfRes.json().catch(() => ({}))
-                        const csrfToken = csrfData?.token ?? null
-
                         for (let i = 0; i < pageCount; i++) {
                           const newPdf = await PDFDocument.create()
                           const [copiedPage] = await newPdf.copyPages(pdfDoc, [i])
@@ -4237,13 +4210,9 @@ FEEDBACK: [your explanation]`
                             `${assetToLoad.name.replace(/\.pdf$/i, '')}_page_${i + 1}.pdf`
                           )
 
-                          const uploadRes = await fetch('/api/uploads/documents', {
+                          const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
                             method: 'POST',
-                            headers: {
-                              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-                            },
                             body: formData,
-                            credentials: 'include',
                           })
 
                           const uploadData = await uploadRes.json()
@@ -4400,10 +4369,6 @@ FEEDBACK: [your explanation]`
                         const pdfDoc = await PDFDocument.load(pdfBytes)
                         const pageCount = pdfDoc.getPageCount()
 
-                        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-                        const csrfData = await csrfRes.json().catch(() => ({}))
-                        const csrfToken = csrfData?.token ?? null
-
                         for (let i = 0; i < pageCount; i++) {
                           const newPdf = await PDFDocument.create()
                           const [copiedPage] = await newPdf.copyPages(pdfDoc, [i])
@@ -4418,13 +4383,9 @@ FEEDBACK: [your explanation]`
                             `${assetToLoad.name.replace(/\.pdf$/i, '')}_page_${i + 1}.pdf`
                           )
 
-                          const uploadRes = await fetch('/api/uploads/documents', {
+                          const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
                             method: 'POST',
-                            headers: {
-                              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-                            },
                             body: formData,
-                            credentials: 'include',
                           })
 
                           const uploadData = await uploadRes.json()

@@ -39,6 +39,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { VariantScheduleEditor } from './VariantScheduleEditor'
 import type { ScheduleItem } from '../constants'
 import { REGIONS } from '@/lib/data/tutor-categories'
@@ -261,22 +262,14 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       }
       setSaving(true)
       try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        const csrfToken = csrfData?.token ?? null
-
         const payload = variants.map(v => ({
           ...v,
           price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
         }))
 
-        const res = await fetch(`/api/tutor/courses/${templateCourseId}/publish`, {
+        const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ variants: payload }),
         })
 

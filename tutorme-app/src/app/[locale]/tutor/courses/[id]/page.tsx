@@ -39,6 +39,7 @@ import {
   Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { BackButton } from '@/components/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -353,10 +354,6 @@ export default function TutorCoursePage() {
     if (!course) return
     setLaunchingLiveClass(true)
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
       const durationFromSchedule =
         Array.isArray(schedule) && schedule.length > 0
           ? Number(schedule[0]?.durationMinutes) || 60
@@ -372,13 +369,9 @@ export default function TutorCoursePage() {
       }
       if (normalizedDescription) payload.description = normalizedDescription
 
-      const res = await fetch('/api/class/rooms', {
+      const res = await fetchWithCsrf('/api/class/rooms', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -408,8 +401,6 @@ export default function TutorCoursePage() {
 
     setSaving(true)
     try {
-      const csrf = await getCsrf()
-
       const payload: Record<string, unknown> = {
         categories: selectedCategories,
         schedule,
@@ -434,10 +425,9 @@ export default function TutorCoursePage() {
         payload.name = trimmedName
       }
 
-      const res = await fetch(`/api/tutor/courses/${id}`, {
+      const res = await fetchWithCsrf(`/api/tutor/courses/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const data = await res.json()
@@ -475,11 +465,9 @@ export default function TutorCoursePage() {
   const handleCourseSelect = async (name: string) => {
     setCourseName(name)
     try {
-      const csrf = await getCsrf()
-      const res = await fetch(`/api/tutor/courses/${id}`, {
+      const res = await fetchWithCsrf(`/api/tutor/courses/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       })
       if (res.ok) {
@@ -494,11 +482,7 @@ export default function TutorCoursePage() {
     }
   }
 
-  const getCsrf = async () => {
-    const res = await fetch('/api/csrf', { credentials: 'include' })
-    const data = await res.json().catch(() => ({}))
-    return data?.token ?? null
-  }
+
 
   // Materials, outline, and course upload functions removed - using simplified course model
 

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type {
   CourseBuilderRef,
   Lesson as CourseBuilderLesson,
@@ -184,20 +185,12 @@ export function useCourseBuilderContentModel({
     }
     if (!options?.isAutoSave) setSaving(true)
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
       let currentCourseId = courseId
 
       if (courseId === 'builder-draft' && options?.courseName) {
-        const createRes = await fetch('/api/tutor/courses', {
+        const createRes = await fetchWithCsrf('/api/tutor/courses', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: options.courseName,
             description: options.courseDescription || '',
@@ -217,13 +210,9 @@ export function useCourseBuilderContentModel({
         router.replace(`/tutor/insights?tab=builder&courseId=${currentCourseId}`)
       }
 
-      const res = await fetch(`/api/tutor/courses/${currentCourseId}/course`, {
+      const res = await fetchWithCsrf(`/api/tutor/courses/${currentCourseId}/course`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lessons,
           developmentMode: options?.developmentMode ?? 'single',

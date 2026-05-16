@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   course,
@@ -15,11 +16,9 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (req, session) => {
+export const GET = withAuth(async (req, session, context) => {
   const tutorId = session.user.id
-  const safeUrl = req.nextUrl?.href || req.url || ''
-  const match = safeUrl.match(/\/live-sessions\/([^/]+)\/submissions/)
-  const sessionId = match ? match[1] : ''
+  const sessionId = await getParamAsync(context.params, 'sessionId')
 
   if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
     return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
@@ -45,9 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: any }) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const safeUrl = req.nextUrl?.href || req.url || ''
-  const match = safeUrl.match(/\/live-sessions\/([^/]+)\/replay-artifact/)
-  const liveSessionId = match ? match[1] : ''
+  const liveSessionId = await getParamAsync(params, 'sessionId')
 
   if (!liveSessionId || liveSessionId === 'undefined' || liveSessionId === 'null') {
     return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })

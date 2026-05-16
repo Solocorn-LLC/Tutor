@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { poll, pollResponse } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -20,9 +21,7 @@ const voteSchema = z.object({
 // POST - Submit a vote
 export const POST = withAuth(async (req: NextRequest, session, context) => {
   try {
-    const safeUrl = req.nextUrl?.href || req.url || ''
-    const match = safeUrl.match(/\/polls\/([^/]+)\/vote/)
-    const pollId = match ? match[1] : ''
+    const pollId = await getParamAsync(context.params, 'pollId')
 
     if (!pollId || pollId === 'undefined' || pollId === 'null') {
       return NextResponse.json({ error: 'Poll ID is required' }, { status: 400 })

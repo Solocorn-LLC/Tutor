@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, sessionReplayArtifact } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, { params }: { params: any }) {
   const session = await getServerSession(authOptions, req)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const safeUrl = req.nextUrl?.href || req.url || ''
-  const match = safeUrl.match(/\/live-sessions\/([^/]+)\/transcription\/status/)
-  const sessionId = match ? match[1] : ''
+  const sessionId = await getParamAsync(params, 'sessionId')
   if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
     return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
   }

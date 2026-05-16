@@ -102,10 +102,10 @@ export function LessonSelectorDialog({
 
             {lessons.length > 0 && (
               <div className="space-y-2">
-                <Label>Topic</Label>
+                <Label>Lesson</Label>
                 <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a topic" />
+                    <SelectValue placeholder="Select a lesson" />
                   </SelectTrigger>
                   <SelectContent>
                     {lessons.map(topic => (

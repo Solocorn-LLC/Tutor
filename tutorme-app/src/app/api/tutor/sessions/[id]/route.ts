@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { eq, and } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
+import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, courseEnrollment } from '@/lib/db/schema'
 import { notifyMany } from '@/lib/notifications/notify'
@@ -14,9 +15,7 @@ export const PATCH = withAuth(
   async (req, session, context) => {
     const tutorId = session.user.id
 
-    const safeUrl = req.nextUrl?.href || req.url || ''
-    const match = safeUrl.match(/\/sessions\/([^/]+)$/)
-    const sessionId = match ? match[1] : ''
+    const sessionId = await getParamAsync(context.params, 'id')
 
     if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
