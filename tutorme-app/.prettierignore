@@ -1,0 +1,10 @@
+# Landing page build artifacts (minified bundles)
+public/assets/
+public/index.html
+public/sw.js
+
+# Next.js build output
+.next/
+
+# Dependencies
+node_modules/
