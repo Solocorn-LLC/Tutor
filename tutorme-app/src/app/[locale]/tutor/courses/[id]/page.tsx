@@ -178,6 +178,7 @@ export default function TutorCoursePage() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [categoriesOpen, setCategoriesOpen] = useState(true)
   const [publishingVariants, setPublishingVariants] = useState(false)
+  const [syncingContent, setSyncingContent] = useState(false)
 
   // Available countries based on selected regions
   const availableCountries = useMemo<CountryData[]>(() => {
@@ -1157,6 +1158,7 @@ export default function TutorCoursePage() {
           <VariantManager
             ref={variantManagerRef}
             templateCourseId={id}
+            templateCourseName={courseName}
             selectedCategories={selectedCategories}
             selectedCountryCodes={selectedCountries.length > 0 ? selectedCountries : ['GL']}
             defaultPrice={price === '' ? null : Number(price)}
@@ -1177,6 +1179,36 @@ export default function TutorCoursePage() {
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {saving ? 'Saving…' : 'Save'}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={async () => {
+                if (syncingContent) return
+                setSyncingContent(true)
+                try {
+                  const res = await fetchWithCsrf(`/api/tutor/courses/${id}/sync-content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourcePublishedCourseId: id }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (res.ok) {
+                    toast.success(data.message || 'Content synced to all variants')
+                  } else {
+                    toast.error(data.error || 'Failed to sync content')
+                  }
+                } catch (err) {
+                  toast.error('Failed to sync content')
+                } finally {
+                  setSyncingContent(false)
+                }
+              }}
+              disabled={syncingContent || variantStats.total === 0}
+              className="h-11 w-full rounded-full border-2 border-slate-200 bg-white px-8 text-slate-700 shadow-sm transition-all duration-200 ease-in-out hover:border-slate-300 hover:bg-slate-50 sm:w-[220px]"
+            >
+              {syncingContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {syncingContent ? 'Syncing…' : 'Sync to All Variants'}
             </Button>
             <Button
               size="lg"

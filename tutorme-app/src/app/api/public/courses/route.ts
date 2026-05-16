@@ -85,6 +85,8 @@ export async function GET(request: NextRequest) {
         tutorAvatarUrl: profile.avatarUrl,
 
         templateCourseId: courseVariant.templateCourseId,
+        variantCategory: courseVariant.category,
+        variantNationality: courseVariant.nationality,
       })
       .from(course)
       .innerJoin(profile, eq(course.creatorId, profile.userId))
@@ -135,6 +137,8 @@ export async function GET(request: NextRequest) {
             ? (templateDescriptionMap[c.templateCourseId] ?? null)
             : null,
       categories: c.categories || [],
+      variantCategory: c.variantCategory,
+      variantNationality: c.variantNationality,
       price: c.isFree ? 0 : c.price,
       currency: c.currency || 'USD',
       isFree: c.isFree || c.price == null || c.price === 0,

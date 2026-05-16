@@ -58,6 +58,7 @@ interface VariantConfig {
 
 interface VariantManagerProps {
   templateCourseId: string
+  templateCourseName?: string
   selectedCategories: string[]
   selectedCountryCodes: string[]
   defaultPrice: number | null
@@ -74,6 +75,7 @@ export type VariantManagerHandle = {
 }
 
 type VariantApiItem = {
+  name?: unknown
   category?: unknown
   nationality?: unknown
   isPublished?: unknown
@@ -101,6 +103,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
   function VariantManager(
     {
       templateCourseId,
+      templateCourseName,
       selectedCategories,
       selectedCountryCodes,
       defaultPrice,
@@ -449,7 +452,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                 <div>
                   <div className="panel-header-title">Courses</div>
                   <div className="panel-header-subtext">
-                    Edit the schedule, pricing, currency, and language for your course(s).
+                    {templateCourseName
+                      ? `${templateCourseName} — Edit schedule, pricing, currency, and language for your course(s).`
+                      : 'Edit the schedule, pricing, currency, and language for your course(s).'}
                   </div>
                 </div>
               </div>
@@ -489,9 +494,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                   >
                     <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <h4 className="text-sm font-semibold text-slate-800">
-                          {variant.category} - {variant.nationality}
-                        </h4>
+                        <Badge
+                          variant="outline"
+                          className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                        >
+                          {variant.category} · {variant.nationality}
+                        </Badge>
                         {variant.isPublished ? (
                           <Badge className="border-0 bg-emerald-500 text-white hover:bg-emerald-600">
                             Published
@@ -624,6 +632,39 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                           {Array.isArray(variant.schedule) && variant.schedule.length > 0
                             ? 'Edit Schedule'
                             : 'Add Session'}
+                        </Button>
+                      </div>
+
+                      <div className="mt-4 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                          onClick={() => {
+                            const source = variants[index]
+                            setVariants(prev =>
+                              prev.map(v =>
+                                v.category === source.category &&
+                                v.nationality === source.nationality
+                                  ? v
+                                  : {
+                                      ...v,
+                                      isFree: source.isFree,
+                                      price: source.price,
+                                      currency: source.currency,
+                                      languageOfInstruction: source.languageOfInstruction,
+                                      schedule: Array.isArray(source.schedule)
+                                        ? [...source.schedule]
+                                        : [],
+                                      weeksToSchedule: source.weeksToSchedule,
+                                    }
+                              )
+                            )
+                            toast.success(`Settings copied to all ${variants.length} variants`)
+                          }}
+                        >
+                          Copy settings to all variants
                         </Button>
                       </div>
                     </div>

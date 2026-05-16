@@ -16,7 +16,7 @@ export const GET = withAuth(
   async (req: NextRequest, session) => {
     try {
       const hideTemplatesWithPublishedVariants =
-        req.nextUrl.searchParams.get('hideTemplatesWithPublishedVariants') === 'true'
+        req.nextUrl.searchParams.get('hideTemplatesWithPublishedVariants') !== 'false'
       const coursesData = await drizzleDb.query.course.findMany({
         where: (course, { eq }) => eq(course.creatorId, session.user.id),
         orderBy: (course, { desc }) => [desc(course.createdAt)],

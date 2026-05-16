@@ -36,6 +36,7 @@ export const GET = withAuth(
           category: courseVariant.category,
           nationality: courseVariant.nationality,
           publishedCourseId: courseVariant.publishedCourseId,
+          name: course.name,
           isPublished: course.isPublished,
           price: course.price,
           currency: course.currency,
@@ -400,7 +401,7 @@ export const POST = withCsrf(
             const key = `${v.category}|${v.nationality}`
             requestedKeys.add(key)
             const existing = existingMap.get(key)
-            const courseName = `${v.category} - ${v.nationality}`
+            const courseName = templateCourse.name
             const isFree =
               typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
             const price = isFree ? 0 : typeof v.price === 'number' ? v.price : null
