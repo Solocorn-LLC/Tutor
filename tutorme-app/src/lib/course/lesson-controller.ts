@@ -10,7 +10,7 @@ import {
   courseLesson,
   courseLessonProgress,
   courseProgress,
-  lessonSession,
+  lessonLearningSession,
 } from '@/lib/db/schema'
 import { chatWithFallback } from '@/lib/agents'
 
@@ -97,8 +97,8 @@ export async function startLesson(studentId: string, lessonId: string): Promise<
 
   const [existingSession] = await drizzleDb
     .select()
-    .from(lessonSession)
-    .where(and(eq(lessonSession.studentId, studentId), eq(lessonSession.lessonId, lessonId)))
+    .from(lessonLearningSession)
+    .where(and(eq(lessonLearningSession.studentId, studentId), eq(lessonLearningSession.lessonId, lessonId)))
     .limit(1)
   if (existingSession && existingSession.status !== 'completed') {
     return existingSession as LessonSessionType
@@ -123,7 +123,7 @@ export async function startLesson(studentId: string, lessonId: string): Promise<
     })
 
   const [session] = await drizzleDb
-    .insert(lessonSession)
+    .insert(lessonLearningSession)
     .values({
       sessionId: crypto.randomUUID(),
       studentId,
@@ -176,9 +176,9 @@ export async function advanceLesson(
   context.currentStep = 0
 
   await drizzleDb
-    .update(lessonSession)
+    .update(lessonLearningSession)
     .set({ currentSection: nextSection, sessionContext: context })
-    .where(eq(lessonSession.sessionId, session.sessionId))
+    .where(eq(lessonLearningSession.sessionId, session.sessionId))
 
   await drizzleDb
     .update(courseLessonProgress)
@@ -398,8 +398,8 @@ export function getRemediationPath(concept: string, misconception: string): stri
 export async function completeLesson(sessionId: string): Promise<void> {
   const [sessionRow] = await drizzleDb
     .select()
-    .from(lessonSession)
-    .where(eq(lessonSession.sessionId, sessionId))
+    .from(lessonLearningSession)
+    .where(eq(lessonLearningSession.sessionId, sessionId))
     .limit(1)
   if (!sessionRow) return
 
@@ -421,9 +421,9 @@ export async function completeLesson(sessionId: string): Promise<void> {
 
   await drizzleDb.transaction(async tx => {
     await tx
-      .update(lessonSession)
+      .update(lessonLearningSession)
       .set({ status: 'completed', completedAt: new Date() })
-      .where(eq(lessonSession.sessionId, sessionId))
+      .where(eq(lessonLearningSession.sessionId, sessionId))
 
     await tx
       .update(courseLessonProgress)

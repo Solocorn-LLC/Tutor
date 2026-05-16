@@ -731,7 +731,7 @@ function QuickActionsPanel({
       icon: BookOpen,
       href: `/student/subjects/${subjectCode}`,
     },
-    { id: 'class', label: 'Book a Class', icon: MessageCircle, href: '/student/courses' },
+    { id: 'class', label: 'Book a Session', icon: MessageCircle, href: '/student/courses' },
     {
       id: 'study-groups',
       label: 'Join Study Group',

@@ -577,7 +577,7 @@ function TutorInsightsPageInner() {
           }
         }
       } catch (error) {
-        toast.error('Failed to load live classes')
+        toast.error('Failed to load live sessions')
       }
     }
 

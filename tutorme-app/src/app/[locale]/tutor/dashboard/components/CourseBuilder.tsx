@@ -2443,7 +2443,7 @@ FEEDBACK: [your explanation]`
       }
 
       insightsProps.onDeployTask(task)
-      toast.success('DMI deployed to live class')
+      toast.success('DMI deployed to live session')
     }, [assessmentBuilder, assessmentDmiItems, insightsProps, loadedAssessmentId])
 
     useEffect(() => {
@@ -8230,13 +8230,13 @@ FEEDBACK: [your explanation]`
                                                           }
                                                         : undefined,
                                                     })
-                                                    toast.success('Task DMI deployed to live class')
+                                                    toast.success('Task DMI deployed to live session')
                                                   }
                                                 } else {
                                                   handleDeployAssessmentDmi()
                                                 }
                                               }}
-                                              title="Deploy to Class"
+                                              title="Deploy to Session"
                                             >
                                               <Play className="h-4 w-4" />
                                             </Button>

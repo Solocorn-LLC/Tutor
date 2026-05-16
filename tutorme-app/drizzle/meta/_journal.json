@@ -330,6 +330,20 @@
       "when": 1700000046000,
       "tag": "0046_add_avatar_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1700000047000,
+      "tag": "0047_fix_enrollment_and_add_fks",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1700000048000,
+      "tag": "0048_rename_lesson_session",
+      "breakpoints": true
     }
   ]
 }

@@ -225,8 +225,8 @@ export function ModernHeroSection({
               </DialogTitle>
               <DialogDescription>
                 {selectedDay && selectedDay.events.length > 0
-                  ? `${selectedDay.events.length} class${selectedDay.events.length > 1 ? 'es' : ''} scheduled`
-                  : 'No classes scheduled'}
+                  ? `${selectedDay.events.length} session${selectedDay.events.length > 1 ? 's' : ''} scheduled`
+                  : 'No sessions scheduled'}
               </DialogDescription>
             </DialogHeader>
 
@@ -251,7 +251,7 @@ export function ModernHeroSection({
               {(!selectedDay || selectedDay.events.length === 0) && (
                 <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-6 py-10 text-center text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.10)]">
                   <Calendar className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                  <p className="font-medium">No classes scheduled for this day</p>
+                  <p className="font-medium">No sessions scheduled for this day</p>
                 </div>
               )}
             </DialogBody>

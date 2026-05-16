@@ -33,6 +33,7 @@ export const contentItem = pgTable(
     transcript: text('transcript'),
     videoVariants: jsonb('videoVariants'),
     uploadStatus: text('uploadStatus'),
+    lessonId: text('lessonId').references(() => courseLesson.lessonId, { onDelete: 'set null' }),
     createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updatedAt', { withTimezone: true })
       .notNull()
@@ -42,6 +43,7 @@ export const contentItem = pgTable(
   table => ({
     ContentItem_subject_idx: index('ContentItem_subject_idx').on(table.subject),
     ContentItem_isPublished_idx: index('ContentItem_isPublished_idx').on(table.isPublished),
+    ContentItem_lessonId_idx: index('ContentItem_lessonId_idx').on(table.lessonId),
   })
 )
 

@@ -18,9 +18,9 @@ import Link from 'next/link'
 
 const faqs = [
   {
-    question: 'How do I create a new class?',
+    question: 'How do I create a new session?',
     answer:
-      'Go to your Dashboard and click "Create New Class" or use the Quick Actions menu. Fill in the class details and schedule.',
+      'Go to your Dashboard and click "Create New Session" or use the Quick Actions menu. Fill in the session details and schedule.',
   },
   {
     question: 'How do I use the Course Builder?',
@@ -28,14 +28,14 @@ const faqs = [
       'Navigate to Courses > Course Builder. Select a course to edit, then use the drag-and-drop interface to organize modules and lessons.',
   },
   {
-    question: 'How do students join my classes?',
+    question: 'How do students join my sessions?',
     answer:
-      'Share the class join link with your students. You can find the link in the My Classes section or copy it directly from the class card.',
+      'Share the session join link with your students. You can find the link in the My Sessions section or copy it directly from the session card.',
   },
   {
-    question: 'Can I schedule recurring classes?',
+    question: 'Can I schedule recurring sessions?',
     answer:
-      'Yes! When creating a class, you can set it to repeat weekly or monthly. Manage all schedules from the Calendar page.',
+      'Yes! When creating a session, you can set it to repeat weekly or monthly. Manage all schedules from the Calendar page.',
   },
 ]
 

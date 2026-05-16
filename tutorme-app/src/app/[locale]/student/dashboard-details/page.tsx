@@ -144,7 +144,7 @@ export default function StudentDashboardDetails() {
           window.location.href = result.checkoutUrl
           return
         }
-        toast.success('Successfully booked class!')
+        toast.success('Successfully booked session!')
         setData(prev =>
           prev
             ? {
@@ -163,7 +163,7 @@ export default function StudentDashboardDetails() {
             : null
         )
       } else {
-        toast.error(result.error || 'Failed to book class')
+        toast.error(result.error || 'Failed to book session')
       }
     } catch {
       toast.error('An error occurred while booking')

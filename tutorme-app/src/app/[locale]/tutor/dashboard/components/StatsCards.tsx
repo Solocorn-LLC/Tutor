@@ -81,7 +81,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
             <div>
               <p
                 className="text-sm text-gray-500"
-                title="Scheduled (any future date) and currently active classes"
+                title="Scheduled (any future date) and currently active sessions"
               >
                 Upcoming
               </p>

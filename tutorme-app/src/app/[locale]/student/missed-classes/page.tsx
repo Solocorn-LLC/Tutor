@@ -64,9 +64,9 @@ export default function MissedClassesPage() {
       <div className="mb-8">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
           <Video className="h-6 w-6" />
-          Missed Classes
+          Missed Sessions
         </h1>
-        <p className="mt-1 text-gray-600">Catch up on classes you missed with recordings</p>
+        <p className="mt-1 text-gray-600">Catch up on sessions you missed with recordings</p>
       </div>
 
       {/* Filter Tabs */}
@@ -99,9 +99,9 @@ export default function MissedClassesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <PartyPopper className="mx-auto mb-3 h-12 w-12 text-green-400" />
-            <h3 className="font-semibold text-gray-900">No missed classes!</h3>
+            <h3 className="font-semibold text-gray-900">No missed sessions!</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Great job — you&apos;ve been attending all your classes.
+              Great job — you&apos;ve been attending all your sessions.
             </p>
           </CardContent>
         </Card>

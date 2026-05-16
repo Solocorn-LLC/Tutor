@@ -107,7 +107,6 @@ export async function enrollStudentInCourse(
       studentId,
       courseId,
       startDate: startDate ? new Date(startDate) : undefined,
-      lessonsCompleted: 0,
       enrollmentSource: 'browse',
     })
 

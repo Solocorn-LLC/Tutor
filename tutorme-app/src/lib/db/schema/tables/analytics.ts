@@ -15,8 +15,9 @@ import {
 } from 'drizzle-orm/pg-core'
 import * as enums from '../enums'
 import { user } from './auth'
-import { liveSession } from './live'
 import { course } from './course'
+import { builderTask } from './builder'
+import { liveSession } from './live'
 
 export const performanceMetric = pgTable(
   'PerformanceMetric',
@@ -272,8 +273,8 @@ export const studentTaskReport = pgTable('StudentTaskReport', {
   tutorId: text('tutorId')
     .notNull()
     .references(() => user.userId, { onDelete: 'cascade' }),
-  courseId: text('courseId'),
-  taskId: text('taskId'),
+  courseId: text('courseId').references(() => course.courseId, { onDelete: 'set null' }),
+  taskId: text('taskId').references(() => builderTask.taskId, { onDelete: 'set null' }),
   type: text('type').notNull(), // 'task', 'assessment', 'master'
   title: text('title').notNull(),
   status: text('status').notNull().default('requested'), // 'requested', 'draft', 'sent'

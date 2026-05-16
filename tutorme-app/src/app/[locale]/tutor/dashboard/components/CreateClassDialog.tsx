@@ -83,7 +83,7 @@ export function CreateClassDialog({
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      toast.error('Please enter a class title')
+      toast.error('Please enter a session title')
       return
     }
     if (!form.subject) {
@@ -129,7 +129,7 @@ export function CreateClassDialog({
         }
       }
       if (res.ok) {
-        toast.success('Class created successfully!')
+        toast.success('Session created successfully!')
         onOpenChange(false)
         onClassCreated?.(data.session)
         if (redirectToClass && data.session?.id) {
@@ -166,9 +166,9 @@ export function CreateClassDialog({
         aria-describedby={apiError ? 'create-class-api-error' : undefined}
       >
         <DialogHeader>
-          <DialogTitle>Create New Class</DialogTitle>
+          <DialogTitle>Create New Session</DialogTitle>
           <DialogDescription>
-            Schedule a new live class session for your students.
+            Schedule a new live session for your students.
           </DialogDescription>
         </DialogHeader>
         <div className="pt-4">
@@ -213,7 +213,7 @@ export function CreateClassDialog({
                 <Textarea
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
-                  placeholder="What will you cover in this class?"
+                  placeholder="What will you cover in this session?"
                   disabled={creating}
                 />
               </div>
@@ -280,7 +280,7 @@ export function CreateClassDialog({
             aria-busy={creating}
           >
             {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Class
+            Create Session
           </Button>
         </DialogFooter>
       </DialogContent>

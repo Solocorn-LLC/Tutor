@@ -327,13 +327,13 @@ function TutorDashboardContent() {
           totalClasses: Math.max(0, prev.totalClasses - 1),
           upcomingClasses: Math.max(0, prev.upcomingClasses - 1),
         }))
-        toast.success('Class removed successfully')
+        toast.success('Session removed successfully')
       } else {
         const data = await res.json().catch(() => ({}))
-        toast.error(data.error || 'Failed to remove class')
+        toast.error(data.error || 'Failed to remove session')
       }
     } catch {
-      toast.error('Failed to remove class')
+      toast.error('Failed to remove session')
     }
   }, [])
 
@@ -413,18 +413,18 @@ function TutorDashboardContent() {
 
         const result = await res.json().catch(() => ({}))
         if (!res.ok) {
-          toast.error(result?.error || 'Failed to start class')
+          toast.error(result?.error || 'Failed to start session')
           return
         }
 
         const updatedSessionId = result?.session?.id
         if (!updatedSessionId) {
-          toast.error('Class started but no session ID returned')
+          toast.error('Session started but no session ID returned')
           return
         }
         router.push(withLocalePath(`/tutor/insights?sessionId=${updatedSessionId}`))
       } catch {
-        toast.error('Failed to start class')
+        toast.error('Failed to start session')
       } finally {
         setLaunchingCourseId(null)
       }

@@ -30,7 +30,7 @@ import {
   message,
   mention,
   tutorFollow,
-  lessonSession,
+  lessonLearningSession,
   // AI Tutor tables removed - feature deleted
   userActivityLog,
   builderTask,
@@ -403,13 +403,13 @@ export const feedbackWorkflowRelations = relations(feedbackWorkflow, ({ one }) =
   }),
 }))
 
-export const lessonSessionRelations = relations(lessonSession, ({ one }) => ({
+export const lessonLearningSessionRelations = relations(lessonLearningSession, ({ one }) => ({
   lesson: one(courseLesson, {
-    fields: [lessonSession.lessonId],
+    fields: [lessonLearningSession.lessonId],
     references: [courseLesson.lessonId],
   }),
   student: one(user, {
-    fields: [lessonSession.studentId],
+    fields: [lessonLearningSession.studentId],
     references: [user.userId],
   }),
 }))

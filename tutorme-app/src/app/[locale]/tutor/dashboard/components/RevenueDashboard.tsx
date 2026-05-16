@@ -84,7 +84,7 @@ const generateDemoEarnings = (): EarningRecord[] => [
   {
     id: '1',
     date: '2026-02-15',
-    description: 'Advanced Mathematics Class',
+    description: 'Advanced Mathematics Session',
     amount: 150,
     type: 'class',
     status: 'completed',
@@ -101,7 +101,7 @@ const generateDemoEarnings = (): EarningRecord[] => [
   {
     id: '3',
     date: '2026-02-13',
-    description: 'English Literature Class',
+    description: 'English Literature Session',
     amount: 120,
     type: 'class',
     status: 'completed',
@@ -110,7 +110,7 @@ const generateDemoEarnings = (): EarningRecord[] => [
   {
     id: '4',
     date: '2026-02-12',
-    description: 'Refund - Cancelled Class',
+    description: 'Refund - Cancelled Session',
     amount: -150,
     type: 'refund',
     status: 'completed',

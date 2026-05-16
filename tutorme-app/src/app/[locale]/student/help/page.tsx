@@ -15,9 +15,9 @@ import {
 
 const faqs = [
   {
-    question: 'How do I join a live class?',
+    question: 'How do I join a live session?',
     answer:
-      'Go to My Classes and click on the "Join" button for your scheduled class. You can also join from the Dashboard.',
+      'Go to My Sessions and click on the "Join" button for your scheduled session. You can also join from the Dashboard.',
   },
   {
     question: 'How do I access the AI Tutor?',

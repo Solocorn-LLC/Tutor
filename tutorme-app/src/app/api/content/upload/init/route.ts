@@ -10,6 +10,7 @@ export const POST = withCsrf(
       const body = await req.json().catch(() => ({}))
       const title = body?.title
       const subject = body?.subject
+      const lessonId = body?.lessonId
       const filename = body?.filename ?? 'video.mp4'
       const contentType = body?.contentType ?? 'video/mp4'
       if (!title || typeof title !== 'string' || !subject || typeof subject !== 'string') {
@@ -27,6 +28,7 @@ export const POST = withCsrf(
         duration: null,
         difficulty: 'beginner',
         isPublished: false,
+        lessonId: typeof lessonId === 'string' ? lessonId : null,
       })
       const content = { contentId: contentId }
 

@@ -76,7 +76,7 @@ export default function StudentsPage() {
             <p className="text-gray-500">
               {searchQuery
                 ? 'Try adjusting your search query'
-                : 'Students will appear here when they enroll in your classes'}
+                : 'Students will appear here when they enroll in your sessions'}
             </p>
           </CardContent>
         </Card>

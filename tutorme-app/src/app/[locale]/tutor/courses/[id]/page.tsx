@@ -377,17 +377,17 @@ export default function TutorCoursePage() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData?.error || 'Failed to create live class')
+        throw new Error(errorData?.error || 'Failed to create live session')
       }
 
       const data = await res.json()
       const sessionId = data?.session?.sessionId
-      if (!sessionId) throw new Error('Live class created but session ID is missing')
+      if (!sessionId) throw new Error('Live session created but session ID is missing')
 
-      toast.success('Live class created. Redirecting…')
+      toast.success('Live session created. Redirecting…')
       router.push(`/tutor/insights?sessionId=${sessionId}`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to open live class')
+      toast.error(error instanceof Error ? error.message : 'Failed to open live session')
     } finally {
       setLaunchingLiveClass(false)
     }

@@ -130,7 +130,6 @@ export const POST = withCsrf(
       enrollmentId,
       studentId: session.user.id,
       courseId,
-      lessonsCompleted: 0,
       enrollmentSource: 'browse',
     })
 

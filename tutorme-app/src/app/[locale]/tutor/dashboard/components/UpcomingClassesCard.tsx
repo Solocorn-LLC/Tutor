@@ -143,10 +143,10 @@ function ShareDialog({ open, onOpenChange, classId, classTitle }: ShareDialogPro
         onOpenChange(false)
       } else {
         const err = await res.json()
-        toast.error(err.error || 'Failed to share class')
+        toast.error(err.error || 'Failed to share session')
       }
     } catch (err) {
-      toast.error('Failed to share class')
+      toast.error('Failed to share session')
     } finally {
       setSharing(false)
     }
@@ -168,7 +168,7 @@ function ShareDialog({ open, onOpenChange, classId, classTitle }: ShareDialogPro
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5 text-blue-500" />
-            Share Class
+            Share Session
           </DialogTitle>
           <DialogDescription>
             Select students and groups to receive the join link for <strong>{classTitle}</strong>.
@@ -323,7 +323,7 @@ export function UpcomingClassesCard({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2" title="Scheduled and active classes">
           <Clock className="h-5 w-5 text-blue-500" />
-          My Classes
+          My Sessions
         </CardTitle>
         <Link href="/tutor/classes">
           <Button variant="ghost" size="sm">
@@ -517,7 +517,7 @@ export function UpcomingClassesCard({
                     <Link href="/tutor/classes">
                       <Button variant="outline" className="w-full">
                         <Sparkles className="mr-2 h-4 w-4" />
-                        View Class Details
+                        View Session Details
                       </Button>
                     </Link>
                   )}

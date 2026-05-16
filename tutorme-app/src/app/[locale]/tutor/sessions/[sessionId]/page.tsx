@@ -131,7 +131,7 @@ export default function TutorSessionInsightsPage() {
               <button
                 onClick={() => router.push('/tutor/classes')}
                 className="rounded-lg p-2 text-[#344054] transition hover:bg-white/50"
-                aria-label="Back to Classes"
+                aria-label="Back to Sessions"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>

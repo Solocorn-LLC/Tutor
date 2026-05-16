@@ -130,7 +130,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 {isLiveClassRoute ? (
                   <div>
                     <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Live Class
+                      Live Session
                     </p>
                     <div className="space-y-0.5">
                       {liveClassNavItems.map(item => {
@@ -228,7 +228,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             {isLiveClassRoute ? (
               <div>
                 <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Live Class
+                  Live Session
                 </p>
                 <div className="space-y-0.5">
                   {liveClassNavItems.map(item => {

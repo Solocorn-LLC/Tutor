@@ -141,14 +141,14 @@ export default function TutorClassesPage() {
   useEffect(() => {
     fetch('/api/tutor/classes', { credentials: 'include' })
       .then(res => {
-        if (!res.ok) throw new Error('Failed to load classes')
+        if (!res.ok) throw new Error('Failed to load sessions')
         return res.json()
       })
       .then(data => {
         setClasses(data.classes ?? [])
         setError(null)
       })
-      .catch(() => setError('Failed to load classes'))
+      .catch(() => setError('Failed to load sessions'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -269,14 +269,14 @@ export default function TutorClassesPage() {
 
   const handleCreateInstantClass = async () => {
     const data = await createLiveSession({
-      title: 'Instant Live Class',
+      title: 'Instant Live Session',
       subject: 'general',
       maxStudents: 50,
       duration: 60,
       scheduledAt: new Date().toISOString(),
     })
     if (data) {
-      toast.success('Instant class created!')
+      toast.success('Instant session created!')
       router.push(`/tutor/insights?sessionId=${data.session.sessionId}`)
     }
   }
@@ -589,7 +589,7 @@ export default function TutorClassesPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Coming up</h1>
-            <p className="text-sm text-gray-500">Your upcoming classes and live sessions</p>
+            <p className="text-sm text-gray-500">Your upcoming live sessions</p>
           </div>
           <div className="flex gap-2">{/* Buttons removed as per training page flow */}</div>
         </div>
@@ -625,7 +625,7 @@ export default function TutorClassesPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Search classes..."
+                  placeholder="Search sessions..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -671,17 +671,17 @@ export default function TutorClassesPage() {
                 <CardContent className="py-12">
                   <div className="text-center">
                     <Calendar className="mx-auto mb-3 h-12 w-12 text-gray-400" />
-                    <h3 className="mb-1 text-lg font-medium text-gray-900">No classes yet</h3>
+                    <h3 className="mb-1 text-lg font-medium text-gray-900">No sessions yet</h3>
                     <p className="mb-4 text-sm text-gray-500">
-                      Create your first class to get started
+                      Create your first session to get started
                     </p>
                     <div className="flex justify-center gap-2">
                       <Button variant="outline" onClick={handleCreateInstantClass}>
-                        <Zap className="mr-2 h-4 w-4" /> Start Instant Class
+                        <Zap className="mr-2 h-4 w-4" /> Start Instant Session
                       </Button>
                       <Link href="/tutor/dashboard?create=1">
                         <Button>
-                          <Plus className="mr-2 h-4 w-4" /> Schedule Class
+                          <Plus className="mr-2 h-4 w-4" /> Schedule Session
                         </Button>
                       </Link>
                     </div>
@@ -762,8 +762,8 @@ export default function TutorClassesPage() {
                     <Filter className="mx-auto mb-3 h-12 w-12 text-gray-400" />
                     <p className="text-gray-600">
                       {filterStatus === 'completed'
-                        ? 'No completed classes yet'
-                        : 'No classes match your filter'}
+                        ? 'No completed sessions yet'
+                        : 'No sessions match your filter'}
                     </p>
                     <Button
                       variant="outline"
@@ -857,7 +857,7 @@ export default function TutorClassesPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {calendarEvents.length === 0 ? (
-                  <p className="py-4 text-center text-gray-500">No classes scheduled this month</p>
+                  <p className="py-4 text-center text-gray-500">No sessions scheduled this month</p>
                 ) : (
                   calendarEvents.slice(0, 5).map(event => (
                     <div

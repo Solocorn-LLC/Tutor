@@ -111,8 +111,8 @@ export const courseLesson = pgTable(
   })
 )
 
-export const lessonSession = pgTable(
-  'LessonSession',
+export const lessonLearningSession = pgTable(
+  'LessonLearningSession',
   {
     sessionId: text('id').primaryKey().notNull(),
     studentId: text('studentId')
@@ -134,9 +134,9 @@ export const lessonSession = pgTable(
     completedAt: timestamp('completedAt', { withTimezone: true }),
   },
   table => ({
-    LessonSession_studentId_idx: index('LessonSession_studentId_idx').on(table.studentId),
-    LessonSession_lessonId_idx: index('LessonSession_lessonId_idx').on(table.lessonId),
-    LessonSession_studentId_lessonId_key: uniqueIndex('LessonSession_studentId_lessonId_key').on(
+    LessonLearningSession_studentId_idx: index('LessonLearningSession_studentId_idx').on(table.studentId),
+    LessonLearningSession_lessonId_idx: index('LessonLearningSession_lessonId_idx').on(table.lessonId),
+    LessonLearningSession_studentId_lessonId_key: uniqueIndex('LessonLearningSession_studentId_lessonId_key').on(
       table.studentId,
       table.lessonId
     ),
@@ -189,7 +189,6 @@ export const courseEnrollment = pgTable(
     startDate: timestamp('startDate', { withTimezone: true }),
     completedAt: timestamp('completedAt', { withTimezone: true }),
     lastActivity: timestamp('lastActivity', { withTimezone: true }).notNull().defaultNow(),
-    lessonsCompleted: integer('lessonsCompleted').notNull().default(0),
     enrollmentSource: text('enrollmentSource'),
   },
   table => ({

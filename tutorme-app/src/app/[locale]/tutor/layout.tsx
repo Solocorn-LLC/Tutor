@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
   { href: '/tutor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tutor/my-page', label: 'My Page', icon: Globe },
   { href: '/tutor/insights', label: 'Course Builder', icon: Lightbulb },
-  { href: '/tutor/classes', label: 'Live Classes', icon: Video },
+  { href: '/tutor/classes', label: 'Live Sessions', icon: Video },
   { href: '/tutor/messages', label: 'Messages', icon: MessageSquare },
   { href: '/tutor/reports', label: 'Analytics', icon: BarChart3 },
   { href: '/tutor/training', label: 'Training', icon: GraduationCap },

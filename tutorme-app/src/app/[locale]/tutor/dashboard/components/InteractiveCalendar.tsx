@@ -575,7 +575,7 @@ export function InteractiveCalendar({
     const today = startOfDay(new Date())
     const clicked = startOfDay(date)
     if (isBefore(clicked, today)) {
-      toast.error('You can only schedule classes for today or future dates.')
+      toast.error('You can only schedule sessions for today or future dates.')
       return
     }
     setSelectedDate(date)
@@ -1241,7 +1241,7 @@ export function InteractiveCalendar({
                   }}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Schedule Class
+                  Schedule Session
                 </Button>
               )}
             </DialogFooter>
