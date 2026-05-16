@@ -137,18 +137,19 @@ export const GET = withAuth(
         : []
     const courseMap = new Map(courseRows.map(c => [c.courseId, c.name]))
 
-    // Fetch variant nationalities
+    // Fetch variant nationalities and categories
     const variantRows =
       courseIds.length > 0
         ? await drizzleDb
             .select({
               publishedCourseId: courseVariant.publishedCourseId,
               nationality: courseVariant.nationality,
+              category: courseVariant.category,
             })
             .from(courseVariant)
             .where(inArray(courseVariant.publishedCourseId, courseIds))
         : []
-    const variantMap = new Map(variantRows.map(v => [v.publishedCourseId, v.nationality]))
+    const variantMap = new Map(variantRows.map(v => [v.publishedCourseId, { nationality: v.nationality, category: v.category }]))
 
     // Fetch session participant counts
     const sessionIds = [...new Set(merged.map(e => e.sessionId).filter(Boolean))] as string[]
@@ -165,13 +166,17 @@ export const GET = withAuth(
         : []
     const participantMap = new Map(participantRows.map(p => [p.sessionId, p.count]))
 
-    const enriched = merged.map(e => ({
-      ...e,
-      courseName: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
-      category: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
-      nationality: e.courseId ? (variantMap.get(e.courseId) ?? undefined) : undefined,
-      enrolledCount: e.sessionId ? (participantMap.get(e.sessionId) ?? 0) : 0,
-    }))
+    const enriched = merged.map(e => {
+      const variant = e.courseId ? variantMap.get(e.courseId) : undefined
+      return {
+        ...e,
+        courseName: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
+        category: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
+        nationality: variant?.nationality ?? undefined,
+        variantCategory: variant?.category ?? undefined,
+        enrolledCount: e.sessionId ? (participantMap.get(e.sessionId) ?? 0) : 0,
+      }
+    })
 
     // Sort by scheduledAt / startTime
     enriched.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())

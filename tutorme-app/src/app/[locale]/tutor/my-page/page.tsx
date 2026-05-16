@@ -339,11 +339,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="truncate font-medium text-[#0F172A]">
-                        {course.nationality && course.nationality !== 'Global'
-                          ? `${course.name} — ${course.nationality}`
-                          : course.name}
-                      </h4>
+                      <h4 className="truncate font-medium text-[#0F172A]">{course.name}</h4>
                       {activeTab === 'catalogued' ? (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                           Catalogued
@@ -358,6 +354,11 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                         </span>
                       )}
                     </div>
+                    {course.nationality && course.nationality !== 'Global' && (
+                      <p className="mt-0.5 text-sm font-medium text-[#1D4ED8]">
+                        {course.variantCategory || (course.categories || [])[0] || 'General'} — {course.nationality}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm text-[#64748B]">
                       {(course.categories || [])[0] || 'Untitled'} • {course.studentCount || 0}{' '}
                       students • Updated {new Date(course.updatedAt).toLocaleDateString()}

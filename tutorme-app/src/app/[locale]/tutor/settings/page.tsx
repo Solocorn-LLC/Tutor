@@ -276,6 +276,8 @@ export default function TutorSettings() {
     specialties: [] as string[],
     tutorNationalities: [] as string[],
     categoryNationalityCombinations: [] as string[],
+    bio: '',
+    socialLinks: {} as Record<string, string>,
   })
 
   // Load profile on mount
@@ -292,6 +294,11 @@ export default function TutorSettings() {
             specialties: data.profile.specialties || [],
             tutoringNationalities: data.profile.tutorNationalities || [],
             categoryNationalityCombinations: data.profile.categoryNationalityCombinations || [],
+            bio: data.profile.bio || '',
+            socialLinks:
+              data.profile.socialLinks && typeof data.profile.socialLinks === 'object'
+                ? (data.profile.socialLinks as Record<string, string>)
+                : {},
           }))
         }
       })
@@ -667,6 +674,63 @@ export default function TutorSettings() {
                         Save Changes
                       </>
                     )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Public Profile Preview */}
+            <Card className={SECTION_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Public Profile</CardTitle>
+                <CardDescription>How students see you on your public page</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-start gap-4">
+                  {formData.avatarUrl ? (
+                    <img
+                      src={formData.avatarUrl}
+                      alt="Profile"
+                      className="h-16 w-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-500">
+                      {formData.name.charAt(0).toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                    <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                      {formData.bio || 'No bio added yet. Your bio helps students learn more about you.'}
+                    </p>
+                  </div>
+                </div>
+
+                {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(formData.socialLinks)
+                      .filter(([, v]) => v)
+                      .map(([platform, url]) => (
+                        <a
+                          key={platform}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                        >
+                          {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                        </a>
+                      ))}
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => { window.location.href = '/tutor/my-page' }}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Edit Public Profile
                   </Button>
                 </div>
               </CardContent>

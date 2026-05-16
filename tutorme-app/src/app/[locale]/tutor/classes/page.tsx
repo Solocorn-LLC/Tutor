@@ -117,6 +117,7 @@ export default function TutorClassesPage() {
       status: string
       courseName?: string
       nationality?: string
+      variantCategory?: string
     }>
   >([])
 
@@ -837,7 +838,7 @@ export default function TutorClassesPage() {
                               className="block truncate rounded bg-blue-100 p-1 text-xs hover:bg-blue-200"
                             >
                               {event.courseName
-                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
                                 : ''}
                               {event.title}
                             </Link>
@@ -872,7 +873,7 @@ export default function TutorClassesPage() {
                       <div>
                         <p className="font-medium">
                           {event.courseName
-                            ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                            ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
                             : ''}
                           {event.title}
                         </p>

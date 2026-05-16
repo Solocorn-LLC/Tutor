@@ -110,6 +110,7 @@ interface CalendarEvent {
   recurringPattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly'
   courseName?: string
   nationality?: string
+  variantCategory?: string
 }
 
 interface AvailabilityBlock {
@@ -255,7 +256,7 @@ function DraggableEvent({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-white">
             {event.courseName
-              ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+              ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
               : ''}
             {event.title}
           </p>
@@ -419,6 +420,7 @@ export function InteractiveCalendar({
             sessionId: e.sessionId,
             courseName: e.courseName,
             nationality: e.nationality,
+            variantCategory: e.variantCategory,
             studentCount: e.enrolledCount ?? 0,
             color:
               e.status === 'live'
@@ -1060,7 +1062,7 @@ export function InteractiveCalendar({
                     <div>
                       <DialogTitle className="text-xl">
                         {selectedEvent.courseName
-                          ? `${selectedEvent.courseName}${selectedEvent.nationality && selectedEvent.nationality !== 'Global' ? ` — ${selectedEvent.nationality}` : ''}`
+                          ? `${selectedEvent.courseName}${selectedEvent.nationality && selectedEvent.nationality !== 'Global' ? ` — ${selectedEvent.variantCategory || ''} — ${selectedEvent.nationality}` : ''}`
                           : selectedEvent.title}
                       </DialogTitle>
                       <DialogDescription className="mt-1">
@@ -1145,7 +1147,7 @@ export function InteractiveCalendar({
                         <p className="font-medium">
                           {selectedEvent.courseName}
                           {selectedEvent.nationality && selectedEvent.nationality !== 'Global'
-                            ? ` — ${selectedEvent.nationality}`
+                            ? ` — ${selectedEvent.variantCategory || ''} — ${selectedEvent.nationality}`
                             : ''}
                         </p>
                         <p className="text-sm text-gray-500">Course</p>
@@ -1224,7 +1226,7 @@ export function InteractiveCalendar({
                     <div className="flex-1">
                       <p className="font-medium">
                         {event.courseName
-                          ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                          ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
                           : ''}
                         {event.title}
                       </p>
@@ -1761,7 +1763,7 @@ function MonthView({
                               {event.date.getHours()}:
                               {event.date.getMinutes().toString().padStart(2, '0')}{' '}
                               {event.courseName
-                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.nationality}` : ''} — `
+                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
                                 : ''}
                               {event.title}
                             </span>

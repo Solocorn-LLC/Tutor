@@ -90,6 +90,7 @@ interface PublicTutorResponse {
     currency?: string | null
     scheduleSummary?: string | null
     country?: string | null
+    variantCategory?: string | null
     schedule?: any[]
     liveSessionsTotal?: number
     liveSessionsCompleted?: number
@@ -1370,7 +1371,9 @@ export default function PublicTutorPage() {
                                 variant="secondary"
                                 className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
                               >
-                                {course.categories[0] || 'general'}
+                                {course.country && course.country !== 'Global'
+                                  ? `${course.variantCategory || course.categories[0] || 'general'} — ${course.country}`
+                                  : course.categories[0] || 'general'}
                               </Badge>
                             </div>
 
@@ -1407,7 +1410,9 @@ export default function PublicTutorPage() {
                                     isCompact && 'mt-1.5'
                                   )}
                                 >
-                                  {course.categories[0] || 'general'}
+                                  {course.country && course.country !== 'Global'
+                                    ? `${course.variantCategory || course.categories[0] || 'general'} — ${course.country}`
+                                    : course.categories[0] || 'general'}
                                 </Badge>
                               </div>
 

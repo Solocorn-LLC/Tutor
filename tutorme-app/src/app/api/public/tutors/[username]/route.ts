@@ -107,6 +107,7 @@ export async function GET(
         updatedAt: course.updatedAt,
         categories: course.categories,
         country: courseVariant.nationality,
+        variantCategory: courseVariant.category,
         templateCourseId: courseVariant.templateCourseId,
       })
       .from(course)
@@ -225,6 +226,7 @@ export async function GET(
         schedule: c.schedule || [],
         scheduleSummary,
         country: c.country,
+        variantCategory: c.variantCategory,
         liveSessionsTotal: 0,
         liveSessionsCompleted: 0,
         enrollmentStatus: 'ongoing' as const,
