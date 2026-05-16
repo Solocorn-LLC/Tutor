@@ -176,7 +176,11 @@ export function PWAInstallPrompt() {
 
               {isInstallable ? (
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" onClick={handleInstall} className="bg-blue-600 hover:bg-blue-700">
+                  <Button
+                    size="sm"
+                    onClick={handleInstall}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
                     {t('install_button')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={handleDismiss}>

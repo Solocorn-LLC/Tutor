@@ -847,7 +847,8 @@ export default function TutorRegistrationPage() {
                         'min-h-[18px] text-xs',
                         emailStatus.status === 'checking' && 'text-gray-500',
                         emailStatus.status === 'available' && 'text-green-600',
-                        (emailStatus.status === 'taken' || emailStatus.status === 'invalid') && 'text-red-600'
+                        (emailStatus.status === 'taken' || emailStatus.status === 'invalid') &&
+                          'text-red-600'
                       )}
                     >
                       {emailStatus.status === 'checking'

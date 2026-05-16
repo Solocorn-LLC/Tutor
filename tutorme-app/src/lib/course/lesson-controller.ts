@@ -98,7 +98,12 @@ export async function startLesson(studentId: string, lessonId: string): Promise<
   const [existingSession] = await drizzleDb
     .select()
     .from(lessonLearningSession)
-    .where(and(eq(lessonLearningSession.studentId, studentId), eq(lessonLearningSession.lessonId, lessonId)))
+    .where(
+      and(
+        eq(lessonLearningSession.studentId, studentId),
+        eq(lessonLearningSession.lessonId, lessonId)
+      )
+    )
     .limit(1)
   if (existingSession && existingSession.status !== 'completed') {
     return existingSession as LessonSessionType

@@ -59,21 +59,15 @@ export const GET = withAuth(async (req: NextRequest, session) => {
         const totalStudyMinutes = 0
 
         const courses = courseItems.map(courseItem => {
-          const courseLessons = lessonItems.filter(
-            l => l.metadata?.courseId === courseItem.id
-          )
+          const courseLessons = lessonItems.filter(l => l.metadata?.courseId === courseItem.id)
           const completedLessons = courseLessons.filter(l => l.completed)
-          const inProgressLessons = courseLessons.filter(
-            l => l.metadata?.status === 'IN_PROGRESS'
-          )
+          const inProgressLessons = courseLessons.filter(l => l.metadata?.status === 'IN_PROGRESS')
           const scores = courseLessons
             .map(l => l.metadata?.score as number | null)
             .filter((s): s is number => s != null)
           const avgScore =
-            scores.length > 0
-              ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-              : null
-          const studyMinutes = completedLessons.reduce((sum) => sum + 30, 0)
+            scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+          const studyMinutes = completedLessons.reduce(sum => sum + 30, 0)
 
           return {
             courseId: courseItem.id,

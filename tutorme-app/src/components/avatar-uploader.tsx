@@ -39,7 +39,12 @@ const CROP_OUTPUT_SIZE = 512
 function isAcceptedAvatarFile(file: File) {
   if (ACCEPTED_AVATAR_MIME.includes(file.type)) return true
   const name = file.name.toLowerCase()
-  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp')
+  return (
+    name.endsWith('.jpg') ||
+    name.endsWith('.jpeg') ||
+    name.endsWith('.png') ||
+    name.endsWith('.webp')
+  )
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -210,12 +215,30 @@ export function AvatarUploader({
     const cropData = getCropData()
     if (!cropData) return
 
-    ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, CROP_OUTPUT_SIZE, CROP_OUTPUT_SIZE)
+    ctx.drawImage(
+      img,
+      cropData.x,
+      cropData.y,
+      cropData.width,
+      cropData.height,
+      0,
+      0,
+      CROP_OUTPUT_SIZE,
+      CROP_OUTPUT_SIZE
+    )
 
     // Use PNG for broad compatibility; server will accept it
     const dataUrl = canvas.toDataURL('image/png')
     setCroppedPreviewUrl(dataUrl)
-  }, [cropSourceUrl, cropDialogOpen, cropImageSize, cropViewportSize, cropOffset, cropZoom, getCropData])
+  }, [
+    cropSourceUrl,
+    cropDialogOpen,
+    cropImageSize,
+    cropViewportSize,
+    cropOffset,
+    cropZoom,
+    getCropData,
+  ])
 
   // Pointer drag handlers
   const handleCropPointerDown = useCallback(
@@ -235,16 +258,13 @@ export function AvatarUploader({
     [cropping, uploading, cropOffset.x, cropOffset.y]
   )
 
-  const handleCropPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      const drag = cropDragRef.current
-      if (!drag?.active) return
-      const dx = e.clientX - drag.startX
-      const dy = e.clientY - drag.startY
-      setCropOffset({ x: drag.startOffsetX + dx, y: drag.startOffsetY + dy })
-    },
-    []
-  )
+  const handleCropPointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = cropDragRef.current
+    if (!drag?.active) return
+    const dx = e.clientX - drag.startX
+    const dy = e.clientY - drag.startY
+    setCropOffset({ x: drag.startOffsetX + dx, y: drag.startOffsetY + dy })
+  }, [])
 
   const handleCropPointerUp = useCallback(() => {
     const drag = cropDragRef.current
@@ -560,7 +580,10 @@ export function AvatarUploader({
                   max={
                     cropImageSize && cropViewportSize
                       ? cropViewportSize /
-                        (Math.max(cropViewportSize / cropImageSize.width, cropViewportSize / cropImageSize.height) *
+                        (Math.max(
+                          cropViewportSize / cropImageSize.width,
+                          cropViewportSize / cropImageSize.height
+                        ) *
                           256)
                       : 3
                   }

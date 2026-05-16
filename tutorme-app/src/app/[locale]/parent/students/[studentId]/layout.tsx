@@ -96,7 +96,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               {loading ? (
                 <span className="inline-block h-7 w-32 animate-pulse rounded bg-gray-200" />
               ) : (
-                student?.name ?? '学生'
+                (student?.name ?? '学生')
               )}
             </h1>
             <p className="text-sm text-gray-500">

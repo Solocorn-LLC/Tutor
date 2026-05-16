@@ -28,7 +28,11 @@ export const GET = withAuth(
       return NextResponse.json({ success: true, progress })
     } catch (error) {
       console.error('Unified progress fetch error:', error)
-      return handleApiError(error, 'Failed to fetch progress', 'api/student/progress/unified/route.ts')
+      return handleApiError(
+        error,
+        'Failed to fetch progress',
+        'api/student/progress/unified/route.ts'
+      )
     }
   },
   { role: 'STUDENT' }

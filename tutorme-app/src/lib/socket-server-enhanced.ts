@@ -821,20 +821,28 @@ export async function initEnhancedSocketServer(server: NetServer) {
     })
 
     // Activity ping keeps room and student alive during quiet sessions
-    socket.on('activity_ping', (data: { activity?: string; engagement?: number; understanding?: number; roomId?: string }) => {
-      const roomId = data?.roomId || socket.data.roomId
-      if (!roomId) return
-      const room = activeRooms.get(roomId)
-      if (!room) return
-      room.lastActivity = Date.now()
-      const student = room.students.get(socket.data.userId)
-      if (student) {
-        student.lastActivity = Date.now()
-        if (typeof data?.engagement === 'number') student.engagement = data.engagement
-        if (typeof data?.understanding === 'number') student.understanding = data.understanding
-        if (data?.activity) student.currentActivity = data.activity
+    socket.on(
+      'activity_ping',
+      (data: {
+        activity?: string
+        engagement?: number
+        understanding?: number
+        roomId?: string
+      }) => {
+        const roomId = data?.roomId || socket.data.roomId
+        if (!roomId) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+        room.lastActivity = Date.now()
+        const student = room.students.get(socket.data.userId)
+        if (student) {
+          student.lastActivity = Date.now()
+          if (typeof data?.engagement === 'number') student.engagement = data.engagement
+          if (typeof data?.understanding === 'number') student.understanding = data.understanding
+          if (data?.activity) student.currentActivity = data.activity
+        }
       }
-    })
+    )
 
     // Poll handlers with DB persistence
     socket.on('poll:join', (data: { sessionId: string }) => {

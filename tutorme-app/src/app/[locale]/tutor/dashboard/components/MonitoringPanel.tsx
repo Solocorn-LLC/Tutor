@@ -230,8 +230,10 @@ export function MonitoringPanel({
               )}
             >
               <CardHeader className="border-b bg-slate-50/50 px-4 py-3">
-                <CardTitle className="flex items-center justify-between gap-2 text-base min-w-0">
-                  <span className="font-semibold text-slate-800 min-w-0 truncate">{student.name}</span>
+                <CardTitle className="flex min-w-0 items-center justify-between gap-2 text-base">
+                  <span className="min-w-0 truncate font-semibold text-slate-800">
+                    {student.name}
+                  </span>
                   <span
                     className={cn(
                       'flex h-2 w-2 rounded-full',
@@ -274,7 +276,7 @@ export function MonitoringPanel({
                         onOpenWhiteboard?.(student.id, student.name)
                       }}
                       variant="outline"
-                      className="flex-1 min-w-[100px] gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      className="min-w-[100px] flex-1 gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     >
                       <MonitorPlay className="h-4 w-4 flex-shrink-0" />
                       Whiteboard
@@ -285,7 +287,7 @@ export function MonitoringPanel({
                         handleSendHelp(student.id, student.name)
                       }}
                       variant="outline"
-                      className="flex-1 min-w-[80px] gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="min-w-[80px] flex-1 gap-2 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
                     >
                       <HandHeart className="h-4 w-4 flex-shrink-0" />
                       Help

@@ -26,7 +26,11 @@ import {
 import { FileQuestion, Plus, X, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Quiz, CourseBuilderNodeQuiz, QuizQuestion, BuilderModalProps } from './builder-types'
-import { ResourceImportPanel, QuestionsPreview, formatMatchingExplanation } from './builder-components'
+import {
+  ResourceImportPanel,
+  QuestionsPreview,
+  formatMatchingExplanation,
+} from './builder-components'
 import { SourceDocumentPreview } from './SourceDocumentPreview'
 import { DEFAULT_QUIZ, DEFAULT_NODE_QUIZ } from './builder-utils'
 import { QuestionEditor } from './QuestionEditor'

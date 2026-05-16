@@ -1621,293 +1621,289 @@ function StudentFeedbackContent() {
               onValueChange={setActiveTab}
               className="flex h-full min-h-0 flex-1 flex-col"
             >
-                  {(() => {
-                    const controlRow = (
-                      <div className="sticky top-3 z-50 w-full px-4">
-                        <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3">
-                          <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-md">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => setFollowTutor(!followTutor)}
-                              className={cn(
-                                'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                                followTutor
-                                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  'mr-2 h-2 w-2 rounded-full',
-                                  followTutor ? 'bg-white' : 'bg-slate-500'
-                                )}
-                              />
-                              {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                            </Button>
-
-                            <div
-                              className={cn(
-                                'flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold',
-                                isConnected
-                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                  : error
-                                    ? 'border-red-200 bg-red-50 text-red-700'
-                                    : 'border-slate-200 bg-slate-50 text-slate-700'
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  'h-2 w-2 rounded-full',
-                                  isConnected
-                                    ? 'bg-emerald-500'
-                                    : error
-                                      ? 'bg-red-500'
-                                      : 'bg-slate-400'
-                                )}
-                              />
-                              {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                            </div>
-
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => setIsMirroringToTutor(!isMirroringToTutor)}
-                              className={cn(
-                                'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                                isMirroringToTutor
-                                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  'mr-2 h-2 w-2 rounded-full',
-                                  isMirroringToTutor ? 'bg-white' : 'bg-slate-500'
-                                )}
-                              />
-                              {isMirroringToTutor ? 'Mirroring On' : 'Mirror to Tutor'}
-                            </Button>
-
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={!sessionContext?.roomUrl}
-                              onClick={() => {
-                                if (!sessionContext?.roomUrl) return
-                                openVideoOverlay({
-                                  roomUrl: sessionContext.roomUrl,
-                                  token: sessionContext.token,
-                                  autoRecord: false,
-                                })
-                              }}
-                              className="h-8 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm"
-                            >
-                              <Video className="h-4 w-4" />
-                              Video
-                            </Button>
-                          </div>
-
-                          <TabsList className="flex h-8 items-center gap-2 border-0 bg-transparent p-0 shadow-none">
-                            <TabsTrigger
-                              value="task"
-                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
-                            >
-                              Classroom
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="my-board"
-                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
-                            >
-                              My Board
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="tutor-board"
-                              className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
-                            >
-                              Tutor Board
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-                      </div>
-                    )
-
-                    return portalTarget ? createPortal(controlRow, portalTarget) : controlRow
-                  })()}
-
-                  <TabsContent
-                    value="task"
-                    padding="none"
-                    className="flex h-full min-h-0 flex-1 flex-col outline-none"
-                  >
-                    {/* Classroom viewer */}
-                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
-                      <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
-                        <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
-                          Classroom
-                        </span>
-                      </div>
-
-                      <div className="flex-1 overflow-hidden p-4 pt-6">
-                        {activeTask ? (
+              {(() => {
+                const controlRow = (
+                  <div className="sticky top-3 z-50 w-full px-4">
+                    <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur-md">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setFollowTutor(!followTutor)}
+                          className={cn(
+                            'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
+                            followTutor
+                              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          )}
+                        >
                           <div
-                            className="h-full w-full"
-                            style={{ zoom: viewerZoom } as React.CSSProperties}
-                          >
-                            {activeTask.sourceDocument || activeTask.content ? (
-                              <div className="h-full w-full overflow-y-auto">
-                                {activeTask.sourceDocument ? (
-                                  <div className="h-full w-full">
-                                    {activeTask.sourceDocument.mimeType === 'application/pdf' ||
-                                    !activeTask.sourceDocument.mimeType ? (
-                                      <div className="h-full w-full overflow-hidden">
-                                        <iframe
-                                          src={
-                                            activeTask.sourceDocument.fileUrl.includes('#')
-                                              ? `${activeTask.sourceDocument.fileUrl}&toolbar=0&navpanes=0`
-                                              : `${activeTask.sourceDocument.fileUrl}#toolbar=0&navpanes=0`
-                                          }
-                                          title={activeTask.sourceDocument.fileName}
-                                          className="h-full w-full"
-                                        />
-                                      </div>
-                                    ) : activeTask.sourceDocument.mimeType.startsWith('image/') ? (
-                                      <div className="flex h-full items-center justify-center">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                          src={activeTask.sourceDocument.fileUrl}
-                                          alt={activeTask.sourceDocument.fileName}
-                                          className="max-h-full max-w-full object-contain"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="flex h-full flex-col items-center justify-center gap-2">
-                                        <FileText className="h-8 w-8 text-blue-600" />
-                                        <a
-                                          href={activeTask.sourceDocument.fileUrl}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-sm text-blue-600 underline"
-                                        >
-                                          Open {activeTask.sourceDocument.fileName}
-                                        </a>
-                                      </div>
-                                    )}
+                            className={cn(
+                              'mr-2 h-2 w-2 rounded-full',
+                              followTutor ? 'bg-white' : 'bg-slate-500'
+                            )}
+                          />
+                          {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                        </Button>
+
+                        <div
+                          className={cn(
+                            'flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold',
+                            isConnected
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : error
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : 'border-slate-200 bg-slate-50 text-slate-700'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'h-2 w-2 rounded-full',
+                              isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-slate-400'
+                            )}
+                          />
+                          {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setIsMirroringToTutor(!isMirroringToTutor)}
+                          className={cn(
+                            'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
+                            isMirroringToTutor
+                              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'mr-2 h-2 w-2 rounded-full',
+                              isMirroringToTutor ? 'bg-white' : 'bg-slate-500'
+                            )}
+                          />
+                          {isMirroringToTutor ? 'Mirroring On' : 'Mirror to Tutor'}
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!sessionContext?.roomUrl}
+                          onClick={() => {
+                            if (!sessionContext?.roomUrl) return
+                            openVideoOverlay({
+                              roomUrl: sessionContext.roomUrl,
+                              token: sessionContext.token,
+                              autoRecord: false,
+                            })
+                          }}
+                          className="h-8 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm"
+                        >
+                          <Video className="h-4 w-4" />
+                          Video
+                        </Button>
+                      </div>
+
+                      <TabsList className="flex h-8 items-center gap-2 border-0 bg-transparent p-0 shadow-none">
+                        <TabsTrigger
+                          value="task"
+                          className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
+                        >
+                          Classroom
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="my-board"
+                          className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
+                        >
+                          My Board
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="tutor-board"
+                          className="h-8 rounded-full border border-slate-200 bg-white px-4 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=inactive]:text-[#1F2933]"
+                        >
+                          Tutor Board
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                  </div>
+                )
+
+                return portalTarget ? createPortal(controlRow, portalTarget) : controlRow
+              })()}
+
+              <TabsContent
+                value="task"
+                padding="none"
+                className="flex h-full min-h-0 flex-1 flex-col outline-none"
+              >
+                {/* Classroom viewer */}
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
+                  <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
+                    <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
+                      Classroom
+                    </span>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden p-4 pt-6">
+                    {activeTask ? (
+                      <div
+                        className="h-full w-full"
+                        style={{ zoom: viewerZoom } as React.CSSProperties}
+                      >
+                        {activeTask.sourceDocument || activeTask.content ? (
+                          <div className="h-full w-full overflow-y-auto">
+                            {activeTask.sourceDocument ? (
+                              <div className="h-full w-full">
+                                {activeTask.sourceDocument.mimeType === 'application/pdf' ||
+                                !activeTask.sourceDocument.mimeType ? (
+                                  <div className="h-full w-full overflow-hidden">
+                                    <iframe
+                                      src={
+                                        activeTask.sourceDocument.fileUrl.includes('#')
+                                          ? `${activeTask.sourceDocument.fileUrl}&toolbar=0&navpanes=0`
+                                          : `${activeTask.sourceDocument.fileUrl}#toolbar=0&navpanes=0`
+                                      }
+                                      title={activeTask.sourceDocument.fileName}
+                                      className="h-full w-full"
+                                    />
+                                  </div>
+                                ) : activeTask.sourceDocument.mimeType.startsWith('image/') ? (
+                                  <div className="flex h-full items-center justify-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={activeTask.sourceDocument.fileUrl}
+                                      alt={activeTask.sourceDocument.fileName}
+                                      className="max-h-full max-w-full object-contain"
+                                    />
                                   </div>
                                 ) : (
-                                  <div className="whitespace-pre-wrap text-sm text-gray-700">
-                                    {activeTask.content}
+                                  <div className="flex h-full flex-col items-center justify-center gap-2">
+                                    <FileText className="h-8 w-8 text-blue-600" />
+                                    <a
+                                      href={activeTask.sourceDocument.fileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm text-blue-600 underline"
+                                    >
+                                      Open {activeTask.sourceDocument.fileName}
+                                    </a>
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <div className="flex h-full items-center justify-center" />
+                              <div className="whitespace-pre-wrap text-sm text-gray-700">
+                                {activeTask.content}
+                              </div>
                             )}
                           </div>
                         ) : (
                           <div className="flex h-full items-center justify-center" />
                         )}
                       </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center" />
+                    )}
+                  </div>
 
-                      {/* Floating zoom controls */}
-                      <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
-                          onClick={() => setViewerZoom(z => Math.min(2, z + 0.1))}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
-                          onClick={() => setViewerZoom(z => Math.max(0.5, z - 0.1))}
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
+                  {/* Floating zoom controls */}
+                  <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
+                      onClick={() => setViewerZoom(z => Math.min(2, z + 0.1))}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
+                      onClick={() => setViewerZoom(z => Math.max(0.5, z - 0.1))}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
 
-                    {/* Input row */}
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="relative flex-1">
-                        <Input
-                          value={chatInput}
-                          onChange={e => setChatInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault()
-                              if (chatInput.trim() && socket) {
-                                socket.emit('chat_message', { text: chatInput.trim() })
-                                setChatInput('')
-                              }
-                            }
-                          }}
-                          className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
-                        />
-                        <Button
-                          size="icon"
-                          className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
-                          disabled={!chatInput.trim() || !socket}
-                          onClick={() => {
-                            if (chatInput.trim() && socket) {
-                              socket.emit('chat_message', { text: chatInput.trim() })
-                              setChatInput('')
-                            }
-                          }}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Button
-                        className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                        onClick={() => toast.success('Task marked complete')}
-                      >
-                        Task Complete
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="my-board"
-                    padding="none"
-                    className="flex h-full min-h-0 flex-1 flex-col outline-none"
+                {/* Input row */}
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Input
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          if (chatInput.trim() && socket) {
+                            socket.emit('chat_message', { text: chatInput.trim() })
+                            setChatInput('')
+                          }
+                        }
+                      }}
+                      className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                    />
+                    <Button
+                      size="icon"
+                      className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
+                      disabled={!chatInput.trim() || !socket}
+                      onClick={() => {
+                        if (chatInput.trim() && socket) {
+                          socket.emit('chat_message', { text: chatInput.trim() })
+                          setChatInput('')
+                        }
+                      }}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                    onClick={() => toast.success('Task marked complete')}
                   >
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <EnhancedWhiteboard
-                        pages={myBoardPages}
-                        currentPageIndex={myBoardPageIndex}
-                        onPagesChange={setMyBoardPages}
-                        onPageIndexChange={setMyBoardPageIndex}
-                        socket={socket}
-                        roomId={selectedSessionId ?? undefined}
-                        userId={session?.user?.id ?? undefined}
-                        userName={session?.user?.name || 'Student'}
-                        userColor={stringToColor(session?.user?.id || '')}
-                      />
-                    </div>
-                  </TabsContent>
+                    Task Complete
+                  </Button>
+                </div>
+              </TabsContent>
 
-                  <TabsContent
-                    value="tutor-board"
-                    padding="none"
-                    className="flex h-full min-h-0 flex-1 flex-col outline-none"
-                  >
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <EnhancedWhiteboard
-                        readOnly
-                        pages={tutorBoardPages}
-                        currentPageIndex={tutorBoardPageIndex}
-                        onPagesChange={setTutorBoardPages}
-                        onPageIndexChange={setTutorBoardPageIndex}
-                        socket={socket}
-                        roomId={selectedSessionId ?? undefined}
-                        filterByUserId={sessionContext?.tutorId ?? undefined}
-                      />
-                    </div>
-                  </TabsContent>
+              <TabsContent
+                value="my-board"
+                padding="none"
+                className="flex h-full min-h-0 flex-1 flex-col outline-none"
+              >
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <EnhancedWhiteboard
+                    pages={myBoardPages}
+                    currentPageIndex={myBoardPageIndex}
+                    onPagesChange={setMyBoardPages}
+                    onPageIndexChange={setMyBoardPageIndex}
+                    socket={socket}
+                    roomId={selectedSessionId ?? undefined}
+                    userId={session?.user?.id ?? undefined}
+                    userName={session?.user?.name || 'Student'}
+                    userColor={stringToColor(session?.user?.id || '')}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent
+                value="tutor-board"
+                padding="none"
+                className="flex h-full min-h-0 flex-1 flex-col outline-none"
+              >
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <EnhancedWhiteboard
+                    readOnly
+                    pages={tutorBoardPages}
+                    currentPageIndex={tutorBoardPageIndex}
+                    onPagesChange={setTutorBoardPages}
+                    onPageIndexChange={setTutorBoardPageIndex}
+                    socket={socket}
+                    roomId={selectedSessionId ?? undefined}
+                    filterByUserId={sessionContext?.tutorId ?? undefined}
+                  />
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
 

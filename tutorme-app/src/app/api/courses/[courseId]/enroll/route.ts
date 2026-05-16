@@ -6,10 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
-import {
-  enrollStudentInCourse,
-  enrollmentPaymentRequiredResponse,
-} from '@/lib/api/enrollments'
+import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
 export const POST = withCsrf(
   withAuth(async (req: NextRequest, session, context) => {

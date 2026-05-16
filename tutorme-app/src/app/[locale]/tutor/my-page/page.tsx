@@ -317,7 +317,12 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                     : 'No catalogued courses'}
               </p>
               {activeTab === 'active' && (
-                <Button onClick={onCreateCourse} variant="outline" className="mt-4 text-slate-700" size="sm">
+                <Button
+                  onClick={onCreateCourse}
+                  variant="outline"
+                  className="mt-4 text-slate-700"
+                  size="sm"
+                >
                   <Plus className="mr-1 h-4 w-4" />
                   Create your first course
                 </Button>
@@ -1643,11 +1648,7 @@ export default function TutorMyPage() {
               <Button
                 onClick={() => void confirmCropAndUpload()}
                 disabled={
-                  cropping ||
-                  uploadingAvatar ||
-                  !cropSourceUrl ||
-                  !cropSourceFile ||
-                  !cropImageSize
+                  cropping || uploadingAvatar || !cropSourceUrl || !cropSourceFile || !cropImageSize
                 }
               >
                 {cropping ? 'Cropping...' : 'Crop & Upload'}
@@ -1856,7 +1857,12 @@ export default function TutorMyPage() {
             </div>
           </div>
           <DialogFooter className="mt-4">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creatingCourse} className="text-slate-700">
+            <Button
+              variant="ghost"
+              onClick={() => setCreateOpen(false)}
+              disabled={creatingCourse}
+              className="text-slate-700"
+            >
               Cancel
             </Button>
             <Button

@@ -3,7 +3,13 @@ import { eq, and, sql, inArray } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseEnrollment, user, profile, courseLesson, courseLessonProgress } from '@/lib/db/schema'
+import {
+  courseEnrollment,
+  user,
+  profile,
+  courseLesson,
+  courseLessonProgress,
+} from '@/lib/db/schema'
 
 export const GET = withAuth(
   async (_req, session, context) => {

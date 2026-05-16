@@ -160,9 +160,9 @@ const buttonVariants = cva(
           'rounded-[10px]',
           'h-10 px-6',
           'shadow-elevation-2',
-          'hover:bg-white hover:text-black hover:border-[#0057ff]',
+          'hover:border-[#0057ff] hover:bg-white hover:text-black',
           'active:bg-white/90',
-          'disabled:bg-white/[0.18] disabled:text-white/[0.45] disabled:border-white/[0.12] disabled:cursor-not-allowed',
+          'disabled:cursor-not-allowed disabled:border-white/[0.12] disabled:bg-white/[0.18] disabled:text-white/[0.45]',
         ],
 
         // Modal Secondary (Metallic/Dark) - White cancel on dark modals
@@ -171,9 +171,9 @@ const buttonVariants = cva(
           'border border-white',
           'rounded-[10px]',
           'h-10 px-6',
-          'hover:bg-transparent hover:text-white hover:border-white',
+          'hover:border-white hover:bg-transparent hover:text-white',
           'active:bg-white/10',
-          'disabled:bg-white/[0.18] disabled:text-white/[0.45] disabled:border-white/[0.12] disabled:cursor-not-allowed',
+          'disabled:cursor-not-allowed disabled:border-white/[0.12] disabled:bg-white/[0.18] disabled:text-white/[0.45]',
         ],
 
         // Modal Text (Metallic/Dark) - Text-only action on dark modals
@@ -183,7 +183,7 @@ const buttonVariants = cva(
           'rounded-[10px]',
           'h-10 px-6',
           'hover:underline',
-          'disabled:text-white/[0.45] disabled:cursor-not-allowed',
+          'disabled:cursor-not-allowed disabled:text-white/[0.45]',
         ],
 
         // Glass - Translucent effect

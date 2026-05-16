@@ -134,12 +134,15 @@ export const lessonLearningSession = pgTable(
     completedAt: timestamp('completedAt', { withTimezone: true }),
   },
   table => ({
-    LessonLearningSession_studentId_idx: index('LessonLearningSession_studentId_idx').on(table.studentId),
-    LessonLearningSession_lessonId_idx: index('LessonLearningSession_lessonId_idx').on(table.lessonId),
-    LessonLearningSession_studentId_lessonId_key: uniqueIndex('LessonLearningSession_studentId_lessonId_key').on(
-      table.studentId,
+    LessonLearningSession_studentId_idx: index('LessonLearningSession_studentId_idx').on(
+      table.studentId
+    ),
+    LessonLearningSession_lessonId_idx: index('LessonLearningSession_lessonId_idx').on(
       table.lessonId
     ),
+    LessonLearningSession_studentId_lessonId_key: uniqueIndex(
+      'LessonLearningSession_studentId_lessonId_key'
+    ).on(table.studentId, table.lessonId),
   })
 )
 

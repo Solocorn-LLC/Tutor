@@ -131,10 +131,7 @@ export async function fetchCourseProgress(studentId: string): Promise<ProgressIt
 
   const progressRows =
     courseIds.length > 0
-      ? await drizzleDb
-          .select()
-          .from(courseProgress)
-          .where(eq(courseProgress.studentId, studentId))
+      ? await drizzleDb.select().from(courseProgress).where(eq(courseProgress.studentId, studentId))
       : []
   const progressMap = new Map(progressRows.map(p => [p.courseId, p]))
 

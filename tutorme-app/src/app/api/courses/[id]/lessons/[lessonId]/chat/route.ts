@@ -9,7 +9,11 @@ import { and, eq, sql } from 'drizzle-orm'
 import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/middleware'
 import { advanceLesson, startLesson } from '@/lib/course/lesson-controller'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseLesson, lessonLearningSession as lessonLearningSessionTable, courseProgress } from '@/lib/db/schema'
+import {
+  courseLesson,
+  lessonLearningSession as lessonLearningSessionTable,
+  courseProgress,
+} from '@/lib/db/schema'
 import { generateWithFallback } from '@/lib/agents'
 
 // Type definition for lesson session - matches the database schema
@@ -185,7 +189,9 @@ export const POST = withCsrf(
       }
 
       // Check if should advance section
-      const currentSectionIndex = SECTIONS.indexOf(lessonLearningSession.currentSection as LessonSection)
+      const currentSectionIndex = SECTIONS.indexOf(
+        lessonLearningSession.currentSection as LessonSection
+      )
       const nextSectionIndex = SECTIONS.indexOf(nextSection as LessonSection)
 
       const newSessionContext = {

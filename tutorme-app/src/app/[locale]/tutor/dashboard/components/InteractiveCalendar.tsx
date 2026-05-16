@@ -1934,11 +1934,7 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
         </TabsList>
 
         {days.map(day => (
-          <TabsContent
-            key={day.full}
-            value={day.full}
-            className="mt-4 flex-1"
-          >
+          <TabsContent key={day.full} value={day.full} className="mt-4 flex-1">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-medium">{day.full}</h3>
               <span className="text-muted-foreground text-sm">

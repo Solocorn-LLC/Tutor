@@ -33,7 +33,10 @@ export const POST = withCsrf(
         .select()
         .from(lessonLearningSession)
         .where(
-          and(eq(lessonLearningSession.studentId, session.user.id), eq(lessonLearningSession.lessonId, lessonId))
+          and(
+            eq(lessonLearningSession.studentId, session.user.id),
+            eq(lessonLearningSession.lessonId, lessonId)
+          )
         )
         .limit(1)
 

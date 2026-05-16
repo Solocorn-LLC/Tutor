@@ -80,8 +80,8 @@ export function PDFViewer({
       {isBlobUrl && (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
           <p className="max-w-md text-sm text-red-600">
-            This document was not properly saved. The file reference is a temporary browser URL
-            that becomes invalid after refreshing. Please remove this document and re-upload it.
+            This document was not properly saved. The file reference is a temporary browser URL that
+            becomes invalid after refreshing. Please remove this document and re-upload it.
           </p>
         </div>
       )}

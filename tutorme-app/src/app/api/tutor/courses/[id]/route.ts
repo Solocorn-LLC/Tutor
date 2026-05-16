@@ -263,7 +263,11 @@ export const DELETE = withAuth(
           })
           .from(payment)
           .where(
-            and(eq(payment.courseId, id), eq(payment.status, 'COMPLETED'), isNull(payment.refundedAt))
+            and(
+              eq(payment.courseId, id),
+              eq(payment.status, 'COMPLETED'),
+              isNull(payment.refundedAt)
+            )
           )
 
         const batches: (typeof payments)[] = []

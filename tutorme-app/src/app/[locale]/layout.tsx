@@ -28,9 +28,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <ThemeProvider defaultTheme="aura" defaultMode="system">
-      <NavigationOverlayProvider>
-        {children}
-      </NavigationOverlayProvider>
+      <NavigationOverlayProvider>{children}</NavigationOverlayProvider>
       <FloatingVideoOverlay />
       <PWAInstallPrompt />
       <Toaster position="top-right" />

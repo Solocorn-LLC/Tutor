@@ -23,17 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  ListTodo,
-  Home,
-  FileQuestion,
-  Plus,
-  X,
-  Shield,
-  Unlock,
-  Lock,
-  BookOpen,
-} from 'lucide-react'
+import { ListTodo, Home, FileQuestion, Plus, X, Shield, Unlock, Lock, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Task, Assessment, QuizQuestion } from './builder-types'
 import { DEFAULT_TASK, DEFAULT_HOMEWORK } from './builder-utils'

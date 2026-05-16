@@ -158,8 +158,8 @@ export class CourseBuilderService {
     if (blobPaths.length > 0) {
       throw new Error(
         `Invalid payload: blob URLs found in task/assessment documents. ` +
-        `Please re-upload the files so they are stored persistently. ` +
-        `Found at: ${blobPaths.slice(0, 3).join(', ')}${blobPaths.length > 3 ? '...' : ''}`
+          `Please re-upload the files so they are stored persistently. ` +
+          `Found at: ${blobPaths.slice(0, 3).join(', ')}${blobPaths.length > 3 ? '...' : ''}`
       )
     }
 

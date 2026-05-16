@@ -144,7 +144,6 @@ function TutorDashboardContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null)
 
-
   useEffect(() => {
     if (searchParams.get('create') === '1') setShowCreateDialog(true)
     if (searchParams.get('course') === '1') router.push('/tutor/courses/new')

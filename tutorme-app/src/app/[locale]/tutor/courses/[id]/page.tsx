@@ -482,8 +482,6 @@ export default function TutorCoursePage() {
     }
   }
 
-
-
   // Materials, outline, and course upload functions removed - using simplified course model
 
   if (loading || !course) {
@@ -1175,7 +1173,7 @@ export default function TutorCoursePage() {
               variant="default"
               onClick={handleSaveAll}
               disabled={saving}
-              className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-8 text-white shadow-[0_6px_16px_rgba(37,99,235,0.16),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:[background-image:none] hover:bg-white hover:text-[#2563eb] hover:border-[#2563eb] hover:shadow-[0_8px_18px_rgba(37,99,235,0.18)] active:bg-gradient-to-r active:from-[#1d4ed8] active:to-[#1e40af] active:shadow-[0_4px_10px_rgba(37,99,235,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
+              className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-8 text-white shadow-[0_6px_16px_rgba(37,99,235,0.16),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:border-[#2563eb] hover:bg-white hover:text-[#2563eb] hover:shadow-[0_8px_18px_rgba(37,99,235,0.18)] hover:[background-image:none] active:bg-gradient-to-r active:from-[#1d4ed8] active:to-[#1e40af] active:shadow-[0_4px_10px_rgba(37,99,235,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {saving ? 'Saving…' : 'Save'}
@@ -1193,7 +1191,7 @@ export default function TutorCoursePage() {
                 }
               }}
               disabled={variantStats.total === 0 || publishingVariants}
-              className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] px-8 text-white shadow-[0_6px_16px_rgba(124,58,237,0.18),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:[background-image:none] hover:bg-white hover:text-[#7c3aed] hover:border-[#7c3aed] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)] active:bg-gradient-to-r active:from-[#6d28d9] active:to-[#7c3aed] active:shadow-[0_4px_10px_rgba(124,58,237,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
+              className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] px-8 text-white shadow-[0_6px_16px_rgba(124,58,237,0.18),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:border-[#7c3aed] hover:bg-white hover:text-[#7c3aed] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)] hover:[background-image:none] active:bg-gradient-to-r active:from-[#6d28d9] active:to-[#7c3aed] active:shadow-[0_4px_10px_rgba(124,58,237,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
             >
               {publishingVariants ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {publishingVariants ? 'Publishing…' : 'Publish'}

@@ -75,12 +75,7 @@ function validateImageMagicBytes(buffer: Buffer, mimeType: string): boolean {
   }
 
   if (mimeType === 'image/png') {
-    return (
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47
-    )
+    return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
   }
 
   if (mimeType === 'image/jpeg') {
@@ -100,10 +95,7 @@ function validateImageMagicBytes(buffer: Buffer, mimeType: string): boolean {
  * @param avatarFile  The cropped image File/Blob from the client
  * @returns  Public URL path for the saved avatar
  */
-export async function saveAvatar(
-  userId: string,
-  avatarFile: File
-): Promise<string> {
+export async function saveAvatar(userId: string, avatarFile: File): Promise<string> {
   if (avatarFile.size > MAX_AVATAR_SIZE_BYTES) {
     throw new ValidationError('Profile photo is too large (max 10MB)')
   }
@@ -121,7 +113,8 @@ export async function saveAvatar(
 
   const timestamp = Date.now()
   const baseName = `${timestamp}-avatar`
-  const ext = avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
+  const ext =
+    avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
   // Store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
   let dbStored = false
@@ -140,7 +133,9 @@ export async function saveAvatar(
     dbStored = true
   } catch (dbError: any) {
     const causeMsg = dbError?.cause?.message || dbError?.cause?.detail || ''
-    dbErrorMsg = causeMsg ? `${dbError?.message || ''} | cause: ${causeMsg}` : dbError?.message || String(dbError)
+    dbErrorMsg = causeMsg
+      ? `${dbError?.message || ''} | cause: ${causeMsg}`
+      : dbError?.message || String(dbError)
     console.warn('[saveAvatar] DB storage failed:', dbErrorMsg)
   }
 
@@ -268,7 +263,10 @@ export async function deleteAvatar(
       // the row via onConflictDoUpdate, so deleting here would wipe the new avatar.
       if (deleteFromDb && userIdFromUrl) {
         const { avatarStorage } = await import('@/lib/db/schema')
-        await drizzleDb.delete(avatarStorage).where(eq(avatarStorage.userId, userIdFromUrl)).catch(() => {})
+        await drizzleDb
+          .delete(avatarStorage)
+          .where(eq(avatarStorage.userId, userIdFromUrl))
+          .catch(() => {})
       }
 
       const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')

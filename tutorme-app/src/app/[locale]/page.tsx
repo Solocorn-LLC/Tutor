@@ -1180,9 +1180,18 @@ const CountdownTimer = () => {
       setTimeLeft(prev => {
         let { days, hours, minutes, seconds } = prev
         seconds -= 1
-        if (seconds < 0) { seconds = 59; minutes -= 1 }
-        if (minutes < 0) { minutes = 59; hours -= 1 }
-        if (hours < 0) { hours = 23; days -= 1 }
+        if (seconds < 0) {
+          seconds = 59
+          minutes -= 1
+        }
+        if (minutes < 0) {
+          minutes = 59
+          hours -= 1
+        }
+        if (hours < 0) {
+          hours = 23
+          days -= 1
+        }
         if (days < 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 }
         return { days, hours, minutes, seconds }
       })
@@ -1196,17 +1205,19 @@ const CountdownTimer = () => {
     { value: timeLeft.seconds, label: 'SECONDS' },
   ]
   return (
-    <div className="flex gap-3 md:gap-4 justify-center items-start font-display">
+    <div className="font-display flex items-start justify-center gap-3 md:gap-4">
       {units.map((unit, i) => (
         <React.Fragment key={unit.label}>
           <div className="flex flex-col items-center">
-            <div className="text-3xl md:text-4xl font-bold text-white tabular-nums leading-none">
+            <div className="text-3xl font-bold tabular-nums leading-none text-white md:text-4xl">
               {unit.value.toString().padStart(2, '0')}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-white/60 mt-1">{unit.label}</div>
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-white/60">
+              {unit.label}
+            </div>
           </div>
           {i < units.length - 1 && (
-            <div className="text-3xl md:text-4xl font-bold text-white/30 leading-none pt-0">:</div>
+            <div className="pt-0 text-3xl font-bold leading-none text-white/30 md:text-4xl">:</div>
           )}
         </React.Fragment>
       ))}
@@ -1293,17 +1304,21 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       onClick={() => {
         const username = item?.tutor?.username || ''
         if (!username) return
-        router.push(`/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`)
+        router.push(
+          `/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`
+        )
       }}
       onKeyDown={e => {
         if (e.key !== 'Enter' && e.key !== ' ') return
         const username = item?.tutor?.username || ''
         if (!username) return
-        router.push(`/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`)
+        router.push(
+          `/u/${encodeURIComponent(username)}?courseId=${encodeURIComponent(item?.id || '')}`
+        )
       }}
     >
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:brightness-105 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]"
+        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
@@ -1323,7 +1338,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               ) : null}
             </div>
 
-            <div className="shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] h-[72px] w-[72px]">
+            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
               {item?.tutor?.avatarUrl ? (
                 <img
                   src={item.tutor.avatarUrl}
@@ -2847,7 +2862,7 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm"
             onClick={() => setHowItWorksOpen(false)}
           >
             <motion.div
@@ -2855,21 +2870,31 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl"
+              className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+                <svg
+                  className="h-8 w-8 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
-              <p className="text-gray-500 mb-6">
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">Coming Soon</h2>
+              <p className="mb-6 text-gray-500">
                 We're working hard to bring you the full experience. Stay tuned!
               </p>
               <button
                 onClick={() => setHowItWorksOpen(false)}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
               >
                 Got it
               </button>
@@ -2959,16 +2984,16 @@ export default function LandingPage() {
 
           {/* Bottom-right stats + countdown card */}
           <div className="absolute bottom-6 right-6 z-10">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-xl shadow-lg w-[280px] md:w-[320px]">
-              <div className="flex items-center justify-between mb-4">
+            <div className="w-[280px] rounded-2xl border border-white/20 bg-white/10 p-5 shadow-lg backdrop-blur-xl md:w-[320px]">
+              <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white/90">
-                  <Users className="w-4 h-4" />
+                  <Users className="h-4 w-4" />
                   <span className="text-sm font-medium">
                     {typeof tutorTotal === 'number' ? tutorTotal : 5} Tutors
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-white/90">
-                  <BookOpen className="w-4 h-4" />
+                  <BookOpen className="h-4 w-4" />
                   <span className="text-sm font-medium">
                     {typeof courseTotal === 'number' ? courseTotal : 36} Courses
                   </span>
@@ -2977,9 +3002,7 @@ export default function LandingPage() {
               <div className="mb-3">
                 <CountdownTimer />
               </div>
-              <div className="text-center text-sm text-white/70 font-medium">
-                Until Launch
-              </div>
+              <div className="text-center text-sm font-medium text-white/70">Until Launch</div>
             </div>
           </div>
         </section>

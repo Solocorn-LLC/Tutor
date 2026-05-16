@@ -41,7 +41,12 @@ export async function GET(req: NextRequest) {
       drizzleDb
         .select({ id: deletionRequest.id })
         .from(deletionRequest)
-        .where(and(eq(deletionRequest.status, 'completed'), gte(deletionRequest.processedAt, thirtyDaysAgo))),
+        .where(
+          and(
+            eq(deletionRequest.status, 'completed'),
+            gte(deletionRequest.processedAt, thirtyDaysAgo)
+          )
+        ),
       drizzleDb.select().from(piiAccessLog).orderBy(desc(piiAccessLog.accessedAt)).limit(50),
       drizzleDb
         .select()
@@ -52,7 +57,9 @@ export async function GET(req: NextRequest) {
       drizzleDb
         .select()
         .from(ageVerification)
-        .where(and(eq(ageVerification.isMinor, true), eq(ageVerification.parentConsentGranted, false))),
+        .where(
+          and(eq(ageVerification.isMinor, true), eq(ageVerification.parentConsentGranted, false))
+        ),
       drizzleDb.select().from(consentLog).orderBy(desc(consentLog.grantedAt)).limit(20),
     ])
 
@@ -63,8 +70,9 @@ export async function GET(req: NextRequest) {
         pendingExportRequests: exportRequests.length,
         minorsWithoutParentalConsent: minorUsers.length,
         thirdPartyServicesAudited: thirdParties.length,
-        thirdPartyServicesNonCompliant: thirdParties.filter(t => !t.gdprCompliant || !t.coppaCompliant)
-          .length,
+        thirdPartyServicesNonCompliant: thirdParties.filter(
+          t => !t.gdprCompliant || !t.coppaCompliant
+        ).length,
       },
       pendingDeletions,
       exportRequests,

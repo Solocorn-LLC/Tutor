@@ -167,9 +167,7 @@ export function CreateClassDialog({
       >
         <DialogHeader>
           <DialogTitle>Create New Session</DialogTitle>
-          <DialogDescription>
-            Schedule a new live session for your students.
-          </DialogDescription>
+          <DialogDescription>Schedule a new live session for your students.</DialogDescription>
         </DialogHeader>
         <div className="pt-4">
           <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">

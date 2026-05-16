@@ -585,88 +585,90 @@ const TutorComingSoonModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
             exit={{ scale: 0.95, opacity: 0 }}
             className="relative w-full max-w-md rounded-2xl border border-black/10 bg-white/90 p-8 shadow-2xl backdrop-blur-xl"
           >
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 p-2 text-zinc-600 transition-colors hover:text-black"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            <button
+              onClick={onClose}
+              className="absolute right-4 top-4 p-2 text-zinc-600 transition-colors hover:text-black"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-          {!submitted ? (
-            <>
-              <div className="mb-6 text-center">
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  <Sparkles className="h-3 w-3" />
-                  Coming Soon
+            {!submitted ? (
+              <>
+                <div className="mb-6 text-center">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                    <Sparkles className="h-3 w-3" />
+                    Coming Soon
+                  </div>
+                  <h3 className="mb-2 text-xl font-bold text-zinc-900">Apply to Become a Tutor</h3>
+                  <p className="text-sm text-zinc-600">
+                    We&apos;re preparing an amazing platform for tutors. Pre-register now and
+                    we&apos;ll notify you when we launch!
+                  </p>
                 </div>
-                <h3 className="mb-2 text-xl font-bold text-zinc-900">Apply to Become a Tutor</h3>
-                <p className="text-sm text-zinc-600">
-                  We&apos;re preparing an amazing platform for tutors. Pre-register now and
-                  we&apos;ll notify you when we launch!
-                </p>
-              </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  type="text"
-                  placeholder="Name"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
-                />
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
-                />
-                <textarea
-                  placeholder="Tell us about your tutoring experience (500 characters max)"
-                  value={formData.about}
-                  onChange={e => setFormData({ ...formData, about: e.target.value.slice(0, 500) })}
-                  required
-                  rows={3}
-                  className="w-full resize-none rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500"
-                />
-                <Input
-                  type="text"
-                  placeholder="Social media (optional)"
-                  value={formData.socialMedia}
-                  onChange={e => setFormData({ ...formData, socialMedia: e.target.value })}
-                  className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
-                />
-                {error && <p className="text-center text-sm text-red-500">{error}</p>}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <Input
+                    type="text"
+                    placeholder="Name"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
+                  />
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
+                  />
+                  <textarea
+                    placeholder="Tell us about your tutoring experience (500 characters max)"
+                    value={formData.about}
+                    onChange={e =>
+                      setFormData({ ...formData, about: e.target.value.slice(0, 500) })
+                    }
+                    required
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-black/10 bg-black/5 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500"
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Social media (optional)"
+                    value={formData.socialMedia}
+                    onChange={e => setFormData({ ...formData, socialMedia: e.target.value })}
+                    className="w-full border border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500"
+                  />
+                  {error && <p className="text-center text-sm text-red-500">{error}</p>}
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loading ? 'Submitting...' : 'Confirm'}
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <div className="py-8 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                  <CheckCircle className="h-8 w-8 text-emerald-600" />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-zinc-900">Thank You!</h3>
+                <p className="text-zinc-600">
+                  We&apos;ve received your application. We&apos;ll be in touch soon!
+                </p>
                 <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={onClose}
+                  className="mt-6 bg-black/10 text-zinc-900 hover:bg-black/20"
                 >
-                  {loading ? 'Submitting...' : 'Confirm'}
+                  Close
                 </Button>
-              </form>
-            </>
-          ) : (
-            <div className="py-8 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-                <CheckCircle className="h-8 w-8 text-emerald-600" />
               </div>
-              <h3 className="mb-2 text-xl font-bold text-zinc-900">Thank You!</h3>
-              <p className="text-zinc-600">
-                We&apos;ve received your application. We&apos;ll be in touch soon!
-              </p>
-              <Button
-                onClick={onClose}
-                className="mt-6 bg-black/10 text-zinc-900 hover:bg-black/20"
-              >
-                Close
-              </Button>
-            </div>
-          )}
+            )}
+          </motion.div>
         </motion.div>
-      </motion.div>
       )}
     </AnimatePresence>
   )

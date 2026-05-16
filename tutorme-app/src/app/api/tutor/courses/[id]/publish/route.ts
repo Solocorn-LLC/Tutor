@@ -50,7 +50,10 @@ export const GET = withAuth(
       return NextResponse.json({ variants: rows })
     } catch (error: any) {
       console.error('[GET /api/tutor/courses/[id]/publish] Error:', error)
-      return NextResponse.json({ error: error.message || 'Failed to load variants' }, { status: 500 })
+      return NextResponse.json(
+        { error: error.message || 'Failed to load variants' },
+        { status: 500 }
+      )
     }
   },
   { role: 'TUTOR' }
@@ -398,7 +401,8 @@ export const POST = withCsrf(
             requestedKeys.add(key)
             const existing = existingMap.get(key)
             const courseName = `${v.category} - ${v.nationality}`
-            const isFree = typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
+            const isFree =
+              typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
             const price = isFree ? 0 : typeof v.price === 'number' ? v.price : null
 
             let publishedCourseId: string
@@ -584,7 +588,9 @@ export const POST = withCsrf(
 
               for (const session of sessionDates) {
                 const sessionStart = session.scheduledAt
-                const sessionEnd = new Date(sessionStart.getTime() + session.durationMinutes * 60000)
+                const sessionEnd = new Date(
+                  sessionStart.getTime() + session.durationMinutes * 60000
+                )
 
                 const conflictingLs = existingLiveSessions.find(ls =>
                   overlaps(sessionStart, sessionEnd, ls)

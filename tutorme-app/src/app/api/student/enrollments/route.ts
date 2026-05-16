@@ -9,18 +9,10 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { withAuth, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  course,
-  courseLesson,
-  courseEnrollment,
-  user,
-} from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, user } from '@/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
-import {
-  enrollStudentInCourse,
-  enrollmentPaymentRequiredResponse,
-} from '@/lib/api/enrollments'
+import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
 export const POST = withAuth(async (req, session) => {
   const body = await req.json().catch(() => ({}))

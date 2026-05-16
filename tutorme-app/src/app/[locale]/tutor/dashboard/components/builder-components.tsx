@@ -170,7 +170,8 @@ export function ResourceImportPanel<
       }
       const sourceDocument: ImportedLearningResource = {
         fileName: file.name,
-        mimeType: uploadData.isPdf === true ? 'application/pdf' : file.type || 'application/octet-stream',
+        mimeType:
+          uploadData.isPdf === true ? 'application/pdf' : file.type || 'application/octet-stream',
         fileUrl: uploadData.url,
         extractedText: extractedText || '',
         uploadedAt: new Date().toISOString(),

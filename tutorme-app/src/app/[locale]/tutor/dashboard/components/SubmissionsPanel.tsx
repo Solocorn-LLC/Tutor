@@ -207,7 +207,7 @@ export function SubmissionsPanel({
 
       {!hidden && (
         <div
-          className="absolute right-0 top-0 bottom-4 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+          className="absolute bottom-4 right-0 top-0 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
           style={{ width }}
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
