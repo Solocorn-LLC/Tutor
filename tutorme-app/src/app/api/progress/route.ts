@@ -2,14 +2,18 @@
  * Student Progress API (Drizzle)
  * GET /api/progress — all progress for current student (withAuth)
  * POST /api/progress — update progress (withAuth + CSRF, Zod-validated)
+ *
+ * NOTE: GET now delegates to the unified progress service for backward compatibility.
+ * Prefer /api/student/progress/unified for new code.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session } from 'next-auth'
-import { eq, and, desc, inArray } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { withAuth, requireCsrf, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { contentProgress, contentItem } from '@/lib/db/schema'
+import { contentProgress } from '@/lib/db/schema'
+import { getStudentProgress } from '@/lib/progress/get-student-progress'
 import { z } from 'zod'
 
 const postBodySchema = z.object({
@@ -21,32 +25,22 @@ const postBodySchema = z.object({
 
 async function getHandler(_req: NextRequest, session: Session) {
   try {
-    const progressRows = await drizzleDb
-      .select()
-      .from(contentProgress)
-      .where(eq(contentProgress.studentId, session.user.id))
-      .orderBy(desc(contentProgress.updatedAt))
+    const items = await getStudentProgress(session.user.id, { type: 'video' })
 
-    const contentIds = progressRows.map(p => p.contentId)
-    const contents =
-      contentIds.length > 0
-        ? await drizzleDb
-            .select()
-            .from(contentItem)
-            .where(inArray(contentItem.contentId, contentIds))
-        : []
-    const contentMap = new Map(contents.map(c => [c.contentId, c]))
-
-    const progress = progressRows.map(p => ({
-      ...p,
-      content: contentMap.get(p.contentId)
-        ? {
-            contentId: p.contentId,
-            title: contentMap.get(p.contentId)!.title,
-            subject: contentMap.get(p.contentId)!.subject,
-            type: contentMap.get(p.contentId)!.type,
-          }
-        : null,
+    const progress = items.map(item => ({
+      progressId: (item.metadata?.progressId as string) ?? item.id,
+      studentId: session.user.id,
+      contentId: item.id,
+      progress: item.progress,
+      completed: item.completed,
+      lastPosition: item.metadata?.lastPosition ?? null,
+      updatedAt: item.lastAccessedAt ?? new Date(),
+      content: {
+        contentId: item.id,
+        title: item.title,
+        subject: (item.metadata?.subject as string) ?? '',
+        type: (item.metadata?.contentType as string) ?? 'video',
+      },
     }))
 
     return NextResponse.json({ progress })

@@ -9,6 +9,9 @@
  *  - Achievement (earned badges)
  *  - TaskSubmission (submission counts)
  *
+ * NOTE: Course and lesson data is now fetched via the unified progress service.
+ * Prefer /api/student/progress/unified for a normalized progress list.
+ *
  * Performance: <100ms target with cache hit
  * Cache: L1 memory + L2 Redis, 180s TTL via cache.getOrSet
  */
@@ -16,17 +19,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  courseEnrollment,
-  course,
-  courseLesson,
-  courseLessonProgress,
-  studentPerformance,
-  taskSubmission,
-} from '@/lib/db/schema'
-import { eq, desc, inArray } from 'drizzle-orm'
+import { studentPerformance, taskSubmission } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import cacheManager from '@/lib/cache-manager'
+import { fetchCourseProgress, fetchLessonProgress } from '@/lib/progress/get-student-progress'
 
 import { z } from 'zod'
 
@@ -43,41 +40,11 @@ export const GET = withAuth(async (req: NextRequest, session) => {
     const data = await cacheManager.getOrSet(
       `student:progress:${studentId}`,
       async () => {
-        const enrollmentsRows = await drizzleDb
-          .select()
-          .from(courseEnrollment)
-          .where(eq(courseEnrollment.studentId, studentId))
-        const courseIds = enrollmentsRows.map(r => r.courseId)
-        const coursesData =
-          courseIds.length > 0
-            ? await drizzleDb.select().from(course).where(inArray(course.courseId, courseIds))
-            : []
-        const courseMap = new Map(coursesData.map(c => [c.courseId, c]))
-        const lessons =
-          courseIds.length > 0
-            ? await drizzleDb
-                .select({
-                  lessonId: courseLesson.lessonId,
-                  title: courseLesson.title,
-                  order: courseLesson.order,
-                  courseId: courseLesson.courseId,
-                })
-                .from(courseLesson)
-                .where(inArray(courseLesson.courseId, courseIds))
-            : []
-        const allLessonIds = lessons.map(l => l.lessonId)
-        const lessonProgress =
-          allLessonIds.length > 0
-            ? await drizzleDb
-                .select()
-                .from(courseLessonProgress)
-                .where(eq(courseLessonProgress.studentId, studentId))
-            : []
-        const progressMap = new Map(
-          lessonProgress
-            .filter(lp => allLessonIds.includes(lp.lessonId))
-            .map(lp => [lp.lessonId, lp])
-        )
+        // Delegate course and lesson progress fetching to the unified service
+        const [courseItems, lessonItems] = await Promise.all([
+          fetchCourseProgress(studentId),
+          fetchLessonProgress(studentId),
+        ])
 
         const performances = await drizzleDb
           .select()
@@ -91,43 +58,33 @@ export const GET = withAuth(async (req: NextRequest, session) => {
 
         const totalStudyMinutes = 0
 
-        const lessonsByCourse = new Map<string, typeof lessons>()
-        for (const l of lessons) {
-          // Handle legacy courseId which may be null in new schema
-          const key = l.courseId ?? 'default'
-          const list = lessonsByCourse.get(key) ?? []
-          list.push(l)
-          lessonsByCourse.set(key, list)
-        }
-
-        const courses = enrollmentsRows.map(enrollment => {
-          const courseRow = courseMap.get(enrollment.courseId)
-          const allLessons = lessonsByCourse.get(enrollment.courseId) ?? []
-          const completedLessons = allLessons.filter(
-            l => progressMap.get(l.lessonId)?.status === 'COMPLETED'
+        const courses = courseItems.map(courseItem => {
+          const courseLessons = lessonItems.filter(
+            l => l.metadata?.courseId === courseItem.id
           )
-          const inProgressLessons = allLessons.filter(
-            l => progressMap.get(l.lessonId)?.status === 'IN_PROGRESS'
+          const completedLessons = courseLessons.filter(l => l.completed)
+          const inProgressLessons = courseLessons.filter(
+            l => l.metadata?.status === 'IN_PROGRESS'
           )
-          const scores = completedLessons
-            .map(l => progressMap.get(l.lessonId)?.score)
+          const scores = courseLessons
+            .map(l => l.metadata?.score as number | null)
             .filter((s): s is number => s != null)
           const avgScore =
-            scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
-          const studyMinutes = completedLessons.reduce((sum, l) => sum + 30, 0) // Default 30 min per lesson
+            scores.length > 0
+              ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+              : null
+          const studyMinutes = completedLessons.reduce((sum) => sum + 30, 0)
+
           return {
-            courseId: courseRow?.courseId ?? enrollment.courseId,
-            name: courseRow?.name ?? '',
-            totalLessons: allLessons.length,
+            courseId: courseItem.id,
+            name: courseItem.title,
+            totalLessons: (courseItem.metadata?.totalLessons as number) ?? 0,
             completedLessons: completedLessons.length,
             inProgressLessons: inProgressLessons.length,
-            progress:
-              allLessons.length > 0
-                ? Math.round((completedLessons.length / allLessons.length) * 100)
-                : 0,
+            progress: courseItem.progress,
             averageScore: avgScore,
             studyMinutes,
-            enrolledAt: enrollment.enrolledAt,
+            enrolledAt: courseItem.metadata?.enrolledAt as Date | null | undefined,
           }
         })
 
