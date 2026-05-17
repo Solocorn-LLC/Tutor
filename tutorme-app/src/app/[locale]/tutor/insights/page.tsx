@@ -433,12 +433,11 @@ function TutorInsightsPageInner() {
 
   const handleDeleteCourse = useCallback(async () => {
     if (!courseId || courseId === 'insights-draft') return
-    if (saveMode === 'draft') {
-      if (draftCourses.length <= 1) {
-        toast.error('Cannot delete the last draft')
-        setIsDeleteDialogOpen(false)
-        return
-      }
+
+    // Determine if this courseId is a localStorage draft or a DB course
+    const isDraft = draftCourses.some(c => c.id === courseId)
+
+    if (isDraft) {
       try {
         const raw = localStorage.getItem(draftStorageKey)
         const parsed = raw ? JSON.parse(raw) : []
@@ -448,8 +447,14 @@ function TutorInsightsPageInner() {
         localStorage.removeItem(`insights-course-builder:${courseId}`)
         const remaining = draftCourses.filter(c => c.id !== courseId)
         setDraftCourses(remaining)
-        setCourseId(remaining[0].id)
-        setDetachedCourseName(remaining[0].name)
+        const next = remaining[0] || courses[0]
+        if (next) {
+          setCourseId(next.id)
+          setDetachedCourseName(next.name)
+        } else {
+          setCourseId('insights-draft')
+          setDetachedCourseName('Insights Builder')
+        }
         setIsDeleteDialogOpen(false)
         toast.success('Draft deleted')
       } catch {
@@ -457,11 +462,8 @@ function TutorInsightsPageInner() {
       }
       return
     }
-    if (courses.length <= 1) {
-      toast.error('Cannot delete the last course')
-      setIsDeleteDialogOpen(false)
-      return
-    }
+
+    // Live/DB course deletion
     try {
       const doDelete = async (confirmed: boolean) =>
         fetchWithCsrf(`/api/tutor/courses/${courseId}${confirmed ? '?confirm=true' : ''}`, {
@@ -473,8 +475,14 @@ function TutorInsightsPageInner() {
       if (res.ok) {
         const remaining = courses.filter(c => c.id !== courseId)
         setCourses(remaining)
-        setCourseId(remaining[0].id)
-        setDetachedCourseName(remaining[0].name)
+        const next = remaining[0] || draftCourses[0]
+        if (next) {
+          setCourseId(next.id)
+          setDetachedCourseName(next.name)
+        } else {
+          setCourseId('insights-draft')
+          setDetachedCourseName('Insights Builder')
+        }
         setIsDeleteDialogOpen(false)
         toast.success('Course deleted')
       } else {
@@ -491,8 +499,14 @@ function TutorInsightsPageInner() {
           if (confirmedRes.ok) {
             const remaining = courses.filter(c => c.id !== courseId)
             setCourses(remaining)
-            setCourseId(remaining[0].id)
-            setDetachedCourseName(remaining[0].name)
+            const next = remaining[0] || draftCourses[0]
+            if (next) {
+              setCourseId(next.id)
+              setDetachedCourseName(next.name)
+            } else {
+              setCourseId('insights-draft')
+              setDetachedCourseName('Insights Builder')
+            }
             setIsDeleteDialogOpen(false)
             const refundsInitiated = Number(confirmedData?.refundsInitiated || 0)
             toast.success(
@@ -510,7 +524,7 @@ function TutorInsightsPageInner() {
     } catch {
       toast.error('Failed to delete course')
     }
-  }, [courseId, courses, draftCourses, saveMode])
+  }, [courseId, courses, draftCourses, draftStorageKey, detachedCourseName])
 
   useEffect(() => {
     if (!sessionId) {
@@ -1025,24 +1039,9 @@ function TutorInsightsPageInner() {
   const handleModeChange = useCallback(
     (mode: 'live' | 'draft') => {
       setSaveMode(mode)
-      if (mode === 'live') {
-        const first = courses[0]
-        if (first) {
-          setCourseId(first.id)
-          setDetachedCourseName(first.name)
-        }
-      } else {
-        const first = draftCourses[0]
-        if (first) {
-          setCourseId(first.id)
-          setDetachedCourseName(first.name)
-        } else {
-          setCourseId('insights-draft')
-          setDetachedCourseName('Draft Builder')
-        }
-      }
+      // Don't switch courseId when changing modes — the user stays on the same course
     },
-    [courses, draftCourses]
+    []
   )
 
   if (loading) {
@@ -1150,11 +1149,11 @@ function TutorInsightsPageInner() {
           })),
           onCourseChange: value => {
             setCourseId(value)
-            const isLiveCourse = courses.some(course => course.id === value)
             const isDraftCourse = draftCourses.some(course => course.id === value)
-            if (!sessionId && !modeLocked) {
-              if (isLiveCourse) setSaveMode('live')
-              else if (isDraftCourse) setSaveMode('draft')
+            // Only auto-switch to draft mode for draft courses.
+            // Live courses can be edited in either mode, so keep the current mode.
+            if (!sessionId && !modeLocked && isDraftCourse) {
+              setSaveMode('draft')
             }
 
             const match = [...courses, ...draftCourses].find(course => course.id === value)
