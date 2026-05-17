@@ -487,10 +487,7 @@ function CourseBuilderInsightsRouteInner({
                 {activeMainTab === 'builder' &&
                   (onSaveCourse ||
                     (onCreateCourse && !insightsProps.sessionId) ||
-                    (onDeleteCourse &&
-                      !insightsProps.sessionId &&
-                      ((courses && courses.length > 1) ||
-                        (draftCourses && draftCourses.length > 1))) ||
+                    (onDeleteCourse && !insightsProps.sessionId) ||
                     (onCourseNameChange && courseId && courseId !== 'insights-draft')) && (
                     <>
                       {onSaveCourse && (
@@ -521,10 +518,7 @@ function CourseBuilderInsightsRouteInner({
                         </Button>
                       )}
                       {/* Kebab menu with Go Live and Delete Course */}
-                      {((courseId && courseId !== 'insights-draft' && saveMode === 'draft') ||
-                        (onDeleteCourse &&
-                          !insightsProps.sessionId &&
-                          saveMode === 'draft')) && (
+                      {courseId && courseId !== 'insights-draft' && !insightsProps.sessionId && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="icon">
@@ -538,17 +532,15 @@ function CourseBuilderInsightsRouteInner({
                                 Go Live
                               </DropdownMenuItem>
                             )}
-                            {onDeleteCourse &&
-                              !insightsProps.sessionId &&
-                              saveMode === 'draft' && (
-                                <DropdownMenuItem
-                                  onClick={onDeleteCourse}
-                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Course
-                                </DropdownMenuItem>
-                              )}
+                            {onDeleteCourse && (
+                              <DropdownMenuItem
+                                onClick={onDeleteCourse}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Course
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}

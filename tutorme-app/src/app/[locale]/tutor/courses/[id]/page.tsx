@@ -1166,6 +1166,7 @@ export default function TutorCoursePage() {
             defaultLanguage={languageOfInstruction || 'English'}
             defaultSchedule={schedule}
             onStatsChange={setVariantStats}
+            onSaved={() => router.push('/tutor/my-page')}
             hidePublishAction
           />
 
