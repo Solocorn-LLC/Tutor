@@ -1354,6 +1354,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Auto-save task on the fly (debounced)
     useEffect(() => {
+      if (!canEdit) return
       if (!loadedTaskId) return
 
       const timeoutId = setTimeout(() => {
@@ -1402,6 +1403,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Auto-save assessment on the fly (debounced)
     useEffect(() => {
+      if (!canEdit) return
       if (!loadedAssessmentId) return
 
       const timeoutId = setTimeout(() => {
@@ -1485,6 +1487,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       description: courseDescription || '',
       isLive: false,
     })
+
+    // Editing is only allowed in draft ("Edit") mode
+    const canEdit = saveMode !== undefined ? saveMode === 'draft' : !coursePropsModal.isLive
 
     // Sync external course description into modal state when course changes
     useEffect(() => {
@@ -2322,16 +2327,17 @@ FEEDBACK: [your explanation]`
       return variant?.[field] ?? item[field as keyof T]
     }
 
-    // Dnd-kit sensors
+    // Dnd-kit sensors — disabled in live/published mode
+    const pointerSensor = useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+    const keyboardSensor = useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
     const sensors = useSensors(
-      useSensor(PointerSensor, {
-        activationConstraint: {
-          distance: 8,
-        },
-      }),
-      useSensor(KeyboardSensor, {
-        coordinateGetter: sortableKeyboardCoordinates,
-      })
+      ...(canEdit ? [pointerSensor, keyboardSensor] : [])
     )
 
     const toggleCourseBuilderNode = (nodeId: string) => {
@@ -3778,13 +3784,14 @@ FEEDBACK: [your explanation]`
             >
               <FolderOpen className="h-4 w-4" />
             </button>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.rtf,.csv,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.mp4,.mov,.webm"
-                className="hidden"
-                onChange={async (e: any) => {
+            {canEdit && (
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.rtf,.csv,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.mp4,.mov,.webm"
+                  className="hidden"
+                  onChange={async (e: any) => {
                   const files = Array.from(e.target.files || []) as File[]
                   const newAssets = await Promise.all(
                     files.map(async (f: File) => {
@@ -3840,6 +3847,7 @@ FEEDBACK: [your explanation]`
                 <Plus className="h-4 w-4" />
               </span>
             </label>
+            )}
           </div>
         </div>
 
@@ -4855,8 +4863,9 @@ FEEDBACK: [your explanation]`
       }
     }, [leftPanelResizing])
 
-    // Auto-save course edits (debounced)
+    // Auto-save course edits (debounced) — disabled in live mode
     useEffect(() => {
+      if (!canEdit) return
       if (insightsProps) return
       if (!onSave) return
 
@@ -5234,7 +5243,7 @@ FEEDBACK: [your explanation]`
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          {mainTab !== 'live' && mainTab !== 'test-pci' && (
+                          {mainTab !== 'live' && mainTab !== 'test-pci' && canEdit && (
                             <Button
                               size="sm"
                               onClick={addCourseBuilderNode}
@@ -5317,7 +5326,7 @@ FEEDBACK: [your explanation]`
                                           <div className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-[#1D4ED8] px-2 text-xs font-semibold text-white">
                                             {totalItems}
                                           </div>
-                                          {mainTab !== 'builder' ? (
+                                          {mainTab !== 'builder' || !canEdit ? (
                                             <Button
                                               variant="ghost"
                                               size="icon"
@@ -5438,14 +5447,14 @@ FEEDBACK: [your explanation]`
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
-                                                  disabled={mainTab !== 'builder'}
+                                                  disabled={mainTab !== 'builder' || !canEdit}
                                                   className={cn(
                                                     'h-6 w-6 rounded-md bg-[#2B5FB8]/10 p-0 text-[#2B5FB8] hover:bg-[#2B5FB8]/20',
-                                                    mainTab !== 'builder' &&
+                                                    (mainTab !== 'builder' || !canEdit) &&
                                                       'cursor-not-allowed opacity-40'
                                                   )}
                                                   onClick={() => {
-                                                    if (mainTab !== 'builder') return
+                                                    if (mainTab !== 'builder' || !canEdit) return
                                                     addTask(node.id, primaryLesson.id)
                                                   }}
                                                 >
@@ -5727,7 +5736,7 @@ FEEDBACK: [your explanation]`
                                                                 </DropdownMenuItem>
                                                               )}
 
-                                                              {mainTab === 'builder' && (
+                                                              {mainTab === 'builder' && canEdit && (
                                                                 <>
                                                                   <DropdownMenuItem
                                                                     onClick={e => {
@@ -5999,6 +6008,7 @@ FEEDBACK: [your explanation]`
                                                                     <span className="text-muted-foreground flex-1 truncate">
                                                                       {ext.name}
                                                                     </span>
+                                                                    {canEdit && (
                                                                     <DropdownMenu>
                                                                       <DropdownMenuTrigger asChild>
                                                                         <Button
@@ -6129,6 +6139,7 @@ FEEDBACK: [your explanation]`
                                                                         </DropdownMenuItem>
                                                                       </DropdownMenuContent>
                                                                     </DropdownMenu>
+                                                                    )}
                                                                   </div>
                                                                 )
                                                               )}
@@ -6172,14 +6183,14 @@ FEEDBACK: [your explanation]`
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
-                                                  disabled={mainTab !== 'builder'}
+                                                  disabled={mainTab !== 'builder' || !canEdit}
                                                   className={cn(
                                                     'h-6 w-6 rounded-md bg-[#6D59D8]/10 p-0 text-[#6D59D8] hover:bg-[#6D59D8]/20',
-                                                    mainTab !== 'builder' &&
+                                                    (mainTab !== 'builder' || !canEdit) &&
                                                       'cursor-not-allowed opacity-40'
                                                   )}
                                                   onClick={() => {
-                                                    if (mainTab !== 'builder') return
+                                                    if (mainTab !== 'builder' || !canEdit) return
                                                     addAssessment(node.id, primaryLesson.id)
                                                   }}
                                                 >
@@ -6438,7 +6449,7 @@ FEEDBACK: [your explanation]`
                                                               </DropdownMenuItem>
                                                             )}
 
-                                                            {mainTab === 'builder' && (
+                                                            {mainTab === 'builder' && canEdit && (
                                                               <>
                                                                 <DropdownMenuItem
                                                                   onClick={e => {
@@ -6745,7 +6756,7 @@ FEEDBACK: [your explanation]`
                                                                       </DropdownMenuItem>
                                                                     )}
 
-                                                                  {mainTab === 'builder' && (
+                                                                  {mainTab === 'builder' && canEdit && (
                                                                     <>
                                                                       <DropdownMenuItem
                                                                         onClick={e => {
@@ -6873,6 +6884,8 @@ FEEDBACK: [your explanation]`
                                                 >
                                                   Summative
                                                 </Badge>
+                                                {canEdit && (
+                                                  <>
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
@@ -6912,6 +6925,8 @@ FEEDBACK: [your explanation]`
                                                 >
                                                   <Trash2 className="h-4 w-4" />
                                                 </Button>
+                                                  </>
+                                                )}
                                               </div>
                                             </TreeItem>
                                           ))}
@@ -8002,8 +8017,9 @@ FEEDBACK: [your explanation]`
                                           <Button
                                             size="icon"
                                             className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 disabled:opacity-30"
-                                            disabled={testPciLoading}
+                                            disabled={testPciLoading || !canEdit}
                                             onClick={() => {
+                                              if (!canEdit) return
                                               if (onSave) {
                                                 onSave(
                                                   nodes.map(n => n.lessons[0] || ({} as any)),
@@ -8103,6 +8119,7 @@ FEEDBACK: [your explanation]`
                                 <input
                                   className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus:border-b focus:border-blue-300"
                                   placeholder="Select or name a Task"
+                                  readOnly={!canEdit}
                                   value={
                                     taskBuilder.activeExtensionId
                                       ? taskBuilder.extensions.find(
@@ -8155,6 +8172,7 @@ FEEDBACK: [your explanation]`
                                 <input
                                   className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus:border-b focus:border-purple-300"
                                   placeholder="Select or name an Assessment"
+                                  readOnly={!canEdit}
                                   value={assessmentBuilder.title || ''}
                                   onChange={e => {
                                     const sanitized = e.target.value
@@ -8211,6 +8229,7 @@ FEEDBACK: [your explanation]`
                                         className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
+                                          if (!canEdit) return
                                           handleDragFiles(
                                             e,
                                             text => {
@@ -8301,6 +8320,7 @@ FEEDBACK: [your explanation]`
                                               className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus-visible:ring-0 focus-visible:ring-offset-0"
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
+                                              readOnly={!canEdit}
                                               onDrop={(e: any) =>
                                                 handleDragFiles(
                                                   e,
@@ -8595,6 +8615,7 @@ FEEDBACK: [your explanation]`
                                                   placeholder="Ask the PCI assistant..."
                                                   className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                   value={activeTaskPciInput}
+                                                  readOnly={!canEdit}
                                                   onChange={(e: any) => {
                                                     const value = e.target.value
                                                     if (taskBuilder.activeExtensionId) {
@@ -8669,7 +8690,9 @@ FEEDBACK: [your explanation]`
                                                     variant="outline"
                                                     size="sm"
                                                     className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
+                                                    disabled={!canEdit}
                                                     onClick={() => {
+                                                      if (!canEdit) return
                                                       toast.success('Task saved successfully')
                                                     }}
                                                   >
@@ -8743,6 +8766,7 @@ FEEDBACK: [your explanation]`
                                         className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
+                                          if (!canEdit) return
                                           handleDragFiles(
                                             e,
                                             text => {
@@ -8807,6 +8831,7 @@ FEEDBACK: [your explanation]`
                                               className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus-visible:ring-0 focus-visible:ring-offset-0"
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
+                                              readOnly={!canEdit}
                                               onDrop={(e: any) =>
                                                 handleDragFiles(
                                                   e,
@@ -9026,8 +9051,9 @@ FEEDBACK: [your explanation]`
                                               variant="ghost"
                                               size="sm"
                                               className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                              disabled={dmiGenerating}
+                                              disabled={dmiGenerating || !canEdit}
                                               onClick={() => {
+                                                if (!canEdit) return
                                                 const content = assessmentBuilder.taskContent
                                                 const hasPdf =
                                                   assessmentSourceDocument?.mimeType ===
@@ -9133,6 +9159,7 @@ FEEDBACK: [your explanation]`
                                                       loadedAssessmentId || ''
                                                     ] || ''
                                                   }
+                                                  readOnly={!canEdit}
                                                   onChange={(e: any) =>
                                                     setAssessmentPciInputMap(prev => ({
                                                       ...prev,
@@ -9191,7 +9218,9 @@ FEEDBACK: [your explanation]`
                                                     variant="outline"
                                                     size="sm"
                                                     className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
+                                                    disabled={!canEdit}
                                                     onClick={() => {
+                                                      if (!canEdit) return
                                                       toast.success('Assessment saved successfully')
                                                     }}
                                                   >
@@ -9628,7 +9657,11 @@ FEEDBACK: [your explanation]`
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleLoadDmiVersion(version, mainBuilderTab)}
+                              disabled={!canEdit}
+                              onClick={() => {
+                                if (!canEdit) return
+                                handleLoadDmiVersion(version, mainBuilderTab)
+                              }}
                             >
                               Load
                             </Button>
@@ -9636,7 +9669,11 @@ FEEDBACK: [your explanation]`
                               variant="ghost"
                               size="icon"
                               className="text-muted-foreground hover:text-destructive h-8 w-8"
-                              onClick={() => handleDeleteDmiVersion(version.id, mainBuilderTab)}
+                              disabled={!canEdit}
+                              onClick={() => {
+                                if (!canEdit) return
+                                handleDeleteDmiVersion(version.id, mainBuilderTab)
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

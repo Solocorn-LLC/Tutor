@@ -1184,7 +1184,7 @@ export default function TutorMyPage() {
         toast.success('Course created! Opening builder...')
         setCreateOpen(false)
         resetCourseForm()
-        router.push(`/tutor/insights?tab=builder&courseId=${createdCourse.id}`)
+        router.push(`/tutor/insights?tab=builder&courseId=${createdCourse.id}&mode=edit`)
       } else {
         toast.error(data.error || 'Failed to create course')
       }
@@ -1226,7 +1226,7 @@ export default function TutorMyPage() {
       const createdCourse = data.courses?.[0]
       if (res.ok && createdCourse?.id) {
         toast.success('Course created! Opening builder...')
-        router.push(`/tutor/insights?tab=builder&courseId=${createdCourse.id}`)
+        router.push(`/tutor/insights?tab=builder&courseId=${createdCourse.id}&mode=edit`)
       } else {
         toast.error(data.error || 'Failed to create course')
       }

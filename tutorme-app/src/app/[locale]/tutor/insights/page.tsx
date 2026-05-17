@@ -89,7 +89,7 @@ function TutorInsightsPageInner() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
-    searchParams.get('sessionId') ? 'live' : 'draft'
+    searchParams.get('sessionId') ? 'live' : searchParams.get('mode') === 'edit' ? 'draft' : 'live'
   )
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
@@ -102,6 +102,11 @@ function TutorInsightsPageInner() {
   // Auto-detect saveMode when courseId is set from URL or dropdown
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
+    // If mode=edit is explicitly requested (from Dashboard or My Page), force draft
+    if (searchParams.get('mode') === 'edit') {
+      setSaveMode('draft')
+      return
+    }
     // If a sessionId is in the URL, force live mode
     if (searchParams.get('sessionId')) {
       setSaveMode('live')

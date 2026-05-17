@@ -807,7 +807,7 @@ function TutorDashboardContent() {
                             <Button asChild variant="outline" size="sm">
                               <Link
                                 href={withLocalePath(
-                                  `/tutor/insights?tab=builder&courseId=${course.id}`
+                                  `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
                                 )}
                               >
                                 Edit
