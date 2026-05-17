@@ -173,8 +173,9 @@ function TutorInsightsPageInner() {
   }, [draftStorageKey, isCreateDialogOpen, isDeleteDialogOpen])
 
   useEffect(() => {
-    const activeList = saveMode === 'live' ? courses : draftCourses
-    const match = activeList.find(c => c.id === courseId)
+    // Search both lists regardless of saveMode so the name syncs correctly
+    // even when mode is locked to draft and a live course is selected
+    const match = [...courses, ...draftCourses].find(c => c.id === courseId)
     if (match) setCourseName(match.name)
   }, [courseId, courses, draftCourses, saveMode, detachedCourseName])
 

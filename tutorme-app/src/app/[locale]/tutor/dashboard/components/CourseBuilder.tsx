@@ -4986,15 +4986,18 @@ FEEDBACK: [your explanation]`
                       <div className="flex flex-wrap items-center gap-2">
                         {insightsProps && (
                           <Button
-                            variant={isMirroringToStudents ? 'default' : 'secondary'}
+                            variant={isMirroringToStudents && !canEdit ? 'default' : 'secondary'}
                             size="sm"
-                            onClick={() => setIsMirroringToStudents(!isMirroringToStudents)}
+                            disabled={canEdit}
+                            onClick={() => {
+                              if (!canEdit) setIsMirroringToStudents(!isMirroringToStudents)
+                            }}
                             className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
                           >
                             <div
-                              className={`h-2 w-2 rounded-full ${isMirroringToStudents ? 'animate-pulse bg-green-400' : 'bg-red-400'}`}
+                              className={`h-2 w-2 rounded-full ${isMirroringToStudents && !canEdit ? 'animate-pulse bg-green-400' : 'bg-red-400'}`}
                             />
-                            {isMirroringToStudents ? 'Syncing to Students' : 'Sync Paused'}
+                            {isMirroringToStudents && !canEdit ? 'Syncing to Students' : 'Sync Paused'}
                           </Button>
                         )}
 

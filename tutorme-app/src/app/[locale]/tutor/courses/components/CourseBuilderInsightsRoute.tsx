@@ -508,9 +508,7 @@ function CourseBuilderInsightsRouteInner({
                       {((courseId && courseId !== 'insights-draft' && saveMode === 'draft') ||
                         (onDeleteCourse &&
                           !insightsProps.sessionId &&
-                          saveMode === 'draft' &&
-                          ((courses && courses.length > 1) ||
-                            (draftCourses && draftCourses.length > 1)))) && (
+                          saveMode === 'draft')) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="icon">
@@ -526,9 +524,7 @@ function CourseBuilderInsightsRouteInner({
                             )}
                             {onDeleteCourse &&
                               !insightsProps.sessionId &&
-                              saveMode === 'draft' &&
-                              ((courses && courses.length > 1) ||
-                                (draftCourses && draftCourses.length > 1)) && (
+                              saveMode === 'draft' && (
                                 <DropdownMenuItem
                                   onClick={onDeleteCourse}
                                   className="text-destructive focus:text-destructive focus:bg-destructive/10"
