@@ -309,7 +309,8 @@ function CourseBuilderInsightsRouteInner({
     }
   }
 
-  const currentCourse = (saveMode === 'draft' ? draftCourses : courses)?.find(
+  // Search both lists regardless of saveMode so the selected course is always found
+  const currentCourse = [...(courses || []), ...(draftCourses || [])].find(
     c => c.id === courseId
   )
 
@@ -336,8 +337,16 @@ function CourseBuilderInsightsRouteInner({
                       value={courseId ?? ''}
                       onValueChange={v => insightsProps.onCourseChange?.(v)}
                     >
-                      <SelectTrigger className="h-9 w-[160px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors hover:bg-slate-100 focus:ring-0">
-                        <SelectValue placeholder="Select course" />
+                      <SelectTrigger className="h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors hover:bg-slate-100 focus:ring-0">
+                        <SelectValue placeholder="Select course">
+                          {(() => {
+                            const c = currentCourse
+                            if (!c) return 'Select course'
+                            return c.nationality && c.nationality !== 'Global'
+                              ? `${c.name} — ${c.variantCategory || ''} — ${c.nationality}`
+                              : c.name
+                          })()}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {courses && courses.length > 0 && (

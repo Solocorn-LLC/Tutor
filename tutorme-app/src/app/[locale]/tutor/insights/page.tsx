@@ -184,35 +184,30 @@ function TutorInsightsPageInner() {
       setCourseName(newName)
       if (!courseId || courseId === 'insights-draft' || !newName.trim()) return
 
-      // Optimistically update lists so dropdown matches instantly
-      if (saveMode === 'draft') {
-        setDraftCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
-      } else {
-        setCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
+      // Optimistically update BOTH lists so dropdown matches instantly
+      // regardless of which saveMode is currently active
+      setDraftCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
+      setCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
+
+      // Also update localStorage drafts
+      try {
+        const raw = localStorage.getItem(draftStorageKey)
+        const parsed = raw ? JSON.parse(raw) : []
+        const updated = parsed.map((c: any) =>
+          c.id === courseId
+            ? { ...c, name: newName.trim(), updatedAt: new Date().toISOString() }
+            : c
+        )
+        localStorage.setItem(draftStorageKey, JSON.stringify(updated))
+      } catch {
+        // silent fail
       }
 
-      if (saveMode === 'draft') {
+      // Persist to API for live courses (and drafts that have a DB id)
+      const match = [...courses, ...draftCourses].find(c => c.id === courseId)
+      if (match && newName.trim() !== match.name) {
         try {
-          const raw = localStorage.getItem(draftStorageKey)
-          const parsed = raw ? JSON.parse(raw) : []
-          const updated = parsed.map((c: any) =>
-            c.id === courseId
-              ? { ...c, name: newName.trim(), updatedAt: new Date().toISOString() }
-              : c
-          )
-          localStorage.setItem(draftStorageKey, JSON.stringify(updated))
-        } catch {
-          // silent fail
-        }
-        return
-      }
-
-      // Debounce the API call for live courses could be done here,
-      // but for now we just rely on the optimistic update.
-      const match = courses.find(c => c.id === courseId)
-      if (match && newName !== match.name) {
-        try {
-          const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}`, {
+          await fetchWithCsrf(`/api/tutor/courses/${courseId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: newName.trim() }),
@@ -222,7 +217,7 @@ function TutorInsightsPageInner() {
         }
       }
     },
-    [courseId, courses, saveMode]
+    [courseId, courses, draftCourses, draftStorageKey]
   )
 
   useEffect(() => {
