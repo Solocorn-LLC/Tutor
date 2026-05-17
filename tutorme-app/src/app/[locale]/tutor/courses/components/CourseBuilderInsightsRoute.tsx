@@ -79,6 +79,7 @@ type Props = UseCourseBuilderContentArgs & {
   onCourseNameChange?: (name: string) => void
   saveMode?: 'live' | 'draft'
   onSaveModeChange?: (mode: 'live' | 'draft') => void
+  modeLocked?: boolean
 }
 
 function CourseBuilderInsightsRouteInner({
@@ -107,6 +108,7 @@ function CourseBuilderInsightsRouteInner({
   onCourseNameChange,
   saveMode,
   onSaveModeChange,
+  modeLocked,
 }: Props) {
   const model = useCourseBuilderContentModel({
     courseId,
@@ -442,7 +444,7 @@ function CourseBuilderInsightsRouteInner({
 
             <div className="flex h-full flex-col items-end justify-between gap-4 pb-0">
               <div className="mt-0 flex shrink-0 items-center gap-2">
-                {activeMainTab === 'builder' && onSaveModeChange && (
+                {activeMainTab === 'builder' && onSaveModeChange && !modeLocked && (
                   <Select
                     value={saveMode}
                     onValueChange={(val: 'live' | 'draft') => onSaveModeChange(val)}

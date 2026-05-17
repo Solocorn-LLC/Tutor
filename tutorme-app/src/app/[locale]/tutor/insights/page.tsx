@@ -91,6 +91,8 @@ function TutorInsightsPageInner() {
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
     searchParams.get('sessionId') ? 'live' : searchParams.get('mode') === 'edit' ? 'draft' : 'live'
   )
+  // When opened from Dashboard sidebar or My Page Create Course, lock to draft mode
+  const modeLocked = searchParams.get('mode') === 'edit'
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
   // User-specific localStorage key so drafts don't leak across accounts on shared devices
@@ -1124,7 +1126,7 @@ function TutorInsightsPageInner() {
             setCourseId(value)
             const isLiveCourse = courses.some(course => course.id === value)
             const isDraftCourse = draftCourses.some(course => course.id === value)
-            if (!sessionId) {
+            if (!sessionId && !modeLocked) {
               if (isLiveCourse) setSaveMode('live')
               else if (isDraftCourse) setSaveMode('draft')
             }
@@ -1173,7 +1175,8 @@ function TutorInsightsPageInner() {
         courseName={courseName}
         onCourseNameChange={handleCourseNameChange}
         saveMode={saveMode}
-        onSaveModeChange={handleModeChange}
+        onSaveModeChange={modeLocked ? undefined : handleModeChange}
+        modeLocked={modeLocked}
       />
 
       {/* Create New Course Dialog */}
