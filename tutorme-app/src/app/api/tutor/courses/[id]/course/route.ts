@@ -51,7 +51,8 @@ export const PUT = withCsrf(
       const body = await req.json().catch(() => ({}))
       const lessons = (body as { lessons?: unknown }).lessons
       const description = (body as { description?: string }).description
-      const propagateToVariants = (body as { propagateToVariants?: boolean }).propagateToVariants === true
+      const propagateToVariants =
+        (body as { propagateToVariants?: boolean }).propagateToVariants === true
       const setIndependent = (body as { setIndependent?: boolean }).setIndependent === true
 
       try {
@@ -98,7 +99,7 @@ export const PUT = withCsrf(
               .where(
                 and(
                   eq(courseVariant.templateCourseId, variantRow.templateCourseId),
-                  eq(courseVariant.isIndependent, false),
+                  eq(courseVariant.isIndependent, false)
                 )
               )
 

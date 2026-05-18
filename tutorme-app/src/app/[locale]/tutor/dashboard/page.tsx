@@ -847,7 +847,13 @@ function TutorDashboardContent() {
               <DialogDescription>
                 {selectedCourseForCancel && (
                   <>
-                    Manage sessions for <strong>{selectedCourseForCancel.nationality && selectedCourseForCancel.nationality !== 'Global' ? `${selectedCourseForCancel.name} — ${selectedCourseForCancel.variantCategory || (selectedCourseForCancel.categories || [])[0] || 'General'} — ${selectedCourseForCancel.nationality}` : selectedCourseForCancel.name}</strong>
+                    Manage sessions for{' '}
+                    <strong>
+                      {selectedCourseForCancel.nationality &&
+                      selectedCourseForCancel.nationality !== 'Global'
+                        ? `${selectedCourseForCancel.name} — ${selectedCourseForCancel.variantCategory || (selectedCourseForCancel.categories || [])[0] || 'General'} — ${selectedCourseForCancel.nationality}`
+                        : selectedCourseForCancel.name}
+                    </strong>
                   </>
                 )}
               </DialogDescription>

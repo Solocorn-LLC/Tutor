@@ -1,17 +1,11 @@
 /**
  * XSS prevention: sanitize user input before rendering or storing.
- * Use for display and for any user-generated content that may may be shown as HTML.
+ * Pure-JS implementation — no DOM library dependency so it works safely
+ * in both Next.js client bundles and webpack-bundled server code.
  */
 
-import { JSDOM } from 'jsdom'
-import DOMPurify from 'dompurify'
-
-// Initialize DOMPurify with a JSDOM window for server-side use
-const jsdomWindow = new JSDOM('').window
-const purify = DOMPurify(jsdomWindow)
-
-// Default allowed tags for basic sanitization
-const DEFAULT_ALLOWED_TAGS = [
+// Tags that are safe to keep (basic formatting only)
+const ALLOWED_TAGS = new Set([
   'b',
   'i',
   'em',
@@ -30,39 +24,81 @@ const DEFAULT_ALLOWED_TAGS = [
   'h6',
   'span',
   'div',
-]
+])
 
-const DEFAULT_ALLOWED_ATTR = ['href', 'target', 'rel', 'class']
+// Attributes allowed on <a>
+const ALLOWED_ATTRS_A = new Set(['href', 'target', 'rel', 'class'])
+// Attributes allowed on all other safe tags
+const ALLOWED_ATTRS_GENERAL = new Set(['class'])
 
-// Regex to detect javascript: protocol (case insensitive)
 const JS_PROTOCOL_REGEX = /javascript:/gi
+const DATA_PROTOCOL_REGEX = /data:/gi
 
 /**
- * Hook to sanitize URI attributes and remove javascript: protocol
+ * Extract allowed attributes from a raw attribute string and rebuild them.
  */
-purify.addHook('uponSanitizeAttribute', (node, data) => {
-  if (data.attrName === 'href' || data.attrName === 'src' || data.attrName === 'action') {
-    if (typeof data.attrValue === 'string' && JS_PROTOCOL_REGEX.test(data.attrValue)) {
-      data.attrValue = ''
+function rebuildAttrs(rawAttrs: string, allowedSet: Set<string>): string {
+  const attrs: string[] = []
+  // Match attr="value" or attr='value'
+  const quoted = /\s([a-zA-Z][a-zA-Z0-9-]*)\s*=\s*["']([^"']*)["']/gi
+  let m: RegExpExecArray | null
+  while ((m = quoted.exec(rawAttrs)) !== null) {
+    const name = m[1].toLowerCase()
+    if (allowedSet.has(name)) {
+      let value = m[2]
+      if (name === 'href') {
+        value = value.replace(JS_PROTOCOL_REGEX, '').replace(DATA_PROTOCOL_REGEX, '')
+      }
+      attrs.push(`${name}="${value}"`)
     }
   }
-})
+  return attrs.length ? ' ' + attrs.join(' ') : ''
+}
 
 /**
- * Sanitize HTML using DOMPurify (more secure than regex-based sanitization).
- * Safe for inserting into text content or plain HTML contexts.
+ * Sanitize HTML by stripping dangerous tags/attributes and allowing a safe
+ * subset of formatting tags.  Operates entirely with string replacements so
+ * it is safe to import in both client components and API routes.
  */
 export function sanitizeHtml(input: string): string {
   if (typeof input !== 'string') return ''
 
-  // First, strip javascript: protocol from plain text (not in HTML attributes)
-  // This handles cases where the input is just "javascript:alert(1)" without HTML tags
-  const sanitized = input.replace(JS_PROTOCOL_REGEX, '')
+  // Strip dangerous protocols from raw text
+  let text = input.replace(JS_PROTOCOL_REGEX, '').replace(DATA_PROTOCOL_REGEX, '')
 
-  return purify.sanitize(sanitized, {
-    ALLOWED_TAGS: DEFAULT_ALLOWED_TAGS,
-    ALLOWED_ATTR: DEFAULT_ALLOWED_ATTR,
-  }) as string
+  // Remove event-handler attributes from every tag first
+  text = text.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+  text = text.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '')
+
+  // Process each HTML tag
+  return text.replace(
+    /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g,
+    (match, slash, tagName, rawAttrs) => {
+      const lowerTag = tagName.toLowerCase()
+
+      // Disallowed tag → drop the tag wrapper (text between open/close remains)
+      if (!ALLOWED_TAGS.has(lowerTag)) {
+        return ''
+      }
+
+      // Closing tag
+      if (slash) {
+        return `</${lowerTag}>`
+      }
+
+      // Self-closing
+      if (lowerTag === 'br') {
+        return '<br />'
+      }
+
+      // Opening tag: rebuild with only safe attributes
+      if (lowerTag === 'a') {
+        return `<a${rebuildAttrs(rawAttrs, ALLOWED_ATTRS_A)}>`
+      }
+
+      return `<${lowerTag}${rebuildAttrs(rawAttrs, ALLOWED_ATTRS_GENERAL)}>`
+    }
+  )
 }
 
 /**

@@ -8,7 +8,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, liveSession, course, sessionParticipant, courseVariant } from '@/lib/db/schema'
+import {
+  calendarEvent,
+  liveSession,
+  course,
+  sessionParticipant,
+  courseVariant,
+} from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 
 export const GET = withAuth(
@@ -149,7 +155,12 @@ export const GET = withAuth(
             .from(courseVariant)
             .where(inArray(courseVariant.publishedCourseId, courseIds))
         : []
-    const variantMap = new Map(variantRows.map(v => [v.publishedCourseId, { nationality: v.nationality, category: v.category }]))
+    const variantMap = new Map(
+      variantRows.map(v => [
+        v.publishedCourseId,
+        { nationality: v.nationality, category: v.category },
+      ])
+    )
 
     // Fetch session participant counts
     const sessionIds = [...new Set(merged.map(e => e.sessionId).filter(Boolean))] as string[]

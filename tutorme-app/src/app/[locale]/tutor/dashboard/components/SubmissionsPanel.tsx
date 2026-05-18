@@ -106,9 +106,10 @@ export function SubmissionsPanel({
       .then(async res => {
         const json = await res.json()
         if (!res.ok || json?.error) {
-          const message = res.status === 404
-            ? 'No submissions data available for this course yet.'
-            : (json?.error || 'Failed to load submissions')
+          const message =
+            res.status === 404
+              ? 'No submissions data available for this course yet.'
+              : json?.error || 'Failed to load submissions'
           setError(message)
           setData(null)
           return

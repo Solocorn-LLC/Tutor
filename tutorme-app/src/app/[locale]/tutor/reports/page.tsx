@@ -947,7 +947,11 @@ function CoursesAndClassesTab() {
                 Sessions
                 {selectedCourse && (
                   <span className="ml-2 text-xs font-normal text-slate-500">
-                    ({displayedSessions.length} for {selectedCourse.nationality && selectedCourse.nationality !== 'Global' ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}` : selectedCourse.name})
+                    ({displayedSessions.length} for{' '}
+                    {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                      ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                      : selectedCourse.name}
+                    )
                   </span>
                 )}
               </h3>
@@ -1020,7 +1024,11 @@ function CoursesAndClassesTab() {
               {/* Course summary */}
               <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
                 <BarChart3 className="h-5 w-5" />
-                <span className="text-base">{selectedCourse.nationality && selectedCourse.nationality !== 'Global' ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}` : selectedCourse.name}</span>
+                <span className="text-base">
+                  {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                    ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                    : selectedCourse.name}
+                </span>
               </div>
               <div className="flex items-center gap-8 text-sm">
                 <div className="flex flex-col">
@@ -1094,7 +1102,11 @@ function CoursesAndClassesTab() {
             <>
               <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
                 <BarChart3 className="h-5 w-5" />
-                <span className="text-base">{selectedCourse.nationality && selectedCourse.nationality !== 'Global' ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}` : selectedCourse.name}</span>
+                <span className="text-base">
+                  {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                    ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                    : selectedCourse.name}
+                </span>
               </div>
               <div className="flex items-center gap-8 text-sm">
                 <div className="flex flex-col">

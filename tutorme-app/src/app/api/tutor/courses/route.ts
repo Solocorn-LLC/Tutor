@@ -98,7 +98,10 @@ export const GET = withAuth(
               .where(inArray(courseVariant.publishedCourseId, courseIds))
           : []
       const variantMap = new Map(
-        variantRows.map(v => [v.publishedCourseId, { nationality: v.nationality, category: v.category }])
+        variantRows.map(v => [
+          v.publishedCourseId,
+          { nationality: v.nationality, category: v.category },
+        ])
       )
 
       // Map courseId to id for frontend compatibility

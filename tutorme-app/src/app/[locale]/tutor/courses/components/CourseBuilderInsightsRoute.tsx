@@ -73,8 +73,22 @@ type Props = UseCourseBuilderContentArgs & {
   isDeleteDialogOpen?: boolean
   setIsDeleteDialogOpen?: (v: boolean) => void
   onDeleteCourseConfirm?: () => void
-  courses?: { id: string; name: string; nationality?: string; variantCategory?: string; isPublished?: boolean; isVariant?: boolean }[]
-  draftCourses?: { id: string; name: string; nationality?: string; variantCategory?: string; isPublished?: boolean; isVariant?: boolean }[]
+  courses?: {
+    id: string
+    name: string
+    nationality?: string
+    variantCategory?: string
+    isPublished?: boolean
+    isVariant?: boolean
+  }[]
+  draftCourses?: {
+    id: string
+    name: string
+    nationality?: string
+    variantCategory?: string
+    isPublished?: boolean
+    isVariant?: boolean
+  }[]
   courseName?: string
   onCourseNameChange?: (name: string) => void
   saveMode?: 'live' | 'draft'
@@ -310,9 +324,7 @@ function CourseBuilderInsightsRouteInner({
   }
 
   // Search both lists regardless of saveMode so the selected course is always found
-  const currentCourse = [...(courses || []), ...(draftCourses || [])].find(
-    c => c.id === courseId
-  )
+  const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
   const isCoursePublished = currentCourse?.isPublished === true
 
   return (
@@ -414,7 +426,9 @@ function CourseBuilderInsightsRouteInner({
                         onCourseNameChange(e.target.value)
                       }}
                       placeholder="Course Name..."
-                      title={isCoursePublished ? 'Published variant names cannot be edited' : undefined}
+                      title={
+                        isCoursePublished ? 'Published variant names cannot be edited' : undefined
+                      }
                     />
                   )}
 
@@ -484,6 +498,12 @@ function CourseBuilderInsightsRouteInner({
                     </SelectContent>
                   </Select>
                 )}
+                {activeMainTab === 'builder' && modeLocked && (
+                  <div className="flex h-9 w-[190px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                    Editing
+                  </div>
+                )}
                 {activeMainTab === 'builder' && onSaveCourse && (
                   <Button
                     variant="outline"
@@ -501,43 +521,49 @@ function CourseBuilderInsightsRouteInner({
                     Save
                   </Button>
                 )}
-                {activeMainTab === 'builder' && courseId && courseId !== 'insights-draft' && saveMode === 'draft' && (
-                  <Button
-                    variant="default"
-                    className="gap-2 bg-blue-600 font-medium text-white hover:bg-blue-700"
-                    onClick={handlePublishDraft}
-                  >
-                    <Calendar className="h-4 w-4" />
-                    Schedule
-                  </Button>
-                )}
+                {activeMainTab === 'builder' &&
+                  courseId &&
+                  courseId !== 'insights-draft' &&
+                  saveMode === 'draft' && (
+                    <Button
+                      variant="default"
+                      className="gap-2 bg-blue-600 font-medium text-white hover:bg-blue-700"
+                      onClick={handlePublishDraft}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Schedule
+                    </Button>
+                  )}
                 {/* Kebab menu — always visible for real courses when no active session */}
-                {activeMainTab === 'builder' && courseId && courseId !== 'insights-draft' && !insightsProps.sessionId && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon" className="shrink-0">
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {saveMode === 'draft' && (
-                        <DropdownMenuItem onClick={handleStartSessionClick}>
-                          <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
-                          Go Live
-                        </DropdownMenuItem>
-                      )}
-                      {onDeleteCourse && (
-                        <DropdownMenuItem
-                          onClick={onDeleteCourse}
-                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Course
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                {activeMainTab === 'builder' &&
+                  courseId &&
+                  courseId !== 'insights-draft' &&
+                  !insightsProps.sessionId && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="shrink-0">
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {saveMode === 'draft' && (
+                          <DropdownMenuItem onClick={handleStartSessionClick}>
+                            <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
+                            Go Live
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteCourse && (
+                          <DropdownMenuItem
+                            onClick={onDeleteCourse}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Course
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
               </div>
             </div>
           </div>

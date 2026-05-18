@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseEnrollment, courseLesson, payment, refund, courseVariant } from '@/lib/db/schema'
+import {
+  course,
+  courseEnrollment,
+  courseLesson,
+  payment,
+  refund,
+  courseVariant,
+} from '@/lib/db/schema'
 import { eq, and, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { notifyMany } from '@/lib/notifications/notify'
@@ -10,7 +17,7 @@ import { getPaymentGateway, type GatewayName } from '@/lib/payments'
 
 const patchCourseSchema = z.strictObject({
   name: z.string().min(1).optional(),
-  description: z.string().optional(),
+  description: z.string().max(200).optional(),
   languageOfInstruction: z.string().optional(),
   price: z.number().optional(),
   currency: z.string().optional(),

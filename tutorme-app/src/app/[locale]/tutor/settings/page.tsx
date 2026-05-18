@@ -701,7 +701,8 @@ export default function TutorSettings() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
                     <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                      {formData.bio || 'No bio added yet. Your bio helps students learn more about you.'}
+                      {formData.bio ||
+                        'No bio added yet. Your bio helps students learn more about you.'}
                     </p>
                   </div>
                 </div>
@@ -727,7 +728,9 @@ export default function TutorSettings() {
                 <div className="flex justify-end">
                   <Button
                     variant="outline"
-                    onClick={() => { window.location.href = '/tutor/my-page' }}
+                    onClick={() => {
+                      window.location.href = '/tutor/my-page'
+                    }}
                   >
                     <User className="mr-2 h-4 w-4" />
                     Edit Public Profile

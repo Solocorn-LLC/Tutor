@@ -156,7 +156,9 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
               {navItems.map(item => {
                 const Icon = item.icon
                 const href =
-                  item.href === '/tutor/insights' ? `${localePrefix}/tutor/insights?mode=edit` : item.href
+                  item.href === '/tutor/insights'
+                    ? `${localePrefix}/tutor/insights?mode=edit`
+                    : item.href
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                 return (
                   <Link

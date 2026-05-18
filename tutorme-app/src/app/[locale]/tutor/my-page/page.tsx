@@ -357,7 +357,8 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                     </div>
                     {course.nationality && course.nationality !== 'Global' && (
                       <p className="mt-0.5 text-sm font-medium text-[#1D4ED8]">
-                        {course.variantCategory || (course.categories || [])[0] || 'General'} — {course.nationality}
+                        {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
+                        {course.nationality}
                       </p>
                     )}
                     {course.isPublished && course.description && (
@@ -1696,7 +1697,13 @@ export default function TutorMyPage() {
                 <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm text-[#1F2933]">Bio</Label>
-                    <span className={bio.length > 500 ? 'text-xs font-medium text-red-500' : 'text-xs text-slate-400'}>
+                    <span
+                      className={
+                        bio.length > 500
+                          ? 'text-xs font-medium text-red-500'
+                          : 'text-xs text-slate-400'
+                      }
+                    >
                       {bio.length}/500
                     </span>
                   </div>

@@ -82,7 +82,12 @@ export const GET = withAuth(
             .from(courseVariant)
             .where(inArray(courseVariant.publishedCourseId, courseIds))
         : []
-    const variantMap = new Map(variantRows.map(v => [v.publishedCourseId, { nationality: v.nationality, category: v.category }]))
+    const variantMap = new Map(
+      variantRows.map(v => [
+        v.publishedCourseId,
+        { nationality: v.nationality, category: v.category },
+      ])
+    )
 
     const coursesWithSessionCount = courses.map(c => {
       const variant = variantMap.get(c.courseId)

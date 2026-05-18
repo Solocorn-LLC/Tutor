@@ -90,7 +90,10 @@ function TutorInsightsPageInner() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [propagationDialogOpen, setPropagationDialogOpen] = useState(false)
-  const [pendingSavePayload, setPendingSavePayload] = useState<{ lessons: any[]; options?: any } | null>(null)
+  const [pendingSavePayload, setPendingSavePayload] = useState<{
+    lessons: any[]
+    options?: any
+  } | null>(null)
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
     searchParams.get('sessionId') ? 'live' : searchParams.get('mode') === 'edit' ? 'draft' : 'live'
   )
@@ -320,7 +323,12 @@ function TutorInsightsPageInner() {
   }, [courseId, courses])
 
   const executeSave = useCallback(
-    async (lessons: any[], options?: any, propagateToVariants?: boolean, setIndependent?: boolean) => {
+    async (
+      lessons: any[],
+      options?: any,
+      propagateToVariants?: boolean,
+      setIndependent?: boolean
+    ) => {
       if (!courseId || courseId === 'insights-draft') return
 
       // Published variants always persist to the DB (mode='live') even when the UI is in 'draft' edit mode
@@ -343,7 +351,8 @@ function TutorInsightsPageInner() {
       } else {
         console.error('[Insights] Save failed:', result.error)
         toast.error(
-          result.error || (persistMode === 'draft' ? 'Failed to save draft' : 'Failed to save course')
+          result.error ||
+            (persistMode === 'draft' ? 'Failed to save draft' : 'Failed to save course')
         )
       }
     },
@@ -1036,13 +1045,10 @@ function TutorInsightsPageInner() {
 
   const activeCourses = saveMode === 'live' ? courses : draftCourses
 
-  const handleModeChange = useCallback(
-    (mode: 'live' | 'draft') => {
-      setSaveMode(mode)
-      // Don't switch courseId when changing modes — the user stays on the same course
-    },
-    []
-  )
+  const handleModeChange = useCallback((mode: 'live' | 'draft') => {
+    setSaveMode(mode)
+    // Don't switch courseId when changing modes — the user stays on the same course
+  }, [])
 
   if (loading) {
     return (
@@ -1103,7 +1109,8 @@ function TutorInsightsPageInner() {
                           <p className="text-sm font-semibold text-gray-900">{course.name}</p>
                           {course.nationality && course.nationality !== 'Global' && (
                             <p className="text-xs font-medium text-blue-600">
-                              {course.variantCategory || (course.categories || [])[0] || 'General'} — {course.nationality}
+                              {course.variantCategory || (course.categories || [])[0] || 'General'}{' '}
+                              — {course.nationality}
                             </p>
                           )}
                           <p className="text-muted-foreground text-xs">
@@ -1194,13 +1201,13 @@ function TutorInsightsPageInner() {
         setIsDeleteDialogOpen={setIsDeleteDialogOpen}
         onDeleteCourseConfirm={handleDeleteCourse}
         courses={courses}
-        draftCourses={draftCourses.filter(draft =>
-          !courses.some(live => live.name.startsWith(draft.name + ' —'))
+        draftCourses={draftCourses.filter(
+          draft => !courses.some(live => live.name.startsWith(draft.name + ' —'))
         )}
         courseName={courseName}
         onCourseNameChange={handleCourseNameChange}
         saveMode={saveMode}
-        onSaveModeChange={modeLocked ? undefined : handleModeChange}
+        onSaveModeChange={handleModeChange}
         modeLocked={modeLocked}
       />
 
@@ -1263,43 +1270,59 @@ function TutorInsightsPageInner() {
           <div className="flex flex-col gap-3 py-2">
             <Button
               variant="outline"
-              className="justify-start text-left h-auto py-3 px-4"
+              className="h-auto justify-start px-4 py-3 text-left"
               onClick={async () => {
                 setPropagationDialogOpen(false)
                 if (pendingSavePayload) {
-                  await executeSave(pendingSavePayload.lessons, pendingSavePayload.options, true, false)
+                  await executeSave(
+                    pendingSavePayload.lessons,
+                    pendingSavePayload.options,
+                    true,
+                    false
+                  )
                   setPendingSavePayload(null)
                 }
               }}
             >
               <div className="flex flex-col items-start">
                 <span className="font-semibold">Apply to all variants</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   Copy these changes to all sibling variants (except independent ones)
                 </span>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="justify-start text-left h-auto py-3 px-4"
+              className="h-auto justify-start px-4 py-3 text-left"
               onClick={async () => {
                 setPropagationDialogOpen(false)
                 if (pendingSavePayload) {
-                  await executeSave(pendingSavePayload.lessons, pendingSavePayload.options, false, true)
+                  await executeSave(
+                    pendingSavePayload.lessons,
+                    pendingSavePayload.options,
+                    false,
+                    true
+                  )
                   setPendingSavePayload(null)
                 }
               }}
             >
               <div className="flex flex-col items-start">
                 <span className="font-semibold">Only this variant</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   Save changes to this variant only and mark it as independent
                 </span>
               </div>
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setPropagationDialogOpen(false); setPendingSavePayload(null) }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPropagationDialogOpen(false)
+                setPendingSavePayload(null)
+              }}
+            >
               Cancel
             </Button>
           </DialogFooter>

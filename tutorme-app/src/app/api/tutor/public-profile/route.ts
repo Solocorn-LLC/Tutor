@@ -112,7 +112,7 @@ export const PATCH = withAuth(
     const tutorId = session.user.id
     const body = await req.json().catch(() => ({}))
     const requestedUsername = typeof body?.username === 'string' ? body.username : ''
-    const bio = typeof body?.bio === 'string' ? body.bio.trim().slice(0, 5000) : undefined
+    const bio = typeof body?.bio === 'string' ? body.bio.trim().slice(0, 500) : undefined
     const socialLinks =
       body?.socialLinks && typeof body.socialLinks === 'object' ? body.socialLinks : undefined
     const categories = Array.isArray(body?.categories)
