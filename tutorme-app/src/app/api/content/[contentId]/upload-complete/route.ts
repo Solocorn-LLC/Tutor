@@ -13,7 +13,10 @@ import { contentItem } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 function buildPublicUrl(key: string): string {
-  const bucket = process.env.GCS_BUCKET
+  // Video content keys start with "content/" — use the dedicated video bucket if set
+  const bucket = key.startsWith('content/')
+    ? process.env.GCS_VIDEO_BUCKET || process.env.GCS_BUCKET
+    : process.env.GCS_BUCKET
   return `https://storage.googleapis.com/${bucket}/${key}`
 }
 

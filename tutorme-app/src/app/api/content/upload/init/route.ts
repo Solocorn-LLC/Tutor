@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { contentItem } from '@/lib/db/schema'
-import { getPresignedPutUrl, isGcsConfigured } from '@/lib/video/upload'
+import { getPresignedPutUrl, isVideoGcsConfigured } from '@/lib/video/upload'
 
 export const POST = withCsrf(
   withAuth(
@@ -35,7 +35,7 @@ export const POST = withCsrf(
       const key =
         'content/' + content.contentId + '/' + String(filename).replace(/[^a-zA-Z0-9._-]/g, '_')
 
-      if (isGcsConfigured()) {
+      if (isVideoGcsConfigured()) {
         const presign = await getPresignedPutUrl(key, contentType)
         if (presign) {
           return NextResponse.json({
@@ -51,7 +51,8 @@ export const POST = withCsrf(
 
       return NextResponse.json({
         contentId: content.contentId,
-        message: 'GCS not configured. Set GCS_* env vars or set URL via upload-complete.',
+        message:
+          'GCS not configured. Set GCS_BUCKET or GCS_VIDEO_BUCKET env vars, or set URL via upload-complete.',
         key,
       })
     },

@@ -54,8 +54,8 @@ export function isGcsConfigured(): boolean {
   return !!BUCKET
 }
 
-function buildPublicUrl(key: string): string {
-  return `https://storage.googleapis.com/${BUCKET}/${key}`
+function buildPublicUrl(key: string, bucketName?: string): string {
+  return `https://storage.googleapis.com/${bucketName || BUCKET}/${key}`
 }
 
 // ─── Presigned PUT URL ────────────────────────────────────────────────────────
@@ -70,14 +70,17 @@ interface PresignedUploadResult {
 /**
  * Generate a presigned PUT URL for direct browser-to-GCS upload.
  * Expires in 15 minutes.
+ * @param bucketName - Optional override bucket (defaults to GCS_BUCKET)
  */
 export async function createPresignedUploadUrl(
   key: string,
   mimeType: string,
-  isPublic: boolean = false
+  isPublic: boolean = false,
+  bucketName?: string
 ): Promise<PresignedUploadResult> {
   const storage = await getStorage()
-  const file = storage.bucket(BUCKET).file(key)
+  const targetBucket = bucketName || BUCKET
+  const file = storage.bucket(targetBucket).file(key)
 
   const uploadHeaders = isPublic ? { 'x-goog-acl': 'public-read' } : undefined
 
@@ -89,7 +92,7 @@ export async function createPresignedUploadUrl(
     ...(uploadHeaders ? { extensionHeaders: uploadHeaders } : {}),
   })
 
-  const publicUrl = isPublic ? buildPublicUrl(key) : null
+  const publicUrl = isPublic ? buildPublicUrl(key, targetBucket) : null
 
   return { uploadUrl, key, publicUrl, ...(uploadHeaders ? { uploadHeaders } : {}) }
 }
@@ -99,14 +102,16 @@ export async function createPresignedUploadUrl(
 /**
  * Generate a presigned GET URL for temporary access to a private file.
  * Default expiry: 1 hour.
+ * @param bucketName - Optional override bucket (defaults to GCS_BUCKET)
  */
 export async function createPresignedDownloadUrl(
   key: string,
   expiresInSeconds: number = 3600,
-  filename?: string
+  filename?: string,
+  bucketName?: string
 ): Promise<string> {
   const storage = await getStorage()
-  const file = storage.bucket(BUCKET).file(key)
+  const file = storage.bucket(bucketName || BUCKET).file(key)
 
   const [downloadUrl] = await file.getSignedUrl({
     version: 'v4',
@@ -126,10 +131,14 @@ export async function createPresignedDownloadUrl(
 
 /**
  * Delete an object from GCS.
+ * @param bucketName - Optional override bucket (defaults to GCS_BUCKET)
  */
-export async function deleteObject(key: string): Promise<void> {
+export async function deleteObject(key: string, bucketName?: string): Promise<void> {
   const storage = await getStorage()
-  await storage.bucket(BUCKET).file(key).delete({ ignoreNotFound: true })
+  await storage
+    .bucket(bucketName || BUCKET)
+    .file(key)
+    .delete({ ignoreNotFound: true })
 }
 
 // ─── Key Generation ───────────────────────────────────────────────────────────
@@ -197,15 +206,18 @@ export async function uploadLocalFile(
 
 /**
  * Uploads a Buffer directly to GCS.
+ * @param bucketName - Optional override bucket (defaults to GCS_BUCKET)
  */
 export async function uploadBuffer(
   buffer: Buffer,
   key: string,
   mimeType: string,
-  isPublic: boolean = false
+  isPublic: boolean = false,
+  bucketName?: string
 ): Promise<{ url: string; key: string }> {
   const storage = await getStorage()
-  const bucket = storage.bucket(BUCKET)
+  const targetBucket = bucketName || BUCKET
+  const bucket = storage.bucket(targetBucket)
   const file = bucket.file(key)
 
   await file.save(buffer, {
@@ -220,14 +232,18 @@ export async function uploadBuffer(
   }
 
   return {
-    url: buildPublicUrl(key),
+    url: buildPublicUrl(key, targetBucket),
     key,
   }
 }
 
-export async function downloadBuffer(key: string): Promise<Buffer | null> {
+/**
+ * Download a file from GCS as a Buffer.
+ * @param bucketName - Optional override bucket (defaults to GCS_BUCKET)
+ */
+export async function downloadBuffer(key: string, bucketName?: string): Promise<Buffer | null> {
   const storage = await getStorage()
-  const bucket = storage.bucket(BUCKET)
+  const bucket = storage.bucket(bucketName || BUCKET)
   const file = bucket.file(key)
   try {
     const [buf] = await file.download()

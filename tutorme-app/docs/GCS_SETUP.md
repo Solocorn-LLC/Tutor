@@ -19,9 +19,11 @@ This guide walks through configuring GCS for persistent file storage in the Solo
    - **Prevent public access**: Enforced (files are served via signed URLs, not public buckets)
 5. Click **Create**.
 
-### Optional: Create a second bucket for video content
+### Optional but recommended: Create a second bucket for video content
 
-If you want to separate video content from other uploads, create a second bucket (e.g. `solocorn-videos`) and set `GCS_VIDEO_BUCKET` in your environment.
+Video files are large and have different lifecycle/retention needs than documents or avatars. Create a separate bucket (e.g. `solocorn-videos`) and set `GCS_VIDEO_BUCKET` in your environment.
+
+If `GCS_VIDEO_BUCKET` is set, all video uploads go to that bucket. If not, videos fall back to `GCS_BUCKET`.
 
 ---
 
@@ -52,8 +54,11 @@ If you want to separate video content from other uploads, create a second bucket
 Add the following to your `.env.local` file:
 
 ```bash
-# GCS Bucket name
+# GCS Bucket name (general uploads: avatars, documents, assignments, messages)
 GCS_BUCKET=your-bucket-name
+
+# Optional: dedicated bucket for video content
+GCS_VIDEO_BUCKET=your-video-bucket-name
 
 # GCP Project ID
 GCP_PROJECT_ID=your-gcp-project-id
