@@ -1,17 +1,14 @@
 /**
  * POST /api/tutor/resources/upload-proxy
  *
- * Server-side upload proxy when GCS is not configured.
- * Stores files in /public/uploads/resources/{tutorId}/ (local dev only).
- *
- * In production, configure GCS_BUCKET etc. to use GCS.
+ * Server-side upload proxy. Stores files in GCS when configured,
+ * otherwise falls back to persistent local storage.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 import { inferResourceType, generateResourceKey } from '@/lib/storage/gcs'
+import { storeFile } from '@/lib/storage/service'
 import { validateFileUpload } from '@/lib/security/file-upload'
 
 const MAX_SIZE = 100 * 1024 * 1024 // 100MB
@@ -63,21 +60,18 @@ export const POST = withAuth(
         return NextResponse.json({ error: validation.error }, { status: 400 })
       }
 
-      // Write to /public/uploads/resources/{tutorId}/
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'resources', tutorId)
-      await mkdir(uploadDir, { recursive: true })
-
       const key = generateResourceKey(tutorId, validation.sanitizedName)
-      const filename = path.basename(key)
-      const filePath = path.join(uploadDir, filename)
-
       const buffer = Buffer.from(await file.arrayBuffer())
-      await writeFile(filePath, buffer)
-
-      const publicUrl = `/uploads/resources/${tutorId}/${filename}`
+      const result = await storeFile(buffer, key, file.type)
       const type = inferResourceType(file.type)
 
-      return NextResponse.json({ success: true, url: publicUrl, key, type })
+      return NextResponse.json({
+        success: true,
+        url: result.url,
+        key: result.key,
+        type,
+        isLocal: result.isLocal,
+      })
     } catch (error) {
       console.error('[upload-proxy] Error:', error)
       return handleApiError(error, 'Upload failed', 'api/tutor/resources/upload-proxy/route.ts')

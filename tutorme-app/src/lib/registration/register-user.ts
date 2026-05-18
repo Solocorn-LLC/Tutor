@@ -116,29 +116,6 @@ export async function saveAvatar(userId: string, avatarFile: File): Promise<stri
   const ext =
     avatarFile.type === 'image/png' ? 'png' : avatarFile.type === 'image/jpeg' ? 'jpg' : 'webp'
 
-  // Store in DB as a shadow fallback (survives GCS hiccups / eventual consistency).
-  let dbStored = false
-  let dbErrorMsg = ''
-  try {
-    const base64Data = bytes.toString('base64')
-    const dataUrl = `data:${avatarFile.type};base64,${base64Data}`
-    const { avatarStorage } = await import('@/lib/db/schema')
-    await drizzleDb
-      .insert(avatarStorage)
-      .values({ userId, data: dataUrl, updatedAt: new Date() })
-      .onConflictDoUpdate({
-        target: avatarStorage.userId,
-        set: { data: dataUrl, updatedAt: new Date() },
-      })
-    dbStored = true
-  } catch (dbError: any) {
-    const causeMsg = dbError?.cause?.message || dbError?.cause?.detail || ''
-    dbErrorMsg = causeMsg
-      ? `${dbError?.message || ''} | cause: ${causeMsg}`
-      : dbError?.message || String(dbError)
-    console.warn('[saveAvatar] DB storage failed:', dbErrorMsg)
-  }
-
   // Try GCS for cloud persistence.
   let gcsStored = false
   let gcsErrorMsg = ''
@@ -156,15 +133,18 @@ export async function saveAvatar(userId: string, avatarFile: File): Promise<stri
     gcsErrorMsg = 'GCS not configured (GCS_BUCKET env var missing)'
   }
 
-  // Fallback: local filesystem (ephemeral, but keeps uploads working when DB/GCS are down).
+  // Fallback: persistent local filesystem.
   let localStored = false
   let localErrorMsg = ''
-  if (!dbStored && !gcsStored) {
+  if (!gcsStored) {
     try {
       const path = await import('path')
-      const os = await import('os')
       const { writeFile, mkdir } = await import('fs/promises')
-      const localDir = path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', userId)
+      const localDir = path.join(
+        process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.local-storage'),
+        'avatars',
+        userId
+      )
       await mkdir(localDir, { recursive: true })
       const localPath = path.join(localDir, `${baseName}-256.${ext}`)
       await writeFile(localPath, bytes)
@@ -175,9 +155,9 @@ export async function saveAvatar(userId: string, avatarFile: File): Promise<stri
     }
   }
 
-  if (!dbStored && !gcsStored && !localStored) {
+  if (!gcsStored && !localStored) {
     throw new ValidationError(
-      `Storage failed — DB: ${dbErrorMsg || 'unknown'} | GCS: ${gcsErrorMsg || 'unknown'} | Local: ${localErrorMsg || 'unknown'}`
+      `Storage failed — GCS: ${gcsErrorMsg || 'unknown'} | Local: ${localErrorMsg || 'unknown'}`
     )
   }
 
@@ -186,18 +166,12 @@ export async function saveAvatar(userId: string, avatarFile: File): Promise<stri
 
 /**
  * Delete a previously saved avatar from storage (GCS or local filesystem).
- *
- * @param deleteFromDb - When false, skips deleting from avatarStorage. Use false
- *   during avatar replacement because saveAvatar already overwrites the DB row
- *   via onConflictDoUpdate; deleting afterward would remove the new avatar.
  */
 export async function deleteAvatar(
   avatarUrl: string | null | undefined,
-  options?: { deleteFromDb?: boolean }
+  _options?: { deleteFromDb?: boolean }
 ): Promise<void> {
   if (!avatarUrl || typeof avatarUrl !== 'string') return
-
-  const deleteFromDb = options?.deleteFromDb !== false
 
   // GCS deletion
   if (avatarUrl.includes('storage.googleapis.com')) {
@@ -254,21 +228,6 @@ export async function deleteAvatar(
         ? avatarUrl.slice(avatarUrl.indexOf(publicAvatarPath) + publicAvatarPath.length)
         : avatarUrl.replace(publicAvatarPath, '')
 
-      // Extract userId from path: /api/public/avatar/{userId}/{filename}
-      const parts = relativePart.split('/')
-      const userIdFromUrl = parts[0]
-
-      // Only delete from avatarStorage when explicitly requested (e.g., user
-      // deletes their avatar). During replacement, saveAvatar already overwrites
-      // the row via onConflictDoUpdate, so deleting here would wipe the new avatar.
-      if (deleteFromDb && userIdFromUrl) {
-        const { avatarStorage } = await import('@/lib/db/schema')
-        await drizzleDb
-          .delete(avatarStorage)
-          .where(eq(avatarStorage.userId, userIdFromUrl))
-          .catch(() => {})
-      }
-
       const { isGcsConfigured, deleteObject } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {
         const key = `avatars/${relativePart}`
@@ -278,7 +237,6 @@ export async function deleteAvatar(
       }
 
       const path = await import('path')
-      const os = await import('os')
       const { unlink } = await import('fs/promises')
       const safeRelative = relativePart
         .split('/')
@@ -286,7 +244,8 @@ export async function deleteAvatar(
         .filter(segment => !segment.includes('..'))
         .join(path.sep)
       if (!safeRelative) return
-      const localPath = path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', safeRelative)
+      const localBase = process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.local-storage')
+      const localPath = path.join(localBase, 'avatars', safeRelative)
       await unlink(localPath).catch(() => {})
       const local128 = localPath.replace('-256.webp', '-128.webp')
       const local64 = localPath.replace('-256.webp', '-64.webp')

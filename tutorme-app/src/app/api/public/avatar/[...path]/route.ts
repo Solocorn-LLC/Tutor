@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import os from 'os'
-import { eq } from 'drizzle-orm'
-import { drizzleDb } from '@/lib/db/drizzle'
-import { avatarStorage } from '@/lib/db/schema'
 
 function getContentType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase()
@@ -18,6 +15,9 @@ function sanitizeSegments(input: string[]): string[] {
   return input.filter(Boolean).filter(seg => !seg.includes('..') && !seg.includes('\\'))
 }
 
+const LOCAL_STORAGE_DIR =
+  process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.local-storage')
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   try {
     const params = await context.params
@@ -26,11 +26,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
       return new NextResponse('Invalid path', { status: 400 })
     }
 
-    const userId = pathSegments[0]
-
     // When GCS is configured it is the primary storage for avatars.
-    // Check GCS first so that current uploads are served immediately
-    // and stale DB entries never shadow them.
+    // Check GCS first so that current uploads are served immediately.
     try {
       const { isGcsConfigured, downloadBuffer } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {
@@ -47,62 +44,14 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ path: 
         }
       }
     } catch {
-      // Ignore and continue to fallback storages.
+      // Ignore and continue to fallback.
     }
 
-    // Fallback 1: database (used when GCS is not configured or file missing in GCS).
-    // Validate the stored data so we never serve an empty / corrupted image.
-    try {
-      const row = await drizzleDb
-        .select({ data: avatarStorage.data })
-        .from(avatarStorage)
-        .where(eq(avatarStorage.userId, userId))
-        .limit(1)
-
-      if (row[0]?.data) {
-        const data = row[0].data.trim()
-        if (data.length > 0) {
-          let buffer: Buffer | null = null
-          // If stored as a data URL, extract the base64 part
-          if (data.startsWith('data:image/webp;base64,')) {
-            const base64 = data.slice('data:image/webp;base64,'.length)
-            buffer = Buffer.from(base64, 'base64')
-          } else if (data.startsWith('data:')) {
-            // Other data URL formats — extract after the comma
-            const commaIndex = data.indexOf(',')
-            if (commaIndex > 0) {
-              const base64 = data.slice(commaIndex + 1)
-              buffer = Buffer.from(base64, 'base64')
-            }
-          } else {
-            // Raw base64 (legacy db entries)
-            buffer = Buffer.from(data, 'base64')
-          }
-
-          if (buffer && buffer.length > 0) {
-            // Detect MIME type from the data URL prefix
-            let contentType = 'image/png'
-            if (data.startsWith('data:image/webp;')) contentType = 'image/webp'
-            else if (data.startsWith('data:image/png;')) contentType = 'image/png'
-            else if (data.startsWith('data:image/jpeg;')) contentType = 'image/jpeg'
-            else if (data.startsWith('data:image/jpg;')) contentType = 'image/jpeg'
-
-            return new NextResponse(new Uint8Array(buffer), {
-              headers: {
-                'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=3600',
-              },
-            })
-          }
-        }
-      }
-    } catch (dbError) {
-      console.warn('[public avatar] DB lookup failed:', dbError)
-    }
-
-    // Fallback 2: local filesystem (legacy / development)
+    // Fallback: local filesystem (persistent local storage, then legacy tmp dir)
     const relativePath = pathSegments.join(path.sep)
     const candidates = [
+      path.join(LOCAL_STORAGE_DIR, 'avatars', relativePath),
+      // Legacy fallback for files stored before migration
       path.join(os.tmpdir(), 'tutorme_uploads', 'avatars', relativePath),
       path.join(process.cwd(), 'public', 'uploads', 'avatars', relativePath),
     ]

@@ -3,15 +3,15 @@
  *
  * Handles file uploads for essay/project type assignments.
  * Accepts: PDF, PNG, JPG, DOCX (max 10MB)
- * Stores files locally in /public/uploads/submissions/{studentId}/{taskId}/
+ * Stores files in GCS when configured, otherwise in persistent local storage.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/api/middleware'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { storeFile } from '@/lib/storage/service'
+import { randomUUID } from 'crypto'
 
 const ALLOWED_TYPES = [
   'application/pdf',
@@ -65,40 +65,27 @@ export async function POST(
       return NextResponse.json({ error: `File too large. Maximum size: 10MB` }, { status: 400 })
     }
 
-    // Create directory
-    const uploadDir = path.join(
-      process.cwd(),
-      'public',
-      'uploads',
-      'submissions',
-      studentId,
-      taskId
-    )
-    await mkdir(uploadDir, { recursive: true })
-
-    // Generate unique filename
-    const ext = path.extname(file.name)
+    // Generate unique key
+    const ext = file.name.slice(file.name.lastIndexOf('.')) || ''
     const safeName = file.name
       .replace(ext, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_')
       .slice(0, 50)
-    const uniqueName = `${safeName}_${Date.now()}${ext}`
-    const filePath = path.join(uploadDir, uniqueName)
+    const key = `submissions/${studentId}/${taskId}/${safeName}_${Date.now()}_${randomUUID().slice(0, 8)}${ext}`
 
-    // Write file
+    // Store via unified service (GCS or local)
     const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(filePath, buffer)
-
-    // Public URL
-    const fileUrl = `/uploads/submissions/${studentId}/${taskId}/${uniqueName}`
+    const result = await storeFile(buffer, key, file.type)
 
     return NextResponse.json({
       success: true,
       file: {
-        url: fileUrl,
+        url: result.url,
+        key: result.key,
         name: file.name,
         size: file.size,
         type: file.type,
+        isLocal: result.isLocal,
       },
     })
   } catch (error) {

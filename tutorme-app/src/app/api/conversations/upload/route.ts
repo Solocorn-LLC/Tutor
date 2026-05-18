@@ -9,13 +9,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
-import { mkdir } from 'fs/promises'
+import { storeFile } from '@/lib/storage/service'
 import crypto from 'crypto'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_TYPES = {
+const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/gif': '.gif',
@@ -40,7 +38,7 @@ export const POST = withAuth(async (req: NextRequest, session) => {
     }
 
     // Validate file type
-    const ext = ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]
+    const ext = ALLOWED_TYPES[file.type]
     if (!ext) {
       return NextResponse.json(
         { error: 'File type not allowed', allowedTypes: Object.keys(ALLOWED_TYPES) },
@@ -53,35 +51,26 @@ export const POST = withAuth(async (req: NextRequest, session) => {
       return NextResponse.json({ error: 'File too large', maxSize: '10MB' }, { status: 400 })
     }
 
-    // Generate unique filename
+    // Generate unique key
     const fileHash = crypto.randomBytes(16).toString('hex')
     const fileName = `${fileHash}${ext}`
-    const uploadDir = join(process.cwd(), 'uploads', 'messages', userId)
-    const filePath = join(uploadDir, fileName)
+    const key = `messages/${userId}/${fileName}`
 
-    // Ensure upload directory exists
-    await mkdir(uploadDir, { recursive: true })
-
-    // Write file
+    // Store via unified service (GCS or local)
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
-
-    // File record: MessageAttachment not in Drizzle schema; return URL only
-    const fileId: string = fileHash
-
-    // Return public URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const publicUrl = `${baseUrl}/api/files/${userId}/${fileName}`
+    const result = await storeFile(buffer, key, file.type)
 
     return NextResponse.json({
       success: true,
       file: {
-        id: fileId,
+        id: fileHash,
         name: file.name,
-        url: publicUrl,
+        url: result.url,
+        key: result.key,
         type: file.type,
         size: file.size,
+        isLocal: result.isLocal,
       },
     })
   } catch (error) {

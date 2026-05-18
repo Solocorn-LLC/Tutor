@@ -4,6 +4,30 @@ import path from 'path'
 import os from 'os'
 import { withAuth } from '@/lib/api/middleware'
 
+const LOCAL_STORAGE_DIR =
+  process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.local-storage')
+
+function getContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  if (ext === '.pdf') return 'application/pdf'
+  if (ext === '.png') return 'image/png'
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg'
+  if (ext === '.gif') return 'image/gif'
+  if (ext === '.webp') return 'image/webp'
+  if (ext === '.webm') return 'video/webm'
+  if (ext === '.mp4') return 'video/mp4'
+  if (ext === '.doc') return 'application/msword'
+  if (ext === '.docx')
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (ext === '.xls') return 'application/vnd.ms-excel'
+  if (ext === '.xlsx') return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  if (ext === '.ppt') return 'application/vnd.ms-powerpoint'
+  if (ext === '.pptx')
+    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  if (ext === '.txt') return 'text/plain'
+  return 'application/octet-stream'
+}
+
 export const GET = withAuth(async (request: NextRequest, session: any, context: any) => {
   try {
     const params = await context.params
@@ -17,29 +41,30 @@ export const GET = withAuth(async (request: NextRequest, session: any, context: 
       return new NextResponse('Invalid path', { status: 400 })
     }
 
-    // The files are stored in os.tmpdir()/tutorme_uploads
-    const absolutePath = path.join(os.tmpdir(), 'tutorme_uploads', ...pathSegments)
+    const relativePath = pathSegments.join(path.sep)
 
-    try {
-      const data = await readFile(absolutePath)
-      const ext = path.extname(absolutePath).toLowerCase()
+    // Try persistent local storage first
+    const candidates = [
+      path.join(LOCAL_STORAGE_DIR, relativePath),
+      // Legacy fallback: old tmp directory (for files uploaded before migration)
+      path.join(os.tmpdir(), 'tutorme_uploads', ...pathSegments),
+    ]
 
-      let contentType = 'application/octet-stream'
-      if (ext === '.pdf') contentType = 'application/pdf'
-      else if (ext === '.png') contentType = 'image/png'
-      else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
-      else if (ext === '.doc' || ext === '.docx') contentType = 'application/msword'
-      else if (ext === '.ppt' || ext === '.pptx') contentType = 'application/vnd.ms-powerpoint'
-
-      return new NextResponse(data, {
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=3600',
-        },
-      })
-    } catch (err) {
-      return new NextResponse('File not found', { status: 404 })
+    for (const filePath of candidates) {
+      try {
+        const data = await readFile(filePath)
+        return new NextResponse(data, {
+          headers: {
+            'Content-Type': getContentType(filePath),
+            'Cache-Control': 'public, max-age=3600',
+          },
+        })
+      } catch {
+        // Try next candidate.
+      }
     }
+
+    return new NextResponse('File not found', { status: 404 })
   } catch (error) {
     console.error('[serve-upload] Error:', error)
     return new NextResponse('Internal Server Error', { status: 500 })
