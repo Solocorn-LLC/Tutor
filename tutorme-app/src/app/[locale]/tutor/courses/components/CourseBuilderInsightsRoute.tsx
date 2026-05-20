@@ -354,7 +354,6 @@ function CourseBuilderInsightsRouteInner({
                     </div>
                   )}
                   {activeMainTab !== 'live' &&
-                    !insightsProps.sessionId &&
                     insightsProps.onCourseChange && (
                       <Select
                         value={courseId ?? ''}
@@ -563,7 +562,7 @@ function CourseBuilderInsightsRouteInner({
                       {onDeleteCourse && (
                         <DropdownMenuItem
                           onClick={onDeleteCourse}
-                          disabled={!!insightsProps.sessionId}
+                          disabled={activeMainTab === 'live' && !!insightsProps.sessionId}
                           className="text-destructive focus:text-destructive focus:bg-destructive/10"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />

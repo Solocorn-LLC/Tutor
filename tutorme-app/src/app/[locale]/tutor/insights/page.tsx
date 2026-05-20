@@ -94,11 +94,11 @@ function TutorInsightsPageInner() {
     lessons: any[]
     options?: any
   } | null>(null)
+  // When opened from Dashboard sidebar or My Page Create Course, start in draft mode
+  const startInEditMode = searchParams.get('mode') === 'edit'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
-    searchParams.get('sessionId') ? 'live' : searchParams.get('mode') === 'edit' ? 'draft' : 'live'
+    searchParams.get('sessionId') ? 'live' : startInEditMode ? 'draft' : 'live'
   )
-  // When opened from Dashboard sidebar or My Page Create Course, lock to draft mode
-  const modeLocked = searchParams.get('mode') === 'edit'
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
   // User-specific localStorage key so drafts don't leak across accounts on shared devices
@@ -110,11 +110,6 @@ function TutorInsightsPageInner() {
   // Auto-detect saveMode when courseId is set from URL or dropdown
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // If mode=edit is explicitly requested (from Dashboard or My Page), force draft
-    if (searchParams.get('mode') === 'edit') {
-      setSaveMode('draft')
-      return
-    }
     // If a sessionId is in the URL, force live mode
     if (searchParams.get('sessionId')) {
       setSaveMode('live')
@@ -627,7 +622,7 @@ function TutorInsightsPageInner() {
         if (querySessionId && classSessions.some(s => s.id === querySessionId)) {
           // Already set, but confirming it exists in the list
           setSessionId(querySessionId)
-        } else if (!querySessionId) {
+        } else if (!querySessionId && searchParams.get('tab') !== 'builder' && searchParams.get('mode') !== 'edit') {
           if (activeSession) {
             setSessionId(prev => prev ?? activeSession.id)
           } else if (classSessions.length > 0) {
@@ -1159,7 +1154,7 @@ function TutorInsightsPageInner() {
             const isDraftCourse = draftCourses.some(course => course.id === value)
             // Only auto-switch to draft mode for draft courses.
             // Live courses can be edited in either mode, so keep the current mode.
-            if (!sessionId && !modeLocked && isDraftCourse) {
+            if (!sessionId && isDraftCourse) {
               setSaveMode('draft')
             }
 
@@ -1208,7 +1203,7 @@ function TutorInsightsPageInner() {
         onCourseNameChange={handleCourseNameChange}
         saveMode={saveMode}
         onSaveModeChange={handleModeChange}
-        modeLocked={modeLocked}
+        modeLocked={false}
       />
 
       {/* Create New Course Dialog */}
