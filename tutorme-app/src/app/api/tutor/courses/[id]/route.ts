@@ -9,8 +9,9 @@ import {
   payment,
   refund,
   courseVariant,
+  calendarEvent,
 } from '@/lib/db/schema'
-import { eq, and, isNull, sql } from 'drizzle-orm'
+import { eq, and, isNull, sql, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { notifyMany } from '@/lib/notifications/notify'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
@@ -361,6 +362,23 @@ export const DELETE = withAuth(
           console.error('[DELETE /api/tutor/courses/[id]] notifyMany error:', notifyErr)
         }
       }
+
+      // Delete all calendar events linked to this course (including recurring instances)
+      const courseEvents = await drizzleDb
+        .select({ eventId: calendarEvent.eventId })
+        .from(calendarEvent)
+        .where(eq(calendarEvent.courseId, id))
+      const eventIds = courseEvents.map(e => e.eventId)
+
+      if (eventIds.length > 0) {
+        // Delete recurring instances whose parent is linked to this course
+        await drizzleDb
+          .delete(calendarEvent)
+          .where(inArray(calendarEvent.recurringEventId, eventIds))
+      }
+
+      // Delete all events directly linked to this course
+      await drizzleDb.delete(calendarEvent).where(eq(calendarEvent.courseId, id))
 
       // Delete the course (cascade will handle lessons)
       await drizzleDb.delete(course).where(eq(course.courseId, id))
