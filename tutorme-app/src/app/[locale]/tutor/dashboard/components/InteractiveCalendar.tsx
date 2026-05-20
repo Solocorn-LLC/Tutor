@@ -1170,6 +1170,7 @@ export function InteractiveCalendar({
                   </Button>
                   <Button
                     className="bg-gradient-to-r from-purple-600 to-blue-600"
+                    disabled={selectedEvent.status === 'cancelled'}
                     onClick={() => {
                       if (!selectedEvent.sessionId) {
                         toast.error('This event is not linked to a TutorMekimi session.')
@@ -1187,7 +1188,17 @@ export function InteractiveCalendar({
                     }}
                   >
                     <Video className="mr-2 h-4 w-4" />
-                    Open Session
+                    {selectedEvent.status === 'cancelled'
+                      ? 'Cancelled'
+                      : selectedEvent.status === 'completed'
+                        ? isStudent
+                          ? 'View Feedback'
+                          : 'View Session'
+                        : selectedEvent.status === 'live'
+                          ? 'Join Session'
+                          : isStudent
+                            ? 'View Session'
+                            : 'Start Session'}
                   </Button>
                 </DialogFooter>
               </>

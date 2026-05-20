@@ -35,6 +35,7 @@ import {
   Users,
   AlertCircle,
   Ban,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -791,19 +792,30 @@ function TutorDashboardContent() {
                                 </Badge>
                               </Link>
                             </div>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              disabled={launchingCourseId === course.id}
-                              onClick={() => handleEnterCourseClassroom(course)}
-                            >
-                              {launchingCourseId === course.id ? (
-                                <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              ) : (
-                                <Video className="mr-1 h-3 w-3" />
-                              )}
-                              Create session
-                            </Button>
+                            {courseClasses.length > 0 ? (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleOpenSessionsModal(course)}
+                              >
+                                <Eye className="mr-1 h-3 w-3" />
+                                View Sessions
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                disabled={launchingCourseId === course.id}
+                                onClick={() => handleEnterCourseClassroom(course)}
+                              >
+                                {launchingCourseId === course.id ? (
+                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                ) : (
+                                  <Video className="mr-1 h-3 w-3" />
+                                )}
+                                Create Session
+                              </Button>
+                            )}
                             <Button asChild variant="outline" size="sm">
                               <Link
                                 href={withLocalePath(
@@ -1028,7 +1040,7 @@ function TutorDashboardContent() {
                                 ) : (
                                   <Video className="mr-1 h-3 w-3" />
                                 )}
-                                Open Session
+                                Create Session
                               </Button>
                             ) : isScheduled ? (
                               <Button
@@ -1042,7 +1054,7 @@ function TutorDashboardContent() {
                                 ) : (
                                   <Video className="mr-1 h-3 w-3" />
                                 )}
-                                Open Session
+                                Start Session
                               </Button>
                             ) : isActive ? (
                               <Button
@@ -1054,7 +1066,7 @@ function TutorDashboardContent() {
                                   )
                                 }
                               >
-                                Open Session
+                                Join Session
                               </Button>
                             ) : (
                               <Button variant="ghost" size="sm" disabled>
