@@ -48,7 +48,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./
 # This makes scripts/start-prod.js run 'node server.js' instead of 'tsx server.ts'
 COPY --from=builder --chown=nextjs:nodejs /app/server-production.js ./server.js
 
-RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
+RUN mkdir -p /app/public/uploads /app/.local-storage && chown -R nextjs:nodejs /app/public/uploads /app/.local-storage
 
 USER nextjs
 

@@ -193,7 +193,17 @@ export async function uploadLocalFile(
   })
 
   if (isPublic) {
-    await bucket.file(key).makePublic()
+    try {
+      await bucket.file(key).makePublic()
+    } catch (err: any) {
+      // Uniform bucket-level access prevents per-object ACL changes.
+      // The file is already uploaded; signed URLs still work.
+      if (err?.code === 400 || err?.message?.includes('uniform bucket-level access')) {
+        console.warn('[GCS] makePublic skipped: uniform bucket-level access enabled')
+      } else {
+        throw err
+      }
+    }
   }
 
   return {
@@ -228,7 +238,17 @@ export async function uploadBuffer(
   })
 
   if (isPublic) {
-    await file.makePublic()
+    try {
+      await file.makePublic()
+    } catch (err: any) {
+      // Uniform bucket-level access prevents per-object ACL changes.
+      // The file is already uploaded; signed URLs still work.
+      if (err?.code === 400 || err?.message?.includes('uniform bucket-level access')) {
+        console.warn('[GCS] makePublic skipped: uniform bucket-level access enabled')
+      } else {
+        throw err
+      }
+    }
   }
 
   return {
