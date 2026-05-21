@@ -1969,17 +1969,21 @@ function StudentFeedbackContent() {
 
           {/* Persistent Right Panel */}
           <div
-            className="relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all"
+            className="relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
             style={{ width: rightPanelWidth }}
           >
+            {/* Resize handle */}
             <div
-              className="absolute bottom-0 left-0 top-0 z-10 w-2 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-500/40"
+              className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
               onMouseDown={e => {
                 setRightPanelResizing(true)
                 rightResizeStartX.current = e.clientX
                 rightResizeStartW.current = rightPanelWidth
               }}
-            />
+              title="Drag to resize"
+            >
+              <div className="h-8 w-0.5 rounded-full bg-slate-300" />
+            </div>
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
