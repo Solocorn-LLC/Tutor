@@ -81,6 +81,7 @@ export interface LiveTask {
   sourceDocument?: LiveTaskSourceDocument
   parentId?: string
   isExtension?: boolean
+  completedBy?: string[]
 }
 
 export interface ClassRoom {

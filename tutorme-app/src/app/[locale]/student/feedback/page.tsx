@@ -1991,7 +1991,7 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div className={cn('flex-1', rightPanelTab === 'board' ? 'overflow-hidden' : 'overflow-y-auto p-4')
+            <div className={cn('flex-1', rightPanelTab === 'board' ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
               {rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">
                   <div className="mb-4 border-b border-gray-100 pb-2">
