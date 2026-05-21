@@ -66,23 +66,27 @@ export class DailyCoProvider implements VideoProvider {
     const effectiveDuration = (options?.durationMinutes ?? 240) + 60
     const expiry = new Date(Date.now() + effectiveDuration * 60 * 1000)
 
+    const payload = {
+      name: roomName,
+      privacy: 'public',
+      properties: {
+        max_participants: options?.maxParticipants || 10,
+        enable_screenshare: true,
+        enable_chat: false, // We use our own chat
+        exp: Math.floor(expiry.getTime() / 1000),
+        // Auto-join with mic/video off for students
+        start_audio_off: true,
+        start_video_off: true,
+        // Note: Recording is not supported on current Daily.co plan
+      },
+    }
+    console.log('[Daily.co] createRoom payload:', payload)
+
     const room = await this.fetchDaily('/rooms', {
       method: 'POST',
-      body: JSON.stringify({
-        name: roomName,
-        privacy: 'public',
-        properties: {
-          max_participants: options?.maxParticipants || 10, // 10 is safe for most Daily.co plans
-          enable_screenshare: true,
-          enable_chat: false, // We use our own chat
-          exp: Math.floor(expiry.getTime() / 1000),
-          // Auto-join with mic/video off for students
-          start_audio_off: true,
-          start_video_off: true,
-          // Note: Recording is not supported on current Daily.co plan
-        },
-      }),
+      body: JSON.stringify(payload),
     })
+    console.log('[Daily.co] createRoom response:', { name: room.name, url: room.url, config: room.config })
 
     return {
       id: room.name,

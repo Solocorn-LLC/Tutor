@@ -43,7 +43,7 @@ export const POST = withCsrf(
         }
 
         // Create video room via Daily.co
-        // Cap at 10 to stay within Daily.co plan limits (most plans support 10-20)
+        // Cap at 50 — code limit raised, but actual Daily.co plan may restrict further
         const slotStart = new Date(scheduledAt)
         slotStart.setSeconds(0, 0)
         const slotEnd = new Date(slotStart)
@@ -79,9 +79,22 @@ export const POST = withCsrf(
         let room
         try {
           const maxParticipants = Math.min(data.maxStudents + 1, 50) // +1 for tutor, capped at 50
+          console.log('[Class Rooms] Creating Daily.co room:', {
+            tutorId: userId,
+            maxStudents: data.maxStudents,
+            maxParticipants,
+            durationMinutes: data.durationMinutes,
+            courseId: data.courseId,
+            title: data.title,
+          })
           room = await dailyProvider.createRoom(userId, {
             maxParticipants,
             durationMinutes: data.durationMinutes,
+          })
+          console.log('[Class Rooms] Daily.co room created:', {
+            roomId: room.id,
+            roomUrl: room.url,
+            expiry: room.expiry,
           })
         } catch (error) {
           console.error('[Class Rooms] Daily.co createRoom error:', error)

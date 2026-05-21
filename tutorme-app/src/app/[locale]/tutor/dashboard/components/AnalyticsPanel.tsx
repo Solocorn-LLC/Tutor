@@ -26,6 +26,7 @@ import {
   Minus,
   Hand,
   Smile,
+  CheckCircle2,
 } from 'lucide-react'
 import type { LiveTask } from '@/lib/socket/socket-types'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
@@ -112,6 +113,16 @@ export function AnalyticsPanel({
     return (students || []).filter(s => s.handRaised).length
   }, [students])
 
+  const taskCompletions = useMemo(() => {
+    const activeTask = liveTasks?.find(t => t.completedBy && t.completedBy.length > 0)
+    if (!activeTask?.completedBy) return { completed: 0, total: students?.length ?? 0, taskName: '' }
+    return {
+      completed: activeTask.completedBy.length,
+      total: students?.length ?? 0,
+      taskName: activeTask.title,
+    }
+  }, [liveTasks, students])
+
   const trendIcon =
     metrics?.engagementTrend === 'up' ? (
       <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -173,6 +184,12 @@ export function AnalyticsPanel({
           label="Hands Raised"
           value={String(handsRaised)}
           sub="now"
+        />
+        <StatCard
+          icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+          label="Task Done"
+          value={`${taskCompletions.completed} / ${taskCompletions.total}`}
+          sub={taskCompletions.taskName || 'No active task'}
         />
       </div>
 
@@ -295,6 +312,10 @@ export function AnalyticsPanel({
                   </div>
                   <div className="flex shrink-0 gap-3 text-[10px] text-gray-600">
                     <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      {task.completedBy?.length ?? 0}
+                    </span>
+                    <span className="flex items-center gap-1">
                       <Smile className="h-3 w-3" />
                       {pollResponses}
                     </span>
@@ -339,6 +360,12 @@ export function AnalyticsPanel({
                     }`}
                   />
                   <span className="text-xs font-medium text-gray-900">{s.name}</span>
+                  {liveTasks?.some(t => t.completedBy?.includes(s.id)) && (
+                    <Badge variant="outline" className="h-4 px-1 text-[9px] text-emerald-600">
+                      <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                      Done
+                    </Badge>
+                  )}
                   {s.handRaised && (
                     <Badge variant="outline" className="h-4 px-1 text-[9px] text-violet-600">
                       <Hand className="mr-0.5 h-2.5 w-2.5" />

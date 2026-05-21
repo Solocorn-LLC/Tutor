@@ -84,6 +84,10 @@ const nextConfig = {
           source: '/tutor/classroom',
           destination: '/tutor/insights?view=classroom',
         },
+        {
+          source: '/:locale/tutor/classroom',
+          destination: '/:locale/tutor/insights?view=classroom',
+        },
       ],
     }
   },

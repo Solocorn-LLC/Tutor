@@ -163,6 +163,12 @@ function StudentFeedbackContent() {
   const leftResizeStartX = useRef(0)
   const leftResizeStartW = useRef(300)
 
+  // Right Panel state
+  const [rightPanelWidth, setRightPanelWidth] = useState(380)
+  const [rightPanelResizing, setRightPanelResizing] = useState(false)
+  const rightResizeStartX = useRef(0)
+  const rightResizeStartW = useRef(380)
+
   // Assets state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
   const [reportModalOpen, setReportModalOpen] = useState(false)
@@ -323,6 +329,22 @@ function StudentFeedbackContent() {
       document.removeEventListener('mouseup', onUp)
     }
   }, [leftPanelResizing])
+
+  useEffect(() => {
+    if (!rightPanelResizing) return
+    const onMove = (e: MouseEvent) => {
+      const delta = rightResizeStartX.current - e.clientX
+      const newW = Math.max(280, Math.min(600, rightResizeStartW.current + delta))
+      setRightPanelWidth(newW)
+    }
+    const onUp = () => setRightPanelResizing(false)
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [rightPanelResizing])
 
   useEffect(() => {
     const loadAssets = async () => {
@@ -1946,7 +1968,18 @@ function StudentFeedbackContent() {
           </div>
 
           {/* Persistent Right Panel */}
-          <div className="relative flex h-full w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all sm:w-[380px] lg:w-[400px]">
+          <div
+            className="relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all"
+            style={{ width: rightPanelWidth }}
+          >
+            <div
+              className="absolute bottom-0 left-0 top-0 z-10 w-2 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-500/40"
+              onMouseDown={e => {
+                setRightPanelResizing(true)
+                rightResizeStartX.current = e.clientX
+                rightResizeStartW.current = rightPanelWidth
+              }}
+            />
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
