@@ -17,6 +17,7 @@ import {
   pollResponse,
   courseEnrollment,
   sessionParticipant,
+  courseLesson,
 } from '@/lib/db/schema'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
@@ -1019,6 +1020,103 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
       } catch (err) {
         console.error('Failed to persist deployed material to DB:', err)
+      }
+    })
+
+    // Tutor requests course content sync to live session
+    socket.on('course:sync', async (data: { roomId: string; courseId: string }) => {
+      if (socket.data.role !== 'tutor') {
+        socket.emit('course:sync:error', { error: 'Only tutors can sync course content' })
+        return
+      }
+      const { roomId, courseId } = data
+      if (!roomId || !courseId) {
+        socket.emit('course:sync:error', { error: 'Invalid sync data' })
+        return
+      }
+
+      let room = activeRooms.get(roomId)
+      if (!room) {
+        room = {
+          id: roomId,
+          tutorId: socket.data.userId || '',
+          students: new Map(),
+          chatHistory: [],
+          tasks: [],
+          polls: [],
+          whiteboardData: undefined,
+          codeEditorContent: '',
+          codeLanguage: 'javascript',
+          createdAt: new Date(),
+          lastActivity: Date.now(),
+        }
+        activeRooms.set(roomId, room)
+      }
+
+      try {
+        const lessons = await drizzleDb
+          .select()
+          .from(courseLesson)
+          .where(eq(courseLesson.courseId, courseId))
+          .orderBy(courseLesson.order)
+
+        const syncedTasks: LiveTask[] = []
+
+        for (const lesson of lessons) {
+          const bData = (lesson.builderData ?? {}) as Record<string, unknown>
+          const tasks = Array.isArray(bData.tasks) ? bData.tasks : []
+          const assessments = Array.isArray(bData.assessments) ? bData.assessments : []
+          const homework = Array.isArray(bData.homework) ? bData.homework : []
+
+          for (const item of [...tasks, ...assessments, ...homework]) {
+            const raw = item as Record<string, unknown>
+            const liveTask: LiveTask = {
+              id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
+              title: (raw.title as string) || 'Untitled',
+              content: (raw.description as string) || (raw.taskContent as string) || '',
+              source: tasks.includes(item) ? 'task' : assessments.includes(item) ? 'assessment' : 'homework',
+              dmiItems: Array.isArray(raw.dmiItems)
+                ? (raw.dmiItems as Array<Record<string, unknown>>).map(d => ({
+                    id: (d.id as string) || '',
+                    questionNumber: (d.questionNumber as number) || 0,
+                    questionText: (d.questionText as string) || '',
+                  }))
+                : undefined,
+              deployedAt: Date.now(),
+              polls: [],
+              questions: [],
+              sourceDocument: raw.sourceDocument
+                ? {
+                    fileName: ((raw.sourceDocument as Record<string, unknown>).fileName as string) || '',
+                    fileUrl: ((raw.sourceDocument as Record<string, unknown>).fileUrl as string) || '',
+                    mimeType: ((raw.sourceDocument as Record<string, unknown>).mimeType as string) || '',
+                  }
+                : undefined,
+            }
+
+            const existingIndex = room.tasks.findIndex(t => t.id === liveTask.id)
+            if (existingIndex >= 0) {
+              room.tasks[existingIndex] = { ...room.tasks[existingIndex], ...liveTask }
+            } else {
+              room.tasks.push(liveTask)
+            }
+            syncedTasks.push(liveTask)
+          }
+        }
+
+        room.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room)
+
+        for (const task of syncedTasks) {
+          io.to(roomId).emit('task:deployed', task)
+          io.to(roomId).emit('task:updated', { task })
+        }
+
+        socket.emit('course:sync:success', { count: syncedTasks.length })
+        console.log(`[course:sync] Synced ${syncedTasks.length} tasks to room ${roomId}`)
+      } catch (err) {
+        console.error('[course:sync] Failed:', err)
+        socket.emit('course:sync:error', { error: 'Failed to sync course content' })
       }
     })
 

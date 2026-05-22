@@ -503,7 +503,7 @@ function CourseBuilderInsightsRouteInner({
 
             <div className="flex h-full flex-col items-end justify-between gap-4 pb-0">
               <div className="mt-0 flex shrink-0 items-center gap-2">
-                {activeMainTab === 'builder' && onSaveModeChange && !modeLocked && (
+                {(activeMainTab === 'builder' || activeMainTab === 'live') && onSaveModeChange && !modeLocked && (
                   <Select
                     value={saveMode}
                     onValueChange={(val: 'live' | 'draft') => onSaveModeChange(val)}
@@ -527,7 +527,7 @@ function CourseBuilderInsightsRouteInner({
                     </SelectContent>
                   </Select>
                 )}
-                {activeMainTab === 'builder' && modeLocked && (
+                {(activeMainTab === 'builder' || activeMainTab === 'live') && modeLocked && (
                   <div className="flex h-9 w-[190px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
                     <div className="h-2 w-2 rounded-full bg-amber-500" />
                     Editing
