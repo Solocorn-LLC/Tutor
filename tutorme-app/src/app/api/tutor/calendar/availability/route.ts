@@ -12,8 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarAvailability, calendarException, calendarEvent } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, asc, isNull } from 'drizzle-orm'
+import { calendarAvailability, calendarException, calendarEvent, oneOnOneBookingRequest } from '@/lib/db/schema'
+import { eq, and, or, gte, lte, asc, isNull, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 
@@ -41,6 +41,7 @@ export const GET = withAuth(
     const start = searchParams.get('start')
     const end = searchParams.get('end')
     const check = searchParams.get('check') === 'true'
+    const mode = searchParams.get('mode')
 
     try {
       const now = new Date()
@@ -61,6 +62,82 @@ export const GET = withAuth(
         .select()
         .from(calendarException)
         .where(and(...exceptionConditions))
+
+      if (mode === 'schedule') {
+        // Return normalized data for client-side schedule conflict checking
+        if (!start || !end) {
+          return NextResponse.json(
+            { error: 'Start and end dates required for schedule mode' },
+            { status: 400 }
+          )
+        }
+        const startDate = new Date(start)
+        const endDate = new Date(end)
+
+        const existingEvents = await drizzleDb
+          .select({
+            startTime: calendarEvent.startTime,
+            endTime: calendarEvent.endTime,
+            title: calendarEvent.title,
+          })
+          .from(calendarEvent)
+          .where(
+            and(
+              eq(calendarEvent.tutorId, tutorId),
+              isNull(calendarEvent.deletedAt),
+              eq(calendarEvent.isCancelled, false),
+              or(
+                and(gte(calendarEvent.startTime, startDate), lte(calendarEvent.startTime, endDate)),
+                and(gte(calendarEvent.endTime, startDate), lte(calendarEvent.endTime, endDate))
+              )
+            )
+          )
+
+        const oneOnOnes = await drizzleDb
+          .select({
+            requestedDate: oneOnOneBookingRequest.requestedDate,
+            startTime: oneOnOneBookingRequest.startTime,
+            endTime: oneOnOneBookingRequest.endTime,
+          })
+          .from(oneOnOneBookingRequest)
+          .where(
+            and(
+              eq(oneOnOneBookingRequest.tutorId, tutorId),
+              inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
+              gte(oneOnOneBookingRequest.requestedDate, startDate),
+              lte(oneOnOneBookingRequest.requestedDate, endDate)
+            )
+          )
+
+        const normalizeDate = (d: Date) => d.toISOString().split('T')[0]
+        const normalizeTime = (d: Date) => d.toISOString().split('T')[1].slice(0, 5)
+
+        return NextResponse.json({
+          availability: availability.map(a => ({
+            dayOfWeek: a.dayOfWeek,
+            startTime: a.startTime,
+            endTime: a.endTime,
+          })),
+          exceptions: exceptions.map(e => ({
+            date: normalizeDate(e.date),
+            isAvailable: e.isAvailable,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            reason: e.reason,
+          })),
+          events: existingEvents.map(ev => ({
+            date: normalizeDate(ev.startTime),
+            startTime: normalizeTime(ev.startTime),
+            endTime: normalizeTime(ev.endTime),
+            title: ev.title,
+          })),
+          oneOnOnes: oneOnOnes.map(o => ({
+            date: normalizeDate(o.requestedDate),
+            startTime: o.startTime,
+            endTime: o.endTime,
+          })),
+        })
+      }
 
       if (!check) {
         // Return raw availability data

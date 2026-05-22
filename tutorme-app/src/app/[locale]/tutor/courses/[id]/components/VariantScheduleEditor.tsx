@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,8 +12,22 @@ import {
   ChevronDown,
   Calendar as CalendarIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { ScheduleItem } from '../constants'
 import { DAYS, TIME_SLOT_OPTIONS } from '../constants'
+
+interface AvailabilityData {
+  availability: Array<{ dayOfWeek: number; startTime: string; endTime: string }>
+  exceptions: Array<{
+    date: string
+    isAvailable: boolean
+    startTime: string | null
+    endTime: string | null
+    reason: string | null
+  }>
+  events: Array<{ date: string; startTime: string; endTime: string; title: string }>
+  oneOnOnes: Array<{ date: string; startTime: string; endTime: string }>
+}
 
 interface VariantScheduleEditorProps {
   schedule: ScheduleItem[]
@@ -25,6 +39,16 @@ interface VariantScheduleEditorProps {
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+const DAY_TO_INDEX: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+}
 
 function formatTime(time: string) {
   if (!time || typeof time !== 'string') return '–'
@@ -52,6 +76,20 @@ function formatTimeRange(startTime: string, durationMinutes: number) {
   return `${formatTime(startTime)}–${formatTime(endTime)}`
 }
 
+function timeToMinutes(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
+function timesOverlap(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string
+): boolean {
+  return timeToMinutes(startA) < timeToMinutes(endB) && timeToMinutes(endA) > timeToMinutes(startB)
+}
+
 const timezoneLabel = (() => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time'
@@ -73,6 +111,8 @@ export function VariantScheduleEditor({
   const [scheduleRepeatWeekly, setScheduleRepeatWeekly] = useState(false)
   const [numberOfWeeks, setNumberOfWeeks] = useState(weeksToSchedule || 8)
   const [totalSessionsDesired, setTotalSessionsDesired] = useState<number | ''>('')
+  const [availabilityData, setAvailabilityData] = useState<AvailabilityData | null>(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
 
   const scheduleWeekStart = (() => {
     const d = new Date()
@@ -105,6 +145,103 @@ export function VariantScheduleEditor({
     const d = String(date.getDate()).padStart(2, '0')
     return `${y}-${m}-${d}`
   }
+
+  // Fetch availability data when week offset changes
+  useEffect(() => {
+    let active = true
+    const fetchAvailability = async () => {
+      setAvailabilityLoading(true)
+      try {
+        const start = new Date(scheduleWeekStart)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(start)
+        end.setDate(end.getDate() + 6 + (numberOfWeeks || 8) * 7)
+        const url = new URL('/api/tutor/calendar/availability', window.location.origin)
+        url.searchParams.set('mode', 'schedule')
+        url.searchParams.set('start', start.toISOString())
+        url.searchParams.set('end', end.toISOString())
+        const res = await fetch(url.toString())
+        if (!res.ok) throw new Error(`Failed to fetch availability: ${res.status}`)
+        const data = await res.json()
+        if (active) {
+          setAvailabilityData({
+            availability: data.availability || [],
+            exceptions: data.exceptions || [],
+            events: data.events || [],
+            oneOnOnes: data.oneOnOnes || [],
+          })
+        }
+      } catch (err: any) {
+        console.error('Availability fetch error:', err)
+        if (active) setAvailabilityData(null)
+      } finally {
+        if (active) setAvailabilityLoading(false)
+      }
+    }
+    fetchAvailability()
+    return () => {
+      active = false
+    }
+  }, [scheduleWeekOffset, numberOfWeeks])
+
+  const getSlotStatus = useCallback(
+    (day: string, dateKey: string, timeStr: string, durationMinutes = 60) => {
+      if (!availabilityData) return { available: true, reason: '' }
+
+      const dayIndex = DAY_TO_INDEX[day]
+      if (dayIndex === undefined) return { available: true, reason: '' }
+
+      const slotStartM = timeToMinutes(timeStr)
+      const slotEndM = slotStartM + durationMinutes
+      const slotStartStr = timeStr
+      const slotEndStr = `${Math.floor(slotEndM / 60)
+        .toString()
+        .padStart(2, '0')}:${(slotEndM % 60).toString().padStart(2, '0')}`
+
+      // 1. Check recurring availability
+      const dayAvailability = availabilityData.availability.filter(
+        a => a.dayOfWeek === dayIndex
+      )
+      const withinAvailability = dayAvailability.some(a =>
+        timesOverlap(slotStartStr, slotEndStr, a.startTime, a.endTime)
+      )
+      if (dayAvailability.length > 0 && !withinAvailability) {
+        return { available: false, reason: 'Outside your set availability' }
+      }
+
+      // 2. Check exceptions
+      const dayExceptions = availabilityData.exceptions.filter(e => e.date === dateKey)
+      for (const ex of dayExceptions) {
+        if (!ex.isAvailable) {
+          return { available: false, reason: ex.reason || 'Blocked by exception' }
+        }
+        if (ex.startTime && ex.endTime) {
+          if (timesOverlap(slotStartStr, slotEndStr, ex.startTime, ex.endTime)) {
+            return { available: false, reason: ex.reason || 'Blocked by exception' }
+          }
+        }
+      }
+
+      // 3. Check existing events
+      const dayEvents = availabilityData.events.filter(e => e.date === dateKey)
+      for (const ev of dayEvents) {
+        if (timesOverlap(slotStartStr, slotEndStr, ev.startTime, ev.endTime)) {
+          return { available: false, reason: `Conflict: ${ev.title || 'Existing booking'}` }
+        }
+      }
+
+      // 4. Check one-on-ones
+      const dayOneOnOnes = availabilityData.oneOnOnes.filter(o => o.date === dateKey)
+      for (const o of dayOneOnOnes) {
+        if (timesOverlap(slotStartStr, slotEndStr, o.startTime, o.endTime)) {
+          return { available: false, reason: 'Conflict: One-on-one booking' }
+        }
+      }
+
+      return { available: true, reason: '' }
+    },
+    [availabilityData]
+  )
 
   const effectiveWeeks =
     scheduleRepeatWeekly &&
@@ -169,6 +306,12 @@ export function VariantScheduleEditor({
   )
 
   const toggleSlot = (day: string, dateKey: string, timeStr: string) => {
+    const status = getSlotStatus(day, dateKey, timeStr, 60)
+    if (!status.available) {
+      toast.error(`This slot is unavailable. ${status.reason}`)
+      return
+    }
+
     onScheduleChange(prevRaw => {
       const prev = Array.isArray(prevRaw) ? prevRaw.filter(Boolean) : []
       const idx = prev.findIndex(s => {
@@ -271,9 +414,15 @@ export function VariantScheduleEditor({
         )}
       </div>
 
+      {/* Availability loading indicator */}
+      {availabilityLoading && (
+        <div className="text-xs font-medium text-white/60">Loading availability…</div>
+      )}
+
       {/* Calendar grid */}
       <p className="text-xs font-medium text-white/70">
         Click a time slot to add or remove a 1-hour session.
+        {availabilityData && ' Unavailable slots are greyed out.'}
       </p>
       <div
         key={`week-${scheduleWeekStart.getTime()}`}
@@ -413,21 +562,34 @@ export function VariantScheduleEditor({
                               s.date === currentSlot.date
                           ) + 1
                       }
+
+                      const slotStatus = getSlotStatus(day, dateKey, timeStr, 60)
+                      const isUnavailable = !inRange && !slotStatus.available
+
+                      const cellClass = inRange
+                        ? 'bg-[#1D4ED8] font-semibold text-white'
+                        : isUnavailable
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+
                       return (
                         <div
                           key={`${day}-${timeStr}`}
                           role="button"
                           tabIndex={0}
-                          onClick={() => toggleSlot(day, dateKey, timeStr)}
+                          onClick={() => {
+                            if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
+                          }}
                           onKeyDown={e => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault()
-                              toggleSlot(day, dateKey, timeStr)
+                              if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
                             }
                           }}
-                          className={`flex h-12 w-full cursor-pointer items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${inRange ? 'bg-[#1D4ED8] font-semibold text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                          className={`flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${cellClass}`}
                           aria-pressed={inRange}
                           aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. Click to ${inRange ? 'remove' : 'add'} session.`}
+                          title={isUnavailable ? slotStatus.reason : undefined}
                         >
                           {inRange ? (
                             <span className="text-[11px]">Session {sessionNum}</span>

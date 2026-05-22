@@ -11,6 +11,7 @@ import {
   calendarEvent,
   calendarAvailability,
   calendarException,
+  oneOnOneBookingRequest,
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -376,7 +377,7 @@ export const POST = withCsrf(
         const skippedSessions: Array<{
           scheduledAt: Date
           durationMinutes: number
-          reason: 'calendar_event' | 'other_course_live_session'
+          reason: 'calendar_event' | 'other_course_live_session' | 'one_on_one'
           conflictWith?: { start?: Date | null; end?: Date | null }
           recommendations: Array<{ date: string; startTime: string; endTime: string }>
         }> = []
@@ -518,58 +519,77 @@ export const POST = withCsrf(
                   )
                 : null
 
-              const [existingLiveSessions, existingCalendarEvents] = await Promise.all([
-                minScheduledAt && maxScheduledAt
-                  ? tx
-                      .select({
-                        sessionId: liveSession.sessionId,
-                        scheduledAt: liveSession.scheduledAt,
-                        durationMinutes: liveSession.durationMinutes,
-                        courseId: liveSession.courseId,
-                        roomUrl: liveSession.roomUrl,
-                      })
-                      .from(liveSession)
-                      .where(
-                        and(
-                          eq(liveSession.tutorId, userId),
-                          inArray(liveSession.status, [
-                            'scheduled',
-                            'active',
-                            'preparing',
-                            'live',
-                            'paused',
-                          ]),
-                          gte(liveSession.scheduledAt, minScheduledAt),
-                          lte(liveSession.scheduledAt, maxScheduledAt)
+              const [existingLiveSessions, existingCalendarEvents, existingOneOnOnes] =
+                await Promise.all([
+                  minScheduledAt && maxScheduledAt
+                    ? tx
+                        .select({
+                          sessionId: liveSession.sessionId,
+                          scheduledAt: liveSession.scheduledAt,
+                          durationMinutes: liveSession.durationMinutes,
+                          courseId: liveSession.courseId,
+                          roomUrl: liveSession.roomUrl,
+                        })
+                        .from(liveSession)
+                        .where(
+                          and(
+                            eq(liveSession.tutorId, userId),
+                            inArray(liveSession.status, [
+                              'scheduled',
+                              'active',
+                              'preparing',
+                              'live',
+                              'paused',
+                            ]),
+                            gte(liveSession.scheduledAt, minScheduledAt),
+                            lte(liveSession.scheduledAt, maxScheduledAt)
+                          )
                         )
-                      )
-                  : Promise.resolve([]),
-                minScheduledAt && sessionEndMax
-                  ? tx
-                      .select({
-                        startTime: calendarEvent.startTime,
-                        endTime: calendarEvent.endTime,
-                      })
-                      .from(calendarEvent)
-                      .where(
-                        and(
-                          eq(calendarEvent.tutorId, userId),
-                          eq(calendarEvent.isCancelled, false),
-                          isNull(calendarEvent.deletedAt),
-                          or(
-                            and(
-                              gte(calendarEvent.startTime, minScheduledAt),
-                              lte(calendarEvent.startTime, sessionEndMax)
-                            ),
-                            and(
-                              gte(calendarEvent.endTime, minScheduledAt),
-                              lte(calendarEvent.endTime, sessionEndMax)
+                    : Promise.resolve([]),
+                  minScheduledAt && sessionEndMax
+                    ? tx
+                        .select({
+                          startTime: calendarEvent.startTime,
+                          endTime: calendarEvent.endTime,
+                        })
+                        .from(calendarEvent)
+                        .where(
+                          and(
+                            eq(calendarEvent.tutorId, userId),
+                            eq(calendarEvent.isCancelled, false),
+                            isNull(calendarEvent.deletedAt),
+                            or(
+                              and(
+                                gte(calendarEvent.startTime, minScheduledAt),
+                                lte(calendarEvent.startTime, sessionEndMax)
+                              ),
+                              and(
+                                gte(calendarEvent.endTime, minScheduledAt),
+                                lte(calendarEvent.endTime, sessionEndMax)
+                              )
                             )
                           )
                         )
-                      )
-                  : Promise.resolve([]),
-              ])
+                    : Promise.resolve([]),
+                  minScheduledAt && sessionEndMax
+                    ? tx
+                        .select({
+                          requestedDate: oneOnOneBookingRequest.requestedDate,
+                          startTime: oneOnOneBookingRequest.startTime,
+                          endTime: oneOnOneBookingRequest.endTime,
+                          durationMinutes: oneOnOneBookingRequest.durationMinutes,
+                        })
+                        .from(oneOnOneBookingRequest)
+                        .where(
+                          and(
+                            eq(oneOnOneBookingRequest.tutorId, userId),
+                            inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
+                            gte(oneOnOneBookingRequest.requestedDate, minScheduledAt),
+                            lte(oneOnOneBookingRequest.requestedDate, sessionEndMax)
+                          )
+                        )
+                    : Promise.resolve([]),
+                ])
 
               // Helper: check if a generated session overlaps with an existing event
               function overlaps(
@@ -615,6 +635,35 @@ export const POST = withCsrf(
                     durationMinutes: session.durationMinutes,
                     reason: 'calendar_event',
                     conflictWith: { start: conflictingCe.startTime, end: conflictingCe.endTime },
+                    recommendations: recs,
+                  })
+                  continue
+                }
+
+                const conflictingOo = existingOneOnOnes.find((oo: any) => {
+                  const ooStart = oo.requestedDate
+                  const ooEnd = new Date(
+                    oo.requestedDate.getTime() + (oo.durationMinutes || 60) * 60000
+                  )
+                  return sessionStart < ooEnd && sessionEnd > ooStart
+                })
+                if (conflictingOo) {
+                  const recs = await findAlternativeSlots(
+                    userId,
+                    session.scheduledAt,
+                    session.durationMinutes
+                  )
+                  skippedSessions.push({
+                    scheduledAt: session.scheduledAt,
+                    durationMinutes: session.durationMinutes,
+                    reason: 'one_on_one',
+                    conflictWith: {
+                      start: conflictingOo.requestedDate,
+                      end: new Date(
+                        conflictingOo.requestedDate.getTime() +
+                          (conflictingOo.durationMinutes || 60) * 60000
+                      ),
+                    },
                     recommendations: recs,
                   })
                   continue

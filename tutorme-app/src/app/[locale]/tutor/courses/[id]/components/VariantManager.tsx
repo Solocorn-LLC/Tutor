@@ -502,7 +502,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                         </Badge>
                         {variant.isPublished ? (
                           <Badge className="border-0 bg-emerald-500 text-white hover:bg-emerald-600">
-                            Published
+                            Publish
                           </Badge>
                         ) : (
                           <Badge
@@ -515,7 +515,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-slate-500">
-                          {variant.isPublished ? 'Published' : 'Unpublished'}
+                          {variant.isPublished ? 'Publish' : 'Unpublished'}
                         </span>
                         <Switch
                           checked={variant.isPublished}
