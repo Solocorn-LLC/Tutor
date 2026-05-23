@@ -308,7 +308,17 @@ export function VariantScheduleEditor({
   const toggleSlot = (day: string, dateKey: string, timeStr: string) => {
     const status = getSlotStatus(day, dateKey, timeStr, 60)
     if (!status.available) {
-      toast.error(`This slot is unavailable. ${status.reason}`)
+      if (status.reason.includes('One-on-one')) {
+        toast.error('This slot conflicts with a one-on-one booking.')
+      } else if (status.reason.includes('Existing booking') || status.reason.includes('Conflict:')) {
+        toast.error('This slot conflicts with an existing scheduled session.')
+      } else if (status.reason.includes('exception')) {
+        toast.error('This slot is blocked by a calendar exception.')
+      } else if (status.reason.includes('availability')) {
+        toast.error('This slot is outside your set availability hours.')
+      } else {
+        toast.error(`This slot is unavailable. ${status.reason}`)
+      }
       return
     }
 
@@ -420,10 +430,28 @@ export function VariantScheduleEditor({
       )}
 
       {/* Calendar grid */}
-      <p className="text-xs font-medium text-white/70">
-        Click a time slot to add or remove a 1-hour session.
-        {availabilityData && ' Unavailable slots are greyed out.'}
-      </p>
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-white/70">
+          Click a time slot to add or remove a 1-hour session.
+          {availabilityData && ' Unavailable slots are greyed out.'}
+        </p>
+        {availabilityData && (
+          <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-white/50">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
+              Selected
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-3 w-3 rounded-sm bg-white border border-slate-200" />
+              Available
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-3 w-3 rounded-sm bg-slate-200" />
+              Unavailable
+            </span>
+          </div>
+        )}
+      </div>
       <div
         key={`week-${scheduleWeekStart.getTime()}`}
         className="overflow-hidden rounded-[14px] bg-white"

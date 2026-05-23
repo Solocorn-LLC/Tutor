@@ -268,9 +268,9 @@ export default function TutorCoursePage() {
       .then(data => {
         if (data?.profile) {
           setTutorProfile(data.profile)
-          // Load tutor's categories from profile if available
-          if (data.profile.categories && Array.isArray(data.profile.categories)) {
-            setSelectedCategories(data.profile.categories)
+          // Load tutor's categories from profile if available (single category only)
+          if (data.profile.categories && Array.isArray(data.profile.categories) && data.profile.categories.length > 0) {
+            setSelectedCategories([data.profile.categories[0]])
           }
         }
       })
@@ -286,9 +286,9 @@ export default function TutorCoursePage() {
     setPrice(course.isFree ? '' : course.price != null ? String(course.price) : '')
     setCurrency('USD') // Fixed to USD
     setSchedule(Array.isArray(course.schedule) ? [...course.schedule] : [])
-    // Load categories from course if available, otherwise use tutor profile categories
-    if (course.categories && Array.isArray(course.categories)) {
-      setSelectedCategories(course.categories)
+    // Load categories from course if available (single category only)
+    if (course.categories && Array.isArray(course.categories) && course.categories.length > 0) {
+      setSelectedCategories([course.categories[0]])
     }
   }, [course, tutorProfile])
 
@@ -504,11 +504,9 @@ export default function TutorCoursePage() {
     )
   }
 
-  // Toggle category selection
-  const toggleCategory = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    )
+  // Select a single category (replaces any previously selected category)
+  const selectCategory = (category: string) => {
+    setSelectedCategories([category])
   }
 
   // Toggle region selection
@@ -929,9 +927,10 @@ export default function TutorCoursePage() {
                                         className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                                       >
                                         <input
-                                          type="checkbox"
-                                          checked={selectedCategories.includes(exam)}
-                                          onChange={() => toggleCategory(exam)}
+                                          type="radio"
+                                          name="category"
+                                          checked={selectedCategories[0] === exam}
+                                          onChange={() => selectCategory(exam)}
                                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{exam}</span>
@@ -971,9 +970,10 @@ export default function TutorCoursePage() {
                                         className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                                       >
                                         <input
-                                          type="checkbox"
-                                          checked={selectedCategories.includes(exam)}
-                                          onChange={() => toggleCategory(exam)}
+                                          type="radio"
+                                          name="category"
+                                          checked={selectedCategories[0] === exam}
+                                          onChange={() => selectCategory(exam)}
                                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{exam}</span>
@@ -1013,9 +1013,10 @@ export default function TutorCoursePage() {
                                         className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                                       >
                                         <input
-                                          type="checkbox"
-                                          checked={selectedCategories.includes(exam)}
-                                          onChange={() => toggleCategory(exam)}
+                                          type="radio"
+                                          name="category"
+                                          checked={selectedCategories[0] === exam}
+                                          onChange={() => selectCategory(exam)}
                                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{exam}</span>
@@ -1055,9 +1056,10 @@ export default function TutorCoursePage() {
                                         className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                                       >
                                         <input
-                                          type="checkbox"
-                                          checked={selectedCategories.includes(exam)}
-                                          onChange={() => toggleCategory(exam)}
+                                          type="radio"
+                                          name="category"
+                                          checked={selectedCategories[0] === exam}
+                                          onChange={() => selectCategory(exam)}
                                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{exam}</span>
@@ -1097,9 +1099,10 @@ export default function TutorCoursePage() {
                                         className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50"
                                       >
                                         <input
-                                          type="checkbox"
-                                          checked={selectedCategories.includes(exam)}
-                                          onChange={() => toggleCategory(exam)}
+                                          type="radio"
+                                          name="category"
+                                          checked={selectedCategories[0] === exam}
+                                          onChange={() => selectCategory(exam)}
                                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{exam}</span>
@@ -1151,7 +1154,7 @@ export default function TutorCoursePage() {
                                             <input
                                               type="checkbox"
                                               checked={selectedCategories.includes(exam)}
-                                              onChange={() => toggleCategory(exam)}
+                                              onChange={() => selectCategory(exam)}
                                               className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                             />
                                             <span className="text-sm text-slate-700">{exam}</span>
@@ -1172,10 +1175,7 @@ export default function TutorCoursePage() {
                 {selectedCategories.length > 0 && (
                   <div className="flex items-center gap-2 pt-2 text-sm font-medium text-emerald-600">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>
-                      {selectedCategories.length} categor
-                      {selectedCategories.length === 1 ? 'y' : 'ies'} selected
-                    </span>
+                    <span>Category: {selectedCategories[0]}</span>
                   </div>
                 )}
               </CardContent>

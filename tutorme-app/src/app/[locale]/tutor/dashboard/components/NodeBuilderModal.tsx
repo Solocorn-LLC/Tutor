@@ -60,7 +60,7 @@ export function NodeBuilderModal({ isOpen, onClose, onSave, initialData }: NodeB
                 checked={data.isPublished}
                 onCheckedChange={checked => setData({ ...data, isPublished: checked })}
               />
-              <Label>Published (visible to students)</Label>
+              <Label>Publish (visible to students)</Label>
             </div>
           </div>
         </div>

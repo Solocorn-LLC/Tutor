@@ -12,8 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarAvailability, calendarException, calendarEvent, oneOnOneBookingRequest } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, asc, isNull, inArray } from 'drizzle-orm'
+import { calendarAvailability, calendarException, calendarEvent, oneOnOneBookingRequest, liveSession } from '@/lib/db/schema'
+import { eq, and, or, gte, lte, gt, lt, asc, isNull, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 
@@ -74,6 +74,7 @@ export const GET = withAuth(
         const startDate = new Date(start)
         const endDate = new Date(end)
 
+        // Query calendar events with proper overlap detection (catches spanning events)
         const existingEvents = await drizzleDb
           .select({
             startTime: calendarEvent.startTime,
@@ -86,10 +87,27 @@ export const GET = withAuth(
               eq(calendarEvent.tutorId, tutorId),
               isNull(calendarEvent.deletedAt),
               eq(calendarEvent.isCancelled, false),
-              or(
-                and(gte(calendarEvent.startTime, startDate), lte(calendarEvent.startTime, endDate)),
-                and(gte(calendarEvent.endTime, startDate), lte(calendarEvent.endTime, endDate))
-              )
+              lt(calendarEvent.startTime, endDate),
+              gt(calendarEvent.endTime, startDate)
+            )
+          )
+
+        // Query live sessions directly (source of truth) that overlap the range
+        const liveSessions = await drizzleDb
+          .select({
+            scheduledAt: liveSession.scheduledAt,
+            durationMinutes: liveSession.durationMinutes,
+            title: liveSession.title,
+          })
+          .from(liveSession)
+          .where(
+            and(
+              eq(liveSession.tutorId, tutorId),
+              inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
+              // A live session overlaps if: scheduledAt < endDate AND (scheduledAt + duration) > startDate
+              // We approximate with scheduledAt within a window that could overlap
+              gte(liveSession.scheduledAt, new Date(startDate.getTime() - 24 * 60 * 60 * 1000)),
+              lte(liveSession.scheduledAt, endDate)
             )
           )
 
@@ -112,6 +130,39 @@ export const GET = withAuth(
         const normalizeDate = (d: Date) => d.toISOString().split('T')[0]
         const normalizeTime = (d: Date) => d.toISOString().split('T')[1].slice(0, 5)
 
+        // Merge calendar events and live sessions into a single events array
+        const calendarEventItems = existingEvents.map(ev => ({
+          date: normalizeDate(ev.startTime),
+          startTime: normalizeTime(ev.startTime),
+          endTime: normalizeTime(ev.endTime),
+          title: ev.title,
+        }))
+
+        const liveSessionItems = liveSessions
+          .filter(ls => ls.scheduledAt != null)
+          .map(ls => {
+            const start = new Date(ls.scheduledAt!)
+            const end = new Date(start.getTime() + (ls.durationMinutes ?? 60) * 60 * 1000)
+            return {
+              date: normalizeDate(start),
+              startTime: normalizeTime(start),
+              endTime: normalizeTime(end),
+              title: ls.title || 'Live Session',
+            }
+          })
+
+        // Deduplicate: if a live session already has a calendar event on the same slot, prefer the calendar event
+        const eventMap = new Map<string, typeof calendarEventItems[0]>()
+        for (const ev of calendarEventItems) {
+          eventMap.set(`${ev.date}_${ev.startTime}_${ev.endTime}`, ev)
+        }
+        for (const ls of liveSessionItems) {
+          const key = `${ls.date}_${ls.startTime}_${ls.endTime}`
+          if (!eventMap.has(key)) {
+            eventMap.set(key, ls)
+          }
+        }
+
         return NextResponse.json({
           availability: availability.map(a => ({
             dayOfWeek: a.dayOfWeek,
@@ -125,12 +176,7 @@ export const GET = withAuth(
             endTime: e.endTime,
             reason: e.reason,
           })),
-          events: existingEvents.map(ev => ({
-            date: normalizeDate(ev.startTime),
-            startTime: normalizeTime(ev.startTime),
-            endTime: normalizeTime(ev.endTime),
-            title: ev.title,
-          })),
+          events: Array.from(eventMap.values()),
           oneOnOnes: oneOnOnes.map(o => ({
             date: normalizeDate(o.requestedDate),
             startTime: o.startTime,
@@ -381,10 +427,8 @@ async function generateAvailableSlots(
         eq(calendarEvent.tutorId, tutorId),
         isNull(calendarEvent.deletedAt),
         eq(calendarEvent.isCancelled, false),
-        or(
-          and(gte(calendarEvent.startTime, startDate), lte(calendarEvent.startTime, endDate)),
-          and(gte(calendarEvent.endTime, startDate), lte(calendarEvent.endTime, endDate))
-        )
+        lt(calendarEvent.startTime, endDate),
+        gt(calendarEvent.endTime, startDate)
       )
     )
 

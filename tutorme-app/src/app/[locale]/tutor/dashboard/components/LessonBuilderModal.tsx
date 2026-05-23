@@ -235,7 +235,7 @@ export function LessonBuilderModal({
                   checked={data.isPublished}
                   onCheckedChange={checked => setData({ ...data, isPublished: checked })}
                 />
-                <Label className="text-sm">Published</Label>
+                <Label className="text-sm">Publish</Label>
               </div>
             </div>
           </div>
