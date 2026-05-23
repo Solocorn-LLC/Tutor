@@ -463,7 +463,10 @@ export class BundleOptimizer {
 
   private async registerServiceWorker(): Promise<void> {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js')
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none',
+      })
       console.log('Service Worker registered:', registration)
     } catch (error) {
       console.warn('Service Worker registration failed:', error)

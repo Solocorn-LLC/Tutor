@@ -24,6 +24,7 @@ const MAX_OFFLINE_REQUESTS = 100
 const API_CACHE_MAX_AGE = 60 * 5 // 5 minutes
 const STATIC_CACHE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 const API_NETWORK_TIMEOUT_MS = 10000
+const NAVIGATION_TIMEOUT_MS = 10000
 
 const AUTH_API_PREFIXES = ['/api/auth/', '/api/csrf']
 
@@ -47,11 +48,13 @@ const PRECACHE_URLS = ['/offline.html', '/manifest.json']
 self.addEventListener('install', (event: any) => {
   console.warn('[Service Worker] Installing...', CACHE_VERSION)
 
+  // Always skip waiting so the new SW activates, even if precache fails
+  self.skipWaiting()
+
   event.waitUntil(
     caches
       .open(CACHE_NAMES.PRECACHE)
       .then(cache => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
       .catch(err => console.warn('[Service Worker] Precache failed:', err))
   )
 })
@@ -72,8 +75,14 @@ self.addEventListener('activate', (event: any) => {
                 !Object.values(CACHE_NAMES).includes(name)
             )
             .map(name => caches.delete(name))
-        ).then(() => self.clients.claim())
+        )
       )
+      .then(() => self.clients.claim())
+      .catch(err => {
+        console.error('[Service Worker] Activation failed:', err)
+        // Still try to claim clients even if cleanup failed
+        return self.clients.claim()
+      })
   )
 })
 
@@ -114,7 +123,7 @@ async function getOfflineRequests(): Promise<OfflineRequest[]> {
     const response = await cache.match('offline-queue')
     if (response) {
       const queue = (await response.json()) as OfflineQueue
-      return queue.requests
+      return Array.isArray(queue.requests) ? queue.requests : []
     }
   } catch (err) {
     console.error('[Service Worker] Failed to get offline requests:', err)
@@ -135,43 +144,42 @@ function isCacheFresh(cachedResponse: Response, maxAgeSeconds: number): boolean 
   const date = cachedResponse.headers.get('date')
   if (!date) return false
   const age = (Date.now() - new Date(date).getTime()) / 1000
+  if (isNaN(age)) return false
   return age < maxAgeSeconds
 }
 
 // Fetch handler with routing logic
 self.addEventListener('fetch', (event: any) => {
   const { request } = event
-  const url = new URL(request.url)
+
+  // Guard: only handle GET requests for cacheable resources
+  const isGet = request.method === 'GET'
+
+  // Parse URL safely - invalid URLs fall through to browser default
+  let url: URL
+  try {
+    url = new URL(request.url)
+  } catch {
+    return
+  }
 
   // Navigation requests - serve offline page when offline
   if (
     request.mode === 'navigate' ||
-    (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))
+    (isGet && request.headers.get('accept')?.includes('text/html'))
   ) {
-    event.respondWith(
-      fetch(request).catch(() =>
-        caches
-          .open(CACHE_NAMES.PRECACHE)
-          .then(cache => cache.match('/offline.html'))
-          .then(
-            r =>
-              r ||
-              new Response(getOfflineFallbackHTML(), {
-                headers: {
-                  'Content-Type': 'text/html; charset=utf-8',
-                  'Cache-Control': 'no-cache',
-                  'X-Offline': 'true',
-                },
-              })
-          )
-      )
-    )
+    event.respondWith(handleNavigationRequest(event))
     return
   }
 
-  // API requests - Bypass cache entirely
+  // API requests - network with cache fallback + offline queue
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(request))
+    event.respondWith(handleApiRequest(event))
+    return
+  }
+
+  // Only cache GET requests for the following asset types
+  if (!isGet) {
     return
   }
 
@@ -188,11 +196,39 @@ self.addEventListener('fetch', (event: any) => {
   }
 
   // Fonts (Google Fonts etc)
-  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com')) {
+  if (
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com')
+  ) {
     event.respondWith(handleStaticRequest(event))
     return
   }
 })
+
+async function handleNavigationRequest(event: any): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), NAVIGATION_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(event.request, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    return response
+  } catch {
+    clearTimeout(timeoutId)
+    const cache = await caches.open(CACHE_NAMES.PRECACHE)
+    const cached = await cache.match('/offline.html')
+    return (
+      cached ||
+      new Response(getOfflineFallbackHTML(), {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache',
+          'X-Offline': 'true',
+        },
+      })
+    )
+  }
+}
 
 async function handleApiRequest(event: any): Promise<Response> {
   try {
@@ -207,36 +243,36 @@ async function handleApiRequest(event: any): Promise<Response> {
     if (response.ok) {
       const cache = await caches.open(CACHE_NAMES.API)
       const clone = response.clone()
-      cache.put(event.request, clone)
+      await cache.put(event.request, clone)
     }
     return response
   } catch {
     // Try cache
-    const cached = await caches.match(event.request)
+    const cache = await caches.open(CACHE_NAMES.API)
+    const cached = await cache.match(event.request)
     if (cached) {
       const fresh = isCacheFresh(cached, API_CACHE_MAX_AGE)
       if (fresh) return cached
     }
 
-    // Queue for background sync
-    const offlineReq: OfflineRequest = {
-      id: Date.now().toString(),
-      method: event.request.method,
-      url: event.request.url,
-      headers: Object.fromEntries(event.request.headers.entries()),
-      body:
-        event.request.method !== 'GET' && event.request.method !== 'HEAD'
-          ? await event.request.text()
-          : undefined,
-      timestamp: Date.now(),
+    // Queue for background sync (only non-GET/HEAD requests)
+    const method = event.request.method
+    if (method !== 'GET' && method !== 'HEAD') {
+      const offlineReq: OfflineRequest = {
+        id: Date.now().toString(),
+        method,
+        url: event.request.url,
+        headers: Object.fromEntries(event.request.headers.entries()),
+        body: await event.request.text(),
+        timestamp: Date.now(),
+      }
+      await storeOfflineRequest(offlineReq)
     }
-    await storeOfflineRequest(offlineReq)
 
     return new Response(
       JSON.stringify({
         error: 'offline',
         message: 'You are offline. Request will sync when connected.',
-        requestId: offlineReq.id,
       }),
       {
         status: 503,
@@ -250,43 +286,50 @@ async function handleApiRequest(event: any): Promise<Response> {
 }
 
 async function handleImageRequest(event: any): Promise<Response> {
-  const cached = await caches.match(event.request)
+  const cache = await caches.open(CACHE_NAMES.IMAGES)
+  const cached = await cache.match(event.request)
   if (cached) return cached
 
   try {
     const response = await fetch(event.request)
-    if (response.ok) {
-      const cache = await caches.open(CACHE_NAMES.IMAGES)
-      cache.put(event.request, response.clone())
+    if (response.ok && response.status === 200) {
+      await cache.put(event.request, response.clone())
     }
     return response
   } catch {
-    return cached || new Response('', { status: 503 })
+    return new Response('', { status: 503 })
   }
 }
 
 async function handleStaticRequest(event: any): Promise<Response> {
-  const cached = await caches.match(event.request)
-  if (cached && isCacheFresh(cached, STATIC_CACHE_MAX_AGE)) {
-    fetch(event.request)
-      .then(r => {
-        if (r.ok) caches.open(CACHE_NAMES.STATIC).then(c => c.put(event.request, r))
-      })
-      .catch(() => {
-        // Background cache update failed - will try again on next request
-      })
+  const cache = await caches.open(CACHE_NAMES.STATIC)
+  const cached = await cache.match(event.request)
+
+  if (cached) {
+    const fresh = isCacheFresh(cached, STATIC_CACHE_MAX_AGE)
+    if (!fresh) {
+      // Stale - background revalidate without blocking
+      fetch(event.request)
+        .then(async r => {
+          if (r.ok && r.status === 200) {
+            await cache.put(event.request, r.clone())
+          }
+        })
+        .catch(() => {
+          // Background cache update failed - will try again on next request
+        })
+    }
     return cached
   }
 
   try {
     const response = await fetch(event.request)
-    if (response.ok) {
-      const cache = await caches.open(CACHE_NAMES.STATIC)
-      cache.put(event.request, response.clone())
+    if (response.ok && response.status === 200) {
+      await cache.put(event.request, response.clone())
     }
     return response
   } catch {
-    return cached || new Response('', { status: 503 })
+    return new Response('', { status: 503 })
   }
 }
 
@@ -335,12 +378,19 @@ self.addEventListener('message', (event: any) => {
       })
       break
     case 'CLEAR_OFFLINE_REQUESTS':
-      clearOfflineRequests()
+      clearOfflineRequests().then(() => {
+        event.source?.postMessage({
+          type: 'OFFLINE_CLEARED',
+          success: true,
+        })
+      })
       break
   }
 })
 
 // Background sync when online
+let isSyncing = false
+
 self.addEventListener('sync', (event: any) => {
   if (event.tag === 'background-sync') {
     event.waitUntil(replayOfflineRequests())
@@ -348,30 +398,68 @@ self.addEventListener('sync', (event: any) => {
 })
 
 async function replayOfflineRequests(): Promise<void> {
-  const requests = await getOfflineRequests()
-  for (const req of requests) {
-    try {
-      const options: RequestInit = {
-        method: req.method,
-        headers: new Headers(req.headers),
-      }
-      if (req.body) options.body = req.body
-      await fetch(req.url, options)
+  if (isSyncing) return
+  isSyncing = true
 
-      const remaining = await getOfflineRequests()
-      const updated = remaining.filter(r => r.id !== req.id)
-      const cache = await caches.open(CACHE_NAMES.OFFLINE)
-      await cache.put(
-        'offline-queue',
-        new Response(JSON.stringify({ requests: updated, lastSync: Date.now() }), {
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-    } catch (err) {
-      console.error('[Service Worker] Background sync failed:', req.id, err)
+  try {
+    const requests = await getOfflineRequests()
+    if (requests.length === 0) {
+      broadcastSyncComplete(true)
+      return
     }
+
+    const succeeded: string[] = []
+    const failed: OfflineRequest[] = []
+
+    for (const req of requests) {
+      try {
+        const options: RequestInit = {
+          method: req.method,
+          headers: new Headers(req.headers),
+          credentials: 'include',
+        }
+        if (req.body) options.body = req.body
+
+        const response = await fetch(req.url, options)
+        if (response.ok) {
+          succeeded.push(req.id)
+        } else {
+          failed.push(req)
+          console.error(
+            '[Service Worker] Background sync HTTP error:',
+            req.id,
+            response.status
+          )
+        }
+      } catch (err) {
+        failed.push(req)
+        console.error('[Service Worker] Background sync failed:', req.id, err)
+      }
+    }
+
+    // Write back only the failed requests (atomic update)
+    const cache = await caches.open(CACHE_NAMES.OFFLINE)
+    await cache.put(
+      'offline-queue',
+      new Response(
+        JSON.stringify({ requests: failed, lastSync: Date.now() }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    )
+
+    const allSucceeded = failed.length === 0
+    broadcastSyncComplete(allSucceeded)
+  } finally {
+    isSyncing = false
   }
+}
+
+function broadcastSyncComplete(success: boolean): void {
   self.clients.matchAll({ type: 'window' }).then((clients: any[]) => {
-    clients.forEach(c => c.postMessage({ type: 'OFFLINE_SYNC_COMPLETE', success: true }))
+    clients.forEach(c => {
+      c.postMessage({ type: 'OFFLINE_SYNC_COMPLETE', success })
+    })
   })
 }
