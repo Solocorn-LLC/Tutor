@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { eq, and, lt, gt, isNull, ne } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest, calendarEvent } from '@/lib/db/schema'
+import { oneOnOneBookingRequest } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
+import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 
 const respondSchema = z.object({
   requestId: z.string().min(1),
@@ -68,27 +69,40 @@ export async function PATCH(request: NextRequest) {
       // Create event timestamps
       const eventStart = new Date(`${slotDate}T${slotStartTime}:00`)
       const eventEnd = new Date(`${slotDate}T${slotEndTime}:00`)
+      const durationMinutes = existingRequest.durationMinutes || 60
+
+      // CHECK FOR CONFLICTS using unified conflict detector
+      const conflicts = await findConflicts(session.user.id, eventStart, eventEnd, {
+        excludeOneOnOneId: validated.requestId,
+      })
+
+      if (conflicts.length > 0) {
+        // Provide alternative slot recommendations
+        const alternativeSlots = await findAlternativeSlots(
+          session.user.id,
+          eventStart,
+          durationMinutes,
+          {
+            maxSuggestions: 3,
+            excludeOneOnOneId: validated.requestId,
+          }
+        )
+        return NextResponse.json(
+          {
+            error: 'This time slot conflicts with an existing session. Please choose another slot.',
+            conflicts: conflicts.map(c => ({
+              type: c.type,
+              title: c.title,
+              startTime: c.startTime.toISOString(),
+              endTime: c.endTime.toISOString(),
+            })),
+            suggestedTimes: alternativeSlots,
+          },
+          { status: 409 }
+        )
+      }
 
       const txResult = await drizzleDb.transaction(async tx => {
-        const conflicting = await tx
-          .select({ eventId: calendarEvent.eventId })
-          .from(calendarEvent)
-          .where(
-            and(
-              eq(calendarEvent.tutorId, existingRequest.tutorId),
-              lt(calendarEvent.startTime, eventEnd),
-              gt(calendarEvent.endTime, eventStart),
-              isNull(calendarEvent.deletedAt),
-              eq(calendarEvent.isCancelled, false),
-              ne(calendarEvent.status, 'CANCELLED')
-            )
-          )
-          .limit(1)
-
-        if (conflicting.length > 0) {
-          return { conflict: true as const }
-        }
-
         // Create a Daily.co room for the 1-on-1 session
         const room = await dailyProvider.createRoom(`1on1-${existingRequest.requestId}`, {
           maxParticipants: 2,
@@ -125,15 +139,8 @@ export async function PATCH(request: NextRequest) {
           .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
           .returning()
 
-        return { conflict: false as const, updatedRequest, newEvent }
+        return { updatedRequest, newEvent }
       })
-
-      if (txResult.conflict) {
-        return NextResponse.json(
-          { error: 'This time slot is no longer available. Please choose another slot.' },
-          { status: 409 }
-        )
-      }
 
       // Send notification to student that request was accepted
       notify({

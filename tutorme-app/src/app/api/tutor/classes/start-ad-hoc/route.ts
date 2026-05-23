@@ -7,6 +7,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
+import { findConflicts } from '@/lib/schedule/conflicts'
 
 const SPECIAL_TOKENS = ['kim.kon#26', 'stephen#26'] // fallback token, should match the one in landing page
 
@@ -147,6 +148,25 @@ export const POST = withAuth(
         }
 
         const isPublished = courseRecord.isPublished
+
+        // Check for conflicts before starting ad-hoc teaching session
+        const sessionStart = new Date()
+        const sessionEnd = new Date(sessionStart.getTime() + 120 * 60000) // 120 min default
+        const conflicts = await findConflicts(currentUser.id, sessionStart, sessionEnd)
+        if (conflicts.length > 0) {
+          return NextResponse.json(
+            {
+              error: 'You have a scheduling conflict. Please end your current session or wait for it to finish before starting a new one.',
+              conflicts: conflicts.map(c => ({
+                type: c.type,
+                title: c.title,
+                startTime: c.startTime.toISOString(),
+                endTime: c.endTime.toISOString(),
+              })),
+            },
+            { status: 409 }
+          )
+        }
 
         let room
         try {

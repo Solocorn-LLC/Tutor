@@ -13,6 +13,7 @@ import {
   calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, gte, lte } from 'drizzle-orm'
+import { findConflicts } from '@/lib/schedule/conflicts'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -106,19 +107,6 @@ export const GET = withAuth(
         )
       )
 
-    // Query existing events in range
-    const existingEvents = await drizzleDb
-      .select({ startTime: calendarEvent.startTime, endTime: calendarEvent.endTime })
-      .from(calendarEvent)
-      .where(
-        and(
-          eq(calendarEvent.tutorId, tutorId),
-          eq(calendarEvent.isCancelled, false),
-          gte(calendarEvent.startTime, searchStart),
-          lte(calendarEvent.startTime, searchEnd)
-        )
-      )
-
     const cursor = new Date(originalStart)
     cursor.setDate(cursor.getDate() - 7)
 
@@ -170,10 +158,12 @@ export const GET = withAuth(
         continue
       }
 
-      const hasConflict = existingEvents.some(
-        (ev: any) => slotStart < ev.endTime && slotEnd > ev.startTime
-      )
-      if (!hasConflict) {
+      // Use unified conflict detector instead of just calendarEvent
+      const conflicts = await findConflicts(tutorId, slotStart, slotEnd, {
+        excludeSessionId: ls.sessionId,
+      })
+
+      if (conflicts.length === 0) {
         const endTimeStr = new Date(slotStart.getTime() + durationMinutes * 60000)
           .toISOString()
           .split('T')[1]

@@ -15,8 +15,9 @@ import {
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
-import { eq, and, inArray, gte, lte, sql, or, isNull } from 'drizzle-orm'
+import { eq, and, inArray, gte, lte, lt, gt, sql, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
+import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
 
 // GET current variants for this template course
 export const GET = withAuth(
@@ -151,151 +152,18 @@ function generateSessionDates(
   return sessions
 }
 
-// Helper: find alternative slots near a given date/time based on tutor availability
+// Wrapper around shared findAlternativeSlots for use inside the publish route
 async function findAlternativeSlots(
   tutorId: string,
   originalStart: Date,
   durationMinutes: number,
   count = 3
 ): Promise<Array<{ date: string; startTime: string; endTime: string }>> {
-  const recommendations: Array<{ date: string; startTime: string; endTime: string }> = []
-  const originalTimeStr = originalStart.toISOString().split('T')[1].slice(0, 5)
-  const originalDayOfWeek = originalStart.getDay()
-
-  // Query tutor availability for the same day of week
-  const availabilityRows = await drizzleDb
-    .select()
-    .from(calendarAvailability)
-    .where(
-      and(
-        eq(calendarAvailability.tutorId, tutorId),
-        eq(calendarAvailability.dayOfWeek, originalDayOfWeek),
-        eq(calendarAvailability.isAvailable, true)
-      )
-    )
-
-  if (availabilityRows.length === 0) return recommendations
-
-  // Build a set of available time ranges for this day
-  const availableRanges = availabilityRows.map(a => ({
-    start: a.startTime,
-    end: a.endTime,
-  }))
-
-  // Check if the original time falls within any available range
-  const isTimeAvailable = availableRanges.some(
-    r => originalTimeStr >= r.start && originalTimeStr < r.end
-  )
-
-  // Search +/- 14 days from original date
-  const searchStart = new Date(originalStart)
-  searchStart.setDate(searchStart.getDate() - 7)
-  const searchEnd = new Date(originalStart)
-  searchEnd.setDate(searchEnd.getDate() + 14)
-
-  // Query exceptions in range
-  const exceptions = await drizzleDb
-    .select()
-    .from(calendarException)
-    .where(
-      and(
-        eq(calendarException.tutorId, tutorId),
-        gte(calendarException.date, searchStart),
-        lte(calendarException.date, searchEnd)
-      )
-    )
-
-  // Query existing events in range
-  const existingEvents = await drizzleDb
-    .select({ startTime: calendarEvent.startTime, endTime: calendarEvent.endTime })
-    .from(calendarEvent)
-    .where(
-      and(
-        eq(calendarEvent.tutorId, tutorId),
-        eq(calendarEvent.isCancelled, false),
-        isNull(calendarEvent.deletedAt),
-        gte(calendarEvent.startTime, searchStart),
-        lte(calendarEvent.startTime, searchEnd)
-      )
-    )
-
-  const cursor = new Date(originalStart)
-  cursor.setDate(cursor.getDate() - 7)
-
-  while (cursor <= searchEnd && recommendations.length < count) {
-    if (cursor.getTime() === originalStart.getTime()) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    const dateStr = cursor.toISOString().split('T')[0]
-    const dayOfWeek = cursor.getDay()
-
-    // Skip if not the same day of week (or if availability doesn't cover it)
-    if (dayOfWeek !== originalDayOfWeek) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    // Check exceptions
-    const dayException = exceptions.find(e => e.date.toISOString().split('T')[0] === dateStr)
-    if (dayException && !dayException.isAvailable) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    // Check if the same time slot is available on this day
-    const slotStart = new Date(`${dateStr}T${originalTimeStr}`)
-    const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60000)
-
-    // Skip past dates
-    if (slotEnd <= new Date()) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    // Check time falls within availability
-    const timeInRange = availableRanges.some(
-      r => originalTimeStr >= r.start && originalTimeStr < r.end
-    )
-    if (!timeInRange) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    // Check exception time ranges
-    const timeException = exceptions.find(e => {
-      if (e.date.toISOString().split('T')[0] !== dateStr) return false
-      if (!e.startTime || !e.endTime) return false
-      const exStart = new Date(`${dateStr}T${e.startTime}`)
-      const exEnd = new Date(`${dateStr}T${e.endTime}`)
-      return slotStart < exEnd && slotEnd > exStart
-    })
-    if (timeException) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
-
-    // Check conflicts with existing events
-    const hasConflict = existingEvents.some(
-      (ev: any) => slotStart < ev.endTime && slotEnd > ev.startTime
-    )
-    if (!hasConflict) {
-      const endTimeStr = new Date(slotStart.getTime() + durationMinutes * 60000)
-        .toISOString()
-        .split('T')[1]
-        .slice(0, 5)
-      recommendations.push({
-        date: dateStr,
-        startTime: originalTimeStr,
-        endTime: endTimeStr,
-      })
-    }
-
-    cursor.setDate(cursor.getDate() + 1)
-  }
-
-  return recommendations
+  return sharedFindAlternativeSlots(tutorId, originalStart, durationMinutes, {
+    maxSuggestions: count,
+    searchDays: 21,
+    sameDayOfWeek: true,
+  })
 }
 
 export const POST = withCsrf(
@@ -558,16 +426,8 @@ export const POST = withCsrf(
                             eq(calendarEvent.tutorId, userId),
                             eq(calendarEvent.isCancelled, false),
                             isNull(calendarEvent.deletedAt),
-                            or(
-                              and(
-                                gte(calendarEvent.startTime, minScheduledAt),
-                                lte(calendarEvent.startTime, sessionEndMax)
-                              ),
-                              and(
-                                gte(calendarEvent.endTime, minScheduledAt),
-                                lte(calendarEvent.endTime, sessionEndMax)
-                              )
-                            )
+                            lt(calendarEvent.startTime, sessionEndMax),
+                            gt(calendarEvent.endTime, minScheduledAt)
                           )
                         )
                     : Promise.resolve([]),

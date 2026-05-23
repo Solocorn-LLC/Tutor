@@ -4,13 +4,14 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq, and, gte, desc, asc, SQL, inArray, lt, or, isNull } from 'drizzle-orm'
+import { eq, and, gte, desc, asc, SQL, inArray, lt, or, isNull, gt } from 'drizzle-orm'
 import { withAuth, withCsrf, ValidationError } from '@/lib/api/middleware'
 import { CreateRoomSchema, validateRequest } from '@/lib/validation/schemas'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, course, user, profile, sessionParticipant } from '@/lib/db/schema'
 import { createSession } from '@/lib/sessions/create-session'
+import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 
 // POST /api/class/rooms - Create a new class room
 export const POST = withCsrf(
@@ -26,6 +27,7 @@ export const POST = withCsrf(
         const data = await validateRequest(req, CreateRoomSchema)
         const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : new Date()
         const isScheduledForFuture = scheduledAt.getTime() > Date.now()
+        const durationMinutes = data.durationMinutes || 60
 
         if (data.courseId) {
           const [ownedCourse] = await drizzleDb
@@ -42,40 +44,36 @@ export const POST = withCsrf(
           }
         }
 
-        // Create video room via Daily.co
-        // Cap at 50 — code limit raised, but actual Daily.co plan may restrict further
+        // PROPER conflict detection: check for overlapping live sessions
         const slotStart = new Date(scheduledAt)
-        slotStart.setSeconds(0, 0)
-        const slotEnd = new Date(slotStart)
-        slotEnd.setMinutes(slotEnd.getMinutes() + 1)
+        const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60000)
 
-        const conflictingSession = await drizzleDb
-          .select({ sessionId: liveSession.sessionId })
-          .from(liveSession)
-          .where(
-            or(
-              and(
-                eq(liveSession.tutorId, userId),
-                inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
-                gte(liveSession.scheduledAt, slotStart),
-                lt(liveSession.scheduledAt, slotEnd)
-              ),
-              and(
-                eq(liveSession.tutorId, userId),
-                inArray(liveSession.status, ['active', 'preparing', 'live', 'paused']),
-                isNull(liveSession.endedAt)
-              )
-            )
+        const conflicts = await findConflicts(userId, slotStart, slotEnd)
+
+        if (conflicts.length > 0) {
+          const alternativeSlots = await findAlternativeSlots(
+            userId,
+            slotStart,
+            durationMinutes,
+            { maxSuggestions: 3 }
           )
-          .limit(1)
-
-        if (conflictingSession.length > 0) {
           return NextResponse.json(
-            { error: 'You already have a session scheduled or running during this time slot.' },
+            {
+              error: 'You already have a session scheduled during this time slot.',
+              conflicts: conflicts.map(c => ({
+                type: c.type,
+                title: c.title,
+                startTime: c.startTime.toISOString(),
+                endTime: c.endTime.toISOString(),
+              })),
+              suggestedTimes: alternativeSlots,
+            },
             { status: 409 }
           )
         }
 
+        // Create video room via Daily.co
+        // Cap at 50 — code limit raised, but actual Daily.co plan may restrict further
         let room
         try {
           const maxParticipants = Math.min(data.maxStudents + 1, 50) // +1 for tutor, capped at 50

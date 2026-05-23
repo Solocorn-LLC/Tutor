@@ -4,6 +4,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarEvent, liveSession } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
+import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 
 export const GET = withAuth(async () => {
   return NextResponse.json(
@@ -69,6 +70,33 @@ export const PATCH = withCsrf(
           : 60)
 
       const newEnd = new Date(newStart.getTime() + actualDuration * 60000)
+
+      // CHECK FOR CONFLICTS before updating
+      const conflicts = await findConflicts(tutorId, newStart, newEnd, {
+        excludeEventId: eventId,
+        excludeSessionId: calEvent.externalId ?? undefined,
+      })
+
+      if (conflicts.length > 0) {
+        const alternativeSlots = await findAlternativeSlots(tutorId, newStart, actualDuration, {
+          maxSuggestions: 3,
+          excludeEventId: eventId,
+          excludeSessionId: calEvent.externalId ?? undefined,
+        })
+        return NextResponse.json(
+          {
+            error: 'This time slot conflicts with an existing session.',
+            conflicts: conflicts.map(c => ({
+              type: c.type,
+              title: c.title,
+              startTime: c.startTime.toISOString(),
+              endTime: c.endTime.toISOString(),
+            })),
+            suggestedTimes: alternativeSlots,
+          },
+          { status: 409 }
+        )
+      }
 
       await drizzleDb
         .update(calendarEvent)

@@ -12,6 +12,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarEvent, calendarAvailability, calendarException } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, lt, gt, isNull, ne, not } from 'drizzle-orm'
 import { z } from 'zod'
+import { findConflicts, findAlternativeSlots, type ConflictResult } from '@/lib/schedule/conflicts'
 
 const CheckAvailabilitySchema = z.object({
   tutorId: z.string(),
@@ -48,26 +49,10 @@ export const POST = withAuth(async (req: NextRequest, session) => {
       return NextResponse.json({ error: 'End time must be after start time' }, { status: 400 })
     }
 
-    const conflictConditions = [
-      eq(calendarEvent.tutorId, tutorId),
-      isNull(calendarEvent.deletedAt),
-      eq(calendarEvent.isCancelled, false),
-      lt(calendarEvent.startTime, end),
-      gt(calendarEvent.endTime, start),
-    ]
-    if (excludeEventId) {
-      conflictConditions.push(ne(calendarEvent.eventId, excludeEventId))
-    }
-    const conflicts = await drizzleDb
-      .select({
-        id: calendarEvent.eventId,
-        title: calendarEvent.title,
-        startTime: calendarEvent.startTime,
-        endTime: calendarEvent.endTime,
-        type: calendarEvent.type,
-      })
-      .from(calendarEvent)
-      .where(and(...conflictConditions))
+    // Use unified conflict detector (checks liveSession, calendarEvent, oneOnOne)
+    const conflicts = await findConflicts(tutorId, start, end, {
+      excludeEventId,
+    })
 
     const dayOfWeek = start.getDay()
     const dateStr = start.toISOString().split('T')[0]
@@ -106,11 +91,17 @@ export const POST = withAuth(async (req: NextRequest, session) => {
 
     const isAvailable = availability.length > 0 && !exception && conflicts.length === 0
 
-    const suggestedTimes = await calculateSuggestedTimes(tutorId, start, end)
+    const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000)
+    const suggestedTimes = isAvailable
+      ? []
+      : await findAlternativeSlots(tutorId, start, durationMinutes, {
+          maxSuggestions: 3,
+          excludeEventId,
+        })
 
     return NextResponse.json({
       available: isAvailable,
-      conflicts: conflicts.map(c => ({
+      conflicts: conflicts.map((c: ConflictResult) => ({
         id: c.id,
         title: c.title,
         startTime: c.startTime,
@@ -135,103 +126,3 @@ export const POST = withAuth(async (req: NextRequest, session) => {
     )
   }
 })
-
-async function calculateSuggestedTimes(
-  tutorId: string,
-  requestedStart: Date,
-  requestedEnd: Date,
-  maxSuggestions = 3
-): Promise<Array<{ startTime: Date; endTime: Date }>> {
-  const suggestions: Array<{ startTime: Date; endTime: Date }> = []
-  const duration = requestedEnd.getTime() - requestedStart.getTime()
-
-  for (let dayOffset = 0; dayOffset < 7 && suggestions.length < maxSuggestions; dayOffset++) {
-    const checkDate = new Date(requestedStart)
-    checkDate.setDate(checkDate.getDate() + dayOffset)
-
-    const dayOfWeek = checkDate.getDay()
-    const dateStr = checkDate.toISOString().split('T')[0]
-    const dayStart = new Date(dateStr)
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
-
-    const availability = await drizzleDb
-      .select()
-      .from(calendarAvailability)
-      .where(
-        and(
-          eq(calendarAvailability.tutorId, tutorId),
-          eq(calendarAvailability.dayOfWeek, dayOfWeek),
-          eq(calendarAvailability.isAvailable, true)
-        )
-      )
-
-    const exceptions = await drizzleDb
-      .select()
-      .from(calendarException)
-      .where(
-        and(
-          eq(calendarException.tutorId, tutorId),
-          eq(calendarException.date, dayStart),
-          eq(calendarException.isAvailable, false)
-        )
-      )
-
-    const events = await drizzleDb
-      .select()
-      .from(calendarEvent)
-      .where(
-        and(
-          eq(calendarEvent.tutorId, tutorId),
-          isNull(calendarEvent.deletedAt),
-          eq(calendarEvent.isCancelled, false),
-          gte(calendarEvent.startTime, dayStart),
-          lt(calendarEvent.startTime, dayEnd)
-        )
-      )
-
-    for (const slot of availability) {
-      if (suggestions.length >= maxSuggestions) break
-
-      const slotStart = new Date(`${dateStr}T${slot.startTime}`)
-      const slotEnd = new Date(`${dateStr}T${slot.endTime}`)
-
-      const blocked = exceptions.some(e => {
-        if (!e.startTime || !e.endTime) return true
-        const exStart = new Date(`${dateStr}T${e.startTime}`)
-        const exEnd = new Date(`${dateStr}T${e.endTime}`)
-        return slotStart < exEnd && slotEnd > exStart
-      })
-
-      if (blocked) continue
-
-      const dayEvents = events
-        .filter(e => e.startTime.toISOString().split('T')[0] === dateStr)
-        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
-
-      let currentTime = new Date(slotStart)
-
-      for (const event of dayEvents) {
-        if (currentTime.getTime() + duration <= event.startTime.getTime()) {
-          suggestions.push({
-            startTime: new Date(currentTime),
-            endTime: new Date(currentTime.getTime() + duration),
-          })
-          if (suggestions.length >= maxSuggestions) break
-        }
-        currentTime = new Date(Math.max(currentTime.getTime(), event.endTime.getTime()))
-      }
-
-      if (
-        suggestions.length < maxSuggestions &&
-        currentTime.getTime() + duration <= slotEnd.getTime()
-      ) {
-        suggestions.push({
-          startTime: new Date(currentTime),
-          endTime: new Date(currentTime.getTime() + duration),
-        })
-      }
-    }
-  }
-
-  return suggestions
-}
