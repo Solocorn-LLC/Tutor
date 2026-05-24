@@ -172,9 +172,12 @@ self.addEventListener('fetch', (event: any) => {
     return
   }
 
-  // API requests - network with cache fallback + offline queue
+  // API requests - only intercept GETs for caching; pass POST/PUT/PATCH/DELETE through
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(handleApiRequest(event))
+    if (request.method === 'GET') {
+      event.respondWith(handleApiRequest(event))
+    }
+    // Non-GET API requests go directly to network (no SW interception)
     return
   }
 
@@ -246,7 +249,9 @@ async function handleApiRequest(event: any): Promise<Response> {
       await cache.put(event.request, clone)
     }
     return response
-  } catch {
+  } catch (err: any) {
+    console.error('[SW] API fetch failed:', event.request.url, event.request.method, err?.name, err?.message)
+
     // Try cache
     const cache = await caches.open(CACHE_NAMES.API)
     const cached = await cache.match(event.request)
