@@ -22,7 +22,7 @@ const CACHE_NAMES = {
 
 const MAX_OFFLINE_REQUESTS = 100
 const API_CACHE_MAX_AGE = 60 * 5 // 5 minutes
-const STATIC_CACHE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+const STATIC_CACHE_MAX_AGE = 60 * 60 * 1 // 1 hour
 const API_NETWORK_TIMEOUT_MS = 10000
 const NAVIGATION_TIMEOUT_MS = 10000
 
