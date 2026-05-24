@@ -54,18 +54,18 @@ function DashboardSkeleton() {
   return (
     <div className="min-h-screen">
       <div className="w-full space-y-6">
-        <div className="h-8 w-1/3 animate-pulse rounded bg-gray-200" />
+        <div className="h-8 w-1/3 animate-pulse rounded bg-white/10" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-24 animate-pulse rounded bg-gray-200" />
+            <div key={i} className="h-24 animate-pulse rounded bg-white/10" />
           ))}
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <div className="h-64 animate-pulse rounded bg-gray-200" />
+            <div className="h-64 animate-pulse rounded bg-white/10" />
           </div>
           <div className="space-y-6">
-            <div className="h-48 animate-pulse rounded bg-gray-200" />
+            <div className="h-48 animate-pulse rounded bg-white/10" />
           </div>
         </div>
       </div>
@@ -609,16 +609,16 @@ function TutorDashboardContent() {
 
         {/* Dashboard Stats */}
         <div className="mb-8 space-y-4">
-          <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+          <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
             <CardContent className="pt-6">
-              <div className="grid grid-cols-1 gap-6 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y-0">
+              <div className="grid grid-cols-1 gap-6 divide-y divide-white/10 md:grid-cols-2 md:divide-x md:divide-y-0">
                 <div className="py-2 text-center md:py-0">
-                  <h3 className="text-lg font-medium text-gray-500">Total Classes</h3>
-                  <p className="mt-2 text-4xl font-bold text-blue-600">{stats.totalClasses}</p>
+                  <h3 className="text-lg font-medium text-white/70">Total Classes</h3>
+                  <p className="mt-2 text-4xl font-bold text-white">{stats.totalClasses}</p>
                 </div>
                 <div className="py-2 text-center md:px-6 md:py-0">
-                  <h3 className="text-lg font-medium text-gray-500">Active Students</h3>
-                  <p className="mt-2 text-4xl font-bold text-green-600">{stats.totalStudents}</p>
+                  <h3 className="text-lg font-medium text-white/70">Active Students</h3>
+                  <p className="mt-2 text-4xl font-bold text-white">{stats.totalStudents}</p>
                 </div>
               </div>
             </CardContent>
@@ -627,32 +627,32 @@ function TutorDashboardContent() {
 
         {/* 1-on-1 Requests */}
         <div className="mb-8">
-          <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+          <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div>
-                <CardTitle>1-on-1 Requests</CardTitle>
-                <p className="text-muted-foreground text-xs">Pending requests from students</p>
+                <CardTitle className="text-white">1-on-1 Requests</CardTitle>
+                <p className="text-xs text-white/70">Pending requests from students</p>
               </div>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10">
                 <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {oneOnOneRequests.length === 0 ? (
-                <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+                <div className="rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/70">
                   No pending 1-on-1 requests.
                 </div>
               ) : (
                 oneOnOneRequests.slice(0, 3).map(request => (
                   <div
                     key={request.requestId}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-4"
                   >
                     <div className="min-w-0 space-y-1">
-                      <p className="truncate font-semibold text-slate-900">
+                      <p className="truncate font-semibold text-white">
                         @{request.student?.handle || 'student'}
                       </p>
-                      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
                         <span>
                           {new Date(request.requestedDate).toLocaleDateString('en-US', {
                             month: 'short',
@@ -674,13 +674,14 @@ function TutorDashboardContent() {
                         variant="outline"
                         disabled={respondingRequestId === request.requestId}
                         onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
+                        className="border-white/30 text-white hover:bg-white/10"
                       >
                         Accept
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-300 hover:bg-red-500/10 hover:text-red-200"
                         disabled={respondingRequestId === request.requestId}
                         onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
                       >
@@ -691,7 +692,7 @@ function TutorDashboardContent() {
                 ))
               )}
               {oneOnOneRequests.length > 3 ? (
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-white/70">
                   +{oneOnOneRequests.length - 3} more pending requests
                 </p>
               ) : null}
@@ -718,13 +719,13 @@ function TutorDashboardContent() {
               />
             </TabsContent>
             <TabsContent value="courses">
-              <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+              <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
                 <CardHeader>
-                  <CardTitle>Courses With Enrolled Students</CardTitle>
+                  <CardTitle className="text-white">Courses With Enrolled Students</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {enrolledCourses.length === 0 ? (
-                    <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+                    <div className="rounded-lg border border-dashed border-white/20 p-6 text-center text-sm text-white/70">
                       No courses have enrolled students yet.
                     </div>
                   ) : (
@@ -742,17 +743,17 @@ function TutorDashboardContent() {
                       return (
                         <div
                           key={course.id}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-4"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-4"
                         >
                           <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2">
-                              <p className="truncate font-semibold text-slate-900">
+                              <p className="truncate font-semibold text-white">
                                 {course.nationality && course.nationality !== 'Global'
                                   ? `${course.name} — ${course.variantCategory || (course.categories || [])[0] || 'General'} — ${course.nationality}`
                                   : course.name}
                               </p>
                             </div>
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
                               <span>{(course.categories || [])[0] || 'Untitled'}</span>
                               {course.price ? (
                                 <span>
@@ -762,7 +763,7 @@ function TutorDashboardContent() {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-xs text-white/70">
                               <Badge
                                 variant={hasActive || isWithin1Hour ? 'default' : 'secondary'}
                                 className={cn(
@@ -771,7 +772,7 @@ function TutorDashboardContent() {
                                     ? 'bg-green-500 text-white hover:bg-green-600'
                                     : isWithin1Hour
                                       ? 'bg-orange-500 text-white hover:bg-orange-600'
-                                      : 'hover:bg-slate-200'
+                                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                                 )}
                                 onClick={() => handleOpenSessionsModal(course)}
                               >
@@ -786,7 +787,7 @@ function TutorDashboardContent() {
                               >
                                 <Badge
                                   variant="secondary"
-                                  className="cursor-pointer hover:bg-slate-200"
+                                  className="cursor-pointer border-white/20 bg-white/10 text-white/80 hover:bg-white/20"
                                 >
                                   {course.enrollmentCount} enrolled
                                 </Badge>
@@ -816,7 +817,7 @@ function TutorDashboardContent() {
                                 Create Session
                               </Button>
                             )}
-                            <Button asChild variant="outline" size="sm">
+                            <Button asChild variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10">
                               <Link
                                 href={withLocalePath(
                                   `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`

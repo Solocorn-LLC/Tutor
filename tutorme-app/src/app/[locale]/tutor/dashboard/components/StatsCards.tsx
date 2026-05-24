@@ -20,14 +20,14 @@ interface StatsCardsProps {
 
 function StatSkeleton() {
   return (
-    <Card>
+    <Card className="rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-4 w-20 animate-pulse rounded bg-gray-200" />
-            <div className="h-8 w-12 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-20 animate-pulse rounded bg-white/10" />
+            <div className="h-8 w-12 animate-pulse rounded bg-white/10" />
           </div>
-          <div className="h-12 w-12 animate-pulse rounded-full bg-gray-200" />
+          <div className="h-12 w-12 animate-pulse rounded-full bg-white/10" />
         </div>
       </CardContent>
     </Card>
@@ -47,64 +47,64 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
 
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Total Classes</p>
-              <p className="text-3xl font-bold text-slate-800">{stats.totalClasses}</p>
+              <p className="text-sm text-white/70">Total Classes</p>
+              <p className="text-3xl font-bold text-white">{stats.totalClasses}</p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-              <Calendar className="h-6 w-6 text-blue-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+              <Calendar className="h-6 w-6 text-white/80" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Total Students</p>
-              <p className="text-3xl font-bold text-slate-800">{stats.totalStudents}</p>
+              <p className="text-sm text-white/70">Total Students</p>
+              <p className="text-3xl font-bold text-white">{stats.totalStudents}</p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <Users className="h-6 w-6 text-green-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+              <Users className="h-6 w-6 text-white/80" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p
-                className="text-sm text-slate-500"
+                className="text-sm text-white/70"
                 title="Scheduled (any future date) and currently active sessions"
               >
                 Upcoming
               </p>
-              <p className="text-3xl font-bold text-slate-800">{stats.upcomingClasses}</p>
+              <p className="text-3xl font-bold text-white">{stats.upcomingClasses}</p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
-              <TrendingUp className="h-6 w-6 text-orange-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+              <TrendingUp className="h-6 w-6 text-white/80" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Earnings</p>
-              <p className="text-3xl font-bold text-slate-800">
+              <p className="text-sm text-white/70">Earnings</p>
+              <p className="text-3xl font-bold text-white">
                 {formatEarnings(stats.earnings, stats.currency ?? 'SGD')}
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-              <DollarSign className="h-6 w-6 text-purple-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+              <DollarSign className="h-6 w-6 text-white/80" />
             </div>
           </div>
         </CardContent>

@@ -117,13 +117,13 @@ export function ModernHeroSection({
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <div className="animate-pulse space-y-4">
-          <div className="bg-muted h-8 w-1/3 rounded" />
-          <div className="bg-muted/70 h-4 w-1/4 rounded" />
+          <div className="h-8 w-1/3 rounded bg-white/10" />
+          <div className="h-4 w-1/4 rounded bg-white/10" />
           <div className="mt-8 grid grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-muted/60 h-24 rounded-xl" />
+              <div key={i} className="h-24 rounded-xl bg-white/10" />
             ))}
           </div>
         </div>
@@ -132,15 +132,15 @@ export function ModernHeroSection({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       {/* Content */}
       <div>
         {/* Header Row */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
           <div>
             <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-slate-500" />
-              <span className="text-sm font-medium text-slate-500">
+              <Sparkles className="h-5 w-5 text-white/70" />
+              <span className="text-sm font-medium text-white/70">
                 {greeting}, @
                 {username ??
                   session?.user?.name ??
@@ -148,15 +148,15 @@ export function ModernHeroSection({
                   'username'}
               </span>
             </div>
-            <h1 className="mb-2 text-4xl font-bold text-slate-800">Welcome Back!</h1>
-            <p className="text-slate-500">
+            <h1 className="mb-2 text-4xl font-bold text-white">Welcome Back!</h1>
+            <p className="text-white/70">
               {formatDate(currentTime)} • {formatTime(currentTime)}
             </p>
           </div>
         </div>
 
         {/* One Week Calendar Schedule */}
-        <div className="mb-8 grid grid-cols-7 gap-2 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+        <div className="mb-8 grid grid-cols-7 gap-2 rounded-[14px] border border-white/10 bg-white/10 p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
           {Array.from({ length: 7 }, (_, i) => {
             const d = new Date(currentTime)
             d.setDate(currentTime.getDate() + i)
@@ -169,15 +169,15 @@ export function ModernHeroSection({
                 onClick={() => handleDayClick(d)}
                 className="hover:bg-accent/40 group flex cursor-pointer flex-col items-center justify-center rounded-xl p-2 transition-colors"
               >
-                <span className="mb-1 text-xs font-medium text-slate-500">
+                <span className="mb-1 text-xs font-medium text-white/70">
                   {d.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
                 <span
                   className={cn(
                     'mt-1 flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold',
                     i === 0
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'text-slate-700 group-hover:bg-indigo-50'
+                      ? 'bg-indigo-400 text-white shadow-md shadow-indigo-400/30'
+                      : 'text-white group-hover:bg-white/10'
                   )}
                 >
                   {d.getDate()}
@@ -196,7 +196,7 @@ export function ModernHeroSection({
                   )}
                   {!hasClasses && (
                     <div className="flex h-1.5 gap-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                      <div className="h-1.5 w-1.5 rounded-full bg-white/30" />
                     </div>
                   )}
                 </div>
@@ -254,7 +254,7 @@ export function ModernHeroSection({
         {/* Action Bar */}
         <div className="flex flex-wrap items-center gap-4">
           <Button
-            className="bg-[#1F2933] text-white hover:bg-[#2d3748]"
+            className="bg-white text-[#1e3a5f] hover:bg-white/90"
             onClick={() => toast.info('Coming soon...')}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -262,7 +262,7 @@ export function ModernHeroSection({
           </Button>
           <Button
             variant="outline"
-            className="border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="border-white/30 text-white hover:bg-white/10"
             onClick={() => toast.info('Coming soon...')}
           >
             <Video className="mr-2 h-4 w-4" />
@@ -270,7 +270,7 @@ export function ModernHeroSection({
           </Button>
           <div className="flex-1" />
           {nextSession && (
-            <div className="flex items-center gap-2 text-base font-medium text-green-600">
+            <div className="flex items-center gap-2 text-base font-medium text-emerald-300">
               <Clock className="h-5 w-5" />
               <span>Next session: {nextSession}</span>
             </div>
@@ -293,7 +293,7 @@ interface StatCardProps {
 
 function StatCard({ icon: Icon, label, value, sublabel, trend, trendUp, color }: StatCardProps) {
   return (
-    <div className="group relative cursor-pointer overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.10)] transition-all hover:shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
+    <div className="group relative cursor-pointer overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.10)] transition-all hover:shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
       <div className="relative">
         <div
           className={cn(
@@ -303,15 +303,15 @@ function StatCard({ icon: Icon, label, value, sublabel, trend, trendUp, color }:
         >
           <Icon className="h-5 w-5 text-white" />
         </div>
-        <p className="mb-1 text-xs font-medium text-slate-500">{label}</p>
+        <p className="mb-1 text-xs font-medium text-white/70">{label}</p>
         <div className="flex items-end justify-between">
-          <p className="text-2xl font-bold text-slate-800">{value}</p>
-          {sublabel && <p className="text-xs text-slate-500">{sublabel}</p>}
+          <p className="text-2xl font-bold text-white">{value}</p>
+          {sublabel && <p className="text-xs text-white/70">{sublabel}</p>}
           {trend && (
             <div
               className={cn(
                 'flex items-center text-xs font-medium',
-                trendUp ? 'text-indigo-600' : 'text-red-500'
+                trendUp ? 'text-indigo-300' : 'text-red-300'
               )}
             >
               <TrendingUp className={cn('mr-0.5 h-3 w-3', !trendUp && 'rotate-180')} />

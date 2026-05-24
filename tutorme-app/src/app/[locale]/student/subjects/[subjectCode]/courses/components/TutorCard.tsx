@@ -33,6 +33,9 @@ export interface TutorCardProps {
   className?: string
 }
 
+const BIO_MAX_INPUT = 500
+const BIO_MAX_DISPLAY = 300
+
 export function TutorCard({
   tutor,
   subjectCode,
@@ -53,24 +56,32 @@ export function TutorCard({
   const countries = (tutor.countries || []).slice(0, 3)
 
   const displaySubject = subjectCode || categories[0] || 'General'
-  const bioText = tutor.bio || "This area is for the tutor's bio information."
+  const rawBio = tutor.bio || "This area is for the tutor's bio information."
+
+  // Bio display: truncate at 300 chars
+  const bioText =
+    rawBio.length > BIO_MAX_DISPLAY
+      ? rawBio.slice(0, BIO_MAX_DISPLAY) + '…'
+      : rawBio
+
   const avatarUrl = resolvePublicUrl(tutor.avatar)
 
   const cardContent = (
     <div
       className={cn(
-        'relative flex flex-col gap-4 overflow-hidden rounded-[20px] p-5 text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]',
+        'relative flex flex-col gap-4 overflow-hidden rounded-[20px] bg-[#1e3a5f] p-5 text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]',
         onClick && 'cursor-pointer',
         className
       )}
       style={{
-        background: 'linear-gradient(145deg, #3b5f9e 0%, #2e4d7a 40%, #1e3a5f 100%)',
+        width: '420px',
+        height: '580px',
       }}
     >
       {/* Header Row: Avatar | Info | Pills */}
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-lg sm:h-24 sm:w-24">
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-lg">
           {avatarUrl ? (
             <img src={avatarUrl} alt={tutor.name} className="h-full w-full object-cover" />
           ) : (
@@ -143,13 +154,18 @@ export function TutorCard({
         </div>
       )}
 
-      {/* Bio — dashed box with icon */}
-      <div className="flex min-h-[150px] items-start gap-6 rounded-[18px] border border-dashed border-white/20 bg-white/5 px-6 py-6">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
-          <User className="h-7 w-7 text-white/70" />
+      {/* Bio — bordered box with icon + character count */}
+      <div className="flex min-h-[150px] flex-1 items-start gap-4 rounded-[18px] border border-white/20 bg-white/5 px-5 py-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
+          <User className="h-6 w-6 text-white/70" />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-white">Bio</p>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-center justify-between">
+            <p className="text-base font-semibold text-white">Bio</p>
+            <span className="text-[11px] text-white/40">
+              {rawBio.length} / {BIO_MAX_INPUT}
+            </span>
+          </div>
           <p className="mt-2 text-sm leading-relaxed text-white/70">{bioText}</p>
         </div>
       </div>
@@ -159,32 +175,34 @@ export function TutorCard({
 
       {/* Stats — pill style */}
       <div className="flex gap-4">
-        <div className="flex h-14 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-6">
+        <div className="flex h-12 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-5">
           <BookOpen className="h-5 w-5 text-white/70" />
           <span className="text-sm text-white/80">Courses</span>
           <span className="ml-auto text-lg font-bold text-white">{tutor.totalClasses}</span>
         </div>
-        <div className="flex h-14 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-6">
+        <div className="flex h-12 flex-1 items-center gap-3 rounded-full border border-white/15 bg-white/5 px-5">
           <Users className="h-5 w-5 text-white/70" />
           <span className="text-sm text-white/80">Enrollments</span>
           <span className="ml-auto text-lg font-bold text-white">{tutor.totalStudents}</span>
         </div>
       </div>
 
-      {/* Actions — Book 1 on 1 (left) | Follow (right) */}
-      <div className="flex items-center justify-between">
+      {/* Actions — Book 1 on 1 (left, white) | Follow (right, outline) */}
+      <div className="flex items-center gap-3">
         {bookHref ? (
           <Link
             href={bookHref}
             onClick={e => e.stopPropagation()}
-            className="flex items-center gap-2 text-sm text-white/80 hover:text-white"
+            className={cn(
+              'flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-[#1e3a5f] transition-all duration-200 hover:bg-white/90'
+            )}
           >
-            <Video className="h-4 w-4 text-white/60" />
+            <Video className="h-4 w-4" />
             Book 1 on 1
           </Link>
         ) : (
-          <div className="flex items-center gap-2 text-sm text-white/80">
-            <CalendarDays className="h-4 w-4 text-white/60" />
+          <div className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white/10 text-sm font-semibold text-white/50">
+            <CalendarDays className="h-4 w-4" />
             Book 1 on 1
           </div>
         )}
@@ -196,23 +214,23 @@ export function TutorCard({
               onFollowToggle()
             }}
             className={cn(
-              'flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full border px-8 text-base font-semibold transition-all duration-200',
+              'flex h-12 min-w-[140px] items-center justify-center gap-2 rounded-full border px-6 text-sm font-semibold transition-all duration-200',
               followState === 'following'
                 ? 'border-emerald-400/40 bg-emerald-500/20 text-emerald-50 hover:bg-emerald-500/30'
                 : 'border-white/40 bg-white/10 text-white hover:bg-white/20'
             )}
           >
-            <UserPlus className="h-5 w-5" />
+            <UserPlus className="h-4 w-4" />
             {followState === 'following' ? 'Following' : 'Follow'}
           </button>
         ) : (
           <Button
             asChild
             variant="outline"
-            className="h-14 min-w-[220px] rounded-full border-white/40 bg-white/10 px-8 text-base font-semibold text-white hover:bg-white/20 hover:text-white"
+            className="flex h-12 min-w-[140px] items-center justify-center gap-2 rounded-full border-white/40 bg-white/10 px-6 text-sm font-semibold text-white hover:bg-white/20 hover:text-white"
           >
             <Link href={`/u/${tutor.username || tutor.id}`} onClick={e => e.stopPropagation()}>
-              <UserPlus className="mr-2 h-5 w-5" />
+              <UserPlus className="h-4 w-4" />
               Follow
             </Link>
           </Button>

@@ -25,19 +25,10 @@ export function GlassCard({
   badge,
   action,
 }: GlassCardProps) {
-  const gradientStyles = {
-    purple: 'from-purple-500/10 to-pink-500/10 border-purple-200/50',
-    blue: 'from-blue-500/10 to-cyan-500/10 border-blue-200/50',
-    green: 'from-green-500/10 to-emerald-500/10 border-green-200/50',
-    orange: 'from-orange-500/10 to-amber-500/10 border-orange-200/50',
-    pink: 'from-pink-500/10 to-rose-500/10 border-pink-200/50',
-    none: 'border-gray-200',
-  }
-
   return (
     <Card
       className={cn(
-        'overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]',
+        'overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] shadow-[0_8px_24px_rgba(0,0,0,0.10)]',
         className
       )}
     >
@@ -50,37 +41,37 @@ export function GlassCard({
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-lg',
                     gradient === 'purple'
-                      ? 'bg-purple-100 text-purple-600'
+                      ? 'bg-white/10 text-purple-300'
                       : gradient === 'blue'
-                        ? 'bg-blue-100 text-blue-600'
+                        ? 'bg-white/10 text-blue-300'
                         : gradient === 'green'
-                          ? 'bg-green-100 text-green-600'
+                          ? 'bg-white/10 text-emerald-300'
                           : gradient === 'orange'
-                            ? 'bg-orange-100 text-orange-600'
+                            ? 'bg-white/10 text-orange-300'
                             : gradient === 'pink'
-                              ? 'bg-pink-100 text-pink-600'
-                              : 'bg-gray-100 text-gray-600'
+                              ? 'bg-white/10 text-pink-300'
+                              : 'bg-white/10 text-white/80'
                   )}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
               )}
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
+              <CardTitle className="text-base font-semibold text-white">{title}</CardTitle>
               {badge !== undefined && (
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-xs font-medium',
                     gradient === 'purple'
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-white/10 text-purple-300'
                       : gradient === 'blue'
-                        ? 'bg-blue-100 text-blue-700'
+                        ? 'bg-white/10 text-blue-300'
                         : gradient === 'green'
-                          ? 'bg-green-100 text-green-700'
+                          ? 'bg-white/10 text-emerald-300'
                           : gradient === 'orange'
-                            ? 'bg-orange-100 text-orange-700'
+                            ? 'bg-white/10 text-orange-300'
                             : gradient === 'pink'
-                              ? 'bg-pink-100 text-pink-700'
-                              : 'bg-gray-100 text-gray-700'
+                              ? 'bg-white/10 text-pink-300'
+                              : 'bg-white/10 text-white/80'
                   )}
                 >
                   {badge}
