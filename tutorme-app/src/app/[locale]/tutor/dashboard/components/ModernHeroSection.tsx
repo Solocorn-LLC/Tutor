@@ -134,7 +134,7 @@ export function ModernHeroSection({
   return (
     <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       {/* Content */}
-      <div>
+      <div className="relative z-10">
         {/* Header Row */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
           <div>
@@ -167,7 +167,7 @@ export function ModernHeroSection({
               <div
                 key={i}
                 onClick={() => handleDayClick(d)}
-                className="hover:bg-accent/40 group flex cursor-pointer flex-col items-center justify-center rounded-xl p-2 transition-colors"
+                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl p-2 transition-colors hover:bg-white/20"
               >
                 <span className="mb-1 text-xs font-medium text-white/70">
                   {d.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -185,12 +185,12 @@ export function ModernHeroSection({
                 {/* Show class times instead of dots */}
                 <div className="mt-2 flex flex-col items-center gap-0.5">
                   {dayClasses.slice(0, 1).map((cls, idx) => (
-                    <span key={idx} className="text-[10px] font-medium text-indigo-600">
+                    <span key={idx} className="text-[10px] font-medium text-indigo-300">
                       {cls.time}
                     </span>
                   ))}
                   {dayClasses.length > 1 && (
-                    <span className="text-[8px] text-slate-500">
+                    <span className="text-[8px] text-white/70">
                       +{dayClasses.length - 1} more
                     </span>
                   )}
@@ -282,7 +282,7 @@ export function ModernHeroSection({
 }
 
 interface StatCardProps {
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   label: string
   value: string | number
   sublabel?: string

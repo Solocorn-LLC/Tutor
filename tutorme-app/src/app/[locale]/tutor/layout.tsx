@@ -281,7 +281,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main className="h-screen flex-1 overflow-hidden pt-4 pb-4">
+      <main className="h-screen flex-1 overflow-hidden pt-16 lg:pt-4 lg:pb-4">
         <div className="h-full overflow-y-auto">{children}</div>
       </main>
     </div>

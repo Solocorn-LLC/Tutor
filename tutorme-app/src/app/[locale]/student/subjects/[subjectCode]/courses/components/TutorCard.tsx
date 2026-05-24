@@ -127,7 +127,7 @@ export function TutorCard({
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-white">Bio</p>
           <span className="text-[11px] text-white/40">
-            {rawBio.length} / {BIO_MAX_INPUT}
+            {rawBio.length} / {BIO_MAX_DISPLAY}
           </span>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-white/70">{bioText}</p>
@@ -169,6 +169,7 @@ export function TutorCard({
 
         {onFollowToggle ? (
           <button
+            type="button"
             onClick={e => {
               e.stopPropagation()
               onFollowToggle()
