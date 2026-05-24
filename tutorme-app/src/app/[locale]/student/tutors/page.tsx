@@ -306,28 +306,28 @@ export default function StudentTutorDirectoryPage() {
         </CardContent>
       </Card>
 
-      <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           Array.from({ length: 6 }).map((_, index) => (
             <Card
               key={`loading-${index}`}
-              className="animate-pulse border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]"
+              className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-[#1e3a5f] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
             >
               <CardHeader className="space-y-2 p-4">
-                <div className="h-5 w-2/3 rounded bg-slate-100" />
-                <div className="h-3 w-1/2 rounded bg-slate-100" />
+                <div className="h-5 w-2/3 rounded bg-white/10" />
+                <div className="h-3 w-1/2 rounded bg-white/10" />
               </CardHeader>
               <CardContent className="space-y-2 p-4 pt-0">
-                <div className="h-3 rounded bg-slate-100" />
-                <div className="h-3 rounded bg-slate-100" />
+                <div className="h-3 rounded bg-white/10" />
+                <div className="h-3 rounded bg-white/10" />
               </CardContent>
             </Card>
           ))
         ) : tutors.length === 0 ? (
-          <Card className="col-span-full border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+          <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-[#1e3a5f] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
             <CardHeader>
-              <CardTitle className="text-slate-900">No tutors match your current filters</CardTitle>
-              <CardDescription className="text-slate-600">
+              <CardTitle className="text-white">No tutors match your current filters</CardTitle>
+              <CardDescription className="text-white/70">
                 Try broadening search terms or selecting a different subject or country.
               </CardDescription>
             </CardHeader>
