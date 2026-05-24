@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
             hourlyRate: profile.hourlyRate,
             oneOnOneEnabled: profile.oneOnOneEnabled,
             countryOfResidence: profile.countryOfResidence,
+            nationality: profile.nationality,
           })
           .from(profile)
           .innerJoin(user, eq(profile.userId, user.userId))
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
             username: profileData.username || tutorId.slice(0, 8),
             bio: profileData.bio || 'Experienced tutor ready to help you improve quickly.',
             avatarUrl: profileData.avatarUrl,
-            country: profileData.countryOfResidence,
+            country: profileData.countryOfResidence || profileData.nationality || null,
             specialties: categories,
             hourlyRate: profileData.hourlyRate,
             oneOnOneEnabled: profileData.oneOnOneEnabled ?? true,
@@ -208,6 +209,7 @@ export async function GET(request: NextRequest) {
           hourlyRate: profile.hourlyRate,
           oneOnOneEnabled: profile.oneOnOneEnabled,
           countryOfResidence: profile.countryOfResidence,
+          nationality: profile.nationality,
         })
         .from(profile)
         .where(inArray(profile.userId, paginatedIds)),
@@ -278,7 +280,7 @@ export async function GET(request: NextRequest) {
         username: profileData?.username || tutorId.slice(0, 8),
         bio: profileData?.bio || 'Experienced tutor ready to help you improve quickly.',
         avatarUrl: profileData?.avatarUrl,
-        country: profileData?.countryOfResidence,
+        country: profileData?.countryOfResidence || profileData?.nationality || null,
         specialties: allCategories,
         hourlyRate: profileData?.hourlyRate,
         oneOnOneEnabled: profileData?.oneOnOneEnabled ?? true,
