@@ -1373,16 +1373,8 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         }}
       >
         <div className="flex h-full flex-col p-4">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)]">
-              {item?.avatarUrl ? (
-                <img
-                  src={item.avatarUrl}
-                  alt={item?.name || 'Tutor'}
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
-            </div>
+          {/* Header: Name/Handle on left, large avatar on right */}
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-slate-50">
                 {item?.name || 'Tutor'}
@@ -1391,13 +1383,41 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                 @{item?.username || 'tutor'}
               </div>
             </div>
+            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
+              {item?.avatarUrl ? (
+                <img
+                  src={item.avatarUrl}
+                  alt={item?.name || 'Tutor'}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                  <User className="h-7 w-7 opacity-50" />
+                </div>
+              )}
+            </div>
           </div>
-          <div className="mt-3 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <div className="line-clamp-4 text-[11px] leading-relaxed text-slate-100">
+
+          {/* Bio — fixed height */}
+          <div className="mt-3 h-[72px] rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <div className="line-clamp-3 text-[11px] leading-relaxed text-slate-100">
               {(item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'}
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between text-xs font-semibold">
+
+          {/* Country — placeholder for emblematic image */}
+          {item?.country ? (
+            <div className="mt-2 flex items-center gap-2">
+              {/* TODO: Replace with emblematic country image when provided */}
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[10px]">
+                🌍
+              </div>
+              <span className="text-[11px] font-medium text-slate-200">{item.country}</span>
+            </div>
+          ) : null}
+
+          {/* Bottom row */}
+          <div className="mt-auto flex items-center justify-between text-xs font-semibold">
             <div className="truncate text-slate-300">
               {typeof item?.courseCount === 'number' ? `${item.courseCount} courses` : ''}
             </div>
