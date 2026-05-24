@@ -1367,14 +1367,6 @@ export default function PublicTutorPage() {
                               <p className="mt-0.5 text-xs font-medium text-slate-300">
                                 @{tutor.username}
                               </p>
-                              <Badge
-                                variant="secondary"
-                                className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
-                              >
-                                {course.country && course.country !== 'Global'
-                                  ? `${course.variantCategory || course.categories[0] || 'general'} — ${course.country}`
-                                  : course.categories[0] || 'general'}
-                              </Badge>
                             </div>
 
                             <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.045)] px-[18px] py-[14px] text-[rgba(255,255,255,0.86)]">
@@ -1403,17 +1395,6 @@ export default function PublicTutorPage() {
                                 <p className="mt-0.5 text-xs font-medium text-slate-300">
                                   @{tutor.username}
                                 </p>
-                                <Badge
-                                  variant="secondary"
-                                  className={cn(
-                                    'mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
-                                    isCompact && 'mt-1.5'
-                                  )}
-                                >
-                                  {course.country && course.country !== 'Global'
-                                    ? `${course.variantCategory || course.categories[0] || 'general'} — ${course.country}`
-                                    : course.categories[0] || 'general'}
-                                </Badge>
                               </div>
 
                               <div
