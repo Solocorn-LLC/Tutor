@@ -5,7 +5,7 @@
 
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UserPlus,
@@ -1362,27 +1362,6 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     </div>
   )
 
-  // Build country name → ISO code map from REGIONS for flag emoji lookup
-  const countryNameToCode = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const region of REGIONS) {
-      for (const c of region.countries) {
-        map.set(c.name, c.code)
-      }
-    }
-    return map
-  }, [])
-
-  function getCountryFlagEmoji(countryName: string): string {
-    const code = countryNameToCode.get(countryName)
-    if (!code || code.length !== 2) return '🌍'
-    return code
-      .toUpperCase()
-      .split('')
-      .map((ch: string) => String.fromCodePoint(127397 + ch.charCodeAt(0)))
-      .join('')
-  }
-
   const TutorSlot = ({ item }: { item: any }) => (
     <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
       <div
@@ -1425,19 +1404,14 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             </div>
           </div>
 
-          {/* Bottom row: courses (left) | country flag + name (right) */}
+          {/* Bottom row: courses (left) | country name (right) */}
           <div className="mt-3 flex items-center justify-between text-xs font-semibold">
             <div className="truncate text-slate-300">
               {typeof item?.courseCount === 'number' ? `${item.courseCount} courses` : ''}
             </div>
             {item?.country ? (
-              <div className="flex items-center gap-1.5 text-slate-200">
-                <span className="text-sm">{getCountryFlagEmoji(item.country)}</span>
-                <span className="truncate">{item.country}</span>
-              </div>
-            ) : (
-              <div className="text-blue-400">View</div>
-            )}
+              <span className="truncate text-slate-200">{item.country}</span>
+            ) : null}
           </div>
         </div>
       </div>
