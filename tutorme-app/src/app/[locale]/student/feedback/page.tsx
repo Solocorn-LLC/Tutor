@@ -608,45 +608,8 @@ function StudentFeedbackContent() {
     }
   }, [selectedSessionId, myBoardPages, myBoardPageIndex, tutorBoardPages, tutorBoardPageIndex])
 
-  const [isMirroringToTutor, setIsMirroringToTutor] = useState<boolean>(true)
   const [followTutor, setFollowTutor] = useState<boolean>(true)
   const openVideoOverlay = useVideoOverlayStore(s => s.openOverlay)
-
-  // Emit debounced full-board snapshot so tutors can see existing strokes
-  // when they open the monitor (delta sync only carries new strokes).
-  useEffect(() => {
-    if (!socket || !selectedSessionId) return
-    if (!isMirroringToTutor) return
-
-    const MIN_INTERVAL_MS = 2500
-    const DEBOUNCE_MS = 1500
-    let cancelled = false
-    let lastSentAt = 0
-    let timeout: ReturnType<typeof setTimeout> | null = null
-
-    const schedule = () => {
-      if (timeout) clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        if (cancelled) return
-        const now = Date.now()
-        if (now - lastSentAt < MIN_INTERVAL_MS) {
-          schedule()
-          return
-        }
-        lastSentAt = now
-        socket.emit('student:whiteboard:update', {
-          roomId: selectedSessionId,
-          board: { pages: myBoardPages, pageIndex: myBoardPageIndex, updatedAt: now },
-        })
-      }, DEBOUNCE_MS)
-    }
-
-    schedule()
-    return () => {
-      cancelled = true
-      if (timeout) clearTimeout(timeout)
-    }
-  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex, isMirroringToTutor])
 
   // On join, request latest tutor + student board snapshots (fast hydration).
   useEffect(() => {
@@ -681,30 +644,6 @@ function StudentFeedbackContent() {
       // ignore
     }
   }, [selectedSessionId, followTutor])
-
-  // Mirror to Tutor persistence
-  useEffect(() => {
-    if (!selectedSessionId || typeof window === 'undefined') return
-    try {
-      const raw = window.localStorage.getItem(`student-mirror-tutor:${selectedSessionId}`)
-      if (raw === '0') setIsMirroringToTutor(false)
-      if (raw === '1') setIsMirroringToTutor(true)
-    } catch {
-      // ignore
-    }
-  }, [selectedSessionId])
-
-  useEffect(() => {
-    if (!selectedSessionId || typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(
-        `student-mirror-tutor:${selectedSessionId}`,
-        isMirroringToTutor ? '1' : '0'
-      )
-    } catch {
-      // ignore
-    }
-  }, [selectedSessionId, isMirroringToTutor])
 
   // Sync Student state to Tutor (always, so tutor monitor can track presence)
   useEffect(() => {
@@ -1425,26 +1364,6 @@ function StudentFeedbackContent() {
                   />
                   {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
                 </div>
-
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setIsMirroringToTutor(!isMirroringToTutor)}
-                  className={cn(
-                    'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                    isMirroringToTutor
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'mr-2 h-2 w-2 rounded-full',
-                      isMirroringToTutor ? 'bg-white' : 'bg-slate-500'
-                    )}
-                  />
-                  {isMirroringToTutor ? 'Mirroring On' : 'Mirror to Tutor'}
-                </Button>
 
                 <Button
                   variant="secondary"

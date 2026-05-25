@@ -223,7 +223,14 @@ export function MonitoringPanel({
           return (
             <Card
               key={student.id}
-              onClick={() => onNavigateToWhiteboard?.(student.id, student.name)}
+              onClick={() => {
+                socket.emit('whiteboard:state:request', {
+                  roomId: sessionId,
+                  target: 'studentBoard',
+                  studentId: student.id,
+                })
+                onNavigateToWhiteboard?.(student.id, student.name)
+              }}
               className={cn(
                 'cursor-pointer overflow-hidden border-slate-200 bg-white/50 backdrop-blur-sm transition-all hover:shadow-md',
                 selectedStudentId === student.id && 'ring-2 ring-indigo-200'
@@ -273,6 +280,12 @@ export function MonitoringPanel({
                     <Button
                       onClick={e => {
                         e.stopPropagation()
+                        // Request the student's latest board snapshot before opening
+                        socket.emit('whiteboard:state:request', {
+                          roomId: sessionId,
+                          target: 'studentBoard',
+                          studentId: student.id,
+                        })
                         onOpenWhiteboard?.(student.id, student.name)
                       }}
                       variant="outline"

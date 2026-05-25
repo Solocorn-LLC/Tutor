@@ -1311,6 +1311,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    // Student sends full-board snapshot only when tutor explicitly requests it
+    // (via whiteboard:state:request). Delta sync (whiteboard:stroke:add etc.)
+    // handles real-time updates without full-state overhead.
     socket.on(
       'student:whiteboard:update',
       (data: {
@@ -1340,7 +1343,6 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         room.lastActivity = Date.now()
-        // Legacy full-state snapshot — delta sync is preferred
         const studentId = socket.data.userId
         const existing = (room.whiteboardData || {}) as Record<string, unknown>
         const studentBoards = (existing.studentBoards || {}) as Record<string, typeof board>
@@ -1351,7 +1353,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             [studentId]: board,
           },
         }
-        io.to(roomId).emit('student:whiteboard:update', { studentId, ...board })
+        // Do NOT broadcast — tutor requests on-demand via whiteboard:state:request
       }
     )
 
