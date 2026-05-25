@@ -1181,7 +1181,7 @@ function StudentFeedbackContent() {
               onValueChange={v => setActiveTab(v as 'task' | 'tutor-board')}
               className="flex h-full min-h-0 flex-1 flex-col"
             >
-              <div className="flex shrink-0 items-start px-4 pt-0">
+              <div className="flex shrink-0 items-start pt-0">
                 <TabsList
                   className={cn(
                     'grid h-[52px] w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none transition-opacity',
@@ -1207,12 +1207,12 @@ function StudentFeedbackContent() {
               </div>
 
               {/* Buffer between mode selector and classroom view */}
-              <div className="shrink-0 px-4 pb-3" />
+              <div className="shrink-0 pb-3" />
 
               <TabsContent
                 value="task"
                 padding="none"
-                className="flex h-full min-h-0 flex-1 flex-col outline-none"
+                className="flex h-full min-h-0 flex-1 flex-col px-4 outline-none"
               >
                 {/* Classroom viewer */}
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
@@ -1355,7 +1355,7 @@ function StudentFeedbackContent() {
               <TabsContent
                 value="tutor-board"
                 padding="none"
-                className="flex h-full min-h-0 flex-1 flex-col outline-none"
+                className="flex h-full min-h-0 flex-1 flex-col px-4 outline-none"
               >
                 {/* Tutor Board viewer */}
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#1e3a5f] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
