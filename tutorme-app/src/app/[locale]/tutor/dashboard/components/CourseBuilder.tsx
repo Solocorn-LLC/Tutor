@@ -7051,38 +7051,29 @@ FEEDBACK: [your explanation]`
                           className="absolute bottom-4 right-0 top-0 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
                           style={{ width: rightPanelWidth }}
                         >
-                          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <Tabs
-                                value={liveRightPanelTab}
-                                onValueChange={value =>
-                                  setLiveRightPanelTab(value as 'submissions' | 'insights')
-                                }
-                              >
-                                <TabsList className="h-7 rounded-lg border-0 bg-slate-100 p-0.5 shadow-none">
-                                  <TabsTrigger
-                                    value="submissions"
-                                    className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
-                                  >
-                                    Submissions
-                                  </TabsTrigger>
-                                  <TabsTrigger
-                                    value="insights"
-                                    className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
-                                  >
-                                    Insights
-                                  </TabsTrigger>
-                                </TabsList>
-                              </Tabs>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-xs"
-                              onClick={() => setRightPanelHidden(true)}
+                          <div className="flex items-center border-b border-slate-100 px-4 py-3">
+                            <Tabs
+                              value={liveRightPanelTab}
+                              onValueChange={value =>
+                                setLiveRightPanelTab(value as 'submissions' | 'insights')
+                              }
+                              className="w-full"
                             >
-                              Close
-                            </Button>
+                              <TabsList className="grid h-7 w-full grid-cols-2 rounded-lg border-0 bg-slate-100 p-0.5 shadow-none">
+                                <TabsTrigger
+                                  value="submissions"
+                                  className="h-6 rounded-md text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                                >
+                                  Submissions
+                                </TabsTrigger>
+                                <TabsTrigger
+                                  value="insights"
+                                  className="h-6 rounded-md text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                                >
+                                  Insights
+                                </TabsTrigger>
+                              </TabsList>
+                            </Tabs>
                           </div>
                           <div className="min-h-0 flex-1 overflow-hidden p-2">
                             {insightsProps ? (
