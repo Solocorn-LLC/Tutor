@@ -58,6 +58,73 @@ function buildPublicUrl(key: string, bucketName?: string): string {
   return `https://storage.googleapis.com/${bucketName || BUCKET}/${key}`
 }
 
+// ─── URL Refresh Utilities ────────────────────────────────────────────────────
+
+const GCS_PUBLIC_URL_REGEX = /^https:\/\/storage\.googleapis\.com\/([^/]+)\/(.+)$/
+
+/**
+ * Check if a URL is a GCS public URL.
+ */
+export function isGcsPublicUrl(url: string): boolean {
+  return GCS_PUBLIC_URL_REGEX.test(url)
+}
+
+/**
+ * Extract the GCS key from a public URL.
+ * Returns null if the URL is not a valid GCS public URL.
+ */
+export function extractGcsKeyFromPublicUrl(url: string): string | null {
+  const match = url.match(GCS_PUBLIC_URL_REGEX)
+  return match ? match[2] : null
+}
+
+/**
+ * Refresh a GCS URL by generating a fresh presigned download URL.
+ * If the URL is not a GCS public URL, returns it unchanged.
+ * If GCS is not configured, returns the URL unchanged.
+ */
+export async function refreshGcsUrl(
+  url: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  if (!isGcsConfigured()) return url
+  const key = extractGcsKeyFromPublicUrl(url)
+  if (!key) return url
+  return createPresignedDownloadUrl(key, expiresInSeconds)
+}
+
+/**
+ * Refresh document URLs in any object recursively.
+ * Scans for `fileUrl` properties that are GCS public URLs and replaces them
+ * with fresh presigned URLs.
+ */
+export async function refreshDocumentUrls<T>(obj: T): Promise<T> {
+  if (!obj || typeof obj !== 'object') return obj
+
+  if (Array.isArray(obj)) {
+    const result = []
+    for (const item of obj) {
+      result.push(await refreshDocumentUrls(item))
+    }
+    return result as unknown as T
+  }
+
+  const record = obj as Record<string, unknown>
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'fileUrl' && typeof value === 'string' && isGcsPublicUrl(value)) {
+      result[key] = await refreshGcsUrl(value)
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = await refreshDocumentUrls(value)
+    } else {
+      result[key] = value
+    }
+  }
+
+  return result as T
+}
+
 // ─── Presigned PUT URL ────────────────────────────────────────────────────────
 
 interface PresignedUploadResult {

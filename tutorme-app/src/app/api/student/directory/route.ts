@@ -9,6 +9,7 @@ import {
   studentTaskReport,
 } from '@/lib/db/schema'
 import { eq, inArray, and } from 'drizzle-orm'
+import { refreshDocumentUrls } from '@/lib/storage/gcs'
 
 export const dynamic = 'force-dynamic'
 
@@ -195,17 +196,20 @@ export const GET = withAuth(async (request, session) => {
     return bTime - aTime
   })
 
-  sortedMaterials.forEach(material => {
+  for (const material of sortedMaterials) {
     const en = enrollments.find(e => e.courseId === material.courseId)
-    if (!en) return
+    if (!en) continue
 
     const tutorKey = en.tutorName ? `Tutor@${en.tutorName.replace(/\s+/g, '')}` : 'Tutor@Unknown'
     const courseKey = en.courseName || 'Unnamed Course'
 
-    if (!directory[tutorKey]?.[courseKey]) return
+    if (!directory[tutorKey]?.[courseKey]) continue
 
     const seqLabel = material.sessionSequence ? ` (s${material.sessionSequence})` : ''
     const formattedTitle = `${material.title}${seqLabel}`
+
+    // Refresh any GCS document URLs in the content before sending to student
+    const refreshedContent = await refreshDocumentUrls(material.content)
 
     const item = {
       id: material.id,
@@ -213,7 +217,7 @@ export const GET = withAuth(async (request, session) => {
       title: formattedTitle,
       type: material.type,
       deployedAt: material.deployedAt,
-      content: material.content,
+      content: refreshedContent,
       sessionId: material.sessionId,
       courseId: material.courseId,
       courseName: en.courseName,
@@ -236,7 +240,7 @@ export const GET = withAuth(async (request, session) => {
         directory[tutorKey][courseKey].reports.push(item)
         break
     }
-  })
+  }
 
   return NextResponse.json({ directory, errors })
 })

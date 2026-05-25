@@ -173,6 +173,7 @@ export function ResourceImportPanel<
         mimeType:
           uploadData.isPdf === true ? 'application/pdf' : file.type || 'application/octet-stream',
         fileUrl: uploadData.url,
+        fileKey: uploadData.key,
         extractedText: extractedText || '',
         uploadedAt: new Date().toISOString(),
       }

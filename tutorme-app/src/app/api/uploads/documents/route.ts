@@ -7,7 +7,7 @@ import { mkdir, writeFile, access, unlink } from 'fs/promises'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { Buffer } from 'buffer'
-import { isGcsConfigured, uploadLocalFile } from '@/lib/storage/gcs'
+import { isGcsConfigured, uploadLocalFile, refreshGcsUrl } from '@/lib/storage/gcs'
 
 const execAsync = promisify(exec)
 
@@ -183,6 +183,10 @@ export const POST = withCsrf(
           const gcsKey = `documents/${userId}/${finalName}`
           const uploadResult = await uploadLocalFile(finalPath, gcsKey, finalMime, true)
 
+          // Generate a fresh presigned URL instead of relying on the public URL
+          // which may 403 when uniform bucket-level access is enabled
+          const signedUrl = await refreshGcsUrl(uploadResult.url, 7 * 24 * 3600)
+
           // Cleanup temp files
           try {
             await unlink(absolutePath)
@@ -192,9 +196,10 @@ export const POST = withCsrf(
           }
 
           return NextResponse.json({
-            url: uploadResult.url,
+            url: signedUrl,
+            key: gcsKey,
             name: finalName,
-            originalUrl: uploadResult.url,
+            originalUrl: signedUrl,
             originalName: storedName,
             size: fileObj.size,
             type: finalMime,

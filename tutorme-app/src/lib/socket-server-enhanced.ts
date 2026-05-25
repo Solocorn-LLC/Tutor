@@ -24,6 +24,7 @@ import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket
 import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
+import { refreshDocumentUrls } from '@/lib/storage/gcs'
 import type {
   StrokeDelta,
   ShapeDelta,
@@ -819,7 +820,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
 
       // Add user to room with activity tracking
-      effectiveRole === 'student' ? addStudentToRoom(socket, room) : addTutorToRoom(socket, room)
+      await (effectiveRole === 'student' ? addStudentToRoom(socket, room) : addTutorToRoom(socket, room))
     })
 
     // Activity ping keeps room and student alive during quiet sessions
@@ -933,6 +934,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
 
+      // Refresh any GCS document URLs before deploying to students
+      const refreshedSourceDocument = task.sourceDocument
+        ? await refreshDocumentUrls(task.sourceDocument)
+        : undefined
+
       const normalizedTask: LiveTask = {
         id: task.id,
         title: task.title,
@@ -942,7 +948,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         deployedAt: task.deployedAt || Date.now(),
         polls: Array.isArray(task.polls) ? task.polls : [],
         questions: Array.isArray(task.questions) ? task.questions : [],
-        sourceDocument: task.sourceDocument,
+        sourceDocument: refreshedSourceDocument,
       }
 
       const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)
@@ -1070,6 +1076,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
           for (const item of [...tasks, ...assessments, ...homework]) {
             const raw = item as Record<string, unknown>
+            const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
+            const refreshedSourceDoc = rawSourceDoc
+              ? await refreshDocumentUrls({
+                  fileName: (rawSourceDoc.fileName as string) || '',
+                  fileUrl: (rawSourceDoc.fileUrl as string) || '',
+                  mimeType: (rawSourceDoc.mimeType as string) || '',
+                })
+              : undefined
             const liveTask: LiveTask = {
               id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
               title: (raw.title as string) || 'Untitled',
@@ -1085,13 +1099,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
               deployedAt: Date.now(),
               polls: [],
               questions: [],
-              sourceDocument: raw.sourceDocument
-                ? {
-                    fileName: ((raw.sourceDocument as Record<string, unknown>).fileName as string) || '',
-                    fileUrl: ((raw.sourceDocument as Record<string, unknown>).fileUrl as string) || '',
-                    mimeType: ((raw.sourceDocument as Record<string, unknown>).mimeType as string) || '',
-                  }
-                : undefined,
+              sourceDocument: refreshedSourceDoc,
             }
 
             const existingIndex = room.tasks.findIndex(t => t.id === liveTask.id)
@@ -1794,7 +1802,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
 }
 
 // Helper functions (implementing join_class logic)
-function addStudentToRoom(socket: Socket, room: ClassRoom) {
+async function addStudentToRoom(socket: Socket, room: ClassRoom) {
   const studentState: StudentState = {
     userId: socket.data.userId,
     name: socket.data.name,
@@ -1815,22 +1823,40 @@ function addStudentToRoom(socket: Socket, room: ClassRoom) {
     state: studentState,
   })
 
+  const refreshedTasks = await Promise.all(
+    room.tasks.map(async task => ({
+      ...task,
+      sourceDocument: task.sourceDocument
+        ? await refreshDocumentUrls(task.sourceDocument)
+        : undefined,
+    }))
+  )
+
   socket.emit('room_state', {
     students: Array.from(room.students.values()),
     chatHistory: room.chatHistory.slice(-50),
     whiteboardData: room.whiteboardData,
-    tasks: room.tasks,
+    tasks: refreshedTasks,
   })
 }
 
-function addTutorToRoom(socket: Socket, room: ClassRoom) {
+async function addTutorToRoom(socket: Socket, room: ClassRoom) {
   room.lastActivity = Date.now()
+
+  const refreshedTasks = await Promise.all(
+    room.tasks.map(async task => ({
+      ...task,
+      sourceDocument: task.sourceDocument
+        ? await refreshDocumentUrls(task.sourceDocument)
+        : undefined,
+    }))
+  )
 
   socket.emit('room_state', {
     students: Array.from(room.students.values()),
     chatHistory: room.chatHistory,
     whiteboardData: room.whiteboardData,
-    tasks: room.tasks,
+    tasks: refreshedTasks,
   })
 }
 

@@ -31,6 +31,7 @@ export interface ImportedLearningResource {
   fileName: string
   mimeType: string
   fileUrl: string
+  fileKey?: string
   extractedText?: string
   uploadedAt: string
 }
