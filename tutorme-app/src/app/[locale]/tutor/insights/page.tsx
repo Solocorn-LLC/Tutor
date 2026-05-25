@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { CourseBuilderInsightsRoute } from '../courses/components/CourseBuilderInsightsRoute'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -65,6 +65,7 @@ function normalizeStroke(stroke: any): any {
 function TutorInsightsPageInner() {
   const { data: session } = useSession()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [courses, setCourses] = useState<CourseSummary[]>([])
   const [courseId, setCourseId] = useState<string | null>(null)
   const [detachedCourseName, setDetachedCourseName] = useState('Course')
@@ -338,6 +339,9 @@ function TutorInsightsPageInner() {
         lessons,
         mode: persistMode,
         draftListStorageKey: draftStorageKey,
+        courseName: options?.courseName,
+        courseDescription: options?.courseDescription,
+        detachedCourseName,
         isAutoSave: options?.isAutoSave,
         propagateToVariants,
         setIndependent,
@@ -347,6 +351,23 @@ function TutorInsightsPageInner() {
 
       if (result.success) {
         toast.success(persistMode === 'draft' ? 'Draft saved' : 'Course saved successfully')
+
+        // If a new course was created (draft sentinel → real DB course),
+        // update state + URL so refresh loads the persisted course
+        if (result.courseId && result.courseId !== courseId) {
+          const newCourse = {
+            id: result.courseId,
+            name: options?.courseName || detachedCourseName || 'Untitled Course',
+            updatedAt: new Date().toISOString(),
+          }
+          setCourses(prev => {
+            if (prev.some(c => c.id === result.courseId)) return prev
+            return [...prev, newCourse]
+          })
+          setCourseId(result.courseId)
+          setSaveMode('live')
+          router.replace(`/tutor/insights?tab=builder&courseId=${result.courseId}`)
+        }
       } else {
         console.error('[Insights] Save failed:', result.error)
         toast.error(
@@ -355,7 +376,7 @@ function TutorInsightsPageInner() {
         )
       }
     },
-    [courseId, saveMode, draftStorageKey, isPublishedVariant]
+    [courseId, saveMode, draftStorageKey, isPublishedVariant, detachedCourseName, router]
   )
 
   const handleSave = useCallback(
