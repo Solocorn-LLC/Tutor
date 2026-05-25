@@ -23,6 +23,7 @@ import { saveCourse } from '../courses/components/save-course'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
+import type { ScheduleItem } from '../courses/[id]/constants'
 
 interface CourseSummary {
   id: string
@@ -33,6 +34,7 @@ interface CourseSummary {
   nationality?: string
   variantCategory?: string
   isVariant?: boolean
+  schedule?: ScheduleItem[]
 }
 
 interface InsightsSessionOption {

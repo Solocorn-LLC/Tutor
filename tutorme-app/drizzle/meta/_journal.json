@@ -351,6 +351,13 @@
       "when": 1779013697136,
       "tag": "0049_add_is_independent_to_course_variant",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1715160000000,
+      "tag": "0050_add_course_schedules",
+      "breakpoints": true
     }
   ]
 }

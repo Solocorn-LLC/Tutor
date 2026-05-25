@@ -13,6 +13,7 @@ import {
   courseProgress,
   studentPerformance,
   courseShare,
+  courseSchedule,
   liveSession,
   sessionParticipant,
   payout,
@@ -156,6 +157,7 @@ export const courseRelations = relations(course, ({ many }) => ({
   enrollments: many(courseEnrollment),
   lessons: many(courseLesson),
   shares: many(courseShare),
+  schedules: many(courseSchedule),
   progress: many(courseProgress),
   studentPerformances: many(studentPerformance),
 }))
@@ -201,6 +203,14 @@ export const studentPerformanceRelations = relations(studentPerformance, ({ one 
   }),
 }))
 
+export const courseScheduleRelations = relations(courseSchedule, ({ one, many }) => ({
+  course: one(course, {
+    fields: [courseSchedule.courseId],
+    references: [course.courseId],
+  }),
+  enrollments: many(courseEnrollment),
+}))
+
 export const courseEnrollmentRelations = relations(courseEnrollment, ({ one }) => ({
   student: one(user, {
     fields: [courseEnrollment.studentId],
@@ -209,6 +219,10 @@ export const courseEnrollmentRelations = relations(courseEnrollment, ({ one }) =
   course: one(course, {
     fields: [courseEnrollment.courseId],
     references: [course.courseId],
+  }),
+  schedule: one(courseSchedule, {
+    fields: [courseEnrollment.scheduleId],
+    references: [courseSchedule.scheduleId],
   }),
 }))
 

@@ -5,7 +5,7 @@
 
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,6 +56,13 @@ import {
   type UseCourseBuilderContentArgs,
 } from './use-course-builder-content-model'
 import { saveCourse, resolveLessonDmis } from './save-course'
+import type { ScheduleItem } from '../[id]/constants'
+import { VariantScheduleEditor } from '../[id]/components/VariantScheduleEditor'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { useRouter } from 'next/navigation'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { DollarSign, Languages } from 'lucide-react'
 
 type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
@@ -80,6 +87,8 @@ type Props = UseCourseBuilderContentArgs & {
     variantCategory?: string
     isPublished?: boolean
     isVariant?: boolean
+    categories?: string[]
+    schedule?: ScheduleItem[]
   }[]
   draftCourses?: {
     id: string
@@ -88,6 +97,8 @@ type Props = UseCourseBuilderContentArgs & {
     variantCategory?: string
     isPublished?: boolean
     isVariant?: boolean
+    categories?: string[]
+    schedule?: ScheduleItem[]
   }[]
   courseName?: string
   onCourseNameChange?: (name: string) => void
@@ -146,6 +157,19 @@ function CourseBuilderInsightsRouteInner({
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
+  const router = useRouter()
+
+  // Reschedule dialog state
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [rescheduleName, setRescheduleName] = useState('')
+  const [rescheduleCategory, setRescheduleCategory] = useState('')
+  const [reschedulePrice, setReschedulePrice] = useState<string>('')
+  const [rescheduleCurrency, setRescheduleCurrency] = useState('USD')
+  const [rescheduleIsFree, setRescheduleIsFree] = useState(false)
+  const [rescheduleLanguage, setRescheduleLanguage] = useState('')
+  const [rescheduleSchedule, setRescheduleSchedule] = useState<ScheduleItem[]>([])
+  const [rescheduleSaving, setRescheduleSaving] = useState(false)
+  const rescheduleModalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isClassroomMode) {
@@ -346,6 +370,83 @@ function CourseBuilderInsightsRouteInner({
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
   const isCoursePublished = currentCourse?.isPublished === true
+  const isCourseVariant = currentCourse?.isVariant === true
+  const originalSchedule = currentCourse?.schedule || []
+
+  // Reschedule handlers
+  const openRescheduleDialog = useCallback(() => {
+    if (!currentCourse) return
+    setRescheduleName(`${currentCourse.name} — Rescheduled`)
+    setRescheduleCategory(currentCourse.variantCategory || currentCourse.categories?.[0] || '')
+    setReschedulePrice('')
+    setRescheduleCurrency('USD')
+    setRescheduleIsFree(false)
+    setRescheduleLanguage('')
+    setRescheduleSchedule([])
+    setRescheduleDialogOpen(true)
+  }, [currentCourse])
+
+  const closeRescheduleDialog = useCallback(() => {
+    setRescheduleDialogOpen(false)
+    setRescheduleName('')
+    setRescheduleCategory('')
+    setReschedulePrice('')
+    setRescheduleCurrency('USD')
+    setRescheduleIsFree(false)
+    setRescheduleLanguage('')
+    setRescheduleSchedule([])
+  }, [])
+
+  const handleRescheduleSave = useCallback(async () => {
+    if (!courseId || courseId === 'insights-draft') {
+      toast.error('Cannot reschedule: invalid course')
+      return
+    }
+    setRescheduleSaving(true)
+    try {
+      const payload = {
+        name: rescheduleName,
+        category: rescheduleCategory,
+        price: rescheduleIsFree ? 0 : reschedulePrice ? parseFloat(reschedulePrice) : null,
+        currency: rescheduleCurrency,
+        isFree: rescheduleIsFree,
+        languageOfInstruction: rescheduleLanguage,
+        schedule: rescheduleSchedule,
+      }
+      const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { courseId?: string; name?: string }
+        toast.success(`Independent course "${data.name || rescheduleName}" created`)
+        closeRescheduleDialog()
+        if (data.courseId) {
+          router.push(`/tutor/courses/${data.courseId}`)
+        }
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data?.error || 'Failed to create independent course')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to create independent course')
+    } finally {
+      setRescheduleSaving(false)
+    }
+  }, [
+    courseId,
+    rescheduleName,
+    rescheduleCategory,
+    reschedulePrice,
+    rescheduleCurrency,
+    rescheduleIsFree,
+    rescheduleLanguage,
+    rescheduleSchedule,
+    router,
+    closeRescheduleDialog,
+  ])
 
   return (
     <div
@@ -553,14 +654,14 @@ function CourseBuilderInsightsRouteInner({
                 {activeMainTab === 'builder' &&
                   courseId &&
                   courseId !== 'insights-draft' &&
-                  saveMode === 'draft' && (
+                  (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant)) && (
                     <Button
                       variant="default"
                       className="gap-2 bg-blue-600 font-medium text-white hover:bg-blue-700"
-                      onClick={handlePublishDraft}
+                      onClick={saveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
                     >
                       <Calendar className="h-4 w-4" />
-                      Schedule
+                      {saveMode === 'draft' ? 'Schedule' : 'Reschedule'}
                     </Button>
                   )}
                 {/* Kebab menu — visible for all real courses on the builder tab */}
@@ -759,6 +860,148 @@ function CourseBuilderInsightsRouteInner({
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-0 bg-[rgba(31,41,51,0.72)] p-0 shadow-[0_24px_64px_rgba(15,23,42,0.32)] backdrop-blur-[18px] sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]">
+          <div className="flex h-full flex-col p-7 sm:p-8">
+            <DialogHeader className="p-0">
+              <DialogTitle>Reschedule as Independent Course</DialogTitle>
+              <DialogDescription>
+                Create a new independent course with a different schedule. Original schedule slots are greyed out.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div
+              ref={rescheduleModalRef}
+              className="scrollbar-hide mt-6 flex-1 overflow-y-auto pr-2"
+            >
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-white">Course Name</Label>
+                  <Input
+                    value={rescheduleName}
+                    onChange={e => setRescheduleName(e.target.value)}
+                    placeholder="Course name"
+                    className="mt-1 border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-white">Category</Label>
+                  <Input
+                    value={rescheduleCategory}
+                    onChange={e => setRescheduleCategory(e.target.value)}
+                    placeholder="Category"
+                    className="mt-1 border-slate-200 bg-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-white">Free</Label>
+                    <div className="mt-1 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-4">
+                      <span className="text-sm font-medium text-slate-600">
+                        {rescheduleIsFree ? 'Yes' : 'No'}
+                      </span>
+                      <Switch
+                        checked={rescheduleIsFree}
+                        onCheckedChange={setRescheduleIsFree}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-white">Price</Label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-slate-400" />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={reschedulePrice}
+                        onChange={e => setReschedulePrice(e.target.value)}
+                        placeholder="0.00"
+                        disabled={rescheduleIsFree}
+                        className="border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-white">Currency</Label>
+                    <Select
+                      value={rescheduleCurrency}
+                      onValueChange={setRescheduleCurrency}
+                    >
+                      <SelectTrigger className="mt-1 border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(c => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-white">Language</Label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Languages className="h-4 w-4 text-slate-400" />
+                      <Input
+                        value={rescheduleLanguage}
+                        onChange={e => setRescheduleLanguage(e.target.value)}
+                        placeholder="e.g. English"
+                        className="border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <p className="mb-2 text-sm font-medium text-white">Schedule</p>
+                <p className="mb-3 text-xs text-white/60">
+                  Select a new schedule. Original course slots are greyed out and cannot be selected.
+                </p>
+                <VariantScheduleEditor
+                  schedule={rescheduleSchedule}
+                  onScheduleChange={updater =>
+                    setRescheduleSchedule(prev => updater(prev))
+                  }
+                  price={rescheduleIsFree ? 0 : (parseFloat(reschedulePrice) || 0)}
+                  weeksToSchedule={8}
+                  excludedSchedules={originalSchedule.length > 0 ? [originalSchedule] : undefined}
+                  onWheelScroll={deltaY => {
+                    rescheduleModalRef.current?.scrollBy({ top: deltaY, behavior: 'auto' })
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeRescheduleDialog}
+                className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRescheduleSave}
+                disabled={rescheduleSaving || !rescheduleName.trim()}
+                className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
+              >
+                {rescheduleSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {rescheduleSaving ? 'Creating...' : 'Create Independent Course'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

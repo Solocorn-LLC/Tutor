@@ -54,6 +54,7 @@ interface VariantConfig {
   languageOfInstruction: string
   schedule: ScheduleItem[]
   weeksToSchedule?: number
+  publishedCourseId?: string
 }
 
 interface VariantManagerProps {
@@ -85,6 +86,7 @@ type VariantApiItem = {
   languageOfInstruction?: unknown
   schedule?: unknown
   weeksToSchedule?: unknown
+  publishedCourseId?: unknown
 }
 
 type PublishResponse = {
@@ -153,6 +155,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               typeof v.languageOfInstruction === 'string' ? v.languageOfInstruction : '',
             schedule: Array.isArray(v.schedule) ? (v.schedule as ScheduleItem[]) : [],
             weeksToSchedule: typeof v.weeksToSchedule === 'number' ? v.weeksToSchedule : 8,
+            publishedCourseId: typeof v.publishedCourseId === 'string' ? v.publishedCourseId : undefined,
           }))
           setVariants(loaded)
         })
@@ -203,6 +206,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               languageOfInstruction: globalLanguage,
               schedule: Array.isArray(defaultSchedule) ? [...defaultSchedule] : [],
               weeksToSchedule: 8,
+              publishedCourseId: undefined,
             })
             changed = true
           }

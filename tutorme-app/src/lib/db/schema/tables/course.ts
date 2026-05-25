@@ -178,6 +178,32 @@ export const courseLessonProgress = pgTable(
   })
 )
 
+export const courseSchedule = pgTable(
+  'CourseSchedule',
+  {
+    scheduleId: text('id').primaryKey().notNull(),
+    courseId: text('courseId')
+      .notNull()
+      .references(() => course.courseId, { onDelete: 'cascade' }),
+    scheduleIndex: integer('scheduleIndex').notNull().default(1),
+    schedule: jsonb('schedule').notNull().default([]),
+    weeksToSchedule: integer('weeksToSchedule').notNull().default(8),
+    maxStudents: integer('maxStudents'),
+    enrolledCount: integer('enrolledCount').notNull().default(0),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    CourseSchedule_courseId_idx: index('CourseSchedule_courseId_idx').on(table.courseId),
+    CourseSchedule_courseId_scheduleIndex_key: uniqueIndex(
+      'CourseSchedule_courseId_scheduleIndex_key'
+    ).on(table.courseId, table.scheduleIndex),
+  })
+)
+
 export const courseEnrollment = pgTable(
   'CourseEnrollment',
   {
@@ -188,6 +214,9 @@ export const courseEnrollment = pgTable(
     courseId: text('courseId')
       .notNull()
       .references(() => course.courseId, { onDelete: 'cascade' }),
+    scheduleId: text('scheduleId').references(() => courseSchedule.scheduleId, {
+      onDelete: 'set null',
+    }),
     enrolledAt: timestamp('enrolledAt', { withTimezone: true }).notNull().defaultNow(),
     startDate: timestamp('startDate', { withTimezone: true }),
     completedAt: timestamp('completedAt', { withTimezone: true }),
@@ -197,6 +226,7 @@ export const courseEnrollment = pgTable(
   table => ({
     CourseEnrollment_studentId_idx: index('CourseEnrollment_studentId_idx').on(table.studentId),
     CourseEnrollment_courseId_idx: index('CourseEnrollment_courseId_idx').on(table.courseId),
+    CourseEnrollment_scheduleId_idx: index('CourseEnrollment_scheduleId_idx').on(table.scheduleId),
     CourseEnrollment_studentId_courseId_key: uniqueIndex(
       'CourseEnrollment_studentId_courseId_key'
     ).on(table.studentId, table.courseId),
