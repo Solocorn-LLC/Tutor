@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment, courseProgress, payment } from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseProgress, payment, courseSchedule } from '@/lib/db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
 import { NotFoundError } from '@/lib/api/middleware'
 
@@ -18,7 +18,8 @@ export interface EnrollmentResult {
 export async function enrollStudentInCourse(
   studentId: string,
   courseId: string,
-  startDate?: string | Date | null
+  startDate?: string | Date | null,
+  scheduleId?: string | null
 ): Promise<EnrollmentResult> {
   const [courseRow] = await drizzleDb
     .select()
@@ -28,6 +29,23 @@ export async function enrollStudentInCourse(
 
   if (!courseRow) {
     throw new NotFoundError('Course not found')
+  }
+
+  // Validate schedule and check capacity if scheduleId provided
+  if (scheduleId) {
+    const [scheduleRow] = await drizzleDb
+      .select()
+      .from(courseSchedule)
+      .where(and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId)))
+      .limit(1)
+
+    if (!scheduleRow) {
+      throw new NotFoundError('Schedule not found for this course')
+    }
+
+    if (scheduleRow.maxStudents != null && scheduleRow.enrolledCount >= scheduleRow.maxStudents) {
+      throw new Error('This schedule is full')
+    }
   }
 
   // Payment check for paid courses
@@ -96,6 +114,7 @@ export async function enrollStudentInCourse(
       enrollmentId,
       studentId,
       courseId,
+      scheduleId: scheduleId || undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       enrollmentSource: 'browse',
     })
@@ -108,6 +127,16 @@ export async function enrollStudentInCourse(
       totalLessons,
       isCompleted: false,
     })
+
+    // Increment enrolled count for the schedule
+    if (scheduleId) {
+      await tx
+        .update(courseSchedule)
+        .set({
+          enrolledCount: sql`${courseSchedule.enrolledCount} + 1`,
+        })
+        .where(eq(courseSchedule.scheduleId, scheduleId))
+    }
   })
 
   const [enrollment] = await drizzleDb

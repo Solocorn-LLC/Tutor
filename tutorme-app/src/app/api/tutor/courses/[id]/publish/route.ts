@@ -6,6 +6,7 @@ import {
   course,
   courseLesson,
   courseVariant,
+  courseSchedule,
   liveSession,
   tutorAsset,
   calendarEvent,
@@ -44,13 +45,41 @@ export const GET = withAuth(
           currency: course.currency,
           isFree: course.isFree,
           languageOfInstruction: course.languageOfInstruction,
-          schedule: course.schedule,
         })
         .from(courseVariant)
         .innerJoin(course, eq(course.courseId, courseVariant.publishedCourseId))
         .where(eq(courseVariant.templateCourseId, templateCourseId))
 
-      return NextResponse.json({ variants: rows })
+      // Load schedules for each variant
+      const variantIds = rows.map(r => r.publishedCourseId)
+      const schedules = variantIds.length > 0
+        ? await drizzleDb
+            .select()
+            .from(courseSchedule)
+            .where(inArray(courseSchedule.courseId, variantIds))
+            .orderBy(courseSchedule.scheduleIndex)
+        : []
+
+      const schedulesByCourse = new Map<string, typeof schedules>()
+      for (const s of schedules) {
+        const list = schedulesByCourse.get(s.courseId) || []
+        list.push(s)
+        schedulesByCourse.set(s.courseId, list)
+      }
+
+      const variants = rows.map(r => ({
+        ...r,
+        schedules: (schedulesByCourse.get(r.publishedCourseId) || []).map(s => ({
+          scheduleId: s.scheduleId,
+          scheduleIndex: s.scheduleIndex,
+          schedule: s.schedule,
+          weeksToSchedule: s.weeksToSchedule,
+          maxStudents: s.maxStudents,
+          enrolledCount: s.enrolledCount,
+        })),
+      }))
+
+      return NextResponse.json({ variants })
     } catch (error: any) {
       console.error('[GET /api/tutor/courses/[id]/publish] Error:', error)
       return NextResponse.json(
@@ -69,6 +98,14 @@ interface ScheduleItem {
   date?: string
 }
 
+interface CourseScheduleConfig {
+  scheduleId?: string
+  scheduleIndex: number
+  schedule: ScheduleItem[]
+  weeksToSchedule?: number
+  maxStudents?: number | null
+}
+
 interface VariantConfig {
   category: string
   nationality: string
@@ -77,8 +114,7 @@ interface VariantConfig {
   price: number | null
   currency: string
   languageOfInstruction: string
-  schedule: ScheduleItem[]
-  weeksToSchedule?: number
+  schedules: CourseScheduleConfig[]
 }
 
 const DAY_MAP: Record<string, number> = {
@@ -296,7 +332,6 @@ export const POST = withCsrf(
                   price,
                   currency: v.currency || templateCourse.currency || 'USD',
                   isFree,
-                  schedule: v.schedule || [],
                 })
                 .where(eq(course.courseId, publishedCourseId))
 
@@ -326,7 +361,6 @@ export const POST = withCsrf(
                 price,
                 currency: v.currency || templateCourse.currency || 'USD',
                 isFree,
-                schedule: v.schedule || [],
               })
 
               // Copy lessons
@@ -364,10 +398,61 @@ export const POST = withCsrf(
               })
             }
 
-            // Generate live sessions from schedule
-            const schedule = Array.isArray(v.schedule) ? v.schedule : []
-            if (schedule.length > 0) {
-              const sessionDates = generateSessionDates(schedule, v.weeksToSchedule || 8)
+            // Sync CourseSchedule rows for this published course
+            const schedules = Array.isArray(v.schedules) ? v.schedules : []
+            const existingSchedules = await tx
+              .select()
+              .from(courseSchedule)
+              .where(eq(courseSchedule.courseId, publishedCourseId))
+              .orderBy(courseSchedule.scheduleIndex)
+
+            // Update or create schedules
+            for (let i = 0; i < schedules.length; i++) {
+              const s = schedules[i]
+              const existingSch = existingSchedules.find(es => es.scheduleIndex === s.scheduleIndex)
+              if (existingSch) {
+                await tx
+                  .update(courseSchedule)
+                  .set({
+                    schedule: s.schedule || [],
+                    weeksToSchedule: s.weeksToSchedule || 8,
+                    maxStudents: s.maxStudents ?? null,
+                    updatedAt: now,
+                  })
+                  .where(eq(courseSchedule.scheduleId, existingSch.scheduleId))
+              } else {
+                await tx.insert(courseSchedule).values({
+                  scheduleId: crypto.randomUUID(),
+                  courseId: publishedCourseId,
+                  scheduleIndex: s.scheduleIndex || i + 1,
+                  schedule: s.schedule || [],
+                  weeksToSchedule: s.weeksToSchedule || 8,
+                  maxStudents: s.maxStudents ?? null,
+                  enrolledCount: 0,
+                  createdAt: now,
+                  updatedAt: now,
+                })
+              }
+            }
+
+            // Remove extra schedules that are no longer in the payload
+            const sentIndices = new Set(schedules.map(s => s.scheduleIndex || 0))
+            for (const es of existingSchedules) {
+              if (!sentIndices.has(es.scheduleIndex)) {
+                // Only delete if no enrollments
+                if (es.enrolledCount === 0) {
+                  await tx
+                    .delete(courseSchedule)
+                    .where(eq(courseSchedule.scheduleId, es.scheduleId))
+                }
+              }
+            }
+
+            // Generate live sessions from all schedules
+            for (const s of schedules) {
+              const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
+              if (scheduleItems.length === 0) continue
+              const sessionDates = generateSessionDates(scheduleItems, s.weeksToSchedule || 8)
 
               const scheduledAts = sessionDates.map(s => s.scheduledAt).filter(Boolean)
               const minScheduledAt =

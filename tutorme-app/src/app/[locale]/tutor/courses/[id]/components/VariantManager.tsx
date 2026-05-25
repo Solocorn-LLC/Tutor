@@ -37,12 +37,22 @@ import {
   Languages,
   ChevronDown,
   ChevronUp,
+  Plus,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { VariantScheduleEditor } from './VariantScheduleEditor'
 import type { ScheduleItem } from '../constants'
 import { REGIONS } from '@/lib/data/tutor-categories'
+
+interface CourseScheduleConfig {
+  scheduleId?: string
+  scheduleIndex: number
+  schedule: ScheduleItem[]
+  weeksToSchedule?: number
+  maxStudents?: number | null
+}
 
 interface VariantConfig {
   category: string
@@ -52,9 +62,7 @@ interface VariantConfig {
   price: number | null
   currency: string
   languageOfInstruction: string
-  schedule: ScheduleItem[]
-  weeksToSchedule?: number
-  publishedCourseId?: string
+  schedules: CourseScheduleConfig[]
 }
 
 interface VariantManagerProps {
@@ -86,6 +94,7 @@ type VariantApiItem = {
   languageOfInstruction?: unknown
   schedule?: unknown
   weeksToSchedule?: unknown
+  schedules?: unknown
   publishedCourseId?: unknown
 }
 
@@ -130,7 +139,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     )
     const [variants, setVariants] = useState<VariantConfig[]>([])
     const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
-    const [scheduleDialogIndex, setScheduleDialogIndex] = useState<number | null>(null)
+    const [scheduleDialogVariantIndex, setScheduleDialogVariantIndex] = useState<number | null>(null)
+    const [scheduleDialogScheduleIndex, setScheduleDialogScheduleIndex] = useState<number | null>(null)
     const modalContentRef = useRef<HTMLDivElement>(null)
     const [globalDefaultsOpen, setGlobalDefaultsOpen] = useState(true)
     const [generatedVariantsOpen, setGeneratedVariantsOpen] = useState(true)
@@ -144,19 +154,35 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         .then(data => {
           if (!active) return
           const raw = (data as { variants?: VariantApiItem[] })?.variants ?? []
-          const loaded: VariantConfig[] = raw.map(v => ({
-            category: typeof v.category === 'string' ? v.category : '',
-            nationality: typeof v.nationality === 'string' ? v.nationality : '',
-            isPublished: typeof v.isPublished === 'boolean' ? v.isPublished : false,
-            isFree: typeof v.isFree === 'boolean' ? v.isFree : false,
-            price: typeof v.price === 'number' ? v.price : null,
-            currency: typeof v.currency === 'string' ? v.currency : 'USD',
-            languageOfInstruction:
-              typeof v.languageOfInstruction === 'string' ? v.languageOfInstruction : '',
-            schedule: Array.isArray(v.schedule) ? (v.schedule as ScheduleItem[]) : [],
-            weeksToSchedule: typeof v.weeksToSchedule === 'number' ? v.weeksToSchedule : 8,
-            publishedCourseId: typeof v.publishedCourseId === 'string' ? v.publishedCourseId : undefined,
-          }))
+          const loaded: VariantConfig[] = raw.map(v => {
+            const schedules = Array.isArray(v.schedules) && v.schedules.length > 0
+              ? v.schedules.map((s: any, i: number) => ({
+                  scheduleId: typeof s.scheduleId === 'string' ? s.scheduleId : undefined,
+                  scheduleIndex: typeof s.scheduleIndex === 'number' ? s.scheduleIndex : i + 1,
+                  schedule: Array.isArray(s.schedule) ? (s.schedule as ScheduleItem[]) : [],
+                  weeksToSchedule: typeof s.weeksToSchedule === 'number' ? s.weeksToSchedule : 8,
+                  maxStudents: typeof s.maxStudents === 'number' ? s.maxStudents : null,
+                }))
+              : Array.isArray(v.schedule) && v.schedule.length > 0
+                ? [{
+                    scheduleIndex: 1,
+                    schedule: v.schedule as ScheduleItem[],
+                    weeksToSchedule: typeof v.weeksToSchedule === 'number' ? v.weeksToSchedule : 8,
+                    maxStudents: null,
+                  }]
+                : []
+            return {
+              category: typeof v.category === 'string' ? v.category : '',
+              nationality: typeof v.nationality === 'string' ? v.nationality : '',
+              isPublished: typeof v.isPublished === 'boolean' ? v.isPublished : false,
+              isFree: typeof v.isFree === 'boolean' ? v.isFree : false,
+              price: typeof v.price === 'number' ? v.price : null,
+              currency: typeof v.currency === 'string' ? v.currency : 'USD',
+              languageOfInstruction:
+                typeof v.languageOfInstruction === 'string' ? v.languageOfInstruction : '',
+              schedules,
+            }
+          })
           setVariants(loaded)
         })
         .catch(() => setVariants([]))
@@ -204,9 +230,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
               currency: globalCurrency,
               languageOfInstruction: globalLanguage,
-              schedule: Array.isArray(defaultSchedule) ? [...defaultSchedule] : [],
-              weeksToSchedule: 8,
-              publishedCourseId: undefined,
+              schedules: Array.isArray(defaultSchedule) && defaultSchedule.length > 0
+                ? [{ scheduleIndex: 1, schedule: [...defaultSchedule], weeksToSchedule: 8, maxStudents: null }]
+                : [],
             })
             changed = true
           }
@@ -250,8 +276,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       []
     )
 
-    const openScheduleDialog = useCallback((index: number) => {
-      setScheduleDialogIndex(index)
+    const openScheduleDialog = useCallback((variantIndex: number, scheduleIdx: number) => {
+      setScheduleDialogVariantIndex(variantIndex)
+      setScheduleDialogScheduleIndex(scheduleIdx)
       setTimeout(() => {
         setScheduleDialogOpen(true)
       }, 0)
@@ -259,7 +286,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
 
     const closeScheduleDialog = useCallback(() => {
       setScheduleDialogOpen(false)
-      setTimeout(() => setScheduleDialogIndex(null), 300)
+      setTimeout(() => {
+        setScheduleDialogVariantIndex(null)
+        setScheduleDialogScheduleIndex(null)
+      }, 300)
     }, [])
 
     const handleSave = useCallback(async () => {
@@ -326,12 +356,16 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       )
     }
 
-    const dialogVariant = scheduleDialogIndex != null ? variants[scheduleDialogIndex] : null
+    const dialogVariant = scheduleDialogVariantIndex != null ? variants[scheduleDialogVariantIndex] : null
+    const dialogSchedule =
+      dialogVariant && scheduleDialogScheduleIndex != null
+        ? dialogVariant.schedules[scheduleDialogScheduleIndex]
+        : null
 
     // Ensure schedule component remounts cleanly when switching variants
     const scheduleEditorKey =
-      scheduleDialogIndex != null
-        ? `schedule-editor-${scheduleDialogIndex}`
+      scheduleDialogVariantIndex != null && scheduleDialogScheduleIndex != null
+        ? `schedule-editor-${scheduleDialogVariantIndex}-${scheduleDialogScheduleIndex}`
         : 'schedule-editor-empty'
 
     return (
@@ -615,38 +649,93 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                         </div>
                       </div>
 
-                      <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-200 p-4 transition-all duration-300 hover:bg-slate-50/50">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="h-5 w-5 text-indigo-500" />
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">Schedule</p>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {Array.isArray(variant.schedule) && variant.schedule.length > 0
-                                ? (() => {
-                                    const hasDates = variant.schedule.some((s: any) => s?.date)
-                                    const weeks = variant.weeksToSchedule || 8
-                                    const slotsPerWeek = hasDates
-                                      ? Math.ceil(variant.schedule.length / weeks)
-                                      : variant.schedule.length
-                                    const total = variant.schedule.length
-                                    if (hasDates && weeks > 1) {
-                                      return `${total} sessions (${slotsPerWeek}/week × ${weeks} weeks)`
-                                    }
-                                    return `${total} session${total === 1 ? '' : 's'}`
-                                  })()
-                                : 'No slots configured'}
-                            </p>
+                      {/* Schedule strips */}
+                      <div className="mt-6 space-y-3">
+                        {variant.schedules.map((sch, schIdx) => (
+                          <div
+                            key={sch.scheduleIndex}
+                            className="flex items-center justify-between rounded-xl border border-slate-200 p-4 transition-all duration-300 hover:bg-slate-50/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-5 w-5 text-indigo-500" />
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  Schedule {sch.scheduleIndex}
+                                </p>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  {Array.isArray(sch.schedule) && sch.schedule.length > 0
+                                    ? (() => {
+                                        const hasDates = sch.schedule.some((s: any) => s?.date)
+                                        const weeks = sch.weeksToSchedule || 8
+                                        const slotsPerWeek = hasDates
+                                          ? Math.ceil(sch.schedule.length / weeks)
+                                          : sch.schedule.length
+                                        const total = sch.schedule.length
+                                        if (hasDates && weeks > 1) {
+                                          return `${total} sessions (${slotsPerWeek}/week × ${weeks} weeks)`
+                                        }
+                                        return `${total} session${total === 1 ? '' : 's'}`
+                                      })()
+                                    : 'No slots configured'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                onClick={() => {
+                                  updateVariant(index, v => ({
+                                    ...v,
+                                    schedules: v.schedules.filter((_, i) => i !== schIdx),
+                                  }))
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="border-slate-200 bg-white"
+                                onClick={() => openScheduleDialog(index, schIdx)}
+                              >
+                                {Array.isArray(sch.schedule) && sch.schedule.length > 0
+                                  ? 'Edit Schedule'
+                                  : 'Add Session'}
+                              </Button>
+                            </div>
                           </div>
-                        </div>
+                        ))}
+
                         <Button
                           type="button"
-                          variant="outline"
-                          className="border-slate-200 bg-white"
-                          onClick={() => openScheduleDialog(index)}
+                          variant="ghost"
+                          className="w-full text-sm text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                          onClick={() => {
+                            updateVariant(index, v => {
+                              const nextIndex =
+                                v.schedules.length > 0
+                                  ? Math.max(...v.schedules.map(s => s.scheduleIndex)) + 1
+                                  : 1
+                              return {
+                                ...v,
+                                schedules: [
+                                  ...v.schedules,
+                                  {
+                                    scheduleIndex: nextIndex,
+                                    schedule: [],
+                                    weeksToSchedule: 8,
+                                    maxStudents: null,
+                                  },
+                                ],
+                              }
+                            })
+                          }}
                         >
-                          {Array.isArray(variant.schedule) && variant.schedule.length > 0
-                            ? 'Edit Schedule'
-                            : 'Add Session'}
+                          <Plus className="mr-1 h-4 w-4" />
+                          Add another schedule
                         </Button>
                       </div>
 
@@ -669,10 +758,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                       price: source.price,
                                       currency: source.currency,
                                       languageOfInstruction: source.languageOfInstruction,
-                                      schedule: Array.isArray(source.schedule)
-                                        ? [...source.schedule]
-                                        : [],
-                                      weeksToSchedule: source.weeksToSchedule,
+                                      schedules: source.schedules.map(s => ({
+                                        ...s,
+                                        schedule: Array.isArray(s.schedule) ? [...s.schedule] : [],
+                                      })),
                                     }
                               )
                             )
@@ -710,7 +799,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           onOpenChange={open => {
             setScheduleDialogOpen(open)
             if (!open) {
-              setTimeout(() => setScheduleDialogIndex(null), 300)
+              setTimeout(() => {
+                setScheduleDialogVariantIndex(null)
+                setScheduleDialogScheduleIndex(null)
+              }, 300)
             }
           }}
         >
@@ -721,8 +813,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             <div className="flex h-full flex-col p-7 sm:p-8">
               <DialogHeader className="p-0">
                 <DialogTitle>
-                  {dialogVariant
-                    ? `Configure schedule for ${dialogVariant.category} - ${dialogVariant.nationality}`
+                  {dialogVariant && dialogSchedule
+                    ? `Configure Schedule ${dialogSchedule.scheduleIndex} for ${dialogVariant.category} - ${dialogVariant.nationality}`
                     : 'Configure schedule'}
                 </DialogTitle>
                 <DialogDescription>
@@ -730,38 +822,52 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                 </DialogDescription>
               </DialogHeader>
 
-              {dialogVariant && (
+              {dialogVariant && dialogSchedule && (
                 <div
                   ref={modalContentRef}
                   className="scrollbar-hide mt-6 flex-1 overflow-y-auto pr-2"
                 >
                   <VariantScheduleEditor
                     key={scheduleEditorKey}
-                    schedule={Array.isArray(dialogVariant?.schedule) ? dialogVariant.schedule : []}
+                    schedule={Array.isArray(dialogSchedule?.schedule) ? dialogSchedule.schedule : []}
                     onScheduleChange={updater =>
-                      scheduleDialogIndex != null &&
-                      updateVariant(scheduleDialogIndex, v => ({
-                        ...v,
-                        schedule: updater(Array.isArray(v.schedule) ? v.schedule : []),
-                      }))
+                      scheduleDialogVariantIndex != null &&
+                      scheduleDialogScheduleIndex != null &&
+                      updateVariant(scheduleDialogVariantIndex, v => {
+                        const newSchedules = [...v.schedules]
+                        newSchedules[scheduleDialogScheduleIndex] = {
+                          ...newSchedules[scheduleDialogScheduleIndex],
+                          schedule: updater(
+                            Array.isArray(newSchedules[scheduleDialogScheduleIndex].schedule)
+                              ? newSchedules[scheduleDialogScheduleIndex].schedule
+                              : []
+                          ),
+                        }
+                        return { ...v, schedules: newSchedules }
+                      })
                     }
                     price={dialogVariant?.price ?? 0}
-                    weeksToSchedule={dialogVariant?.weeksToSchedule || 8}
+                    weeksToSchedule={dialogSchedule?.weeksToSchedule || 8}
                     onWeeksChange={weeks =>
-                      scheduleDialogIndex != null &&
-                      updateVariant(scheduleDialogIndex, v => ({
-                        ...v,
-                        weeksToSchedule: weeks,
-                      }))
+                      scheduleDialogVariantIndex != null &&
+                      scheduleDialogScheduleIndex != null &&
+                      updateVariant(scheduleDialogVariantIndex, v => {
+                        const newSchedules = [...v.schedules]
+                        newSchedules[scheduleDialogScheduleIndex] = {
+                          ...newSchedules[scheduleDialogScheduleIndex],
+                          weeksToSchedule: weeks,
+                        }
+                        return { ...v, schedules: newSchedules }
+                      })
                     }
                     onWheelScroll={deltaY => {
                       modalContentRef.current?.scrollBy({ top: deltaY, behavior: 'auto' })
                     }}
                     allVariantsSchedules={
-                      scheduleDialogIndex != null
+                      scheduleDialogVariantIndex != null
                         ? variants
-                            .filter((_, i) => i !== scheduleDialogIndex)
-                            .map(v => (Array.isArray(v.schedule) ? v.schedule : []))
+                            .filter((_, i) => i !== scheduleDialogVariantIndex)
+                            .flatMap(v => v.schedules.map(s => s.schedule))
                         : undefined
                     }
                   />

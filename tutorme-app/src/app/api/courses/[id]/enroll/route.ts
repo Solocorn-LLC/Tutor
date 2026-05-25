@@ -17,10 +17,10 @@ export const POST = withCsrf(
     }
 
     const body = await req.json().catch(() => ({}))
-    const { startDate } = body
+    const { startDate, scheduleId } = body
 
     try {
-      const result = await enrollStudentInCourse(session.user.id, courseId, startDate)
+      const result = await enrollStudentInCourse(session.user.id, courseId, startDate, scheduleId)
       return NextResponse.json(result)
     } catch (error: unknown) {
       const err = error as any
