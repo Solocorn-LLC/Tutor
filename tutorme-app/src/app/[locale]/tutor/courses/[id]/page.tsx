@@ -64,6 +64,8 @@ import {
   UNIVERSITY_CATEGORIES,
   LANGUAGE_CATEGORIES,
   PROFESSIONAL_CATEGORIES,
+  UNIVERSITIES_BY_COUNTRY_CODE,
+  getUniversityRegionId,
   type CountryData,
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
@@ -216,6 +218,35 @@ export default function TutorCoursePage() {
     })
     return exams
   }, [selectedCountries, availableCountries])
+
+  // Filtered university categories based on selected regions/countries
+  const filteredUniversityCategories = useMemo<ExamCategory[]>(() => {
+    // No region selected — show all universities
+    if (selectedRegions.length === 0) return UNIVERSITY_CATEGORIES
+
+    // Specific countries selected — show universities from those countries
+    if (selectedCountries.length > 0) {
+      const categories: ExamCategory[] = []
+      selectedCountries.forEach(countryCode => {
+        const country = availableCountries.find(c => c.code === countryCode)
+        const universities = UNIVERSITIES_BY_COUNTRY_CODE[countryCode]
+        if (universities && universities.length > 0) {
+          categories.push({
+            id: `universities-${countryCode.toLowerCase()}`,
+            label: `Universities — ${country?.name || countryCode}`,
+            exams: universities,
+          })
+        }
+      })
+      return categories
+    }
+
+    // Only regions selected — show university categories for those regions
+    return UNIVERSITY_CATEGORIES.filter(cat => {
+      const regionId = cat.id.replace('universities-', '')
+      return selectedRegions.includes(regionId)
+    })
+  }, [selectedRegions, selectedCountries, availableCountries])
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
   const [scheduleRepeatWeekly, setScheduleRepeatWeekly] = useState(false)
   const [numberOfWeeks, setNumberOfWeeks] = useState(4)
@@ -1269,7 +1300,7 @@ export default function TutorCoursePage() {
                         {/* Universities Tab */}
                         <TabsContent value="universities" className="mt-0">
                           <div className="space-y-6">
-                            {UNIVERSITY_CATEGORIES.filter(
+                            {filteredUniversityCategories.filter(
                               cat =>
                                 !categorySearch ||
                                 cat.exams.some(e =>
