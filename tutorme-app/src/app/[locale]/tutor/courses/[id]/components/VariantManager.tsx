@@ -618,7 +618,18 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                             <p className="text-sm font-semibold text-slate-800">Schedule</p>
                             <p className="mt-0.5 text-xs text-slate-500">
                               {Array.isArray(variant.schedule) && variant.schedule.length > 0
-                                ? `${variant.schedule.length} slot${variant.schedule.length === 1 ? '' : 's'} configured`
+                                ? (() => {
+                                    const hasDates = variant.schedule.some((s: any) => s?.date)
+                                    const weeks = variant.weeksToSchedule || 8
+                                    const slotsPerWeek = hasDates
+                                      ? Math.ceil(variant.schedule.length / weeks)
+                                      : variant.schedule.length
+                                    const total = variant.schedule.length
+                                    if (hasDates && weeks > 1) {
+                                      return `${total} sessions (${slotsPerWeek}/week × ${weeks} weeks)`
+                                    }
+                                    return `${total} session${total === 1 ? '' : 's'}`
+                                  })()
                                 : 'No slots configured'}
                             </p>
                           </div>

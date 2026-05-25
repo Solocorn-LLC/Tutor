@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner'
 import type { ScheduleItem } from '../constants'
 import { DAYS, TIME_SLOT_OPTIONS } from '../constants'
+import { expandSchedule, extractTemplate } from './expand-schedule'
 
 interface AvailabilityData {
   availability: Array<{ dayOfWeek: number; startTime: string; endTime: string }>
@@ -41,7 +42,7 @@ interface VariantScheduleEditorProps {
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-const DAY_TO_INDEX: Record<string, number> = {
+export const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0,
   Monday: 1,
   Tuesday: 2,
@@ -279,9 +280,41 @@ export function VariantScheduleEditor({
     }
   }, [effectiveWeeks, weeksToSchedule, onWeeksChange])
 
+  // Auto-expand schedule when repeat-weekly is enabled or weeks change
+  const prevRepeatWeeklyRef = useRef(scheduleRepeatWeekly)
+  const prevWeeksRef = useRef(safeNumberOfWeeks)
+  useEffect(() => {
+    const repeatTurnedOn = scheduleRepeatWeekly && !prevRepeatWeeklyRef.current
+    const weeksChanged = scheduleRepeatWeekly && safeNumberOfWeeks !== prevWeeksRef.current
+
+    if (repeatTurnedOn || weeksChanged) {
+      const template = extractTemplate(schedule)
+      if (template.length > 0) {
+        const expanded = expandSchedule(template, safeNumberOfWeeks, scheduleWeekStart)
+        onScheduleChange(() => expanded)
+      }
+    }
+
+    if (!scheduleRepeatWeekly && prevRepeatWeeklyRef.current) {
+      // Repeat turned off: collapse to template (remove dates)
+      const template = extractTemplate(schedule)
+      onScheduleChange(() => template)
+    }
+
+    prevRepeatWeeklyRef.current = scheduleRepeatWeekly
+    prevWeeksRef.current = safeNumberOfWeeks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleRepeatWeekly, safeNumberOfWeeks])
+
   const scheduleSummary = useMemo(() => {
     if (!Array.isArray(schedule) || schedule.length === 0) return []
     const validSchedule = schedule.filter(Boolean)
+
+    // If schedule is already expanded (has dates), return as-is
+    const hasDates = validSchedule.some(s => s.date)
+    if (hasDates) return [...validSchedule]
+
+    // Backward compatibility: expand template slots on-the-fly
     if (scheduleRepeatWeekly) {
       const MAX_WEEKS = 52
       const weeks = Math.min(
@@ -343,11 +376,10 @@ export function VariantScheduleEditor({
 
     onScheduleChange(prevRaw => {
       const prev = Array.isArray(prevRaw) ? prevRaw.filter(Boolean) : []
-      const idx = prev.findIndex(s => {
+
+      // Check if this day+time is already in the schedule (works for both template and expanded)
+      const matchingIndex = prev.findIndex(s => {
         if (!s || s.dayOfWeek !== day) return false
-        if (!scheduleRepeatWeekly) {
-          if (s.date ? s.date !== dateKey : scheduleWeekOffset !== 0) return false
-        }
         const [sh, sm] = (s.startTime || '00:00').split(':').map(Number)
         const startM = sh * 60 + sm
         const endM = startM + (s.durationMinutes || 60)
@@ -355,8 +387,34 @@ export function VariantScheduleEditor({
         const slotM = th * 60 + tm
         return slotM >= startM && slotM < endM
       })
-      if (idx >= 0) {
-        return [...prev.slice(0, idx), ...prev.slice(idx + 1)]
+
+      if (scheduleRepeatWeekly) {
+        // In repeat mode: toggle the template slot and regenerate all weeks
+        const hasMatch = matchingIndex >= 0
+        const template = extractTemplate(prev)
+        const templateKey = `${day}|${timeStr}`
+        const templateIdx = template.findIndex(
+          s => s.dayOfWeek === day && s.startTime === timeStr
+        )
+
+        if (hasMatch || templateIdx >= 0) {
+          // Remove this day+time from template and regenerate
+          const newTemplate = template.filter(s => `${s.dayOfWeek}|${s.startTime}` !== templateKey)
+          if (newTemplate.length === 0) return []
+          return expandSchedule(newTemplate, safeNumberOfWeeks, scheduleWeekStart)
+        }
+
+        // Add to template and regenerate
+        const newTemplate = [
+          ...template,
+          { dayOfWeek: day, startTime: timeStr, durationMinutes: 60 },
+        ]
+        return expandSchedule(newTemplate, safeNumberOfWeeks, scheduleWeekStart)
+      }
+
+      // Non-repeat mode: toggle a single dated slot
+      if (matchingIndex >= 0) {
+        return [...prev.slice(0, matchingIndex), ...prev.slice(matchingIndex + 1)]
       }
       return [
         ...prev,
@@ -364,7 +422,7 @@ export function VariantScheduleEditor({
           dayOfWeek: day,
           startTime: timeStr,
           durationMinutes: 60,
-          ...(scheduleRepeatWeekly ? {} : { date: dateKey }),
+          date: dateKey,
         },
       ]
     })
@@ -580,9 +638,9 @@ export function VariantScheduleEditor({
                         : []
                       const matchingSlotIndex = validScheduleArray.findIndex(s => {
                         if (!s || s.dayOfWeek !== day) return false
-                        if (!scheduleRepeatWeekly) {
-                          if (s.date ? s.date !== dateKey : scheduleWeekOffset !== 0) return false
-                        }
+                        // For dated slots (expanded schedule), match exact date
+                        if (s.date && s.date !== dateKey) return false
+                        // For non-dated slots (template), match any week
                         const [sh, sm] = (s.startTime || '00:00').split(':').map(Number)
                         const startM = sh * 60 + sm
                         const endM = startM + (s.durationMinutes || 60)
@@ -591,23 +649,38 @@ export function VariantScheduleEditor({
                         return slotM >= startM && slotM < endM
                       })
                       const inRange = matchingSlotIndex >= 0
-                      let sessionNum = 0
+                      // Show week number for expanded schedules, session index for templates
+                      let sessionLabel = ''
                       if (inRange) {
                         const currentSlot = validScheduleArray[matchingSlotIndex]
-                        const sortedSessions = [...validScheduleArray].sort((a, b) => {
-                          const aDate = a.date || ''
-                          const bDate = b.date || ''
-                          if (aDate !== bDate) return aDate.localeCompare(bDate)
-                          return (a.startTime || '').localeCompare(b.startTime || '')
-                        })
-                        sessionNum =
-                          sortedSessions.findIndex(
+                        if (currentSlot.date) {
+                          // Find which week this slot belongs to
+                          const allForDayTime = validScheduleArray.filter(
+                            s =>
+                              s.dayOfWeek === currentSlot.dayOfWeek &&
+                              s.startTime === currentSlot.startTime
+                          )
+                          const sorted = allForDayTime.sort((a, b) =>
+                            (a.date || '').localeCompare(b.date || '')
+                          )
+                          const weekNum = sorted.findIndex(s => s.date === currentSlot.date) + 1
+                          sessionLabel = `Week ${weekNum}`
+                        } else {
+                          const sortedSessions = [...validScheduleArray].sort((a, b) => {
+                            const aDate = a.date || ''
+                            const bDate = b.date || ''
+                            if (aDate !== bDate) return aDate.localeCompare(bDate)
+                            return (a.startTime || '').localeCompare(b.startTime || '')
+                          })
+                          const idx = sortedSessions.findIndex(
                             s =>
                               s &&
                               s.dayOfWeek === currentSlot.dayOfWeek &&
                               s.startTime === currentSlot.startTime &&
                               s.date === currentSlot.date
-                          ) + 1
+                          )
+                          sessionLabel = `Session ${idx + 1}`
+                        }
                       }
 
                       const slotStatus = getSlotStatus(day, dateKey, timeStr, 60)
@@ -639,7 +712,7 @@ export function VariantScheduleEditor({
                           title={isUnavailable ? slotStatus.reason : undefined}
                         >
                           {inRange ? (
-                            <span className="text-[11px]">Session {sessionNum}</span>
+                            <span className="text-[11px]">{sessionLabel}</span>
                           ) : null}
                         </div>
                       )
