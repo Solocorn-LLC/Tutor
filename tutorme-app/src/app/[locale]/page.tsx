@@ -1116,26 +1116,40 @@ const FuturisticBackground = ({ theme, mode }: { theme: ColorTheme; mode: ThemeM
   )
 }
 
-// --- Category Grid Icon (3×3 colorful squares) ---
+// --- Category Grid Icon (3×3 colorful squares with pulse + color wave) ---
 const CategoryGridIcon = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 24 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
+    style={{
+      animation: 'cat-pulse 2s ease-in-out 3s infinite',
+      transformOrigin: 'center',
+    }}
   >
+    <style>{`
+      @keyframes cat-pulse {
+        0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 transparent); }
+        50% { transform: scale(1.15); filter: drop-shadow(0 0 6px rgba(255,255,255,0.35)); }
+      }
+      @keyframes cat-brighten {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.55; filter: brightness(1.35); }
+      }
+    `}</style>
     {/* Row 1 */}
-    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F5C542" />
-    <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#E63946" />
-    <rect x="17" y="1" width="6" height="6" rx="1.5" fill="#9B5DE5" />
+    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F5C542" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.0s' }} />
+    <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#E63946" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.1s' }} />
+    <rect x="17" y="1" width="6" height="6" rx="1.5" fill="#9B5DE5" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.2s' }} />
     {/* Row 2 */}
-    <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#52B788" />
-    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#48CAE4" />
-    <rect x="17" y="9" width="6" height="6" rx="1.5" fill="#F4A261" />
+    <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#52B788" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.3s' }} />
+    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#48CAE4" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.4s' }} />
+    <rect x="17" y="9" width="6" height="6" rx="1.5" fill="#F4A261" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.5s' }} />
     {/* Row 3 */}
-    <rect x="1" y="17" width="6" height="6" rx="1.5" fill="#E83F6F" />
-    <rect x="9" y="17" width="6" height="6" rx="1.5" fill="#0D9488" />
-    <rect x="17" y="17" width="6" height="6" rx="1.5" fill="#64748B" />
+    <rect x="1" y="17" width="6" height="6" rx="1.5" fill="#E83F6F" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.6s' }} />
+    <rect x="9" y="17" width="6" height="6" rx="1.5" fill="#0D9488" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.7s' }} />
+    <rect x="17" y="17" width="6" height="6" rx="1.5" fill="#64748B" style={{ animation: 'cat-brighten 2s ease-in-out 3s infinite', animationDelay: '3.8s' }} />
   </svg>
 )
 
