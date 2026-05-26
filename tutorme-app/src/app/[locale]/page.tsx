@@ -38,7 +38,6 @@ import {
   Code,
   Trophy,
   Search,
-  QrCode,
   Users,
   User,
 } from 'lucide-react'
@@ -1116,6 +1115,29 @@ const FuturisticBackground = ({ theme, mode }: { theme: ColorTheme; mode: ThemeM
     </div>
   )
 }
+
+// --- Category Grid Icon (3×3 colorful squares) ---
+const CategoryGridIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    {/* Row 1 */}
+    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F5C542" />
+    <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#E63946" />
+    <rect x="17" y="1" width="6" height="6" rx="1.5" fill="#9B5DE5" />
+    {/* Row 2 */}
+    <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#52B788" />
+    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#48CAE4" />
+    <rect x="17" y="9" width="6" height="6" rx="1.5" fill="#F4A261" />
+    {/* Row 3 */}
+    <rect x="1" y="17" width="6" height="6" rx="1.5" fill="#E83F6F" />
+    <rect x="9" y="17" width="6" height="6" rx="1.5" fill="#0D9488" />
+    <rect x="17" y="17" width="6" height="6" rx="1.5" fill="#64748B" />
+  </svg>
+)
 
 // --- Other Components ---
 
@@ -3086,7 +3108,7 @@ export default function LandingPage() {
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full"
                     aria-label="Search"
                   >
-                    <QrCode className="h-5 w-5 text-slate-400" />
+                    <CategoryGridIcon className="h-5 w-5" />
                   </button>
                 </div>
               </form>
