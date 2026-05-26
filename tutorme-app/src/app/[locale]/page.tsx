@@ -3118,9 +3118,10 @@ export default function LandingPage() {
                     className="ml-4 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={() => setShowCategories(true)}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full"
-                    aria-label="Search"
+                    aria-label="Browse categories"
                   >
                     <CategoryGridIcon className="h-5 w-5" />
                   </button>
