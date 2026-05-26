@@ -83,6 +83,9 @@ export async function GET(request: NextRequest) {
         tutorName: profile.name,
         tutorUsername: profile.username,
         tutorAvatarUrl: profile.avatarUrl,
+        tutorCreatedAt: profile.createdAt,
+        tutorCountryOfResidence: profile.countryOfResidence,
+        tutorNationality: profile.nationality,
 
         templateCourseId: courseVariant.templateCourseId,
         variantCategory: courseVariant.category,
@@ -127,6 +130,23 @@ export async function GET(request: NextRequest) {
       {} as Record<string, string | null>
     )
 
+    const creatorIds = Array.from(new Set(ordered.map(c => c.creatorId).filter((id): id is string => !!id)))
+    const activeCourseCounts =
+      creatorIds.length > 0
+        ? await drizzleDb
+            .select({ creatorId: course.creatorId, count: sql<number>`count(*)::int` })
+            .from(course)
+            .where(and(eq(course.isPublished, true), inArray(course.creatorId, creatorIds)))
+            .groupBy(course.creatorId)
+        : []
+    const activeCourseCountMap = activeCourseCounts.reduce(
+      (acc, row) => {
+        if (row.creatorId) acc[row.creatorId] = row.count
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
     const coursesResponse = ordered.map(c => ({
       id: c.courseId,
       name: c.name,
@@ -148,6 +168,9 @@ export async function GET(request: NextRequest) {
         name: c.tutorName || 'Anonymous Tutor',
         username: c.tutorUsername || (c.creatorId ? c.creatorId.slice(0, 8) : 'tutor'),
         avatarUrl: c.tutorAvatarUrl,
+        createdAt: c.tutorCreatedAt?.toISOString() || null,
+        country: c.tutorCountryOfResidence || c.tutorNationality || null,
+        activeCourses: activeCourseCountMap[c.creatorId || ''] ?? 0,
       },
     }))
 

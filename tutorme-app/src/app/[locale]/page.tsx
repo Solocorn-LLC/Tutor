@@ -28,6 +28,7 @@ import {
   Send,
   MessageCircle,
   BookOpen,
+  CalendarDays,
   Calculator,
   FlaskConical,
   Languages,
@@ -1632,6 +1633,75 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               <p className="whitespace-pre-wrap leading-relaxed text-gray-600">
                 {selectedCourse?.description || 'More details will be available soon.'}
               </p>
+            </DialogPanel>
+            <DialogPanel>
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">About the tutor</h3>
+              <div className="flex items-start gap-4">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                  {selectedCourse?.tutor?.avatarUrl ? (
+                    <img
+                      src={selectedCourse.tutor.avatarUrl}
+                      alt={selectedCourse.tutor.name || 'Tutor'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                      <User className="h-8 w-8" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-base font-semibold text-gray-900">
+                    {selectedCourse?.tutor?.name || 'Anonymous Tutor'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    @{selectedCourse?.tutor?.username || 'tutor'}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                {selectedCourse?.tutor?.createdAt && (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <CalendarDays className="h-4 w-4 text-gray-400" />
+                      <span>
+                        Tutor Since{' '}
+                        <span className="font-semibold text-gray-900">
+                          {new Date(selectedCourse.tutor.createdAt).toLocaleDateString('en-US', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-4 w-px bg-gray-200" />
+                  </>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="h-4 w-4 text-gray-400" />
+                  <span>
+                    Active Courses{' '}
+                    <span className="font-semibold text-gray-900">
+                      {selectedCourse?.tutor?.activeCourses ?? 0}
+                    </span>
+                  </span>
+                </div>
+                {selectedCourse?.tutor?.country && (
+                  <>
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-1.5">
+                      <Globe className="h-4 w-4 text-gray-400" />
+                      <span>
+                        Country{' '}
+                        <span className="font-semibold text-gray-900">
+                          {selectedCourse.tutor.country}
+                        </span>
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
             </DialogPanel>
           </div>
           <DialogFooter className="gap-3">
