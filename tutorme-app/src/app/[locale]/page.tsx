@@ -1706,7 +1706,6 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           </div>
           <DialogFooter className="gap-3">
             <Button
-              variant="outline"
               onClick={() => {
                 const username = selectedCourse?.tutor?.username || ''
                 setSelectedCourse(null)
@@ -1714,14 +1713,13 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                   router.push(`/u/${encodeURIComponent(username)}`)
                 }
               }}
-              className="h-10"
+              className="h-10 rounded-[10px] border border-white bg-[#194BB9] px-6 text-white transition-all duration-200 hover:bg-white hover:text-black"
             >
               Go To Public Page
             </Button>
             <Button
-              variant="modal-secondary"
               onClick={() => setSelectedCourse(null)}
-              className="h-10"
+              className="h-10 rounded-[10px] border border-white bg-black px-6 text-white transition-all duration-200 hover:bg-white hover:text-black"
             >
               Close
             </Button>
