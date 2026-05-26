@@ -1666,6 +1666,61 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return url
     }, [])
 
+    /**
+     * Best-effort GCS cleanup for orphaned file keys.
+     * Called when documents are replaced or removed client-side.
+     */
+    const cleanupGcsFiles = useCallback(async (keys: string[]) => {
+      if (keys.length === 0) return
+      try {
+        await fetchWithCsrf('/api/uploads/cleanup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys }),
+        })
+      } catch {
+        // Best-effort: ignore cleanup failures
+      }
+    }, [])
+
+    /**
+     * Collect all fileKey values from a task and its extensions.
+     */
+    const collectTaskFileKeys = useCallback((task: Task): string[] => {
+      const keys: string[] = []
+      if (task.sourceDocument?.fileKey) keys.push(task.sourceDocument.fileKey)
+      for (const ext of task.extensions || []) {
+        if (ext.sourceDocument?.fileKey) keys.push(ext.sourceDocument.fileKey)
+      }
+      return keys
+    }, [])
+
+    /**
+     * Collect all fileKey values from an assessment/homework.
+     */
+    const collectAssessmentFileKeys = useCallback((assessment: Assessment): string[] => {
+      const keys: string[] = []
+      if (assessment.sourceDocument?.fileKey) keys.push(assessment.sourceDocument.fileKey)
+      return keys
+    }, [])
+
+    /**
+     * Collect all fileKey values from a lesson (tasks, assessments, content, docs).
+     */
+    const collectLessonFileKeys = useCallback((lesson: Lesson): string[] => {
+      const keys: string[] = []
+      for (const task of lesson.tasks || []) {
+        keys.push(...collectTaskFileKeys(task))
+      }
+      for (const assessment of lesson.homework || []) {
+        keys.push(...collectAssessmentFileKeys(assessment))
+      }
+      for (const content of lesson.content || []) {
+        if (content.sourceDocument?.fileKey) keys.push(content.sourceDocument.fileKey)
+      }
+      return keys
+    }, [collectTaskFileKeys, collectAssessmentFileKeys])
+
     const formatPciTranscript = (messages: { role: 'user' | 'assistant'; content: string }[]) =>
       messages
         .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
@@ -1726,6 +1781,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 description: (item as Task).description || '',
                 instructions: (item as Task).instructions || '',
                 dmiItems: (item as Task).dmiItems || [],
+                sourceDocument: (item as Task).sourceDocument,
               }
             : {
                 ...cloneAssessment(item as Assessment),
@@ -1806,6 +1862,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               ? {
                   fileName: homeworkItem.sourceDocument.fileName,
                   fileUrl: homeworkItem.sourceDocument.fileUrl,
+                  fileKey: homeworkItem.sourceDocument.fileKey,
                   mimeType: homeworkItem.sourceDocument.mimeType || 'application/pdf',
                 }
               : undefined,
@@ -2383,6 +2440,7 @@ FEEDBACK: [your explanation]`
           ? {
               fileName: assessmentSourceDocument.fileName,
               fileUrl: assessmentSourceDocument.fileUrl,
+              fileKey: assessmentSourceDocument.fileKey,
               mimeType: assessmentSourceDocument.mimeType,
             }
           : undefined,
@@ -3198,6 +3256,11 @@ FEEDBACK: [your explanation]`
     }
 
     const deleteCourseBuilderNode = async (nodeId: string) => {
+      const nodeToDelete = nodes.find(m => m.id === nodeId)
+      if (nodeToDelete) {
+        const keys = nodeToDelete.lessons.flatMap(l => collectLessonFileKeys(l))
+        if (keys.length > 0) await cleanupGcsFiles(keys)
+      }
       const nextNodes = nodes.filter(m => m.id !== nodeId)
       setCourseBuilderNodes(nextNodes)
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
@@ -3205,6 +3268,13 @@ FEEDBACK: [your explanation]`
     }
 
     const deleteLesson = async (nodeId: string, lessonId: string) => {
+      const lessonToDelete = nodes
+        .find(m => m.id === nodeId)
+        ?.lessons.find(l => l.id === lessonId)
+      if (lessonToDelete) {
+        const keys = collectLessonFileKeys(lessonToDelete)
+        if (keys.length > 0) await cleanupGcsFiles(keys)
+      }
       const nextNodes = nodes.map(m =>
         m.id === nodeId ? { ...m, lessons: m.lessons.filter(l => l.id !== lessonId) } : m
       )
@@ -3214,6 +3284,14 @@ FEEDBACK: [your explanation]`
     }
 
     const deleteTask = async (nodeId: string, lessonId: string, taskId: string) => {
+      const taskToDelete = nodes
+        .find(m => m.id === nodeId)
+        ?.lessons.find(l => l.id === lessonId)
+        ?.tasks?.find(t => t.id === taskId)
+      if (taskToDelete) {
+        const keys = collectTaskFileKeys(taskToDelete)
+        if (keys.length > 0) await cleanupGcsFiles(keys)
+      }
       const nextNodes = nodes.map(m =>
         m.id === nodeId
           ? {
@@ -3233,6 +3311,14 @@ FEEDBACK: [your explanation]`
     }
 
     const deleteAssessment = async (nodeId: string, lessonId: string, hwId: string) => {
+      const assessmentToDelete = nodes
+        .find(m => m.id === nodeId)
+        ?.lessons.find(l => l.id === lessonId)
+        ?.homework?.find(h => h.id === hwId)
+      if (assessmentToDelete) {
+        const keys = collectAssessmentFileKeys(assessmentToDelete)
+        if (keys.length > 0) await cleanupGcsFiles(keys)
+      }
       const nextNodes = nodes.map(m =>
         m.id === nodeId
           ? {
@@ -3636,6 +3722,7 @@ FEEDBACK: [your explanation]`
           }
 
           let fileUrl = ''
+          let fileKey = ''
           let fileMimeType = 'application/pdf'
           try {
             const uploadForm = new FormData()
@@ -3648,6 +3735,7 @@ FEEDBACK: [your explanation]`
             if (uploadRes.ok) {
               const uploadData = await uploadRes.json()
               fileUrl = uploadData.url || ''
+              fileKey = uploadData.key || ''
               fileMimeType = uploadData.isPdf
                 ? 'application/pdf'
                 : uploadData.type || 'application/pdf'
@@ -3667,6 +3755,7 @@ FEEDBACK: [your explanation]`
             name: f.name,
             content: extractedText || `[Imported ${f.name}]`,
             url: fileUrl,
+            fileKey,
             mimeType: fileMimeType,
             folder: designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
           }
@@ -3686,6 +3775,7 @@ FEEDBACK: [your explanation]`
           const newDoc = {
             fileName: newAsset.name,
             fileUrl: newAsset.url,
+            fileKey: newAsset.fileKey,
             mimeType: newAsset.mimeType,
             uploadedAt: new Date().toISOString(),
             extractedText: newAsset.content,
@@ -3924,6 +4014,7 @@ FEEDBACK: [your explanation]`
 
                         // Upload to server — any file gets converted to PDF
                         let fileUrl = ''
+                        let fileKey = ''
                         let fileMimeType = 'application/pdf'
                         try {
                           const uploadForm = new FormData()
@@ -3936,6 +4027,7 @@ FEEDBACK: [your explanation]`
                           if (uploadRes.ok) {
                             const uploadData = await uploadRes.json()
                             fileUrl = uploadData.url || ''
+                            fileKey = uploadData.key || ''
                             fileMimeType = uploadData.isPdf
                               ? 'application/pdf'
                               : uploadData.type || 'application/pdf'
@@ -3949,6 +4041,7 @@ FEEDBACK: [your explanation]`
                           name: f.name,
                           content: textContent,
                           url: fileUrl || undefined,
+                          fileKey: fileKey || undefined,
                           mimeType: fileMimeType || undefined,
                           folder:
                             designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
@@ -4181,6 +4274,7 @@ FEEDBACK: [your explanation]`
                               sourceDocument: {
                                 fileName: `${assetToLoad.name} (Page ${i + 1})`,
                                 fileUrl: uploadData.url,
+                                fileKey: uploadData.key,
                                 mimeType: 'application/pdf',
                                 uploadedAt: new Date().toISOString(),
                               },
@@ -4194,6 +4288,7 @@ FEEDBACK: [your explanation]`
                             newTask.sourceDocument = {
                               fileName: `${assetToLoad.name} (Page ${i + 1})`,
                               fileUrl: uploadData.url,
+                              fileKey: uploadData.key,
                               mimeType: 'application/pdf',
                               uploadedAt: new Date().toISOString(),
                             }
@@ -4212,6 +4307,7 @@ FEEDBACK: [your explanation]`
                                   ? {
                                       fileName: assetToLoad.name,
                                       fileUrl: assetToLoad.url,
+                                      fileKey: assetToLoad.fileKey,
                                       mimeType: assetToLoad.mimeType,
                                       uploadedAt: new Date().toISOString(),
                                     }
@@ -4226,6 +4322,7 @@ FEEDBACK: [your explanation]`
                               newTask.sourceDocument = {
                                 fileName: assetToLoad.name,
                                 fileUrl: assetToLoad.url,
+                                fileKey: assetToLoad.fileKey,
                                 mimeType: assetToLoad.mimeType,
                                 uploadedAt: new Date().toISOString(),
                               }
@@ -4313,6 +4410,7 @@ FEEDBACK: [your explanation]`
 
                       let pages: string[] = []
                       const pdfPagesUrls: string[] = []
+                      const pdfPageKeys: string[] = []
 
                       const isPdf =
                         assetToLoad.mimeType === 'application/pdf' ||
@@ -4348,6 +4446,7 @@ FEEDBACK: [your explanation]`
                             throw new Error(uploadData.error || 'Failed to upload split page')
 
                           pdfPagesUrls.push(uploadData.url)
+                          pdfPageKeys.push(uploadData.key)
                         }
 
                         // Dummy text to represent pages since we use physical PDF URLs
@@ -4409,6 +4508,7 @@ FEEDBACK: [your explanation]`
                         newTask.sourceDocument = {
                           fileName: `${assetToLoad.name} (Page 1)`,
                           fileUrl: pdfPagesUrls[0],
+                          fileKey: pdfPageKeys[0],
                           mimeType: 'application/pdf',
                           uploadedAt: new Date().toISOString(),
                         }
@@ -4416,6 +4516,7 @@ FEEDBACK: [your explanation]`
                         newTask.sourceDocument = {
                           fileName: assetToLoad.name,
                           fileUrl: assetToLoad.url,
+                          fileKey: assetToLoad.fileKey,
                           mimeType: assetToLoad.mimeType,
                           uploadedAt: new Date().toISOString(),
                         }
@@ -4434,6 +4535,7 @@ FEEDBACK: [your explanation]`
                           ext.sourceDocument = {
                             fileName: `${assetToLoad.name} (Page ${idx + 2})`,
                             fileUrl: pdfPagesUrls[idx + 1],
+                            fileKey: pdfPageKeys[idx + 1],
                             mimeType: 'application/pdf',
                             uploadedAt: new Date().toISOString(),
                           }
@@ -4552,6 +4654,7 @@ FEEDBACK: [your explanation]`
                       targetAssess.sourceDocument = {
                         fileName: assetToLoad.name,
                         fileUrl: assetToLoad.url,
+                        fileKey: assetToLoad.fileKey,
                         mimeType: assetToLoad.mimeType || 'application/pdf',
                         uploadedAt: new Date().toISOString(),
                         extractedText,
@@ -8171,6 +8274,7 @@ FEEDBACK: [your explanation]`
                                                         ? {
                                                             fileName: task.sourceDocument.fileName,
                                                             fileUrl: task.sourceDocument.fileUrl,
+                                                            fileKey: task.sourceDocument.fileKey,
                                                             mimeType:
                                                               task.sourceDocument.mimeType ||
                                                               'application/pdf',

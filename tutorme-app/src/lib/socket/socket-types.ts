@@ -64,6 +64,7 @@ export interface LiveTaskDmiItem {
 export interface LiveTaskSourceDocument {
   fileName: string
   fileUrl: string
+  fileKey?: string
   mimeType: string
 }
 

@@ -177,6 +177,14 @@ export function ResourceImportPanel<
         extractedText: extractedText || '',
         uploadedAt: new Date().toISOString(),
       }
+      const oldFileKey = data.sourceDocument?.fileKey
+      if (oldFileKey) {
+        fetchWithCsrf('/api/uploads/cleanup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys: [oldFileKey] }),
+        }).catch(() => {})
+      }
       const currentTarget = (data as Record<string, unknown>)[targetField]
       if (!String(currentTarget || '').trim() && extractedText) {
         setData({ ...data, sourceDocument, [targetField]: extractedText.slice(0, 4000) } as T)
@@ -195,6 +203,14 @@ export function ResourceImportPanel<
     const current = data.sourceDocument?.fileUrl
     if (current && current.startsWith('blob:')) {
       URL.revokeObjectURL(current)
+    }
+    const fileKey = data.sourceDocument?.fileKey
+    if (fileKey) {
+      fetchWithCsrf('/api/uploads/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys: [fileKey] }),
+      }).catch(() => {})
     }
     setData({ ...data, sourceDocument: undefined } as T)
   }
