@@ -40,6 +40,9 @@ import {
   Search,
   Users,
   User,
+  Award,
+  Flag,
+  Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,7 +64,19 @@ import {
 } from '@/components/ui/dialog'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { REGIONS } from '@/lib/data/tutor-categories'
+import {
+  REGIONS,
+  GLOBAL_EXAMS_CATEGORIES,
+  AP_CATEGORIES,
+  A_LEVEL_CATEGORIES,
+  IB_CATEGORIES,
+  IGCSE_CATEGORIES,
+  NATIONAL_EXAMS_DATA,
+  UNIVERSITY_CATEGORIES,
+  LANGUAGE_CATEGORIES,
+  PROFESSIONAL_CATEGORIES,
+} from '@/lib/data/tutor-categories'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 // --- Types ---
 type ModalType = 'register' | 'tutor' | 'academy' | 'schools' | null
@@ -2761,48 +2776,90 @@ const TermsOfServiceModal = ({
   )
 }
 
-// --- Categories Page Component ---
+// --- Category Search Modal (based on Course Details category panel) ---
 
-const CategoriesModal = ({
+const CategorySearchModal = ({
   isOpen,
   onClose,
-  lang,
+  onSelectCategory,
   mode,
 }: {
   isOpen: boolean
   onClose: () => void
-  lang: Language
+  onSelectCategory: (category: string) => void
   mode: ThemeMode
 }) => {
-  const [searchQuery, setSearchQuery] = useState('')
-  const t = (key: string) => translations[key]?.[lang] || translations[key]?.['en'] || key
+  const [categorySearch, setCategorySearch] = useState('')
+  const [selectedRegion, setSelectedRegion] = useState('')
+  const [selectedCountry, setSelectedCountry] = useState('')
 
-  // Reset search when modal closes
+  // Reset when modal closes
   useEffect(() => {
-    if (!isOpen) setSearchQuery('')
+    if (!isOpen) {
+      setCategorySearch('')
+      setSelectedRegion('')
+      setSelectedCountry('')
+    }
   }, [isOpen])
+
+  const availableCountries = selectedRegion
+    ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
+    : []
+
+  const nationalExams = selectedCountry
+    ? NATIONAL_EXAMS_DATA[selectedCountry] || []
+    : selectedRegion
+      ? (REGIONS.find(r => r.id === selectedRegion)?.countries.flatMap(c => c.nationalExams) || [])
+      : []
+
+  const filteredUniversityCategories = selectedRegion
+    ? UNIVERSITY_CATEGORIES.filter(u => u.id.includes(selectedRegion))
+    : UNIVERSITY_CATEGORIES
+
+  const filterExams = (exams: string[]) =>
+    categorySearch
+      ? exams.filter(e => e.toLowerCase().includes(categorySearch.toLowerCase()))
+      : exams
+
+  const hasResults = (exams: string[]) => filterExams(exams).length > 0
 
   if (!isOpen) return null
 
-  // Filter categories first
-  const filteredCategories = CATEGORIES.filter(
-    cat =>
-      cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cat.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cat.category.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const tabTriggerClass =
+    'rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
 
-  // Group filtered categories by their category type
-  const groupedCategories = filteredCategories.reduce(
-    (acc, cat) => {
-      if (!acc[cat.category]) acc[cat.category] = []
-      acc[cat.category].push(cat)
-      return acc
-    },
-    {} as Record<string, typeof CATEGORIES>
-  )
-
-  const categoryOrder = Object.keys(groupedCategories).sort()
+  const CategorySection = ({
+    label,
+    icon: Icon,
+    exams,
+  }: {
+    label: string
+    icon: React.ElementType
+    exams: string[]
+  }) => {
+    const filtered = filterExams(exams)
+    if (filtered.length === 0) return null
+    return (
+      <div className="space-y-3">
+        <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Icon className="h-4 w-4 text-indigo-600" />
+          {label}
+        </h4>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-4">
+          {filtered.map(exam => (
+            <button
+              key={exam}
+              onClick={() => onSelectCategory(exam)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-500" />
+              <span className="line-clamp-2">{exam}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -2817,106 +2874,203 @@ const CategoriesModal = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
+          className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
         >
-          <div className="relative shrink-0 p-8 pb-4">
+          {/* Header */}
+          <div className="relative shrink-0 p-6 pb-4">
             <button
               onClick={onClose}
               className={`absolute right-4 top-4 p-2 transition-colors ${mode === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}
             >
               <X className="h-5 w-5" />
             </button>
-            <h2
-              className={`mb-2 text-3xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
-            >
-              {t('viewAllCategories')}
+            <h2 className={`mb-1 text-2xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+              Browse Categories
             </h2>
-            <p className={`mb-6 ${mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              Explore all courses, standardized tests, and college admission exams available on
-              Solocorn
+            <p className={`mb-4 text-sm ${mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
+              Select a category to search for courses and tutors
             </p>
 
-            <div className={`relative mb-2 flex items-center`}>
-              <Search
-                className={`absolute left-3 h-5 w-5 ${mode === 'dark' ? 'text-zinc-500' : 'text-zinc-400'}`}
-              />
+            {/* Region & Country dropdowns */}
+            <div className="mb-4 flex flex-wrap gap-3">
+              <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedCountry('') }}>
+                <SelectTrigger className="h-9 w-[160px] rounded-md border-slate-200 bg-white text-sm text-slate-900">
+                  <SelectValue placeholder="All Regions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Regions</SelectItem>
+                  {REGIONS.filter(r => r.id !== 'global').map(region => (
+                    <SelectItem key={region.id} value={region.id}>{region.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedCountry} onValueChange={setSelectedCountry} disabled={!selectedRegion}>
+                <SelectTrigger className="h-9 w-[160px] rounded-md border-slate-200 bg-white text-sm text-slate-900">
+                  <SelectValue placeholder="All Countries" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Countries</SelectItem>
+                  {availableCountries.map(country => (
+                    <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search an exam, country or category..."
-                className={`w-full rounded-xl border-2 py-6 pl-10 text-lg transition-all ${mode === 'dark' ? 'border-white/10 bg-black/20 text-white placeholder:text-zinc-500 focus-visible:border-emerald-500/50' : 'border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus-visible:border-emerald-500/50'}`}
+                placeholder="Search categories..."
+                value={categorySearch}
+                onChange={e => setCategorySearch(e.target.value)}
+                className="h-10 border-slate-200 bg-white pl-10 text-sm"
               />
             </div>
           </div>
 
-          <div className="w-full overflow-y-auto p-8 pt-0">
-            {filteredCategories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Search
-                  className={`mb-4 h-12 w-12 opacity-20 ${mode === 'dark' ? 'text-white' : 'text-black'}`}
-                />
-                <p
-                  className={`text-lg font-medium ${mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}
-                >
-                  No categories found for "{searchQuery}"
-                </p>
-                <p
-                  className={`mt-2 text-sm ${mode === 'dark' ? 'text-zinc-500' : 'text-zinc-500'}`}
-                >
-                  Try searching with different keywords
-                </p>
+          {/* Tabs Content */}
+          <div className="w-full overflow-y-auto px-6 pb-6">
+            <Tabs defaultValue="global" className="w-full">
+              <div className="border-b border-slate-200">
+                <TabsList className="flex w-full flex-wrap justify-start gap-4 bg-transparent p-0">
+                  <TabsTrigger value="global" className={tabTriggerClass}>
+                    <Globe className="mr-1.5 h-4 w-4" /> Global
+                  </TabsTrigger>
+                  <TabsTrigger value="ap" className={tabTriggerClass}>
+                    <Award className="mr-1.5 h-4 w-4" /> AP
+                  </TabsTrigger>
+                  <TabsTrigger value="alevel" className={tabTriggerClass}>
+                    <GraduationCap className="mr-1.5 h-4 w-4" /> A Level
+                  </TabsTrigger>
+                  <TabsTrigger value="ib" className={tabTriggerClass}>
+                    <BookOpen className="mr-1.5 h-4 w-4" /> IB
+                  </TabsTrigger>
+                  <TabsTrigger value="igcse" className={tabTriggerClass}>
+                    <School className="mr-1.5 h-4 w-4" /> IGCSE
+                  </TabsTrigger>
+                  <TabsTrigger value="national" className={tabTriggerClass} disabled={nationalExams.length === 0}>
+                    <Flag className="mr-1.5 h-4 w-4" /> National
+                  </TabsTrigger>
+                  <TabsTrigger value="universities" className={tabTriggerClass}>
+                    <GraduationCap className="mr-1.5 h-4 w-4" /> Universities
+                  </TabsTrigger>
+                  <TabsTrigger value="languages" className={tabTriggerClass}>
+                    <Globe className="mr-1.5 h-4 w-4" /> Languages
+                  </TabsTrigger>
+                  <TabsTrigger value="professional" className={tabTriggerClass}>
+                    <Award className="mr-1.5 h-4 w-4" /> Professional
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            ) : (
-              <div className="space-y-8">
-                {categoryOrder.map(
-                  categoryName =>
-                    groupedCategories[categoryName] && (
-                      <div key={categoryName}>
-                        <h3
-                          className={`mb-4 text-lg font-semibold ${mode === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}
-                        >
-                          {categoryName}
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                          {groupedCategories[categoryName].map(cat => {
-                            const Icon = cat.icon
-                            return (
-                              <div
-                                key={cat.id}
-                                className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-105 ${mode === 'dark' ? 'border-white/10 bg-white/5 hover:border-emerald-500/50' : 'border-black/10 bg-gray-50 hover:border-emerald-500/50'}`}
-                              >
-                                <div
-                                  className={`h-12 w-12 rounded-lg ${cat.color} mb-3 flex items-center justify-center`}
-                                >
-                                  <Icon className="h-6 w-6 text-white" />
-                                </div>
-                                <h3
-                                  className={`line-clamp-2 font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
-                                  title={cat.name}
-                                >
-                                  {cat.name}
-                                </h3>
-                                <p
-                                  className={`mt-1 line-clamp-2 text-sm ${mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}
-                                  title={cat.description}
-                                >
-                                  {cat.description}
-                                </p>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                )}
+
+              <div className="py-4">
+                {/* Global */}
+                <TabsContent value="global" className="mt-0 space-y-6">
+                  {GLOBAL_EXAMS_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} />
+                  ))}
+                  {!GLOBAL_EXAMS_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                    <EmptyState search={categorySearch} />
+                  )}
+                </TabsContent>
+
+                {/* AP */}
+                <TabsContent value="ap" className="mt-0 space-y-6">
+                  {AP_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} />
+                  ))}
+                  {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                    <EmptyState search={categorySearch} />
+                  )}
+                </TabsContent>
+
+                {/* A Level */}
+                <TabsContent value="alevel" className="mt-0 space-y-6">
+                  {A_LEVEL_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} />
+                  ))}
+                  {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                    <EmptyState search={categorySearch} />
+                  )}
+                </TabsContent>
+
+                {/* IB */}
+                <TabsContent value="ib" className="mt-0 space-y-6">
+                  {IB_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} />
+                  ))}
+                  {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                    <EmptyState search={categorySearch} />
+                  )}
+                </TabsContent>
+
+                {/* IGCSE */}
+                <TabsContent value="igcse" className="mt-0 space-y-6">
+                  {IGCSE_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} />
+                  ))}
+                  {!IGCSE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                    <EmptyState search={categorySearch} />
+                  )}
+                </TabsContent>
+
+                {/* National */}
+                <TabsContent value="national" className="mt-0 space-y-6">
+                  {nationalExams.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} />
+                  ))}
+                  {nationalExams.length === 0 && (
+                    <div className="py-12 text-center text-slate-500">
+                      <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                      <p className="text-sm">Select a region or country to see national exams.</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Universities */}
+                <TabsContent value="universities" className="mt-0 space-y-6">
+                  {filteredUniversityCategories.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} />
+                  ))}
+                  {filteredUniversityCategories.length === 0 && (
+                    <div className="py-12 text-center text-slate-500">
+                      <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                      <p className="text-sm">Select a region or country to see universities.</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Languages */}
+                <TabsContent value="languages" className="mt-0 space-y-6">
+                  {LANGUAGE_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} />
+                  ))}
+                  {!LANGUAGE_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} />}
+                </TabsContent>
+
+                {/* Professional */}
+                <TabsContent value="professional" className="mt-0 space-y-6">
+                  {PROFESSIONAL_CATEGORIES.map(cat => (
+                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} />
+                  ))}
+                  {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} />}
+                </TabsContent>
               </div>
-            )}
+            </Tabs>
           </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
   )
 }
+
+const EmptyState = ({ search }: { search: string }) => (
+  <div className="py-12 text-center text-slate-500">
+    <Search className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+    <p className="text-sm">{search ? `No results for "${search}"` : 'No categories available.'}</p>
+  </div>
+)
 
 // --- Main Page Component ---
 
@@ -2995,10 +3149,14 @@ export default function LandingPage() {
         theme={theme}
         mode={mode}
       />
-      <CategoriesModal
+      <CategorySearchModal
         isOpen={showCategories}
         onClose={() => setShowCategories(false)}
-        lang={language}
+        onSelectCategory={category => {
+          setShowCategories(false)
+          setSearchQuery(category)
+          setTimeout(() => scrollToSearchResults(), 100)
+        }}
         mode={mode}
       />
       <ContactModal
