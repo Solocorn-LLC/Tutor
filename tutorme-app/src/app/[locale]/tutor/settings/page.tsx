@@ -41,6 +41,8 @@ import {
   Download,
   Check,
   AlertTriangle,
+  LayoutPanelTop,
+  PenTool,
 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { BackButton } from '@/components/navigation'
@@ -314,6 +316,37 @@ export default function TutorSettings() {
     pushNotifications: false,
     smsReminders: false,
   })
+
+  // Live session mirroring preferences (stored in localStorage)
+  const [mirrorPreferences, setMirrorPreferences] = useState({
+    defaultMirrorClass: true,
+    defaultMirrorBoard: false,
+  })
+
+  // Load mirror preferences from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('tutor-mirror-preferences')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setMirrorPreferences({
+          defaultMirrorClass: parsed.defaultMirrorClass ?? true,
+          defaultMirrorBoard: parsed.defaultMirrorBoard ?? false,
+        })
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, [])
+
+  const saveMirrorPreferences = () => {
+    try {
+      localStorage.setItem('tutor-mirror-preferences', JSON.stringify(mirrorPreferences))
+      toast.success('Mirroring preferences saved')
+    } catch {
+      toast.error('Failed to save preferences')
+    }
+  }
 
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     {
@@ -1361,8 +1394,67 @@ export default function TutorSettings() {
             </Card>
           </TabsContent>
 
-          {/* Account Controls */}
+          {/* Live Session Mirroring */}
           <TabsContent value="controls" className="space-y-6">
+            <Card className={SECTION_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Live Session Mirroring</CardTitle>
+                <CardDescription>
+                  Control what students see by default during live sessions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Mirror Classroom Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <LayoutPanelTop className="mt-0.5 h-5 w-5 text-indigo-500" />
+                    <div>
+                      <p className="font-medium">Mirror Classroom by Default</p>
+                      <p className="text-sm text-gray-500">
+                        When a session starts, automatically broadcast your classroom view to all
+                        students
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mirrorPreferences.defaultMirrorClass}
+                    onCheckedChange={checked =>
+                      setMirrorPreferences(prev => ({ ...prev, defaultMirrorClass: checked }))
+                    }
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Mirror Whiteboard Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <PenTool className="mt-0.5 h-5 w-5 text-indigo-500" />
+                    <div>
+                      <p className="font-medium">Mirror Whiteboard by Default</p>
+                      <p className="text-sm text-gray-500">
+                        When a session starts, automatically broadcast your whiteboard to all
+                        students
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={mirrorPreferences.defaultMirrorBoard}
+                    onCheckedChange={checked =>
+                      setMirrorPreferences(prev => ({ ...prev, defaultMirrorBoard: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={saveMirrorPreferences}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Preferences
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className={SECTION_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Account Controls</CardTitle>

@@ -909,6 +909,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       : null
     const isSessionActive = activeSession?.status === 'active'
 
+    // Load tutor's default mirroring preferences from localStorage
+    useEffect(() => {
+      if (!isSessionActive) return
+      try {
+        const raw = localStorage.getItem('tutor-mirror-preferences')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed.defaultMirrorClass) {
+            setIsMirroringToStudents(true)
+            setTestPciActiveTab('classroom')
+          } else if (parsed.defaultMirrorBoard) {
+            setIsMirroringToStudents(true)
+            setTestPciActiveTab('student1')
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, [isSessionActive])
+
     const [importTypeModalData, setImportTypeModalData] = useState<{
       target: { nodeId: string; lessonId: string }
       items: { questionText: string; pciText: string }[]
@@ -5031,45 +5051,7 @@ FEEDBACK: [your explanation]`
                           Video
                         </Button>
 
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            if (!isSessionActive) return
-                            setIsMirroringToStudents(true)
-                            setTestPciActiveTab('classroom')
-                          }}
-                          disabled={!isSessionActive}
-                          className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
-                          title={
-                            !isSessionActive
-                              ? 'Available when session is active'
-                              : 'Mirror classroom'
-                          }
-                        >
-                          <LayoutPanelTop className="h-4 w-4" />
-                          Mirror Class
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            if (!isSessionActive) return
-                            setIsMirroringToStudents(true)
-                            setTestPciActiveTab('student1')
-                          }}
-                          disabled={!isSessionActive}
-                          className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
-                          title={
-                            !isSessionActive
-                              ? 'Available when session is active'
-                              : 'Mirror whiteboard'
-                          }
-                        >
-                          <PenTool className="h-4 w-4" />
-                          Mirror Board
-                        </Button>
+                        {/* Mirror Class and Mirror Board moved to Account Settings */}
                       </div>
 
                       {(insightsProps?.onToggleRecording || insightsProps?.onEndSession) && (
