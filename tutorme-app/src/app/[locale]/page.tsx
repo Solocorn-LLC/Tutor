@@ -2830,9 +2830,9 @@ const CategorySection = ({
         {label}
       </h4>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-4">
-        {filtered.map(exam => (
+        {filtered.map((exam, idx) => (
           <button
-            key={exam}
+            key={`${label}-${idx}-${exam}`}
             onClick={() => onSelectCategory(exam)}
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
           >
