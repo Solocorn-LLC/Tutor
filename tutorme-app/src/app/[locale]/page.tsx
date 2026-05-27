@@ -3124,6 +3124,16 @@ export default function LandingPage() {
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
   const [howItWorksOpen, setHowItWorksOpen] = useState(false)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current)
+        scrollTimerRef.current = null
+      }
+    }
+  }, [])
 
   const t = (key: string) => translations[key]?.[language] || translations[key]?.['en'] || key
   const formatCount = (value: number | null) =>
@@ -3192,7 +3202,11 @@ export default function LandingPage() {
         onSelectCategory={category => {
           setShowCategories(false)
           setSearchQuery(category)
-          setTimeout(() => scrollToSearchResults(), 100)
+          if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+          scrollTimerRef.current = setTimeout(() => {
+            scrollTimerRef.current = null
+            scrollToSearchResults()
+          }, 100)
         }}
         mode={mode}
       />
