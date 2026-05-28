@@ -43,6 +43,7 @@ import {
   Award,
   Flag,
   Wrench,
+  Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1746,20 +1747,20 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             <DialogPanel>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-600">Category</div>
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-sm font-medium text-muted-foreground">Category</div>
+                  <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.categories?.[0] || 'general'}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-600">Sessions</div>
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-sm font-medium text-muted-foreground">Sessions</div>
+                  <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.lessonCount ?? 0} sessions
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-600">Price</div>
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-sm font-medium text-muted-foreground">Price</div>
+                  <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.isFree
                       ? 'Free'
                       : selectedCourse?.price != null
@@ -1768,23 +1769,23 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-600">Schedule</div>
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-sm font-medium text-muted-foreground">Schedule</div>
+                  <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
                   </div>
                 </div>
               </div>
             </DialogPanel>
             <DialogPanel>
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">About this course</h3>
-              <p className="whitespace-pre-wrap leading-relaxed text-gray-600">
+              <h3 className="mb-4 text-lg font-semibold text-foreground">About this course</h3>
+              <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
                 {selectedCourse?.description || 'More details will be available soon.'}
               </p>
             </DialogPanel>
             <DialogPanel>
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">About the tutor</h3>
+              <h3 className="mb-4 text-lg font-semibold text-foreground">About the tutor</h3>
               <div className="flex items-start gap-4">
-                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
                   {selectedCourse?.tutor?.avatarUrl ? (
                     <img
                       src={selectedCourse.tutor.avatarUrl}
@@ -1792,28 +1793,28 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                       <User className="h-8 w-8" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.tutor?.name || 'Anonymous Tutor'}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-muted-foreground">
                     @{selectedCourse?.tutor?.username || 'tutor'}
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 {selectedCourse?.tutor?.createdAt && (
                   <>
                     <div className="flex items-center gap-1.5">
-                      <CalendarDays className="h-4 w-4 text-gray-400" />
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
                       <span>
                         Tutor Since{' '}
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-foreground">
                           {new Date(selectedCourse.tutor.createdAt).toLocaleDateString('en-US', {
                             month: '2-digit',
                             day: '2-digit',
@@ -1822,26 +1823,26 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                         </span>
                       </span>
                     </div>
-                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="h-4 w-px bg-border" />
                   </>
                 )}
                 <div className="flex items-center gap-1.5">
-                  <BookOpen className="h-4 w-4 text-gray-400" />
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
                   <span>
                     Active Courses{' '}
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-foreground">
                       {selectedCourse?.tutor?.activeCourses ?? 0}
                     </span>
                   </span>
                 </div>
                 {selectedCourse?.tutor?.country && (
                   <>
-                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="h-4 w-px bg-border" />
                     <div className="flex items-center gap-1.5">
-                      <Globe className="h-4 w-4 text-gray-400" />
+                      <Globe className="h-4 w-4 text-muted-foreground" />
                       <span>
                         Country{' '}
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-foreground">
                           {selectedCourse.tutor.country}
                         </span>
                       </span>
@@ -3417,28 +3418,16 @@ export default function LandingPage() {
               className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <svg
-                  className="h-8 w-8 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Clock className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="mb-2 text-2xl font-bold text-gray-900">Coming Soon</h2>
-              <p className="mb-6 text-gray-500">
+              <h2 className="mb-2 text-2xl font-bold text-foreground">Coming Soon</h2>
+              <p className="mb-6 text-muted-foreground">
                 We're working hard to bring you the full experience. Stay tuned!
               </p>
               <button
                 onClick={() => setHowItWorksOpen(false)}
-                className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
+                className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
               >
                 Got it
               </button>

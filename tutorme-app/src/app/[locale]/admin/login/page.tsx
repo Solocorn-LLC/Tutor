@@ -25,7 +25,6 @@ export default function AdminLoginPage() {
     setIsLoading(true)
 
     try {
-      // Primary path: direct admin auth endpoint (cookie-based admin session).
       const res = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,26 +45,40 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
-              <Shield className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25">
+              <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-slate-900">Solocorn Admin</span>
+            <span className="text-xl font-bold text-foreground" style={{ fontFamily: "'Fira Code', monospace" }}>
+              Solocorn Admin
+            </span>
           </Link>
         </div>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Sign in</CardTitle>
-            <CardDescription>Enter your admin email to access the admin panel</CardDescription>
+        <Card
+          className="overflow-hidden rounded-3xl border-border/30 shadow-elevation-3"
+          style={{
+            background: 'linear-gradient(145deg, hsl(var(--card) / 0.95) 0%, hsl(var(--surface) / 0.92) 100%)',
+          }}
+        >
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle
+              className="text-2xl font-bold text-foreground"
+              style={{ fontFamily: "'Fira Code', monospace" }}
+            >
+              Sign in
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Enter your admin email to access the admin panel
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive" className="mb-4 rounded-xl border-destructive/20 bg-destructive/10 text-destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
@@ -73,7 +86,7 @@ export default function AdminLoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-muted-foreground">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -82,10 +95,11 @@ export default function AdminLoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="h-12 rounded-xl border-border/50 bg-input/60 px-5 text-base transition-all duration-200 placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-muted-foreground">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -94,10 +108,15 @@ export default function AdminLoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="h-12 rounded-xl border-border/50 bg-input/60 px-5 text-base transition-all duration-200 placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25"
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-xl bg-primary text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-200 hover:brightness-110 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98]"
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -109,15 +128,15 @@ export default function AdminLoginPage() {
               </Button>
             </form>
 
-            <div className="mt-4 text-center text-xs text-slate-500">
+            <div className="mt-4 text-center text-xs text-muted-foreground/60">
               <p>Protected by IP whitelist and audit logging</p>
               <p className="mt-1">Unauthorized access is strictly prohibited</p>
             </div>
           </CardContent>
         </Card>
 
-        <p className="mt-4 text-center text-sm text-slate-500">
-          <Link href="/" className="hover:underline">
+        <p className="mt-4 text-center text-sm text-muted-foreground/60">
+          <Link href="/" className="transition-colors duration-200 hover:text-muted-foreground">
             ← Back to main site
           </Link>
         </p>
