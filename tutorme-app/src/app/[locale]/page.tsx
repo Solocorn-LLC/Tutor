@@ -2328,8 +2328,8 @@ const ComingSoonModal = ({
               </Button>
             </div>
           )}
+          </motion.div>
         </motion.div>
-      </motion.div>
       )}
     </AnimatePresence>
   )
@@ -3037,19 +3037,19 @@ const CategorySearchModal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
         >
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
+          >
           {/* Header */}
           <div className="relative shrink-0 p-6 pb-4">
             <button
