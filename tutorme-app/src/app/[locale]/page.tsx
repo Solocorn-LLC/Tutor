@@ -1408,7 +1408,16 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     const controller = new AbortController()
     let finished = false
 
-    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 8000) =>
+    // Fallback: force loading state to false after 5s no matter what
+    const fallbackTimer = setTimeout(() => {
+      if (!finished) {
+        console.warn('[Landing] Fallback timer fired — forcing isLoading=false')
+        setIsLoading(false)
+        setHasLoaded(true)
+      }
+    }, 5000)
+
+    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 5000) =>
       Promise.race([
         fetch(url, options),
         new Promise<never>((_, reject) =>
@@ -1417,6 +1426,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       ])
 
     const run = async () => {
+      console.log('[Landing] Fetch starting...')
       setIsLoading(true)
       setLoadError(null)
       setCoursesPage(0)
@@ -1431,6 +1441,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             signal: controller.signal,
           }),
         ])
+        console.log('[Landing] Fetch completed:', { coursesOk: coursesRes.ok, tutorsOk: tutorsRes.ok })
 
         const parseJsonSafe = async (res: Response) => {
           const ct = res.headers.get('content-type') || ''
@@ -1442,6 +1453,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           coursesRes.ok ? parseJsonSafe(coursesRes) : null,
           tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
         ])
+        console.log('[Landing] Parsed JSON:', { coursesCount: coursesJson?.courses?.length, tutorsCount: tutorsJson?.tutors?.length })
 
         if (!finished) {
           setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
@@ -1452,14 +1464,17 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           }
         }
       } catch (err: any) {
+        console.error('[Landing] Fetch error:', err?.name, err?.message)
         if (!finished && err?.name !== 'AbortError') {
           setLoadError('Unable to load results.')
         }
       } finally {
+        console.log('[Landing] Fetch finally — finished:', finished)
         if (!finished) {
           setIsLoading(false)
           setHasLoaded(true)
         }
+        clearTimeout(fallbackTimer)
       }
     }
 
@@ -1468,6 +1483,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       finished = true
       controller.abort()
       clearTimeout(t)
+      clearTimeout(fallbackTimer)
     }
   }, [query])
 
@@ -1483,13 +1499,14 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       }}
     >
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
+          transform: 'translateZ(0)',
         }}
       >
-        <div className="flex h-full flex-col p-4">
+        <div className="flex h-full flex-col p-4" style={{ transform: 'translateZ(0)' }}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="line-clamp-2 text-sm font-semibold text-slate-100">{item?.name}</div>
@@ -1532,13 +1549,14 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
   const TutorSlot = ({ item }: { item: any }) => (
     <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
+          transform: 'translateZ(0)',
         }}
       >
-        <div className="flex h-full flex-col p-4">
+        <div className="flex h-full flex-col p-4" style={{ transform: 'translateZ(0)' }}>
           {/* Header: Name/Handle on left, large avatar on right */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -1641,7 +1659,14 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                 {visible.map((item: any, i: number) => (
                   <div key={item?.id || item?.__skeleton || i} className="w-[var(--card-width)]">
                     {item?.__skeleton ? (
-                      <div className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] rounded-[22px] border border-[rgba(255,255,255,0.10)] bg-[rgba(30,40,50,0.45)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)] backdrop-blur-[12px]" />
+                      <div className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]">
+                        <div className="flex h-full w-full items-center justify-center">
+                          <div className="text-center">
+                            <div className="mx-auto mb-2 h-8 w-8 animate-pulse rounded-full bg-white/10" />
+                            <div className="text-[10px] font-medium text-white/30">Loading...</div>
+                          </div>
+                        </div>
+                      </div>
                     ) : kind === 'courses' ? (
                       <CourseSlot item={item} />
                     ) : (
@@ -1699,7 +1724,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-md border border-white/[0.12] bg-[rgba(31,41,55,0.72)] text-white shadow-[0_10px_26px_rgba(0,0,0,0.25)] backdrop-blur-[12px]">
+            <SelectTrigger className="h-10 w-[212px] rounded-md border border-white/[0.12] bg-[rgba(31,41,55,0.85)] text-white shadow-[0_10px_26px_rgba(0,0,0,0.25)]">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
             <SelectContent>
@@ -1716,7 +1741,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-md border border-white/[0.12] bg-[rgba(31,41,55,0.72)] text-white shadow-[0_10px_26px_rgba(0,0,0,0.25)] backdrop-blur-[12px]">
+            <SelectTrigger className="h-10 w-[212px] rounded-md border border-white/[0.12] bg-[rgba(31,41,55,0.85)] text-white shadow-[0_10px_26px_rgba(0,0,0,0.25)]">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
             <SelectContent>
@@ -1916,7 +1941,7 @@ const BlankTutorCard = ({ theme, mode }: { theme: ColorTheme; mode: ThemeMode })
         perspective: 1200,
         transformStyle: 'preserve-3d',
       }}
-      className={`relative mx-6 h-72 w-52 shrink-0 overflow-hidden rounded-3xl border backdrop-blur-xl transition-all duration-500 ${
+      className={`relative mx-6 h-72 w-52 shrink-0 overflow-hidden rounded-3xl border transition-all duration-500 ${
         mode === 'dark'
           ? `bg-gradient-to-br ${themeColors[theme]} border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)]`
           : `border-white/40 bg-white/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.1)]`
@@ -2287,12 +2312,12 @@ const ComingSoonModal = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4"
         >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} />
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/90' : 'border-black/10 bg-white/90'}`}
+          className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
         >
           <button
             onClick={onClose}
@@ -2424,42 +2449,37 @@ const SpecialAccessSection = ({
         {triggerLabel}
       </button>
 
-      <AnimatePresence mode="wait">
-        {expanded && (
-          <>
-            <div className="fixed inset-0 z-[990]" onMouseDown={() => setExpanded(false)} />
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="fixed z-[1000] w-[320px] overflow-hidden rounded-[16px] border border-white/25 bg-[#0B4DFF]/10 p-4 backdrop-blur-xl"
-              style={popoverPos ?? undefined}
-            >
-              <form onSubmit={handleSubmit} className="flex items-center gap-3">
-                <Input
-                  type="text"
-                  placeholder={t('enterCode')}
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  autoFocus
-                  className={`h-10 flex-1 rounded-full border border-white/20 bg-white/10 text-white placeholder:text-white/60 ${error ? 'border-red-400' : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={checkAccess}
-                  className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-[#0B4DFF] shadow-sm transition-all duration-200 hover:-translate-y-px hover:bg-slate-100 hover:shadow-md active:translate-y-0 active:scale-95"
-                >
-                  {t('access')}
-                </button>
-              </form>
-              {error && <p className="mt-2 text-xs font-medium text-red-200">{t('invalidCode')}</p>}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {expanded && (
+        <>
+          <div className="fixed inset-0 z-[990] animate-in fade-in duration-150" onMouseDown={() => setExpanded(false)} />
+          <div
+            className="fixed z-[1000] w-[320px] overflow-hidden rounded-[16px] border border-white/25 bg-[#0B4DFF]/90 p-4 animate-in fade-in zoom-in-95 duration-150"
+            style={popoverPos ?? undefined}
+          >
+            <form onSubmit={handleSubmit} className="flex items-center gap-3">
+              <Input
+                type="text"
+                placeholder={t('enterCode')}
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoFocus
+                className={`h-10 flex-1 rounded-full border border-white/20 bg-white/10 text-white placeholder:text-white/60 ${error ? 'border-red-400' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={checkAccess}
+                className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-[#0B4DFF] shadow-sm transition-all duration-200 hover:-translate-y-px hover:bg-slate-100 hover:shadow-md active:translate-y-0 active:scale-95"
+              >
+                {t('access')}
+              </button>
+            </form>
+            {error && <p className="mt-2 text-xs font-medium text-red-200">{t('invalidCode')}</p>}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -2643,12 +2663,12 @@ const ContactModal = ({
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} />
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/90' : 'border-black/10 bg-white/90'}`}
+          className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
         >
           <button
             onClick={onClose}
@@ -2785,12 +2805,12 @@ const PrivacyPolicyModal = ({
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} />
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border p-8 shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
+          className={`relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
         >
           <button
             onClick={onClose}
@@ -2858,12 +2878,12 @@ const TermsOfServiceModal = ({
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} />
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border p-8 shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
+          className={`relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
         >
           <button
             onClick={onClose}
@@ -3054,8 +3074,8 @@ const CategorySearchModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200 ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}>
+      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+      <div className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl animate-in zoom-in-95 duration-200 ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}>
           {/* Header */}
           <div className="relative shrink-0 p-6 pb-4">
             <button
@@ -3350,7 +3370,7 @@ export default function LandingPage() {
     const controller = new AbortController()
     let finished = false
 
-    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 8000) =>
+    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 5000) =>
       Promise.race([
         fetch(url, options),
         new Promise<never>((_, reject) =>
@@ -3359,6 +3379,7 @@ export default function LandingPage() {
       ])
 
     const loadCounts = async () => {
+      console.log('[Landing] Loading counts...')
       const parseJsonSafe = async (res: Response) => {
         const ct = res.headers.get('content-type') || ''
         if (!ct.includes('application/json')) return null
@@ -3370,6 +3391,7 @@ export default function LandingPage() {
           fetchWithTimeout('/api/public/tutors?page=1&pageSize=1', { signal: controller.signal }),
           fetchWithTimeout('/api/public/courses?page=1&pageSize=1', { signal: controller.signal }),
         ])
+        console.log('[Landing] Counts response:', { tutorsOk: tutorsRes.ok, coursesOk: coursesRes.ok })
 
         const [tutorsJson, coursesJson] = await Promise.all([
           tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
@@ -3382,10 +3404,12 @@ export default function LandingPage() {
           const nextCourseTotal =
             typeof coursesJson?.pagination?.total === 'number' ? coursesJson.pagination.total : null
 
+          console.log('[Landing] Counts parsed:', { nextTutorTotal, nextCourseTotal })
           setTutorTotal(nextTutorTotal)
           setCourseTotal(nextCourseTotal)
         }
       } catch (err: any) {
+        console.error('[Landing] Counts error:', err?.name, err?.message)
         if (!finished && err?.name !== 'AbortError') {
           setTutorTotal(null)
           setCourseTotal(null)
@@ -3449,7 +3473,7 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6"
             onClick={() => setHowItWorksOpen(false)}
           >
             <motion.div
@@ -3560,7 +3584,7 @@ export default function LandingPage() {
 
           {/* Bottom-right stats + countdown card */}
           <div className="absolute bottom-6 right-6 z-10">
-            <div className="w-[300px] rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg backdrop-blur-xl sm:w-[360px] md:w-[400px] md:px-8 md:py-6">
+            <div className="w-[300px] rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg sm:w-[360px] md:w-[400px] md:px-8 md:py-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white/90">
                   <Users className="h-4 w-4" />
