@@ -3163,7 +3163,7 @@ const CategorySearchModal = ({
                     placeholder={t('searchCategories')}
                     value={categorySearch}
                     onChange={e => setCategorySearch(e.target.value)}
-                    className="h-10 border-slate-200 bg-white pl-10 text-sm"
+                    className="h-10 border-slate-200 bg-white pl-10 text-sm focus-visible:border-slate-200 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
