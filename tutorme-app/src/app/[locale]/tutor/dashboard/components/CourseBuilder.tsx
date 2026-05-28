@@ -3771,9 +3771,52 @@ FEEDBACK: [your explanation]`
               )
               toast.success(`Loaded '${asset.name}' into Assessment`)
             } else {
-              // For tasks, just dump the text
-              onText(asset.content || `[Asset: ${asset.name}]`)
-              toast.success(`Loaded text from '${asset.name}'`)
+              // For tasks, load document and text
+              if (!asset.url) {
+                toast.error(
+                  `The document '${asset.name}' is missing its file URL. Please delete and upload it again.`
+                )
+                return
+              }
+
+              let currentId = loadedTaskId
+              if (!currentId) {
+                const created = autoCreateTask()
+                if (!created) {
+                  toast.error('Failed to create task')
+                  return
+                }
+                currentId = created.id
+              }
+
+              const extractedText = asset.content || `[Asset: ${asset.name}]`
+              const newDoc = {
+                fileName: asset.name,
+                fileUrl: asset.url || '',
+                fileKey: asset.fileKey,
+                mimeType: asset.mimeType || 'application/pdf',
+                uploadedAt: new Date().toISOString(),
+                extractedText,
+              }
+
+              setTaskSourceDocument(newDoc)
+              setTaskUploadedFiles([{ id: 'source', name: asset.name }])
+              onText(extractedText)
+
+              setCourseBuilderNodes(prev =>
+                prev.map(mod => ({
+                  ...mod,
+                  lessons: mod.lessons.map(lesson => ({
+                    ...lesson,
+                    tasks: lesson.tasks.map(task =>
+                      task.id === currentId
+                        ? { ...task, sourceDocument: newDoc, description: extractedText }
+                        : task
+                    ),
+                  })),
+                }))
+              )
+              toast.success(`Loaded '${asset.name}' into Task`)
             }
             return
           }
@@ -3934,6 +3977,82 @@ FEEDBACK: [your explanation]`
             combined += `[Imported ${f.name}]\n\n`
           }
         }
+        // Upload first file as source document for tasks
+        if (target === 'task' && files.length > 0) {
+          const firstFile = files[0]
+          if (firstFile) {
+            let fileUrl = ''
+            let fileKey = ''
+            let fileMimeType = 'application/pdf'
+            try {
+              const uploadForm = new FormData()
+              uploadForm.append('file', firstFile)
+
+              const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
+                method: 'POST',
+                body: uploadForm,
+              })
+              if (uploadRes.ok) {
+                const uploadData = await uploadRes.json()
+                fileUrl = uploadData.url || ''
+                fileKey = uploadData.key || ''
+                fileMimeType = uploadData.isPdf
+                  ? 'application/pdf'
+                  : uploadData.type || 'application/pdf'
+              }
+            } catch {
+              toast.error('Failed to upload document')
+            }
+
+            if (fileUrl) {
+              let currentId = loadedTaskId
+              if (!currentId) {
+                const created = autoCreateTask()
+                if (created) currentId = created.id
+              }
+
+              if (currentId) {
+                const newAsset = {
+                  id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+                  name: firstFile.name,
+                  content: combined || `[Imported ${firstFile.name}]`,
+                  url: fileUrl,
+                  fileKey,
+                  mimeType: fileMimeType,
+                  folder: designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                }
+                setCourseAssets(prev => [...prev, newAsset])
+
+                const newDoc = {
+                  fileName: firstFile.name,
+                  fileUrl,
+                  fileKey,
+                  mimeType: fileMimeType,
+                  uploadedAt: new Date().toISOString(),
+                  extractedText: combined || '',
+                }
+
+                setTaskSourceDocument(newDoc)
+                setTaskUploadedFiles([{ id: 'source', name: firstFile.name }])
+
+                setCourseBuilderNodes(prev =>
+                  prev.map(mod => ({
+                    ...mod,
+                    lessons: mod.lessons.map(lesson => ({
+                      ...lesson,
+                      tasks: lesson.tasks.map(task =>
+                        task.id === currentId
+                          ? { ...task, sourceDocument: newDoc }
+                          : task
+                      ),
+                    })),
+                  }))
+                )
+              }
+            }
+          }
+        }
+
         onText(combined.trim())
         toast.success(parsePref ? 'File(s) parsed and loaded' : 'File(s) loaded')
       }
@@ -6121,7 +6240,7 @@ FEEDBACK: [your explanation]`
                                                                                                 dmiItems:
                                                                                                   taskDmiItems,
                                                                                                 sourceDocument:
-                                                                                                  t.sourceDocument,
+                                                                                                  taskSourceDocument,
                                                                                               }
                                                                                             : t
                                                                                       ),
@@ -6156,7 +6275,7 @@ FEEDBACK: [your explanation]`
                                                                                                 dmiItems:
                                                                                                   assessmentDmiItems,
                                                                                                 sourceDocument:
-                                                                                                  h.sourceDocument,
+                                                                                                  assessmentSourceDocument,
                                                                                               }
                                                                                             : h
                                                                                       ),
