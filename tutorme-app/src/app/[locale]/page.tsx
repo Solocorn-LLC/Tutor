@@ -3030,22 +3030,12 @@ const CategorySearchModal = ({
   const tabTriggerClass =
     'rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
 
+  if (!isOpen) return null
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-        >
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}
-          >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200 ${mode === 'dark' ? 'border-white/10 bg-zinc-900/95' : 'border-black/10 bg-white/95'}`}>
           {/* Header */}
           <div className="relative shrink-0 p-6 pb-4">
             <button
@@ -3301,10 +3291,8 @@ const CategorySearchModal = ({
               </div>
             </Tabs>
           </div>
-        </motion.div>
-      </motion.div>
-      )}
-    </AnimatePresence>
+      </div>
+    </div>
   )
 }
 
