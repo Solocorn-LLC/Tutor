@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "Production-only development. All development uses production Neon database.",
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "not dead",
+    "not IE 11"
+  ],
   "scripts": {
     "dev": "NODE_ENV=production tsx server.ts",
     "dev:next": "npm run dev",

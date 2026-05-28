@@ -306,31 +306,53 @@ async function handleImageRequest(event: any): Promise<Response> {
   }
 }
 
+function isValidStaticResponse(response: Response, expectedType: string): boolean {
+  const ct = response.headers.get('content-type') || ''
+  if (!ct.includes(expectedType)) {
+    console.warn('[SW] Invalid content-type for static:', response.url, 'got:', ct)
+    return false
+  }
+  return true
+}
+
 async function handleStaticRequest(event: any): Promise<Response> {
+  const url = new URL(event.request.url)
+  const isJs = url.pathname.endsWith('.js')
+  const isCss = url.pathname.endsWith('.css')
+  const expectedType = isJs ? 'javascript' : isCss ? 'css' : ''
+
   const cache = await caches.open(CACHE_NAMES.STATIC)
   const cached = await cache.match(event.request)
 
   if (cached) {
-    const fresh = isCacheFresh(cached, STATIC_CACHE_MAX_AGE)
-    if (!fresh) {
-      // Stale - background revalidate without blocking
-      fetch(event.request)
-        .then(async r => {
-          if (r.ok && r.status === 200) {
-            await cache.put(event.request, r.clone())
-          }
-        })
-        .catch(() => {
-          // Background cache update failed - will try again on next request
-        })
+    // Validate cached response content-type before serving
+    if (expectedType && !isValidStaticResponse(cached, expectedType)) {
+      console.warn('[SW] Evicting corrupted cached static:', event.request.url)
+      await cache.delete(event.request)
+    } else {
+      const fresh = isCacheFresh(cached, STATIC_CACHE_MAX_AGE)
+      if (!fresh) {
+        // Stale - background revalidate without blocking
+        fetch(event.request)
+          .then(async r => {
+            if (r.ok && r.status === 200 && (!expectedType || isValidStaticResponse(r, expectedType))) {
+              await cache.put(event.request, r.clone())
+            }
+          })
+          .catch(() => {
+            // Background cache update failed - will try again on next request
+          })
+      }
+      return cached
     }
-    return cached
   }
 
   try {
     const response = await fetch(event.request)
     if (response.ok && response.status === 200) {
-      await cache.put(event.request, response.clone())
+      if (!expectedType || isValidStaticResponse(response, expectedType)) {
+        await cache.put(event.request, response.clone())
+      }
     }
     return response
   } catch {
