@@ -1406,6 +1406,16 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
 
   useEffect(() => {
     const controller = new AbortController()
+    let finished = false
+
+    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 8000) =>
+      Promise.race([
+        fetch(url, options),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        ),
+      ])
+
     const run = async () => {
       setIsLoading(true)
       setLoadError(null)
@@ -1414,10 +1424,10 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       try {
         const qp = q ? `?q=${encodeURIComponent(q)}&page=1&pageSize=24` : '?page=1&pageSize=24'
         const [coursesRes, tutorsRes] = await Promise.all([
-          fetch(`/api/public/courses${qp}`, {
+          fetchWithTimeout(`/api/public/courses${qp}`, {
             signal: controller.signal,
           }),
-          fetch(`/api/public/tutors${qp}`, {
+          fetchWithTimeout(`/api/public/tutors${qp}`, {
             signal: controller.signal,
           }),
         ])
@@ -1433,34 +1443,44 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
         ])
 
-        setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
-        setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
+        if (!finished) {
+          setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
+          setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
 
-        if (!coursesRes.ok && !tutorsRes.ok) {
-          setLoadError('Unable to load results.')
+          if (!coursesRes.ok && !tutorsRes.ok) {
+            setLoadError('Unable to load results.')
+          }
         }
       } catch (err: any) {
-        if (err?.name !== 'AbortError') {
+        if (!finished && err?.name !== 'AbortError') {
           setLoadError('Unable to load results.')
         }
       } finally {
-        setIsLoading(false)
-        setHasLoaded(true)
+        if (!finished) {
+          setIsLoading(false)
+          setHasLoaded(true)
+        }
       }
     }
 
     const t = setTimeout(run, q ? 200 : 0)
     return () => {
+      finished = true
       controller.abort()
       clearTimeout(t)
     }
   }, [query])
 
   const CourseSlot = ({ item }: { item: any }) => (
-    <button
-      type="button"
-      className="block h-full w-full cursor-pointer text-left outline-none"
+    <div
+      role="button"
+      tabIndex={0}
+      className="block h-full w-full cursor-pointer outline-none"
       onClick={() => setSelectedCourse(item)}
+      onKeyDown={e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        setSelectedCourse(item)
+      }}
     >
       <div
         className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
@@ -1506,7 +1526,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           </div>
         </div>
       </div>
-    </button>
+    </div>
   )
 
   const TutorSlot = ({ item }: { item: any }) => (
@@ -3328,6 +3348,16 @@ export default function LandingPage() {
 
   useEffect(() => {
     const controller = new AbortController()
+    let finished = false
+
+    const fetchWithTimeout = (url: string, options: RequestInit, timeoutMs = 8000) =>
+      Promise.race([
+        fetch(url, options),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        ),
+      ])
+
     const loadCounts = async () => {
       const parseJsonSafe = async (res: Response) => {
         const ct = res.headers.get('content-type') || ''
@@ -3337,8 +3367,8 @@ export default function LandingPage() {
 
       try {
         const [tutorsRes, coursesRes] = await Promise.all([
-          fetch('/api/public/tutors?page=1&pageSize=1', { signal: controller.signal }),
-          fetch('/api/public/courses?page=1&pageSize=1', { signal: controller.signal }),
+          fetchWithTimeout('/api/public/tutors?page=1&pageSize=1', { signal: controller.signal }),
+          fetchWithTimeout('/api/public/courses?page=1&pageSize=1', { signal: controller.signal }),
         ])
 
         const [tutorsJson, coursesJson] = await Promise.all([
@@ -3346,15 +3376,17 @@ export default function LandingPage() {
           coursesRes.ok ? parseJsonSafe(coursesRes) : null,
         ])
 
-        const nextTutorTotal =
-          typeof tutorsJson?.pagination?.total === 'number' ? tutorsJson.pagination.total : null
-        const nextCourseTotal =
-          typeof coursesJson?.pagination?.total === 'number' ? coursesJson.pagination.total : null
+        if (!finished) {
+          const nextTutorTotal =
+            typeof tutorsJson?.pagination?.total === 'number' ? tutorsJson.pagination.total : null
+          const nextCourseTotal =
+            typeof coursesJson?.pagination?.total === 'number' ? coursesJson.pagination.total : null
 
-        setTutorTotal(nextTutorTotal)
-        setCourseTotal(nextCourseTotal)
+          setTutorTotal(nextTutorTotal)
+          setCourseTotal(nextCourseTotal)
+        }
       } catch (err: any) {
-        if (err?.name !== 'AbortError') {
+        if (!finished && err?.name !== 'AbortError') {
           setTutorTotal(null)
           setCourseTotal(null)
         }
@@ -3362,7 +3394,10 @@ export default function LandingPage() {
     }
 
     void loadCounts()
-    return () => controller.abort()
+    return () => {
+      finished = true
+      controller.abort()
+    }
   }, [])
 
   const scrollToSearchResults = () => {
