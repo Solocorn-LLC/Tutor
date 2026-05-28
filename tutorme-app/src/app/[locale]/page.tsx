@@ -3118,16 +3118,6 @@ const CategorySearchModal = ({
               </Select>
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder={t('searchCategories')}
-                value={categorySearch}
-                onChange={e => setCategorySearch(e.target.value)}
-                className="h-10 border-slate-200 bg-white pl-10 text-sm"
-              />
-            </div>
           </div>
 
           {/* Tabs Content */}
@@ -3163,6 +3153,19 @@ const CategorySearchModal = ({
                     <Award className="mr-1.5 h-4 w-4" /> Professional
                   </TabsTrigger>
                 </TabsList>
+              </div>
+
+              {/* Search — placed inside Tabs so it sits under the active tab */}
+              <div className="pb-2 pt-6">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder={t('searchCategories')}
+                    value={categorySearch}
+                    onChange={e => setCategorySearch(e.target.value)}
+                    className="h-10 border-slate-200 bg-white pl-10 text-sm"
+                  />
+                </div>
               </div>
 
               <div className="h-[420px] overflow-y-auto py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400">
