@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import {
   KeyboardSensor,
@@ -917,54 +918,88 @@ export function useCourseBuilderState(options: UseCourseBuilderStateOptions) {
     [selectedItem, setCourseBuilderNodes]
   )
 
-  // Media / Doc handlers
-  const trackObjectUrl = useCallback((url: string) => {
-    return url
-  }, [])
-
+  // Media / Doc handlers — persist via API instead of blob URLs
   const handleMediaUpload = useCallback(
-    (nodeId: string, lessonId: string, files: FileList | null, type: 'video' | 'image') => {
+    async (nodeId: string, lessonId: string, files: FileList | null, type: 'video' | 'image') => {
       if (!files || files.length === 0) return
 
       const nodeIndex = nodes.findIndex(m => m.id === nodeId)
       const lessonIndex = nodes[nodeIndex]?.lessons.findIndex(l => l.id === lessonId)
       if (nodeIndex === -1 || lessonIndex === -1) return
 
-      const newCourseBuilderNodes = [...nodes]
+      const uploadedItems: Array<
+        | { id: string; title: string; url: string; duration: number }
+        | { id: string; title: string; url: string }
+      > = []
 
-      Array.from(files).forEach(file => {
-        if (type === 'video') {
-          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].media.videos.push({
-            id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-            title: file.name,
-            url: trackObjectUrl(URL.createObjectURL(file)),
-            duration: 0,
+      for (const file of Array.from(files)) {
+        const uploadForm = new FormData()
+        uploadForm.append('file', file)
+
+        try {
+          const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
+            method: 'POST',
+            body: uploadForm,
           })
-        } else {
-          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].media.images.push({
-            id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-            title: file.name,
-            url: trackObjectUrl(URL.createObjectURL(file)),
-          })
+          if (!uploadRes.ok) {
+            toast.error(`Failed to upload ${file.name}`)
+            continue
+          }
+          const uploadData = await uploadRes.json()
+          const url = uploadData.url || ''
+
+          if (!url) {
+            toast.error(`Failed to get URL for ${file.name}`)
+            continue
+          }
+
+          if (type === 'video') {
+            uploadedItems.push({
+              id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+              title: file.name,
+              url,
+              duration: 0,
+            })
+          } else {
+            uploadedItems.push({
+              id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+              title: file.name,
+              url,
+            })
+          }
+        } catch {
+          toast.error(`Upload failed for ${file.name}`)
         }
-      })
+      }
+
+      if (uploadedItems.length === 0) return
+
+      const newCourseBuilderNodes = [...nodes]
+      for (const item of uploadedItems) {
+        if ('duration' in item) {
+          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].media.videos.push(item)
+        } else {
+          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].media.images.push(item)
+        }
+      }
 
       setCourseBuilderNodes(newCourseBuilderNodes)
+      toast.success(`${uploadedItems.length} ${type}(s) uploaded`)
     },
-    [nodes, setCourseBuilderNodes, trackObjectUrl]
+    [nodes, setCourseBuilderNodes]
   )
 
   const handleDocUpload = useCallback(
-    (nodeId: string, lessonId: string, files: FileList | null) => {
+    async (nodeId: string, lessonId: string, files: FileList | null) => {
       if (!files || files.length === 0) return
 
       const nodeIndex = nodes.findIndex(m => m.id === nodeId)
       const lessonIndex = nodes[nodeIndex]?.lessons.findIndex(l => l.id === lessonId)
       if (nodeIndex === -1 || lessonIndex === -1) return
 
-      const newCourseBuilderNodes = [...nodes]
+      const uploadedDocs: Array<{ id: string; title: string; url: string; type: 'pdf' | 'doc' | 'ppt' | 'other' }> = []
 
-      Array.from(files).forEach(file => {
+      for (const file of Array.from(files)) {
         const ext = file.name.split('.').pop()?.toLowerCase()
         const docType =
           ext === 'pdf'
@@ -975,35 +1010,66 @@ export function useCourseBuilderState(options: UseCourseBuilderStateOptions) {
                 ? 'ppt'
                 : 'other'
 
-        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].docs.push({
-          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-          title: file.name,
-          url: trackObjectUrl(URL.createObjectURL(file)),
-          type: docType,
-        })
-      })
+        const uploadForm = new FormData()
+        uploadForm.append('file', file)
+
+        try {
+          const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
+            method: 'POST',
+            body: uploadForm,
+          })
+          if (!uploadRes.ok) {
+            toast.error(`Failed to upload ${file.name}`)
+            continue
+          }
+          const uploadData = await uploadRes.json()
+          const url = uploadData.url || ''
+
+          if (!url) {
+            toast.error(`Failed to get URL for ${file.name}`)
+            continue
+          }
+
+          uploadedDocs.push({
+            id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            title: file.name,
+            url,
+            type: docType as 'pdf' | 'doc' | 'ppt' | 'other',
+          })
+        } catch {
+          toast.error(`Upload failed for ${file.name}`)
+        }
+      }
+
+      if (uploadedDocs.length === 0) return
+
+      const newCourseBuilderNodes = [...nodes]
+      for (const doc of uploadedDocs) {
+        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].docs.push(doc)
+      }
 
       setCourseBuilderNodes(newCourseBuilderNodes)
+      toast.success(`${uploadedDocs.length} document(s) uploaded`)
     },
-    [nodes, setCourseBuilderNodes, trackObjectUrl]
+    [nodes, setCourseBuilderNodes]
   )
 
   const handleAssetsMediaUpload = useCallback(
-    (
+    async (
       files: FileList | null,
       type: 'video' | 'image',
       getFirstLessonContext: () => { nodeId: string; lessonId: string }
     ) => {
       const { nodeId, lessonId } = getFirstLessonContext()
-      handleMediaUpload(nodeId, lessonId, files, type)
+      await handleMediaUpload(nodeId, lessonId, files, type)
     },
     [handleMediaUpload]
   )
 
   const handleAssetsDocUpload = useCallback(
-    (files: FileList | null, getFirstLessonContext: () => { nodeId: string; lessonId: string }) => {
+    async (files: FileList | null, getFirstLessonContext: () => { nodeId: string; lessonId: string }) => {
       const { nodeId, lessonId } = getFirstLessonContext()
-      handleDocUpload(nodeId, lessonId, files)
+      await handleDocUpload(nodeId, lessonId, files)
     },
     [handleDocUpload]
   )
