@@ -1863,13 +1863,13 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                   router.push(`/u/${encodeURIComponent(username)}`)
                 }
               }}
-              className="h-10 rounded-[10px] border border-white bg-[#194BB9] px-6 text-white transition-all duration-200 hover:bg-white hover:text-black"
+              className="h-10 rounded-[10px] border border-white bg-[#194BB9] px-6 text-white transition-all duration-200 hover:translate-y-0 hover:bg-white hover:text-[#194BB9] hover:border-[#194BB9]"
             >
               Go To Public Page
             </Button>
             <Button
               onClick={() => setSelectedCourse(null)}
-              className="h-10 rounded-[10px] border border-white bg-black px-6 text-white transition-all duration-200 hover:bg-white hover:text-black"
+              className="h-10 rounded-[10px] border border-white bg-black px-6 text-white transition-all duration-200 hover:translate-y-0 hover:bg-white hover:text-black hover:border-black"
             >
               Close
             </Button>
