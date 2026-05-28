@@ -358,15 +358,14 @@ export function AssessmentBuilderModal({
           </Tabs>
           <DialogFooter className="gap-2">
             <Button
-              variant="outline"
+              variant="modal-secondary"
               onClick={onClose}
-              className="transition-all duration-200 hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               onClick={() => onSave({ ...data })}
-              className="transition-all duration-200 hover:brightness-105 active:brightness-95"
             >
               Save
             </Button>

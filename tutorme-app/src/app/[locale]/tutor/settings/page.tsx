@@ -1156,7 +1156,7 @@ export default function TutorSettings() {
                         {payoutBalance}
                       </div>
                       <Button
-                        className="bg-[#1D4ED8] text-white hover:bg-[#1B45C2]"
+                        variant="modal-primary"
                         onClick={() => toast.message('Withdrawal request sent')}
                       >
                         Withdraw

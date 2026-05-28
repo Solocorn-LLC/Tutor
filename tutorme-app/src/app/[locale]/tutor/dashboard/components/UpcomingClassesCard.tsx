@@ -283,14 +283,14 @@ function ShareDialog({ open, onOpenChange, classId, classTitle }: ShareDialogPro
             {selectedStudents.length + selectedGroups.length} selected
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="modal-secondary" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               size="sm"
               onClick={handleShare}
               disabled={sharing || (selectedStudents.length === 0 && selectedGroups.length === 0)}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {sharing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -481,7 +481,7 @@ export function UpcomingClassesCard({
 
                 <div className="flex flex-col gap-2 pt-2">
                   <Link href={`/tutor/classroom?sessionId=${selectedClass.id}`}>
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700">
+                    <Button variant="modal-primary" className="w-full">
                       <Video className="mr-2 h-4 w-4" />
                       Enter Live Room
                     </Button>

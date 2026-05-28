@@ -278,13 +278,13 @@ export function PreferenceEnrollmentDialog({
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button variant="modal-secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-700"
             >
               {isSubmitting ? 'Enrolling...' : 'Confirm Enrollment'}
             </Button>

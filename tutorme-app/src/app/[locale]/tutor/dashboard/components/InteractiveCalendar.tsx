@@ -1164,12 +1164,12 @@ export function InteractiveCalendar({
                   )}
                 </div>
 
-                <DialogFooter className="gap-2">
-                  <Button variant="outline" onClick={() => setSelectedEvent(null)}>
+                <DialogFooter className="gap-3">
+                  <Button variant="modal-secondary" onClick={() => setSelectedEvent(null)}>
                     Close
                   </Button>
                   <Button
-                    className="bg-gradient-to-r from-purple-600 to-blue-600"
+                    variant="modal-primary"
                     disabled={selectedEvent.status === 'cancelled'}
                     onClick={() => {
                       if (!selectedEvent.sessionId) {
@@ -2005,7 +2005,7 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
       </Tabs>
 
       <div className="mt-4 flex justify-end gap-3 border-t pt-4">
-        <Button onClick={onSave} className="bg-gradient-to-r from-green-600 to-emerald-600">
+        <Button variant="modal-primary" onClick={onSave}>
           Save Availability
         </Button>
       </div>

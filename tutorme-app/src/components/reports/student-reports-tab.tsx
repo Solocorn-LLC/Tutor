@@ -173,7 +173,7 @@ export function StudentReportsTab() {
                     </Button>
                   ) : (
                     <Button
-                      className="bg-indigo-600 hover:bg-indigo-700"
+                      variant="modal-primary"
                       size="sm"
                       onClick={() => openEditor(report)}
                     >
@@ -283,11 +283,11 @@ export function StudentReportsTab() {
           </div>
 
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
+            <Button variant="modal-secondary" onClick={() => handleSave(false)} disabled={isSaving}>
               Save Draft
             </Button>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700"
+              variant="modal-primary"
               onClick={() => handleSave(true)}
               disabled={isSaving}
             >

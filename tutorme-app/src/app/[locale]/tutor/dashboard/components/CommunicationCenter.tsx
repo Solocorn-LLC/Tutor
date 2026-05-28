@@ -1330,17 +1330,14 @@ export function CommunicationCenter() {
               </Label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => actions.setShowAnnouncement(false)}>
+          <DialogFooter className="gap-3">
+            <Button variant="modal-secondary" onClick={() => actions.setShowAnnouncement(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => {
-                toast.success('Announcement broadcasted!')
-                actions.setShowAnnouncement(false)
-              }}
-              className="bg-gradient-to-r from-purple-600 to-blue-600"
-            >
+            <Button variant="modal-primary" onClick={() => {
+              toast.success('Announcement broadcasted!')
+              actions.setShowAnnouncement(false)
+            }}>
               <Megaphone className="mr-2 h-4 w-4" />
               Broadcast
             </Button>

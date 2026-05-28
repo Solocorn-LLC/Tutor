@@ -387,7 +387,7 @@ export default function RevenuePage() {
                 Export Report
               </Button>
               <Button
-                className="bg-gradient-to-r from-green-600 to-emerald-600"
+                variant="modal-primary"
                 onClick={handleRequestPayout}
                 disabled={summary.availableBalance <= 0}
               >
@@ -943,13 +943,13 @@ export default function RevenuePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+            <Button variant="modal-secondary" onClick={() => setShowEmailDialog(false)}>
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               onClick={handleSendEmail}
               disabled={sendingEmail}
-              className="bg-gradient-to-r from-purple-600 to-blue-600"
             >
               {sendingEmail ? (
                 <>
@@ -1025,13 +1025,13 @@ export default function RevenuePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPayoutDialog(false)}>
+            <Button variant="modal-secondary" onClick={() => setShowPayoutDialog(false)}>
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               onClick={submitPayoutRequest}
               disabled={submittingPayout || !payoutAmount || parseFloat(payoutAmount) <= 0}
-              className="bg-gradient-to-r from-green-600 to-emerald-600"
             >
               {submittingPayout ? (
                 <>

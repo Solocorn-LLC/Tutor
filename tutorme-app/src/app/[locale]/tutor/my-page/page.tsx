@@ -272,8 +272,8 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg text-[#1F2933]">My Courses</CardTitle>
           <Button
+            variant="modal-primary"
             onClick={onCreateCourse}
-            className="bg-[#1D4ED8] text-white hover:bg-[#1B45C2]"
             size="sm"
           >
             <Plus className="mr-1 h-4 w-4" />
@@ -1903,9 +1903,9 @@ export default function TutorMyPage() {
               Cancel
             </Button>
             <Button
+              variant="modal-primary"
               onClick={handleCreateCourse}
               disabled={creatingCourse}
-              className="bg-[#1D4ED8] text-white hover:bg-[#1B45C2]"
             >
               {creatingCourse ? 'Creating...' : 'Create Course'}
             </Button>

@@ -640,7 +640,7 @@ export function RevenueDashboard({
 
                   {/* Payout Button */}
                   {availableBalance > 0 && (
-                    <Button className="w-full bg-gradient-to-r from-green-600 to-emerald-600">
+                    <Button variant="modal-primary" className="w-full">
                       <Wallet className="mr-2 h-4 w-4" />
                       Request Payout ({formatCurrency(availableBalance)})
                     </Button>
