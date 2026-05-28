@@ -3474,7 +3474,7 @@ export default function LandingPage() {
 
           <div className="relative z-10 flex min-h-[calc(100vh-160px)] flex-col items-center justify-center px-6 text-center">
             <h1 className="text-balance text-[32px] font-medium leading-tight text-white md:text-[36px]">
-              Live AI-Augmented Instruction Platform
+              Live AI-Augmented Tutoring Platform
             </h1>
 
             <div className="mt-10 w-full">
