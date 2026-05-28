@@ -97,7 +97,14 @@ export async function refreshGcsUrl(
   if (!isGcsConfigured()) return url
   const key = extractGcsKeyFromPublicUrl(url)
   if (!key) return url
-  return createPresignedDownloadUrl(key, expiresInSeconds)
+  try {
+    return await createPresignedDownloadUrl(key, expiresInSeconds)
+  } catch (err: any) {
+    // If signed URL generation fails (e.g. missing iam.serviceAccounts.signBlob
+    // permission), fall back to the public URL rather than failing the upload.
+    console.warn('[GCS] Signed URL generation failed, using public URL:', err?.message || err)
+    return url
+  }
 }
 
 /**
@@ -292,11 +299,9 @@ export async function uploadLocalFile(
     } catch (err: any) {
       // Uniform bucket-level access prevents per-object ACL changes.
       // The file is already uploaded; signed URLs still work.
-      if (err?.code === 400 || err?.message?.includes('uniform bucket-level access')) {
-        console.warn('[GCS] makePublic skipped: uniform bucket-level access enabled')
-      } else {
-        throw err
-      }
+      // Catch ALL makePublic errors so the upload itself never fails
+      // just because public ACLs can't be applied.
+      console.warn('[GCS] makePublic skipped:', err?.message || err)
     }
   }
 
@@ -337,11 +342,9 @@ export async function uploadBuffer(
     } catch (err: any) {
       // Uniform bucket-level access prevents per-object ACL changes.
       // The file is already uploaded; signed URLs still work.
-      if (err?.code === 400 || err?.message?.includes('uniform bucket-level access')) {
-        console.warn('[GCS] makePublic skipped: uniform bucket-level access enabled')
-      } else {
-        throw err
-      }
+      // Catch ALL makePublic errors so the upload itself never fails
+      // just because public ACLs can't be applied.
+      console.warn('[GCS] makePublic skipped:', err?.message || err)
     }
   }
 
