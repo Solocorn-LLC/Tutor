@@ -311,7 +311,7 @@ export default function StudentTutorDirectoryPage() {
           Array.from({ length: 6 }).map((_, index) => (
             <Card
               key={`loading-${index}`}
-              className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-[#1e3a5f] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+              className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-[rgba(30,40,50,0.65)] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
             >
               <CardHeader className="space-y-2 p-4">
                 <div className="h-5 w-2/3 rounded bg-white/10" />
@@ -324,7 +324,7 @@ export default function StudentTutorDirectoryPage() {
             </Card>
           ))
         ) : tutors.length === 0 ? (
-          <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-[#1e3a5f] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+          <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-[rgba(30,40,50,0.65)] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
             <CardHeader>
               <CardTitle className="text-white">No tutors match your current filters</CardTitle>
               <CardDescription className="text-white/70">
