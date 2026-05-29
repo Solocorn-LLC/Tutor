@@ -2976,22 +2976,22 @@ const CategorySection = ({
   if (filtered.length === 0) return null
   return (
     <div className="space-y-3">
-      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <Icon className="h-4 w-4 text-indigo-600" />
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-white">
+        <Icon className="h-4 w-4 text-white/80" />
         {label}
       </h4>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-4">
         {filtered.map((exam, idx) => (
           <label
             key={`${label}-${idx}-${exam}`}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/90 transition-colors hover:bg-white/10"
           >
             <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
               <input
                 type="checkbox"
                 checked={selectedCategories.includes(exam)}
                 onChange={() => onToggleCategory(exam)}
-                className="peer h-4 w-4 appearance-none rounded-full border border-slate-300 transition-colors checked:border-indigo-600 checked:bg-indigo-600"
+                className="peer h-4 w-4 appearance-none rounded-full border border-white/50 transition-colors checked:border-indigo-500 checked:bg-indigo-500"
               />
               <Check className="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100" />
             </div>
@@ -3119,25 +3119,25 @@ const CategorySearchModal = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-      <div className={`relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl animate-in zoom-in-95 duration-200 ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}>
+      <div className="relative flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="relative shrink-0 p-6 pb-4">
             <button
               onClick={onClose}
-              className={`absolute right-4 top-4 p-2 transition-colors ${mode === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}
+              className="absolute right-4 top-4 p-2 text-white/70 transition-colors hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>
-            <h2 className={`mb-1 text-2xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+            <h2 className="mb-1 text-2xl font-bold text-white">
               {t('browseCategories')}
             </h2>
-            <p className={`mb-3 text-sm ${mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
+            <p className="mb-3 text-sm text-white/70">
               {t('selectCategoryPrompt')}
             </p>
 
             {/* Selected category badges container + Search */}
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2 scrollbar-no-arrows">
+              <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-white/20 bg-white/20 px-4 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
                   {selectedCategories.map(cat => {
                     const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-indigo-50', text: 'text-indigo-700', close: 'text-indigo-400 hover:text-indigo-900' }
@@ -3286,7 +3286,7 @@ const CategorySearchModal = ({
                     placeholder={t('searchCategories')}
                     value={categorySearch}
                     onChange={e => setCategorySearch(e.target.value)}
-                    className="h-10 border-slate-200 bg-white pl-10 text-sm focus:outline-none focus-visible:border-slate-200 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="h-10 border-white/20 bg-white/20 pl-10 text-sm text-white placeholder:text-white/50 focus:outline-none focus-visible:border-white/30 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
