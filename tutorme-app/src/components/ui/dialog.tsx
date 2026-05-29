@@ -382,9 +382,7 @@ const DialogPanel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
         ref={ref}
         className={cn(
           'rounded-xl p-4',
-          theme === 'metallic'
-            ? 'border border-white/10 bg-white/10 text-white'
-            : 'border border-gray-200 bg-white text-gray-900',
+          'border border-gray-200 bg-white text-gray-900',
           className
         )}
         {...props}

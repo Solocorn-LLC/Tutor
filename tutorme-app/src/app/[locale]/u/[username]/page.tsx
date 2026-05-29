@@ -37,6 +37,7 @@ import {
   Copy,
   Share2,
   LayoutGrid,
+  Link2,
   List,
   PanelsTopLeft,
   CalendarDays,
@@ -1031,37 +1032,52 @@ export default function PublicTutorPage() {
             <div className={panelCardClass}>
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                  <ExternalLink className="h-3.5 w-3.5 text-slate-700" />
+                  <Link2 className="h-4 w-4 text-slate-700" />
                 </div>
-                <div className="text-base font-semibold text-slate-900">My Public Page</div>
+                <div>
+                  <div className="text-base font-semibold text-slate-900">Connect</div>
+                  <div className="text-xs text-slate-500">Public profile and social channels.</div>
+                </div>
               </div>
 
               {publicUrl ? (
-                <div className="mt-3">
-                  <div className="break-all text-lg font-semibold text-slate-900">{publicUrl}</div>
-                  <div className="mt-1 text-sm font-semibold text-[#F17623]">@{tutor.username}</div>
-                  <div className="mt-4 flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2 text-[#1D4ED8]"
-                      onClick={() => void handleCopyPublicUrl()}
-                      disabled={!publicUrl}
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copy link
-                    </Button>
-                    {canShare ? (
+                <div className="mt-4 rounded-xl bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
+                      <a
+                        href={publicUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                      >
+                        {publicUrl}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-[#1D4ED8]"
-                        onClick={() => void handleSharePublicUrl()}
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => void handleCopyPublicUrl()}
+                        disabled={!publicUrl}
                       >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copy Link
                       </Button>
-                    ) : null}
+                      {canShare ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => void handleSharePublicUrl()}
+                        >
+                          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                          Share
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1069,79 +1085,78 @@ export default function PublicTutorPage() {
                   Add a username below to generate your public link.
                 </div>
               )}
-            </div>
 
-            <div className={panelCardClass}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                  <LayoutGrid className="h-3.5 w-3.5 text-slate-700" />
-                </div>
-                <div className="text-base font-semibold text-slate-900">Social Media Accounts</div>
-              </div>
+              <hr className="my-4 border-slate-100" />
 
-              <div className="mt-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    {
-                      key: 'tiktok',
-                      value: tutor.socialLinks?.tiktok
-                        ? `@${stripAt(tutor.socialLinks.tiktok)}`
-                        : '—',
-                      icon: TikTokIcon,
-                      iconClassName: 'text-slate-900',
-                      muted: !tutor.socialLinks?.tiktok,
-                    },
-                    {
-                      key: 'youtube',
-                      value: tutor.socialLinks?.youtube
-                        ? `@${stripAt(tutor.socialLinks.youtube)}`
-                        : '—',
-                      icon: Youtube,
-                      iconClassName: 'text-red-600',
-                      muted: !tutor.socialLinks?.youtube,
-                    },
-                    {
-                      key: 'instagram',
-                      value: tutor.socialLinks?.instagram
-                        ? `@${stripAt(tutor.socialLinks.instagram)}`
-                        : '—',
-                      icon: Instagram,
-                      iconClassName: 'text-pink-600',
-                      muted: !tutor.socialLinks?.instagram,
-                    },
-                    {
-                      key: 'facebook',
-                      value: tutor.socialLinks?.facebook
-                        ? `@${stripAt(tutor.socialLinks.facebook)}`
-                        : '—',
-                      icon: Facebook,
-                      iconClassName: 'text-blue-600',
-                      muted: !tutor.socialLinks?.facebook,
-                    },
-                  ].map(item => {
-                    const Icon = item.icon
-                    return (
-                      <div
-                        key={item.key}
-                        className={cn(
-                          'flex items-center gap-3 text-sm font-medium text-slate-700',
-                          item.muted && 'text-slate-400'
-                        )}
-                      >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
-                          <Icon
-                            className={cn(
-                              'h-5 w-5',
-                              item.iconClassName,
-                              item.muted && 'opacity-40'
-                            )}
-                          />
-                        </div>
-                        <div className="min-w-0 truncate">{item.value}</div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    key: 'tiktok',
+                    label: 'TikTok',
+                    value: tutor.socialLinks?.tiktok
+                      ? `@${stripAt(tutor.socialLinks.tiktok)}`
+                      : '—',
+                    icon: TikTokIcon,
+                    iconClassName: 'text-slate-900',
+                    muted: !tutor.socialLinks?.tiktok,
+                  },
+                  {
+                    key: 'youtube',
+                    label: 'YouTube',
+                    value: tutor.socialLinks?.youtube
+                      ? `@${stripAt(tutor.socialLinks.youtube)}`
+                      : '—',
+                    icon: Youtube,
+                    iconClassName: 'text-red-600',
+                    muted: !tutor.socialLinks?.youtube,
+                  },
+                  {
+                    key: 'instagram',
+                    label: 'Instagram',
+                    value: tutor.socialLinks?.instagram
+                      ? `@${stripAt(tutor.socialLinks.instagram)}`
+                      : '—',
+                    icon: Instagram,
+                    iconClassName: 'text-pink-600',
+                    muted: !tutor.socialLinks?.instagram,
+                  },
+                  {
+                    key: 'facebook',
+                    label: 'Facebook',
+                    value: tutor.socialLinks?.facebook
+                      ? `@${stripAt(tutor.socialLinks.facebook)}`
+                      : '—',
+                    icon: Facebook,
+                    iconClassName: 'text-blue-600',
+                    muted: !tutor.socialLinks?.facebook,
+                  },
+                ].map(item => {
+                  const Icon = item.icon
+                  return (
+                    <div key={item.key} className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+                        <Icon
+                          className={cn(
+                            'h-5 w-5',
+                            item.iconClassName,
+                            item.muted && 'opacity-40'
+                          )}
+                        />
                       </div>
-                    )
-                  })}
-                </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">{item.label}</div>
+                        <div
+                          className={cn(
+                            'truncate text-xs',
+                            item.muted ? 'text-slate-400' : 'text-slate-600'
+                          )}
+                        >
+                          {item.value}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
