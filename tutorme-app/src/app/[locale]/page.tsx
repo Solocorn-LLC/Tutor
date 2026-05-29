@@ -3139,32 +3139,21 @@ const CategorySearchModal = ({
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
-                  {selectedCategories.length > 0 && selectedCountries.length === 0 && (
-                    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                      <Globe className="h-3 w-3 text-slate-500" />
-                      Global
-                      <button
-                        onClick={() => setSelectedCategories([])}
-                        className="ml-0.5 text-slate-400 hover:text-slate-900"
-                        aria-label="Clear all categories"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {selectedCategories.length > 0 && selectedCountries.map(code => {
-                    const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
+                  {selectedCategories.map(cat => {
+                    const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-indigo-50', text: 'text-indigo-700', close: 'text-indigo-400 hover:text-indigo-900' }
+                    const scope = selectedCountries.length === 0
+                      ? 'Global'
+                      : selectedCountries.map(code => ALL_COUNTRIES.find(c => c.code === code)?.name || code).join(', ')
                     return (
                       <span
-                        key={code}
-                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
+                        key={cat}
+                        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1.5 text-xs font-medium ${colors.text}`}
                       >
-                        <Globe className="h-3 w-3 text-slate-500" />
-                        {countryName}
+                        {cat} - {scope}
                         <button
-                          onClick={() => removeCountry(code)}
-                          className="ml-0.5 text-slate-400 hover:text-slate-900"
-                          aria-label={`Remove ${countryName}`}
+                          onClick={() => removeCategory(cat)}
+                          className={`ml-0.5 ${colors.close}`}
+                          aria-label={`Remove ${cat}`}
                         >
                           ×
                         </button>
