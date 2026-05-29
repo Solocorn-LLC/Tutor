@@ -5,7 +5,7 @@
 
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UserPlus,
@@ -85,6 +85,7 @@ import {
   PROFESSIONAL_CATEGORIES,
   UNIVERSITIES_BY_COUNTRY_CODE,
   ALL_COUNTRIES,
+  type ExamCategory,
 } from '@/lib/data/tutor-categories'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
@@ -3024,6 +3025,18 @@ const CategorySearchModal = ({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const t = (key: string) => translations[key]?.[lang] || translations[key]?.['en'] || key
 
+  const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = {
+    global:       { bg: 'bg-blue-50',    text: 'text-blue-700',    close: 'text-blue-400 hover:text-blue-900' },
+    ap:           { bg: 'bg-red-50',     text: 'text-red-700',     close: 'text-red-400 hover:text-red-900' },
+    alevel:       { bg: 'bg-purple-50',  text: 'text-purple-700',  close: 'text-purple-400 hover:text-purple-900' },
+    ib:           { bg: 'bg-green-50',   text: 'text-green-700',   close: 'text-green-400 hover:text-green-900' },
+    igcse:        { bg: 'bg-cyan-50',    text: 'text-cyan-700',    close: 'text-cyan-400 hover:text-cyan-900' },
+    national:     { bg: 'bg-orange-50',  text: 'text-orange-700',  close: 'text-orange-400 hover:text-orange-900' },
+    universities: { bg: 'bg-pink-50',    text: 'text-pink-700',    close: 'text-pink-400 hover:text-pink-900' },
+    languages:    { bg: 'bg-teal-50',    text: 'text-teal-700',    close: 'text-teal-400 hover:text-teal-900' },
+    professional: { bg: 'bg-slate-50',   text: 'text-slate-700',   close: 'text-slate-400 hover:text-slate-900' },
+  }
+
   // Reset when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -3076,6 +3089,21 @@ const CategorySearchModal = ({
       ? UNIVERSITY_CATEGORIES.filter(u => u.id === `universities-${selectedRegion}`)
       : []
 
+  const examToTabKey = useMemo(() => {
+    const map = new Map<string, string>()
+    const add = (cats: ExamCategory[], key: string) => cats.forEach(c => c.exams.forEach(e => map.set(e, key)))
+    add(GLOBAL_EXAMS_CATEGORIES, 'global')
+    add(AP_CATEGORIES, 'ap')
+    add(A_LEVEL_CATEGORIES, 'alevel')
+    add(IB_CATEGORIES, 'ib')
+    add(IGCSE_CATEGORIES, 'igcse')
+    add(LANGUAGE_CATEGORIES, 'languages')
+    add(PROFESSIONAL_CATEGORIES, 'professional')
+    add(nationalExams, 'national')
+    add(filteredUniversityCategories, 'universities')
+    return map
+  }, [nationalExams, filteredUniversityCategories])
+
   const filterExams = (exams: string[]) =>
     categorySearch
       ? exams.filter(e => e.toLowerCase().includes(categorySearch.toLowerCase()))
@@ -3111,21 +3139,24 @@ const CategorySearchModal = ({
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
-                  {selectedCategories.map(cat => (
-                    <span
-                      key={cat}
-                      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700"
-                    >
-                      {cat}
-                      <button
-                        onClick={() => removeCategory(cat)}
-                        className="ml-0.5 text-indigo-400 hover:text-indigo-900"
-                        aria-label={`Remove ${cat}`}
+                  {selectedCategories.map(cat => {
+                    const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-indigo-50', text: 'text-indigo-700', close: 'text-indigo-400 hover:text-indigo-900' }
+                    return (
+                      <span
+                        key={cat}
+                        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1.5 text-xs font-medium ${colors.text}`}
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        {cat}
+                        <button
+                          onClick={() => removeCategory(cat)}
+                          className={`ml-0.5 ${colors.close}`}
+                          aria-label={`Remove ${cat}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
                   {selectedCountries.map(code => {
                     const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
                     return (
