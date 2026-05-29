@@ -3047,6 +3047,11 @@ const CategorySearchModal = ({
     ? ALL_COUNTRIES.find(c => c.code === selectedCountry)?.name || regionLabel
     : regionLabel
 
+  // Debug: log country selection state
+  if (typeof window !== 'undefined') {
+    console.log('[CategoryModal] selectedCountry:', selectedCountry, 'countryLabel:', countryLabel, 'regionLabel:', regionLabel)
+  }
+
   const availableCountries = selectedRegion
     ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
     : []
@@ -3100,8 +3105,11 @@ const CategorySearchModal = ({
               </div>
               {/* Selected category badges */}
               {selectedCategories.length > 0 && (
-                <div className="flex max-w-[45%] flex-col">
-                  <div className="flex h-[44px] items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300">
+                <div className="flex max-w-[45%] flex-col gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    Selected ({selectedCategories.length})
+                  </span>
+                  <div className="flex h-[44px] items-center overflow-x-auto rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-md">
                     <div className="flex flex-nowrap items-center gap-2">
                       {selectedCategories.map(cat => (
                         <span
