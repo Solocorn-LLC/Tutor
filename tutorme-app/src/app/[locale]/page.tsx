@@ -3137,15 +3137,15 @@ const CategorySearchModal = ({
 
             {/* Selected category badges container + Search */}
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-white/20 bg-white/20 px-4 py-2 scrollbar-no-arrows">
+              <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
                   {selectedCategories.length > 0 && selectedCountries.length === 0 && (
-                    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-medium text-white">
-                      <Globe className="h-3 w-3" />
+                    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                      <Globe className="h-3 w-3 text-slate-500" />
                       Global
                       <button
                         onClick={() => setSelectedCategories([])}
-                        className="ml-0.5 text-white/60 hover:text-white"
+                        className="ml-0.5 text-slate-400 hover:text-slate-900"
                         aria-label="Clear all categories"
                       >
                         ×
@@ -3157,13 +3157,13 @@ const CategorySearchModal = ({
                     return (
                       <span
                         key={code}
-                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-medium text-white"
+                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
                       >
-                        <Globe className="h-3 w-3" />
+                        <Globe className="h-3 w-3 text-slate-500" />
                         {countryName}
                         <button
                           onClick={() => removeCountry(code)}
-                          className="ml-0.5 text-white/60 hover:text-white"
+                          className="ml-0.5 text-slate-400 hover:text-slate-900"
                           aria-label={`Remove ${countryName}`}
                         >
                           ×
@@ -3281,7 +3281,7 @@ const CategorySearchModal = ({
                     placeholder={t('searchCategories')}
                     value={categorySearch}
                     onChange={e => setCategorySearch(e.target.value)}
-                    className="h-10 border-white/20 bg-white/20 pl-10 text-sm text-white placeholder:text-white/50 focus:outline-none focus-visible:border-white/30 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="h-10 border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
