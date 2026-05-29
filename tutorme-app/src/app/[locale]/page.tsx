@@ -3221,18 +3221,19 @@ const CategorySearchModal = ({
                     </svg>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent variant="panel" className="w-[160px] p-2" align="start">
+                <PopoverContent className="w-[160px] p-2" align="start">
                   <div className="flex flex-col gap-1">
                     {availableCountries.map(country => (
                       <label
                         key={country.code}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-100"
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/10"
                       >
                         <Checkbox
                           checked={selectedCountries.includes(country.code)}
                           onCheckedChange={() => toggleCountry(country.code)}
+                          className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
                         />
-                        <span className="text-slate-700">{country.name}</span>
+                        <span>{country.name}</span>
                       </label>
                     ))}
                   </div>
