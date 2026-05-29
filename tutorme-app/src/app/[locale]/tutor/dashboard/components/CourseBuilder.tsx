@@ -8394,7 +8394,7 @@ FEEDBACK: [your explanation]`
                               {testPciActiveTab !== 'insights' &&
                                 testPciActiveTab !== 'student-monitor' &&
                                 !(mainTab === 'live' && testPciActiveTab === 'student1') && (
-                                  <div className="mt-1 w-full rounded-2xl border border-cyan-300 bg-white/90 shadow-[0_0_15px_rgba(34,211,238,0.4)] backdrop-blur-md transition-all duration-300 focus-within:shadow-[0_0_25px_rgba(34,211,238,0.6)]">
+                                  <div className="mt-1 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                     <div className="relative flex w-full flex-col p-px">
                                       <div className="flex w-full flex-col">
                                         <MentionTextarea
@@ -9087,7 +9087,7 @@ FEEDBACK: [your explanation]`
                                               PCI assistant error: {taskPciErrorHint}
                                             </div>
                                           )}
-                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 shadow-[0_0_15px_rgba(34,211,238,0.4)] backdrop-blur-md transition-all duration-300 focus-within:shadow-[0_0_25px_rgba(34,211,238,0.6)]">
+                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
@@ -9627,7 +9627,7 @@ FEEDBACK: [your explanation]`
                                               ] || ''}
                                             </div>
                                           )}
-                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 shadow-[0_0_15px_rgba(34,211,238,0.4)] backdrop-blur-md transition-all duration-300 focus-within:shadow-[0_0_25px_rgba(34,211,238,0.6)]">
+                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
