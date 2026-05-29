@@ -3107,9 +3107,9 @@ const CategorySearchModal = ({
               {t('selectCategoryPrompt')}
             </p>
 
-            {/* Selected category badges container */}
-            <div className="mb-4 w-full">
-              <div className="flex h-[48px] items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2 scrollbar-no-arrows">
+            {/* Selected category badges container + Search */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
                   {selectedCategories.map(cat => (
                     <span
@@ -3147,6 +3147,17 @@ const CategorySearchModal = ({
                   })}
                 </div>
               </div>
+              <Button
+                variant="modal-primary"
+                onClick={() => {
+                  const countryNames = selectedCountries.map(code => ALL_COUNTRIES.find(c => c.code === code)?.name || code)
+                  onSelectCategory([...selectedCategories, ...countryNames])
+                }}
+                disabled={selectedCategories.length === 0 && selectedCountries.length === 0}
+                className="h-10 px-5 text-sm disabled:opacity-50"
+              >
+                Search
+              </Button>
             </div>
 
             {/* Region & Country dropdowns */}
@@ -3352,35 +3363,6 @@ const CategorySearchModal = ({
                   ))}
                   {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
                 </TabsContent>
-              </div>
-
-              {/* Footer with Search button */}
-              <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
-                <span className="text-sm text-slate-500">
-                  {selectedCategories.length + selectedCountries.length > 0
-                    ? `${selectedCategories.length + selectedCountries.length} selected`
-                    : 'Select categories to search'}
-                </span>
-                <div className="flex gap-3">
-                  <Button
-                    variant="modal-secondary"
-                    onClick={onClose}
-                    className="h-9 px-4 text-sm"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="modal-primary"
-                    onClick={() => {
-                      const countryNames = selectedCountries.map(code => ALL_COUNTRIES.find(c => c.code === code)?.name || code)
-                      onSelectCategory([...selectedCategories, ...countryNames])
-                    }}
-                    disabled={selectedCategories.length === 0 && selectedCountries.length === 0}
-                    className="h-9 px-6 text-sm disabled:opacity-50"
-                  >
-                    Search
-                  </Button>
-                </div>
               </div>
             </Tabs>
           </div>
