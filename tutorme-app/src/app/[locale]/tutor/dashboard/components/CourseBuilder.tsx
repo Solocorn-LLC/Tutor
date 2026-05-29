@@ -671,6 +671,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       sourceDocument?: {
         fileName: string
         fileUrl: string
+        fileKey?: string
         mimeType: string
         uploadedAt: string
         extractedText?: string
@@ -694,20 +695,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       activeExtensionId: null, // null = viewing task, string = viewing extension
     })
 
-    const [assessmentBuilder, setAssessmentBuilder] = useState({
-      title: '',
-      taskContent: '',
-      taskPci: '',
-      details: '',
-      extensions: [] as {
+    const [assessmentBuilder, setAssessmentBuilder] = useState<{
+      title: string
+      taskContent: string
+      taskPci: string
+      details: string
+      sourceDocument?: {
+        fileName: string
+        fileUrl: string
+        fileKey?: string
+        mimeType: string
+        uploadedAt: string
+        extractedText?: string
+      }
+      extensions: {
         id: string
         name: string
         description?: string
         content: string
         pci: string
         sourceDocument?: any
-      }[],
-      activeExtensionId: null as string | null,
+      }[]
+      activeExtensionId: string | null
+    }>({
+      title: '',
+      taskContent: '',
+      taskPci: '',
+      details: '',
+      extensions: [],
+      activeExtensionId: null,
     })
 
     const [taskPciMessages, setTaskPciMessages] = useState<
@@ -1214,6 +1230,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           taskContent: content,
           taskPci: task.instructions || '',
           details: task.shortDescription || '',
+          sourceDocument: task.sourceDocument,
           extensions: (task.extensions || []).map(ext => ({
             ...ext,
             description: ext.description || '',
@@ -1263,6 +1280,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         taskContent: content,
         taskPci: assessment.instructions || '',
         details: '',
+        sourceDocument: assessment.sourceDocument,
         extensions: [],
         activeExtensionId: null,
       })
@@ -1427,7 +1445,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         testPciSource === 'task' && testPciViewMode.startsWith('dmi_')
                           ? testPciViewMode.replace('dmi_', '')
                           : task.activeDmiVersionId,
-                      sourceDocument: taskSourceDocument,
+                      sourceDocument: taskBuilder.sourceDocument,
                     }
                   : task
               ),
@@ -1443,12 +1461,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.taskContent,
       taskBuilder.taskPci,
       taskBuilder.extensions,
+      taskBuilder.sourceDocument,
       taskDmiItems,
       taskDmiVersions,
       testPciSource,
       testPciViewMode,
       loadedTaskId,
-      taskSourceDocument,
     ])
 
     // Auto-save assessment on the fly (debounced)
@@ -1475,7 +1493,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         testPciSource === 'assessment' && testPciViewMode.startsWith('dmi_')
                           ? testPciViewMode.replace('dmi_', '')
                           : hw.activeDmiVersionId,
-                      sourceDocument: assessmentSourceDocument,
+                      sourceDocument: assessmentBuilder.sourceDocument,
                     }
                   : hw
               ),
@@ -1489,12 +1507,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
       assessmentBuilder.taskPci,
+      assessmentBuilder.sourceDocument,
       assessmentDmiItems,
       assessmentDmiVersions,
       testPciSource,
       testPciViewMode,
       loadedAssessmentId,
-      assessmentSourceDocument,
     ])
 
     // Sync active builder content to classroom tab when in insights mode
@@ -2011,8 +2029,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const extensionName = activeExt ? activeExt.name : undefined
 
         const sourceDocData = isTask
-          ? activeExt?.sourceDocument || taskSourceDocument
-          : assessmentSourceDocument
+          ? activeExt?.sourceDocument || taskSourceDocument || taskBuilder.sourceDocument
+          : currentAssessmentDocument
         const sourceDocument = sourceDocData
           ? {
               fileName: sourceDocData.fileName,
@@ -2303,8 +2321,8 @@ FEEDBACK: [your explanation]`
           : null
       const content = activeExt ? activeExt.content : builder.taskContent
       const sourceDoc = isTask
-        ? activeExt?.sourceDocument || taskSourceDocument
-        : assessmentSourceDocument
+        ? activeExt?.sourceDocument || taskSourceDocument || taskBuilder.sourceDocument
+        : currentAssessmentDocument
 
       const hasContent = content.trim().length > 0
       const hasPdf = sourceDoc?.mimeType === 'application/pdf' && sourceDoc.fileUrl
@@ -2446,12 +2464,12 @@ FEEDBACK: [your explanation]`
         deployedAt: Date.now(),
         polls: [],
         questions: [],
-        sourceDocument: assessmentSourceDocument
+        sourceDocument: currentAssessmentDocument
           ? {
-              fileName: assessmentSourceDocument.fileName,
-              fileUrl: assessmentSourceDocument.fileUrl,
-              fileKey: assessmentSourceDocument.fileKey,
-              mimeType: assessmentSourceDocument.mimeType,
+              fileName: currentAssessmentDocument.fileName,
+              fileUrl: currentAssessmentDocument.fileUrl,
+              fileKey: currentAssessmentDocument.fileKey,
+              mimeType: currentAssessmentDocument.mimeType,
             }
           : undefined,
       }
@@ -5211,8 +5229,12 @@ FEEDBACK: [your explanation]`
       : null
 
     // Check if the active extension has a document, otherwise fallback to task document
-    const currentTaskDocument = activeTaskExtension?.sourceDocument || taskSourceDocument
+    const currentTaskDocument =
+      activeTaskExtension?.sourceDocument || taskSourceDocument || taskBuilder.sourceDocument
     const hasTaskDocument = !!currentTaskDocument
+
+    const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
+    const hasAssessmentDocument = !!currentAssessmentDocument
 
     const activeTaskPciMessages = taskBuilder.activeExtensionId
       ? taskExtensionPciMessages[taskBuilder.activeExtensionId] || []
@@ -5252,7 +5274,6 @@ FEEDBACK: [your explanation]`
       if (loadedTaskId) setTaskPdfVisibleMap(prev => ({ ...prev, [loadedTaskId]: val }))
     }
 
-    const hasAssessmentDocument = !!assessmentSourceDocument
     const assessmentTextVisible = loadedAssessmentId
       ? (assessmentTextVisibleMap[loadedAssessmentId] ?? !hasAssessmentDocument)
       : !hasAssessmentDocument
@@ -6248,7 +6269,7 @@ FEEDBACK: [your explanation]`
                                                                                                 dmiItems:
                                                                                                   taskDmiItems,
                                                                                                 sourceDocument:
-                                                                                                  taskSourceDocument,
+                                                                                                  t.sourceDocument,
                                                                                               }
                                                                                             : t
                                                                                       ),
@@ -6283,7 +6304,7 @@ FEEDBACK: [your explanation]`
                                                                                                 dmiItems:
                                                                                                   assessmentDmiItems,
                                                                                                 sourceDocument:
-                                                                                                  assessmentSourceDocument,
+                                                                                                  h.sourceDocument,
                                                                                               }
                                                                                             : h
                                                                                       ),
@@ -8238,9 +8259,8 @@ FEEDBACK: [your explanation]`
                                                 : liveAssessment?.sourceDocument
                                               : testPciSource === 'task'
                                                 ? currentTaskDocument ||
-                                                  (taskBuilder as any).sourceDocument
-                                                : assessmentSourceDocument ||
-                                                  (assessmentBuilder as any).sourceDocument
+                                                  taskBuilder.sourceDocument
+                                                : currentAssessmentDocument
                                           const versionId = testPciViewMode.startsWith('dmi_')
                                             ? testPciViewMode.replace('dmi_', '')
                                             : null
@@ -9132,7 +9152,7 @@ FEEDBACK: [your explanation]`
                                                       } else {
                                                         const hasDoc = !!(
                                                           currentTaskDocument ||
-                                                          (taskBuilder as any).sourceDocument
+                                                          taskBuilder.sourceDocument
                                                         )
                                                         setTestPciViewMode(hasDoc ? 'pdf' : 'text')
                                                       }
@@ -9382,11 +9402,11 @@ FEEDBACK: [your explanation]`
                                             )}
 
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
-                                              {assessmentSourceDocument?.mimeType ===
+                                              {currentAssessmentDocument?.mimeType ===
                                               'application/pdf' ? (
                                                 <PDFViewer
-                                                  key={assessmentSourceDocument.fileUrl}
-                                                  fileUrl={assessmentSourceDocument.fileUrl}
+                                                  key={currentAssessmentDocument.fileUrl}
+                                                  fileUrl={currentAssessmentDocument.fileUrl}
                                                   className="absolute inset-0 h-full w-full"
                                                   defaultScale={0.75}
                                                   hidePageNavigation
@@ -9396,10 +9416,10 @@ FEEDBACK: [your explanation]`
                                                     setAssessmentPdfVisible(false)
                                                   }}
                                                 />
-                                              ) : assessmentSourceDocument &&
-                                                assessmentSourceDocument.mimeType !==
+                                              ) : currentAssessmentDocument &&
+                                                currentAssessmentDocument.mimeType !==
                                                   'application/pdf' &&
-                                                assessmentSourceDocument.mimeType.startsWith(
+                                                currentAssessmentDocument.mimeType.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
@@ -9421,16 +9441,16 @@ FEEDBACK: [your explanation]`
                                                   </div>
                                                   <div className="relative h-full w-full pt-11">
                                                     <NextImage
-                                                      src={assessmentSourceDocument.fileUrl}
-                                                      alt={assessmentSourceDocument.fileName}
+                                                      src={currentAssessmentDocument.fileUrl}
+                                                      alt={currentAssessmentDocument.fileName}
                                                       fill
                                                       className="object-contain"
                                                       unoptimized
                                                     />
                                                   </div>
                                                 </div>
-                                              ) : assessmentSourceDocument &&
-                                                assessmentSourceDocument.fileUrl ? (
+                                              ) : currentAssessmentDocument &&
+                                                currentAssessmentDocument.fileUrl ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
                                                   <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
                                                     <div />
@@ -9450,12 +9470,12 @@ FEEDBACK: [your explanation]`
                                                   </div>
                                                   <FileText className="mb-4 h-16 w-16 text-blue-500" />
                                                   <a
-                                                    href={assessmentSourceDocument.fileUrl}
+                                                    href={currentAssessmentDocument.fileUrl}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="text-center text-sm font-medium text-blue-600 hover:underline"
                                                   >
-                                                    Open {assessmentSourceDocument.fileName} in new
+                                                    Open {currentAssessmentDocument.fileName} in new
                                                     tab
                                                   </a>
                                                 </div>
@@ -9516,7 +9536,7 @@ FEEDBACK: [your explanation]`
                                                 if (!canEdit) return
                                                 const content = assessmentBuilder.taskContent
                                                 const hasPdf =
-                                                  assessmentSourceDocument?.mimeType ===
+                                                  currentAssessmentDocument?.mimeType ===
                                                   'application/pdf'
                                                 if (!content.trim() && !hasPdf) {
                                                   toast.error(
