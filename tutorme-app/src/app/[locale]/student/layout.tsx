@@ -280,8 +280,20 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       )}
 
       {/* Main Content */}
-      <main className={cn('h-screen flex-1 overflow-hidden', 'pt-4 pb-4')}>
-        <div className="h-full overflow-y-auto">{children}</div>
+      <main
+        className={cn(
+          'flex-1 overflow-hidden',
+          !isFeedbackRoute && 'pt-4 pb-4'
+        )}
+      >
+        <div
+          className={cn(
+            'h-full',
+            isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto'
+          )}
+        >
+          {children}
+        </div>
       </main>
     </div>
   )

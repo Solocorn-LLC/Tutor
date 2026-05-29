@@ -98,7 +98,7 @@ export default function StudentFeedbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="flex h-full items-center justify-center bg-gray-50">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       }
@@ -953,7 +953,7 @@ function StudentFeedbackContent() {
   }
 
   return (
-    <div className="relative flex h-screen w-full flex-col overflow-hidden bg-gray-50">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-gray-50">
       <div className="flex h-full w-full min-w-0 flex-1 flex-col bg-gray-50/50">
         <div className="w-full px-4 pt-2">
           <div className="flex w-full flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center">
