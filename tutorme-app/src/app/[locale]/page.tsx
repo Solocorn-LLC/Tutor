@@ -3042,6 +3042,10 @@ const CategorySearchModal = ({
     ? REGIONS.find(r => r.id === selectedRegion)?.name || 'Global'
     : 'Global'
 
+  const countryLabel = selectedCountry
+    ? ALL_COUNTRIES.find(c => c.code === selectedCountry)?.name || regionLabel
+    : regionLabel
+
   const availableCountries = selectedRegion
     ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
     : []
@@ -3095,15 +3099,15 @@ const CategorySearchModal = ({
               </div>
               {/* Selected category badges */}
               {selectedCategories.length > 0 && (
-                <div className="flex max-w-[50%] flex-col">
-                  <div className="max-h-[80px] overflow-y-auto rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300">
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="flex max-w-[45%] flex-col">
+                  <div className="flex h-[44px] items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300">
+                    <div className="flex flex-nowrap items-center gap-2">
                       {selectedCategories.map(cat => (
                         <span
                           key={cat}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700"
+                          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700"
                         >
-                          {cat} — {regionLabel}
+                          {cat} — {countryLabel}
                           <button
                             onClick={() => removeCategory(cat)}
                             className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full hover:bg-indigo-200"
