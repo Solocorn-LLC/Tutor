@@ -348,7 +348,7 @@ export function ReviewNodeModal({
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button
-            variant="outline"
+            variant="modal-secondary"
             onClick={handleSnooze}
             disabled={isLoading}
             className="w-full sm:w-auto"
@@ -358,7 +358,7 @@ export function ReviewNodeModal({
           </Button>
 
           <Button
-            variant="outline"
+            variant="modal-secondary"
             onClick={handleMarkKnown}
             disabled={isLoading}
             className="w-full sm:w-auto"
@@ -367,7 +367,7 @@ export function ReviewNodeModal({
             Mark as Known
           </Button>
 
-          <Button onClick={handleStartReview} disabled={isLoading} className="w-full sm:w-auto">
+          <Button variant="modal-primary" onClick={handleStartReview} disabled={isLoading} className="w-full sm:w-auto">
             <Brain className="mr-2 h-4 w-4" />
             Start Review
           </Button>

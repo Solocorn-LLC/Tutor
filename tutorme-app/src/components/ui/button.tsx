@@ -156,7 +156,7 @@ const buttonVariants = cva(
         // Modal Primary (Metallic/Dark) - Brand primary action on dark modals
         'modal-primary-dark': [
           'bg-[#194BB9] text-white',
-          'border border-[#194BB9]',
+          'border border-white',
           'rounded-[10px]',
           'h-10 px-6',
           'shadow-elevation-2',

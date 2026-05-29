@@ -1287,7 +1287,7 @@ export function CommunicationCenter() {
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button onClick={() => actions.setShowQuickRepliesManager(false)}>Close</Button>
+            <Button variant="modal-secondary" onClick={() => actions.setShowQuickRepliesManager(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -243,7 +243,7 @@ export function PublishButton({
             <DialogDescription>{publishResult?.description ?? ''}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setResultDialogOpen(false)}>OK</Button>
+            <Button variant="modal-secondary" onClick={() => setResultDialogOpen(false)}>OK</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1787,7 +1787,7 @@ export default function PublicTutorPage() {
           </div>
           <DialogFooter className="gap-3">
             <Button
-              variant="outline"
+              variant="modal-primary"
               onClick={() => {
                 setDetailsCourse(null)
                 if (publicPath) router.push(publicPath)

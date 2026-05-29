@@ -10282,7 +10282,7 @@ FEEDBACK: [your explanation]`
             </div>
             <DialogFooter>
               <Button
-                variant="ghost"
+                variant="modal-secondary"
                 onClick={() => setPptUploadDialog({ isOpen: false, file: null, target: null })}
               >
                 Cancel
@@ -10326,8 +10326,7 @@ FEEDBACK: [your explanation]`
             </DialogHeader>
             <DialogFooter>
               <Button
-                variant="outline"
-                className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                variant="modal-secondary"
                 onClick={() => setAlertDialog(prev => ({ ...prev, open: false }))}
               >
                 Understood

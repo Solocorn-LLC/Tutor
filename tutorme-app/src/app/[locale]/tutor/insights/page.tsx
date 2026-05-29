@@ -1369,7 +1369,7 @@ function TutorInsightsPageInner() {
           </div>
           <DialogFooter>
             <Button
-              variant="ghost"
+              variant="modal-secondary"
               onClick={() => {
                 setPropagationDialogOpen(false)
                 setPendingSavePayload(null)

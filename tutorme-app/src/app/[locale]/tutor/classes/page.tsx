@@ -1071,7 +1071,7 @@ export default function TutorClassesPage() {
             </div>
             <DialogFooter>
               <Button
-                variant="outline"
+                variant="modal-secondary"
                 onClick={() => {
                   setSessionDialogOpen(false)
                   resetDialog()
@@ -1080,6 +1080,7 @@ export default function TutorClassesPage() {
                 Cancel
               </Button>
               <Button
+                variant="modal-primary"
                 onClick={confirmSessionStart}
                 disabled={
                   dialogLoading ||

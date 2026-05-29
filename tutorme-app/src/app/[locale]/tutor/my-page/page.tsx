@@ -1658,14 +1658,14 @@ export default function TutorMyPage() {
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
-                variant="outline"
+                variant="modal-secondary"
                 onClick={closeCropDialog}
                 disabled={cropping || uploadingAvatar}
-                className="border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
               >
                 Cancel
               </Button>
               <Button
+                variant="modal-primary"
                 onClick={() => void confirmCropAndUpload()}
                 disabled={
                   cropping || uploadingAvatar || !cropSourceUrl || !cropSourceFile || !cropImageSize
@@ -1895,10 +1895,9 @@ export default function TutorMyPage() {
           </div>
           <DialogFooter className="mt-4">
             <Button
-              variant="ghost"
+              variant="modal-secondary"
               onClick={() => setCreateOpen(false)}
               disabled={creatingCourse}
-              className="text-slate-700"
             >
               Cancel
             </Button>

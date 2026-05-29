@@ -1096,8 +1096,7 @@ function TutorDashboardContent() {
                 <span>Cancelling a session will notify enrolled students</span>
               </div>
               <Button
-                variant="outline"
-                className="transition-all duration-200 hover:bg-muted"
+                variant="modal-secondary"
                 onClick={() => setCancelModalOpen(false)}
               >
                 Close
