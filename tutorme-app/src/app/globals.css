@@ -1061,6 +1061,7 @@
     scrollbar-color: #cbd5e1 transparent;
   }
   .scrollbar-no-arrows::-webkit-scrollbar {
+    width: 6px;
     height: 6px;
   }
   .scrollbar-no-arrows::-webkit-scrollbar-track {
@@ -1069,6 +1070,9 @@
   .scrollbar-no-arrows::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 3px;
+  }
+  .scrollbar-no-arrows::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
   .scrollbar-no-arrows::-webkit-scrollbar-button {
     display: none;

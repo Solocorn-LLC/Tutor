@@ -678,7 +678,7 @@ const translations: Translations = {
     hi: 'डार्क',
   },
   browseCategories: {
-    en: 'Browse Tutor Categories',
+    en: 'Search for a Tutor or Course by Category',
     'zh-CN': '浏览类别',
     'zh-HK': '瀏覽類別',
     es: 'Explorar categorías',
@@ -700,6 +700,18 @@ const translations: Translations = {
     ko: '코스 및 튜터를 검색할 카테고리 선택',
     pt: 'Selecione uma categoria para buscar cursos e tutores',
     hi: 'कोर्स और ट्यूटर खोजने के लिए एक श्रेणी चुनें',
+  },
+  selectCategoryBadgePlaceholder: {
+    en: 'Select a category',
+    'zh-CN': '选择一个类别',
+    'zh-HK': '選擇一個類別',
+    es: 'Selecciona una categoría',
+    fr: 'Sélectionnez une catégorie',
+    de: 'Wählen Sie eine Kategorie',
+    ja: 'カテゴリーを選択',
+    ko: '카테고리 선택',
+    pt: 'Selecione uma categoria',
+    hi: 'एक श्रेणी चुनें',
   },
   allRegions: {
     en: 'All Regions',
@@ -3139,6 +3151,11 @@ const CategorySearchModal = ({
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-[48px] flex-1 items-center overflow-x-auto rounded-xl border border-slate-200 bg-white px-3 py-2 scrollbar-no-arrows">
                 <div className="flex flex-nowrap items-center gap-2">
+                  {selectedCategories.length === 0 && (
+                    <span className="select-none text-sm text-slate-400">
+                      {t('selectCategoryBadgePlaceholder')}
+                    </span>
+                  )}
                   {selectedCategories.map(cat => {
                     const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-indigo-50', text: 'text-indigo-700', close: 'text-indigo-400 hover:text-indigo-900' }
                     const scope = selectedCountries.length === 0
@@ -3275,7 +3292,7 @@ const CategorySearchModal = ({
                 </div>
               </div>
 
-              <div className="h-[420px] overflow-y-auto py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400">
+              <div className="h-[420px] overflow-y-auto pt-4 pb-12 scrollbar-no-arrows">
                 {/* Global */}
                 <TabsContent value="global" className="mt-0 space-y-6">
                   {GLOBAL_EXAMS_CATEGORIES.map(cat => (
