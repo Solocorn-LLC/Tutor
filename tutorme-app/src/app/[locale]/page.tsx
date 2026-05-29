@@ -3221,7 +3221,7 @@ const CategorySearchModal = ({
                     </svg>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-2" align="start">
+                <PopoverContent variant="panel" className="w-[160px] p-2" align="start">
                   <div className="flex flex-col gap-1">
                     {availableCountries.map(country => (
                       <label
