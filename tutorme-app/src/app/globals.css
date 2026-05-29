@@ -701,11 +701,6 @@
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
   }
   
-  /* Focus visible styles */
-  :focus-visible {
-    outline: none;
-  }
-  
   /* Selection styles */
   ::selection {
     @apply bg-primary/20 text-foreground;
@@ -724,11 +719,10 @@
     cursor: pointer;
   }
 
-  /* Focus visible ring - crisp, accessible */
-  :focus-visible {
+  /* Focus visible ring - crisp, accessible (excludes form controls which manage their own focus) */
+  :focus-visible:not(input):not(textarea):not(select):not([contenteditable]) {
     outline: none;
     box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
-    transition: box-shadow 150ms ease;
   }
 
   /* Respect prefers-reduced-motion */

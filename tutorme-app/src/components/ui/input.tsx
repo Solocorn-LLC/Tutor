@@ -19,7 +19,7 @@ const inputVariants = cva(
     'ease-premium transition-all duration-150',
     'file:border-0 file:bg-transparent file:text-sm file:font-medium',
     // Focus states
-    'focus:outline-none focus-visible:outline-none',
+    'focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-none',
     // Disabled states
     'disabled:bg-muted disabled:cursor-not-allowed disabled:opacity-50',
   ],
