@@ -558,12 +558,12 @@ export function AvatarUploader({
             {cropSourceUrl ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-[#1F2933]">Zoom</div>
+                  <div className="text-sm font-medium text-white">Zoom</div>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="modal-secondary-dark"
                     size="sm"
-                    className="h-8 gap-2 border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
+                    className="h-8 gap-2"
                     onClick={() => {
                       setCropError(null)
                       setCropZoom(1)
@@ -597,15 +597,15 @@ export function AvatarUploader({
 
             {croppedPreviewUrl ? (
               <div className="flex items-center gap-4">
-                <div className="text-sm font-medium text-[#1F2933]">Preview</div>
+                <div className="text-sm font-medium text-white">Preview</div>
                 <img
                   src={croppedPreviewUrl}
                   alt="Cropped avatar preview"
-                  className="h-20 w-20 rounded-lg border border-[#E2E8F0] object-cover"
+                  className="h-20 w-20 rounded-lg border border-white/20 object-cover"
                 />
               </div>
             ) : null}
-            <p className="text-xs text-[#64748B]">
+            <p className="text-xs text-gray-300">
               Drag to position. Crop is locked to 1:1 and will upload exactly as previewed.
             </p>
           </div>

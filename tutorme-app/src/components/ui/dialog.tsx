@@ -360,7 +360,7 @@ const DialogBody = React.forwardRef<
       ref={ref}
       className={cn(
         spacingClasses[spacing],
-        theme === 'metallic' && 'leading-[1.6] text-gray-300',
+        theme === 'metallic' && 'leading-[1.6] text-white',
         scrollable && ['scrollbar-thin overflow-y-auto', maxHeight && `max-h-[${maxHeight}]`],
         className
       )}
@@ -375,13 +375,22 @@ DialogBody.displayName = 'DialogBody'
 // ============================================
 
 const DialogPanel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('rounded-xl border border-gray-200 bg-white p-4', 'text-gray-900', className)}
-      {...props}
-    />
-  )
+  ({ className, ...props }, ref) => {
+    const theme = useDialogTheme()
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'rounded-xl p-4',
+          theme === 'metallic'
+            ? 'border border-white/10 bg-white/10 text-white'
+            : 'border border-gray-200 bg-white text-gray-900',
+          className
+        )}
+        {...props}
+      />
+    )
+  }
 )
 DialogPanel.displayName = 'DialogPanel'
 
