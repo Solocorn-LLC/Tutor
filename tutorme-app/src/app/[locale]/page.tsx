@@ -3047,11 +3047,6 @@ const CategorySearchModal = ({
     ? ALL_COUNTRIES.find(c => c.code === selectedCountry)?.name || regionLabel
     : regionLabel
 
-  // Debug: log country selection state
-  if (typeof window !== 'undefined') {
-    console.log('[CategoryModal] selectedCountry:', selectedCountry, 'countryLabel:', countryLabel, 'regionLabel:', regionLabel)
-  }
-
   const availableCountries = selectedRegion
     ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
     : []
@@ -3103,15 +3098,14 @@ const CategorySearchModal = ({
                   {t('selectCategoryPrompt')}
                 </p>
               </div>
-              {/* Selected category badges */}
-              {selectedCategories.length > 0 && (
-                <div className="flex max-w-[45%] flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Selected ({selectedCategories.length})
-                  </span>
-                  <div className="flex h-[44px] items-center overflow-x-auto rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-md">
-                    <div className="flex flex-nowrap items-center gap-2">
-                      {selectedCategories.map(cat => (
+              {/* Selected category badges container */}
+              <div className="flex w-full max-w-[55%] flex-col">
+                <div className="flex h-[44px] items-center overflow-x-auto rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-md scrollbar-no-arrows">
+                  <div className="flex flex-nowrap items-center gap-2">
+                    {selectedCategories.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">Select categories...</span>
+                    ) : (
+                      selectedCategories.map(cat => (
                         <span
                           key={cat}
                           className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700"
@@ -3124,11 +3118,11 @@ const CategorySearchModal = ({
                             <X className="h-3 w-3" />
                           </button>
                         </span>
-                      ))}
-                    </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Region & Country dropdowns */}

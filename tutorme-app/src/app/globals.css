@@ -1060,6 +1060,25 @@
     background: hsl(var(--muted));
     border-radius: 3px;
   }
+
+  /* Scrollbar without arrow buttons */
+  .scrollbar-no-arrows {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  .scrollbar-no-arrows::-webkit-scrollbar {
+    height: 6px;
+  }
+  .scrollbar-no-arrows::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-no-arrows::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  .scrollbar-no-arrows::-webkit-scrollbar-button {
+    display: none;
+  }
   
   /* Line clamp */
   .line-clamp-1 {
