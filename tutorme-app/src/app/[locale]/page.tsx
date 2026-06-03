@@ -1744,7 +1744,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/30 !bg-[rgba(31,41,55,0.15)] text-white shadow-lg !backdrop-blur-xl focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:!bg-[rgba(31,41,55,0.40)] hover:!border-white/50">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
             <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.25)] !border-white/25 shadow-lg backdrop-blur-xl">
@@ -1761,7 +1761,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/30 !bg-[rgba(31,41,55,0.15)] text-white shadow-lg !backdrop-blur-xl focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:!bg-[rgba(31,41,55,0.40)] hover:!border-white/50">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
             <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.25)] !border-white/25 shadow-lg backdrop-blur-xl">
