@@ -3439,6 +3439,9 @@ export default function LandingPage() {
   const [howItWorksOpen, setHowItWorksOpen] = useState(false)
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Stable motion props to prevent unnecessary re-renders / remounts
+  const motionFadeIn = useMemo(() => ({ opacity: 1 }), [])
+
   useEffect(() => {
     return () => {
       if (scrollTimerRef.current) {
@@ -3588,18 +3591,19 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
-      <motion.main initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="relative">
+      <motion.main initial={motionFadeIn} animate={motionFadeIn} className="relative">
         <section className="relative min-h-screen overflow-hidden bg-black">
           {/* Background Video */}
           <video
+            key="landing-bg-video"
             autoPlay
             muted
             loop
             playsInline
+            preload="auto"
+            src="/landing-bg-video.mp4"
             className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-          >
-            <source src="/landing-bg-video.mp4" type="video/mp4" />
-          </video>
+          />
           {/* Gradient overlay for readability */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
           <header className="relative z-10 flex items-center justify-between px-8 pt-8">
