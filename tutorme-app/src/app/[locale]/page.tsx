@@ -3605,21 +3605,24 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
+      {/* Video layer — isolated outside motion.main so Framer Motion never touches it */}
+      <div className="absolute inset-x-0 top-0 h-screen bg-black">
+        <video
+          key="landing-bg-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          src="/landing-bg-video.mp4"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        />
+        {/* Gradient overlay for readability */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+      </div>
+
       <motion.main initial={motionFadeIn} animate={motionFadeIn} className="relative">
-        <section className="relative min-h-screen overflow-hidden bg-black">
-          {/* Background Video */}
-          <video
-            key="landing-bg-video"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            src="/landing-bg-video.mp4"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-          />
-          {/* Gradient overlay for readability */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+        <section className="relative min-h-screen overflow-hidden">
           <header className="relative z-10 flex items-center justify-between px-8 pt-8">
             <div className="flex items-center gap-3">
               <img src="/solocornlogo.png" alt="Solocorn" className="h-9 w-9" />
