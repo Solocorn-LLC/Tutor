@@ -932,7 +932,7 @@ export default function PublicTutorPage() {
                   <div className="mt-4 inline-flex flex-wrap items-center gap-4 rounded-full bg-white/10 px-5 py-2.5 text-white ring-1 ring-white/15 backdrop-blur">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-white/70" />
-                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                      <div className="flex items-baseline gap-2 whitespace-nowrap leading-none">
                         <span className="text-xs font-semibold text-white/70">Tutor Since</span>
                         <span className="text-sm font-semibold">
                           {tutor.tutorSince ? new Date(tutor.tutorSince).toLocaleDateString() : '—'}
@@ -942,7 +942,7 @@ export default function PublicTutorPage() {
                     <div className="hidden h-5 w-px bg-white/20 md:block" />
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-white/70" />
-                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                      <div className="flex items-baseline gap-2 whitespace-nowrap leading-none">
                         <span className="text-xs font-semibold text-white/70">Active Courses</span>
                         <span className="text-sm font-semibold">
                           {typeof tutor.activeCourses === 'number'
@@ -954,10 +954,15 @@ export default function PublicTutorPage() {
                     <div className="hidden h-5 w-px bg-white/20 md:block" />
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-white/70" />
-                      <div className="flex items-baseline gap-1 whitespace-nowrap leading-none">
+                      <div className="flex items-baseline gap-2 whitespace-nowrap leading-none">
                         <span className="text-xs font-semibold text-white/70">Country</span>
                         <span className="text-sm font-semibold">{tutor.country || '—'}</span>
                       </div>
+                    </div>
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <span className="text-xs font-semibold text-emerald-400">Verified</span>
                     </div>
                   </div>
                 </div>
@@ -1180,32 +1185,7 @@ export default function PublicTutorPage() {
           </div>
         </div>
 
-        <div
-          className={cn(
-            panelCardClass,
-            'mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'
-          )}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50">
-              <UserCheck className="h-4 w-4 text-emerald-700" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Verified Tutor</div>
-              <div className="text-sm text-slate-600">
-                This tutor has been verified by Solocorn.
-              </div>
-            </div>
-          </div>
-          <a
-            href="https://solocorn.co/verification"
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-[#1D4ED8] hover:underline"
-          >
-            Learn more about verification
-          </a>
-        </div>
+
       </div>
 
       <div className={cn(panelCardClass, 'mt-8 overflow-hidden p-0')}>
