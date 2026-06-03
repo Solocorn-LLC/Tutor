@@ -1744,7 +1744,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/25 bg-[rgba(31,41,55,0.25)] text-white shadow-lg backdrop-blur-md focus-visible:!shadow-none focus:outline-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/30 !bg-[rgba(31,41,55,0.15)] text-white shadow-lg !backdrop-blur-xl focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:!bg-[rgba(31,41,55,0.40)] hover:!border-white/50">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
             <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.25)] !border-white/25 shadow-lg backdrop-blur-xl">
@@ -1761,7 +1761,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/25 bg-[rgba(31,41,55,0.25)] text-white shadow-lg backdrop-blur-md focus-visible:!shadow-none focus:outline-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/30 !bg-[rgba(31,41,55,0.15)] text-white shadow-lg !backdrop-blur-xl focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:!bg-[rgba(31,41,55,0.40)] hover:!border-white/50">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
             <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.25)] !border-white/25 shadow-lg backdrop-blur-xl">
