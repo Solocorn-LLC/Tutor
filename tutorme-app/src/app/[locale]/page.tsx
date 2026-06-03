@@ -3639,7 +3639,7 @@ export default function LandingPage() {
               <SpecialAccessSection
                 lang={language}
                 triggerLabel="Sign In"
-                triggerClassName="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0B4DFF]"
+                triggerClassName="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white shadow-md backdrop-blur-sm hover:bg-white/20 focus-visible:!shadow-none focus:outline-none"
                 popoverPlacement="bottom"
               />
             </div>
@@ -3683,7 +3683,7 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => setHowItWorksOpen(true)}
-              className="mt-[22px] rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-[#0B4DFF]"
+              className="mt-[22px] rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white shadow-md backdrop-blur-sm hover:bg-white/20 focus-visible:!shadow-none focus:outline-none"
             >
               How It Works
             </button>
