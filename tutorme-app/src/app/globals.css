@@ -1092,7 +1092,27 @@
     width: 0;
     background: transparent;
   }
-  
+
+  /* Global removal of scrollbar arrow buttons (all scrollbars site-wide) */
+  ::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+  ::-webkit-scrollbar-button:start:decrement,
+  ::-webkit-scrollbar-button:end:increment,
+  ::-webkit-scrollbar-button:start:increment,
+  ::-webkit-scrollbar-button:end:decrement,
+  ::-webkit-scrollbar-button:vertical:start,
+  ::-webkit-scrollbar-button:vertical:end,
+  ::-webkit-scrollbar-button:horizontal:start,
+  ::-webkit-scrollbar-button:horizontal:end {
+    display: none;
+    height: 0;
+    width: 0;
+    background: transparent;
+  }
+
   /* Line clamp */
   .line-clamp-1 {
     display: -webkit-box;
