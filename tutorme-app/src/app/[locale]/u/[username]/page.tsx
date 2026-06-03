@@ -1030,54 +1030,53 @@ export default function PublicTutorPage() {
 
           <div className="flex h-full flex-col gap-5">
             <div className={panelCardClass}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                  <Link2 className="h-4 w-4 text-slate-700" />
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <Link2 className="h-5 w-5 text-slate-700" />
+                  <div className="text-lg font-semibold text-slate-900">Connect</div>
+                  <div className="text-sm text-slate-500">Public profile and social channels.</div>
                 </div>
-                <div>
-                  <div className="text-base font-semibold text-slate-900">Connect</div>
-                  <div className="text-xs text-slate-500">Public profile and social channels.</div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs"
+                    onClick={() => void handleCopyPublicUrl()}
+                    disabled={!publicUrl}
+                  >
+                    <Copy className="mr-1.5 h-4 w-4" />
+                    Copy Link
+                  </Button>
+                  {canShare ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 text-xs"
+                      onClick={() => void handleSharePublicUrl()}
+                    >
+                      <Share2 className="mr-1.5 h-4 w-4" />
+                      Share
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
               {publicUrl ? (
-                <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
-                      <a
-                        href={publicUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-                      >
-                        {publicUrl}
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs"
-                        onClick={() => void handleCopyPublicUrl()}
-                        disabled={!publicUrl}
-                      >
-                        <Copy className="mr-1.5 h-3.5 w-3.5" />
-                        Copy Link
-                      </Button>
-                      {canShare ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs"
-                          onClick={() => void handleSharePublicUrl()}
-                        >
-                          <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                          Share
-                        </Button>
-                      ) : null}
-                    </div>
+                <div className="flex items-center gap-4 border-b border-slate-100 py-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                    <span className="text-2xl font-bold">@</span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
+                    <a
+                      href={publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      {publicUrl}
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                   </div>
                 </div>
               ) : (
@@ -1086,9 +1085,7 @@ export default function PublicTutorPage() {
                 </div>
               )}
 
-              <hr className="my-4 border-slate-100" />
-
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 pt-4 sm:grid-cols-2">
                 {[
                   {
                     key: 'tiktok',
@@ -1097,7 +1094,7 @@ export default function PublicTutorPage() {
                       ? `@${stripAt(tutor.socialLinks.tiktok)}`
                       : '—',
                     icon: TikTokIcon,
-                    iconClassName: 'text-slate-900',
+                    bgClass: 'bg-black',
                     muted: !tutor.socialLinks?.tiktok,
                   },
                   {
@@ -1107,7 +1104,7 @@ export default function PublicTutorPage() {
                       ? `@${stripAt(tutor.socialLinks.youtube)}`
                       : '—',
                     icon: Youtube,
-                    iconClassName: 'text-red-600',
+                    bgClass: 'bg-red-600',
                     muted: !tutor.socialLinks?.youtube,
                   },
                   {
@@ -1117,7 +1114,7 @@ export default function PublicTutorPage() {
                       ? `@${stripAt(tutor.socialLinks.instagram)}`
                       : '—',
                     icon: Instagram,
-                    iconClassName: 'text-pink-600',
+                    bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
                     muted: !tutor.socialLinks?.instagram,
                   },
                   {
@@ -1127,21 +1124,19 @@ export default function PublicTutorPage() {
                       ? `@${stripAt(tutor.socialLinks.facebook)}`
                       : '—',
                     icon: Facebook,
-                    iconClassName: 'text-blue-600',
+                    bgClass: 'bg-blue-600',
                     muted: !tutor.socialLinks?.facebook,
                   },
                 ].map(item => {
                   const Icon = item.icon
                   return (
-                    <div key={item.key} className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
-                        <Icon
-                          className={cn(
-                            'h-5 w-5',
-                            item.iconClassName,
-                            item.muted && 'opacity-40'
-                          )}
-                        />
+                    <div key={item.key} className="flex items-center gap-4">
+                      <div className={cn(
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                        item.bgClass,
+                        item.muted && 'opacity-40'
+                      )}>
+                        <Icon className="h-6 w-6 text-white" />
                       </div>
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-slate-900">{item.label}</div>
@@ -1161,19 +1156,18 @@ export default function PublicTutorPage() {
             </div>
 
             <div className={panelCardClass}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                  <PanelsTopLeft className="h-3.5 w-3.5 text-slate-700" />
-                </div>
-                <div className="text-base font-semibold text-slate-900">Categories</div>
+              <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 -mx-5 -mt-5 px-5 py-3 mb-4 rounded-t-[18px]">
+                <PanelsTopLeft className="h-5 w-5 text-slate-700" />
+                <div className="text-lg font-semibold text-slate-900">Categories</div>
+                <span className="text-sm text-slate-500">({tutor.specialties.length})</span>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {tutor.specialties.length > 0 ? (
                   tutor.specialties.map((s, i) => (
                     <span
                       key={`${s}-${i}`}
-                      className="rounded-full bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-800 shadow-sm"
+                      className="rounded-full bg-slate-50 px-4 py-1.5 text-sm font-medium text-slate-700 border border-slate-100"
                     >
                       {s}
                     </span>
