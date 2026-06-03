@@ -1055,11 +1055,7 @@
     border-radius: 3px;
   }
 
-  /* Scrollbar without arrow buttons */
-  .scrollbar-no-arrows {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
-  }
+  /* Scrollbar without arrow buttons — pure WebKit control to avoid Windows OS fallback */
   .scrollbar-no-arrows::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -1074,11 +1070,11 @@
   .scrollbar-no-arrows::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
-  .scrollbar-no-arrows::-webkit-scrollbar-button {
-    display: none;
-    height: 0;
-    width: 0;
-  }
+  .scrollbar-no-arrows::-webkit-scrollbar-button,
+  .scrollbar-no-arrows::-webkit-scrollbar-button:vertical:decrement,
+  .scrollbar-no-arrows::-webkit-scrollbar-button:vertical:increment,
+  .scrollbar-no-arrows::-webkit-scrollbar-button:horizontal:decrement,
+  .scrollbar-no-arrows::-webkit-scrollbar-button:horizontal:increment,
   .scrollbar-no-arrows::-webkit-scrollbar-button:start:decrement,
   .scrollbar-no-arrows::-webkit-scrollbar-button:end:increment,
   .scrollbar-no-arrows::-webkit-scrollbar-button:start:increment,
@@ -1087,18 +1083,25 @@
   .scrollbar-no-arrows::-webkit-scrollbar-button:vertical:end,
   .scrollbar-no-arrows::-webkit-scrollbar-button:horizontal:start,
   .scrollbar-no-arrows::-webkit-scrollbar-button:horizontal:end {
-    display: none;
     height: 0;
     width: 0;
     background: transparent;
   }
 
-  /* Global removal of scrollbar arrow buttons (all scrollbars site-wide) */
-  ::-webkit-scrollbar-button {
-    display: none;
-    height: 0;
-    width: 0;
+  /* Firefox fallback — scoped so it doesn't trigger Chrome/Edge OS fallback */
+  @supports (scrollbar-width: thin) {
+    .scrollbar-no-arrows {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
   }
+
+  /* Global removal of scrollbar arrow buttons (all scrollbars site-wide) */
+  ::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-button:vertical:decrement,
+  ::-webkit-scrollbar-button:vertical:increment,
+  ::-webkit-scrollbar-button:horizontal:decrement,
+  ::-webkit-scrollbar-button:horizontal:increment,
   ::-webkit-scrollbar-button:start:decrement,
   ::-webkit-scrollbar-button:end:increment,
   ::-webkit-scrollbar-button:start:increment,
@@ -1107,7 +1110,6 @@
   ::-webkit-scrollbar-button:vertical:end,
   ::-webkit-scrollbar-button:horizontal:start,
   ::-webkit-scrollbar-button:horizontal:end {
-    display: none;
     height: 0;
     width: 0;
     background: transparent;
