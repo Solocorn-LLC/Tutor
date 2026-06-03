@@ -1744,10 +1744,10 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/20 bg-[rgba(31,41,55,0.45)] text-white shadow-lg backdrop-blur-sm focus-visible:!shadow-none focus:outline-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/25 bg-[rgba(31,41,55,0.25)] text-white shadow-lg backdrop-blur-md focus-visible:!shadow-none focus:outline-none">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl bg-[rgba(31,41,55,0.65)] border-white/20 shadow-lg backdrop-blur-md">
+            <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.30)] !border-white/25 shadow-lg backdrop-blur-xl">
               {REGIONS.map(region => (
                 <SelectItem key={region.id} value={region.id}>
                   {region.name}
@@ -1761,10 +1761,10 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/20 bg-[rgba(31,41,55,0.45)] text-white shadow-lg backdrop-blur-sm focus-visible:!shadow-none focus:outline-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-white/25 bg-[rgba(31,41,55,0.25)] text-white shadow-lg backdrop-blur-md focus-visible:!shadow-none focus:outline-none">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl bg-[rgba(31,41,55,0.65)] border-white/20 shadow-lg backdrop-blur-md">
+            <SelectContent className="rounded-2xl !bg-[rgba(31,41,55,0.30)] !border-white/25 shadow-lg backdrop-blur-xl">
               {availableCountries.map(country => (
                 <SelectItem key={country.code} value={country.code}>
                   {country.name}
