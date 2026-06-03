@@ -992,14 +992,12 @@ export default function PublicTutorPage() {
 
         <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:items-stretch">
           <div className={cn(panelCardClass, 'flex h-full flex-col')}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100">
-                <User className="h-3.5 w-3.5 text-slate-700" />
-              </div>
-              <div className="text-base font-semibold text-slate-900">Bio</div>
+            <div className="flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4">
+              <User className="h-5 w-5" />
+              <span className="text-base font-semibold">Bio</span>
             </div>
 
-            <div className="mt-3 flex min-h-0 flex-1 flex-col text-base text-slate-700">
+            <div className="flex min-h-0 flex-1 flex-col text-base text-slate-700">
               <div className="flex-1">
                 {tutor.bio?.trim() ? (
                   <p className="whitespace-pre-wrap leading-relaxed">{tutor.bio}</p>
@@ -1030,31 +1028,33 @@ export default function PublicTutorPage() {
 
           <div className="flex h-full flex-col gap-5">
             <div className={panelCardClass}>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex h-14 items-center justify-between bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4">
                 <div className="flex items-center gap-3">
-                  <Link2 className="h-5 w-5 text-slate-700" />
-                  <div className="text-lg font-semibold text-slate-900">Connect</div>
-                  <div className="text-sm text-slate-500">Public profile and social channels.</div>
+                  <Link2 className="h-5 w-5" />
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-base font-semibold">Connect</span>
+                    <span className="text-xs text-white">Public profile and social channels.</span>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-9 text-xs"
+                    className="h-8 border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
                     onClick={() => void handleCopyPublicUrl()}
                     disabled={!publicUrl}
                   >
-                    <Copy className="mr-1.5 h-4 w-4" />
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
                     Copy Link
                   </Button>
                   {canShare ? (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-9 text-xs"
+                      className="h-8 border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
                       onClick={() => void handleSharePublicUrl()}
                     >
-                      <Share2 className="mr-1.5 h-4 w-4" />
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
                       Share
                     </Button>
                   ) : null}
@@ -1156,10 +1156,10 @@ export default function PublicTutorPage() {
             </div>
 
             <div className={panelCardClass}>
-              <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 -mx-5 -mt-5 px-5 py-3 mb-4 rounded-t-[18px]">
-                <PanelsTopLeft className="h-5 w-5 text-slate-700" />
-                <div className="text-lg font-semibold text-slate-900">Categories</div>
-                <span className="text-sm text-slate-500">({tutor.specialties.length})</span>
+              <div className="flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4">
+                <PanelsTopLeft className="h-5 w-5" />
+                <span className="text-base font-semibold">Categories</span>
+                <span className="text-sm text-white">({tutor.specialties.length})</span>
               </div>
 
               <div className="flex flex-wrap gap-2">
