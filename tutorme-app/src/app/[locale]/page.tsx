@@ -2425,7 +2425,7 @@ const SpecialAccessSection = ({
   useEffect(() => {
     if (!expanded) return
 
-    const width = 320
+    const width = 260
     const margin = 12
 
     const update = () => {
@@ -2478,13 +2478,14 @@ const SpecialAccessSection = ({
 
       {expanded && (
         <>
-          <div className="fixed inset-0 z-[990] animate-in fade-in duration-150" onMouseDown={() => setExpanded(false)} />
+          <div className="fixed inset-0 z-[990] animate-in fade-in duration-150" onClick={() => setExpanded(false)} />
           <div
-            className="fixed z-[1000] w-[320px] rounded-[16px] border border-black/10 bg-white/90 p-4 shadow-lg backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+            className="fixed z-[1000] animate-in fade-in zoom-in-95 duration-150"
             style={popoverPos ?? undefined}
+            onClick={e => e.stopPropagation()}
           >
-            <form onSubmit={handleSubmit} className="flex items-center gap-3">
-              <Input
+            <form onSubmit={handleSubmit}>
+              <input
                 type="text"
                 placeholder={t('enterCode')}
                 value={code}
@@ -2493,12 +2494,10 @@ const SpecialAccessSection = ({
                 autoCorrect="off"
                 autoCapitalize="off"
                 autoFocus
-                className={`h-10 flex-1 cursor-text rounded-full !border-gray-300 !bg-white/70 px-4 text-gray-900 placeholder:text-gray-400 shadow-sm focus-visible:!bg-white focus-visible:!border-gray-400 focus-visible:!shadow-none focus:outline-none ${error ? '!border-red-400' : ''}`}
+                className={`h-10 w-[260px] rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/60 shadow-md backdrop-blur-sm focus:outline-none focus-visible:!shadow-none ${error ? 'border-red-400' : ''}`}
               />
             </form>
-            <div className="mt-2 h-4">
-              {error && <p className="text-xs font-medium text-red-500">{t('invalidCode')}</p>}
-            </div>
+            {error && <p className="mt-2 text-xs font-medium text-red-300">{t('invalidCode')}</p>}
           </div>
         </>
       )}
