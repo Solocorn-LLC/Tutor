@@ -3174,26 +3174,43 @@ const CategorySearchModal = ({
                       {t('selectCategoryBadgePlaceholder')}
                     </span>
                   )}
-                  {selectedCategories.map(cat => {
+                  {selectedCategories.flatMap(cat => {
                     const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-indigo-50', text: 'text-indigo-700', close: 'text-indigo-400 hover:text-indigo-900' }
-                    const scope = selectedCountries.length === 0
-                      ? 'Global'
-                      : selectedCountries.map(code => ALL_COUNTRIES.find(c => c.code === code)?.name || code).join(', ')
-                    return (
-                      <span
-                        key={cat}
-                        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1.5 text-xs font-medium ${colors.text}`}
-                      >
-                        {cat} - {scope}
-                        <button
-                          onClick={() => removeCategory(cat)}
-                          className={`ml-0.5 ${colors.close}`}
-                          aria-label={`Remove ${cat}`}
+                    if (selectedCountries.length === 0) {
+                      return (
+                        <span
+                          key={cat}
+                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1.5 text-xs font-medium ${colors.text}`}
                         >
-                          ×
-                        </button>
-                      </span>
-                    )
+                          {cat} - Global
+                          <button
+                            onClick={() => removeCategory(cat)}
+                            className={`ml-0.5 ${colors.close}`}
+                            aria-label={`Remove ${cat}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    }
+                    return selectedCountries.map(code => {
+                      const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
+                      return (
+                        <span
+                          key={`${cat}-${code}`}
+                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1.5 text-xs font-medium ${colors.text}`}
+                        >
+                          {cat} - {countryName}
+                          <button
+                            onClick={() => removeCategory(cat)}
+                            className={`ml-0.5 ${colors.close}`}
+                            aria-label={`Remove ${cat}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })
                   })}
                 </div>
               </div>
