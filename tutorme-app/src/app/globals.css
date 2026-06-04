@@ -719,12 +719,6 @@
     cursor: pointer;
   }
 
-  /* Focus visible ring - crisp, accessible (excludes form controls which manage their own focus) */
-  :focus-visible:not(input):not(textarea):not(select):not([contenteditable]) {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
-  }
-
   /* Respect prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {
     *,

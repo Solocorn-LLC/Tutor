@@ -1740,12 +1740,12 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
+            <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
               {REGIONS.map(region => (
-                <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50">
+                <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
                   {region.name}
                 </SelectItem>
               ))}
@@ -1757,12 +1757,12 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
+            <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
               {availableCountries.map(country => (
-                <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50">
+                <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
                   {country.name}
                 </SelectItem>
               ))}
@@ -3227,13 +3227,13 @@ const CategorySearchModal = ({
             {/* Region & Country dropdowns */}
             <div className="mb-2 flex flex-wrap gap-3">
               <Select value={selectedRegion || 'all'} onValueChange={v => { setSelectedRegion(v === 'all' ? '' : v); setSelectedCountries([]) }}>
-                <SelectTrigger className="h-[30px] w-[160px] rounded-xl border border-white/20 bg-white/10 text-sm text-white shadow-lg focus-visible:!shadow-none focus:outline-none hover:!bg-white/10 hover:!text-white">
+                <SelectTrigger className="h-[30px] w-[160px] rounded-lg border border-white/20 bg-white/10 text-sm text-white shadow-lg focus-visible:!shadow-none focus:outline-none hover:!bg-white/10 hover:!text-white">
                   <SelectValue placeholder="All Regions" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('allRegions')}</SelectItem>
+                <SelectContent className="w-[var(--radix-select-trigger-width)]">
+                  <SelectItem value="all" className="mx-1.5 focus:outline-none rounded-md">{t('allRegions')}</SelectItem>
                   {REGIONS.filter(r => r.id !== 'global').map(region => (
-                    <SelectItem key={region.id} value={region.id}>{region.name}</SelectItem>
+                    <SelectItem key={region.id} value={region.id} className="mx-1.5 focus:outline-none rounded-md">{region.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -3242,7 +3242,7 @@ const CategorySearchModal = ({
                   <button
                     type="button"
                     disabled={!selectedRegion}
-                    className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50 focus-visible:!shadow-none focus:outline-none"
+                    className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50 focus-visible:!shadow-none focus:outline-none"
                   >
                     <span className="truncate">
                       {selectedCountries.length > 0
