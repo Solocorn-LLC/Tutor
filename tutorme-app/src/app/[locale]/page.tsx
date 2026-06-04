@@ -3195,7 +3195,7 @@ const CategorySearchModal = ({
               <div className="flex min-w-0 flex-1 flex-col">
                 <div
                   ref={badgeScrollRef}
-                  className="flex h-10 min-w-0 items-center overflow-x-auto scrollbar-hide rounded-xl border border-slate-200 bg-white px-3 py-1"
+                  className="flex h-10 min-w-0 items-center overflow-x-auto scrollbar-hide rounded-xl border border-slate-200 bg-white px-6 py-1"
                 >
                   <div className="flex min-w-0 flex-nowrap items-center gap-2">
                     {selectedCategories.length === 0 && (
@@ -3243,7 +3243,7 @@ const CategorySearchModal = ({
                     })}
                   </div>
                 </div>
-                <div className={cn('mt-1 flex items-center justify-end gap-1', (canScrollLeft || canScrollRight) ? 'visible' : 'invisible')}>
+                <div className={cn('mt-[9px] flex items-center justify-end gap-1', (canScrollLeft || canScrollRight) ? 'visible' : 'invisible')}>
                   <button
                     onClick={() => scrollBadges(-200)}
                     disabled={!canScrollLeft}
@@ -3280,7 +3280,7 @@ const CategorySearchModal = ({
                 disabled={selectedCategories.length === 0}
                 className={`h-10 shrink-0 px-5 text-sm focus-visible:!shadow-none focus:outline-none ${
                   selectedCategories.length === 0
-                    ? 'rounded-xl border border-white bg-white/10 text-white shadow-md backdrop-blur-sm disabled:opacity-50'
+                    ? 'rounded-md border border-white bg-white/10 text-white shadow-md backdrop-blur-sm disabled:opacity-50'
                     : 'rounded-md border !border-white bg-blue-700 text-white hover:bg-blue-600 hover:!border-blue-700'
                 }`}
               >
