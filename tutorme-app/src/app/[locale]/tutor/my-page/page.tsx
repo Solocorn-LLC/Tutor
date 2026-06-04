@@ -1744,9 +1744,9 @@ export default function TutorMyPage() {
                 <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
                   <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
                     <div className="grid gap-2.5 md:grid-cols-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-[#64748B]">TikTok</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
+                      <div className="flex items-center gap-2">
+                        <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1763,9 +1763,9 @@ export default function TutorMyPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <Label className="text-xs text-[#64748B]">YouTube</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
+                      <div className="flex items-center gap-2">
+                        <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1782,9 +1782,9 @@ export default function TutorMyPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <Label className="text-xs text-[#64748B]">Instagram</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1801,10 +1801,10 @@ export default function TutorMyPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <Label className="text-xs text-[#64748B]">Facebook</Label>
-                        <div className="flex rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
-                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                      <div className="flex items-center gap-2">
+                        <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B] text-xs">https://</span>
                           <Input
                             placeholder="username"
                             value={socialAccounts.facebook.replace(/^@+/, '')}
