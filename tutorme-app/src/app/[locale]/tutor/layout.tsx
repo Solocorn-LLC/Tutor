@@ -284,7 +284,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="h-screen flex-1 overflow-hidden pt-16 lg:pt-4 lg:pb-4">
-        <div className={cn('h-full overflow-y-auto', isDashboard && 'tutor-dashboard-scroll')}>{children}</div>
+        <div className={cn('h-full overflow-y-auto', isDashboard && 'tutor-dashboard-scroll', isMyPage && 'tutor-mypage-scroll')}>{children}</div>
       </main>
     </div>
   )
