@@ -890,8 +890,8 @@ export default function TutorMyPage() {
 
   const save = async () => {
     const trimmedBio = bio.trim()
-    if (trimmedBio.length > 500) {
-      toast.error('Bio must be 500 characters or less')
+    if (trimmedBio.length > 800) {
+      toast.error('Bio must be 800 characters or less')
       return
     }
     setSaving(true)
@@ -907,7 +907,7 @@ export default function TutorMyPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          bio: sanitizeHtmlWithMax(trimmedBio, 500),
+          bio: sanitizeHtmlWithMax(trimmedBio, 800),
           socialLinks: {
             instagram: socialAccounts.instagram.trim().replace(/^@+/, ''),
             tiktok: socialAccounts.tiktok.trim().replace(/^@+/, ''),
@@ -1716,36 +1716,33 @@ export default function TutorMyPage() {
             <CardContent className="space-y-4 bg-white">
               <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
                 <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm text-[#1F2933]">Bio</Label>
-                    <span
-                      className={
-                        bio.length > 500
-                          ? 'text-xs font-medium text-red-500'
-                          : 'text-xs text-slate-400'
-                      }
-                    >
-                      {bio.length}/500
-                    </span>
-                  </div>
+                  <Label className="text-sm text-[#1F2933]">Bio</Label>
                   <Textarea
                     value={bio}
                     onChange={e => {
                       const val = e.target.value
-                      if (val.length <= 500) {
+                      if (val.length <= 800) {
                         setBio(val)
                       }
                     }}
                     disabled={loading || saving}
                     placeholder="Short bio for your public page..."
-                    maxLength={500}
+                    maxLength={800}
                     className="min-h-0 flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
                   />
+                  <span
+                    className={
+                      bio.length > 800
+                        ? 'text-xs font-medium text-red-500'
+                        : 'text-xs text-slate-400'
+                    }
+                  >
+                    {bio.length}/800
+                  </span>
                 </div>
 
-                <div className="flex min-h-[250px] flex-col gap-3 lg:min-h-0">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
+                <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
+                  <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
                     <div className="grid gap-2.5 md:grid-cols-2">
                       <div className="space-y-1">
                         <Label className="text-xs text-[#64748B]">TikTok</Label>
@@ -1823,7 +1820,6 @@ export default function TutorMyPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
                 </div>
               </div>
             </CardContent>
