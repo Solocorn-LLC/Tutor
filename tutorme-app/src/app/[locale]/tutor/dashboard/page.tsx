@@ -704,22 +704,22 @@ function TutorDashboardContent() {
           <Card className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
             <Tabs defaultValue="courses" className="w-full">
               <CardHeader className="pb-0">
-                <TabsList className="grid w-full max-w-md grid-cols-3 bg-[#1E1B4B] p-1 rounded-xl">
+                <TabsList className="grid w-full max-w-md grid-cols-3 bg-[#2D2B4E] p-1 rounded-xl">
                   <TabsTrigger
                     value="courses"
-                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     Active Courses
                   </TabsTrigger>
                   <TabsTrigger
                     value="calendar"
-                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     Calendar
                   </TabsTrigger>
                   <TabsTrigger
                     value="availability"
-                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     My Availability
                   </TabsTrigger>
