@@ -1743,7 +1743,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border border-slate-700/25 bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
+            <SelectContent className="rounded-2xl border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
               {REGIONS.map(region => (
                 <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50">
                   {region.name}
@@ -1760,7 +1760,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             <SelectTrigger className="h-10 w-[212px] rounded-2xl border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
-            <SelectContent className="rounded-2xl border border-slate-700/25 bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
+            <SelectContent className="rounded-2xl border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
               {availableCountries.map(country => (
                 <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50">
                   {country.name}
