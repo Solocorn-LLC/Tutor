@@ -3323,7 +3323,7 @@ const CategorySearchModal = ({
                     {availableCountries.map(country => (
                       <label
                         key={country.code}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100/50"
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
                       >
                         <Checkbox
                           checked={selectedCountries.includes(country.code)}
