@@ -3192,85 +3192,78 @@ const CategorySearchModal = ({
 
             {/* Selected category badges container + Search */}
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex flex-1 flex-col">
+              <div className="flex min-w-0 flex-1 flex-col">
                 <div
                   ref={badgeScrollRef}
-                  className="flex h-10 items-center overflow-x-hidden rounded-xl border border-slate-200 bg-white px-3 py-1"
+                  className="relative flex h-10 min-w-0 items-center overflow-x-auto scrollbar-hide rounded-xl border border-slate-200 bg-white px-3 py-1"
                 >
-                  <div className="flex flex-nowrap items-center gap-2">
-                  {selectedCategories.length === 0 && (
-                    <span className="select-none text-sm text-slate-400">
-                      {t('selectCategoryBadgePlaceholder')}
-                    </span>
-                  )}
-                  {selectedCategories.flatMap(cat => {
-                    const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-blue-50', text: 'text-[#0A84FF]', close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]' }
-                    if (selectedCountries.length === 0) {
-                      return (
-                        <span
-                          key={cat}
-                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
-                        >
-                          {cat} - Global
-                          <button
-                            onClick={() => removeCategory(cat)}
-                            className={`ml-0.5 ${colors.close}`}
-                            aria-label={`Remove ${cat}`}
+                  <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                    {selectedCategories.length === 0 && (
+                      <span className="select-none text-sm text-slate-400">
+                        {t('selectCategoryBadgePlaceholder')}
+                      </span>
+                    )}
+                    {selectedCategories.flatMap(cat => {
+                      const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-blue-50', text: 'text-[#0A84FF]', close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]' }
+                      if (selectedCountries.length === 0) {
+                        return (
+                          <span
+                            key={cat}
+                            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
                           >
-                            ×
-                          </button>
-                        </span>
-                      )
-                    }
-                    return selectedCountries.map(code => {
-                      const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
-                      return (
-                        <span
-                          key={`${cat}-${code}`}
-                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
-                        >
-                          {cat} - {countryName}
-                          <button
-                            onClick={() => removeCategory(cat)}
-                            className={`ml-0.5 ${colors.close}`}
-                            aria-label={`Remove ${cat}`}
+                            {cat} - Global
+                            <button
+                              onClick={() => removeCategory(cat)}
+                              className={`ml-0.5 ${colors.close}`}
+                              aria-label={`Remove ${cat}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      }
+                      return selectedCountries.map(code => {
+                        const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
+                        return (
+                          <span
+                            key={`${cat}-${code}`}
+                            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
                           >
-                            ×
-                          </button>
-                        </span>
-                      )
-                    })
-                  })}
-                </div>
-                {(canScrollLeft || canScrollRight) && (
-                  <div className="mt-1 flex items-center gap-1">
+                            {cat} - {countryName}
+                            <button
+                              onClick={() => removeCategory(cat)}
+                              className={`ml-0.5 ${colors.close}`}
+                              aria-label={`Remove ${cat}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })
+                    })}
+                  </div>
+
+                  {/* Left scroll arrow */}
+                  {canScrollLeft && (
                     <button
                       onClick={() => scrollBadges(-200)}
-                      disabled={!canScrollLeft}
-                      className={cn(
-                        'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
-                        canScrollLeft
-                          ? 'bg-white/20 text-white hover:bg-white/30'
-                          : 'text-white/30'
-                      )}
+                      className="absolute left-1 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-slate-800"
+                      aria-label="Scroll left"
                     >
-                      <ChevronLeft className="h-3 w-3" />
+                      <ChevronLeft className="h-3.5 w-3.5" />
                     </button>
+                  )}
+                  {/* Right scroll arrow */}
+                  {canScrollRight && (
                     <button
                       onClick={() => scrollBadges(200)}
-                      disabled={!canScrollRight}
-                      className={cn(
-                        'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
-                        canScrollRight
-                          ? 'bg-white/20 text-white hover:bg-white/30'
-                          : 'text-white/30'
-                      )}
+                      className="absolute right-1 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition-colors hover:text-slate-800"
+                      aria-label="Scroll right"
                     >
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </div>
               <Button
                 onClick={() => {
@@ -3278,7 +3271,7 @@ const CategorySearchModal = ({
                   onSelectCategory([...selectedCategories, ...countryNames])
                 }}
                 disabled={selectedCategories.length === 0}
-                className={`h-10 px-5 text-sm focus-visible:!shadow-none focus:outline-none ${
+                className={`h-10 shrink-0 px-5 text-sm focus-visible:!shadow-none focus:outline-none ${
                   selectedCategories.length === 0
                     ? 'rounded-xl border border-white/20 bg-white/10 text-white shadow-md backdrop-blur-sm disabled:opacity-50'
                     : 'rounded-md border !border-white bg-blue-700 text-white hover:bg-blue-600 hover:!border-blue-700'

@@ -1,6 +1,7 @@
+<!-- From: c:\VSCODE\Tutor\AGENTS.md -->
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-03
+> **Last updated:** 2026-06-04
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens)
 
 ---
@@ -38,10 +39,10 @@ c:\VSCODE\Tutor/
 │   ├── src/
 │   │   ├── app/              # Next.js App Router
 │   │   │   ├── [locale]/     # i18n route segments (pages per role)
-│   │   │   │   ├── student/  # Student dashboard & features (35+ sub-routes)
-│   │   │   │   ├── tutor/    # Tutor dashboard & clinic management (30+ sub-routes)
-│   │   │   │   ├── parent/   # Parent dashboard & family management (20+ sub-routes)
-│   │   │   │   ├── admin/    # Admin dashboard & system management (15+ sub-routes)
+│   │   │   │   ├── student/  # Student dashboard & features (30 sub-routes)
+│   │   │   │   ├── tutor/    # Tutor dashboard & clinic management (20 sub-routes)
+│   │   │   │   ├── parent/   # Parent dashboard & family management (14 sub-routes)
+│   │   │   │   ├── admin/    # Admin dashboard & system management (13 sub-routes)
 │   │   │   │   ├── login/
 │   │   │   │   ├── register/
 │   │   │   │   ├── onboarding/
@@ -53,13 +54,13 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (45 top-level domains, 216+ route files)
-│   │   ├── components/       # React components (feature-organized, 150+ files)
-│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (63 dirs, 258+ files)
+│   │   │   └── api/          # REST API endpoints (43 top-level domains, 214 route.ts files)
+│   │   ├── components/       # React components (feature-organized, 150 files)
+│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (263 files)
 │   │   ├── hooks/            # Custom React hooks (11 files)
 │   │   └── stores/           # Zustand client stores (2 files)
 │   ├── e2e/                  # Playwright E2E specs (10 test files)
-│   ├── drizzle/              # Drizzle migration files (74 migrations)
+│   ├── drizzle/              # Drizzle migration files (52 SQL migrations)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (40+ files)
 │   ├── src/scripts/          # TypeScript runtime scripts (seed, verify, etc.)
@@ -146,7 +147,7 @@ c:\VSCODE\Tutor/
 | **Language** | TypeScript | `^5.9.3`, strict mode (`strict: true`) |
 | **UI** | React | `^18` (main app); `^19` (landing page) |
 | **Styling** | Tailwind CSS | `^3.4.1` (main app); `^4.1.14` (landing page) |
-| **Components** | shadcn/ui + Radix UI | Headless primitives installed to `src/components/ui/` |
+| **Components** | shadcn/ui + Radix UI | Headless primitives installed to `src/components/ui/` (30 components) |
 | **Animation** | framer-motion / motion | `^12.34.0` (main app); `motion ^12.23.24` (landing page) |
 | **State** | Zustand | `^5.0.11` |
 | **Drag & Drop** | @dnd-kit | `^6.3.1` core, `^10.0.0` sortable |
@@ -183,12 +184,20 @@ The main app does **not** use the standard Next.js dev server. Instead, it runs 
    - Idempotent schema drift fixes (dev/local only)
    - Next.js renderer preparation (`app.prepare()`)
    - Socket.io enhanced server initialization (`initEnhancedSocketServer`)
-3. **Health endpoint** — `/api/health` and `/health` return `200` only when `isReady === true`. Until then, they return `503` with `Retry-After: 2`.
+3. **Health endpoint** — `/api/health` and `/health` return `200` only when `isReady === true`. Until then, they return `503` with `Retry-After: 2`. If Next.js prepared but Socket.io failed, status is `degraded`.
 4. **Graceful degradation** — If Socket.io fails but Next.js prepares successfully, the server still serves UI traffic (real-time features are degraded).
 5. **Memory monitoring** — A 15-second interval logs RSS and heap usage to help diagnose OOM kills.
 6. **Request logging** — Set `DEBUG_SERVER=true` to log all incoming requests.
 
 > **Important:** Always start the main app with `npm run dev` (which runs `NODE_ENV=production tsx server.ts`), not a bare Next.js server. Otherwise Socket.io and the health check will not be available.
+
+### Production Docker Build
+
+`Dockerfile.production` is a multi-stage build:
+1. **base** — `node:20-slim` with LibreOffice installed (for document processing)
+2. **deps** — `npm ci` with `--max-old-space-size=4096`
+3. **builder** — Copies deps, installs Linux native bindings, writes dummy `.env.production`, runs `npm run build` and compiles the custom server to `server-production.js`
+4. **runner** — Minimal image with `nextjs` user, copies `.next/`, `public/`, `drizzle/`, `scripts/`, compiled `server.js`, and runs on port `3003`
 
 ---
 
@@ -364,7 +373,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 45 top-level API domains and 216+ route files.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 43 top-level API domains and 214 `route.ts` files.
 
 **Role-specific layout behaviors:**
 - **Student layout** (`[locale]/student/layout.tsx`): Collapsible sidebar, special handling for `/student/tutors` (no sidebar), `/student/feedback` (hides nav entirely), and live class routes.
@@ -374,8 +383,8 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 
 ### Components (`src/components/`)
 
-Organized by feature domain (150+ component files across 30+ top-level directories):
-- `ui/` — shadcn/ui primitives (Button, Card, Dialog, etc.) — 30+ components
+Organized by feature domain (150 component files across 30+ top-level directories):
+- `ui/` — shadcn/ui primitives (Button, Card, Dialog, etc.) — 30 components
 - `ai-chat/`, `ai-tutor/` — AI interaction UIs
 - `class/` — Live classroom (whiteboard, polls, breakout rooms, engagement) — 23+ files
 - `student/`, `tutor/`, `parent/`, `admin/` — Role-specific dashboards
@@ -386,7 +395,7 @@ Organized by feature domain (150+ component files across 30+ top-level directori
 
 ### Library (`src/lib/`)
 
-Domain-organized business logic (63 directories, 258+ files):
+Domain-organized business logic (263 files across 60+ directories):
 - `lib/db/` — Drizzle client (`drizzle.ts`), schema (`schema/`), and migrations
 - `lib/ai/` — AI provider integrations (`kimi.ts`), prompts, teaching prompts, types, memory services
 - `lib/agents/` — Orchestrator (`orchestrator-llm.ts`), tutor agents, grading, live-monitor, content-generator, task-generator, tutor-chat-service
@@ -430,7 +439,7 @@ Zustand stores for client state:
   - `next-auth.ts` — NextAuth.js Drizzle adapter tables
   - `compliance.ts` — GDPR / COPPA / FERPA compliance tables
   - `landing.ts` — Landing page inquiry/signup tables
-- Migrations live in `drizzle/` (74 migrations) and are managed by `drizzle-kit`.
+- Migrations live in `drizzle/` (52 SQL migrations) and are managed by `drizzle-kit`.
 - Runtime client: `src/lib/db/drizzle.ts` uses `pg.Pool` with singleton pooling (dev pool cached on `globalThis`).
 - Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; new code should import `drizzleDb` from `./drizzle`.
 
@@ -462,6 +471,35 @@ Zustand stores for client state:
 - **Primary keys:** Most tables use `text('id').primaryKey()` with app-generated UUIDs; some use `uuid('id').defaultRandom()`.
 - **Timestamps:** Standard pattern: `createdAt` (defaultNow) and `updatedAt` (defaultNow + $onUpdate).
 - **Naming:** Table names PascalCase, columns camelCase. Exception: compliance tables use snake_case columns.
+
+---
+
+## Design System
+
+The design system is documented in `design-system/solocorn/MASTER.md`.
+
+**Color Palette**
+| Role | Hex | CSS Variable |
+|------|-----|--------------|
+| Primary | `#7C3AED` | `--color-primary` |
+| Secondary | `#A78BFA` | `--color-secondary` |
+| Accent/CTA | `#0891B2` | `--color-accent` |
+| Background | `#FAF5FF` | `--color-background` |
+| Foreground | `#1E1B4B` | `--color-foreground` |
+| Destructive | `#DC2626` | `--color-destructive` |
+
+**Typography:** Fira Code (headings), Fira Sans (body). Google Fonts loaded in root layout.
+
+**Anti-Patterns (Forbidden):**
+- Dark modes
+- Emojis as icons (use SVG: Heroicons, Lucide)
+- Missing `cursor:pointer`
+- Layout-shifting hovers
+- Low contrast text (< 4.5:1)
+- Instant state changes
+- Invisible focus states
+
+**Pre-Delivery Checklist:** 11 items including responsive breakpoints (375px, 768px, 1024px, 1440px), `prefers-reduced-motion`, no horizontal scroll on mobile.
 
 ---
 
@@ -535,7 +573,7 @@ Flat config extending `nextVitals`, `nextTs`, and `prettier`:
 - `@typescript-eslint/ban-ts-comment`: `warn`
 - Security rules: `no-implied-eval`, `no-new-func`, `no-script-url`, `no-proto`, `no-iterator`, `no-extend-native`, `no-with`, `no-caller`, `no-unsafe-finally` are all `error`
 
-### Prettier (`.prettierrc`)
+### Prettier (`.prettierrc` at repository root)
 
 - `semi: false`
 - `singleQuote: true`
@@ -583,12 +621,12 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 ### E2E Tests (Playwright)
 
 - **Config:** `playwright.config.ts`
-- **Match:** `e2e/**/*.spec.ts` and `src/__tests__/accessibility/**/*.test.ts`
-- **Base URL:** `http://localhost:3003` (override with `PLAYWRIGHT_BASE_URL`)
-- **Browsers:** Chromium (Desktop Chrome)
-- **WebServer:** Playwright references `npm run dev:next` as the webServer command, which is an alias for `npm run dev`. Start the app manually with `npm run dev` before running E2E tests.
+- **Test match:** `e2e/**/*.spec.ts`, `src/__tests__/accessibility/**/*.test.ts`
+- **Base URL:** `http://localhost:3003` (override via `PLAYWRIGHT_BASE_URL`)
+- **Browsers:** Chromium only (Desktop Chrome)
 - **Retries:** 2 in CI, 0 locally
 - **Workers:** 1 in CI
+- **WebServer (non-CI):** `npm run dev:next`, timeout 120s, reuse existing server
 - **Dependencies:** `@axe-core/playwright`
 - **E2E spec files:** `ai-tutor.spec.ts`, `live-task-policy-toggle.spec.ts`, `payment.spec.ts`, `pdf-tutoring-lock-sync.spec.ts`, `pdf-tutoring.spec.ts`, `registration.spec.ts`, `student-assignment-document.spec.ts`, `tutor-clinic.spec.ts`, `tutor-course-config.spec.ts`, `tutor-registration.spec.ts`
 
@@ -620,190 +658,74 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Realm-scoped sessions** allow a user to stay logged in as both Tutor and Student in separate tabs (cookie names: `tutor_session`, `student_session`).
 - Role-based access control (`STUDENT`, `TUTOR`, `PARENT`, `ADMIN`) enforced in API routes via `hasPermission()` in `lib/security/rbac.ts`.
 - Onboarding and TOS acceptance are tracked in the `profile` table and enforced in auth flows.
-- **Admin section uses a completely separate auth system** (not NextAuth.js). It has its own login/logout/session endpoints under `/api/admin/auth/*` and its own session validation in the admin layout.
+- **Admin section uses a completely separate auth system** (not NextAuth.js). Sessions checked via `fetch('/api/admin/auth/session')`.
 
-### API Middleware (`src/lib/api/middleware.ts`)
+### Input Validation & Data Protection
 
-Exported helpers for route handlers:
-- `withAuth` — require login
-- `withRole` / `withPermission` — RBAC enforcement
-- `withRateLimit` — per-IP / per-user rate limiting
-- `withCsrf` — CSRF token verification
-- `withAdminIp` — admin IP allowlisting
-- `handleApiError` — standardized error responses
+- All API inputs validated with Zod schemas in `lib/validation/`.
+- CSRF protection enabled on state-changing API routes.
+- Rate limiting enforced per route (default 300 req/window, configurable via `SECURITY_RATE_LIMIT`).
+- Client-side encryption helpers in `lib/security/client-encryption.ts`.
+- Suspicious activity logging in `lib/security/suspicious-activity.ts`.
+- PIPL (Chinese privacy law) compliance helpers in `lib/security/pipl-compliance.ts`.
+- Data sanitization utilities in `lib/security/sanitization.ts`.
 
-Custom error classes: `UnauthorizedError`, `ForbiddenError`, `ValidationError`, `NotFoundError`.
+### Deployment Security
 
-### Rate Limiting
-
-Implemented in `lib/security/rate-limit.ts`:
-- General API: configurable per preset
-- Stricter limits for login and sensitive endpoints
-- Redis-backed sliding-window counters
-
-### Data Protection
-
-- **PII:** Never include real names or PII in AI prompts. Use anonymized student identifiers.
-- **SQL Injection:** Prevented by Drizzle ORM (parameterized queries).
-- **XSS:** Input sanitization with DOMPurify (`isomorphic-dompurify`).
-- **CSP:** Configured dynamically; nonce-based CSP headers managed by edge middleware helpers.
-- **Security headers** on `/sw.js`: `no-cache, no-store, must-revalidate`.
-
-### Payment Security
-
-- Webhook endpoints verify signatures (Airwallex, Hitpay).
-- Chinese gateway credentials (WeChat Pay, Alipay) are stored as PEM/private keys in environment variables only.
+- `.github/workflows/secret-scan.yml` runs `gitleaks` on every push/PR.
+- Secrets managed via GitHub Secrets for CI/CD; never committed.
+- Admin API routes restrict access by IP whitelist (`lib/security/admin-ip-restriction.ts`).
 
 ---
 
 ## Deployment
 
-### Docker
+### GCP Cloud Run (Production)
 
-Three Dockerfiles exist in `tutorme-app/`:
-- **`Dockerfile`** — Multi-stage build using `node:20-slim`. Installs LibreOffice for document conversion. Copies full `.next`, `server.ts`, `src`, `drizzle`, and `scripts`. Entrypoint: `node scripts/start-prod.js` (runs migrations, then launches server).
-- **`Dockerfile.production`** — Standalone-output focused multi-stage build. Uses `node:20-slim` base with ca-certificates, curl, and LibreOffice. Builder stage creates dummy `.env.production` with fake secrets so `next build` can run, then compiles the custom server via `scripts/build-custom-server.js`. Runner stage copies `.next/standalone`, static assets, drizzle migrations, and the compiled `server.js`. Includes a health check on `/api/health`. Used by GCP Cloud Run deploy.
-- **`Dockerfile.test`** — Test-specific Docker image.
+`.github/workflows/deploy-gcp.yml` deploys on push to `main`:
+1. Builds main app Docker image (`Dockerfile.production`) and ADK image (`services/adk/Dockerfile`).
+2. Pushes to Google Artifact Registry (`asia-southeast1-docker.pkg.dev/{PROJECT}/tutorme-repo/...`).
+3. Deploys ADK service to Cloud Run (port 8080, 1 CPU, 1Gi memory, 0–10 instances).
+4. Runs database migrations inline via `docker run --rm {IMAGE} node scripts/migrate.js`.
+5. Deploys main app to Cloud Run (port 3003, same specs).
+6. Routes 100% traffic to the latest revision.
 
-The ADK service has its own `Dockerfile` in `services/adk/`:
-- Two-stage Alpine build (`node:20-alpine`). Builder compiles TypeScript; production stage installs only production dependencies and runs `dist/server/index.js` on port `8080`.
+**Required GitHub Secrets:** `GCP_PROJECT_ID`, `GCP_SA_KEY`, `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `REDIS_URL`.
 
-### Docker Compose
+### Docker Compose (Self-Hosted)
 
-- **`docker-compose.prod.yml`** — Full production stack: `app` (uses `Dockerfile.production`), `adk-service` (port `4310`), `db` (Postgres 16), `redis` (Redis 7).
-- **`services/adk/docker-compose.yml`** — Minimal single-service compose for ADK.
+`tutorme-app/docker-compose.prod.yml` defines a full production stack:
+- `app` — Main Next.js app (`Dockerfile.production`), port `3003`
+- `adk-service` — ADK microservice, port `4310`
+- `db` — PostgreSQL 16
+- `redis` — Redis 7
 
-### GCP Deployment
+### Legacy Infrastructure
 
-`.github/workflows/deploy-gcp.yml` handles GCP Cloud Run deployment on push to `main`:
-- **Region:** `asia-southeast1`
-- **Service:** `tutorme-app`
-- **Artifact Registry:** `tutorme-repo`
-- **Dockerfile:** `Dockerfile.production`
-- **Resources:** 1 CPU, 1Gi memory, 0–10 instances
-- **Env vars passed:** `NODE_ENV`, `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `REDIS_URL`, `ADK_BASE_URL`, `ADK_AUTH_TOKEN`
-- **Flow:** `ci` job must pass → build & push main app image + ADK image → deploy ADK service → run DB migrations inline (docker run with `node scripts/migrate.js`) → deploy main app to Cloud Run → route 100% traffic.
-
-### Landing Page Integration
-
-The CI build job and `deploy-gcp.yml` always build the landing page via Vite and copy `landing-page/dist/*` into `tutorme-app/public/`, serving it from the Next.js root URL. `next.config.mjs` rewrites the root path `/` to `/index.html`. `scripts/build-and-integrate-landing.sh` provides a standalone script gated by `INTEGRATE_LEGACY_VITE_LANDING=true`.
-
-### Alternative Deployment
-
-`scripts/deploy-to-ec2.sh` provides an alternative deployment path using Docker Compose + Nginx + Certbot on an EC2 instance.
+- `scripts/deploy-to-ec2.sh` exists but is legacy (EC2 + nginx + certbot).
+- `.deployment-info` references an AWS EC2 instance in `us-east-2` with Elastic IP `18.189.200.133` and domain `solocorn.co`.
 
 ---
 
-## AI Integration Patterns
+## Development Conventions
 
-Always route AI calls through the orchestrator rather than direct provider imports:
+### Workflow (from `.cursorrules`)
 
-```typescript
-import { generateWithFallback, chatWithFallback } from '@/lib/agents'
+1. **Always `cd tutorme-app`** for terminal commands in the main app.
+2. **Local-first batching** — Develop features on a local branch (`feature/[name]`). Do not push after every small change.
+3. **Use `http://localhost:3003`** for all iterative testing.
+4. **Pre-flight validation** before suggesting a push:
+   - `npm run format`
+   - `npm run build`
+   - `npm audit fix`
+5. **Atomic commits** with clear messages.
+6. **Batch deployment** — Only push when the entire feature bundle is verified locally.
+7. **Never commit `.env` or `.env.local`.**
+8. **Ensure `npm run build` passes 100%** before the final push.
 
-const result = await generateWithFallback(prompt, { temperature: 0.7 })
-const response = await chatWithFallback(messages, { maxTokens: 2048 })
-```
+### Project-Specific Notes
 
-- **Primary provider:** Kimi K2.5 (Moonshot AI)
-- **Optional fallback:** Google ADK service (`services/adk/`)
-- **Caching:** AI responses are cached in Redis for 5 minutes for identical prompts.
-- **Mock mode:** Set `MOCK_AI=true` to return mock responses for testing without API keys.
-
-### Socratic Method Requirement
-
-AI tutors must **never** give direct answers. Use the prompt system in `lib/ai/prompts.ts`:
-- `socraticTutorPrompt` — Main tutoring interaction
-- `chatResponsePrompt` — General chat widget
-- `quizGeneratorPrompt` — Assessment creation
-- `gradingPrompt` — Short-answer grading
-
----
-
-## Common Tasks
-
-### Add a shadcn/ui Component
-
-```bash
-npx shadcn@latest add <component-name>
-```
-Components install to `src/components/ui/`.
-
-### Create a Drizzle Migration
-
-```bash
-npm run drizzle:generate   # Generates SQL in drizzle/
-npm run db:migrate         # Applies pending migrations
-```
-
-### Build the Service Worker
-
-```bash
-npm run build:sw
-```
-Compiles `src/lib/pwa/service-worker.ts` into `public/sw.js` via esbuild.
-
-### Open Drizzle Studio
-
-```bash
-npm run drizzle:studio
-```
-Opens at `https://local.drizzle.studio`.
-
-### Reset Dev Environment
-
-There is **no built-in `db:reset` script** in the current `package.json`. To fully reset:
-1. Drop and recreate the Postgres database.
-2. Re-run `npm run db:migrate` and `npm run db:seed:admin`.
-
----
-
-## Troubleshooting
-
-### Server won't start / port binding issues
-- Verify `DATABASE_URL` and `REDIS_URL` are set.
-- Check that port `3003` is free.
-- Review `server.ts` logs: it binds the port immediately and initializes Next.js + Socket.io in the background.
-- Health check at `/api/health` returns `503` until initialization completes; returns `200` when fully ready.
-
-### AI features not responding
-- Verify `KIMI_API_KEY` is set.
-- Check Redis connectivity (used for AI response caching).
-- Use `MOCK_AI=true` to test without external providers.
-
-### Socket.io not working
-- Ensure you started with `npm run dev` (uses `server.ts`), not a bare Next.js dev server.
-- Look for the log line: `🎉 [Server] FULLY OPERATIONAL.`
-- The custom server implements graceful degradation: if Socket.io fails but Next.js prepares, the server still serves UI traffic (with degraded real-time features).
-
-### TypeScript errors
-```bash
-npm run typecheck
-```
-
-### Build failures on Linux / CI
-Native bindings may be missing. The CI installs:
-- `@parcel/watcher-linux-x64-glibc`
-- `@swc/core-linux-x64-gnu`
-- `@next/swc-linux-x64-gnu`
-- `@rollup/rollup-linux-x64-gnu` (for Vitest)
-- `esbuild`
-
-Install these locally if building on Linux without prebuilt binaries.
-
-### Playwright E2E tests fail to start app
-The `playwright.config.ts` references `npm run dev:next` as the webServer command, which is an alias for `npm run dev`. Start the app manually with `npm run dev` before running E2E tests.
-
----
-
-## Resources
-
-- **Next.js:** https://nextjs.org/docs
-- **Drizzle ORM:** https://orm.drizzle.team/docs
-- **NextAuth.js:** https://next-auth.js.org
-- **next-intl:** https://next-intl-docs.vercel.app/
-- **shadcn/ui:** https://ui.shadcn.com/docs
-- **Socket.io:** https://socket.io/docs/
-- **Daily.co:** https://docs.daily.co/
-- **Kimi API:** https://platform.moonshot.cn/docs
-- **Project docs:** `tutorme-app/docs/`, `tutorme-app/TESTING.md`, `tutorme-app/CURRICULUM_SYSTEM.md`
+- The landing page is built as a static Vite app and its `dist/` contents are copied into `tutorme-app/public/` so Next.js serves it at the root path (`/`).
+- The service worker (`public/sw.js`) is compiled from `src/lib/pwa/service-worker.ts` via esbuild during `npm run build:sw`.
+- `server.ts` is the canonical entry point. Do not run `next dev` or `next start` directly outside of Docker.
+- The `scripts/` directory at the project root contains legacy scaffolding scripts (`setup.sh`, `setup.bat`) that create a brand-new project from scratch — do not run them against the existing codebase.
