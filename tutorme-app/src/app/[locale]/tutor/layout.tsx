@@ -135,13 +135,13 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       {/* Left Navigation Sidebar - Desktop */}
       <aside
         className={cn(
-          'relative z-40 hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
+          'relative z-fixed hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
           desktopNavOpen ? 'w-64' : 'w-0 overflow-hidden'
         )}
       >
         <div
           className={cn(
-            'fixed bottom-4 left-4 top-4 z-40 hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex',
+            'fixed bottom-4 left-4 top-4 z-fixed hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex',
             desktopNavOpen ? 'w-60' : 'w-0 overflow-hidden ring-0'
           )}
         >
@@ -227,7 +227,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       {/* Floating collapsed/expanded pill */}
       <div
         className={cn(
-          'fixed top-1/2 z-50 hidden h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 hover:bg-slate-50 lg:flex',
+          'fixed top-1/2 z-fixed hidden h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 hover:bg-slate-50 lg:flex',
           desktopNavOpen ? 'left-64' : 'left-0'
         )}
         onClick={() => setDesktopNavOpen(!desktopNavOpen)}

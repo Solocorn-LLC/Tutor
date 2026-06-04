@@ -367,7 +367,7 @@ export default function RevenuePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="safe-top sticky top-0 z-50 border-b bg-white">
+      <header className="safe-top sticky top-0 z-sticky border-b bg-white">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">

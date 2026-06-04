@@ -92,14 +92,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {!isFeedbackRoute && (
         <aside
           className={cn(
-            'relative z-40 hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
+            'relative z-fixed hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
             desktopNavOpen ? 'w-64' : 'w-0 overflow-hidden'
           )}
         >
           {/* Inner content wrapper with fixed width to prevent layout shifts when collapsing */}
           <div
             className={cn(
-              'fixed bottom-4 left-4 top-4 z-40 hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex',
+              'fixed bottom-4 left-4 top-4 z-fixed hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex',
               desktopNavOpen ? 'w-60' : 'w-0 overflow-hidden ring-0'
             )}
           >
@@ -193,7 +193,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {/* Floating collapsed pill */}
       {!isFeedbackRoute && !desktopNavOpen && (
         <div
-          className="fixed left-0 top-1/2 z-50 hidden h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all hover:w-10 hover:bg-slate-50 lg:flex"
+          className="fixed left-0 top-1/2 z-fixed hidden h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all hover:w-10 hover:bg-slate-50 lg:flex"
           onClick={() => setDesktopNavOpen(true)}
           title="Show navigation"
         >
