@@ -131,17 +131,17 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 isolate">
       {/* Left Navigation Sidebar - Desktop */}
       <aside
         className={cn(
-          'relative z-fixed hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
+          'relative hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
           desktopNavOpen ? 'w-64' : 'w-0 overflow-hidden'
         )}
       >
         <div
           className={cn(
-            'fixed bottom-4 left-4 top-4 z-fixed hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex',
+            'fixed bottom-4 left-4 top-4 z-fixed hidden flex-col rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 transition-all duration-300 lg:flex transform-gpu',
             desktopNavOpen ? 'w-60' : 'w-0 overflow-hidden ring-0'
           )}
         >
@@ -289,7 +289,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main className="h-screen flex-1 overflow-hidden pt-16 lg:pt-4 lg:pb-4">
+      <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:pt-4 lg:pb-4">
         <div className={cn('h-full overflow-y-auto', isDashboard && 'tutor-dashboard-scroll', isMyPage && 'tutor-mypage-scroll')}>{children}</div>
       </main>
     </div>

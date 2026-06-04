@@ -707,19 +707,19 @@ function TutorDashboardContent() {
                 <TabsList className="grid w-full max-w-md grid-cols-3 bg-[#1E1B4B] p-1 rounded-xl">
                   <TabsTrigger
                     value="courses"
-                    className="rounded-lg text-black/60 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     Active Courses
                   </TabsTrigger>
                   <TabsTrigger
                     value="calendar"
-                    className="rounded-lg text-black/60 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     Calendar
                   </TabsTrigger>
                   <TabsTrigger
                     value="availability"
-                    className="rounded-lg text-black/60 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                    className="rounded-lg text-white/70 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                   >
                     My Availability
                   </TabsTrigger>
