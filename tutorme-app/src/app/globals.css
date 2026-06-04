@@ -1043,6 +1043,22 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Tutor dashboard — invisible scrollbar (track + thumb match bg-gray-50) */
+  .tutor-dashboard-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .tutor-dashboard-scroll::-webkit-scrollbar-track {
+    background: #f9fafb;
+  }
+  .tutor-dashboard-scroll::-webkit-scrollbar-thumb {
+    background: #f9fafb;
+    border-radius: 4px;
+  }
+  .tutor-dashboard-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #f9fafb #f9fafb;
+  }
   
   /* Custom scrollbar */
   .scrollbar-thin {
