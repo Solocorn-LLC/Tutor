@@ -110,6 +110,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
   const isReportsPage = pathname === '/tutor/reports' || pathname?.startsWith('/tutor/reports/')
 
+  const isDashboard = pathname === `${localePrefix}/tutor/dashboard`
+
   useEffect(() => {
     if (isMyPage) {
       setDesktopNavOpen(false)
@@ -282,7 +284,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="h-screen flex-1 overflow-hidden pt-16 lg:pt-4 lg:pb-4">
-        <div className="h-full overflow-y-auto">{children}</div>
+        <div className={cn('h-full overflow-y-auto', isDashboard && 'scrollbar-hide')}>{children}</div>
       </main>
     </div>
   )
