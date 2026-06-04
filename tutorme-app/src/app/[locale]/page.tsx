@@ -88,6 +88,7 @@ import {
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 
 // --- Types ---
 type ModalType = 'register' | 'tutor' | 'academy' | 'schools' | null
