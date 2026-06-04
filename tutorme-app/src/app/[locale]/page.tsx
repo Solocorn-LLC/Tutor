@@ -3324,11 +3324,15 @@ const CategorySearchModal = ({
                       <label
                         key={country.code}
                         className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
+                        onClick={() => toggleCountry(country.code)}
                       >
-                        <Checkbox
-                          checked={selectedCountries.includes(country.code)}
-                          onCheckedChange={() => toggleCountry(country.code)}
-                          className="border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                        <div
+                          className={cn(
+                            'h-4 w-4 rounded-full border-2 transition-colors',
+                            selectedCountries.includes(country.code)
+                              ? 'border-white bg-white'
+                              : 'border-white/50 bg-transparent'
+                          )}
                         />
                         <span>{country.name}</span>
                       </label>
