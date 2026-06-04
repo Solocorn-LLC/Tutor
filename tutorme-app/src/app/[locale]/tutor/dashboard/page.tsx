@@ -580,7 +580,7 @@ function TutorDashboardContent() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-3 lg:px-4">
         {/* Modern Hero Section */}
         <div className="mb-8">
           <ModernHeroSection
