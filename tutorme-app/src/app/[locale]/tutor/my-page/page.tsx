@@ -100,6 +100,9 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
+const charcoalHeaderClass =
+  'flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#1F2933_0%,#374151_35%,#111827_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4'
+
 // My Courses Section Component
 interface Course {
   id: string
@@ -1263,8 +1266,6 @@ export default function TutorMyPage() {
     'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-5 text-white'
   const panelCardClass =
     'group rounded-[18px] bg-white p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
-  const charcoalHeaderClass =
-    'flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#1F2933_0%,#374151_35%,#111827_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4'
 
   return (
     <div
