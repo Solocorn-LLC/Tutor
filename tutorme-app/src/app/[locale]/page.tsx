@@ -2987,7 +2987,7 @@ const CategorySection = ({
   if (filtered.length === 0) return null
   return (
     <div className="space-y-3">
-      <h4 className="flex items-center gap-2 text-sm font-medium text-white">
+      <h4 className="flex items-center gap-2 text-xs font-medium text-white">
         <Icon className="h-4 w-4 text-white/80" />
         {label}
       </h4>
@@ -2995,7 +2995,7 @@ const CategorySection = ({
         {filtered.map((exam, idx) => (
           <label
             key={`${label}-${idx}-${exam}`}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-white/90 transition-colors hover:bg-white/10"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[11px] text-white/90 transition-colors hover:bg-white/10"
           >
             <div className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
               <input
@@ -3070,7 +3070,7 @@ const CategorySearchModal = ({
 
   const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = {
     global:       { bg: 'bg-blue-50',    text: 'text-[#0A84FF]',    close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]' },
-    ap:           { bg: 'bg-red-50',     text: 'text-[#FF453A]',    close: 'text-[#FF453A]/60 hover:text-[#FF453A]' },
+    ap:           { bg: 'bg-pink-50',    text: 'text-[#FF1493]',    close: 'text-[#FF1493]/60 hover:text-[#FF1493]' },
     alevel:       { bg: 'bg-purple-50',  text: 'text-[#BF5AF2]',    close: 'text-[#BF5AF2]/60 hover:text-[#BF5AF2]' },
     ib:           { bg: 'bg-green-50',   text: 'text-[#32D74B]',    close: 'text-[#32D74B]/60 hover:text-[#32D74B]' },
     igcse:        { bg: 'bg-sky-50',     text: 'text-[#64D2FF]',    close: 'text-[#64D2FF]/60 hover:text-[#64D2FF]' },
@@ -3347,8 +3347,8 @@ const CategorySearchModal = ({
                     <Globe className="mr-1.5 h-4 w-4" /> Global
                   </TabsTrigger>
                   <TabsTrigger value="ap" className={tabTriggerClass}>
-                    <Award className="mr-1.5 h-4 w-4 text-[#FF2D55]" />
-                    <span className="bg-gradient-to-b from-[#FF8FA8] via-[#FF2D55] to-[#C41E5C] bg-clip-text text-transparent font-semibold">AP</span>
+                    <Award className="mr-1.5 h-4 w-4 text-[#FF1493]" />
+                    <span className="bg-gradient-to-b from-[#FF69B4] via-[#FF1493] to-[#C71585] bg-clip-text text-transparent font-semibold">AP</span>
                   </TabsTrigger>
                   <TabsTrigger value="alevel" className={tabTriggerClass} style={{ color: '#BF5AF2' }}>
                     <GraduationCap className="mr-1.5 h-4 w-4" /> A Level
@@ -3375,8 +3375,8 @@ const CategorySearchModal = ({
               </div>
 
               {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="pb-2 pt-3">
-                <div className="relative max-w-md">
+              <div className="pb-0 pt-8">
+                <div className="relative mx-auto max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     placeholder={t('searchCategories')}
@@ -3401,7 +3401,7 @@ const CategorySearchModal = ({
                 {/* AP */}
                 <TabsContent value="ap" className="mt-0 space-y-6">
                   {AP_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
+                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
                   ))}
                   {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
                     <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
