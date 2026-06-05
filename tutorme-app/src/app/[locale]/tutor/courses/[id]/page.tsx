@@ -13,7 +13,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   ArrowLeft,
   BookOpen,
@@ -45,12 +51,7 @@ import { sanitizeHtmlWithMax } from '@/lib/security/sanitize'
 import { cn } from '@/lib/utils'
 import { BackButton } from '@/components/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+
 import { Checkbox } from '@/components/ui/checkbox'
 import type { ScheduleItem } from './constants'
 import { DAYS, TIME_SLOT_OPTIONS } from './constants'
@@ -159,30 +160,11 @@ export default function TutorCoursePage() {
     categories?: string[]
   } | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([])
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
+  const [selectedRegion, setSelectedRegion] = useState('')
+  const [selectedCountryCode, setSelectedCountryCode] = useState('')
   const [categoryTab, setCategoryTab] = useState('global')
   const [customCategories, setCustomCategories] = useState<string[]>([])
   const [customCategoryInput, setCustomCategoryInput] = useState('')
-
-  const regionTriggerRef = useRef<HTMLButtonElement>(null)
-  const countryTriggerRef = useRef<HTMLButtonElement>(null)
-  const [regionDropdownWidth, setRegionDropdownWidth] = useState(0)
-  const [countryDropdownWidth, setCountryDropdownWidth] = useState(0)
-
-  useLayoutEffect(() => {
-    const measure = () => {
-      if (regionTriggerRef.current) {
-        setRegionDropdownWidth(regionTriggerRef.current.offsetWidth)
-      }
-      if (countryTriggerRef.current) {
-        setCountryDropdownWidth(countryTriggerRef.current.offsetWidth)
-      }
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
 
   const totalLessons = useMemo(
     () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
@@ -193,60 +175,45 @@ export default function TutorCoursePage() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [categoriesOpen, setCategoriesOpen] = useState(true)
   const [publishingVariants, setPublishingVariants] = useState(false)
-  // Available countries based on selected regions
+  // Available countries based on selected region
   const availableCountries = useMemo<CountryData[]>(() => {
-    if (selectedRegions.length === 0) return []
-    const countries: CountryData[] = []
-    selectedRegions.forEach(regionId => {
-      const region = REGIONS.find(r => r.id === regionId)
-      if (region) {
-        countries.push(...region.countries)
-      }
-    })
-    return countries
-  }, [selectedRegions])
+    if (!selectedRegion) return []
+    const region = REGIONS.find(r => r.id === selectedRegion)
+    return region ? region.countries : []
+  }, [selectedRegion])
 
-  // National exams based on selected countries
+  // National exams based on selected country
   const nationalExams = useMemo<ExamCategory[]>(() => {
-    if (selectedCountries.length === 0) return []
-    const exams: ExamCategory[] = []
-    selectedCountries.forEach(countryCode => {
-      const country = availableCountries.find(c => c.code === countryCode)
-      if (country && country.nationalExams.length > 0) {
-        exams.push(...country.nationalExams)
-      }
-    })
-    return exams
-  }, [selectedCountries, availableCountries])
+    if (!selectedCountryCode) return []
+    const country = availableCountries.find(c => c.code === selectedCountryCode)
+    return country && country.nationalExams.length > 0 ? country.nationalExams : []
+  }, [selectedCountryCode, availableCountries])
 
-  // Filtered university categories based on selected regions/countries
+  // Filtered university categories based on selected region/country
   const filteredUniversityCategories = useMemo<ExamCategory[]>(() => {
     // No region selected — show nothing (prompt user to select)
-    if (selectedRegions.length === 0) return []
+    if (!selectedRegion) return []
 
-    // Specific countries selected — show universities from those countries
-    if (selectedCountries.length > 0) {
-      const categories: ExamCategory[] = []
-      selectedCountries.forEach(countryCode => {
-        const country = availableCountries.find(c => c.code === countryCode)
-        const universities = UNIVERSITIES_BY_COUNTRY_CODE[countryCode]
-        if (universities && universities.length > 0) {
-          categories.push({
-            id: `universities-${countryCode.toLowerCase()}`,
-            label: `Universities — ${country?.name || countryCode}`,
-            exams: universities,
-          })
-        }
-      })
-      return categories
+    // Specific country selected — show universities from that country
+    if (selectedCountryCode) {
+      const country = availableCountries.find(c => c.code === selectedCountryCode)
+      const universities = UNIVERSITIES_BY_COUNTRY_CODE[selectedCountryCode]
+      if (universities && universities.length > 0) {
+        return [{
+          id: `universities-${selectedCountryCode.toLowerCase()}`,
+          label: `Universities — ${country?.name || selectedCountryCode}`,
+          exams: universities,
+        }]
+      }
+      return []
     }
 
-    // Only regions selected — show university categories for those regions
+    // Only region selected — show university categories for that region
     return UNIVERSITY_CATEGORIES.filter(cat => {
       const regionId = cat.id.replace('universities-', '')
-      return selectedRegions.includes(regionId)
+      return regionId === selectedRegion
     })
-  }, [selectedRegions, selectedCountries, availableCountries])
+  }, [selectedRegion, selectedCountryCode, availableCountries])
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
   const [scheduleRepeatWeekly, setScheduleRepeatWeekly] = useState(false)
   const [numberOfWeeks, setNumberOfWeeks] = useState(4)
@@ -611,26 +578,7 @@ export default function TutorCoursePage() {
     }
   }
 
-  // Toggle region selection
-  const toggleRegion = (regionId: string) => {
-    setSelectedRegions(prev =>
-      prev.includes(regionId) ? prev.filter(r => r !== regionId) : [...prev, regionId]
-    )
-    // Clear countries when region is deselected
-    if (selectedRegions.includes(regionId)) {
-      const region = REGIONS.find(r => r.id === regionId)
-      if (region) {
-        setSelectedCountries(prev => prev.filter(c => !region.countries.some(rc => rc.code === c)))
-      }
-    }
-  }
-
-  // Toggle country selection
-  const toggleCountry = (countryCode: string) => {
-    setSelectedCountries(prev =>
-      prev.includes(countryCode) ? prev.filter(c => c !== countryCode) : [...prev, countryCode]
-    )
-  }
+  // No toggle functions needed — Select handles single-select directly
 
   /** Effective number of weeks when "repeat weekly" is on: from numberOfWeeks or derived from totalSessionsDesired */
   const effectiveWeeks =
@@ -851,36 +799,18 @@ export default function TutorCoursePage() {
                         <Globe className="h-4 w-4 text-[#1D4ED8]" />
                         Region
                       </Label>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            ref={regionTriggerRef}
-                            variant="outline"
-                            className="w-full justify-between border-slate-200 bg-white font-normal"
-                          >
-                            {selectedRegions.length === 0
-                              ? 'Select Regions...'
-                              : `${selectedRegions.length} Region${selectedRegions.length === 1 ? '' : 's'} Selected`}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          style={{ width: regionDropdownWidth || undefined }}
-                          align="start"
-                          sideOffset={8}
-                        >
-                          <ScrollArea className="h-[200px]">
-                            {REGIONS.map(region => (
-                              <DropdownMenuCheckboxItem
-                                key={region.id}
-                                checked={selectedRegions.includes(region.id)}
-                                onCheckedChange={() => toggleRegion(region.id)}
-                              >
-                                {region.name}
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                          </ScrollArea>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedCountryCode('') }}>
+                        <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400/50 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
+                          <SelectValue placeholder="Select Regions..." />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg border border-slate-700/25 bg-white p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
+                          {REGIONS.map(region => (
+                            <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                              {region.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Country Selection */}
@@ -889,45 +819,24 @@ export default function TutorCoursePage() {
                         <MapPin className="h-4 w-4 text-[#F17623]" />
                         Country
                       </Label>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            ref={countryTriggerRef}
-                            variant="outline"
-                            className="w-full justify-between border-slate-200 bg-white font-normal"
-                            disabled={selectedRegions.length === 0}
-                          >
-                            {selectedRegions.length === 0
-                              ? 'Select Region First'
-                              : selectedCountries.length === 0
-                                ? 'Select Countries...'
-                                : `${selectedCountries.length} Countr${selectedCountries.length === 1 ? 'y' : 'ies'} Selected`}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          style={{ width: countryDropdownWidth || undefined }}
-                          align="start"
-                          sideOffset={8}
-                        >
-                          <ScrollArea className="h-[200px]">
-                            {availableCountries.length === 0 ? (
-                              <div className="py-4 text-center text-xs text-white/70">
-                                No countries available
-                              </div>
-                            ) : (
-                              availableCountries.map(country => (
-                                <DropdownMenuCheckboxItem
-                                  key={country.code}
-                                  checked={selectedCountries.includes(country.code)}
-                                  onCheckedChange={() => toggleCountry(country.code)}
-                                >
-                                  {country.name}
-                                </DropdownMenuCheckboxItem>
-                              ))
-                            )}
-                          </ScrollArea>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Select value={selectedCountryCode} onValueChange={setSelectedCountryCode} disabled={!selectedRegion}>
+                        <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400/50 hover:shadow-md disabled:bg-slate-100/50 disabled:border-slate-400/20 disabled:text-slate-400 disabled:hover:bg-slate-100/50 disabled:hover:border-slate-400/20 disabled:hover:shadow-none focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
+                          <SelectValue placeholder={selectedRegion ? 'Select Countries...' : 'Select Region First'} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg border border-slate-700/25 bg-white p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
+                          {availableCountries.length === 0 ? (
+                            <div className="py-4 text-center text-xs text-slate-400">
+                              No countries available
+                            </div>
+                          ) : (
+                            availableCountries.map(country => (
+                              <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                                {country.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -1538,7 +1447,7 @@ export default function TutorCoursePage() {
             templateCourseId={id}
             templateCourseName={courseName}
             selectedCategories={selectedCategories}
-            selectedCountryCodes={selectedCountries.length > 0 ? selectedCountries : ['GL']}
+            selectedCountryCodes={selectedCountryCode ? [selectedCountryCode] : ['GL']}
             defaultPrice={price === '' ? null : Number(price)}
             defaultCurrency="USD"
             defaultLanguage={languageOfInstruction || 'English'}
