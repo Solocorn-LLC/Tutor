@@ -7855,12 +7855,12 @@ FEEDBACK: [your explanation]`
 
             {/* CENTER PANEL - New Three-Section Design */}
             <div
-              className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pl-2"
+              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pl-2"
               style={{
                 paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth + 16 : 0,
               }}
             >
-              <div className="flex min-h-0 w-full flex-1 grow flex-col items-stretch gap-3">
+              <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch gap-3">
                 {mainTab !== 'builder' && (
                   <div className="h-full w-full flex-1">
                     <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
@@ -8405,15 +8405,15 @@ FEEDBACK: [your explanation]`
                                           // so the iframe fills the entire tab area.
                                           if (hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full w-full">
+                                              <div className="relative flex-1 w-full min-h-0">
                                                 {doc?.fileUrl ? (() => {
                                                   const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
                                                     ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
                                                     : doc.fileUrl
                                                   return (
                                                     <iframe
-                                                      src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
-                                                      className="h-full w-full rounded-md border-0"
+                                                      src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0&zoom=page-width` : `${docUrl}#toolbar=0&navpanes=0&zoom=page-width`}
+                                                      className="absolute inset-0 h-full w-full rounded-md border-0"
                                                       title="PDF Viewer"
                                                     />
                                                   )
@@ -8441,15 +8441,15 @@ FEEDBACK: [your explanation]`
                                                 minSize={20}
                                                 className="h-full"
                                               >
-                                                <div className="h-full w-full pr-1">
+                                                <div className="relative h-full w-full pr-1">
                                                   {doc?.fileUrl ? (() => {
                                                     const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
                                                       ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
                                                       : doc.fileUrl
                                                     return (
                                                       <iframe
-                                                        src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
-                                                        className="h-full w-full rounded-md border-0"
+                                                        src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0&zoom=page-width` : `${docUrl}#toolbar=0&navpanes=0&zoom=page-width`}
+                                                        className="absolute inset-0 h-full w-full rounded-md border-0"
                                                         title="PDF Viewer"
                                                       />
                                                     )
