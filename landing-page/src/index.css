@@ -33,3 +33,19 @@
 .animate-marquee {
   animation: marquee 30s linear infinite;
 }
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse-fast {
+  to { transform: rotate(-360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+.animate-spin-reverse-fast {
+  animation: spin-reverse-fast 1.33s linear infinite;
+}

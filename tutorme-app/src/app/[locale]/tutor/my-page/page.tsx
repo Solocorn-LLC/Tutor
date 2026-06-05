@@ -1378,6 +1378,11 @@ export default function TutorMyPage() {
                         <span className="text-sm font-semibold">{country || '—'}</span>
                       </div>
                     </div>
+                    <div className="hidden h-5 w-px bg-white/20 md:block" />
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <span className="text-xs font-semibold text-emerald-400">Verified</span>
+                    </div>
                   </div>
                 </div>
               </div>

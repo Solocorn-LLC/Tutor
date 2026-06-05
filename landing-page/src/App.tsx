@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
   QrCode,
+  Settings,
 } from 'lucide-react';
 import {
   Navbar,
@@ -104,9 +105,15 @@ export default function App() {
                   >
                     <button
                       onClick={() => setIsComingSoonOpen(true)}
-                      className="px-6 py-2.5 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors shadow-md"
+                      className="group relative px-6 py-2.5 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors shadow-md overflow-hidden min-w-[140px]"
                     >
-                      How It Works
+                      <span className="block transition-opacity duration-300 group-hover:opacity-0">
+                        How It Works
+                      </span>
+                      <span className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        <Settings className="w-5 h-5 animate-spin-slow" />
+                        <Settings className="w-3.5 h-3.5 animate-spin-reverse-fast -mt-2 -ml-1" />
+                      </span>
                     </button>
                   </motion.div>
                 </motion.div>
