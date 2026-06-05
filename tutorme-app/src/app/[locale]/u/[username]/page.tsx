@@ -1239,40 +1239,28 @@ export default function PublicTutorPage() {
                 </Select>
               </div>
               <div
-                className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-1 shadow-sm"
+                className="grid h-9 grid-cols-3 min-w-[220px] rounded-xl bg-[#2D2B4E] p-1"
                 role="group"
                 aria-label="Course layout"
               >
-                <Button
-                  type="button"
-                  variant={catalogLayout === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 gap-1 px-3"
-                  onClick={() => setCatalogLayout('grid')}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                  <span className="hidden sm:inline">Grid</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={catalogLayout === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 gap-1 px-3"
-                  onClick={() => setCatalogLayout('list')}
-                >
-                  <List className="h-4 w-4" />
-                  <span className="hidden sm:inline">List</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={catalogLayout === 'compact' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 gap-1 px-3"
-                  onClick={() => setCatalogLayout('compact')}
-                >
-                  <PanelsTopLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Compact</span>
-                </Button>
+                {(['grid', 'list', 'compact'] as const).map((layout) => (
+                  <button
+                    key={layout}
+                    type="button"
+                    onClick={() => setCatalogLayout(layout)}
+                    className={cn(
+                      'flex items-center justify-center gap-1 rounded-lg text-sm font-medium capitalize transition-colors',
+                      catalogLayout === layout
+                        ? 'bg-white text-black shadow-sm'
+                        : 'text-white/70 hover:text-white'
+                    )}
+                  >
+                    {layout === 'grid' && <LayoutGrid className="h-4 w-4" />}
+                    {layout === 'list' && <List className="h-4 w-4" />}
+                    {layout === 'compact' && <PanelsTopLeft className="h-4 w-4" />}
+                    <span className="hidden sm:inline">{layout}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
