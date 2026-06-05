@@ -53,7 +53,7 @@ import {
   UpcomingClassesCard,
   InteractiveCalendar,
   type UpcomingClass,
-  type StudentNeedingAttention,
+
 } from './components'
 import { DEFAULT_TIMEZONE, SUPPORTED_TIMEZONES } from './components/InteractiveCalendar'
 import { ModernHeroSection } from './components/ModernHeroSection'
@@ -162,7 +162,6 @@ function TutorDashboardContent() {
   }, [searchParams, router])
   const [stats, setStats] = useState(defaultStats)
   const [classes, setClasses] = useState<UpcomingClass[]>([])
-  const [students, setStudents] = useState<StudentNeedingAttention[]>([])
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [allStudents, setAllStudents] = useState<
     Array<{ id: string; name: string; email: string; courseCount: number; classCount: number }>
@@ -205,11 +204,10 @@ function TutorDashboardContent() {
     if (!session?.user?.id) return
     setError(null)
     try {
-      const [statsRes, classesRes, studentsRes, allStudentsRes, enrolledRes, oneOnOneRes] =
+      const [statsRes, classesRes, allStudentsRes, enrolledRes, oneOnOneRes] =
         await Promise.allSettled([
           fetch('/api/tutor/stats', { credentials: 'include' }),
           fetch('/api/tutor/classes', { credentials: 'include' }),
-          fetch('/api/tutor/students-needing-attention', { credentials: 'include' }),
           fetch('/api/tutor/students', { credentials: 'include' }),
           fetch('/api/tutor/courses/enrolled', { credentials: 'include' }),
           fetch('/api/one-on-one/request?role=received', { credentials: 'include' }),
@@ -235,16 +233,6 @@ function TutorDashboardContent() {
         setClasses(d.classes ?? [])
       } else {
         failures.push('classes')
-      }
-
-      if (studentsRes.status === 'fulfilled' && studentsRes.value.ok) {
-        const d = await studentsRes.value.json()
-        setStudents(d.students ?? [])
-      } else if (studentsRes.status === 'fulfilled' && studentsRes.value.status === 410) {
-        // Legacy feature removed - ignore this error silently
-        setStudents([])
-      } else {
-        failures.push('students-needing-attention')
       }
 
       if (allStudentsRes.status === 'fulfilled' && allStudentsRes.value.ok) {

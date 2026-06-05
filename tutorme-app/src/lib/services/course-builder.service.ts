@@ -3,6 +3,7 @@ import { course, courseLesson } from '@/lib/db/schema'
 import { eq, and, inArray, asc } from 'drizzle-orm'
 import crypto from 'crypto'
 import { removeFile } from '@/lib/storage/service'
+import { refreshDocumentUrls } from '@/lib/storage/gcs'
 
 export interface BuilderLessonMedia {
   videos: unknown[]
@@ -159,7 +160,7 @@ export class CourseBuilderService {
       .orderBy(asc(courseLesson.order))
 
     // Transform to expected frontend structure
-    return dbLessons.map(l => {
+    const lessons = dbLessons.map(l => {
       const bData = (l.builderData ?? {}) as Record<string, unknown>
       const media = (bData.media ?? { videos: [], images: [] }) as BuilderLessonMedia
       const docs = Array.isArray(bData.docs) ? bData.docs : []
@@ -192,6 +193,10 @@ export class CourseBuilderService {
             : {},
       }
     })
+
+    // Refresh any expired GCS presigned URLs in document references before returning.
+    // URLs are signed for 7 days; this ensures PDFs and attachments remain viewable.
+    return await refreshDocumentUrls(lessons)
   }
 
   /**

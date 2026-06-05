@@ -8411,17 +8411,18 @@ FEEDBACK: [your explanation]`
                                                   minSize={20}
                                                 >
                                                   <div className="h-full w-full pr-1">
-                                                    {doc?.fileUrl ? (
-                                                      <iframe
-                                                        src={
-                                                          doc.fileUrl.includes('#')
-                                                            ? `${doc.fileUrl}&toolbar=0&navpanes=0`
-                                                            : `${doc.fileUrl}#toolbar=0&navpanes=0`
-                                                        }
-                                                        className="h-full w-full rounded-md border-0"
-                                                        title="PDF Viewer"
-                                                      />
-                                                    ) : (
+                                                    {doc?.fileUrl ? (() => {
+                                                      const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
+                                                        ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
+                                                        : doc.fileUrl
+                                                      return (
+                                                        <iframe
+                                                          src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
+                                                          className="h-full w-full rounded-md border-0"
+                                                          title="PDF Viewer"
+                                                        />
+                                                      )
+                                                    })() : (
                                                       <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
                                                         {mainTab === 'live'
                                                           ? testPciSource === 'task'

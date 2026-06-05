@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
@@ -18,6 +18,17 @@ interface PDFViewerProps {
 /** Maximum pages to render in scroll-all mode before switching to single-page pagination. */
 const MAX_SCROLL_PAGES = 20
 
+function getProxiedPdfUrl(fileUrl: string): string {
+  // Use the proxy for external URLs so the server can refresh expired GCS signatures
+  if (
+    fileUrl.startsWith('http://') ||
+    fileUrl.startsWith('https://')
+  ) {
+    return `/api/proxy-file?url=${encodeURIComponent(fileUrl)}`
+  }
+  return fileUrl
+}
+
 export function PDFViewer({
   fileUrl,
   className = '',
@@ -31,9 +42,43 @@ export function PDFViewer({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [useFallback, setUseFallback] = useState<boolean>(false)
+  const [pdfData, setPdfData] = useState<string | ArrayBuffer | null>(null)
 
   // Detect blob URLs immediately — they are client-side only and break after refresh
   const isBlobUrl = typeof fileUrl === 'string' && fileUrl.startsWith('blob:')
+
+  // Fetch PDF through proxy so expired GCS URLs get refreshed server-side
+  useEffect(() => {
+    if (!fileUrl || isBlobUrl) return
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    setPdfData(null)
+
+    const fetchPdf = async () => {
+      try {
+        const proxiedUrl = getProxiedPdfUrl(fileUrl)
+        const res = await fetch(proxiedUrl)
+        if (!res.ok) {
+          throw new Error(`Failed to fetch (${res.status})`)
+        }
+        const buffer = await res.arrayBuffer()
+        if (!cancelled) {
+          setPdfData(buffer)
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('PDF fetch error:', err)
+          setError(err.message || 'Failed to fetch')
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchPdf()
+    return () => { cancelled = true }
+  }, [fileUrl, isBlobUrl])
 
   const isScrollMode = numPages > 0 && numPages <= MAX_SCROLL_PAGES
 
@@ -67,7 +112,7 @@ export function PDFViewer({
   if (useFallback) {
     return (
       <iframe
-        src={fileUrl}
+        src={getProxiedPdfUrl(fileUrl)}
         title="PDF Document"
         className={`h-full w-full border-0 ${className}`}
       />
@@ -190,10 +235,10 @@ export function PDFViewer({
       )}
 
       {/* Document pages */}
-      {!error && !isBlobUrl && (
+      {!error && !isBlobUrl && pdfData && (
         <div className={`flex-1 overflow-y-auto ${loading ? 'hidden' : 'block'}`}>
           <Document
-            file={fileUrl}
+            file={pdfData}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
             loading={null}
