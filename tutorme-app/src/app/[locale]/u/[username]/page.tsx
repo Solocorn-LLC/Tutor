@@ -1246,28 +1246,31 @@ export default function PublicTutorPage() {
             </div>
           </div>
         </div>
-        <div className="px-6 pb-8 sm:px-8">
-          {filteredCourses.length === 0 ? (
-            <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-slate-50/50 py-12 text-center">
-              <BookOpen className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-              <p className="text-sm text-slate-500">No published courses found.</p>
-            </div>
-          ) : (
-            <div
-              className={cn(
-                catalogLayout === 'grid' && 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
-                catalogLayout === 'compact' &&
-                  'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
-                catalogLayout === 'list' && 'flex flex-col gap-4'
-              )}
-            >
-              {filteredCourses.map(
-                (
-                  course: PublicTutorResponse['courses'][number] & {
-                    rating?: number | null
-                    reviewCount?: number
-                  }
-                ) => {
+        <div className="space-y-10 px-6 pb-8 pt-8 sm:px-8">
+          {/* Enrolling */}
+          <section>
+            <h3 className="mb-4 text-lg font-semibold text-slate-800">Enrolling</h3>
+            {filteredCourses.length === 0 ? (
+              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-slate-50/50 py-12 text-center">
+                <BookOpen className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                <p className="text-sm text-slate-500">No published courses found.</p>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  catalogLayout === 'grid' && 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
+                  catalogLayout === 'compact' &&
+                    'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
+                  catalogLayout === 'list' && 'flex flex-col gap-4'
+                )}
+              >
+                {filteredCourses.map(
+                  (
+                    course: PublicTutorResponse['courses'][number] & {
+                      rating?: number | null
+                      reviewCount?: number
+                    }
+                  ) => {
                   const scheduleText = course.scheduleSummary?.trim() || 'Schedule to be announced'
                   const enrollmentStatus = course.enrollmentStatus ?? 'ongoing'
                   const liveTotal = course.liveSessionsTotal ?? 0
@@ -1669,9 +1672,36 @@ export default function PublicTutorPage() {
                     </div>
                   )
                 }
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Active */}
+          <section>
+            <h3 className="mb-4 text-lg font-semibold text-slate-800">Active</h3>
+            <div
+              className={cn(
+                catalogLayout === 'grid' && 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
+                catalogLayout === 'compact' &&
+                  'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
+                catalogLayout === 'list' && 'flex flex-col gap-4'
               )}
-            </div>
-          )}
+            />
+          </section>
+
+          {/* Catalogued */}
+          <section>
+            <h3 className="mb-4 text-lg font-semibold text-slate-800">Catalogued</h3>
+            <div
+              className={cn(
+                catalogLayout === 'grid' && 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3',
+                catalogLayout === 'compact' &&
+                  'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
+                catalogLayout === 'list' && 'flex flex-col gap-4'
+              )}
+            />
+          </section>
         </div>
       </div>
 
