@@ -7,7 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
-import { isGcsConfigured, refreshGcsUrl } from '@/lib/storage/gcs'
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024 // 50MB
 
@@ -29,21 +28,8 @@ export const GET = withAuth(
       return NextResponse.json({ error: 'Unsupported protocol' }, { status: 400 })
     }
 
-    // Refresh GCS presigned URLs before fetching — they may have expired.
-    let urlToFetch = targetUrl
-    if (isGcsConfigured()) {
-      try {
-        const refreshed = await refreshGcsUrl(targetUrl, 3600)
-        if (refreshed !== targetUrl) {
-          urlToFetch = refreshed
-        }
-      } catch {
-        // If refresh fails, proceed with the original URL
-      }
-    }
-
     try {
-      const response = await fetch(urlToFetch, {
+      const response = await fetch(targetUrl, {
         method: 'GET',
       })
 
@@ -71,7 +57,7 @@ export const GET = withAuth(
         },
       })
     } catch (error) {
-      console.error('[proxy-file] Fetch failed:', urlToFetch, error)
+      console.error('[proxy-file] Fetch failed:', targetUrl, error)
       return NextResponse.json({ error: 'Failed to fetch file' }, { status: 502 })
     }
   }
