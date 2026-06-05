@@ -735,12 +735,12 @@ function TutorDashboardContent() {
                     </TabsTrigger>
                   </TabsList>
                   <Select value={timezone} onValueChange={setTimezone}>
-                    <SelectTrigger className="h-10 w-[190px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
+                    <SelectTrigger className="h-10 w-[190px] rounded-sm border border-gray-300 bg-white/50 text-sm text-gray-800 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/70 hover:border-gray-400 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
                       <SelectValue placeholder="Select timezone" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
+                    <SelectContent className="rounded-lg border border-gray-200 bg-none bg-white/50 p-1.5 shadow-lg backdrop-blur-md w-[var(--radix-select-trigger-width)]">
                       {SUPPORTED_TIMEZONES.map(tz => (
-                        <SelectItem key={tz} value={tz} className="text-white focus:text-white hover:bg-white/20 focus:bg-white/20 mx-1.5 focus:outline-none rounded-md">
+                        <SelectItem key={tz} value={tz} className="text-gray-800 focus:text-gray-800 hover:bg-gray-100 focus:bg-gray-100 mx-1.5 focus:outline-none rounded-md">
                           {tz}
                         </SelectItem>
                       ))}
