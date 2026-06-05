@@ -803,9 +803,9 @@ export default function TutorCoursePage() {
                         <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400/50 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
                           <SelectValue placeholder="Select Regions..." />
                         </SelectTrigger>
-                        <SelectContent className="rounded-lg border border-slate-700/25 bg-white p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
+                        <SelectContent className="rounded-lg border border-white/20 bg-[#1E2832] p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
                           {REGIONS.map(region => (
-                            <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                            <SelectItem key={region.id} value={region.id} className="text-white focus:text-white hover:bg-white/20 focus:bg-white/20 mx-1.5 focus:outline-none rounded-md">
                               {region.name}
                             </SelectItem>
                           ))}
@@ -823,14 +823,14 @@ export default function TutorCoursePage() {
                         <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-400/50 hover:shadow-md disabled:bg-slate-100/50 disabled:border-slate-400/20 disabled:text-slate-400 disabled:hover:bg-slate-100/50 disabled:hover:border-slate-400/20 disabled:hover:shadow-none focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
                           <SelectValue placeholder={selectedRegion ? 'Select Countries...' : 'Select Region First'} />
                         </SelectTrigger>
-                        <SelectContent className="rounded-lg border border-slate-700/25 bg-white p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
+                        <SelectContent className="rounded-lg border border-white/20 bg-[#1E2832] p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
                           {availableCountries.length === 0 ? (
-                            <div className="py-4 text-center text-xs text-slate-400">
+                            <div className="py-4 text-center text-xs text-white/70">
                               No countries available
                             </div>
                           ) : (
                             availableCountries.map(country => (
-                              <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                              <SelectItem key={country.code} value={country.code} className="text-white focus:text-white hover:bg-white/20 focus:bg-white/20 mx-1.5 focus:outline-none rounded-md">
                                 {country.name}
                               </SelectItem>
                             ))
