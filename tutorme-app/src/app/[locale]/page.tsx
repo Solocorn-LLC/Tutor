@@ -1863,8 +1863,8 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                 </div>
                 {selectedCourse?.tutor?.bio && (
                   <div className="hidden min-w-0 flex-1 md:block">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="line-clamp-5 text-sm leading-snug text-muted-foreground">
+                    <div className="flex h-24 flex-col justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="line-clamp-4 text-sm leading-snug text-muted-foreground">
                         {selectedCourse.tutor.bio}
                       </p>
                     </div>
