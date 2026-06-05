@@ -8237,7 +8237,7 @@ FEEDBACK: [your explanation]`
                                         </div>
                                       ) : null
                                     ) : (
-                                      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto bg-white p-0">
+                                      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0">
                                         {(() => {
                                           if (mainTab === 'live' && tab.id === 'student1') {
                                             if (monitorSelectedStudent) {
@@ -8401,71 +8401,99 @@ FEEDBACK: [your explanation]`
                                             )
                                           }
 
+                                          // Document-only: render directly without ResizablePanelGroup
+                                          // so the iframe fills the entire tab area.
+                                          if (hasDoc && !hasDmi) {
+                                            return (
+                                              <div className="h-full w-full">
+                                                {doc?.fileUrl ? (() => {
+                                                  const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
+                                                    ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
+                                                    : doc.fileUrl
+                                                  return (
+                                                    <iframe
+                                                      src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
+                                                      className="h-full w-full rounded-md border-0"
+                                                      title="PDF Viewer"
+                                                    />
+                                                  )
+                                                })() : (
+                                                  <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                    {mainTab === 'live'
+                                                      ? testPciSource === 'task'
+                                                        ? liveTask?.description
+                                                        : liveAssessment?.description
+                                                      : doc?.extractedText}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            )
+                                          }
+
+                                          // Document + DMI: use resizable panels side-by-side
                                           return (
                                             <ResizablePanelGroup
                                               orientation="horizontal"
                                               className="h-full w-full"
                                             >
-                                              {hasDoc && (
-                                                <ResizablePanel
-                                                  defaultSize={hasDmi ? 50 : 100}
-                                                  minSize={20}
-                                                >
-                                                  <div className="h-full w-full pr-1">
-                                                    {doc?.fileUrl ? (() => {
-                                                      const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
-                                                        ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
-                                                        : doc.fileUrl
-                                                      return (
-                                                        <iframe
-                                                          src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
-                                                          className="h-full w-full rounded-md border-0"
-                                                          title="PDF Viewer"
-                                                        />
-                                                      )
-                                                    })() : (
-                                                      <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
-                                                        {mainTab === 'live'
-                                                          ? testPciSource === 'task'
-                                                            ? liveTask?.description
-                                                            : liveAssessment?.description
-                                                          : doc?.extractedText}
-                                                      </p>
-                                                    )}
+                                              <ResizablePanel
+                                                defaultSize={50}
+                                                minSize={20}
+                                                className="h-full"
+                                              >
+                                                <div className="h-full w-full pr-1">
+                                                  {doc?.fileUrl ? (() => {
+                                                    const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
+                                                      ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
+                                                      : doc.fileUrl
+                                                    return (
+                                                      <iframe
+                                                        src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0` : `${docUrl}#toolbar=0&navpanes=0`}
+                                                        className="h-full w-full rounded-md border-0"
+                                                        title="PDF Viewer"
+                                                      />
+                                                    )
+                                                  })() : (
+                                                    <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                      {mainTab === 'live'
+                                                        ? testPciSource === 'task'
+                                                          ? liveTask?.description
+                                                          : liveAssessment?.description
+                                                        : doc?.extractedText}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              </ResizablePanel>
+                                              <ResizableHandle withHandle />
+                                              <ResizablePanel
+                                                defaultSize={50}
+                                                minSize={20}
+                                                className="h-full"
+                                              >
+                                                <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
+                                                  <div className="space-y-4">
+                                                    {version.items.map(item => (
+                                                      <div
+                                                        key={item.id}
+                                                        className="rounded-lg border bg-gray-50 p-3"
+                                                      >
+                                                        <p className="text-sm font-medium text-gray-900">
+                                                          <span className="mr-1 text-indigo-600">
+                                                            Q{item.questionNumber}:
+                                                          </span>
+                                                          {item.questionText}
+                                                        </p>
+                                                        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+                                                          <span className="font-medium">
+                                                            Answer:
+                                                          </span>{' '}
+                                                          {item.answer}
+                                                        </p>
+                                                      </div>
+                                                    ))}
                                                   </div>
-                                                </ResizablePanel>
-                                              )}
-                                              {hasDoc && hasDmi && <ResizableHandle withHandle />}
-                                              {hasDmi && (
-                                                <ResizablePanel
-                                                  defaultSize={hasDoc ? 50 : 100}
-                                                  minSize={20}
-                                                >
-                                                  <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
-                                                    <div className="space-y-4">
-                                                      {version.items.map(item => (
-                                                        <div
-                                                          key={item.id}
-                                                          className="rounded-lg border bg-gray-50 p-3"
-                                                        >
-                                                          <p className="text-sm font-medium text-gray-900">
-                                                            <span className="mr-1 text-indigo-600">
-                                                              Q{item.questionNumber}:
-                                                            </span>
-                                                            {item.questionText}
-                                                          </p>
-                                                          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
-                                                            <span className="font-medium">
-                                                              Answer:
-                                                            </span>{' '}
-                                                            {item.answer}
-                                                          </p>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                </ResizablePanel>
-                                              )}
+                                                </div>
+                                              </ResizablePanel>
                                             </ResizablePanelGroup>
                                           )
                                         })()}
