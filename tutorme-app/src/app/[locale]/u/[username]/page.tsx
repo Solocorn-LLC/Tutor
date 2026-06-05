@@ -1233,7 +1233,7 @@ export default function PublicTutorPage() {
                       'flex items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium capitalize transition-colors',
                       catalogLayout === layout
                         ? 'bg-[#1E2832] text-white shadow-sm'
-                        : 'bg-[#2D2B4E] text-white hover:brightness-110'
+                        : 'text-slate-800 hover:bg-slate-100'
                     )}
                   >
                     {layout === 'grid' && <LayoutGrid className="h-4 w-4" />}
