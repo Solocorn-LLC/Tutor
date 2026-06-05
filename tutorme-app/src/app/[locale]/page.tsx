@@ -63,7 +63,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -1798,9 +1797,6 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         <DialogContent className="flex h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-2xl">{selectedCourse?.name}</DialogTitle>
-            <DialogDescription className="mt-2 text-base">
-              {selectedCourse?.description || 'No description provided.'}
-            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 space-y-4 overflow-auto p-6 pt-0">
             <DialogPanel>
@@ -1857,7 +1853,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[140px] shrink-0">
                   <div className="text-base font-semibold text-foreground">
                     {selectedCourse?.tutor?.name || 'Anonymous Tutor'}
                   </div>
@@ -1867,9 +1863,11 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
                 </div>
                 {selectedCourse?.tutor?.bio && (
                   <div className="hidden min-w-0 flex-1 md:block">
-                    <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">
-                      {selectedCourse.tutor.bio}
-                    </p>
+                    <div className="flex h-20 flex-col justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="line-clamp-3 text-sm leading-snug text-muted-foreground">
+                        {selectedCourse.tutor.bio}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
