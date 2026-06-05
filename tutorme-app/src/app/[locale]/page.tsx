@@ -1627,11 +1627,13 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     disabled,
     onClick,
     label,
+    className,
   }: {
     direction: 'left' | 'right'
     disabled: boolean
     onClick: () => void
     label: string
+    className?: string
   }) => (
     <button
       type="button"
@@ -1641,21 +1643,15 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         'shrink-0 transition-all duration-300',
         'h-[clamp(220px,18vw,280px)] w-[clamp(44px,3.6vw,56px)]',
         !disabled
-          ? 'cursor-pointer drop-shadow-[0_10px_25px_rgba(0,0,0,0.30)] hover:-translate-y-[2px] hover:drop-shadow-[0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105'
-          : 'cursor-not-allowed opacity-30 grayscale'
+          ? 'cursor-pointer bg-white/[0.15] drop-shadow-[0_10px_25px_rgba(0,0,0,0.30)] hover:bg-white/[0.25] hover:-translate-y-[2px] hover:drop-shadow-[0_14px_30px_rgba(0,0,0,0.40)]'
+          : 'cursor-not-allowed bg-white/[0.08] opacity-30 grayscale',
+        className
       )}
       style={{
         clipPath:
           direction === 'left'
             ? 'polygon(100% 0, 100% 100%, 0 50%)'
             : 'polygon(0 0, 0 100%, 100% 50%)',
-        ...(disabled
-          ? { backgroundColor: 'rgba(100,100,100,0.30)' }
-          : {
-              backgroundImage:
-                'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
-              backgroundColor: 'rgba(30,40,50,0.65)',
-            }),
       }}
       aria-label={label}
     />
@@ -1744,6 +1740,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               disabled={!canNext}
               onClick={() => setPage(Math.min(currentPage + 1, totalPages - 1))}
               label="Next"
+              className="mr-6"
             />
           </div>
         )
