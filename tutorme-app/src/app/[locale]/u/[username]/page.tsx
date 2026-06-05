@@ -1220,7 +1220,7 @@ export default function PublicTutorPage() {
                 </Select>
               </div>
               <div
-                className="grid h-9 grid-cols-3 min-w-[220px] rounded-xl bg-[#2D2B4E] p-1"
+                className="grid h-9 grid-cols-3 min-w-[320px] gap-2 rounded-xl bg-[#2D2B4E] p-1.5"
                 role="group"
                 aria-label="Course layout"
               >
@@ -1230,7 +1230,7 @@ export default function PublicTutorPage() {
                     type="button"
                     onClick={() => setCatalogLayout(layout)}
                     className={cn(
-                      'flex items-center justify-center gap-1 rounded-lg text-sm font-medium capitalize transition-colors',
+                      'flex items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium capitalize transition-colors',
                       catalogLayout === layout
                         ? 'bg-white text-black shadow-sm'
                         : 'text-white/70 hover:text-white'
