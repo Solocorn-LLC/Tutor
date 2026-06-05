@@ -106,11 +106,11 @@ export function SubmissionsPanel({
       .then(async res => {
         const json = await res.json()
         if (!res.ok || json?.error) {
-          const message =
-            res.status === 404
-              ? 'No submissions data available for this course yet.'
-              : json?.error || 'Failed to load submissions'
-          setError(message)
+          // Silently ignore 404 — course may not have sessions/submissions yet.
+          // Only show errors for actual failures, not empty data.
+          if (res.status !== 404) {
+            setError(json?.error || 'Failed to load submissions')
+          }
           setData(null)
           return
         }
@@ -247,9 +247,7 @@ export function SubmissionsPanel({
               </div>
             ) : error ? (
               <div className="text-sm text-red-600">{error}</div>
-            ) : !data ? (
-              <div className="text-sm text-slate-600">No data</div>
-            ) : (
+            ) : !data ? null : (
               <div className="flex flex-col gap-2">
                 <FolderRow
                   isOpen={!!open.course}
