@@ -8402,22 +8402,17 @@ FEEDBACK: [your explanation]`
                                           }
 
                                           // Document-only: render directly without ResizablePanelGroup
-                                          // so the iframe fills the entire tab area.
+                                          // so the PDF fills the entire tab area.
                                           if (hasDoc && !hasDmi) {
                                             return (
                                               <div className="relative flex-1 w-full min-h-0">
-                                                {doc?.fileUrl ? (() => {
-                                                  const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
-                                                    ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
-                                                    : doc.fileUrl
-                                                  return (
-                                                    <iframe
-                                                      src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0&zoom=page-width` : `${docUrl}#toolbar=0&navpanes=0&zoom=page-width`}
-                                                      className="absolute inset-0 h-full w-full rounded-md border-0"
-                                                      title="PDF Viewer"
-                                                    />
-                                                  )
-                                                })() : (
+                                                {doc?.fileUrl ? (
+                                                  <PDFViewer
+                                                    key={doc.fileUrl}
+                                                    fileUrl={doc.fileUrl}
+                                                    className="absolute inset-0 h-full w-full"
+                                                  />
+                                                ) : (
                                                   <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
                                                     {mainTab === 'live'
                                                       ? testPciSource === 'task'
@@ -8442,18 +8437,13 @@ FEEDBACK: [your explanation]`
                                                 className="h-full"
                                               >
                                                 <div className="relative h-full w-full pr-1">
-                                                  {doc?.fileUrl ? (() => {
-                                                    const docUrl = doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')
-                                                      ? `/api/proxy-file?url=${encodeURIComponent(doc.fileUrl)}`
-                                                      : doc.fileUrl
-                                                    return (
-                                                      <iframe
-                                                        src={docUrl.includes('#') ? `${docUrl}&toolbar=0&navpanes=0&zoom=page-width` : `${docUrl}#toolbar=0&navpanes=0&zoom=page-width`}
-                                                        className="absolute inset-0 h-full w-full rounded-md border-0"
-                                                        title="PDF Viewer"
-                                                      />
-                                                    )
-                                                  })() : (
+                                                  {doc?.fileUrl ? (
+                                                    <PDFViewer
+                                                      key={doc.fileUrl}
+                                                      fileUrl={doc.fileUrl}
+                                                      className="absolute inset-0 h-full w-full"
+                                                    />
+                                                  ) : (
                                                     <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
                                                       {mainTab === 'live'
                                                         ? testPciSource === 'task'
