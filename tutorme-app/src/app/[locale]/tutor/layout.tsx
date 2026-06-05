@@ -144,7 +144,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       {/* Left Navigation Sidebar - Desktop */}
       <aside
         className={cn(
-          'relative hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
+          'relative z-fixed hidden h-screen shrink-0 flex-col transition-all duration-300 lg:flex',
           desktopNavOpen ? 'w-64' : 'w-0 overflow-hidden'
         )}
       >
