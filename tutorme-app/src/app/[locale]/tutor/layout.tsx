@@ -236,17 +236,18 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       {/* Floating collapsed/expanded pill */}
       <div
         className={cn(
-          'fixed top-1/2 z-fixed hidden h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 lg:flex',
+          'fixed top-1/2 z-fixed hidden h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 lg:flex',
           desktopNavOpen ? 'left-64' : 'left-0',
+          desktopNavOpen ? 'bg-white border-[#E5E7EB]' : 'bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] border-[#1D4ED8]/30',
           isPeeking ? 'w-10' : 'w-8'
         )}
         onClick={() => setDesktopNavOpen(!desktopNavOpen)}
         title={desktopNavOpen ? 'Hide navigation' : 'Show navigation'}
       >
         {desktopNavOpen ? (
-          <ChevronLeft className="h-5 w-5 text-white" />
+          <ChevronLeft className={cn("h-5 w-5", desktopNavOpen ? "text-[#2B5FB8]" : "text-white")} />
         ) : (
-          <ChevronRight className="h-5 w-5 text-white" />
+          <ChevronRight className={cn("h-5 w-5", desktopNavOpen ? "text-[#2B5FB8]" : "text-white")} />
         )}
       </div>
 
