@@ -1541,9 +1541,11 @@ export default function TutorMyPage() {
                         <Icon className="h-6 w-6 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">{item.label}</div>
-                        <div className={cn('truncate text-xs', item.muted ? 'text-slate-400' : 'text-slate-600')}>
-                          {item.value}
+                        <div className="truncate text-base font-semibold text-slate-900">
+                          {item.label}{' '}
+                          <span className={cn('font-normal', item.muted ? 'text-slate-400' : 'text-slate-600')}>
+                            {item.value}
+                          </span>
                         </div>
                       </div>
                     </div>
