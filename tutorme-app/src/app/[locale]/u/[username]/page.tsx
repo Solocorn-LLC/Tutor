@@ -1191,11 +1191,11 @@ export default function PublicTutorPage() {
             <div className="flex flex-1 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:justify-end">
               <div className="relative flex w-full max-w-lg items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     type="search"
                     placeholder="Search course..."
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 text-slate-800 placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    leftIcon={<Search className="h-4 w-4 text-slate-400" />}
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus-visible:border-slate-200"
                     value={courseSearchQuery}
                     onChange={e => setCourseSearchQuery(e.target.value)}
                   />
