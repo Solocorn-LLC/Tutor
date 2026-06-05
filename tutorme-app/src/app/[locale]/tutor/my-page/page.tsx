@@ -1280,13 +1280,6 @@ export default function TutorMyPage() {
       className="min-h-screen bg-white text-[#1F2933]"
       style={{ '--density-scale': '0.9' } as React.CSSProperties}
     >
-      <div className="border-b border-[#E2E8F0] bg-white/90 backdrop-blur">
-        <div className="mx-auto flex w-full items-center justify-between px-6 py-4">
-          <BackButton
-            href={locale === DEFAULT_LOCALE ? '/tutor/dashboard' : `/${locale}/tutor/dashboard`}
-          />
-        </div>
-      </div>
 
       <div className="w-full space-y-[calc(2rem*var(--density-scale,1))] px-6 py-[calc(2rem*var(--density-scale,1))]">
         <section className={headerCardClass}>

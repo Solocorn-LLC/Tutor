@@ -66,6 +66,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     const path = typeof window !== 'undefined' ? window.location.pathname : ''
     return !(path === '/tutor/my-page' || path.startsWith('/tutor/my-page/'))
   })
+  const [isPeeking, setIsPeeking] = useState(false)
   const localePrefix = useMemo(() => {
     const segments = pathname?.split('/').filter(Boolean) ?? []
     const first = segments[0]
@@ -125,6 +126,14 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       setDesktopNavOpen(true)
     }
   }, [isMyPage])
+  // Periodic peek animation for sidebar toggle
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsPeeking(true)
+      setTimeout(() => setIsPeeking(false), 600)
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [])
 
   if (isCourseBuilder || isCoursePublishPage || isInsightsPage || isAccountPage || isReportsPage) {
     return <>{children}</>
@@ -227,16 +236,17 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       {/* Floating collapsed/expanded pill */}
       <div
         className={cn(
-          'fixed top-1/2 z-fixed hidden h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 hover:bg-slate-50 lg:flex',
-          desktopNavOpen ? 'left-64' : 'left-0'
+          'fixed top-1/2 z-fixed hidden h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-300 hover:w-10 lg:flex',
+          desktopNavOpen ? 'left-64' : 'left-0',
+          isPeeking ? 'w-10' : 'w-8'
         )}
         onClick={() => setDesktopNavOpen(!desktopNavOpen)}
         title={desktopNavOpen ? 'Hide navigation' : 'Show navigation'}
       >
         {desktopNavOpen ? (
-          <ChevronLeft className="h-5 w-5 text-[#2B5FB8]" />
+          <ChevronLeft className="h-5 w-5 text-white" />
         ) : (
-          <ChevronRight className="h-5 w-5 text-[#2B5FB8]" />
+          <ChevronRight className="h-5 w-5 text-white" />
         )}
       </div>
 
