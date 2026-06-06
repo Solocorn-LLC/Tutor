@@ -1644,7 +1644,13 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
         'self-center',
         !disabled
-          ? 'cursor-pointer hover:brightness-110 hover:-translate-y-[2px]'
+          ? cn(
+              'cursor-pointer',
+              'hover:brightness-110',
+              'hover:-translate-y-[2px]',
+              direction === 'left' && 'hover:-translate-x-1',
+              direction === 'right' && 'hover:translate-x-1'
+            )
           : 'cursor-not-allowed opacity-30 grayscale',
         className
       )}
@@ -1654,9 +1660,11 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             ? 'polygon(100% 0, 100% 100%, 0 50%)'
             : 'polygon(0 0, 0 100%, 100% 50%)',
         background:
-          'linear-gradient(135deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.32) 100%)',
+          'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.12) 100%)',
+        backdropFilter: 'blur(10px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(10px) saturate(150%)',
         filter:
-          'drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 4px rgba(255,255,255,0.7))',
+          'drop-shadow(0 12px 24px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 4px rgba(255,255,255,0.7))',
       }}
       aria-label={label}
     />
