@@ -279,6 +279,32 @@ END $$;
 ALTER TABLE "TutorAsset" ADD COLUMN IF NOT EXISTS "fileKey" text;
 
 -- ============================================
+-- Course column completeness
+-- courseMaterials added in migration 0052 — skipped on DBs that predated it
+-- ============================================
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "courseMaterials" jsonb;
+
+-- ============================================
+-- CourseVariant column completeness (migration 0049)
+-- ============================================
+ALTER TABLE "CourseVariant" ADD COLUMN IF NOT EXISTS "isIndependent" boolean NOT NULL DEFAULT false;
+
+-- ============================================
+-- CourseEnrollment column completeness (migration 0050)
+-- scheduleId FK may be missing on DBs that predated 0050
+-- ============================================
+ALTER TABLE "CourseEnrollment" ADD COLUMN IF NOT EXISTS "scheduleId" text;
+CREATE INDEX IF NOT EXISTS "CourseEnrollment_scheduleId_idx" ON "CourseEnrollment"("scheduleId");
+
+-- ============================================
+-- LiveSession column completeness (migrations 0041 + early schema)
+-- durationMinutes, recordingUrl, recordingAvailableAt may be absent on older DBs
+-- ============================================
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "durationMinutes" integer NOT NULL DEFAULT 120;
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "recordingUrl" text;
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "recordingAvailableAt" timestamp with time zone;
+
+-- ============================================
 -- CourseSchedule column completeness (migration 0050/0051 drift)
 -- If CourseSchedule existed before 0050 was written, CREATE TABLE IF NOT EXISTS
 -- silently skipped — leaving enrolledCount, weeksToSchedule, and name missing.
