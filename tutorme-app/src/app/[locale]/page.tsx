@@ -1635,48 +1635,55 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
     disabled,
     onClick,
     label,
+    kind,
     className,
   }: {
     direction: 'left' | 'right'
     disabled: boolean
     onClick: () => void
     label: string
+    kind?: 'courses' | 'tutors'
     className?: string
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'shrink-0 transition-all duration-300',
-        'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
-        'self-center',
-        !disabled
-          ? cn(
-              'cursor-pointer',
-              'hover:brightness-110',
-              'hover:-translate-y-[2px]',
-              direction === 'left' && 'hover:-translate-x-1',
-              direction === 'right' && 'hover:translate-x-1'
-            )
-          : 'cursor-not-allowed opacity-30 grayscale',
-        className
-      )}
-      style={{
-        clipPath:
-          direction === 'left'
-            ? 'polygon(100% 0, 100% 100%, 0 50%)'
-            : 'polygon(0 0, 0 100%, 100% 50%)',
-        background:
-          'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.12) 100%)',
-        backdropFilter: 'blur(10px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(10px) saturate(150%)',
-        filter:
-          'drop-shadow(0 12px 24px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 4px rgba(255,255,255,0.7))',
-      }}
-      aria-label={label}
-    />
-  )
+  }) => {
+    const isCourses = kind === 'courses'
+    const bg = isCourses
+      ? 'linear-gradient(135deg, rgba(55,65,75,0.5) 0%, rgba(25,35,45,0.5) 100%)'
+      : 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)'
+    const outline = isCourses
+      ? 'drop-shadow(0 0 2px rgba(30,40,50,0.5)) drop-shadow(0 0 4px rgba(30,40,50,0.3))'
+      : 'drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))'
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+          'shrink-0 transition-all duration-300',
+          'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
+          'self-center',
+          !disabled
+            ? cn(
+                'cursor-pointer',
+                'hover:brightness-110',
+                'hover:-translate-y-[2px]',
+                direction === 'left' && 'hover:-translate-x-1',
+                direction === 'right' && 'hover:translate-x-1'
+              )
+            : 'cursor-not-allowed opacity-30 grayscale',
+          className
+        )}
+        style={{
+          clipPath:
+            direction === 'left'
+              ? 'polygon(100% 0, 100% 100%, 0 50%)'
+              : 'polygon(0 0, 0 100%, 100% 50%)',
+          background: bg,
+          filter: `drop-shadow(0 12px 24px rgba(0,0,0,0.35)) ${outline}`,
+        }}
+        aria-label={label}
+      />
+    )
+  }
 
   const CarouselRow = ({
     title,
@@ -1724,6 +1731,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               disabled={!canPrev}
               onClick={() => setPage(Math.max(currentPage - 1, 0))}
               label="Previous"
+              kind={kind}
             />
 
             <div className="w-[calc((var(--card-width)*5)+(var(--card-gap)*4))] overflow-visible py-3">
@@ -1761,6 +1769,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               disabled={!canNext}
               onClick={() => setPage(Math.min(currentPage + 1, totalPages - 1))}
               label="Next"
+              kind={kind}
               className="mr-6"
             />
           </div>

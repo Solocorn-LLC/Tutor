@@ -1031,16 +1031,13 @@ export default function PublicTutorPage() {
               <div className="flex h-14 items-center justify-between bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white mb-4">
                 <div className="flex items-center gap-3">
                   <Link2 className="h-5 w-5" />
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-base font-semibold">Connect</span>
-                    <span className="text-xs text-white">Public profile and social channels.</span>
-                  </div>
+                  <span className="text-base font-semibold">Connect</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
+                    className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={() => void handleCopyPublicUrl()}
                     disabled={!publicUrl}
                   >
@@ -1051,7 +1048,7 @@ export default function PublicTutorPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
+                      className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                       onClick={() => void handleSharePublicUrl()}
                     >
                       <Share2 className="mr-1.5 h-3.5 w-3.5" />
@@ -1142,8 +1139,8 @@ export default function PublicTutorPage() {
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-base font-semibold text-slate-900">
-                          {item.label}{' '}
-                          <span className={cn('font-normal', item.muted ? 'text-slate-400' : 'text-slate-600')}>
+                          {item.label}
+                          <span className={cn('ml-2 font-normal', item.muted ? 'text-slate-400' : 'text-slate-600')}>
                             {item.value}
                           </span>
                         </div>
