@@ -416,6 +416,7 @@ export const POST = withCsrf(
                   .update(courseSchedule)
                   .set({
                     schedule: s.schedule || [],
+                    name: s.name ?? null,
                     weeksToSchedule: s.weeksToSchedule || 8,
                     maxStudents: s.maxStudents ?? null,
                     updatedAt: now,
@@ -426,6 +427,7 @@ export const POST = withCsrf(
                   scheduleId: crypto.randomUUID(),
                   courseId: publishedCourseId,
                   scheduleIndex: s.scheduleIndex || i + 1,
+                  name: s.name ?? null,
                   schedule: s.schedule || [],
                   weeksToSchedule: s.weeksToSchedule || 8,
                   maxStudents: s.maxStudents ?? null,
