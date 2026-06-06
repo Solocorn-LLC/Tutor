@@ -39,6 +39,7 @@ interface VariantScheduleEditorProps {
   onWheelScroll?: (deltaY: number) => void
   allVariantsSchedules?: ScheduleItem[][]
   excludedSchedules?: ScheduleItem[][]
+  siblingSchedules?: ScheduleItem[][]
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -110,6 +111,7 @@ export function VariantScheduleEditor({
   onWheelScroll,
   allVariantsSchedules,
   excludedSchedules,
+  siblingSchedules,
 }: VariantScheduleEditorProps) {
   const calendarScrollRef = useRef<HTMLDivElement>(null)
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
@@ -259,7 +261,23 @@ export function VariantScheduleEditor({
         }
       }
 
-      // 6. Check other variants for same day/time conflict
+      // 6. Check other schedules in the same variant for same day/time conflict
+      for (const siblingSchedule of siblingSchedules ?? []) {
+        for (const s of siblingSchedule) {
+          if (!s || s.dayOfWeek !== day) continue
+          if (s.date && s.date !== dateKey) continue
+          const [sh, sm] = (s.startTime || '00:00').split(':').map(Number)
+          const sStartM = sh * 60 + sm
+          const sEndM = sStartM + (s.durationMinutes || 60)
+          const cellStartM = timeToMinutes(timeStr)
+          const cellEndM = cellStartM + durationMinutes
+          if (cellStartM < sEndM && cellEndM > sStartM) {
+            return { available: false, reason: 'Already scheduled in another schedule' }
+          }
+        }
+      }
+
+      // 7. Check other variants for same day/time conflict
       for (const otherSchedule of allVariantsSchedules ?? []) {
         for (const s of otherSchedule) {
           if (!s || s.dayOfWeek !== day) continue
@@ -278,7 +296,7 @@ export function VariantScheduleEditor({
 
       return { available: true, reason: '' }
     },
-    [availabilityData, allVariantsSchedules, excludedSchedules]
+    [availabilityData, allVariantsSchedules, excludedSchedules, siblingSchedules]
   )
 
   const effectiveWeeks =

@@ -84,6 +84,7 @@ export const POST = withCsrf(
             scheduleId: crypto.randomUUID(),
             courseId,
             scheduleIndex: nextIndex,
+            name: body.name ?? null,
             schedule: body.schedule || [],
             weeksToSchedule: body.weeksToSchedule ?? 8,
             maxStudents: body.maxStudents ?? null,
@@ -126,6 +127,7 @@ export const PUT = withCsrf(
 
         const updateData: Record<string, unknown> = {}
         if (body.schedule !== undefined) updateData.schedule = body.schedule
+        if (body.name !== undefined) updateData.name = body.name
         if (body.weeksToSchedule !== undefined) updateData.weeksToSchedule = body.weeksToSchedule
         if (body.maxStudents !== undefined) updateData.maxStudents = body.maxStudents
 

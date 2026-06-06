@@ -186,6 +186,7 @@ export const courseSchedule = pgTable(
       .notNull()
       .references(() => course.courseId, { onDelete: 'cascade' }),
     scheduleIndex: integer('scheduleIndex').notNull().default(1),
+    name: text('name'),
     schedule: jsonb('schedule').notNull().default([]),
     weeksToSchedule: integer('weeksToSchedule').notNull().default(8),
     maxStudents: integer('maxStudents'),

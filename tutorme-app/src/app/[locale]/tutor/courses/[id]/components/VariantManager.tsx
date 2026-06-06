@@ -49,6 +49,7 @@ import { REGIONS } from '@/lib/data/tutor-categories'
 interface CourseScheduleConfig {
   scheduleId?: string
   scheduleIndex: number
+  name?: string | null
   schedule: ScheduleItem[]
   weeksToSchedule?: number
   maxStudents?: number | null
@@ -159,6 +160,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               ? v.schedules.map((s: any, i: number) => ({
                   scheduleId: typeof s.scheduleId === 'string' ? s.scheduleId : undefined,
                   scheduleIndex: typeof s.scheduleIndex === 'number' ? s.scheduleIndex : i + 1,
+                  name: typeof s.name === 'string' ? s.name : null,
                   schedule: Array.isArray(s.schedule) ? (s.schedule as ScheduleItem[]) : [],
                   weeksToSchedule: typeof s.weeksToSchedule === 'number' ? s.weeksToSchedule : 8,
                   maxStudents: typeof s.maxStudents === 'number' ? s.maxStudents : null,
@@ -166,6 +168,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               : Array.isArray(v.schedule) && v.schedule.length > 0
                 ? [{
                     scheduleIndex: 1,
+                    name: null,
                     schedule: v.schedule as ScheduleItem[],
                     weeksToSchedule: typeof v.weeksToSchedule === 'number' ? v.weeksToSchedule : 8,
                     maxStudents: null,
@@ -231,7 +234,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               currency: globalCurrency,
               languageOfInstruction: globalLanguage,
               schedules: Array.isArray(defaultSchedule) && defaultSchedule.length > 0
-                ? [{ scheduleIndex: 1, schedule: [...defaultSchedule], weeksToSchedule: 8, maxStudents: null }]
+                ? [{ scheduleIndex: 1, name: null, schedule: [...defaultSchedule], weeksToSchedule: 8, maxStudents: null }]
                 : [],
             })
             changed = true
@@ -659,9 +662,23 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                             <div className="flex items-center gap-3">
                               <Calendar className="h-5 w-5 text-indigo-500" />
                               <div>
-                                <p className="text-sm font-semibold text-slate-800">
-                                  Schedule {sch.scheduleIndex}
-                                </p>
+                                <input
+                                  type="text"
+                                  value={sch.name || ''}
+                                  onChange={e => {
+                                    const newName = e.target.value
+                                    updateVariant(index, v => {
+                                      const newSchedules = [...v.schedules]
+                                      newSchedules[schIdx] = {
+                                        ...newSchedules[schIdx],
+                                        name: newName || null,
+                                      }
+                                      return { ...v, schedules: newSchedules }
+                                    })
+                                  }}
+                                  placeholder={`Schedule ${sch.scheduleIndex}`}
+                                  className="w-full max-w-[200px] bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-b focus:border-indigo-300"
+                                />
                                 <p className="mt-0.5 text-xs text-slate-500">
                                   {Array.isArray(sch.schedule) && sch.schedule.length > 0
                                     ? (() => {
@@ -725,6 +742,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                   ...v.schedules,
                                   {
                                     scheduleIndex: nextIndex,
+                                    name: null,
                                     schedule: [],
                                     weeksToSchedule: 8,
                                     maxStudents: null,
@@ -814,7 +832,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               <DialogHeader className="p-0">
                 <DialogTitle>
                   {dialogVariant && dialogSchedule
-                    ? `Configure Schedule ${dialogSchedule.scheduleIndex} for ${dialogVariant.category} - ${dialogVariant.nationality}`
+                    ? `Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for ${dialogVariant.category} - ${dialogVariant.nationality}`
                     : 'Configure schedule'}
                 </DialogTitle>
                 <DialogDescription>
@@ -863,6 +881,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                     onWheelScroll={deltaY => {
                       modalContentRef.current?.scrollBy({ top: deltaY, behavior: 'auto' })
                     }}
+                    siblingSchedules={
+                      scheduleDialogVariantIndex != null && scheduleDialogScheduleIndex != null
+                        ? variants[scheduleDialogVariantIndex].schedules
+                            .filter((_, i) => i !== scheduleDialogScheduleIndex)
+                            .map(s => s.schedule)
+                        : undefined
+                    }
                     allVariantsSchedules={
                       scheduleDialogVariantIndex != null
                         ? variants
