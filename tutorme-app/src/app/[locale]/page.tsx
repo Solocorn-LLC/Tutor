@@ -1642,19 +1642,21 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       className={cn(
         'shrink-0 transition-all duration-300',
         'h-[clamp(220px,18vw,280px)] w-[clamp(44px,3.6vw,56px)]',
+        'flex items-center justify-center',
+        'rounded-2xl border border-white/20 bg-white/10 shadow-lg backdrop-blur-xl',
         !disabled
-          ? 'cursor-pointer bg-white/[0.15] drop-shadow-[0_10px_25px_rgba(0,0,0,0.30)] hover:bg-white/[0.25] hover:-translate-y-[2px] hover:drop-shadow-[0_14px_30px_rgba(0,0,0,0.40)]'
-          : 'cursor-not-allowed bg-white/[0.08] opacity-30 grayscale',
+          ? 'cursor-pointer hover:bg-white/20 hover:-translate-y-[2px] hover:shadow-xl'
+          : 'cursor-not-allowed opacity-30 grayscale',
         className
       )}
-      style={{
-        clipPath:
-          direction === 'left'
-            ? 'polygon(100% 0, 100% 100%, 0 50%)'
-            : 'polygon(0 0, 0 100%, 100% 50%)',
-      }}
       aria-label={label}
-    />
+    >
+      {direction === 'left' ? (
+        <ChevronLeft className="h-6 w-6 text-slate-600" />
+      ) : (
+        <ChevronRight className="h-6 w-6 text-slate-600" />
+      )}
+    </button>
   )
 
   const CarouselRow = ({
@@ -1706,7 +1708,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             />
 
             <div className="w-[calc((var(--card-width)*5)+(var(--card-gap)*4))] overflow-visible py-3">
-              <div className="grid grid-cols-5 gap-[var(--card-gap)]">
+              <div className="grid grid-cols-5 gap-5">
                 {visible.map((item: any, i: number) => (
                   <div key={item?.id || item?.__skeleton || i} className="w-[var(--card-width)]">
                     {item?.__skeleton ? (
