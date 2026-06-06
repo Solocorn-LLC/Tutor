@@ -413,6 +413,7 @@ export const POST = withCsrf(
               .select({
                 scheduleId: courseSchedule.scheduleId,
                 scheduleIndex: courseSchedule.scheduleIndex,
+                enrolledCount: courseSchedule.enrolledCount,
               })
               .from(courseSchedule)
               .where(eq(courseSchedule.courseId, publishedCourseId))
