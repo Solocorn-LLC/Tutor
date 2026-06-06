@@ -34,7 +34,10 @@ export async function enrollStudentInCourse(
   // Validate schedule and check capacity if scheduleId provided
   if (scheduleId) {
     const [scheduleRow] = await drizzleDb
-      .select()
+      .select({
+        maxStudents: courseSchedule.maxStudents,
+        enrolledCount: courseSchedule.enrolledCount,
+      })
       .from(courseSchedule)
       .where(and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId)))
       .limit(1)
