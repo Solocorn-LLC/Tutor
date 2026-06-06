@@ -28,17 +28,7 @@ export const GET = withAuth(
       }
 
       const rows = await drizzleDb
-        .select({
-          scheduleId: courseSchedule.scheduleId,
-          courseId: courseSchedule.courseId,
-          scheduleIndex: courseSchedule.scheduleIndex,
-          schedule: courseSchedule.schedule,
-          weeksToSchedule: courseSchedule.weeksToSchedule,
-          maxStudents: courseSchedule.maxStudents,
-          enrolledCount: courseSchedule.enrolledCount,
-          createdAt: courseSchedule.createdAt,
-          updatedAt: courseSchedule.updatedAt,
-        })
+        .select()
         .from(courseSchedule)
         .where(eq(courseSchedule.courseId, courseId))
         .orderBy(courseSchedule.scheduleIndex)
