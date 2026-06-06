@@ -1654,7 +1654,9 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             ? 'polygon(100% 0, 100% 100%, 0 50%)'
             : 'polygon(0 0, 0 100%, 100% 50%)',
         background:
-          'linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.12) 100%)',
+          'linear-gradient(135deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.32) 100%)',
+        filter:
+          'drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 4px rgba(255,255,255,0.7))',
       }}
       aria-label={label}
     />
@@ -1698,7 +1700,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             className="flex w-full items-center justify-center gap-[18px]"
             style={{
               ['--card-width' as any]: '240px',
-              ['--card-gap' as any]: '20px',
+              ['--card-gap' as any]: '32px',
             }}
           >
             <TriangleArrow
@@ -1709,7 +1711,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
             />
 
             <div className="w-[calc((var(--card-width)*5)+(var(--card-gap)*4))] overflow-visible py-3">
-              <div className="grid grid-cols-5 gap-5">
+              <div className="grid grid-cols-5 gap-8">
                 {visible.map((item: any, i: number) => (
                   <div key={item?.id || item?.__skeleton || i} className="w-[var(--card-width)]">
                     {item?.__skeleton ? (
@@ -1763,7 +1765,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
         backgroundSize: '36px 36px',
       }}
     >
-      <div className="mx-auto w-full max-w-[1400px] px-8 py-10">
+      <div className="mx-auto w-full max-w-[1536px] px-8 py-10">
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Select
             value={selectedRegion}
