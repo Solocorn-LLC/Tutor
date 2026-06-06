@@ -54,7 +54,15 @@ export const GET = withAuth(
       const variantIds = rows.map(r => r.publishedCourseId)
       const schedules = variantIds.length > 0
         ? await drizzleDb
-            .select()
+            .select({
+              scheduleId: courseSchedule.scheduleId,
+              courseId: courseSchedule.courseId,
+              scheduleIndex: courseSchedule.scheduleIndex,
+              schedule: courseSchedule.schedule,
+              weeksToSchedule: courseSchedule.weeksToSchedule,
+              maxStudents: courseSchedule.maxStudents,
+              enrolledCount: courseSchedule.enrolledCount,
+            })
             .from(courseSchedule)
             .where(inArray(courseSchedule.courseId, variantIds))
             .orderBy(courseSchedule.scheduleIndex)
@@ -402,7 +410,10 @@ export const POST = withCsrf(
             // Sync CourseSchedule rows for this published course
             const schedules = Array.isArray(v.schedules) ? v.schedules : []
             const existingSchedules = await tx
-              .select()
+              .select({
+                scheduleId: courseSchedule.scheduleId,
+                scheduleIndex: courseSchedule.scheduleIndex,
+              })
               .from(courseSchedule)
               .where(eq(courseSchedule.courseId, publishedCourseId))
               .orderBy(courseSchedule.scheduleIndex)
