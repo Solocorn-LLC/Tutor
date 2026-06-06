@@ -3825,7 +3825,7 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => setHowItWorksOpen(true)}
-              className="group relative mt-[22px] min-w-[140px] overflow-hidden rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white shadow-md backdrop-blur-sm transition-colors hover:bg-white/90 hover:text-blue-700 focus-visible:!shadow-none focus:outline-none"
+              className="group relative mt-[22px] min-w-[140px] overflow-hidden rounded-full border border-white/20 bg-transparent px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-transparent focus-visible:!shadow-none focus:outline-none"
             >
               <span className="block transition-opacity duration-300 group-hover:opacity-0">
                 How It Works
