@@ -72,6 +72,7 @@ export const GET = withAuth(
         schedules: (schedulesByCourse.get(r.publishedCourseId) || []).map(s => ({
           scheduleId: s.scheduleId,
           scheduleIndex: s.scheduleIndex,
+          name: s.name,
           schedule: s.schedule,
           weeksToSchedule: s.weeksToSchedule,
           maxStudents: s.maxStudents,
