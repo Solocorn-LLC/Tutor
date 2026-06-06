@@ -1,4 +1,4 @@
-import { eq, inArray, desc } from 'drizzle-orm'
+import { eq, inArray, desc, isNull, and } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   contentProgress,
@@ -68,7 +68,7 @@ export async function fetchLessonProgress(studentId: string): Promise<ProgressIt
       order: courseLesson.order,
     })
     .from(courseLesson)
-    .where(inArray(courseLesson.courseId, courseIds))
+    .where(and(inArray(courseLesson.courseId, courseIds), isNull(courseLesson.deletedAt)))
 
   const allLessonIds = lessons.map(l => l.lessonId)
   if (allLessonIds.length === 0) return []
@@ -143,7 +143,7 @@ export async function fetchCourseProgress(studentId: string): Promise<ProgressIt
             courseId: courseLesson.courseId,
           })
           .from(courseLesson)
-          .where(inArray(courseLesson.courseId, courseIds))
+          .where(and(inArray(courseLesson.courseId, courseIds), isNull(courseLesson.deletedAt)))
       : []
 
   const lessonsByCourse = new Map<string, number>()
@@ -199,7 +199,7 @@ export async function fetchTaskProgress(studentId: string): Promise<ProgressItem
     })
     .from(taskSubmission)
     .innerJoin(builderTask, eq(taskSubmission.taskId, builderTask.taskId))
-    .where(eq(taskSubmission.studentId, studentId))
+    .where(and(eq(taskSubmission.studentId, studentId), isNull(builderTask.deletedAt)))
     .orderBy(desc(taskSubmission.submittedAt))
 
   return rows.map(row => {

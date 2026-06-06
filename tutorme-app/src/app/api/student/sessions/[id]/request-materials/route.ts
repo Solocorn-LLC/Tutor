@@ -46,4 +46,4 @@ export const POST = withAuth(async (req, sessionObj, context) => {
     console.error('Failed to notify tutor:', err)
     return NextResponse.json({ error: 'Failed to send request' }, { status: 500 })
   }
-})
+}, { role: 'STUDENT' })

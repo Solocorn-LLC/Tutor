@@ -91,4 +91,4 @@ export const GET = withAuth(async (req, session, context) => {
       { status: 500 }
     )
   }
-})
+}, { role: 'STUDENT' })

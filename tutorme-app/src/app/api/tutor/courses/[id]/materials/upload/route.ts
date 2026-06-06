@@ -9,7 +9,7 @@ import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/mi
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { convertToEditable, convertTopicsToEditable } from '@/lib/agents/course-materials-service'
 
 const TYPES = ['course', 'notes', 'topics'] as const
@@ -69,11 +69,13 @@ export const POST = withCsrf(
         }
       }
 
-      // courseMaterials column doesn't exist - skip saving
-      // await drizzleDb
-      //   .update(course)
-      //   .set({ courseMaterials: materials as object })
-      //   .where(eq(course.courseId, id))
+      // Merge new material keys into existing courseMaterials JSONB (preserving other keys)
+      await drizzleDb
+        .update(course)
+        .set({
+          courseMaterials: sql`COALESCE("courseMaterials", '{}'::jsonb) || ${JSON.stringify(materials)}::jsonb`,
+        })
+        .where(eq(course.courseId, id))
 
       return NextResponse.json({
         type,

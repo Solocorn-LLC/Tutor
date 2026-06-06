@@ -277,3 +277,16 @@ END $$;
 -- TutorAsset fileKey column (for GCS URL refresh)
 -- ============================================
 ALTER TABLE "TutorAsset" ADD COLUMN IF NOT EXISTS "fileKey" text;
+
+-- ============================================
+-- CourseSchedule column completeness (migration 0050/0051 drift)
+-- If CourseSchedule existed before 0050 was written, CREATE TABLE IF NOT EXISTS
+-- silently skipped — leaving enrolledCount, weeksToSchedule, and name missing.
+-- ============================================
+ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "enrolledCount" integer NOT NULL DEFAULT 0;
+ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "weeksToSchedule" integer NOT NULL DEFAULT 8;
+ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "name" text;
+CREATE UNIQUE INDEX IF NOT EXISTS "CourseSchedule_courseId_scheduleIndex_key"
+  ON "CourseSchedule"("courseId", "scheduleIndex");
+CREATE INDEX IF NOT EXISTS "CourseSchedule_courseId_idx"
+  ON "CourseSchedule"("courseId");

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { liveSession, courseEnrollment } from '@/lib/db/schema'
+import { eq, desc, and, isNotNull } from 'drizzle-orm'
+import { notify } from '@/lib/notifications/notify'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -19,6 +20,39 @@ function checkBasicAuth(req: NextRequest): boolean {
   return decoded === expected
 }
 
+async function findSessionByRoom(roomName: string) {
+  const [row] = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      tutorId: liveSession.tutorId,
+      courseId: liveSession.courseId,
+      roomId: liveSession.roomId,
+      title: liveSession.title,
+      status: liveSession.status,
+    })
+    .from(liveSession)
+    .where(eq(liveSession.roomId, roomName))
+    .orderBy(desc(liveSession.scheduledAt))
+    .limit(1)
+  return row ?? null
+}
+
+async function callAdk(path: string, payload: Record<string, unknown>) {
+  const adkBaseUrl = process.env.ADK_BASE_URL?.trim()
+  const adkToken = process.env.ADK_AUTH_TOKEN
+  if (!adkBaseUrl || !adkToken) return
+  try {
+    await fetch(`${adkBaseUrl.replace(/\/$/, '')}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adkToken}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch {}
+}
+
 export async function POST(req: NextRequest) {
   if (!checkBasicAuth(req)) return unauthorized()
 
@@ -30,46 +64,81 @@ export async function POST(req: NextRequest) {
   }
 
   const type = body?.type
-  if (type !== 'transcript.started') return NextResponse.json({ ok: true })
 
-  const roomName = body?.payload?.room_name
-  const transcriptId = body?.payload?.id
+  // ── transcript.started ──────────────────────────────────────────────
+  if (type === 'transcript.started') {
+    const roomName = body?.payload?.room_name
+    const transcriptId = body?.payload?.id
+    if (!roomName || !transcriptId) return NextResponse.json({ ok: true })
 
-  if (!roomName || !transcriptId) return NextResponse.json({ ok: true })
+    const sessionRow = await findSessionByRoom(roomName)
+    if (!sessionRow?.sessionId || !sessionRow?.tutorId) return NextResponse.json({ ok: true })
 
-  const [sessionRow] = await drizzleDb
-    .select({
-      sessionId: liveSession.sessionId,
-      tutorId: liveSession.tutorId,
-      roomId: liveSession.roomId,
-      status: liveSession.status,
+    await callAdk('/v1/live-transcription/transcript-started', {
+      sessionId: sessionRow.sessionId,
+      tutorId: sessionRow.tutorId,
+      roomName,
+      transcriptId,
     })
-    .from(liveSession)
-    .where(eq(liveSession.roomId, roomName))
-    .orderBy(desc(liveSession.scheduledAt))
-    .limit(1)
 
-  if (!sessionRow?.sessionId || !sessionRow?.tutorId) return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true })
+  }
 
-  const adkBaseUrl = process.env.ADK_BASE_URL?.trim()
-  const adkToken = process.env.ADK_AUTH_TOKEN
-  if (!adkBaseUrl || !adkToken) return NextResponse.json({ ok: true })
+  // ── recording.ready ─────────────────────────────────────────────────
+  if (type === 'recording.ready') {
+    const roomName = body?.payload?.room_name
+    const recordingId = body?.payload?.id
+    const downloadUrl = body?.payload?.download_url as string | undefined
+    const duration = body?.payload?.duration as number | undefined
 
-  try {
-    await fetch(`${adkBaseUrl.replace(/\/$/, '')}/v1/live-transcription/transcript-started`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${adkToken}`,
-      },
-      body: JSON.stringify({
-        sessionId: sessionRow.sessionId,
-        tutorId: sessionRow.tutorId,
-        roomName,
-        transcriptId,
-      }),
+    if (!roomName || !recordingId) return NextResponse.json({ ok: true })
+
+    const sessionRow = await findSessionByRoom(roomName)
+    if (!sessionRow?.sessionId) return NextResponse.json({ ok: true })
+
+    // Persist recording URL on the live session
+    if (downloadUrl) {
+      await drizzleDb
+        .update(liveSession)
+        .set({
+          recordingUrl: downloadUrl,
+          recordingAvailableAt: new Date(),
+        })
+        .where(eq(liveSession.sessionId, sessionRow.sessionId))
+    }
+
+    // Trigger artifact generation pipeline in ADK
+    await callAdk('/v1/recordings/ready', {
+      sessionId: sessionRow.sessionId,
+      tutorId: sessionRow.tutorId,
+      roomName,
+      recordingId,
+      downloadUrl,
+      durationSeconds: duration,
     })
-  } catch {}
+
+    // Notify all enrolled students that the recording is available
+    if (sessionRow.courseId) {
+      const enrollments = await drizzleDb
+        .select({ studentId: courseEnrollment.studentId })
+        .from(courseEnrollment)
+        .where(eq(courseEnrollment.courseId, sessionRow.courseId))
+
+      await Promise.allSettled(
+        enrollments.map(e =>
+          notify({
+            userId: e.studentId,
+            type: 'class',
+            title: 'Session Recording Ready',
+            message: `The recording for "${sessionRow.title ?? 'your session'}" is now available.`,
+            actionUrl: `/student/courses/${sessionRow.courseId}/sessions`,
+          })
+        )
+      )
+    }
+
+    return NextResponse.json({ ok: true })
+  }
 
   return NextResponse.json({ ok: true })
 }

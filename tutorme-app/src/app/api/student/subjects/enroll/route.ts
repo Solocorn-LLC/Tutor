@@ -144,7 +144,7 @@ export const POST = withCsrf(
       enrollment: enrollment!,
       message: `Enrolled in ${subjectInfo.name}`,
     })
-  })
+  }, { role: 'STUDENT' })
 )
 
 async function createDefaultLessons(courseId: string, subjectCode: string) {

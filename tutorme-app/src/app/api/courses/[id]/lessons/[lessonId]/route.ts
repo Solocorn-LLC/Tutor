@@ -32,9 +32,7 @@ export const GET = withAuth(
       if (!lessonRecord) {
         throw new NotFoundError('Lesson not found')
       }
-      // moduleId removed from courseLesson; use alternative approach
-      // Try to get courseId from lesson metadata or use empty
-      const courseId = ''
+      const courseId = lessonRecord.courseId ?? ''
       const nextLesson = courseId ? await getNextLesson(session.user.id, courseId) : null
       return NextResponse.json({ nextLesson })
     }

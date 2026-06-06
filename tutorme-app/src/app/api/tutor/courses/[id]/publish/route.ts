@@ -152,31 +152,41 @@ function generateSessionDates(
     const targetDay = DAY_MAP[slot.dayOfWeek]
     if (targetDay === undefined) continue
 
-    const [hours, minutes] = slot.startTime.split(':').map(Number)
-    if (hours === undefined || minutes === undefined) continue
+    // Validate time format: must be "HH:MM" with valid ranges
+    const timeParts = (slot.startTime ?? '').split(':')
+    if (timeParts.length !== 2) continue
+    const hours = parseInt(timeParts[0], 10)
+    const minutes = parseInt(timeParts[1], 10)
+    if (
+      !Number.isInteger(hours) || !Number.isInteger(minutes) ||
+      hours < 0 || hours > 23 || minutes < 0 || minutes > 59
+    ) continue
 
     if (slot.date) {
       // Manual specific date
-      const [year, month, day] = slot.date.split('-').map(Number)
-      if (year && month && day) {
-        const sessionDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
-        sessions.push({
-          scheduledAt: sessionDate,
-          title: `Live Session — ${slot.date} ${slot.startTime}`,
-          durationMinutes: slot.durationMinutes || 60,
-        })
-      }
+      const dateParts = slot.date.split('-').map(Number)
+      const [year, month, day] = dateParts
+      if (!year || !month || !day) continue
+      const sessionDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
+      if (isNaN(sessionDate.getTime())) continue
+      // Skip sessions already in the past (within the next hour cutoff)
+      if (sessionDate.getTime() < Date.now() + 60 * 60 * 1000) continue
+      sessions.push({
+        scheduledAt: sessionDate,
+        title: `Live Session — ${slot.date} ${slot.startTime}`,
+        durationMinutes: slot.durationMinutes || 60,
+      })
       continue
     }
 
-    // Find the next occurrence of this day
+    // Find the next occurrence of this day (relative to today, in server local time)
     const cursor = new Date(today)
     const daysUntil = (targetDay - cursor.getDay() + 7) % 7
     cursor.setDate(cursor.getDate() + daysUntil)
     cursor.setHours(hours, minutes, 0, 0)
 
-    // If the time already passed today, start from next week
-    if (cursor < new Date()) {
+    // If the time already passed today or is less than 1 hour away, start from next week
+    if (cursor.getTime() < Date.now() + 60 * 60 * 1000) {
       cursor.setDate(cursor.getDate() + 7)
     }
 
@@ -184,6 +194,7 @@ function generateSessionDates(
     for (let w = 0; w < weeksAhead; w++) {
       const sessionDate = new Date(cursor)
       sessionDate.setDate(cursor.getDate() + w * 7)
+      if (isNaN(sessionDate.getTime())) continue
       sessions.push({
         scheduledAt: sessionDate,
         title: `Live Session — ${slot.dayOfWeek} ${slot.startTime}`,

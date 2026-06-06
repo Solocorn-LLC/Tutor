@@ -243,4 +243,4 @@ export const GET = withAuth(async (request, session) => {
   }
 
   return NextResponse.json({ directory, errors })
-})
+}, { role: 'STUDENT' })

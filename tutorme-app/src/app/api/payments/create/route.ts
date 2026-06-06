@@ -24,8 +24,14 @@ import {
   oneOnOneBookingRequest,
 } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { createHash } from 'crypto'
+
+function makeIdempotencyKey(parts: string[]): string {
+  const bucket = Math.floor(Date.now() / (5 * 60 * 1000))
+  return createHash('sha256').update([...parts, String(bucket)].join(':')).digest('hex')
+}
 
 const createPaymentSchema = z
   .strictObject({
@@ -132,21 +138,17 @@ export const POST = withCsrf(
 
       const gateway = getPaymentGateway(gatewayName)
 
-      const pendingCoursePayments = await drizzleDb
+      const courseIdempotencyKey = makeIdempotencyKey([payerStudentId, 'course', courseId])
+      const [existingPayment] = await drizzleDb
         .select()
         .from(payment)
         .where(
           and(
-            isNull(payment.bookingId),
             eq(payment.status, 'PENDING'),
-            eq(payment.gateway, gatewayName)
+            sql`${payment.metadata}->>'idempotencyKey' = ${courseIdempotencyKey}`
           )
         )
-        .limit(50)
-      const existingPayment = pendingCoursePayments.find(p => {
-        const m = p.metadata as Record<string, unknown> | null
-        return m?.type === 'course' && m?.courseId === courseId && m?.studentId === payerStudentId
-      })
+        .limit(1)
       if (existingPayment?.gatewayCheckoutUrl) {
         return NextResponse.json({
           checkoutUrl: existingPayment.gatewayCheckoutUrl,
@@ -192,6 +194,7 @@ export const POST = withCsrf(
             payerId: session.user.id,
             payerRole: session.user.role,
             startDate: customMetadata?.startDate,
+            idempotencyKey: courseIdempotencyKey,
           },
         })
       })
@@ -261,19 +264,23 @@ export const POST = withCsrf(
 
       const gateway = getPaymentGateway(gatewayName)
 
-      const pendingPayments = await drizzleDb
+      const oo1IdempotencyKey = createHash('sha256')
+        .update(`${payerStudentId}:one-on-one:${oneOnOneRequestId}`)
+        .digest('hex')
+      const [existingOo1Payment] = await drizzleDb
         .select()
         .from(payment)
-        .where(and(isNull(payment.bookingId), eq(payment.status, 'PENDING')))
-        .limit(50)
-      const existingPayment = pendingPayments.find(p => {
-        const m = p.metadata as Record<string, unknown> | null
-        return m?.type === 'one-on-one' && m?.requestId === oneOnOneRequestId
-      })
-      if (existingPayment?.gatewayCheckoutUrl) {
+        .where(
+          and(
+            eq(payment.status, 'PENDING'),
+            sql`${payment.metadata}->>'idempotencyKey' = ${oo1IdempotencyKey}`
+          )
+        )
+        .limit(1)
+      if (existingOo1Payment?.gatewayCheckoutUrl) {
         return NextResponse.json({
-          checkoutUrl: existingPayment.gatewayCheckoutUrl,
-          paymentId: existingPayment.paymentId,
+          checkoutUrl: existingOo1Payment.gatewayCheckoutUrl,
+          paymentId: existingOo1Payment.paymentId,
         })
       }
 
@@ -319,6 +326,7 @@ export const POST = withCsrf(
             studentId: payerStudentId,
             payerId: session.user.id,
             payerRole: session.user.role,
+            idempotencyKey: oo1IdempotencyKey,
           },
         })
       })

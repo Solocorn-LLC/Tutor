@@ -268,7 +268,9 @@ export const DELETE = withAuth(
       }
 
       let refundedPayments = 0
+      let pendingRefundPayments = 0
       let refundFailedPayments = 0
+      const failedPaymentIds: string[] = []
 
       if (courseRow.isPublished && enrolledStudentIds.length > 0) {
         const payments = await drizzleDb
@@ -310,10 +312,10 @@ export const DELETE = withAuth(
                 throw new Error(refundResponse.error)
               }
 
-              const refundStatus =
+              const isSettled =
                 refundResponse.status === 'succeeded' || refundResponse.status === 'RECEIVED'
-                  ? 'COMPLETED'
-                  : 'PENDING'
+              const refundStatus = isSettled ? 'COMPLETED' : 'PENDING'
+
               const refundId = crypto.randomUUID()
               await drizzleDb.insert(refund).values({
                 refundId,
@@ -322,35 +324,46 @@ export const DELETE = withAuth(
                 reason: 'course_deleted',
                 status: refundStatus,
                 gatewayRefundId: refundResponse.refundId,
-                processedAt:
-                  refundResponse.status === 'succeeded' || refundResponse.status === 'RECEIVED'
-                    ? new Date()
-                    : null,
+                processedAt: isSettled ? new Date() : null,
               })
 
-              await drizzleDb
-                .update(payment)
-                .set({
-                  status: 'REFUNDED',
-                  refundedAt: new Date(),
-                })
-                .where(eq(payment.paymentId, p.paymentId))
+              // Only mark the payment as REFUNDED when the gateway confirms it is settled.
+              // When the refund is still PENDING, leave the payment as COMPLETED so a
+              // subsequent webhook (e.g. hitpay/airwallex refund.succeeded) can update it.
+              if (isSettled) {
+                await drizzleDb
+                  .update(payment)
+                  .set({ status: 'REFUNDED', refundedAt: new Date() })
+                  .where(eq(payment.paymentId, p.paymentId))
+              }
 
-              return true
+              return { settled: isSettled }
             })
           )
 
-          results.forEach(r => {
-            if (r.status === 'fulfilled') refundedPayments += 1
-            else refundFailedPayments += 1
+          results.forEach((r, i) => {
+            if (r.status === 'fulfilled') {
+              if (r.value.settled) refundedPayments += 1
+              else pendingRefundPayments += 1
+            } else {
+              refundFailedPayments += 1
+              failedPaymentIds.push(batch[i].paymentId)
+            }
           })
         }
 
         try {
-          const message =
-            refundFailedPayments > 0
-              ? 'Your tutor removed this course. Refunds for paid enrollments are being processed. If you do not receive a refund, please contact support.'
-              : 'Your tutor removed this course. Refunds for paid enrollments have been initiated automatically and will be returned to your original payment method.'
+          let message: string
+          if (refundFailedPayments > 0) {
+            message =
+              'Your tutor removed this course. Some refunds could not be processed automatically — please contact support with your order details.'
+          } else if (pendingRefundPayments > 0) {
+            message =
+              'Your tutor removed this course. Refunds are being processed and will be returned to your original payment method within a few business days.'
+          } else {
+            message =
+              'Your tutor removed this course. Refunds for paid enrollments have been initiated automatically and will be returned to your original payment method.'
+          }
           await notifyMany({
             userIds: enrolledStudentIds,
             type: 'payment',
@@ -389,8 +402,10 @@ export const DELETE = withAuth(
 
       return NextResponse.json({
         message: 'Course deleted successfully',
-        refundsInitiated: refundedPayments,
+        refundsCompleted: refundedPayments,
+        refundsPending: pendingRefundPayments,
         refundsFailed: refundFailedPayments,
+        failedPaymentIds,
         enrolledCount: enrolledStudentIds.length,
       })
     } catch (error) {

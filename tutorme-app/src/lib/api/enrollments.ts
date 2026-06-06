@@ -14,6 +14,9 @@ export interface EnrollmentResult {
 /**
  * Enroll a student in a course. Shared logic used by both
  * POST /api/student/enrollments and POST /api/courses/[courseId]/enroll.
+ *
+ * Atomicity guarantee: the duplicate check, capacity enforcement, and all inserts
+ * are performed inside a single DB transaction to prevent race conditions.
  */
 export async function enrollStudentInCourse(
   studentId: string,
@@ -31,27 +34,7 @@ export async function enrollStudentInCourse(
     throw new NotFoundError('Course not found')
   }
 
-  // Validate schedule and check capacity if scheduleId provided
-  if (scheduleId) {
-    const [scheduleRow] = await drizzleDb
-      .select({
-        maxStudents: courseSchedule.maxStudents,
-        enrolledCount: courseSchedule.enrolledCount,
-      })
-      .from(courseSchedule)
-      .where(and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId)))
-      .limit(1)
-
-    if (!scheduleRow) {
-      throw new NotFoundError('Schedule not found for this course')
-    }
-
-    if (scheduleRow.maxStudents != null && scheduleRow.enrolledCount >= scheduleRow.maxStudents) {
-      throw new Error('This schedule is full')
-    }
-  }
-
-  // Payment check for paid courses
+  // Payment check for paid courses (read-only, safe outside transaction)
   if (!courseRow.isFree && courseRow.price && courseRow.price > 0) {
     const [paymentRow] = await drizzleDb
       .select({ paymentId: payment.paymentId })
@@ -88,31 +71,41 @@ export async function enrollStudentInCourse(
         .where(eq(courseLesson.courseId, courseId))
     )[0]?.count ?? 0
 
-  const [existingEnrollment] = await drizzleDb
-    .select()
-    .from(courseEnrollment)
-    .where(and(eq(courseEnrollment.studentId, studentId), eq(courseEnrollment.courseId, courseId)))
-    .limit(1)
-
-  const [existingProgress] = await drizzleDb
-    .select()
-    .from(courseProgress)
-    .where(and(eq(courseProgress.studentId, studentId), eq(courseProgress.courseId, courseId)))
-    .limit(1)
-
-  if (existingEnrollment || existingProgress) {
-    return {
-      success: true,
-      message: 'Already enrolled',
-      enrollment: existingEnrollment,
-      progress: existingProgress,
-    }
-  }
-
   const enrollmentId = crypto.randomUUID()
   const progressId = crypto.randomUUID()
 
+  let alreadyEnrolled = false
+
   await drizzleDb.transaction(async tx => {
+    // Check for existing enrollment inside the transaction to prevent duplicate inserts
+    const [existingEnrollment] = await tx
+      .select({ enrollmentId: courseEnrollment.enrollmentId })
+      .from(courseEnrollment)
+      .where(and(eq(courseEnrollment.studentId, studentId), eq(courseEnrollment.courseId, courseId)))
+      .limit(1)
+
+    if (existingEnrollment) {
+      alreadyEnrolled = true
+      return
+    }
+
+    // Atomic capacity increment: only succeeds if enrolledCount < maxStudents.
+    // This prevents race conditions where two concurrent requests both pass a
+    // pre-transaction capacity check and both enroll, exceeding the limit.
+    if (scheduleId) {
+      const updated = await tx.execute(
+        sql`UPDATE "CourseSchedule"
+            SET "enrolledCount" = "enrolledCount" + 1
+            WHERE id = ${scheduleId}
+              AND "courseId" = ${courseId}
+              AND ("maxStudents" IS NULL OR "enrolledCount" < "maxStudents")
+            RETURNING id`
+      )
+      if (!updated.rows.length) {
+        throw new Error('This schedule is full')
+      }
+    }
+
     await tx.insert(courseEnrollment).values({
       enrollmentId,
       studentId,
@@ -130,17 +123,26 @@ export async function enrollStudentInCourse(
       totalLessons,
       isCompleted: false,
     })
-
-    // Increment enrolled count for the schedule
-    if (scheduleId) {
-      await tx
-        .update(courseSchedule)
-        .set({
-          enrolledCount: sql`${courseSchedule.enrolledCount} + 1`,
-        })
-        .where(eq(courseSchedule.scheduleId, scheduleId))
-    }
   })
+
+  if (alreadyEnrolled) {
+    const [existingEnrollment] = await drizzleDb
+      .select()
+      .from(courseEnrollment)
+      .where(and(eq(courseEnrollment.studentId, studentId), eq(courseEnrollment.courseId, courseId)))
+      .limit(1)
+    const [existingProgress] = await drizzleDb
+      .select()
+      .from(courseProgress)
+      .where(and(eq(courseProgress.studentId, studentId), eq(courseProgress.courseId, courseId)))
+      .limit(1)
+    return {
+      success: true,
+      message: 'Already enrolled',
+      enrollment: existingEnrollment,
+      progress: existingProgress,
+    }
+  }
 
   const [enrollment] = await drizzleDb
     .select()

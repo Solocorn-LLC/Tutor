@@ -38,7 +38,7 @@ export const POST = withAuth(async (req, session) => {
     }
     throw error
   }
-})
+}, { role: 'STUDENT' })
 
 export const GET = withAuth(async (req, session) => {
   const enrollmentsRows = await drizzleDb
@@ -90,4 +90,4 @@ export const GET = withAuth(async (req, session) => {
   }))
 
   return NextResponse.json({ enrollments })
-})
+}, { role: 'STUDENT' })

@@ -64,4 +64,4 @@ export const GET = withAuth(async (req, session) => {
       : null,
     progress: progress ?? null,
   })
-})
+}, { role: 'STUDENT' })

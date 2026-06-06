@@ -1,14 +1,15 @@
 /**
  * POST /api/tutor/courses/[id]/schedule/populate-from-outline
- * Fill class schedule from course outline (one slot per outline item). Tutor-only.
+ * Generate class schedule slots from the course's stored materials outline. Tutor-only.
  */
 
 import { NextResponse } from 'next/server'
-import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, NotFoundError, ValidationError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { generateCourseOutlineFromCourse } from '@/lib/agents/course-materials-service'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -19,23 +20,56 @@ export const POST = withCsrf(
       if (!id) return NextResponse.json({ error: 'Course ID required' }, { status: 400 })
 
       const [courseRow] = await drizzleDb
-        .select({ schedule: course.schedule })
+        .select({
+          courseMaterials: course.courseMaterials,
+          languageOfInstruction: course.languageOfInstruction,
+        })
         .from(course)
         .where(eq(course.courseId, id))
       if (!courseRow) throw new NotFoundError('Course not found')
 
-      // Note: courseMaterials column doesn't exist - outline generation needs to be reimplemented
-      // For now, return an error suggesting manual schedule creation
-      return NextResponse.json(
-        {
-          error:
-            'Outline-based schedule population is not available. Please create schedule manually.',
-        },
-        { status: 400 }
-      )
+      const materials = courseRow.courseMaterials as Record<string, string> | null
+      const courseText = materials?.courseText ?? materials?.editableCourse ?? ''
+      if (!courseText) {
+        throw new ValidationError(
+          'No course materials found. Upload course content first via the materials upload endpoint.'
+        )
+      }
 
-      // Code below is unreachable due to early return above
-      // Kept for reference when reimplementing outline-based schedule population
+      const body = await req.json().catch(() => ({}))
+      const typicalLessonMinutes: number =
+        typeof body.typicalLessonMinutes === 'number' ? body.typicalLessonMinutes : 60
+      const preferredDay: string =
+        typeof body.preferredDay === 'string' && DAYS.includes(body.preferredDay)
+          ? body.preferredDay
+          : 'Monday'
+
+      const { outline } = await generateCourseOutlineFromCourse({
+        courseText,
+        typicalLessonMinutes,
+        language: courseRow.languageOfInstruction ?? 'en',
+      })
+
+      if (!outline.length) {
+        return NextResponse.json(
+          { error: 'Could not extract lessons from course materials. Try uploading clearer content.' },
+          { status: 422 }
+        )
+      }
+
+      // Build schedule items: one slot per lesson, all on the same preferred weekday
+      const scheduleItems = outline.map(lesson => ({
+        dayOfWeek: preferredDay,
+        startTime: '09:00',
+        durationMinutes: lesson.durationMinutes,
+        title: lesson.title,
+      }))
+
+      return NextResponse.json({
+        schedule: scheduleItems,
+        lessonCount: scheduleItems.length,
+        message: `Generated ${scheduleItems.length} schedule slot(s) from course outline.`,
+      })
     },
     { role: 'TUTOR' }
   )

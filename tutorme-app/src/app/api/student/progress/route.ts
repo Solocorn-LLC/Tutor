@@ -143,7 +143,7 @@ export const GET = withAuth(async (req: NextRequest, session) => {
     console.error('Failed to fetch student progress:', error)
     return handleApiError(error, 'Failed to fetch progress', 'api/student/progress/route.ts')
   }
-})
+}, { role: 'STUDENT' })
 
 function countFrequency(items: string[]): Array<{ topic: string; count: number }> {
   const freq: Record<string, number> = {}
