@@ -42,7 +42,6 @@ export const course = pgTable(
     currency: text('currency'),
     isFree: boolean('isFree').notNull().default(false),
     schedule: jsonb('schedule'),
-    courseMaterials: jsonb('courseMaterials'),
     deletedAt: timestamp('deletedAt', { withTimezone: true }),
   },
   table => ({

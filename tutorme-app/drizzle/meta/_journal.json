@@ -369,22 +369,15 @@
     {
       "idx": 52,
       "version": "7",
-      "when": 1751800000000,
-      "tag": "0052_add_course_materials",
+      "when": 1751801000000,
+      "tag": "0052_add_missing_indexes",
       "breakpoints": true
     },
     {
       "idx": 53,
       "version": "7",
-      "when": 1751801000000,
-      "tag": "0053_add_missing_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 54,
-      "version": "7",
       "when": 1751802000000,
-      "tag": "0054_fix_course_schedule_columns",
+      "tag": "0053_fix_course_schedule_columns",
       "breakpoints": true
     }
   ]

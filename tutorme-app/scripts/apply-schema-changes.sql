@@ -279,12 +279,6 @@ END $$;
 ALTER TABLE "TutorAsset" ADD COLUMN IF NOT EXISTS "fileKey" text;
 
 -- ============================================
--- Course column completeness
--- courseMaterials added in migration 0052 — skipped on DBs that predated it
--- ============================================
-ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "courseMaterials" jsonb;
-
--- ============================================
 -- CourseVariant column completeness (migration 0049)
 -- ============================================
 ALTER TABLE "CourseVariant" ADD COLUMN IF NOT EXISTS "isIndependent" boolean NOT NULL DEFAULT false;

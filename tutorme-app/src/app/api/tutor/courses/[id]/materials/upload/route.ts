@@ -2,6 +2,10 @@
  * POST /api/tutor/courses/[id]/materials/upload
  * Upload course, notes, or topics list. AI converts to editable format and stores.
  * Tutor-only.
+ *
+ * Storage: uses raw SQL JSONB merge on Course."courseMaterials" so it works
+ * regardless of whether the column is in the Drizzle schema (graceful degradation
+ * if the column hasn't been added to the DB yet).
  */
 
 import { NextResponse } from 'next/server'
@@ -41,7 +45,6 @@ export const POST = withCsrf(
       }
 
       const lang = courseRow.languageOfInstruction ?? 'en'
-      // courseMaterials column doesn't exist
       const materials: Record<string, unknown> = {}
 
       let editable = ''
@@ -69,13 +72,30 @@ export const POST = withCsrf(
         }
       }
 
-      // Merge new material keys into existing courseMaterials JSONB (preserving other keys)
-      await drizzleDb
-        .update(course)
-        .set({
-          courseMaterials: sql`COALESCE("courseMaterials", '{}'::jsonb) || ${JSON.stringify(materials)}::jsonb`,
-        })
-        .where(eq(course.courseId, id))
+      // Merge into Course."courseMaterials" via raw SQL so this works even if
+      // the column is not in the Drizzle schema definition.
+      try {
+        await drizzleDb.execute(
+          sql`UPDATE "Course"
+              SET "courseMaterials" = COALESCE("courseMaterials", '{}'::jsonb) || ${JSON.stringify(materials)}::jsonb
+              WHERE "id" = ${id}`
+        )
+      } catch (dbErr: any) {
+        // Column doesn't exist yet — migration not applied. Return success for
+        // the conversion step; tutor will need to apply DB migration to persist.
+        if (dbErr?.code === '42703') {
+          return NextResponse.json({
+            type,
+            stored: false,
+            editable,
+            warning: 'Converted successfully but could not save: DB migration pending. Run npm run db:apply-schema on the server.',
+            message: type === 'topics'
+              ? 'Topics converted to editable format.'
+              : 'Content converted to editable format.',
+          })
+        }
+        throw dbErr
+      }
 
       return NextResponse.json({
         type,

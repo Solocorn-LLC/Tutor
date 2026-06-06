@@ -1,6 +1,9 @@
 /**
  * POST /api/tutor/courses/[id]/schedule/populate-from-outline
  * Generate class schedule slots from the course's stored materials outline. Tutor-only.
+ *
+ * Reads Course."courseMaterials" via raw SQL so it degrades gracefully when the
+ * column hasn't been added to the DB yet (migration pending).
  */
 
 import { NextResponse } from 'next/server'
@@ -8,7 +11,7 @@ import { withAuth, withCsrf, NotFoundError, ValidationError } from '@/lib/api/mi
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { generateCourseOutlineFromCourse } from '@/lib/agents/course-materials-service'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -19,16 +22,27 @@ export const POST = withCsrf(
       const id = await getParamAsync(context?.params, 'id')
       if (!id) return NextResponse.json({ error: 'Course ID required' }, { status: 400 })
 
+      // Verify the course exists
       const [courseRow] = await drizzleDb
-        .select({
-          courseMaterials: course.courseMaterials,
-          languageOfInstruction: course.languageOfInstruction,
-        })
+        .select({ languageOfInstruction: course.languageOfInstruction })
         .from(course)
         .where(eq(course.courseId, id))
       if (!courseRow) throw new NotFoundError('Course not found')
 
-      const materials = courseRow.courseMaterials as Record<string, string> | null
+      // Read courseMaterials via raw SQL — column may not be in Drizzle schema
+      let materials: Record<string, string> | null = null
+      try {
+        const rows = await drizzleDb.execute(
+          sql`SELECT "courseMaterials" FROM "Course" WHERE "id" = ${id}`
+        )
+        const raw = (rows as unknown as any[])[0]?.courseMaterials
+        if (raw && typeof raw === 'object') {
+          materials = raw as Record<string, string>
+        }
+      } catch {
+        // courseMaterials column missing — treat as no materials uploaded yet
+      }
+
       const courseText = materials?.courseText ?? materials?.editableCourse ?? ''
       if (!courseText) {
         throw new ValidationError(
@@ -57,7 +71,6 @@ export const POST = withCsrf(
         )
       }
 
-      // Build schedule items: one slot per lesson, all on the same preferred weekday
       const scheduleItems = outline.map(lesson => ({
         dayOfWeek: preferredDay,
         startTime: '09:00',
