@@ -53,13 +53,13 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (45 top-level domains, 216 route.ts files)
+│   │   │   └── api/          # REST API endpoints (52 top-level domains, 216 route.ts files)
 │   │   ├── components/       # React components (feature-organized, ~150 files)
 │   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (~258 files)
 │   │   ├── hooks/            # Custom React hooks (11 files)
 │   │   └── stores/           # Zustand client stores (2 files)
 │   ├── e2e/                  # Playwright E2E specs (10 test files)
-│   ├── drizzle/              # Drizzle migration files (52 SQL migrations)
+│   ├── drizzle/              # Drizzle migration files (52+ SQL migrations)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (40+ files)
 │   ├── src/scripts/          # TypeScript runtime scripts (seed, verify, etc.)
@@ -179,19 +179,25 @@ c:\VSCODE\Tutor/
 The main app does **not** use the standard Next.js dev server. Instead, it runs a custom HTTP server defined in `server.ts`:
 
 1. **Immediate port binding** — The HTTP server binds to `PORT` (default `3003`) on `0.0.0.0` immediately so the host considers the container healthy. Non-health requests are gated behind a readiness flag and receive `503 Retry-After: 2` until initialization completes.
-2. **Background initialization** — After binding, the server initializes in this order:
+2. **Environment loading** — `server.ts` loads `.env.local` first, then `.env`, so local overrides take precedence.
+3. **Background initialization** — After binding, the server initializes in this order:
    - Environment validation (`src/lib/env.ts`)
-   - Idempotent schema drift fixes (dev/local only)
+   - Idempotent schema drift fixes (dev/local only, skipped in production)
    - Next.js renderer preparation (`app.prepare()`)
    - Socket.io enhanced server initialization (`initEnhancedSocketServer`)
-3. **Health endpoint** — `/api/health` and `/health` return `200` only when `isReady === true`. Until then, they return `503` with `Retry-After: 2`. If Next.js prepared but Socket.io failed, status is `degraded`.
-4. **Graceful degradation** — If Socket.io fails but Next.js prepares successfully, the server still serves UI traffic (real-time features are degraded).
-5. **Memory monitoring** — A 15-second interval logs RSS and heap usage to help diagnose OOM kills.
-6. **Request logging** — Set `DEBUG_SERVER=true` to log all incoming requests.
+4. **Health endpoint** — `/api/health` and `/health` return `200` only when `isReady === true`. Until then, they return `503` with `Retry-After: 2`. If Next.js prepared but Socket.io failed, status is `degraded`.
+5. **Graceful degradation** — If Socket.io fails but Next.js prepares successfully, the server still serves UI traffic (real-time features are degraded).
+6. **Memory monitoring** — A 15-second interval logs RSS and heap usage to help diagnose OOM kills.
+7. **Request logging** — Set `DEBUG_SERVER=true` to log all incoming requests.
 
 > **Important:** Always start the main app with `npm run dev` (which runs `NODE_ENV=production tsx server.ts`), not a bare Next.js server. Otherwise Socket.io and the health check will not be available.
 
-### Production Docker Build
+### Production Build
+
+`npm run build` performs three steps:
+1. `npm run build:sw` — Compiles `src/lib/pwa/service-worker.ts` → `public/sw.js` via esbuild with cache-busting.
+2. `next build --webpack` — Builds the Next.js standalone output.
+3. `node scripts/build-custom-server.js` (run inside `Dockerfile.production`) — Compiles `server.ts` → `server-production.js` via esbuild for production.
 
 `Dockerfile.production` is a multi-stage build:
 1. **base** — `node:20-slim` with LibreOffice installed (for document processing)
@@ -199,7 +205,7 @@ The main app does **not** use the standard Next.js dev server. Instead, it runs 
 3. **builder** — Copies deps, installs Linux native bindings, writes dummy `.env.production`, runs `npm run build`, and compiles the custom server to `server-production.js`
 4. **runner** — Minimal image with `nextjs` user, copies `.next/`, `public/`, `drizzle/`, `scripts/`, compiled `server.js`, and runs `node scripts/start-prod.js` on port `3003`
 
-The production entry point (`scripts/start-prod.js`) runs database migrations first, then starts the compiled custom server.
+The production entry point (`scripts/start-prod.js`) runs database migrations first (via `scripts/run-migrations.js`), then starts the compiled custom server. If `server.js` exists it is used; otherwise falls back to `tsx server.ts`.
 
 ---
 
@@ -227,6 +233,7 @@ cd ../services/adk && npm run dev     # default port 8080
 ```bash
 npm run build        # Builds service worker + Next.js standalone output (uses --webpack flag)
 npm run build:sw     # Compiles src/lib/pwa/service-worker.ts → public/sw.js via esbuild
+npm run build:custom-server  # Compiles server.ts → server-production.js via esbuild
 npm run start        # Production Next.js start (used inside Docker standalone image)
 ```
 
@@ -378,7 +385,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 45 top-level API domains and 216 `route.ts` files.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 52 top-level API domains and 216 `route.ts` files.
 
 **Role-specific layout behaviors:**
 - **Student layout** (`[locale]/student/layout.tsx`): Collapsible sidebar, special handling for `/student/tutors` (no sidebar), `/student/feedback` (hides nav entirely), and live class routes.
@@ -445,7 +452,7 @@ Zustand stores for client state:
   - `next-auth.ts` — NextAuth.js Drizzle adapter tables
   - `compliance.ts` — GDPR / COPPA / FERPA compliance tables
   - `landing.ts` — Landing page inquiry/signup tables
-- Migrations live in `drizzle/` (52 SQL migrations) and are managed by `drizzle-kit`.
+- Migrations live in `drizzle/` (52+ SQL migrations) and are managed by `drizzle-kit`.
 - Runtime client: `src/lib/db/drizzle.ts` uses `pg.Pool` with singleton pooling (dev pool cached on `globalThis`).
 - Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; new code should import `drizzleDb` from `./drizzle`.
 
@@ -657,6 +664,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 `.github/workflows/secret-scan.yml` runs `gitleaks` on every push/PR.
 
 > **Working directory for CI:** `tutorme-app`
+> **Install flag:** All CI `npm ci` commands use `--legacy-peer-deps`.
 
 ---
 
@@ -741,3 +749,4 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - `server.ts` is the canonical entry point. Do not run `next dev` or `next start` directly outside of Docker.
 - The `scripts/` directory at the project root contains legacy scaffolding scripts (`setup.sh`, `setup.bat`) that create a brand-new project from scratch — do not run them against the existing codebase.
 - The ADK service only starts its HTTP listener when `ADK_START_LISTENER=true` and is not running under Node's test runner. In production it requires `ADK_AUTH_TOKEN`.
+- The `postinstall` script in `tutorme-app/package.json` runs `scripts/copy-pdf-worker.js` to ensure `pdfjs-dist` worker files are available in `public/`.

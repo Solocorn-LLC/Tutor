@@ -101,7 +101,7 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
 )
 
 const charcoalHeaderClass =
-  'flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#1F2933_0%,#374151_35%,#111827_100%)] -mx-5 -mt-5 px-5 rounded-t-[18px] text-white'
+  'flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#1F2933_0%,#374151_35%,#111827_100%)] -mx-6 -mt-6 px-6 rounded-t-[18px] text-white'
 
 // My Courses Section Component
 interface Course {
@@ -292,7 +292,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
           Create Course
         </Button>
       </div>
-      <CardContent className="space-y-4 pt-0">
+      <CardContent spacing="none" className="space-y-4 px-6 pb-6">
         {/* Tabs */}
         <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
           {(['active', 'unpublished', 'catalogued'] as const).map(tab => (
@@ -1815,7 +1815,7 @@ export default function TutorMyPage() {
             )}
           </div>
           {profileSettingsOpen && (
-            <CardContent className="space-y-4 bg-white pt-0">
+            <CardContent spacing="none" className="space-y-4 bg-white px-6 pb-6">
               <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
                 <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
                   <Label className="text-sm text-[#1F2933]">Bio</Label>

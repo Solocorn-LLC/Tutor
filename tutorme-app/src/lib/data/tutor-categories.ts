@@ -330,29 +330,29 @@ export const NATIONAL_EXAMS_DATA: Record<string, ExamCategory[]> = {
   ],
   NL: [
     {
-      id: 'national-exam',
-      label: 'National Examination',
+      id: 'eindexamen',
+      label: 'Eindexamen',
       exams: [
-        'Dutch National Exam — Dutch',
-        'Dutch National Exam — English',
-        'Dutch National Exam — Mathematics',
-        'Dutch National Exam — Biology',
-        'Dutch National Exam — Chemistry',
-        'Dutch National Exam — Physics',
+        'Eindexamen Dutch',
+        'Eindexamen English',
+        'Eindexamen Mathematics',
+        'Eindexamen Biology',
+        'Eindexamen Chemistry',
+        'Eindexamen Physics',
       ],
     },
   ],
   BE: [
     {
-      id: 'graduation-exam',
-      label: 'Graduation Examination',
+      id: 'cess',
+      label: 'CESS / Diploma Secundair Onderwijs',
       exams: [
-        'Belgium Graduation — Language',
-        'Belgium Graduation — English',
-        'Belgium Graduation — Mathematics',
-        'Belgium Graduation — Biology',
-        'Belgium Graduation — Chemistry',
-        'Belgium Graduation — Physics',
+        'CESS / Diploma Secundair — Language',
+        'CESS / Diploma Secundair — English',
+        'CESS / Diploma Secundair — Mathematics',
+        'CESS / Diploma Secundair — Biology',
+        'CESS / Diploma Secundair — Chemistry',
+        'CESS / Diploma Secundair — Physics',
       ],
     },
   ],
@@ -414,15 +414,15 @@ export const NATIONAL_EXAMS_DATA: Record<string, ExamCategory[]> = {
   ],
   PT: [
     {
-      id: 'national-exam',
-      label: 'National Examination',
+      id: 'enes',
+      label: 'ENES (Exames Nacionais do Ensino Secundário)',
       exams: [
-        'Portugal National Exam — Portuguese',
-        'Portugal National Exam — English',
-        'Portugal National Exam — Mathematics',
-        'Portugal National Exam — Biology',
-        'Portugal National Exam — Chemistry',
-        'Portugal National Exam — Physics',
+        'ENES Portuguese',
+        'ENES English',
+        'ENES Mathematics',
+        'ENES Biology & Geology',
+        'ENES Physics & Chemistry',
+        'ENES History',
       ],
     },
   ],
@@ -470,15 +470,15 @@ export const NATIONAL_EXAMS_DATA: Record<string, ExamCategory[]> = {
   ],
   HU: [
     {
-      id: 'matura',
-      label: 'Matura',
+      id: 'erettsegi',
+      label: 'Érettségi (Matura)',
       exams: [
-        'Matura Hungarian',
-        'Matura English',
-        'Matura Mathematics',
-        'Matura Biology',
-        'Matura Chemistry',
-        'Matura Physics',
+        'Érettségi Hungarian Literature & Grammar',
+        'Érettségi English',
+        'Érettségi Mathematics',
+        'Érettségi Biology',
+        'Érettségi Chemistry',
+        'Érettségi Physics',
       ],
     },
   ],
@@ -640,24 +640,246 @@ export const NATIONAL_EXAMS_DATA: Record<string, ExamCategory[]> = {
       ],
     },
   ],
-  CN: [],
-  AE: [],
-  ZA: [],
-  EG: [],
-  NG: [],
-  KE: [],
-  GH: [],
-  MA: [],
-  TN: [],
-  BW: [],
-  NA: [],
-  PH: [],
-  CL: [],
-  PE: [],
-  CO: [],
-  AR: [],
-  UY: [],
-  EC: [],
+  CN: [
+    {
+      id: 'gaokao',
+      label: 'Gaokao (高考)',
+      exams: [
+        'Gaokao Chinese',
+        'Gaokao English',
+        'Gaokao Mathematics',
+        'Gaokao Physics',
+        'Gaokao Chemistry',
+        'Gaokao Biology',
+      ],
+    },
+  ],
+  AE: [
+    {
+      id: 'tawjihiya',
+      label: 'Tawjihiya / General Secondary Education Certificate',
+      exams: [
+        'Tawjihiya Arabic',
+        'Tawjihiya English',
+        'Tawjihiya Mathematics',
+        'Tawjihiya Physics',
+        'Tawjihiya Chemistry',
+        'Tawjihiya Biology',
+      ],
+    },
+  ],
+  ZA: [
+    {
+      id: 'nsc',
+      label: 'National Senior Certificate (Matric)',
+      exams: [
+        'Matric English Home Language',
+        'Matric Afrikaans First Additional Language',
+        'Matric Mathematics',
+        'Matric Mathematical Literacy',
+        'Matric Physical Sciences',
+        'Matric Life Sciences',
+      ],
+    },
+  ],
+  EG: [
+    {
+      id: 'thanaweya-amma',
+      label: 'Thanaweya Amma (General Secondary Education Certificate)',
+      exams: [
+        'Thanaweya Amma Arabic',
+        'Thanaweya Amma English',
+        'Thanaweya Amma Mathematics',
+        'Thanaweya Amma Physics',
+        'Thanaweya Amma Chemistry',
+        'Thanaweya Amma Biology',
+      ],
+    },
+  ],
+  NG: [
+    {
+      id: 'wassce',
+      label: 'WASSCE / NECO SSCE',
+      exams: [
+        'WASSCE English Language',
+        'WASSCE Mathematics',
+        'WASSCE Biology',
+        'WASSCE Chemistry',
+        'WASSCE Physics',
+        'NECO SSCE Core Subjects',
+      ],
+    },
+  ],
+  KE: [
+    {
+      id: 'kcse',
+      label: 'KCSE (Kenya Certificate of Secondary Education)',
+      exams: [
+        'KCSE English',
+        'KCSE Kiswahili',
+        'KCSE Mathematics',
+        'KCSE Biology',
+        'KCSE Chemistry',
+        'KCSE Physics',
+      ],
+    },
+  ],
+  GH: [
+    {
+      id: 'wassce',
+      label: 'WASSCE (West African Senior School Certificate Examination)',
+      exams: [
+        'WASSCE English Language',
+        'WASSCE Mathematics',
+        'WASSCE Integrated Science',
+        'WASSCE Social Studies',
+        'WASSCE Biology',
+        'WASSCE Chemistry',
+        'WASSCE Physics',
+      ],
+    },
+  ],
+  MA: [
+    {
+      id: 'baccalaureat',
+      label: 'Baccalauréat',
+      exams: [
+        'Baccalauréat Arabic',
+        'Baccalauréat French',
+        'Baccalauréat Mathematics',
+        'Baccalauréat Physics',
+        'Baccalauréat Chemistry',
+        'Baccalauréat Life & Earth Sciences',
+      ],
+    },
+  ],
+  TN: [
+    {
+      id: 'baccalaureat',
+      label: 'Baccalauréat',
+      exams: [
+        'Baccalauréat Arabic',
+        'Baccalauréat French',
+        'Baccalauréat Mathematics',
+        'Baccalauréat Physics',
+        'Baccalauréat Chemistry',
+        'Baccalauréat Life & Earth Sciences',
+      ],
+    },
+  ],
+  BW: [
+    {
+      id: 'bgcse',
+      label: 'BGCSE (Botswana General Certificate of Secondary Education)',
+      exams: [
+        'BGCSE English Language',
+        'BGCSE Setswana',
+        'BGCSE Mathematics',
+        'BGCSE Biology',
+        'BGCSE Chemistry',
+        'BGCSE Physics',
+      ],
+    },
+  ],
+  NA: [
+    {
+      id: 'nssc',
+      label: 'NSSC (Namibia Senior Secondary Certificate)',
+      exams: [
+        'NSSC English Second Language',
+        'NSSC Afrikaans Second Language',
+        'NSSC Mathematics',
+        'NSSC Biology',
+        'NSSC Chemistry',
+        'NSSC Physics',
+      ],
+    },
+  ],
+  PH: [
+    {
+      id: 'upcat',
+      label: 'UPCAT / University Admission',
+      exams: [
+        'UPCAT Language Proficiency',
+        'UPCAT Science',
+        'UPCAT Mathematics',
+        'UPCAT Reading Comprehension',
+      ],
+    },
+  ],
+  CL: [
+    {
+      id: 'paes',
+      label: 'PAES (Prueba de Acceso a la Educación Superior)',
+      exams: [
+        'PAES Mathematics',
+        'PAES Language & Communication',
+        'PAES History & Social Sciences',
+        'PAES Science',
+      ],
+    },
+  ],
+  PE: [
+    {
+      id: 'university-admission',
+      label: 'University Admission Exam',
+      exams: [
+        'University Admission Mathematics',
+        'University Admission Communication',
+        'University Admission Science',
+        'University Admission Humanities',
+      ],
+    },
+  ],
+  CO: [
+    {
+      id: 'icfes',
+      label: 'ICFES Saber 11',
+      exams: [
+        'Saber 11 Critical Reading',
+        'Saber 11 Mathematics',
+        'Saber 11 Natural Sciences',
+        'Saber 11 Social Sciences',
+        'Saber 11 English',
+      ],
+    },
+  ],
+  AR: [
+    {
+      id: 'university-admission',
+      label: 'University Admission Exam',
+      exams: [
+        'University Admission Mathematics',
+        'University Admission Language',
+        'University Admission Biology',
+        'University Admission Chemistry',
+        'University Admission Physics',
+      ],
+    },
+  ],
+  UY: [
+    {
+      id: 'university-admission',
+      label: 'University Admission Exam',
+      exams: [
+        'University Admission Mathematics',
+        'University Admission Language',
+        'University Admission Science',
+      ],
+    },
+  ],
+  EC: [
+    {
+      id: 'ser-bachiller',
+      label: 'Ser Bachiller / ENES',
+      exams: [
+        'Ser Bachiller Mathematics',
+        'Ser Bachiller Language & Literature',
+        'Ser Bachiller Natural Sciences',
+        'Ser Bachiller Social Sciences',
+      ],
+    },
+  ],
 }
 
 export const REGIONS: Region[] = [
