@@ -1035,7 +1035,6 @@ export default function PublicTutorPage() {
             return (
               <div
                 key={course.id}
-                style={{ width: CARD_WIDTH, flexShrink: 0 }}
                 className={cn(
                   'group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] text-left transition-all duration-300',
                   'border border-[rgba(255,255,255,0.08)]',
@@ -1048,6 +1047,8 @@ export default function PublicTutorPage() {
                   isCompact && 'text-xs'
                 )}
                 style={{
+                  width: CARD_WIDTH,
+                  flexShrink: 0,
                   backgroundImage:
                     'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
                 }}
