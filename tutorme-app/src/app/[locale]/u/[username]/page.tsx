@@ -1191,8 +1191,8 @@ export default function PublicTutorPage() {
                   <Input
                     type="search"
                     placeholder="Search course..."
-                    leftIcon={<Search className="h-4 w-4 text-slate-400" />}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus-visible:border-slate-200"
+                    leftIcon={<Search className="h-4 w-4 text-white/50" />}
+                    className="h-9 w-full rounded-lg border border-white/10 bg-white/10 text-white placeholder:text-white/50 focus-visible:border-white/30"
                     value={courseSearchQuery}
                     onChange={e => setCourseSearchQuery(e.target.value)}
                   />
@@ -1201,15 +1201,15 @@ export default function PublicTutorPage() {
                   value={courseCategoryFilter}
                   onValueChange={(val: any) => setCourseCategoryFilter(val)}
                 >
-                  <SelectTrigger className="h-9 w-[160px] rounded-lg border border-slate-200 bg-white text-sm text-slate-900 shadow-sm transition-all duration-200 hover:bg-slate-50 hover:border-slate-300 focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
+                  <SelectTrigger className="h-9 w-[160px] rounded-lg border border-white/10 bg-white/10 text-sm text-white transition-all duration-200 hover:bg-white/20 hover:border-white/20 focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
+                  <SelectContent className="rounded-lg border border-white/10 bg-white/10 backdrop-blur-md p-1.5 shadow-lg w-[var(--radix-select-trigger-width)]">
                     {courseCategoryOptions.map(cat => (
                       <SelectItem
                         key={cat}
                         value={cat}
-                        className="text-slate-900 focus:text-slate-900 hover:bg-slate-100 focus:bg-slate-100 mx-1.5 focus:outline-none rounded-md"
+                        className="text-white focus:text-white hover:bg-white/10 focus:bg-white/10 mx-1.5 focus:outline-none rounded-md"
                       >
                         {cat}
                       </SelectItem>
@@ -1217,29 +1217,7 @@ export default function PublicTutorPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div
-                className="grid h-9 grid-cols-2 min-w-[220px] gap-2 rounded-xl bg-white p-1.5"
-                role="group"
-                aria-label="Course layout"
-              >
-                {(['list', 'compact'] as const).map((layout) => (
-                  <button
-                    key={layout}
-                    type="button"
-                    onClick={() => setCatalogLayout(layout)}
-                    className={cn(
-                      'flex items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium capitalize transition-colors',
-                      catalogLayout === layout
-                        ? 'bg-[#1E2832] text-white shadow-sm'
-                        : 'text-slate-800 hover:bg-slate-100'
-                    )}
-                  >
-                    {layout === 'list' && <List className="h-4 w-4" />}
-                    {layout === 'compact' && <PanelsTopLeft className="h-4 w-4" />}
-                    <span className="hidden sm:inline">{layout}</span>
-                  </button>
-                ))}
-              </div>
+
             </div>
           </div>
         </div>
