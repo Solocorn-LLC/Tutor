@@ -7,11 +7,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseVariant, profile } from '@/lib/db/schema'
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { ALL_COUNTRIES } from '@/lib/data/tutor-categories'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const searchQuery = searchParams.get('q')?.toLowerCase().trim() || ''
+    const countryParam = searchParams.get('country')?.trim() || ''
+    const countryName = countryParam && countryParam !== 'global'
+      ? ALL_COUNTRIES.find(c => c.code === countryParam)?.name
+      : undefined
 
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
     const pageSize = Math.min(60, Math.max(1, Number(searchParams.get('pageSize')) || 12))
@@ -46,6 +51,12 @@ export async function GET(request: NextRequest) {
                   from jsonb_array_elements_text(${course.categories}) cat
                   where lower(cat) like ${searchPattern}
                 )`
+              )
+            : undefined,
+          countryName
+            ? or(
+                ilike(profile.countryOfResidence, countryName),
+                ilike(profile.nationality, countryName)
               )
             : undefined
         )

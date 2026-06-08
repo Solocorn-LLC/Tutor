@@ -1452,7 +1452,14 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       setCoursesPage(0)
       setTutorsPage(0)
       try {
-        const qp = q ? `?q=${encodeURIComponent(q)}&page=1&pageSize=24` : '?page=1&pageSize=24'
+        const params = new URLSearchParams()
+        params.set('page', '1')
+        params.set('pageSize', '24')
+        if (q) params.set('q', q)
+        if (selectedRegion !== 'global' && selectedCountryCode) {
+          params.set('country', selectedCountryCode)
+        }
+        const qp = `?${params.toString()}`
         const [coursesRes, tutorsRes] = await Promise.all([
           fetchWithTimeout(`/api/public/courses${qp}`, {
             signal: controller.signal,
@@ -1505,7 +1512,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
       clearTimeout(t)
       clearTimeout(fallbackTimer)
     }
-  }, [query])
+  }, [query, selectedRegion, selectedCountryCode])
 
   const formatCourseDate = (iso: string | null | undefined) => {
     if (!iso) return 'Starts TBD'
@@ -1800,7 +1807,7 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
             <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
@@ -1815,9 +1822,9 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
           <Select
             value={selectedCountryCode}
             onValueChange={setSelectedCountryCode}
-            disabled={!selectedRegion}
+            disabled={!selectedRegion || selectedRegion === 'global'}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-sm backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
             <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
@@ -1828,6 +1835,18 @@ const Panel2SearchResults = ({ query }: { query: string }) => {
               ))}
             </SelectContent>
           </Select>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedRegion('')
+              setSelectedCountryCode('')
+            }}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50"
+            aria-label="Clear filters"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="mt-8 space-y-10">

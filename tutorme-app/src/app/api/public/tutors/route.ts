@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, user, profile, courseVariant } from '@/lib/db/schema'
 import { eq, and, or, inArray, sql, desc, ilike } from 'drizzle-orm'
+import { ALL_COUNTRIES } from '@/lib/data/tutor-categories'
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,6 +111,10 @@ export async function GET(request: NextRequest) {
     const categoryFilter = searchParams.get('subject')?.toLowerCase().trim() || ''
     const combinationFilter = searchParams.get('combination')?.toLowerCase().trim() || ''
     const nationalityFilter = searchParams.get('nationality')?.toLowerCase().trim() || ''
+    const countryParam = searchParams.get('country')?.trim() || ''
+    const countryName = countryParam && countryParam !== 'global'
+      ? ALL_COUNTRIES.find(c => c.code === countryParam)?.name
+      : undefined
     const sortBy = searchParams.get('sort') || 'popular'
 
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
@@ -173,7 +178,13 @@ export async function GET(request: NextRequest) {
           combinationPattern
             ? sql`lower(${courseVariant.category} || ' - ' || ${courseVariant.nationality}) like ${combinationPattern}`
             : undefined,
-          nationalityPattern ? ilike(courseVariant.nationality, nationalityPattern) : undefined
+          nationalityPattern ? ilike(courseVariant.nationality, nationalityPattern) : undefined,
+          countryName
+            ? or(
+                ilike(profile.countryOfResidence, countryName),
+                ilike(profile.nationality, countryName)
+              )
+            : undefined
         )
       )
       .groupBy(course.creatorId)
