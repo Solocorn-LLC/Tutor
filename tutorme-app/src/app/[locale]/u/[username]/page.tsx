@@ -78,6 +78,7 @@ interface PublicTutorResponse {
       youtube?: string | null
       instagram?: string | null
       facebook?: string | null
+      kakaoTalk?: string | null
     } | null
   }
   courses: Array<{
@@ -105,6 +106,12 @@ interface PublicTutorResponse {
 const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" {...props}>
     <path d="M208 88.9a71 71 0 0 1-52-22.2v95.5a63.9 63.9 0 1 1-54-63v33.4a30.6 30.6 0 1 0 21 29.1V24h33.1a71 71 0 0 0 52.1 55.3Z" />
+  </svg>
+)
+
+const KakaoTalkIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M12 2C6.5 2 2 5.6 2 10c0 2.8 1.8 5.3 4.5 6.7-.2.8-.8 2.6-.9 3-.1.3.2.5.4.3.5-.4 2.2-1.5 3.2-2.2.8.2 1.6.3 2.5.3 5.5 0 10-3.6 10-8.1S17.5 2 12 2z" />
   </svg>
 )
 
@@ -1705,6 +1712,18 @@ export default function PublicTutorPage() {
                     icon: Facebook,
                     bgClass: 'bg-blue-600',
                     muted: !tutor.socialLinks?.facebook,
+                  },
+                  {
+                    key: 'kakaoTalk',
+                    label: 'KakaoTalk',
+                    value: tutor.socialLinks?.kakaoTalk
+                      ? (tutor.socialLinks.kakaoTalk.match(/^https?:\/\//)
+                          ? stripAt(tutor.socialLinks.kakaoTalk)
+                          : `https://${stripAt(tutor.socialLinks.kakaoTalk)}`)
+                      : '—',
+                    icon: KakaoTalkIcon,
+                    bgClass: 'bg-[#FEE500]',
+                    muted: !tutor.socialLinks?.kakaoTalk,
                   },
                 ].map(item => {
                   const Icon = item.icon

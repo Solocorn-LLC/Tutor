@@ -100,6 +100,12 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
+const KakaoTalkIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M12 2C6.5 2 2 5.6 2 10c0 2.8 1.8 5.3 4.5 6.7-.2.8-.8 2.6-.9 3-.1.3.2.5.4.3.5-.4 2.2-1.5 3.2-2.2.8.2 1.6.3 2.5.3 5.5 0 10-3.6 10-8.1S17.5 2 12 2z" />
+  </svg>
+)
+
 const charcoalHeaderClass =
   'flex h-14 items-center gap-3 bg-[linear-gradient(135deg,#1F2933_0%,#374151_35%,#111827_100%)] -mx-6 -mt-6 px-6 rounded-t-[18px] text-white'
 
@@ -584,6 +590,7 @@ export default function TutorMyPage() {
     instagram: '',
     tiktok: '',
     facebook: '',
+    kakaoTalk: '',
   })
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(true)
 
@@ -694,6 +701,7 @@ export default function TutorMyPage() {
           instagram: typeof links.instagram === 'string' ? stripAt(links.instagram) : '',
           tiktok: typeof links.tiktok === 'string' ? stripAt(links.tiktok) : '',
           facebook: typeof links.facebook === 'string' ? stripAt(links.facebook) : '',
+          kakaoTalk: typeof links.kakaoTalk === 'string' ? stripAt(links.kakaoTalk) : '',
         })
         // Derive categories from published courses
         const courses = Array.isArray(data?.courses) ? data.courses : []
@@ -994,6 +1002,7 @@ export default function TutorMyPage() {
             tiktok: socialAccounts.tiktok.trim().replace(/^@+/, ''),
             youtube: socialAccounts.youtube.trim().replace(/^@+/, ''),
             facebook: socialAccounts.facebook.trim().replace(/^@+/, ''),
+            kakaoTalk: socialAccounts.kakaoTalk.trim().replace(/^@+/, ''),
           },
         }),
       })
@@ -1606,6 +1615,18 @@ export default function TutorMyPage() {
                     bgClass: 'bg-blue-600',
                     muted: !socialAccounts.facebook,
                   },
+                  {
+                    key: 'kakaoTalk',
+                    label: 'KakaoTalk',
+                    value: socialAccounts.kakaoTalk
+                      ? (socialAccounts.kakaoTalk.match(/^https?:\/\//)
+                          ? socialAccounts.kakaoTalk
+                          : `https://${socialAccounts.kakaoTalk}`)
+                      : '—',
+                    icon: KakaoTalkIcon,
+                    bgClass: 'bg-[#FEE500]',
+                    muted: !socialAccounts.kakaoTalk,
+                  },
                 ].map(item => {
                   const Icon = item.icon
                   return (
@@ -1889,6 +1910,25 @@ export default function TutorMyPage() {
                               setSocialAccounts(prev => ({
                                 ...prev,
                                 facebook: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-2 focus-within:ring-[#1D4ED8] focus-within:ring-offset-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B] text-xs">https://</span>
+                          <Input
+                            placeholder="channels url"
+                            value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                kakaoTalk: e.target.value.replace(/^@+/, ''),
                               }))
                             }
                             disabled={loading || saving}
