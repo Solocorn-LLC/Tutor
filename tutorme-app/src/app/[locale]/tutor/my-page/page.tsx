@@ -1383,22 +1383,22 @@ export default function TutorMyPage() {
                   <div className="absolute bottom-2 right-2 flex gap-1">
                     <Button
                       size="icon"
-                      className="h-5 w-5 rounded-md border border-white/40 bg-white text-[#1F2933] shadow hover:bg-white/90"
+                      className="h-8 w-8 rounded-xl border border-white/40 bg-white text-[#1F2933] shadow hover:bg-white/90"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingAvatar}
                       aria-label="Edit profile photo"
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     {avatarUrl && (
                       <Button
                         size="icon"
-                        className="h-5 w-5 rounded-md border border-white/40 bg-red-500 text-white shadow hover:bg-red-600"
+                        className="h-8 w-8 rounded-xl border border-white/40 bg-red-500 text-white shadow hover:bg-red-600"
                         onClick={() => void handleDeleteAvatar()}
                         disabled={uploadingAvatar}
                         aria-label="Delete profile photo"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
@@ -1469,7 +1469,7 @@ export default function TutorMyPage() {
                     >
                       <Button
                         size="lg"
-                        className="w-full border-0 bg-[#F17623] text-white shadow-[0_4px_14px_rgba(0,0,0,0.2)] hover:bg-white hover:text-[#F17623] sm:w-auto"
+                        className="w-full border border-white bg-[#F17623] text-white shadow-[0_4px_14px_rgba(0,0,0,0.2)] hover:translate-y-0 hover:bg-white hover:border-[#F17623] hover:text-[#F17623] sm:w-auto"
                       >
                         Preview Public Page
                       </Button>
@@ -1478,7 +1478,7 @@ export default function TutorMyPage() {
                     <Button
                       size="lg"
                       disabled
-                      className="w-full border-0 bg-[#F17623]/50 text-white/70 sm:w-auto"
+                      className="w-full border border-white/50 bg-[#F17623]/50 text-white/70 hover:translate-y-0 sm:w-auto"
                     >
                       Preview My Public Page
                     </Button>
@@ -1486,7 +1486,7 @@ export default function TutorMyPage() {
 
                   <Button
                     size="lg"
-                    className="w-full border-0 bg-white text-[#1D4ED8] shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:bg-[#1F2933] hover:text-white sm:w-auto"
+                    className="w-full border border-white bg-[#1D4ED8] text-white shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:translate-y-0 hover:bg-[#1F2933] hover:text-white sm:w-auto"
                     onClick={() => void save()}
                     disabled={loading || saving}
                   >
