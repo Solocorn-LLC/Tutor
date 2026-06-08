@@ -702,16 +702,16 @@ const translations: Translations = {
     hi: 'कोर्स और ट्यूटर खोजने के लिए एक श्रेणी चुनें',
   },
   selectCategoryBadgePlaceholder: {
-    en: 'Select a category',
-    'zh-CN': '选择一个类别',
-    'zh-HK': '選擇一個類別',
-    es: 'Selecciona una categoría',
-    fr: 'Sélectionnez une catégorie',
-    de: 'Wählen Sie eine Kategorie',
-    ja: 'カテゴリーを選択',
-    ko: '카테고리 선택',
-    pt: 'Selecione uma categoria',
-    hi: 'एक श्रेणी चुनें',
+    en: 'Select a category below',
+    'zh-CN': '在下方选择一个类别',
+    'zh-HK': '在下方選擇一個類別',
+    es: 'Selecciona una categoría abajo',
+    fr: 'Sélectionnez une catégorie ci-dessous',
+    de: 'Wählen Sie eine Kategorie unten',
+    ja: '下のカテゴリーを選択',
+    ko: '아래에서 카테고리 선택',
+    pt: 'Selecione uma categoria abaixo',
+    hi: 'नीचे एक श्रेणी चुनें',
   },
   allRegions: {
     en: 'Region',
@@ -3236,7 +3236,7 @@ const CategorySearchModal = ({
         )
     : selectedRegion
       ? UNIVERSITY_CATEGORIES.filter(u => u.id === `universities-${selectedRegion}`)
-      : []
+      : UNIVERSITY_CATEGORIES
 
   const examToTabKey = useMemo(() => {
     const map = new Map<string, string>()
@@ -3270,7 +3270,7 @@ const CategorySearchModal = ({
       <div className="absolute inset-0 bg-black/80" onClick={onClose} onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} />
       <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
           {/* Header */}
-          <div className="relative shrink-0 p-6 pb-4">
+          <div className="relative shrink-0 p-6 pb-2">
             <button
               onClick={onClose}
               className="absolute right-4 top-4 p-2 text-white/70 transition-colors hover:text-white"
@@ -3285,7 +3285,7 @@ const CategorySearchModal = ({
             </p>
 
             {/* Selected category badges container + Search */}
-            <div className="mb-4 flex items-start gap-3">
+            <div className="mb-2 flex items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col">
                 <div
                   ref={badgeScrollRef}
@@ -3383,7 +3383,7 @@ const CategorySearchModal = ({
             </div>
 
             {/* Region & Country dropdowns */}
-            <div className="mb-2 flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3">
               <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedCountries([]) }}>
                 <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
                   <SelectValue placeholder="Region" />
@@ -3438,7 +3438,7 @@ const CategorySearchModal = ({
           </div>
 
           {/* Tabs Content */}
-          <div className="w-full px-6 pb-6">
+          <div className="w-full px-6 pb-3">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="border-b border-slate-200">
                 <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
@@ -3474,7 +3474,7 @@ const CategorySearchModal = ({
               </div>
 
               {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="pb-0 pt-8">
+              <div className="pb-0 pt-4">
                 <div className="relative mx-auto max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
@@ -3486,7 +3486,7 @@ const CategorySearchModal = ({
                 </div>
               </div>
 
-              <div className="h-[480px] overflow-y-auto overscroll-contain pt-2 pb-12 scrollbar-no-arrows">
+              <div className="h-[380px] overflow-y-auto overscroll-contain pt-2 pb-4 scrollbar-no-arrows">
                 {/* Global */}
                 <TabsContent value="global" className="mt-0 space-y-6">
                   {GLOBAL_EXAMS_CATEGORIES.map(cat => (
@@ -3555,22 +3555,16 @@ const CategorySearchModal = ({
 
                 {/* Universities */}
                 <TabsContent value="universities" className="mt-0 space-y-6">
-                  {!selectedRegion && selectedCountries.length === 0 && (
+                  {!categorySearch && (
                     <div className="py-12 text-center text-slate-500">
                       <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                      <p className="text-sm">Please select a region or country</p>
+                      <p className="text-sm">Type a university name to search</p>
                     </div>
                   )}
-                  {(selectedRegion || selectedCountries.length > 0) && filteredUniversityCategories.map(cat => (
+                  {categorySearch && filteredUniversityCategories.map(cat => (
                     <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
                   ))}
-                  {(selectedRegion || selectedCountries.length > 0) && filteredUniversityCategories.length === 0 && (
-                    <div className="py-12 text-center text-slate-500">
-                      <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                      <p className="text-sm">No universities available for this selection</p>
-                    </div>
-                  )}
-                  {(selectedRegion || selectedCountries.length > 0) && filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
+                  {categorySearch && filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
                     <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
                   )}
                 </TabsContent>
