@@ -1547,17 +1547,11 @@ export default function TutorMyPage() {
               </div>
 
               {publicUrl ? (
-                <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                      <span className="text-2xl font-bold">@</span>
-                    </div>
-                    <div className="text-lg font-semibold text-slate-900">@{normalizedUsername || 'username'}</div>
+                <div className="flex items-center gap-3 border-b border-slate-100 py-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                    <span className="text-2xl font-bold">@</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Link2 className="h-4 w-4" />
-                    <span>{publicUrl}</span>
-                  </div>
+                  <div className="text-lg font-semibold text-slate-900">@{normalizedUsername || 'username'}</div>
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
@@ -1576,12 +1570,12 @@ export default function TutorMyPage() {
                     muted: !socialAccounts.tiktok,
                   },
                   {
-                    key: 'youtube',
-                    label: 'YouTube',
-                    value: socialAccounts.youtube ? `@${socialAccounts.youtube}` : '—',
-                    icon: Youtube,
-                    bgClass: 'bg-red-600',
-                    muted: !socialAccounts.youtube,
+                    key: 'public',
+                    label: 'Public Page',
+                    value: publicUrl,
+                    icon: Link2,
+                    bgClass: 'bg-blue-600',
+                    muted: false,
                   },
                   {
                     key: 'instagram',
@@ -1590,6 +1584,14 @@ export default function TutorMyPage() {
                     icon: Instagram,
                     bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
                     muted: !socialAccounts.instagram,
+                  },
+                  {
+                    key: 'youtube',
+                    label: 'YouTube',
+                    value: socialAccounts.youtube ? `@${socialAccounts.youtube}` : '—',
+                    icon: Youtube,
+                    bgClass: 'bg-red-600',
+                    muted: !socialAccounts.youtube,
                   },
                   {
                     key: 'facebook',
