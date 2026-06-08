@@ -3261,7 +3261,7 @@ const CategorySearchModal = ({
   const hasResults = (exams: string[]) => filterExams(exams).length > 0
 
   const tabTriggerClass =
-    'rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
+    'rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
 
   if (!isOpen) return null
 
@@ -3487,103 +3487,151 @@ const CategorySearchModal = ({
               </div>
 
               <div className="h-[380px] overflow-y-auto overscroll-contain pt-2 pb-4 scrollbar-no-arrows">
-                {/* Global */}
-                <TabsContent value="global" className="mt-0 space-y-6">
-                  {GLOBAL_EXAMS_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
-                  ))}
-                  {!GLOBAL_EXAMS_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                {!categorySearch ? (
+                  <>
+                    {/* Global */}
+                    <TabsContent value="global" className="mt-0 space-y-6">
+                      {GLOBAL_EXAMS_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                      ))}
+                      {!GLOBAL_EXAMS_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* AP */}
-                <TabsContent value="ap" className="mt-0 space-y-6">
-                  {AP_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
-                  ))}
-                  {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* AP */}
+                    <TabsContent value="ap" className="mt-0 space-y-6">
+                      {AP_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
+                      ))}
+                      {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* A Level */}
-                <TabsContent value="alevel" className="mt-0 space-y-6">
-                  {A_LEVEL_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
-                  ))}
-                  {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* A Level */}
+                    <TabsContent value="alevel" className="mt-0 space-y-6">
+                      {A_LEVEL_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                      ))}
+                      {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* IB */}
-                <TabsContent value="ib" className="mt-0 space-y-6">
-                  {IB_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
-                  ))}
-                  {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* IB */}
+                    <TabsContent value="ib" className="mt-0 space-y-6">
+                      {IB_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                      ))}
+                      {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* IGCSE */}
-                <TabsContent value="igcse" className="mt-0 space-y-6">
-                  {IGCSE_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
-                  ))}
-                  {!IGCSE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* IGCSE */}
+                    <TabsContent value="igcse" className="mt-0 space-y-6">
+                      {IGCSE_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
+                      ))}
+                      {!IGCSE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* National */}
-                <TabsContent value="national" className="mt-0 space-y-6">
-                  {nationalExams.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
-                  ))}
-                  {nationalExams.length === 0 && (
-                    <div className="py-12 text-center text-slate-500">
-                      <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                      <p className="text-sm">{t('selectRegionCountryNational')}</p>
-                    </div>
-                  )}
-                  {nationalExams.length > 0 && !nationalExams.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* National */}
+                    <TabsContent value="national" className="mt-0 space-y-6">
+                      {nationalExams.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
+                      ))}
+                      {nationalExams.length === 0 && (
+                        <div className="py-12 text-center text-slate-500">
+                          <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                          <p className="text-sm">{t('selectRegionCountryNational')}</p>
+                        </div>
+                      )}
+                      {nationalExams.length > 0 && !nationalExams.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* Universities */}
-                <TabsContent value="universities" className="mt-0 space-y-6">
-                  {!categorySearch && (
-                    <div className="py-12 text-center text-slate-500">
-                      <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                      <p className="text-sm">Type a university name to search</p>
-                    </div>
-                  )}
-                  {categorySearch && filteredUniversityCategories.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
-                  ))}
-                  {categorySearch && filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
-                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                  )}
-                </TabsContent>
+                    {/* Universities */}
+                    <TabsContent value="universities" className="mt-0 space-y-6">
+                      {!categorySearch && (
+                        <div className="py-12 text-center text-slate-500">
+                          <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                          <p className="text-sm">Type a university name to search</p>
+                        </div>
+                      )}
+                      {categorySearch && filteredUniversityCategories.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                      ))}
+                      {categorySearch && filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                      )}
+                    </TabsContent>
 
-                {/* Languages */}
-                <TabsContent value="languages" className="mt-0 space-y-6">
-                  {LANGUAGE_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
-                  ))}
-                  {!LANGUAGE_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
-                </TabsContent>
+                    {/* Languages */}
+                    <TabsContent value="languages" className="mt-0 space-y-6">
+                      {LANGUAGE_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
+                      ))}
+                      {!LANGUAGE_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
+                    </TabsContent>
 
-                {/* Professional */}
-                <TabsContent value="professional" className="mt-0 space-y-6">
-                  {PROFESSIONAL_CATEGORIES.map(cat => (
-                    <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
-                  ))}
-                  {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
-                </TabsContent>
+                    {/* Professional */}
+                    <TabsContent value="professional" className="mt-0 space-y-6">
+                      {PROFESSIONAL_CATEGORIES.map(cat => (
+                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
+                      ))}
+                      {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
+                    </TabsContent>
+                  </>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Global results */}
+                    {GLOBAL_EXAMS_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                    ))}
+                    {/* AP results */}
+                    {AP_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
+                    ))}
+                    {/* A Level results */}
+                    {A_LEVEL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                    ))}
+                    {/* IB results */}
+                    {IB_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                    ))}
+                    {/* IGCSE results */}
+                    {IGCSE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
+                    ))}
+                    {/* National results */}
+                    {nationalExams.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
+                    ))}
+                    {/* Universities results */}
+                    {filteredUniversityCategories.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                    ))}
+                    {/* Languages results */}
+                    {LANGUAGE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
+                    ))}
+                    {/* Professional results */}
+                    {PROFESSIONAL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
+                    ))}
+
+                    {/* Empty state if nothing matches across all tabs */}
+                    {![GLOBAL_EXAMS_CATEGORIES, AP_CATEGORIES, A_LEVEL_CATEGORIES, IB_CATEGORIES, IGCSE_CATEGORIES, nationalExams, filteredUniversityCategories, LANGUAGE_CATEGORIES, PROFESSIONAL_CATEGORIES].some(group => group.some(cat => hasResults(cat.exams))) && (
+                      <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                    )}
+                  </div>
+                )}
               </div>
             </Tabs>
           </div>
