@@ -96,6 +96,7 @@ interface PublicTutorResponse {
     liveSessionsTotal?: number
     liveSessionsCompleted?: number
     enrollmentStatus?: 'ongoing' | 'ended'
+    startDate?: string | null
   }>
 }
 
@@ -1728,8 +1729,16 @@ export default function PublicTutorPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 space-y-4 overflow-auto p-6 pt-0">
+            {detailsCourse?.startDate && (
+              <div className="flex justify-end">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-600">
+                  <CalendarDays className="h-4 w-4" />
+                  Starts {new Date(detailsCourse.startDate).toLocaleDateString()}
+                </div>
+              </div>
+            )}
             <DialogPanel>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-gray-600">Category</div>
                   <div className="text-base font-semibold text-gray-900">
@@ -1739,7 +1748,7 @@ export default function PublicTutorPage() {
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-gray-600">Sessions</div>
                   <div className="text-base font-semibold text-gray-900">
-                    {detailsCourse?.lessonCount} sessions
+                    {detailsCourse?.lessonCount ?? 0} sessions
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -1748,16 +1757,41 @@ export default function PublicTutorPage() {
                     {detailsCourse?.isFree
                       ? 'Free'
                       : detailsCourse?.price != null
-                        ? `$${detailsCourse.price} / 1h session`
+                        ? `$${detailsCourse.price}`
                         : 'Free'}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-600">Schedule</div>
+                  <div className="text-sm font-medium text-gray-600">Cost Per Session</div>
                   <div className="text-base font-semibold text-gray-900">
-                    {detailsCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
+                    {detailsCourse?.isFree
+                      ? 'Free'
+                      : (() => {
+                          const price = detailsCourse?.price ?? 0
+                          const sessions = detailsCourse?.lessonCount ?? 0
+                          if (!price || sessions === 0) return 'Free'
+                          return `$${(price / sessions).toFixed(2)}`
+                        })()}
                   </div>
                 </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-gray-600">Status</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {(() => {
+                      const total = detailsCourse?.liveSessionsTotal ?? 0
+                      const completed = detailsCourse?.liveSessionsCompleted ?? 0
+                      if (total > 0 && completed >= total) return 'Catalogued'
+                      if (completed > 0) return 'Active'
+                      return 'Enrolling'
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </DialogPanel>
+            <DialogPanel>
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Schedule</h3>
+              <div className="text-base font-semibold text-gray-900">
+                {detailsCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
               </div>
             </DialogPanel>
             <DialogPanel>

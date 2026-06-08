@@ -107,10 +107,10 @@ export default function App() {
                       onClick={() => setIsComingSoonOpen(true)}
                       className="group relative px-6 py-2.5 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors shadow-md overflow-hidden min-w-[140px]"
                     >
-                      <span className="block transition-opacity duration-300 group-hover:opacity-0">
+                      <span className="block opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                         How It Works
                       </span>
-                      <span className="absolute inset-0 flex items-center justify-center gap-0.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <span className="absolute inset-0 flex items-center justify-center gap-0.5 transition-opacity duration-300 group-hover:opacity-0">
                         <motion.span
                           className="inline-flex h-5 w-5"
                           animate={{ rotate: 360 }}
