@@ -3143,6 +3143,8 @@ const CategorySearchModal = ({
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('global')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [globalContentHeight, setGlobalContentHeight] = useState<number>(380)
+  const globalContentRef = useRef<HTMLDivElement>(null)
 
   // Badge bar scroll navigation
   const badgeScrollRef = useRef<HTMLDivElement>(null)
@@ -3277,6 +3279,17 @@ const CategorySearchModal = ({
       ? exams.filter(e => e.toLowerCase().includes(categorySearch.toLowerCase()))
       : exams
 
+  // Measure Global tab content height to establish container size for other tabs
+  useEffect(() => {
+    if (activeTab !== 'global') return
+    const timer = setTimeout(() => {
+      if (globalContentRef.current) {
+        setGlobalContentHeight(globalContentRef.current.scrollHeight + 16)
+      }
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [activeTab])
+
   const hasResults = (exams: string[]) => filterExams(exams).length > 0
 
   const tabTriggerClass =
@@ -3289,7 +3302,7 @@ const CategorySearchModal = ({
       <div className="absolute inset-0 bg-black/80" onClick={onClose} onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} />
       <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
           {/* Header */}
-          <div className="relative shrink-0 p-6 pb-2">
+          <div className="relative shrink-0 px-6 pt-4 pb-1">
             <button
               onClick={onClose}
               className="absolute right-4 top-4 p-2 text-white/70 transition-colors hover:text-white"
@@ -3299,12 +3312,12 @@ const CategorySearchModal = ({
             <h2 className="mb-1 text-2xl font-bold text-white">
               {t('browseCategories')}
             </h2>
-            <p className="mb-3 text-sm text-white/70">
+            <p className="mb-2 text-sm text-white/70">
               {t('selectCategoryPrompt')}
             </p>
 
             {/* Selected category badges container + Search */}
-            <div className="mb-2 flex items-start gap-3">
+            <div className="mb-1 flex items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col">
                 <div
                   ref={badgeScrollRef}
@@ -3356,7 +3369,7 @@ const CategorySearchModal = ({
                     })}
                   </div>
                 </div>
-                <div className={cn('mt-[9px] flex items-center justify-end gap-1', (canScrollLeft || canScrollRight) ? 'visible' : 'invisible')}>
+                <div className={cn('mt-1 flex items-center justify-end gap-1', (canScrollLeft || canScrollRight) ? 'visible' : 'invisible')}>
                   <button
                     onClick={() => scrollBadges(-200)}
                     disabled={!canScrollLeft}
@@ -3457,7 +3470,7 @@ const CategorySearchModal = ({
           </div>
 
           {/* Tabs Content */}
-          <div className="w-full px-6 pb-3">
+          <div className="w-full px-6 pb-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="border-b border-slate-200">
                 <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
@@ -3493,7 +3506,7 @@ const CategorySearchModal = ({
               </div>
 
               {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="pb-0 pt-4">
+              <div className="relative z-10 bg-white/10 pb-2 pt-3">
                 <div className="relative mx-auto max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
@@ -3505,17 +3518,28 @@ const CategorySearchModal = ({
                 </div>
               </div>
 
-              <div className="h-[380px] overflow-y-auto overscroll-contain pt-2 pb-4 scrollbar-no-arrows">
+              <div
+                className={cn(
+                  'overscroll-contain border-t border-white/10 pt-2 pb-4 scrollbar-no-arrows',
+                  activeTab === 'global' ? 'overflow-visible' : 'overflow-y-auto'
+                )}
+                style={{
+                  height: activeTab === 'global' ? 'auto' : globalContentHeight,
+                  maxHeight: activeTab === 'global' ? 'none' : globalContentHeight,
+                }}
+              >
                 {!categorySearch ? (
                   <>
                     {/* Global */}
                     <TabsContent value="global" className="mt-0 space-y-6">
-                      {GLOBAL_EXAMS_CATEGORIES.map(cat => (
+                      <div ref={globalContentRef}>
+                        {GLOBAL_EXAMS_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
                       ))}
                       {!GLOBAL_EXAMS_CATEGORIES.some(cat => hasResults(cat.exams)) && (
                         <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
                       )}
+                      </div>
                     </TabsContent>
 
                     {/* AP */}
