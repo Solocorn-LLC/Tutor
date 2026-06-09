@@ -995,8 +995,8 @@ export default function PublicTutorPage() {
 
   const CourseCardStrip = ({ courses }: { courses: typeof enrollingCourses }) => {
     const [page, setPage] = useState(0)
-    const PAGE_SIZE = 5
-    const CARD_WIDTH = 180
+    const PAGE_SIZE = 4
+    const CARD_WIDTH = 320
     const CARD_GAP = 20
     const totalPages = Math.max(1, Math.ceil(courses.length / PAGE_SIZE))
     const currentPage = Math.min(page, totalPages - 1)
@@ -1076,8 +1076,8 @@ export default function PublicTutorPage() {
                     'flex flex-1',
                     isList
                       ? 'min-w-0 flex-col py-4 pl-10 pr-4 sm:flex-row sm:items-center sm:gap-6 sm:pl-12'
-                      : 'flex-col p-2',
-                    isCompact && !isList && 'p-2'
+                      : 'flex-col p-3.5',
+                    isCompact && !isList && 'p-3'
                   )}
                 >
                   {isList ? (
@@ -1118,8 +1118,8 @@ export default function PublicTutorPage() {
                         <div className="min-w-0 flex-1">
                           <h3
                             className={cn(
-                              'line-clamp-1 font-semibold text-slate-100',
-                              isCompact ? 'text-sm' : 'text-xs'
+                              'line-clamp-2 font-semibold text-slate-100',
+                              isCompact ? 'text-sm' : 'text-[15px]'
                             )}
                           >
                             {course.name}
@@ -1142,8 +1142,8 @@ export default function PublicTutorPage() {
         
                         <div
                           className={cn(
-                            'shrink-0 overflow-hidden rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
-                            isCompact ? 'h-20 w-20' : 'h-10 w-10'
+                            'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
+                            isCompact ? 'h-20 w-20' : 'h-[86px] w-[86px] sm:h-[94px] sm:w-[94px]'
                           )}
                         >
                           {tutor.avatarUrl ? (
@@ -1163,14 +1163,14 @@ export default function PublicTutorPage() {
                       {hasDescription ? (
                         <div
                           className={cn(
-                            'mt-2 rounded-[10px] border border-[rgba(15,23,42,0.10)] bg-white px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
-                            isCompact && 'mt-2 rounded-[10px] px-2 py-1.5'
+                            'mt-3.5 rounded-[14px] border border-[rgba(15,23,42,0.10)] bg-white px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
+                            isCompact && 'mt-3 rounded-[14px] px-3 py-2.5'
                           )}
                         >
                           <p
                             className={cn(
-                              'line-clamp-2 text-[11px] leading-relaxed text-slate-800',
-                              isCompact && 'text-[10px]'
+                              'line-clamp-5 text-sm leading-relaxed text-slate-800',
+                              isCompact && 'text-[11px]'
                             )}
                           >
                             {description}
@@ -1179,23 +1179,44 @@ export default function PublicTutorPage() {
                       ) : (
                         <p
                           className={cn(
-                            'mt-2 text-[10px] text-slate-300/80',
-                            isCompact && 'mt-2 text-[10px]'
+                            'mt-4 text-xs text-slate-300/80',
+                            isCompact && 'mt-3 text-[11px]'
                           )}
                         >
-                          No description yet.
+                          No course description provided yet.
                         </p>
                       )}
         
                       <div
                         className={cn(
-                          'mt-2 flex items-center gap-2 text-[10px] text-slate-300',
-                          isCompact && 'mt-2 text-[10px]'
+                          'mt-3.5 flex items-baseline gap-3 text-xs text-slate-300',
+                          isCompact && 'mt-3 text-[11px]'
                         )}
                       >
-                        <div className="flex items-center gap-1 font-medium text-slate-200">
-                          <BookOpen className="h-3 w-3 text-slate-400" />
+                        <div className="flex items-center gap-1.5 font-medium text-slate-200">
+                          <BookOpen className="h-4 w-4 text-slate-400" />
                           {course.lessonCount} sessions
+                        </div>
+                        <div className="h-4 w-px self-center bg-[rgba(255,255,255,0.12)]" />
+                        <div className="min-w-0">
+                          {course.scheduleSummary ? (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.preventDefault()
+                                setScheduleCourse(course)
+                              }}
+                              className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                            >
+                              <CalendarDays className="h-4 w-4" />
+                              Schedule <ExternalLink className="h-3 w-3" />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-medium text-slate-300">
+                              <CalendarDays className="h-4 w-4 text-slate-400" />
+                              Schedule to be announced
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1269,33 +1290,36 @@ export default function PublicTutorPage() {
                     'flex flex-col gap-2.5 border-t border-[rgba(255,255,255,0.1)] px-3.5 py-2.5',
                     isList
                       ? 'w-full min-w-[180px] max-w-[200px] justify-center border-l border-t-0'
-                      : 'w-full justify-between px-2 py-2',
-                    isCompact && 'gap-2 px-2 py-2'
+                      : 'w-full justify-between',
+                    isCompact && 'gap-2 px-3 py-2'
                   )}
                 >
                   {!isList && (
-                    <div className="flex w-full flex-wrap items-center justify-between gap-1">
+                    <div className="flex w-full flex-wrap items-center justify-between gap-2">
                       <Badge
                         variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
                         className={cn(
-                          'text-[9px] font-semibold transition-all hover:brightness-105',
+                          'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
                           enrollmentStatus === 'ongoing'
                             ? 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600'
                             : 'border-[rgba(255,255,255,0.2)] text-slate-300'
                         )}
                       >
                         {enrollmentStatus === 'ended'
-                          ? 'Ended'
-                          : 'Open'}
+                          ? 'Enrollment ended'
+                          : 'Enrollment ongoing'}
                       </Badge>
                       {course.isFree ? (
-                        <span className="text-[11px] font-bold text-emerald-400">Free</span>
+                        <span className="text-[13px] font-bold text-emerald-400">Free</span>
                       ) : course.price != null && course.price > 0 ? (
-                        <span className="text-[11px] font-bold text-slate-100">
-                          ${course.price}
+                        <span className="text-[13px] font-bold text-slate-100">
+                          ${course.price}{' '}
+                          <span className="text-[10px] font-normal text-slate-400">
+                            / 1h session
+                          </span>
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-emerald-400">Free</span>
+                        <span className="text-[13px] font-bold text-emerald-400">Free</span>
                       )}
                     </div>
                   )}
@@ -1322,19 +1346,19 @@ export default function PublicTutorPage() {
         
                   <div
                     className={cn(
-                      'mt-auto flex w-full flex-wrap items-center gap-2 pt-1',
+                      'mt-auto flex w-full flex-wrap items-center gap-3.5 pt-1.5',
                       isList ? 'justify-between px-2' : 'justify-start'
                     )}
                   >
                     <button
                       type="button"
                       className={cn(
-                        'inline-flex items-center text-[11px] font-medium text-slate-300 transition-colors hover:text-white disabled:opacity-50',
-                        isCompact && 'text-[10px]'
+                        'inline-flex items-center text-[13px] font-medium text-slate-300 transition-colors hover:text-white disabled:opacity-50',
+                        isCompact && 'text-xs'
                       )}
                       onClick={() => setDetailsCourse(course)}
                     >
-                      <FileText className="mr-1 h-3 w-3" />
+                      <FileText className="mr-1.5 h-3 w-3" />
                       Details
                     </button>
         
@@ -1342,14 +1366,14 @@ export default function PublicTutorPage() {
                       <button
                         type="button"
                         className={cn(
-                          'inline-flex items-center text-[11px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
-                          isCompact && 'text-[10px]'
+                          'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                          isCompact && 'text-xs'
                         )}
                         onClick={() => handleEnterClassroom(course)}
                         disabled={launchingCourseId === course.id}
                       >
-                        <BookOpen className="mr-1 h-3 w-3" />
-                        {launchingCourseId === course.id ? '…' : 'Class'}
+                        <BookOpen className="mr-1.5 h-3 w-3" />
+                        {launchingCourseId === course.id ? 'Launching…' : 'Classroom'}
                       </button>
                     ) : (
                       <>
@@ -1360,30 +1384,30 @@ export default function PublicTutorPage() {
                                 <button
                                   type="button"
                                   className={cn(
-                                    'inline-flex items-center text-[11px] font-medium text-emerald-400 disabled:opacity-50',
-                                    isCompact && 'text-[10px]'
+                                    'inline-flex items-center text-[13px] font-medium text-emerald-400 disabled:opacity-50',
+                                    isCompact && 'text-xs'
                                   )}
                                   disabled
                                 >
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                  In
+                                  <CheckCircle className="mr-1.5 h-3 w-3" />
+                                  Enrolled
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   className={cn(
-                                    'inline-flex items-center text-[11px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
-                                    isCompact && 'text-[10px]'
+                                    'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                                    isCompact && 'text-xs'
                                   )}
                                   onClick={() => handleEnrollClick(course)}
                                   disabled={enrollingCourseId === course.id}
                                 >
                                   {enrollingCourseId === course.id ? (
-                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
                                   ) : (
-                                    <UserPlus className="mr-1 h-3 w-3" />
+                                    <UserPlus className="mr-1.5 h-3 w-3" />
                                   )}
-                                  {enrollingCourseId === course.id ? '…' : 'Join'}
+                                  {enrollingCourseId === course.id ? 'Enrolling…' : 'Enroll'}
                                 </button>
                               )}
                             </>
@@ -1391,14 +1415,14 @@ export default function PublicTutorPage() {
                         <button
                           type="button"
                           className={cn(
-                            'inline-flex items-center text-[11px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
-                            isCompact && 'text-[10px]'
+                            'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                            isCompact && 'text-xs'
                           )}
                           onClick={() => void handleStudentEnterClassroom(course)}
                           disabled={studentJoiningCourseId === course.id}
                         >
-                          <BookOpen className="mr-1 h-3 w-3" />
-                          {studentJoiningCourseId === course.id ? '…' : 'Class'}
+                          <BookOpen className="mr-1.5 h-3 w-3" />
+                          {studentJoiningCourseId === course.id ? 'Enrolling…' : 'Classroom'}
                         </button>
                       </>
                     )}
