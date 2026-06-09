@@ -393,7 +393,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
               {filteredCourses.map(course => (
                 <div
                   key={course.id}
-                  className="rounded-xl border border-[#E2E8F0] p-3 hover:border-slate-500"
+                  className="rounded-xl border border-[#E2E8F0] p-2.5 hover:border-slate-500"
                   style={{
                     background: 'linear-gradient(135deg, #1E2832 0%, #2D3B4A 50%, #1A2530 100%)',
                   }}
@@ -402,93 +402,38 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
                     const hasDesc = course.isPublished && course.description
                     const showNationality = course.nationality && course.nationality !== 'Global'
                     return (
-                      <div className={cn('flex', hasDesc ? 'gap-3' : 'flex-col gap-2')}>
+                      <div className="flex items-center gap-4">
                         {/* Left: title + metadata */}
-                        <div className="flex min-w-0 flex-1 flex-col justify-center">
-                          <div className={cn('flex min-w-0 items-center gap-2', !hasDesc && 'justify-between')}>
-                            <div className="flex min-w-0 items-center gap-2">
-                              <h4 className="truncate font-medium text-white">{course.name}</h4>
-                              {activeTab === 'catalogued' ? (
-                                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                                  Catalogued
-                                </span>
-                              ) : course.isPublished ? (
-                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                                  Published
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                                  Draft
-                                </span>
-                              )}
-                            </div>
-                            {!hasDesc && (
-                              <div className="flex shrink-0 items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const prefix = window.location.pathname.replace(
-                                      /\/tutor\/my-page\/?$/,
-                                      ''
-                                    )
-                                    router.push(
-                                      `${prefix}/tutor/insights?tab=builder&courseId=${course.id}`
-                                    )
-                                  }}
-                                  className="text-blue-400 hover:bg-white/10"
-                                >
-                                  <Edit3 className="mr-1 h-4 w-4" />
-                                  Edit
-                                </Button>
-                                {activeTab !== 'catalogued' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleTogglePublish(course)}
-                                    className={
-                                      course.isPublished
-                                        ? 'text-amber-400 hover:bg-white/10'
-                                        : 'text-emerald-400 hover:bg-white/10'
-                                    }
-                                  >
-                                    {course.isPublished ? (
-                                      <>
-                                        <EyeOff className="mr-1 h-4 w-4" />
-                                        Unpublish
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Eye className="mr-1 h-4 w-4" />
-                                        Publish
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteCourse(course.id)}
-                                  className="text-red-400 hover:bg-white/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                        <div className="flex min-w-0 flex-col justify-center">
+                          <div className="flex items-center gap-2">
+                            <h4 className="truncate font-medium text-white">{course.name}</h4>
+                            {activeTab === 'catalogued' ? (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                                Catalogued
+                              </span>
+                            ) : course.isPublished ? (
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                                Published
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                                Draft
+                              </span>
                             )}
                           </div>
                           {showNationality && (
-                            <p className="mt-0.5 text-sm font-medium text-blue-400">
+                            <p className="mt-0.5 text-xs font-medium text-blue-400">
                               {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
                               {course.nationality}
                             </p>
                           )}
-                          <p className="mt-1 text-sm text-slate-300">
+                          <p className="mt-0.5 text-xs text-slate-300">
                             {showNationality
                               ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
                               : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
                           </p>
                           {activeTab === 'catalogued' && course.lastSessionDate && (
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-0.5 text-xs text-slate-400">
                               Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
                             </p>
                           )}
@@ -496,69 +441,69 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
 
                         {/* Middle: description */}
                         {hasDesc && (
-                          <div className="w-[640px] shrink-0 self-center rounded-lg bg-white p-2.5">
-                            <p className="line-clamp-3 text-sm text-slate-700">
+                          <>
+                            <div className="h-8 w-px bg-white/20" />
+                            <p className="min-w-0 flex-1 truncate text-sm text-slate-300">
                               {course.description}
                             </p>
-                          </div>
+                          </>
                         )}
 
-                        {/* Right: action buttons (vertically stacked) */}
-                        {hasDesc && (
-                          <div className="flex shrink-0 flex-col items-stretch gap-1 self-center">
+                        {/* Right: action buttons */}
+                        <div className="h-8 w-px bg-white/20" />
+                        <div className="flex shrink-0 items-center divide-x divide-white/20">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const prefix = window.location.pathname.replace(
+                                /\/tutor\/my-page\/?$/,
+                                ''
+                              )
+                              router.push(
+                                `${prefix}/tutor/insights?tab=builder&courseId=${course.id}`
+                              )
+                            }}
+                            className="text-blue-400 hover:bg-white/10 hover:text-white"
+                          >
+                            <Edit3 className="mr-1 h-4 w-4" />
+                            Edit
+                          </Button>
+                          {activeTab !== 'catalogued' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                const prefix = window.location.pathname.replace(
-                                  /\/tutor\/my-page\/?$/,
-                                  ''
-                                )
-                                router.push(
-                                  `${prefix}/tutor/insights?tab=builder&courseId=${course.id}`
-                                )
-                              }}
-                              className="justify-start text-blue-400 hover:bg-white/10"
+                              onClick={() => handleTogglePublish(course)}
+                              className={cn(
+                                'hover:bg-white/10 hover:text-white',
+                                course.isPublished
+                                  ? 'text-amber-400'
+                                  : 'text-emerald-400'
+                              )}
                             >
-                              <Edit3 className="mr-1 h-4 w-4" />
-                              Edit
+                              {course.isPublished ? (
+                                <>
+                                  <EyeOff className="mr-1 h-4 w-4" />
+                                  Unpublish
+                                </>
+                              ) : (
+                                <>
+                                  <Eye className="mr-1 h-4 w-4" />
+                                  Publish
+                                </>
+                              )}
                             </Button>
-                            {activeTab !== 'catalogued' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleTogglePublish(course)}
-                                className={cn(
-                                  'justify-start hover:bg-white/10',
-                                  course.isPublished
-                                    ? 'text-amber-400'
-                                    : 'text-emerald-400'
-                                )}
-                              >
-                                {course.isPublished ? (
-                                  <>
-                                    <EyeOff className="mr-1 h-4 w-4" />
-                                    Unpublish
-                                  </>
-                                ) : (
-                                  <>
-                                    <Eye className="mr-1 h-4 w-4" />
-                                    Publish
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteCourse(course.id)}
-                              className="justify-start text-red-400 hover:bg-white/10"
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              Delete
-                            </Button>
-                          </div>
-                        )}
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCourse(course.id)}
+                            className="text-red-400 hover:bg-white/10 hover:text-white"
+                          >
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     )
                   })()}
