@@ -1570,7 +1570,7 @@ export default function PublicTutorPage() {
                     className="w-full sm:w-auto"
                     onClick={() => setBookDialogOpen(true)}
                   >
-                    <Video className="mr-2 h-4 w-4" />
+                    <CalendarDays className="mr-2 h-4 w-4" />
                     Book 1 on 1
                   </Button>
                   <Button
@@ -1644,7 +1644,7 @@ export default function PublicTutorPage() {
                     disabled={!publicUrl}
                   >
                     <Copy className="mr-1.5 h-3.5 w-3.5" />
-                    Copy Link
+                    Copy URL
                   </Button>
                   {canShare ? (
                     <Button

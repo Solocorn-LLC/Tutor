@@ -206,15 +206,19 @@ const buttonVariants = cva(
         ],
 
         'solocorn-book': [
-          'bg-white text-[#0B3A9B]',
+          'bg-[#1D4ED8] text-white',
+          'border border-white',
           'shadow-elevation-1',
-          'hover:bg-[#3F4A5A] hover:text-white',
+          'hover:bg-white hover:text-[#1D4ED8]',
+          'hover:border-[#1D4ED8]',
           'hover:shadow-elevation-2',
         ],
 
         'solocorn-follow': [
           'bg-[#E87D2A] text-white',
+          'border border-white',
           'hover:bg-white hover:text-[#E87D2A]',
+          'hover:border-[#E87D2A]',
           'hover:shadow-elevation-1',
         ],
       },
