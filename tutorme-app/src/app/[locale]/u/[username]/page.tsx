@@ -1143,7 +1143,7 @@ export default function PublicTutorPage() {
                         <div
                           className={cn(
                             'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
-                            isCompact ? 'h-20 w-20' : 'h-[86px] w-[86px] sm:h-[94px] sm:w-[94px]'
+                            isCompact ? 'h-20 w-20' : 'h-[78px] w-[78px] sm:h-[86px] sm:w-[86px]'
                           )}
                         >
                           {tutor.avatarUrl ? (
@@ -1163,13 +1163,13 @@ export default function PublicTutorPage() {
                       {hasDescription ? (
                         <div
                           className={cn(
-                            'mt-3.5 rounded-[14px] border border-[rgba(15,23,42,0.10)] bg-white px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
-                            isCompact && 'mt-3 rounded-[14px] px-3 py-2.5'
+                            'mt-2 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
+                            isCompact && 'mt-2 rounded-[12px] px-3 py-2'
                           )}
                         >
                           <p
                             className={cn(
-                              'line-clamp-5 text-sm leading-relaxed text-slate-800',
+                              'line-clamp-4 text-[12px] leading-[1.3] text-slate-800',
                               isCompact && 'text-[11px]'
                             )}
                           >
@@ -1179,25 +1179,25 @@ export default function PublicTutorPage() {
                       ) : (
                         <p
                           className={cn(
-                            'mt-4 text-xs text-slate-300/80',
-                            isCompact && 'mt-3 text-[11px]'
+                            'mt-2 text-[11px] text-slate-300/80',
+                            isCompact && 'mt-2 text-[11px]'
                           )}
                         >
-                          No course description provided yet.
+                          No description yet.
                         </p>
                       )}
         
                       <div
                         className={cn(
-                          'mt-3.5 flex items-baseline gap-3 text-xs text-slate-300',
-                          isCompact && 'mt-3 text-[11px]'
+                          'mt-2 flex items-baseline gap-3 text-[11px] text-slate-300',
+                          isCompact && 'mt-2 text-[11px]'
                         )}
                       >
-                        <div className="flex items-center gap-1.5 font-medium text-slate-200">
-                          <BookOpen className="h-4 w-4 text-slate-400" />
+                        <div className="flex items-center gap-1 font-medium text-slate-200">
+                          <BookOpen className="h-3.5 w-3.5 text-slate-400" />
                           {course.lessonCount} sessions
                         </div>
-                        <div className="h-4 w-px self-center bg-[rgba(255,255,255,0.12)]" />
+                        <div className="h-3.5 w-px self-center bg-[rgba(255,255,255,0.12)]" />
                         <div className="min-w-0">
                           {course.scheduleSummary ? (
                             <button
@@ -1208,13 +1208,13 @@ export default function PublicTutorPage() {
                               }}
                               className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
                             >
-                              <CalendarDays className="h-4 w-4" />
+                              <CalendarDays className="h-3.5 w-3.5" />
                               Schedule <ExternalLink className="h-3 w-3" />
                             </button>
                           ) : (
                             <span className="inline-flex items-center gap-1 font-medium text-slate-300">
-                              <CalendarDays className="h-4 w-4 text-slate-400" />
-                              Schedule to be announced
+                              <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+                              Schedule TBA
                             </span>
                           )}
                         </div>
