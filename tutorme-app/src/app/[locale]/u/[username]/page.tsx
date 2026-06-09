@@ -112,21 +112,23 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
 const KakaoTalkIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 512 512" aria-hidden="true" {...props}>
     <rect width="512" height="512" rx="115" fill="#FEE500" />
-    <path
-      d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
-      fill="#3C1E1E"
-    />
-    <text
-      x="256"
-      y="275"
-      textAnchor="middle"
-      fill="#FEE500"
-      fontSize="80"
-      fontWeight="bold"
-      fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    >
-      TALK
-    </text>
+    <g transform="translate(256, 256) scale(1.3) translate(-256, -256)">
+      <path
+        d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
+        fill="#3C1E1E"
+      />
+      <text
+        x="256"
+        y="275"
+        textAnchor="middle"
+        fill="#FEE500"
+        fontSize="100"
+        fontWeight="bold"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      >
+        TALK
+      </text>
+    </g>
   </svg>
 )
 

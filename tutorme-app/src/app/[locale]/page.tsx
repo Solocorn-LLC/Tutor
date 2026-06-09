@@ -3614,16 +3614,16 @@ const CategorySearchModal = ({
 
                     {/* Universities */}
                     <TabsContent value="universities" className="mt-0 space-y-8">
-                      {!categorySearch && (
+                      {filteredUniversityCategories.length === 0 && (
                         <div className="py-12 text-center text-slate-500">
                           <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                          <p className="text-sm">Type a university name to search</p>
+                          <p className="text-sm">Select a country to see universities</p>
                         </div>
                       )}
-                      {categorySearch && filteredUniversityCategories.map(cat => (
+                      {filteredUniversityCategories.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
                       ))}
-                      {categorySearch && filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
+                      {filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
                         <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
                       )}
                     </TabsContent>

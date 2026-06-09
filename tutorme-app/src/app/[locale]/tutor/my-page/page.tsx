@@ -102,31 +102,47 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
 
 const KakaoTalkIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 512 512" aria-hidden="true" {...props}>
-    <path
-      d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
-      fill="currentColor"
-    />
+    <rect width="512" height="512" rx="115" fill="currentColor" />
+    <g transform="translate(256, 256) scale(1.3) translate(-256, -256)">
+      <path
+        d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
+        fill="white"
+      />
+      <text
+        x="256"
+        y="275"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize="100"
+        fontWeight="bold"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      >
+        TALK
+      </text>
+    </g>
   </svg>
 )
 
 const KakaoTalkBrandIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 512 512" aria-hidden="true" {...props}>
     <rect width="512" height="512" rx="115" fill="#FEE500" />
-    <path
-      d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
-      fill="#3C1E1E"
-    />
-    <text
-      x="256"
-      y="275"
-      textAnchor="middle"
-      fill="#FEE500"
-      fontSize="80"
-      fontWeight="bold"
-      fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    >
-      TALK
-    </text>
+    <g transform="translate(256, 256) scale(1.3) translate(-256, -256)">
+      <path
+        d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
+        fill="#3C1E1E"
+      />
+      <text
+        x="256"
+        y="275"
+        textAnchor="middle"
+        fill="#FEE500"
+        fontSize="100"
+        fontWeight="bold"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      >
+        TALK
+      </text>
+    </g>
   </svg>
 )
 
@@ -1868,7 +1884,7 @@ export default function TutorMyPage() {
                     <div className="grid gap-2.5 md:grid-cols-2">
                       <div className="flex items-center gap-2">
                         <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0]">
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-0 focus-within:outline-none">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1880,14 +1896,14 @@ export default function TutorMyPage() {
                               }))
                             }
                             disabled={loading || saving}
-                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="border-0 pl-0 !ring-0 !outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                           />
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0]">
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-0 focus-within:outline-none">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1899,14 +1915,14 @@ export default function TutorMyPage() {
                               }))
                             }
                             disabled={loading || saving}
-                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="border-0 pl-0 !ring-0 !outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                           />
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0]">
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-0 focus-within:outline-none">
                           <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
                           <Input
                             placeholder="username"
@@ -1918,14 +1934,14 @@ export default function TutorMyPage() {
                               }))
                             }
                             disabled={loading || saving}
-                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="border-0 pl-0 !ring-0 !outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                           />
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0]">
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-0 focus-within:outline-none">
                           <span className="inline-flex items-center pl-3 text-[#64748B] text-xs">https://</span>
                           <Input
                             placeholder="username"
@@ -1937,17 +1953,16 @@ export default function TutorMyPage() {
                               }))
                             }
                             disabled={loading || saving}
-                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="border-0 pl-0 !ring-0 !outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                           />
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0]">
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:ring-0 focus-within:outline-none">
                           <span className="inline-flex items-center pl-3 text-[#64748B] text-xs">https://</span>
                           <Input
-                            placeholder="username"
                             value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
                             onChange={e =>
                               setSocialAccounts(prev => ({
@@ -1956,7 +1971,7 @@ export default function TutorMyPage() {
                               }))
                             }
                             disabled={loading || saving}
-                            className="border-0 pl-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            className="border-0 pl-0 !ring-0 !outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                           />
                         </div>
                       </div>
