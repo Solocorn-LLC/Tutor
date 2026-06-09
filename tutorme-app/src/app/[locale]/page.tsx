@@ -3284,7 +3284,7 @@ const CategorySearchModal = ({
     if (activeTab !== 'global') return
     const timer = setTimeout(() => {
       if (globalContentRef.current) {
-        setGlobalContentHeight(globalContentRef.current.scrollHeight + 16)
+        setGlobalContentHeight(globalContentRef.current.scrollHeight + 24)
       }
     }, 100)
     return () => clearTimeout(timer)
@@ -3312,7 +3312,7 @@ const CategorySearchModal = ({
             <h2 className="mb-1 text-2xl font-bold text-white">
               {t('browseCategories')}
             </h2>
-            <p className="mb-2 text-sm text-white/70">
+            <p className="mb-3 text-sm text-white/70">
               {t('selectCategoryPrompt')}
             </p>
 
@@ -3470,7 +3470,7 @@ const CategorySearchModal = ({
           </div>
 
           {/* Tabs Content */}
-          <div className="w-full px-6 pb-2">
+          <div className="w-full pl-6 pr-2 pb-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="border-b border-slate-200">
                 <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
@@ -3506,7 +3506,7 @@ const CategorySearchModal = ({
               </div>
 
               {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="relative z-10 bg-white/10 pb-2 pt-3">
+              <div className="relative z-10 pb-2 pt-[15px]">
                 <div className="relative mx-auto max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
@@ -3521,17 +3521,17 @@ const CategorySearchModal = ({
               <div
                 className={cn(
                   'overscroll-contain border-t border-white/10 pt-2 pb-4 scrollbar-no-arrows',
-                  activeTab === 'global' ? 'overflow-visible' : 'overflow-y-auto'
+                  activeTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
                 )}
                 style={{
-                  height: activeTab === 'global' ? 'auto' : globalContentHeight,
-                  maxHeight: activeTab === 'global' ? 'none' : globalContentHeight,
+                  height: globalContentHeight,
+                  maxHeight: globalContentHeight,
                 }}
               >
                 {!categorySearch ? (
                   <>
                     {/* Global */}
-                    <TabsContent value="global" className="mt-0 space-y-6">
+                    <TabsContent value="global" className="mt-0 space-y-8">
                       <div ref={globalContentRef}>
                         {GLOBAL_EXAMS_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
@@ -3543,7 +3543,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* AP */}
-                    <TabsContent value="ap" className="mt-0 space-y-6">
+                    <TabsContent value="ap" className="mt-0 space-y-8">
                       {AP_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
                       ))}
@@ -3553,7 +3553,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* A Level */}
-                    <TabsContent value="alevel" className="mt-0 space-y-6">
+                    <TabsContent value="alevel" className="mt-0 space-y-8">
                       {A_LEVEL_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
                       ))}
@@ -3563,7 +3563,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* IB */}
-                    <TabsContent value="ib" className="mt-0 space-y-6">
+                    <TabsContent value="ib" className="mt-0 space-y-8">
                       {IB_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
                       ))}
@@ -3573,7 +3573,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* IGCSE */}
-                    <TabsContent value="igcse" className="mt-0 space-y-6">
+                    <TabsContent value="igcse" className="mt-0 space-y-8">
                       {IGCSE_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
                       ))}
@@ -3583,7 +3583,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* National */}
-                    <TabsContent value="national" className="mt-0 space-y-6">
+                    <TabsContent value="national" className="mt-0 space-y-8">
                       {nationalExams.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
                       ))}
@@ -3599,7 +3599,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* Universities */}
-                    <TabsContent value="universities" className="mt-0 space-y-6">
+                    <TabsContent value="universities" className="mt-0 space-y-8">
                       {!categorySearch && (
                         <div className="py-12 text-center text-slate-500">
                           <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
@@ -3615,7 +3615,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* Languages */}
-                    <TabsContent value="languages" className="mt-0 space-y-6">
+                    <TabsContent value="languages" className="mt-0 space-y-8">
                       {LANGUAGE_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
                       ))}
@@ -3623,7 +3623,7 @@ const CategorySearchModal = ({
                     </TabsContent>
 
                     {/* Professional */}
-                    <TabsContent value="professional" className="mt-0 space-y-6">
+                    <TabsContent value="professional" className="mt-0 space-y-8">
                       {PROFESSIONAL_CATEGORIES.map(cat => (
                         <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
                       ))}
@@ -3631,7 +3631,7 @@ const CategorySearchModal = ({
                     </TabsContent>
                   </>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     {/* Global results */}
                     {GLOBAL_EXAMS_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
                       <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
