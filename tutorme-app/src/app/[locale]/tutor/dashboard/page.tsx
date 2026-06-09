@@ -161,6 +161,12 @@ function TutorDashboardContent() {
     if (searchParams.get('course') === '1') router.push('/tutor/courses/new')
   }, [searchParams, router])
   const [stats, setStats] = useState(defaultStats)
+  const [heroStats, setHeroStats] = useState({
+    sessionsToday: 0,
+    activeCourses: 0,
+    enrollments: 0,
+    oneOnOneRequests: 0,
+  })
   const [classes, setClasses] = useState<UpcomingClass[]>([])
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [allStudents, setAllStudents] = useState<
@@ -204,9 +210,10 @@ function TutorDashboardContent() {
     if (!session?.user?.id) return
     setError(null)
     try {
-      const [statsRes, classesRes, allStudentsRes, enrolledRes, oneOnOneRes] =
+      const [statsRes, heroStatsRes, classesRes, allStudentsRes, enrolledRes, oneOnOneRes] =
         await Promise.allSettled([
           fetch('/api/tutor/stats', { credentials: 'include' }),
+          fetch('/api/tutor/dashboard/hero-stats', { credentials: 'include' }),
           fetch('/api/tutor/classes', { credentials: 'include' }),
           fetch('/api/tutor/students', { credentials: 'include' }),
           fetch('/api/tutor/courses/enrolled', { credentials: 'include' }),
@@ -226,6 +233,18 @@ function TutorDashboardContent() {
         })
       } else {
         failures.push('stats')
+      }
+
+      if (heroStatsRes.status === 'fulfilled' && heroStatsRes.value.ok) {
+        const d = await heroStatsRes.value.json()
+        setHeroStats({
+          sessionsToday: d.sessionsToday ?? 0,
+          activeCourses: d.activeCourses ?? 0,
+          enrollments: d.enrollments ?? 0,
+          oneOnOneRequests: d.oneOnOneRequests ?? 0,
+        })
+      } else {
+        failures.push('hero-stats')
       }
 
       if (classesRes.status === 'fulfilled' && classesRes.value.ok) {
@@ -582,6 +601,7 @@ function TutorDashboardContent() {
         <div className="mb-8">
           <ModernHeroSection
             stats={stats}
+            heroStats={heroStats}
             loading={loading}
             nextSession={getNextSessionText() || undefined}
           />

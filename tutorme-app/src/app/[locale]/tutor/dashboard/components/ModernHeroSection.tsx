@@ -30,6 +30,7 @@ import {
   Award,
   Video,
   Plus,
+  MessageSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -41,6 +42,13 @@ import {
   DialogBody,
 } from '@/components/ui/dialog'
 
+interface HeroStats {
+  sessionsToday: number
+  activeCourses: number
+  enrollments: number
+  oneOnOneRequests: number
+}
+
 interface ModernHeroSectionProps {
   stats?: {
     totalClasses: number
@@ -49,6 +57,7 @@ interface ModernHeroSectionProps {
     earnings: number
     currency: string
   }
+  heroStats?: HeroStats
   loading?: boolean
 }
 
@@ -62,6 +71,7 @@ interface ClassEvent {
 
 export function ModernHeroSection({
   stats,
+  heroStats,
   loading,
   nextSession,
 }: ModernHeroSectionProps & { nextSession?: string }) {
@@ -117,13 +127,23 @@ export function ModernHeroSection({
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 w-1/3 rounded bg-white/10" />
-          <div className="h-4 w-1/4 rounded bg-white/10" />
-          <div className="mt-8 grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 rounded-xl bg-white/10" />
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-4 w-40 rounded bg-white/10" />
+              <div className="h-10 w-56 rounded bg-white/10" />
+              <div className="h-4 w-48 rounded bg-white/10" />
+            </div>
+            <div className="flex gap-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-10 w-32 rounded-xl bg-white/10" />
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 grid grid-cols-7 gap-2 rounded-[14px] bg-white/10 p-4">
+            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+              <div key={i} className="h-16 rounded-xl bg-white/10" />
             ))}
           </div>
         </div>
@@ -132,14 +152,14 @@ export function ModernHeroSection({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-[#1e3a5f] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       {/* Content */}
       <div className="relative z-10">
         {/* Header Row */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-white/70" />
+            <div className="mb-1 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-white/70" />
               <span className="text-sm font-medium text-white/70">
                 {greeting}, @
                 {username ??
@@ -148,61 +168,70 @@ export function ModernHeroSection({
                   'username'}
               </span>
             </div>
-            <h1 className="mb-2 text-4xl font-bold text-white">Welcome Back!</h1>
-            <p className="text-white/70">
+            <h1 className="mb-1 text-3xl font-bold text-white">Welcome Back!</h1>
+            <p className="text-sm text-white/70">
               {formatDate(currentTime)} • {formatTime(currentTime)}
             </p>
           </div>
+
+          {/* Stat Pills */}
+          {heroStats && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <Calendar className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Sessions Today</span>
+                <span className="text-sm font-bold text-white">{heroStats.sessionsToday}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <BookOpen className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Active Courses</span>
+                <span className="text-sm font-bold text-white">{heroStats.activeCourses}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <Users className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Enrollments</span>
+                <span className="text-sm font-bold text-white">{heroStats.enrollments}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <MessageSquare className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">1-on-1 Requests</span>
+                <span className="text-sm font-bold text-white">{heroStats.oneOnOneRequests}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* One Week Calendar Schedule */}
-        <div className="mb-8 grid grid-cols-7 gap-2 rounded-[14px] border border-white/10 bg-white/10 p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-          {Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(currentTime)
-            d.setDate(currentTime.getDate() + i)
-            const dayClasses = getDayClasses(d)
-            const hasClasses = dayClasses.length > 0
+        <div className="mb-5 rounded-[14px] border border-white/10 bg-white/10 p-3">
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(currentTime)
+              d.setDate(currentTime.getDate() + i)
 
-            return (
-              <div
-                key={i}
-                onClick={() => handleDayClick(d)}
-                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl p-2 transition-colors hover:bg-white/20"
-              >
-                <span className="mb-1 text-xs font-medium text-white/70">
-                  {d.toLocaleDateString('en-US', { weekday: 'short' })}
-                </span>
-                <span
-                  className={cn(
-                    'mt-1 flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold',
-                    i === 0
-                      ? 'bg-indigo-400 text-white shadow-md shadow-indigo-400/30'
-                      : 'text-white group-hover:bg-white/10'
-                  )}
+              return (
+                <div
+                  key={i}
+                  onClick={() => handleDayClick(d)}
+                  className="group flex cursor-pointer flex-col items-center justify-center rounded-xl py-2 transition-colors hover:bg-white/20"
                 >
-                  {d.getDate()}
-                </span>
-                {/* Show class times instead of dots */}
-                <div className="mt-2 flex flex-col items-center gap-0.5">
-                  {dayClasses.slice(0, 1).map((cls, idx) => (
-                    <span key={idx} className="text-[10px] font-medium text-indigo-300">
-                      {cls.time}
-                    </span>
-                  ))}
-                  {dayClasses.length > 1 && (
-                    <span className="text-[8px] text-white/70">
-                      +{dayClasses.length - 1} more
-                    </span>
-                  )}
-                  {!hasClasses && (
-                    <div className="flex h-1.5 gap-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-white/30" />
-                    </div>
-                  )}
+                  <span className="text-[11px] font-medium text-white/70">
+                    {d.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </span>
+                  <span
+                    className={cn(
+                      'mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold',
+                      i === 0
+                        ? 'bg-white/30 text-white'
+                        : 'text-white group-hover:bg-white/10'
+                    )}
+                  >
+                    {d.getDate()}
+                  </span>
+                  <div className="mt-1 h-1 w-1 rounded-full bg-white/40" />
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         {/* Day Detail Modal */}
@@ -252,9 +281,9 @@ export function ModernHeroSection({
         </Dialog>
 
         {/* Action Bar */}
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
-            className="bg-white text-[#1e3a5f] hover:bg-white/90"
+            className="bg-white text-[#1D4ED8] hover:bg-white/90"
             onClick={() => toast.info('Coming soon...')}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -270,8 +299,8 @@ export function ModernHeroSection({
           </Button>
           <div className="flex-1" />
           {nextSession && (
-            <div className="flex items-center gap-2 text-base font-medium text-emerald-300">
-              <Clock className="h-5 w-5" />
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-300">
+              <Clock className="h-4 w-4" />
               <span>Next session: {nextSession}</span>
             </div>
           )}
