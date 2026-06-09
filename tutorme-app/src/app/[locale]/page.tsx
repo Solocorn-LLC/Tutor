@@ -3569,7 +3569,7 @@ const CategorySearchModal = ({
                     {/* A Level */}
                     <TabsContent value="alevel" className="mt-0 space-y-8">
                       {A_LEVEL_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#BF5AF2" />
                       ))}
                       {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
                         <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
@@ -3579,7 +3579,7 @@ const CategorySearchModal = ({
                     {/* IB */}
                     <TabsContent value="ib" className="mt-0 space-y-8">
                       {IB_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#32D74B" />
                       ))}
                       {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
                         <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
@@ -3639,7 +3639,7 @@ const CategorySearchModal = ({
                     {/* Professional */}
                     <TabsContent value="professional" className="mt-0 space-y-8">
                       {PROFESSIONAL_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
+                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#8E8E93" />
                       ))}
                       {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
                     </TabsContent>
@@ -3656,11 +3656,11 @@ const CategorySearchModal = ({
                     ))}
                     {/* A Level results */}
                     {A_LEVEL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
+                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#BF5AF2" />
                     ))}
                     {/* IB results */}
                     {IB_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#32D74B" />
                     ))}
                     {/* IGCSE results */}
                     {IGCSE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
@@ -3680,7 +3680,7 @@ const CategorySearchModal = ({
                     ))}
                     {/* Professional results */}
                     {PROFESSIONAL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF2D55" />
+                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#8E8E93" />
                     ))}
 
                     {/* Empty state if nothing matches across all tabs */}
