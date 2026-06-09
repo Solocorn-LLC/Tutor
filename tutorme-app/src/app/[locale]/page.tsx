@@ -1422,12 +1422,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const router = useRouter()
 
   const hasFilters = q !== '' || selectedRegion !== '' || selectedCountryCode !== ''
+  const showReset = selectedCountryCode !== ''
 
   useEffect(() => {
-    if (hasFilters) {
+    if (showReset) {
       setRotation(r => r + 360)
     }
-  }, [hasFilters])
+  }, [showReset])
 
   const availableCountries = (() => {
     const region = REGIONS.find(r => r.id === selectedRegion)
@@ -1846,23 +1847,23 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </SelectContent>
           </Select>
 
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedRegion('')
-                setSelectedCountryCode('')
-                onClearAll()
-              }}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50"
-              aria-label="Clear filters"
-            >
-              <RefreshCw
-                className="h-4 w-4 transition-transform duration-500 ease-out"
-                style={{ transform: `rotate(${rotation}deg)` }}
-              />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCountryCode('')
+            }}
+            className={cn(
+              "inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50",
+              !showReset && "invisible opacity-0 pointer-events-none",
+              showReset && "visible opacity-100"
+            )}
+            aria-label="Clear country filter"
+          >
+            <RefreshCw
+              className="h-4 w-4 transition-transform duration-500 ease-out"
+              style={{ transform: `rotate(${rotation}deg)` }}
+            />
+          </button>
         </div>
 
         <div className="mt-8 space-y-10">
