@@ -130,7 +130,7 @@ export default function StudentDashboard() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={themeStyle}>
+      <div className="flex h-full items-center justify-center" style={themeStyle}>
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       </div>
     )
@@ -185,13 +185,13 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="text-foreground min-h-screen">
+    <div className="text-foreground h-full flex flex-col overflow-hidden">
       {/* Main Content */}
-      <main className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8" aria-busy={loading}>
+      <div className="w-full px-3 lg:px-4 flex flex-col h-full" aria-busy={loading}>
         {fetchError && (
           <div
             role="alert"
-            className="mb-6 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800"
+            className="mb-4 flex-shrink-0 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
@@ -208,11 +208,11 @@ export default function StudentDashboard() {
           </div>
         )}
         {/* Welcome */}
-        <div className="mb-8">
+        <div className="flex-shrink-0 mb-4">
           <StudentHeroSection />
         </div>
 
-        <div className="space-y-6">
+        <div className="flex-1 flex flex-col min-h-0">
           <DashboardCalendar
             onRefresh={fetchDashboardData}
             contents={
@@ -248,7 +248,7 @@ export default function StudentDashboard() {
             onBookClass={handleBookClass}
           />
         </div>
-      </main>
+      </div>
     </div>
   )
 }

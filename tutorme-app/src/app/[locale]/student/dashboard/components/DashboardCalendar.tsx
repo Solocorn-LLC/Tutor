@@ -185,9 +185,9 @@ export function DashboardCalendar({
   }, [events])
 
   return (
-    <div className="w-full overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="p-6 pb-3">
+    <div className="w-full flex flex-col h-full overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
+        <div className="flex-shrink-0 p-6 pb-3">
           <TabsList
             variant="pills"
             fullWidth
@@ -214,14 +214,14 @@ export function DashboardCalendar({
           </TabsList>
         </div>
 
-        <div className="p-6 pt-0">
+        <div className="flex-1 min-h-0 overflow-hidden p-6 pt-0">
           {/* My Calendar Tab */}
-          <TabsContent value="calendar" className="mt-0 space-y-4">
-            <InteractiveCalendar events={interactiveEvents} loading={loading} mode="student" />
+          <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0">
+            <InteractiveCalendar events={interactiveEvents} loading={loading} mode="student" embedded />
           </TabsContent>
 
           {/* My Classes Tab */}
-          <TabsContent value="classes" className="mt-0">
+          <TabsContent value="classes" className="h-full overflow-y-auto mt-0">
             {loading ? (
               <div className="py-8 text-center">
                 <p className="text-muted-foreground text-sm">Loading your classes...</p>
@@ -235,7 +235,7 @@ export function DashboardCalendar({
                 </Button>
               </div>
             ) : (
-              <div className="max-h-[400px] space-y-3 overflow-y-auto pr-2">
+              <div className="space-y-3 pr-2">
                 {classes.map(cls => (
                   <div
                     key={cls.id}

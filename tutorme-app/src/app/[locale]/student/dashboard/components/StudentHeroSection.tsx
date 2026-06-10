@@ -112,27 +112,64 @@ export function StudentHeroSection() {
     })
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
       <div className="relative z-10">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="text-primary h-5 w-5" />
-              <span className="text-sm font-medium text-slate-500">
+            <div className="mb-0.5 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-white/70" />
+              <span className="text-sm font-medium text-white/70">
                 {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
               </span>
             </div>
-            <h1 className="mb-2 text-4xl font-bold text-slate-800">Welcome Back!</h1>
-            <p className="text-slate-500">
-              {formatDate(currentTime)} •{' '}
-              {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </p>
+            <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Calendar className="h-4 w-4" />
-            {sessionsLoading ? (
-              <span>Loading sessions…</span>
-            ) : nextSession ? (
+        </div>
+
+        <div className="mb-4 grid grid-cols-7 gap-1 rounded-[14px] border border-white/10 bg-white/10 p-3">
+          {Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(currentTime)
+            d.setDate(currentTime.getDate() + i)
+            const dayEvents = eventsByDay.get(d.toDateString()) ?? []
+            const hasEvents = dayEvents.length > 0
+
+            return (
+              <div
+                key={i}
+                onClick={() => setSelectedDay({ date: d, events: dayEvents })}
+                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl py-2 transition-colors hover:bg-white/20"
+              >
+                <span className="text-[11px] font-medium text-white/70">
+                  {d.toLocaleDateString('en-US', { weekday: 'short' })}
+                </span>
+                <span
+                  className={cn(
+                    'mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold',
+                    i === 0
+                      ? 'bg-white/30 text-white'
+                      : 'text-white group-hover:bg-white/10'
+                  )}
+                >
+                  {d.getDate()}
+                </span>
+                <div className="mt-1 h-1 w-1 rounded-full bg-white/40" />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Action bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1" />
+          <span className="text-xs text-white/60">
+            {formatDate(currentTime)} •{' '}
+            {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {sessionsLoading ? (
+            <span className="text-xs text-white/60">Loading sessions…</span>
+          ) : nextSession ? (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+              <Calendar className="h-3.5 w-3.5" />
               <span>
                 Next: {nextSession.title} •{' '}
                 {new Date(nextSession.start).toLocaleDateString('en-US', {
@@ -144,56 +181,10 @@ export function StudentHeroSection() {
                   minute: '2-digit',
                 })}
               </span>
-            ) : (
-              'No upcoming sessions'
-            )}
-          </div>
-        </div>
-
-        <div className="mb-8 grid grid-cols-7 gap-2 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-          {Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(currentTime)
-            d.setDate(currentTime.getDate() + i)
-            const dayEvents = eventsByDay.get(d.toDateString()) ?? []
-            const hasEvents = dayEvents.length > 0
-
-            return (
-              <div
-                key={i}
-                onClick={() => setSelectedDay({ date: d, events: dayEvents })}
-                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl p-2 transition-colors hover:bg-slate-50"
-              >
-                <span className="mb-1 text-xs font-medium text-slate-500">
-                  {d.toLocaleDateString('en-US', { weekday: 'short' })}
-                </span>
-                <span
-                  className={cn(
-                    'mt-1 flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold',
-                    i === 0
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'text-slate-700 group-hover:bg-indigo-50'
-                  )}
-                >
-                  {d.getDate()}
-                </span>
-                <div className="mt-2 flex min-h-[18px] flex-col items-center gap-0.5">
-                  {dayEvents.slice(0, 1).map(evt => (
-                    <span key={evt.id} className="text-[10px] font-medium text-indigo-600">
-                      {evt.timeLabel}
-                    </span>
-                  ))}
-                  {dayEvents.length > 1 && (
-                    <span className="text-[8px] text-slate-500">+{dayEvents.length - 1} more</span>
-                  )}
-                  {!hasEvents && (
-                    <div className="flex h-1.5 gap-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+            </div>
+          ) : (
+            <span className="text-xs text-white/60">No upcoming sessions</span>
+          )}
         </div>
 
         <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
