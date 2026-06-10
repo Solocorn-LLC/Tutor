@@ -595,10 +595,10 @@ function TutorDashboardContent() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="w-full px-3 lg:px-4">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <div className="w-full px-3 lg:px-4 flex flex-col h-full">
         {/* Modern Hero Section */}
-        <div className="mb-4">
+        <div className="flex-shrink-0 mb-4">
           <ModernHeroSection
             stats={stats}
             heroStats={heroStats}
@@ -608,7 +608,7 @@ function TutorDashboardContent() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="flex-shrink-0 mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
             <Button
               variant="outline"
@@ -624,33 +624,33 @@ function TutorDashboardContent() {
           </div>
         )}
 
-        <div className="mb-4">
-          <Card className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-            <Tabs defaultValue="courses" className="w-full">
-              <CardHeader className="pb-0 pt-4">
+        <div className="flex-1 flex flex-col min-h-0 mb-4">
+          <Card className="flex flex-col h-full overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+            <Tabs defaultValue="courses" className="w-full flex flex-col h-full">
+              <CardHeader className="flex-shrink-0 pb-0 pt-4">
                 <div className="flex items-center gap-2">
-                  <TabsList className="grid w-full max-w-md grid-cols-4 bg-[#2D2B4E] p-1 rounded-xl">
+                  <TabsList className="flex w-full max-w-md bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 rounded-xl gap-1.5">
                     <TabsTrigger
                       value="courses"
-                      className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
                     >
                       Active Courses
                     </TabsTrigger>
                     <TabsTrigger
                       value="calendar"
-                      className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
                     >
                       Calendar
                     </TabsTrigger>
                     <TabsTrigger
                       value="availability"
-                      className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
                     >
                       My Availability
                     </TabsTrigger>
                     <TabsTrigger
                       value="oneOnOne"
-                      className="rounded-lg text-white/70 hover:text-white data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
                     >
                       1 on 1 Requests
                     </TabsTrigger>
@@ -669,11 +669,11 @@ function TutorDashboardContent() {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4">
-                <TabsContent value="calendar">
+              <CardContent className="flex-1 min-h-0 overflow-hidden pt-4 flex flex-col">
+                <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0">
                   <InteractiveCalendar initialView="day" dayClickMode="create" loading={loading} embedded timezone={timezone} onTimezoneChange={setTimezone} />
                 </TabsContent>
-                <TabsContent value="availability">
+                <TabsContent value="availability" className="flex-1 min-h-0 overflow-hidden mt-0">
                   <InteractiveCalendar
                     initialView="availability"
                     dayClickMode="availability"
@@ -684,9 +684,10 @@ function TutorDashboardContent() {
                     onTimezoneChange={setTimezone}
                   />
                 </TabsContent>
-                <TabsContent value="courses">
-                  <CardTitle className="mb-4 text-card-foreground">Courses With Enrolled Students</CardTitle>
-                  <div className="space-y-3">
+                <TabsContent value="courses" className="flex-1 min-h-0 overflow-hidden mt-0">
+                  <div className="h-full overflow-y-auto">
+                    <CardTitle className="mb-4 text-card-foreground">Courses With Enrolled Students</CardTitle>
+                    <div className="space-y-3">
                   {enrolledCourses.length === 0 ? (
                     <div className="text-muted-foreground rounded-lg border border-dashed border-border/30 p-6 text-center text-sm">
                       No courses have enrolled students yet.
@@ -796,69 +797,72 @@ function TutorDashboardContent() {
                       )
                     })
                   )}
+                  </div>
                 </div>
               </TabsContent>
-              <TabsContent value="oneOnOne">
-                <div className="flex items-center justify-between mb-4">
-                  <CardTitle className="text-card-foreground">Pending 1 on 1 Requests</CardTitle>
-                  <Button asChild variant="outline" size="sm" className="transition-all duration-200 hover:bg-muted/80">
-                    <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {oneOnOneRequests.length === 0 ? (
-                    <div className="text-muted-foreground rounded-lg border border-dashed border-border/30 p-6 text-center text-sm">
-                      No pending 1 on 1 requests.
-                    </div>
-                  ) : (
-                    oneOnOneRequests.map(request => (
-                      <div
-                        key={request.requestId}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/20 bg-muted/30 p-4 transition-all duration-200 hover:border-border/40 hover:bg-muted/50"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <p className="truncate font-semibold text-foreground">
-                            @{request.student?.handle || 'student'}
-                          </p>
-                          <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                            <span>
-                              {new Date(request.requestedDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {request.startTime} - {request.endTime}
-                            </span>
-                            <span>•</span>
-                            <span>{request.timezone}</span>
+              <TabsContent value="oneOnOne" className="flex-1 min-h-0 overflow-hidden mt-0">
+                <div className="h-full overflow-y-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <CardTitle className="text-card-foreground">Pending 1 on 1 Requests</CardTitle>
+                    <Button asChild variant="outline" size="sm" className="transition-all duration-200 hover:bg-muted/80">
+                      <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {oneOnOneRequests.length === 0 ? (
+                      <div className="text-muted-foreground rounded-lg border border-dashed border-border/30 p-6 text-center text-sm">
+                        No pending 1 on 1 requests.
+                      </div>
+                    ) : (
+                      oneOnOneRequests.map(request => (
+                        <div
+                          key={request.requestId}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/20 bg-muted/30 p-4 transition-all duration-200 hover:border-border/40 hover:bg-muted/50"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <p className="truncate font-semibold text-foreground">
+                              @{request.student?.handle || 'student'}
+                            </p>
+                            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                              <span>
+                                {new Date(request.requestedDate).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {request.startTime} - {request.endTime}
+                              </span>
+                              <span>•</span>
+                              <span>{request.timezone}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={respondingRequestId === request.requestId}
+                              onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
+                              className="transition-all duration-200"
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive transition-all duration-200 hover:bg-destructive/10"
+                              disabled={respondingRequestId === request.requestId}
+                              onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
+                            >
+                              Reject
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={respondingRequestId === request.requestId}
-                            onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
-                            className="transition-all duration-200"
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive transition-all duration-200 hover:bg-destructive/10"
-                            disabled={respondingRequestId === request.requestId}
-                            onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </TabsContent>
             </CardContent>

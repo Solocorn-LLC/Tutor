@@ -152,15 +152,15 @@ export function ModernHeroSection({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       {/* Content */}
       <div className="relative z-10">
         {/* Header Row */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="mb-0.5 flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-white/70" />
-              <span className="text-xs font-medium text-white/70">
+              <Sparkles className="h-4 w-4 text-white/70" />
+              <span className="text-sm font-medium text-white/70">
                 {greeting}, @
                 {username ??
                   session?.user?.name ??
@@ -168,38 +168,38 @@ export function ModernHeroSection({
                   'username'}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Welcome Back!</h1>
+            <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
           </div>
 
           {/* Stat Pills */}
           {heroStats && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <div className="flex items-center gap-1.5 rounded-xl bg-white/15 px-2.5 py-1.5 backdrop-blur-sm">
-                <Calendar className="h-3.5 w-3.5 text-white/80" />
-                <span className="text-[11px] font-medium text-white/80">Sessions Today</span>
-                <span className="text-xs font-bold text-white">{heroStats.sessionsToday}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <Calendar className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Sessions Today</span>
+                <span className="text-sm font-bold text-white">{heroStats.sessionsToday}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl bg-white/15 px-2.5 py-1.5 backdrop-blur-sm">
-                <BookOpen className="h-3.5 w-3.5 text-white/80" />
-                <span className="text-[11px] font-medium text-white/80">Active Courses</span>
-                <span className="text-xs font-bold text-white">{heroStats.activeCourses}</span>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <BookOpen className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Active Courses</span>
+                <span className="text-sm font-bold text-white">{heroStats.activeCourses}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl bg-white/15 px-2.5 py-1.5 backdrop-blur-sm">
-                <Users className="h-3.5 w-3.5 text-white/80" />
-                <span className="text-[11px] font-medium text-white/80">Enrollments</span>
-                <span className="text-xs font-bold text-white">{heroStats.enrollments}</span>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <Users className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">Enrollments</span>
+                <span className="text-sm font-bold text-white">{heroStats.enrollments}</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl bg-white/15 px-2.5 py-1.5 backdrop-blur-sm">
-                <MessageSquare className="h-3.5 w-3.5 text-white/80" />
-                <span className="text-[11px] font-medium text-white/80">1-on-1 Requests</span>
-                <span className="text-xs font-bold text-white">{heroStats.oneOnOneRequests}</span>
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                <MessageSquare className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/80">1-on-1 Requests</span>
+                <span className="text-sm font-bold text-white">{heroStats.oneOnOneRequests}</span>
               </div>
             </div>
           )}
         </div>
 
         {/* One Week Calendar Schedule */}
-        <div className="mb-3 rounded-[14px] border border-white/10 bg-white/10 p-2">
+        <div className="mb-4 rounded-[14px] border border-white/10 bg-white/10 p-3">
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: 7 }, (_, i) => {
               const d = new Date(currentTime)
@@ -211,12 +211,12 @@ export function ModernHeroSection({
                   onClick={() => handleDayClick(d)}
                   className="group flex cursor-pointer flex-col items-center justify-center rounded-xl py-2 transition-colors hover:bg-white/20"
                 >
-                  <span className="text-[10px] font-medium text-white/70">
+                  <span className="text-[11px] font-medium text-white/70">
                     {d.toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
                   <span
                     className={cn(
-                      'mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
+                      'mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold',
                       i === 0
                         ? 'bg-white/30 text-white'
                         : 'text-white group-hover:bg-white/10'
@@ -284,7 +284,7 @@ export function ModernHeroSection({
             className="bg-white text-[#1D4ED8] hover:bg-white/90"
             onClick={() => toast.info('Coming soon...')}
           >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            <Plus className="mr-1.5 h-4 w-4" />
             Create Class
           </Button>
           <Button
@@ -293,7 +293,7 @@ export function ModernHeroSection({
             className="border-white/30 text-white hover:bg-white/10"
             onClick={() => toast.info('Coming soon...')}
           >
-            <Video className="mr-1.5 h-3.5 w-3.5" />
+            <Video className="mr-1.5 h-4 w-4" />
             Go Live
           </Button>
           <div className="flex-1" />

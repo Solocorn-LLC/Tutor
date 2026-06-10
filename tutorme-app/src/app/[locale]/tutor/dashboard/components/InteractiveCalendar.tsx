@@ -5,6 +5,7 @@ import {
   useMemo,
   useEffect,
   useCallback,
+  useRef,
   type CSSProperties,
   type ReactNode,
 } from 'react'
@@ -336,6 +337,19 @@ export function InteractiveCalendar({
   ])
   const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   const [categoriesLoaded, setCategoriesLoaded] = useState(false)
+  const cardContentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!cardContentRef.current) return
+    if (view !== 'day' && view !== 'week') return
+    const now = new Date()
+    const hour = now.getHours() + now.getMinutes() / 60
+    requestAnimationFrame(() => {
+      if (cardContentRef.current) {
+        cardContentRef.current.scrollTop = Math.max(0, hour * 40 - 40)
+      }
+    })
+  }, [view, currentDate])
 
   // Conflict resolution state
   const [showConflictDialog, setShowConflictDialog] = useState(false)
@@ -783,10 +797,10 @@ export function InteractiveCalendar({
       <Card
         padding="none"
         className={cn(
-          'flex h-[600px] flex-col',
+          'flex flex-col',
           embedded
-            ? 'bg-transparent border-0 shadow-none'
-            : 'border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
+            ? 'h-full bg-transparent border-0 shadow-none'
+            : 'h-[600px] border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
         )}
       >
         <CardHeader className={cn('shrink-0', embedded ? 'px-4 pt-4 pb-2' : 'pb-3')}>
@@ -939,7 +953,7 @@ export function InteractiveCalendar({
           )}
         </CardHeader>
 
-        <CardContent spacing={embedded ? 'none' : 'default'} className={cn('flex-1 overflow-auto pt-0', embedded && 'px-4 pb-4')}>
+        <CardContent ref={cardContentRef} spacing={embedded ? 'none' : 'default'} className={cn('flex-1 overflow-auto pt-0', embedded && 'px-4 pb-4')}>
           {availabilityOnly ? (
             <AvailabilityView
               availability={availability}
@@ -1802,15 +1816,22 @@ function WeekView({
     return day
   })
 
-  const hours = Array.from({ length: 8 }, (_, i) => i + 16) // 4 PM – 12 AM
+  const hours = Array.from({ length: 24 }, (_, i) => i)
+
+  const formatHour = (hour: number) => {
+    if (hour === 0) return '12 AM'
+    if (hour < 12) return `${hour} AM`
+    if (hour === 12) return '12 PM'
+    return `${hour - 12} PM`
+  }
 
   return (
-    <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
+    <div className="flex rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
       <div className="w-14 border-r bg-gray-50">
         <div className="h-10 border-b" />
         {hours.map(hour => (
           <div key={hour} className="h-10 border-b pt-1 text-center text-xs text-gray-500">
-            {hour > 12 ? `${hour - 12} PM` : `${hour} PM`}
+            {formatHour(hour)}
           </div>
         ))}
       </div>
@@ -1841,16 +1862,11 @@ function WeekView({
 
               {events
                 .filter((event: CalendarEvent) => event.date.toDateString() === day.toDateString())
-                .filter((event: CalendarEvent) => {
-                  const startHour = event.date.getHours() + event.date.getMinutes() / 60
-                  const endHour = startHour + event.duration / 60
-                  return endHour > 16 // Event overlaps the 4 PM–12 AM window
-                })
                 .map((event: CalendarEvent) => {
-                  const startHour = event.date.getHours() + event.date.getMinutes() / 60
-                  const endHour = startHour + event.duration / 60
-                  const top = Math.max(0, (startHour - 16) * 40)
-                  const height = (Math.min(endHour, 24) - Math.max(startHour, 16)) * 40
+                  const hour = event.date.getHours()
+                  const minute = event.date.getMinutes()
+                  const top = hour * 40 + (minute / 60) * 40
+                  const height = (event.duration / 60) * 40
                   const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
 
                   return (
@@ -1862,7 +1878,7 @@ function WeekView({
                       disabled={readOnly}
                       style={{
                         top: `${top}px`,
-                        height: `${Math.max(height, 20)}px`,
+                        height: `${Math.max(height, 24)}px`,
                         position: 'absolute',
                       }}
                     />
@@ -1877,65 +1893,71 @@ function WeekView({
 }
 
 function DayView({ currentDate, events, onEventClick, conflicts, readOnly = false }: any) {
-  const hours = Array.from({ length: 8 }, (_, i) => i + 16) // 4 PM – 12 AM
+  const hours = Array.from({ length: 24 }, (_, i) => i)
+
+  const formatHour = (hour: number) => {
+    if (hour === 0) return '12 AM'
+    if (hour < 12) return `${hour} AM`
+    if (hour === 12) return '12 PM'
+    return `${hour - 12} PM`
+  }
 
   const dayEvents = events
     .filter((event: CalendarEvent) => event.date.toDateString() === currentDate.toDateString())
     .sort((a: CalendarEvent, b: CalendarEvent) => a.date.getTime() - b.date.getTime())
 
   return (
-    <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
+    <div className="flex rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
       <div className="w-14 border-r bg-gray-50">
         {hours.map(hour => (
           <div key={hour} className="h-10 border-b px-1 py-1 text-right text-xs text-gray-600">
-            {hour > 12 ? `${hour - 12} PM` : `${hour} PM`}
+            {formatHour(hour)}
           </div>
         ))}
       </div>
 
-      <div className="relative flex-1 overflow-hidden">
+      <div className="relative flex-1">
         {hours.map(hour => (
           <DroppableHour key={hour} date={currentDate} hour={hour} className="h-10 border-b" />
         ))}
 
-        {dayEvents
-          .filter((event: CalendarEvent) => {
-            const startHour = event.date.getHours() + event.date.getMinutes() / 60
-            const endHour = startHour + event.duration / 60
-            return endHour > 16 // Event overlaps the 4 PM–12 AM window
-          })
-          .map((event: CalendarEvent) => {
-            const startHour = event.date.getHours() + event.date.getMinutes() / 60
-            const endHour = startHour + event.duration / 60
-            const top = Math.max(0, (startHour - 16) * 40)
-            const height = (Math.min(endHour, 24) - Math.max(startHour, 16)) * 40
-            const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
+        {dayEvents.map((event: CalendarEvent) => {
+          const hour = event.date.getHours()
+          const minute = event.date.getMinutes()
+          const top = hour * 40 + (minute / 60) * 40
+          const height = (event.duration / 60) * 40
+          const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
 
-            return (
-              <DraggableEvent
-                key={event.id}
-                event={event}
-                onClick={() => onEventClick(event)}
-                hasConflict={hasConflict}
-                disabled={readOnly}
-                style={{
-                  top: `${top}px`,
-                  height: `${Math.max(height, 20)}px`,
-                  position: 'absolute',
-                  left: '4px',
-                  right: '4px',
-                }}
-              />
-            )
-          })}
+          return (
+            <DraggableEvent
+              key={event.id}
+              event={event}
+              onClick={() => onEventClick(event)}
+              hasConflict={hasConflict}
+              disabled={readOnly}
+              style={{
+                top: `${top}px`,
+                height: `${Math.max(height, 24)}px`,
+                position: 'absolute',
+                left: '4px',
+                right: '4px',
+              }}
+            />
+          )
+        })}
 
-        {dayEvents.filter((event: CalendarEvent) => {
-          const startHour = event.date.getHours() + event.date.getMinutes() / 60
-          const endHour = startHour + event.duration / 60
-          return endHour > 16
-        }).length === 0 && (
+        {isSameDay(currentDate, new Date()) && (
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-20 border-t-2 border-red-500"
+            style={{ top: `${(new Date().getHours() + new Date().getMinutes() / 60) * 40}px` }}
+          >
+            <div className="absolute -left-1.5 -top-1.5 h-3 w-3 rounded-full bg-red-500" />
+          </div>
+        )}
+
+        {dayEvents.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            <p className="text-sm">No events scheduled for this evening</p>
+            <p className="text-sm">No events scheduled for this day</p>
           </div>
         )}
       </div>
