@@ -601,11 +601,6 @@ export default function PublicTutorPage() {
   const coursesPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    document.body.style.overflow = coursesExpanded ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [coursesExpanded])
-
-  useEffect(() => {
     loadTutorData()
   }, [username])
 
@@ -1007,8 +1002,8 @@ export default function PublicTutorPage() {
   const CourseCardStrip = ({ courses }: { courses: typeof enrollingCourses }) => {
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 4
-    const CARD_WIDTH = 320
-    const CARD_GAP = 20
+    const CARD_WIDTH = 260
+    const CARD_GAP = 16
     const totalPages = Math.max(1, Math.ceil(courses.length / PAGE_SIZE))
     const currentPage = Math.min(page, totalPages - 1)
     const canPrev = currentPage > 0
@@ -1029,8 +1024,8 @@ export default function PublicTutorPage() {
             label="Previous courses"
           />
         </div>
-        <div className="flex-1 overflow-hidden py-3">
-          <div className="flex gap-5">
+        <div className="flex-1 overflow-hidden py-2">
+          <div className="flex gap-4">
             {visible.map(
               (
                 course: PublicTutorResponse['courses'][number] & {
@@ -1087,8 +1082,8 @@ export default function PublicTutorPage() {
                     'flex flex-1',
                     isList
                       ? 'min-w-0 flex-col py-4 pl-10 pr-4 sm:flex-row sm:items-center sm:gap-6 sm:pl-12'
-                      : 'flex-col p-3.5',
-                    isCompact && !isList && 'p-3'
+                      : 'flex-col p-2.5',
+                    isCompact && !isList && 'p-2'
                   )}
                 >
                   {isList ? (
@@ -1154,7 +1149,7 @@ export default function PublicTutorPage() {
                         <div
                           className={cn(
                             'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
-                            isCompact ? 'h-20 w-20' : 'h-[78px] w-[78px] sm:h-[86px] sm:w-[86px]'
+                            isCompact ? 'h-16 w-16' : 'h-16 w-16 sm:h-[70px] sm:w-[70px]'
                           )}
                         >
                           {tutor.avatarUrl ? (
@@ -1180,10 +1175,9 @@ export default function PublicTutorPage() {
                         >
                           <p
                             className={cn(
-                              'line-clamp-4 text-[12px] leading-[1.3] text-slate-800',
+                              'line-clamp-3 text-[12px] leading-[1.3] text-slate-800',
                               isCompact && 'text-[11px]'
-                            )}
-                          >
+                            )}>
                             {description}
                           </p>
                         </div>
@@ -1298,11 +1292,11 @@ export default function PublicTutorPage() {
         
                 <div
                   className={cn(
-                    'flex flex-col gap-2.5 border-t border-[rgba(255,255,255,0.1)] px-3.5 py-2.5',
+                    'flex flex-col gap-2 border-t border-[rgba(255,255,255,0.1)] px-2.5 py-2',
                     isList
                       ? 'w-full min-w-[180px] max-w-[200px] justify-center border-l border-t-0'
                       : 'w-full justify-between',
-                    isCompact && 'gap-2 px-3 py-2'
+                    isCompact && 'gap-1.5 px-2 py-1.5'
                   )}
                 >
                   {!isList && (
@@ -1476,15 +1470,24 @@ export default function PublicTutorPage() {
     forceOpen?: boolean
   }) {
     const [isOpen, setIsOpen] = useState(courses.length > 0)
-    const effectiveOpen = forceOpen ?? isOpen
+
+    useEffect(() => {
+      if (forceOpen !== undefined) {
+        setIsOpen(forceOpen)
+      }
+    }, [forceOpen])
+
     return (
       <section>
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="mb-4 flex w-full items-center gap-2"
+          className={cn(
+            'flex w-full items-center gap-2',
+            forceOpen !== undefined ? 'mb-2' : 'mb-4'
+          )}
         >
-          {effectiveOpen ? (
+          {isOpen ? (
             <ChevronDown className="h-5 w-5 text-slate-500" />
           ) : (
             <ChevronRight className="h-5 w-5 text-slate-500" />
@@ -1494,7 +1497,7 @@ export default function PublicTutorPage() {
         <div
           className={cn(
             'grid transition-all duration-300 ease-in-out',
-            effectiveOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
           )}
         >
           <div className="overflow-hidden">
@@ -1819,7 +1822,7 @@ export default function PublicTutorPage() {
           panelCardClass,
           'overflow-hidden p-0 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
           coursesExpanded
-            ? 'mt-0 flex min-h-[calc(100vh-2rem)] flex-col'
+            ? 'flex h-[calc(100vh-3rem)] flex-col'
             : 'mt-8'
         )}
       >
@@ -1830,11 +1833,14 @@ export default function PublicTutorPage() {
               setTimeout(() => {
                 coursesPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }, 50)
+            } else {
+              setCoursesExpanded(false)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
             }
           }}
           className={cn(
-            'bg-[linear-gradient(135deg,#1E2832_0%,#2D3B4A_50%,#1A2530_100%)] p-6 sm:p-8',
-            !coursesExpanded && 'cursor-pointer hover:brightness-110 transition-all duration-200'
+            'bg-[linear-gradient(135deg,#1E2832_0%,#2D3B4A_50%,#1A2530_100%)] cursor-pointer hover:brightness-110 transition-all duration-200',
+            coursesExpanded ? 'p-4 sm:p-5' : 'p-6 sm:p-8'
           )}
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1882,6 +1888,7 @@ export default function PublicTutorPage() {
                   onClick={(e) => {
                     e.stopPropagation()
                     setCoursesExpanded(false)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
                   className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors shrink-0"
                 >
@@ -1898,7 +1905,7 @@ export default function PublicTutorPage() {
         <div className={cn(
           'flex-1 overflow-y-auto',
           coursesExpanded
-            ? 'flex flex-col gap-6 px-6 pb-6 pt-6 sm:px-8'
+            ? 'flex flex-col gap-4 px-6 pb-6 pt-4 sm:px-8'
             : 'space-y-10 px-6 pb-8 pt-8 sm:px-8'
         )}>
           <CourseSection
