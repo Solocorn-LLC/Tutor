@@ -281,7 +281,7 @@ export function ModernHeroSection({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            className="bg-white text-[#1D4ED8] hover:bg-white/90"
+            className="border border-white bg-[#2563EB] text-white shadow-none hover:translate-y-0 hover:border-white hover:bg-white hover:text-[#2563EB] hover:shadow-none"
             onClick={() => toast.info('Coming soon...')}
           >
             <Plus className="mr-1.5 h-4 w-4" />
@@ -290,7 +290,7 @@ export function ModernHeroSection({
           <Button
             size="sm"
             variant="outline"
-            className="border-white/30 text-white hover:bg-white/10"
+            className="border-white text-white shadow-none hover:translate-y-0 hover:border-white hover:bg-white hover:text-[#2563EB] hover:shadow-none"
             onClick={() => toast.info('Coming soon...')}
           >
             <Video className="mr-1.5 h-4 w-4" />
