@@ -796,20 +796,20 @@ export function InteractiveCalendar({
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => navigatePeriod(-1)}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod(-1)}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <h2 className="min-w-[150px] text-center text-lg font-semibold">
+                    <h2 className="min-w-[140px] text-center text-base font-semibold">
                       {headerLabel}
                     </h2>
-                    <Button variant="outline" size="icon" onClick={() => navigatePeriod(1)}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod(1)}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={goToToday}>
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={goToToday}>
                     Today
                   </Button>
                   {!isStudent && (
@@ -818,6 +818,7 @@ export function InteractiveCalendar({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-8 text-xs"
                         onClick={() => setShowCalendarIntegrations(true)}
                       >
                         <RefreshCw
@@ -832,8 +833,8 @@ export function InteractiveCalendar({
                   )}
                   {/* Filters */}
                   <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                    <SelectTrigger className="h-9 w-36">
-                      <Filter className="mr-2 h-4 w-4" />
+                    <SelectTrigger className="h-8 w-32 text-xs">
+                      <Filter className="mr-1.5 h-3.5 w-3.5" />
                       <SelectValue placeholder="Filter" />
                     </SelectTrigger>
                     <SelectContent>
@@ -861,7 +862,7 @@ export function InteractiveCalendar({
                 <div className="flex items-center gap-2">
 
                   {/* View Toggle - Reordered as Day, Week, Month */}
-                  <div className="grid h-9 grid-cols-3 min-w-[210px] rounded-xl bg-[#2D2B4E] p-1">
+                  <div className="grid h-8 grid-cols-3 min-w-[180px] rounded-xl bg-[#2D2B4E] p-1">
                     {(view === 'availability'
                       ? (['day', 'week', 'month'] as CalendarView[])
                       : (['day', 'week', 'month'] as CalendarView[])
@@ -1716,7 +1717,7 @@ function MonthView({
     <div className="overflow-hidden rounded-lg border border-slate-200 shadow-lg m-2">
       <div className="grid grid-cols-7 border-b border-gray-100 bg-white/50">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="p-2 text-center text-sm font-medium text-gray-600">
+          <div key={day} className="p-1.5 text-center text-xs font-medium text-gray-600">
             {day}
           </div>
         ))}
@@ -1728,7 +1729,7 @@ function MonthView({
             key={index}
             date={date || new Date()}
             className={cn(
-              'min-h-[100px] border-b border-r p-2 last:border-r-0',
+              'min-h-[60px] border-b border-r p-1 last:border-r-0',
               !date && 'bg-gray-50/50',
               date && 'cursor-pointer hover:bg-gray-50'
             )}
@@ -1737,22 +1738,22 @@ function MonthView({
               <div onClick={() => onDateClick(date)}>
                 <div
                   className={cn(
-                    'mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium',
+                    'mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium',
                     isToday(date) && 'bg-blue-600 text-white'
                   )}
                 >
                   {date.getDate()}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {getEventsForDate(date)
-                    .slice(0, 3)
+                    .slice(0, 2)
                     .map((event: CalendarEvent) => {
                       const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
                       return (
                         <div
                           key={event.id}
                           className={cn(
-                            'cursor-pointer truncate rounded p-1.5 text-xs',
+                            'cursor-pointer truncate rounded px-1 py-0.5 text-[10px] leading-tight',
                             event.color || 'bg-blue-100',
                             event.status === 'cancelled' && 'line-through opacity-50',
                             hasConflict && 'ring-1 ring-red-400'
@@ -1762,28 +1763,16 @@ function MonthView({
                             onEventClick(event)
                           }}
                         >
-                          <div className="flex items-center gap-1">
-                            <div
-                              className={cn(
-                                'h-1.5 w-1.5 rounded-full',
-                                event.color?.replace('bg-', 'bg-opacity-100') || 'bg-blue-500'
-                              )}
-                            />
-                            <span className="truncate font-medium">
-                              {event.date.getHours()}:
-                              {event.date.getMinutes().toString().padStart(2, '0')}{' '}
-                              {event.courseName
-                                ? `${event.courseName}${event.nationality && event.nationality !== 'Global' ? ` — ${event.variantCategory || ''} — ${event.nationality}` : ''} — `
-                                : ''}
-                              {event.title}
-                            </span>
-                          </div>
+                          <span className="truncate font-medium">
+                            {event.date.getHours() > 12 ? event.date.getHours() - 12 : event.date.getHours()}:
+                            {event.date.getMinutes().toString().padStart(2, '0')} {event.title}
+                          </span>
                         </div>
                       )
                     })}
-                  {getEventsForDate(date).length > 3 && (
-                    <p className="pl-1 text-xs text-gray-500">
-                      +{getEventsForDate(date).length - 3} more
+                  {getEventsForDate(date).length > 2 && (
+                    <p className="pl-0.5 text-[10px] text-gray-500">
+                      +{getEventsForDate(date).length - 2} more
                     </p>
                   )}
                 </div>
@@ -1813,15 +1802,15 @@ function WeekView({
     return day
   })
 
-  const hours = Array.from({ length: 24 }, (_, i) => i)
+  const hours = Array.from({ length: 8 }, (_, i) => i + 16) // 4 PM – 12 AM
 
   return (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
-      <div className="w-16 border-r bg-gray-50">
-        <div className="h-12 border-b" />
+      <div className="w-14 border-r bg-gray-50">
+        <div className="h-10 border-b" />
         {hours.map(hour => (
-          <div key={hour} className="h-16 border-b pt-2 text-center text-xs text-gray-500">
-            {hour}:00
+          <div key={hour} className="h-10 border-b pt-1 text-center text-xs text-gray-500">
+            {hour > 12 ? `${hour - 12} PM` : `${hour} PM`}
           </div>
         ))}
       </div>
@@ -1830,7 +1819,7 @@ function WeekView({
         {weekDays.map((day, index) => (
           <div key={index} className="border-r last:border-r-0">
             <div
-              className="h-12 cursor-pointer border-b p-2 text-center hover:bg-gray-50"
+              className="h-10 cursor-pointer border-b p-1 text-center hover:bg-gray-50"
               onClick={() => onDateClick(day)}
             >
               <p className="text-xs text-gray-500">
@@ -1838,7 +1827,7 @@ function WeekView({
               </p>
               <p
                 className={cn(
-                  'text-sm font-medium',
+                  'text-sm font-medium leading-tight',
                   day.toDateString() === new Date().toDateString() && 'text-blue-600'
                 )}
               >
@@ -1847,16 +1836,21 @@ function WeekView({
             </div>
             <div className="relative">
               {hours.map(hour => (
-                <DroppableHour key={hour} date={day} hour={hour} className="h-16 border-b" />
+                <DroppableHour key={hour} date={day} hour={hour} className="h-10 border-b" />
               ))}
 
               {events
                 .filter((event: CalendarEvent) => event.date.toDateString() === day.toDateString())
+                .filter((event: CalendarEvent) => {
+                  const startHour = event.date.getHours() + event.date.getMinutes() / 60
+                  const endHour = startHour + event.duration / 60
+                  return endHour > 16 // Event overlaps the 4 PM–12 AM window
+                })
                 .map((event: CalendarEvent) => {
-                  const hour = event.date.getHours()
-                  const minute = event.date.getMinutes()
-                  const top = hour * 64 + (minute / 60) * 64
-                  const height = (event.duration / 60) * 64
+                  const startHour = event.date.getHours() + event.date.getMinutes() / 60
+                  const endHour = startHour + event.duration / 60
+                  const top = Math.max(0, (startHour - 16) * 40)
+                  const height = (Math.min(endHour, 24) - Math.max(startHour, 16)) * 40
                   const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
 
                   return (
@@ -1868,7 +1862,7 @@ function WeekView({
                       disabled={readOnly}
                       style={{
                         top: `${top}px`,
-                        height: `${Math.max(height, 32)}px`,
+                        height: `${Math.max(height, 20)}px`,
                         position: 'absolute',
                       }}
                     />
@@ -1883,7 +1877,7 @@ function WeekView({
 }
 
 function DayView({ currentDate, events, onEventClick, conflicts, readOnly = false }: any) {
-  const hours = Array.from({ length: 24 }, (_, i) => i)
+  const hours = Array.from({ length: 8 }, (_, i) => i + 16) // 4 PM – 12 AM
 
   const dayEvents = events
     .filter((event: CalendarEvent) => event.date.toDateString() === currentDate.toDateString())
@@ -1891,47 +1885,57 @@ function DayView({ currentDate, events, onEventClick, conflicts, readOnly = fals
 
   return (
     <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white/50 shadow-lg m-2">
-      <div className="w-20 border-r bg-gray-50">
+      <div className="w-14 border-r bg-gray-50">
         {hours.map(hour => (
-          <div key={hour} className="h-20 border-b px-2 py-2 text-right text-sm text-gray-600">
-            {hour}:00
+          <div key={hour} className="h-10 border-b px-1 py-1 text-right text-xs text-gray-600">
+            {hour > 12 ? `${hour - 12} PM` : `${hour} PM`}
           </div>
         ))}
       </div>
 
-      <div className="relative flex-1">
+      <div className="relative flex-1 overflow-hidden">
         {hours.map(hour => (
-          <DroppableHour key={hour} date={currentDate} hour={hour} className="h-20 border-b" />
+          <DroppableHour key={hour} date={currentDate} hour={hour} className="h-10 border-b" />
         ))}
 
-        {dayEvents.map((event: CalendarEvent) => {
-          const hour = event.date.getHours()
-          const minute = event.date.getMinutes()
-          const top = hour * 80 + (minute / 60) * 80
-          const height = (event.duration / 60) * 80
-          const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
+        {dayEvents
+          .filter((event: CalendarEvent) => {
+            const startHour = event.date.getHours() + event.date.getMinutes() / 60
+            const endHour = startHour + event.duration / 60
+            return endHour > 16 // Event overlaps the 4 PM–12 AM window
+          })
+          .map((event: CalendarEvent) => {
+            const startHour = event.date.getHours() + event.date.getMinutes() / 60
+            const endHour = startHour + event.duration / 60
+            const top = Math.max(0, (startHour - 16) * 40)
+            const height = (Math.min(endHour, 24) - Math.max(startHour, 16)) * 40
+            const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
 
-          return (
-            <DraggableEvent
-              key={event.id}
-              event={event}
-              onClick={() => onEventClick(event)}
-              hasConflict={hasConflict}
-              disabled={readOnly}
-              style={{
-                top: `${top}px`,
-                height: `${Math.max(height, 40)}px`,
-                position: 'absolute',
-                left: '8px',
-                right: '8px',
-              }}
-            />
-          )
-        })}
+            return (
+              <DraggableEvent
+                key={event.id}
+                event={event}
+                onClick={() => onEventClick(event)}
+                hasConflict={hasConflict}
+                disabled={readOnly}
+                style={{
+                  top: `${top}px`,
+                  height: `${Math.max(height, 20)}px`,
+                  position: 'absolute',
+                  left: '4px',
+                  right: '4px',
+                }}
+              />
+            )
+          })}
 
-        {dayEvents.length === 0 && (
+        {dayEvents.filter((event: CalendarEvent) => {
+          const startHour = event.date.getHours() + event.date.getMinutes() / 60
+          const endHour = startHour + event.duration / 60
+          return endHour > 16
+        }).length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            <p>No events scheduled for this day</p>
+            <p className="text-sm">No events scheduled for this evening</p>
           </div>
         )}
       </div>
@@ -1969,10 +1973,10 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
         </TabsList>
 
         {days.map(day => (
-          <TabsContent key={day.full} value={day.full} className="mt-4 flex-1">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-medium">{day.full}</h3>
-              <span className="text-muted-foreground text-sm">
+          <TabsContent key={day.full} value={day.full} className="mt-2 flex-1">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-medium">{day.full}</h3>
+              <span className="text-muted-foreground text-xs">
                 {selectedCount} of {dayBlocks.length} slots available
               </span>
             </div>
@@ -1984,7 +1988,7 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
                   type="button"
                   onClick={() => onToggle(block.id)}
                   className={cn(
-                    'flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition-all',
+                    'flex items-center justify-between rounded-lg border px-2 py-2 text-xs transition-all',
                     block.isAvailable
                       ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
                       : 'border-gray-200 bg-gray-50 text-gray-500 opacity-60 hover:opacity-100'
@@ -1992,9 +1996,9 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
                 >
                   <span className="font-medium">{block.startTime}</span>
                   {block.isAvailable ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                   ) : (
-                    <X className="h-4 w-4 text-gray-300" />
+                    <X className="h-3.5 w-3.5 text-gray-300" />
                   )}
                 </button>
               ))}

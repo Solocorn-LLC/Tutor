@@ -598,7 +598,7 @@ function TutorDashboardContent() {
     <div className="min-h-screen">
       <div className="w-full px-3 lg:px-4">
         {/* Modern Hero Section */}
-        <div className="mb-8">
+        <div className="mb-4">
           <ModernHeroSection
             stats={stats}
             heroStats={heroStats}
@@ -608,7 +608,7 @@ function TutorDashboardContent() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
             <Button
               variant="outline"
@@ -624,11 +624,11 @@ function TutorDashboardContent() {
           </div>
         )}
 
-        <div className="mb-8">
+        <div className="mb-4">
           <Card className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
             <Tabs defaultValue="courses" className="w-full">
-              <CardHeader className="pb-0">
-                <div className="flex items-center gap-3">
+              <CardHeader className="pb-0 pt-4">
+                <div className="flex items-center gap-2">
                   <TabsList className="grid w-full max-w-md grid-cols-4 bg-[#2D2B4E] p-1 rounded-xl">
                     <TabsTrigger
                       value="courses"
@@ -669,7 +669,7 @@ function TutorDashboardContent() {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent className="pt-4">
                 <TabsContent value="calendar">
                   <InteractiveCalendar initialView="day" dayClickMode="create" loading={loading} embedded timezone={timezone} onTimezoneChange={setTimezone} />
                 </TabsContent>
