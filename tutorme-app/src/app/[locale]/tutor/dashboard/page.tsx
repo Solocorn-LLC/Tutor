@@ -43,6 +43,7 @@ import {
   AlertCircle,
   Ban,
   Eye,
+  Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,37 @@ import {
 } from './components'
 import { DEFAULT_TIMEZONE, SUPPORTED_TIMEZONES } from './components/InteractiveCalendar'
 import { ModernHeroSection } from './components/ModernHeroSection'
+
+const COMMON_TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Toronto',
+  'America/Vancouver',
+  'America/Mexico_City',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'Europe/Istanbul',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Singapore',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+]
+
+function formatTimezoneLabel(tz: string) {
+  const parts = tz.split('/')
+  const city = parts[parts.length - 1]?.replace(/_/g, ' ') || tz
+  const region = parts[0] || ''
+  return { city, region, full: tz }
+}
 
 function DashboardSkeleton() {
   return (
@@ -155,6 +187,7 @@ function TutorDashboardContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
+  const [activeTab, setActiveTab] = useState('courses')
 
   useEffect(() => {
     if (searchParams.get('create') === '1') setShowCreateDialog(true)
@@ -595,7 +628,7 @@ function TutorDashboardContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="w-full px-3 lg:px-4 flex flex-col h-full">
         {/* Modern Hero Section */}
         <div className="flex-shrink-0 mb-4">
@@ -624,12 +657,12 @@ function TutorDashboardContent() {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col min-h-0 mb-4">
+        <div className="flex-1 flex flex-col min-h-0">
           <Card className="flex flex-col h-full overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-            <Tabs defaultValue="courses" className="w-full flex flex-col h-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
               <CardHeader className="flex-shrink-0 pb-0 pt-4">
-                <div className="flex items-center gap-2">
-                  <TabsList className="flex w-full max-w-md bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 rounded-xl gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <TabsList className="flex bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 rounded-xl gap-1.5">
                     <TabsTrigger
                       value="courses"
                       className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
@@ -655,18 +688,24 @@ function TutorDashboardContent() {
                       1 on 1 Requests
                     </TabsTrigger>
                   </TabsList>
-                  <Select value={timezone} onValueChange={setTimezone}>
-                    <SelectTrigger className="h-10 w-[190px] rounded-sm border border-gray-300 bg-white/50 text-sm text-gray-800 shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/70 hover:border-gray-400 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border border-gray-200 bg-none bg-white/50 p-1.5 shadow-lg backdrop-blur-md w-[var(--radix-select-trigger-width)]">
-                      {SUPPORTED_TIMEZONES.map(tz => (
-                        <SelectItem key={tz} value={tz} className="text-gray-800 focus:text-gray-800 hover:bg-gray-100 focus:bg-gray-100 mx-1.5 focus:outline-none rounded-md">
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {(activeTab === 'calendar' || activeTab === 'availability') && (
+                    <Select value={timezone} onValueChange={setTimezone}>
+                      <SelectTrigger className="h-8 w-[150px] rounded-lg border border-gray-300 bg-white text-xs text-gray-800 shadow-sm transition-all hover:bg-gray-50 focus-visible:ring-0 focus-visible:ring-offset-0">
+                        <Globe className="mr-1.5 h-3.5 w-3.5 text-gray-400" />
+                        <SelectValue placeholder="Timezone" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg border border-gray-200 bg-white p-1 shadow-lg max-h-[280px]">
+                        {COMMON_TIMEZONES.map(tz => {
+                          const { city } = formatTimezoneLabel(tz)
+                          return (
+                            <SelectItem key={tz} value={tz} className="text-gray-800 text-xs focus:text-gray-800 hover:bg-gray-100 focus:bg-gray-100 mx-1 focus:outline-none rounded-md">
+                              {city}
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="flex-1 min-h-0 overflow-hidden pt-4 flex flex-col">
