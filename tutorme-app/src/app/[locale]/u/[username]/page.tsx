@@ -1665,15 +1665,19 @@ export default function PublicTutorPage() {
               {publicUrl ? (
                 <div className="grid grid-cols-1 gap-4 border-b border-slate-100 py-4 sm:grid-cols-2">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                      <span className="text-2xl font-bold">@</span>
-                    </div>
+                    <img
+                      src="/solocornlogo.png"
+                      alt="Solocorn"
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    />
                     <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600">
-                      <Link2 className="h-6 w-6 text-white" />
-                    </div>
+                    <img
+                      src="/solocornlogo.png"
+                      alt="Solocorn"
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    />
                     <div className="min-w-0">
                       <div className="truncate text-base font-semibold text-slate-900">
                         Public Page

@@ -1542,11 +1542,28 @@ export default function TutorMyPage() {
               </div>
 
               {publicUrl ? (
-                <div className="flex items-center gap-3 border-b border-slate-100 py-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <span className="text-2xl font-bold">@</span>
+                <div className="grid grid-cols-1 gap-4 border-b border-slate-100 py-4 sm:grid-cols-2">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/solocornlogo.png"
+                      alt="Solocorn"
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    />
+                    <div className="text-lg font-semibold text-slate-900">@{normalizedUsername || 'username'}</div>
                   </div>
-                  <div className="text-lg font-semibold text-slate-900">@{normalizedUsername || 'username'}</div>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/solocornlogo.png"
+                      alt="Solocorn"
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-semibold text-slate-900">
+                        Public Page
+                        <span className="ml-2 font-normal text-slate-600">{publicUrl}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
@@ -1565,22 +1582,6 @@ export default function TutorMyPage() {
                     muted: !socialAccounts.tiktok,
                   },
                   {
-                    key: 'public',
-                    label: 'Public Page',
-                    value: publicUrl,
-                    icon: Link2,
-                    bgClass: 'bg-blue-600',
-                    muted: false,
-                  },
-                  {
-                    key: 'instagram',
-                    label: 'Instagram',
-                    value: socialAccounts.instagram ? `@${socialAccounts.instagram}` : '—',
-                    icon: Instagram,
-                    bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
-                    muted: !socialAccounts.instagram,
-                  },
-                  {
                     key: 'youtube',
                     label: 'YouTube',
                     value: socialAccounts.youtube ? `@${socialAccounts.youtube}` : '—',
@@ -1589,16 +1590,12 @@ export default function TutorMyPage() {
                     muted: !socialAccounts.youtube,
                   },
                   {
-                    key: 'facebook',
-                    label: 'Facebook',
-                    value: socialAccounts.facebook
-                      ? (socialAccounts.facebook.match(/^https?:\/\//)
-                          ? socialAccounts.facebook
-                          : `https://${socialAccounts.facebook}`)
-                      : '—',
-                    icon: Facebook,
-                    bgClass: 'bg-blue-600',
-                    muted: !socialAccounts.facebook,
+                    key: 'instagram',
+                    label: 'Instagram',
+                    value: socialAccounts.instagram ? `@${socialAccounts.instagram}` : '—',
+                    icon: Instagram,
+                    bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
+                    muted: !socialAccounts.instagram,
                   },
                   {
                     key: 'kakaoTalk',
@@ -1611,6 +1608,18 @@ export default function TutorMyPage() {
                     icon: KakaoTalkBrandIcon,
                     bgClass: 'bg-[#FEE500]',
                     muted: !socialAccounts.kakaoTalk,
+                  },
+                  {
+                    key: 'facebook',
+                    label: 'Facebook',
+                    value: socialAccounts.facebook
+                      ? (socialAccounts.facebook.match(/^https?:\/\//)
+                          ? socialAccounts.facebook
+                          : `https://${socialAccounts.facebook}`)
+                      : '—',
+                    icon: Facebook,
+                    bgClass: 'bg-blue-600',
+                    muted: !socialAccounts.facebook,
                   },
                 ].map(item => {
                   const Icon = item.icon
