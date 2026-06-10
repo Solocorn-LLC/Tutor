@@ -1002,8 +1002,8 @@ export default function PublicTutorPage() {
   const CourseCardStrip = ({ courses }: { courses: typeof enrollingCourses }) => {
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 4
-    const CARD_WIDTH = 260
-    const CARD_GAP = 16
+    const CARD_WIDTH = 320
+    const CARD_GAP = 20
     const totalPages = Math.max(1, Math.ceil(courses.length / PAGE_SIZE))
     const currentPage = Math.min(page, totalPages - 1)
     const canPrev = currentPage > 0
@@ -1024,8 +1024,8 @@ export default function PublicTutorPage() {
             label="Previous courses"
           />
         </div>
-        <div className="flex-1 overflow-hidden py-2">
-          <div className="flex gap-4">
+        <div className="flex-1 overflow-hidden py-3">
+          <div className="flex gap-5">
             {visible.map(
               (
                 course: PublicTutorResponse['courses'][number] & {
@@ -1082,8 +1082,8 @@ export default function PublicTutorPage() {
                     'flex flex-1',
                     isList
                       ? 'min-w-0 flex-col py-4 pl-10 pr-4 sm:flex-row sm:items-center sm:gap-6 sm:pl-12'
-                      : 'flex-col p-2.5',
-                    isCompact && !isList && 'p-2'
+                      : 'flex-col p-3.5',
+                    isCompact && !isList && 'p-3'
                   )}
                 >
                   {isList ? (
@@ -1149,7 +1149,7 @@ export default function PublicTutorPage() {
                         <div
                           className={cn(
                             'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
-                            isCompact ? 'h-16 w-16' : 'h-16 w-16 sm:h-[70px] sm:w-[70px]'
+                            isCompact ? 'h-20 w-20' : 'h-[78px] w-[78px] sm:h-[86px] sm:w-[86px]'
                           )}
                         >
                           {tutor.avatarUrl ? (
@@ -1175,7 +1175,7 @@ export default function PublicTutorPage() {
                         >
                           <p
                             className={cn(
-                              'line-clamp-3 text-[12px] leading-[1.3] text-slate-800',
+                              'line-clamp-4 text-[12px] leading-[1.3] text-slate-800',
                               isCompact && 'text-[11px]'
                             )}>
                             {description}
@@ -1292,11 +1292,11 @@ export default function PublicTutorPage() {
         
                 <div
                   className={cn(
-                    'flex flex-col gap-2 border-t border-[rgba(255,255,255,0.1)] px-2.5 py-2',
+                    'flex flex-col gap-2.5 border-t border-[rgba(255,255,255,0.1)] px-3.5 py-2.5',
                     isList
                       ? 'w-full min-w-[180px] max-w-[200px] justify-center border-l border-t-0'
                       : 'w-full justify-between',
-                    isCompact && 'gap-1.5 px-2 py-1.5'
+                    isCompact && 'gap-2 px-3 py-2'
                   )}
                 >
                   {!isList && (
