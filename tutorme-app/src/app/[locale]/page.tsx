@@ -3830,14 +3830,14 @@ export default function LandingPage() {
       <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} mode={mode} />
       <TermsOfServiceModal isOpen={termsOpen} onClose={() => setTermsOpen(false)} mode={mode} />
 
-      {/* How It Works — Coming Soon Modal */}
+      {/* How It Works Modal */}
       <AnimatePresence mode="wait">
         {howItWorksOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-6"
             onClick={() => setHowItWorksOpen(false)}
           >
             <motion.div
@@ -3845,22 +3845,47 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-2xl"
+              className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-xl md:p-8"
               onClick={e => e.stopPropagation()}
             >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                <Clock className="h-8 w-8 text-primary" />
-              </div>
-              <h2 className="mb-2 text-2xl font-bold text-foreground">Coming Soon</h2>
-              <p className="mb-6 text-muted-foreground">
-                We're working hard to bring you the full experience. Stay tuned!
-              </p>
+              {/* Close button */}
               <button
                 onClick={() => setHowItWorksOpen(false)}
-                className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+                aria-label="Close"
               >
-                Got it
+                <X className="h-5 w-5" />
               </button>
+
+              {/* Gear animation header */}
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="flex items-center justify-center gap-0.5">
+                  <motion.span
+                    className="inline-flex h-10 w-10 text-white/90"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <Settings className="h-full w-full" />
+                  </motion.span>
+                  <motion.span
+                    className="-mt-2 -ml-1 inline-flex h-7 w-7 text-white/90"
+                    animate={{ rotate: -360 }}
+                    transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <Settings className="h-full w-full" />
+                  </motion.span>
+                </div>
+                <h2 className="mt-4 text-2xl font-bold text-white">How It Works</h2>
+              </div>
+
+              {/* Video placeholder area */}
+              <div className="flex-1 overflow-y-auto py-6">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+                    <p className="text-sm">Video tutorials coming soon.</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
