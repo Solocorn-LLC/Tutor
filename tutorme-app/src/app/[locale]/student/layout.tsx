@@ -89,7 +89,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 isolate">
       {/* Layout spacer — reserves space for sidebar without animation */}
-      <div className={cn('hidden shrink-0 lg:block', desktopNavOpen ? 'w-64' : 'w-0')} />
+      <div className={cn('hidden shrink-0 lg:block', isFeedbackRoute ? 'w-0' : desktopNavOpen ? 'w-64' : 'w-0')} />
 
       {/* Visual sidebar — fixed overlay, animates with transform only */}
       {!isFeedbackRoute && (
