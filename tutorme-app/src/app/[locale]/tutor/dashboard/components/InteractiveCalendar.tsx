@@ -815,7 +815,7 @@ export function InteractiveCalendar({
         className={cn(
           'flex flex-col',
           embedded
-            ? 'flex-1 border-0 bg-transparent shadow-none'
+            ? 'min-h-0 flex-1 border-0 bg-transparent shadow-none'
             : 'h-[600px] border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
         )}
       >
@@ -975,11 +975,14 @@ export function InteractiveCalendar({
         >
           <div
             className={cn(
-              'flex flex-1 flex-col pt-3',
+              'flex min-h-0 flex-1 flex-col pt-3',
               !availabilityOnly && 'overflow-hidden rounded-lg border border-[#374151]'
             )}
           >
-            <div ref={cardContentRef} className="scrollbar-hide flex flex-1 flex-col overflow-auto">
+            <div
+              ref={cardContentRef}
+              className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-auto"
+            >
               {availabilityOnly ? (
                 <AvailabilityView
                   availability={availability}
