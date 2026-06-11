@@ -952,8 +952,8 @@ export function InteractiveCalendar({
           )}
         </CardHeader>
 
-        <CardContent spacing={embedded ? 'none' : 'default'} className={cn('flex-1 overflow-hidden pt-0', embedded && 'px-4 pb-4')}>
-          <div className={cn('h-full pt-3 flex flex-col', !availabilityOnly && 'border border-[#374151] rounded-lg overflow-hidden')}>
+        <CardContent spacing={embedded ? 'none' : 'default'} className={cn('flex-1 flex flex-col overflow-hidden pt-0', embedded && 'px-4 pb-4')}>
+          <div className={cn('flex-1 pt-3 flex flex-col', !availabilityOnly && 'border border-[#374151] rounded-lg overflow-hidden')}>
             <div ref={cardContentRef} className="flex-1 overflow-auto scrollbar-hide">
               {availabilityOnly ? (
                 <AvailabilityView
