@@ -112,8 +112,8 @@ export function StudentHeroSection() {
     })
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
-      <div className="relative z-10">
+    <div className="relative flex min-h-[300px] flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+      <div className="relative z-10 flex flex-1 flex-col">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="mb-0.5 flex items-center gap-2">
@@ -159,7 +159,7 @@ export function StudentHeroSection() {
         </div>
 
         {/* Action bar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-auto flex flex-wrap items-center gap-2">
           <div className="flex-1" />
           <span className="text-xs text-white/60">
             {formatDate(currentTime)} •{' '}
