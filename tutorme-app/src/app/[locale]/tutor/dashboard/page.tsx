@@ -671,7 +671,7 @@ function TutorDashboardContent() {
                       value="oneOnOne"
                       className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
                     >
-                      1 on 1 Requests
+                      1-on-1 Requests
                     </TabsTrigger>
                   </TabsList>
                   {(activeTab === 'calendar' || activeTab === 'availability') && (
@@ -833,7 +833,7 @@ function TutorDashboardContent() {
               <TabsContent value="oneOnOne" className="flex-1 min-h-0 overflow-hidden mt-0">
                 <div className="h-full overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
-                    <CardTitle className="text-card-foreground">Pending 1 on 1 Requests</CardTitle>
+                    <CardTitle className="text-card-foreground">Pending 1-on-1 Requests</CardTitle>
                     <Button asChild variant="outline" size="sm" className="transition-all duration-200 hover:bg-muted/80">
                       <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
                     </Button>

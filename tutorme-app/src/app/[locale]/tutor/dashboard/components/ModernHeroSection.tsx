@@ -329,7 +329,7 @@ export function ModernHeroSection({
             </Button>
           </div>
           <div className="flex-1 flex justify-center">
-            <span className="text-sm text-white/60">
+            <span className="text-base text-white">
               {formatDate(currentTime)} • {formatTime(currentTime)} {timeZoneAbbr}
             </span>
           </div>
@@ -337,7 +337,7 @@ export function ModernHeroSection({
             {countdown && (
               <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
                 <AnimatedClock className="h-3.5 w-3.5" />
-                <span>Next session: {countdown}</span>
+                <span className="tabular-nums">Next session: {countdown}</span>
               </div>
             )}
           </div>
