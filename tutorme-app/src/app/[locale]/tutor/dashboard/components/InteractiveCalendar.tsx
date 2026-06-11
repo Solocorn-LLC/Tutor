@@ -1723,7 +1723,7 @@ function MonthView({
   conflicts,
 }: any) {
   return (
-    <div className="overflow-hidden rounded-lg">
+    <div className="min-h-full overflow-hidden rounded-lg">
       <div className="grid grid-cols-7 border-b border-gray-100 bg-white/50">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="p-1.5 text-center text-xs font-medium text-gray-600">
@@ -1821,21 +1821,22 @@ function WeekView({
   }
 
   return (
-    <div className="flex rounded-lg bg-white/50">
-      <div className="w-14 border-r bg-gray-50">
-        <div className="h-10 border-b" />
+    <div className="flex min-h-full rounded-lg bg-white/50">
+      <div className="flex flex-col w-14 border-r bg-gray-50">
+        <div className="h-10 border-b shrink-0" />
         {hours.map(hour => (
-          <div key={hour} className="h-10 border-b pt-1 text-center text-xs text-gray-500">
+          <div key={hour} className="h-10 border-b shrink-0 pt-1 text-center text-xs text-gray-500">
             {formatHour(hour)}
           </div>
         ))}
+        <div className="flex-1 bg-gray-50" />
       </div>
 
       <div className="grid flex-1 grid-cols-7">
         {weekDays.map((day, index) => (
-          <div key={index} className="border-r last:border-r-0">
+          <div key={index} className="flex flex-col border-r last:border-r-0">
             <div
-              className="h-10 cursor-pointer border-b p-1 text-center hover:bg-gray-50"
+              className="h-10 shrink-0 cursor-pointer border-b p-1 text-center hover:bg-gray-50"
               onClick={() => onDateClick(day)}
             >
               <p className="text-xs text-gray-500">
@@ -1850,10 +1851,11 @@ function WeekView({
                 {day.getDate()}
               </p>
             </div>
-            <div className="relative">
+            <div className="relative flex-1 flex flex-col">
               {hours.map(hour => (
-                <DroppableHour key={hour} date={day} hour={hour} className="h-10 border-b" />
+                <DroppableHour key={hour} date={day} hour={hour} className="h-10 border-b shrink-0" />
               ))}
+              <div className="flex-1" />
 
               {events
                 .filter((event: CalendarEvent) => event.date.toDateString() === day.toDateString())
@@ -1902,19 +1904,21 @@ function DayView({ currentDate, events, onEventClick, conflicts, readOnly = fals
     .sort((a: CalendarEvent, b: CalendarEvent) => a.date.getTime() - b.date.getTime())
 
   return (
-    <div className="flex rounded-lg bg-white/50">
-      <div className="w-14 border-r bg-gray-50">
+    <div className="flex min-h-full rounded-lg bg-white/50">
+      <div className="flex flex-col w-14 border-r bg-gray-50">
         {hours.map(hour => (
-          <div key={hour} className="h-10 border-b px-1 py-1 text-right text-xs text-gray-600">
+          <div key={hour} className="h-10 border-b shrink-0 px-1 py-1 text-right text-xs text-gray-600">
             {formatHour(hour)}
           </div>
         ))}
+        <div className="flex-1 bg-gray-50" />
       </div>
 
-      <div className="relative flex-1">
+      <div className="relative flex-1 flex flex-col">
         {hours.map(hour => (
-          <DroppableHour key={hour} date={currentDate} hour={hour} className="h-10 border-b" />
+          <DroppableHour key={hour} date={currentDate} hour={hour} className="h-10 border-b shrink-0" />
         ))}
+        <div className="flex-1" />
 
         {dayEvents.map((event: CalendarEvent) => {
           const hour = event.date.getHours()
