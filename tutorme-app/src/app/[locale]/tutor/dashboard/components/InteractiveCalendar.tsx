@@ -357,13 +357,13 @@ export function InteractiveCalendar({
   const [categoriesLoaded, setCategoriesLoaded] = useState(false)
   const cardContentRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll: Day/Week snap to 4pm (hour 16), Month scroll past header
+  // Auto-scroll: Day/Week snap to 2pm (hour 14) to maximize visible panel space
   useEffect(() => {
     if (!cardContentRef.current) return
     requestAnimationFrame(() => {
       if (!cardContentRef.current) return
       if (view === 'day' || view === 'week') {
-        cardContentRef.current.scrollTop = 16 * 40
+        cardContentRef.current.scrollTop = 14 * 40
       } else if (view === 'month') {
         cardContentRef.current.scrollTop = 80
       }
@@ -944,61 +944,63 @@ export function InteractiveCalendar({
           )}
         </CardHeader>
 
-        <CardContent ref={cardContentRef} spacing={embedded ? 'none' : 'default'} className={cn('flex-1 overflow-auto scrollbar-hide pt-0', embedded && 'px-4 pb-4')}>
-          <div className={cn('h-full pt-3', !availabilityOnly && 'border border-[#374151] rounded-lg overflow-auto scrollbar-hide')}>
-            {availabilityOnly ? (
-              <AvailabilityView
-                availability={availability}
-                onToggle={toggleAvailability}
-                onSave={() => toast.success('Availability updated!')}
-              />
-            ) : (
-              <>
-                {view === 'month' && (
-                  <MonthView
-                    days={calendarDays}
-                    events={filteredEvents}
-                    onDateClick={handleDateClick}
-                    onEventClick={handleEventClick}
-                    isToday={isToday}
-                    getEventsForDate={getEventsForDate}
-                    conflicts={showConflictWarning}
-                  />
-                )}
+        <CardContent spacing={embedded ? 'none' : 'default'} className={cn('flex-1 overflow-hidden pt-0', embedded && 'px-4 pb-4')}>
+          <div className={cn('h-full pt-3 flex flex-col', !availabilityOnly && 'border border-[#374151] rounded-lg overflow-hidden')}>
+            <div ref={cardContentRef} className="flex-1 overflow-auto scrollbar-hide">
+              {availabilityOnly ? (
+                <AvailabilityView
+                  availability={availability}
+                  onToggle={toggleAvailability}
+                  onSave={() => toast.success('Availability updated!')}
+                />
+              ) : (
+                <>
+                  {view === 'month' && (
+                    <MonthView
+                      days={calendarDays}
+                      events={filteredEvents}
+                      onDateClick={handleDateClick}
+                      onEventClick={handleEventClick}
+                      isToday={isToday}
+                      getEventsForDate={getEventsForDate}
+                      conflicts={showConflictWarning}
+                    />
+                  )}
 
-                {view === 'week' && (
-                  <WeekView
-                    currentDate={currentDate}
-                    events={filteredEvents}
-                    onEventClick={handleEventClick}
-                    onDateClick={handleDateClick}
-                    conflicts={showConflictWarning}
-                    readOnly={isStudent}
-                  />
-                )}
+                  {view === 'week' && (
+                    <WeekView
+                      currentDate={currentDate}
+                      events={filteredEvents}
+                      onEventClick={handleEventClick}
+                      onDateClick={handleDateClick}
+                      conflicts={showConflictWarning}
+                      readOnly={isStudent}
+                    />
+                  )}
 
-                {view === 'day' && (
-                  <DayView
-                    currentDate={currentDate}
-                    events={filteredEvents}
-                    onEventClick={handleEventClick}
-                    conflicts={showConflictWarning}
-                    readOnly={isStudent}
-                  />
-                )}
+                  {view === 'day' && (
+                    <DayView
+                      currentDate={currentDate}
+                      events={filteredEvents}
+                      onEventClick={handleEventClick}
+                      conflicts={showConflictWarning}
+                      readOnly={isStudent}
+                    />
+                  )}
 
-                {!isStudent && view === 'availability' && (
-                  <AvailabilityView
-                    availability={availability}
-                    onToggle={toggleAvailability}
-                    onSave={() => {
-                      toast.success('Availability updated!')
-                      setView('month')
-                    }}
-                  />
-                )}
-              </>
-            )}
+                  {!isStudent && view === 'availability' && (
+                    <AvailabilityView
+                      availability={availability}
+                      onToggle={toggleAvailability}
+                      onSave={() => {
+                        toast.success('Availability updated!')
+                        setView('month')
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </CardContent>
 

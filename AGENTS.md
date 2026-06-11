@@ -1,6 +1,6 @@
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-08
+> **Last updated:** 2026-06-11
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens)
 
 ---
@@ -53,7 +53,7 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (top-level domains, 214 route.ts files)
+│   │   │   └── api/          # REST API endpoints (top-level domains, 215 route.ts files)
 │   │   ├── components/       # React components (feature-organized, 150 files)
 │   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (263 files)
 │   │   ├── hooks/            # Custom React hooks (11 files)
@@ -385,7 +385,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 214 `route.ts` files across the API tree.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 215 `route.ts` files across the API tree.
 
 **Role-specific layout behaviors:**
 - **Student layout** (`[locale]/student/layout.tsx`): Collapsible sidebar, special handling for `/student/tutors` (no sidebar), `/student/feedback` (hides nav entirely), and live class routes.
@@ -407,7 +407,7 @@ Organized by feature domain (150 component files across 29 top-level directories
 
 ### Library (`src/lib/`)
 
-Domain-organized business logic (263 files across 43 top-level directories):
+Domain-organized business logic (263 files across 44 top-level directories):
 - `lib/db/` — Drizzle client (`drizzle.ts`), schema (`schema/`), and migrations
 - `lib/ai/` — AI provider integrations (`kimi.ts`), prompts, teaching prompts, types, memory services
 - `lib/agents/` — Orchestrator (`orchestrator-llm.ts`), tutor agents, grading, live-monitor, content-generator, task-generator, tutor-chat-service
@@ -741,6 +741,10 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 6. **Batch deployment** — Only push when the entire feature bundle is verified locally.
 7. **Never commit `.env` or `.env.local`.**
 8. **Ensure `npm run build` passes 100%** before the final push.
+
+### Dev Container
+
+A `.devcontainer/devcontainer.json` is present and configures a Python 3.11 base image with Node.js, VS Code extensions (including GitLens, Copilot, Claude Code, Kimi Code), and port forwarding for `8000` and `3000`. It is optional and not required for daily development.
 
 ### Project-Specific Notes
 
