@@ -292,16 +292,14 @@ function TutorClassroomContent() {
     try {
       const csrfToken = await getCsrfToken()
       const res = await fetch(`/api/tutor/classes/${sessionId}`, {
-        method: 'POST',
+        method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         },
-        body: JSON.stringify({ action: 'end' }),
       })
       if (res.ok) {
-        socket?.emit('session:end', { roomId: sessionId })
         toast.success('Session ended')
         router.push('/tutor/classes')
       } else {
@@ -313,7 +311,7 @@ function TutorClassroomContent() {
     } finally {
       setEnding(false)
     }
-  }, [sessionId, ending, getCsrfToken, socket, router])
+  }, [sessionId, ending, getCsrfToken, router])
 
   if (loading) {
     return (

@@ -571,6 +571,21 @@ function StudentFeedbackContent() {
   }, [socket])
 
   useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    const handleSessionEnded = (data: { sessionId: string; reason?: string }) => {
+      if (data.sessionId !== selectedSessionId) return
+      setSessionContext(prev =>
+        prev ? { ...prev, status: 'ended', endedAt: new Date().toISOString() } : prev
+      )
+      toast.info('This session has ended.')
+    }
+    socket.on('session:ended', handleSessionEnded)
+    return () => {
+      socket.off('session:ended', handleSessionEnded)
+    }
+  }, [socket, selectedSessionId])
+
+  useEffect(() => {
     if (!selectedSessionId || typeof window === 'undefined') return
     try {
       const stored = window.localStorage.getItem(`feedback-whiteboards:${selectedSessionId}`)
