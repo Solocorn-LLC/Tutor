@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y ca-certificates curl libreoffice-writer
 # Dependencies
 FROM base AS deps
 COPY package.json package-lock.json* ./
+# The postinstall script copies pdf.worker.min.mjs into public/. Copy it early
+# so npm ci can run it before the rest of the source tree is available.
+COPY scripts/copy-pdf-worker.js ./scripts/
 # Allocate more memory to Node to prevent SIGXCPU/OOM (Exit code 152) during heavy dependency resolution
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --legacy-peer-deps
 
@@ -13,6 +16,8 @@ RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --legacy-peer-deps
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Ensure the PDF.js worker is present in public/ after the source tree is copied.
+RUN node scripts/copy-pdf-worker.js
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm install --no-save --legacy-peer-deps @parcel/watcher-linux-x64-glibc @swc/core-linux-x64-gnu @next/swc-linux-x64-gnu esbuild
 

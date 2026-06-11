@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y libreoffice-writer libreoffice-impress 
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# The postinstall script copies pdf.worker.min.mjs into public/. Copy it early
+# so npm ci can run it before the rest of the source tree is available.
+COPY scripts/copy-pdf-worker.js ./scripts/
 RUN npm ci --legacy-peer-deps
 
 # Build
@@ -15,6 +18,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Ensure the PDF.js worker is present in public/ after the source tree is copied.
+RUN node scripts/copy-pdf-worker.js
 RUN npm run build
 
 # Production image (full .next + custom server with Socket.io)
