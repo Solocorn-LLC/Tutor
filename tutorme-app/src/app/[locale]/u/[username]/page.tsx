@@ -598,11 +598,32 @@ export default function PublicTutorPage() {
     }>
   >([])
   const [coursesExpanded, setCoursesExpanded] = useState(false)
+  const [showBackButton, setShowBackButton] = useState(false)
   const coursesPanelRef = useRef<HTMLDivElement>(null)
+  const coursesHeaderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadTutorData()
   }, [username])
+
+  // Hide body scrollbar on this page
+  useEffect(() => {
+    document.body.classList.add('scrollbar-hide')
+    return () => document.body.classList.remove('scrollbar-hide')
+  }, [])
+
+  // IntersectionObserver: show Back to Profile button only when courses header is scrolled out of view
+  useEffect(() => {
+    if (!coursesHeaderRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowBackButton(!entry.isIntersecting)
+      },
+      { threshold: 0 }
+    )
+    observer.observe(coursesHeaderRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   const hasAutoOpenedCourse = useRef(false)
   useEffect(() => {
@@ -1826,6 +1847,7 @@ export default function PublicTutorPage() {
             : 'mt-8'
         )}
       >
+        <div ref={coursesHeaderRef} />
         <div
           onClick={() => {
             if (!coursesExpanded) {
@@ -1882,7 +1904,7 @@ export default function PublicTutorPage() {
                 </Select>
               </div>
 
-              {coursesExpanded ? (
+              {coursesExpanded && showBackButton ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1895,7 +1917,7 @@ export default function PublicTutorPage() {
                   <Minimize2 className="h-4 w-4" />
                   Back to Profile
                 </button>
-              ) : (
+              ) : coursesExpanded ? null : (
                 <Maximize2 className="hidden lg:block h-4 w-4 text-white/40 shrink-0 ml-2" />
               )}
 
@@ -1912,19 +1934,19 @@ export default function PublicTutorPage() {
             title="Enrolling"
             courses={enrollingCourses}
             emptyMessage="No published courses found."
-            forceOpen={coursesExpanded ? true : undefined}
+            forceOpen={coursesExpanded && enrollingCourses.length > 0 ? true : undefined}
           />
           <CourseSection
             title="Active"
             courses={activeCourses}
             emptyMessage="This tutor has no active courses."
-            forceOpen={coursesExpanded ? true : undefined}
+            forceOpen={coursesExpanded && activeCourses.length > 0 ? true : undefined}
           />
           <CourseSection
             title="Catalogued"
             courses={cataloguedCourses}
             emptyMessage="This tutor has no catalogued courses."
-            forceOpen={coursesExpanded ? true : undefined}
+            forceOpen={coursesExpanded && cataloguedCourses.length > 0 ? true : undefined}
           />
         </div>
       </div>
