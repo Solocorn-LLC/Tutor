@@ -17,6 +17,7 @@ async function fetchTutorUsername(): Promise<string | null> {
   }
 }
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import {
   Calendar,
@@ -31,6 +32,7 @@ import {
   Video,
   Plus,
   MessageSquare,
+  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -188,18 +190,26 @@ export function ModernHeroSection({
       <div className="relative z-10">
         {/* Header Row */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="mb-0.5 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-white/70" />
-              <span className="text-sm font-medium text-white/70">
-                {greeting}, @
-                {username ??
-                  session?.user?.name ??
-                  session?.user?.email?.split('@')[0] ??
-                  'username'}
-              </span>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-14 w-14 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+              <AvatarImage src={session?.user?.image || undefined} alt="Tutor avatar" />
+              <AvatarFallback className="rounded-2xl bg-white/15">
+                <User className="h-6 w-6 text-white/70" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="mb-0.5 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-white/70" />
+                <span className="text-sm font-medium text-white/70">
+                  {greeting}, @
+                  {username ??
+                    session?.user?.name ??
+                    session?.user?.email?.split('@')[0] ??
+                    'username'}
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
             </div>
-            <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
           </div>
 
           {/* Stat Pills */}
