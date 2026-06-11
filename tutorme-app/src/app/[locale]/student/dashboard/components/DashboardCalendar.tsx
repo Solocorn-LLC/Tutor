@@ -185,7 +185,7 @@ export function DashboardCalendar({
   }, [events])
 
   return (
-    <div className="w-full flex flex-col h-full overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+    <div className="w-full flex flex-col h-full overflow-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
         <div className="flex-shrink-0 p-6 pb-3">
           <TabsList
@@ -196,7 +196,7 @@ export function DashboardCalendar({
             <TabsTrigger
               value="classes"
               fullWidth
-              className="h-11 gap-2 rounded-full border px-4 font-semibold shadow-[0_6px_18px_rgba(15,23,42,0.08)] transition-all duration-200 data-[state=active]:border-[rgba(255,255,255,0.10)] data-[state=inactive]:border-[rgba(31,41,51,0.08)] data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(135deg,rgba(63,61,57,0.92),rgba(31,41,51,0.96))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_8px_18px_rgba(15,23,42,0.16)] data-[state=inactive]:hover:border-[rgba(31,41,51,0.16)] data-[state=inactive]:hover:bg-slate-50 data-[state=inactive]:hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)]"
+              className="h-11 gap-2 rounded-lg border px-4 font-semibold transition-all duration-200 data-[state=active]:border-[#374151] data-[state=inactive]:border-[#374151] data-[state=inactive]:bg-white data-[state=active]:bg-[#374151] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:bg-[#374151] data-[state=inactive]:hover:text-white"
             >
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Sessions</span>
@@ -205,7 +205,7 @@ export function DashboardCalendar({
             <TabsTrigger
               value="calendar"
               fullWidth
-              className="h-11 gap-2 rounded-full border px-4 font-semibold shadow-[0_6px_18px_rgba(15,23,42,0.08)] transition-all duration-200 data-[state=active]:border-[rgba(255,255,255,0.10)] data-[state=inactive]:border-[rgba(31,41,51,0.08)] data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(135deg,rgba(63,61,57,0.92),rgba(31,41,51,0.96))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_8px_18px_rgba(15,23,42,0.16)] data-[state=inactive]:hover:border-[rgba(31,41,51,0.16)] data-[state=inactive]:hover:bg-slate-50 data-[state=inactive]:hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)]"
+              className="h-11 gap-2 rounded-lg border px-4 font-semibold transition-all duration-200 data-[state=active]:border-[#374151] data-[state=inactive]:border-[#374151] data-[state=inactive]:bg-white data-[state=active]:bg-[#374151] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:bg-[#374151] data-[state=inactive]:hover:text-white"
             >
               <CalendarDays className="h-4 w-4" />
               <span className="hidden sm:inline">Calendar</span>
@@ -214,14 +214,14 @@ export function DashboardCalendar({
           </TabsList>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden p-6 pt-0">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {/* My Calendar Tab */}
-          <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0">
-            <InteractiveCalendar events={interactiveEvents} loading={loading} mode="student" embedded />
+          <TabsContent value="calendar" className="flex-1 min-h-0 overflow-auto mt-0">
+            <InteractiveCalendar events={interactiveEvents} loading={loading} mode="student" />
           </TabsContent>
 
           {/* My Classes Tab */}
-          <TabsContent value="classes" className="h-full overflow-y-auto mt-0">
+          <TabsContent value="classes" className="h-full overflow-y-auto mt-0 px-6 pb-6">
             {loading ? (
               <div className="py-8 text-center">
                 <p className="text-muted-foreground text-sm">Loading your classes...</p>

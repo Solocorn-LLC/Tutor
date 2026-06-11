@@ -402,6 +402,14 @@ export function InteractiveCalendar({
     loadCategories()
   }, [mode])
 
+  // Derive category options from student events
+  useEffect(() => {
+    if (mode !== 'student') return
+    const subjects = Array.from(new Set(initialEvents.map(e => e.subject).filter((s): s is string => typeof s === 'string')))
+    setCategoryOptions(subjects)
+    setCategoriesLoaded(true)
+  }, [mode, initialEvents])
+
   useEffect(() => {
     if (mode !== 'tutor') return
     const loadAvailability = async () => {
