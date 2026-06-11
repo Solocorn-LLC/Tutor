@@ -714,10 +714,10 @@ function TutorDashboardContent() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 min-h-0 overflow-hidden pt-4 flex flex-col">
-                <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0">
+                <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
                   <InteractiveCalendar initialView="day" dayClickMode="create" loading={loading} embedded timezone={timezone} onTimezoneChange={setTimezone} view={calendarView} onViewChange={setCalendarView} />
                 </TabsContent>
-                <TabsContent value="availability" className="flex-1 min-h-0 overflow-hidden mt-0">
+                <TabsContent value="availability" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
                   <InteractiveCalendar
                     initialView="availability"
                     dayClickMode="availability"
@@ -730,7 +730,7 @@ function TutorDashboardContent() {
                     onViewChange={setCalendarView}
                   />
                 </TabsContent>
-                <TabsContent value="courses" className="flex-1 min-h-0 overflow-hidden mt-0">
+                <TabsContent value="courses" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
                   <div className="h-full overflow-y-auto">
                     <CardTitle className="mb-4 text-card-foreground flex items-center gap-2">
                       Session Schedule
@@ -851,7 +851,7 @@ function TutorDashboardContent() {
                   </div>
                 </div>
               </TabsContent>
-              <TabsContent value="oneOnOne" className="flex-1 min-h-0 overflow-hidden mt-0">
+              <TabsContent value="oneOnOne" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
                 <div className="h-full overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <CardTitle className="text-card-foreground">Pending 1-on-1 Requests</CardTitle>

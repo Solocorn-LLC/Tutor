@@ -826,7 +826,7 @@ export function InteractiveCalendar({
         className={cn(
           'flex flex-col',
           embedded
-            ? 'h-full bg-transparent border-0 shadow-none'
+            ? 'flex-1 bg-transparent border-0 shadow-none'
             : 'h-[600px] border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
         )}
       >
