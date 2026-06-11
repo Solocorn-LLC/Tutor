@@ -57,11 +57,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Dialog,
   DialogContent,
@@ -1275,17 +1271,89 @@ const CategoryGridIcon = ({ className }: { className?: string }) => (
       }
     `}</style>
     {/* Row 1 */}
-    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F5C542" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.0s' }} />
-    <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#E63946" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.1s' }} />
-    <rect x="17" y="1" width="6" height="6" rx="1.5" fill="#9B5DE5" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.2s' }} />
+    <rect
+      x="1"
+      y="1"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#F5C542"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.0s' }}
+    />
+    <rect
+      x="9"
+      y="1"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#E63946"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.1s' }}
+    />
+    <rect
+      x="17"
+      y="1"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#9B5DE5"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.2s' }}
+    />
     {/* Row 2 */}
-    <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#52B788" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.3s' }} />
-    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#48CAE4" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.4s' }} />
-    <rect x="17" y="9" width="6" height="6" rx="1.5" fill="#F4A261" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.5s' }} />
+    <rect
+      x="1"
+      y="9"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#52B788"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.3s' }}
+    />
+    <rect
+      x="9"
+      y="9"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#48CAE4"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.4s' }}
+    />
+    <rect
+      x="17"
+      y="9"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#F4A261"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.5s' }}
+    />
     {/* Row 3 */}
-    <rect x="1" y="17" width="6" height="6" rx="1.5" fill="#E83F6F" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.6s' }} />
-    <rect x="9" y="17" width="6" height="6" rx="1.5" fill="#0D9488" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.7s' }} />
-    <rect x="17" y="17" width="6" height="6" rx="1.5" fill="#64748B" style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.8s' }} />
+    <rect
+      x="1"
+      y="17"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#E83F6F"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.6s' }}
+    />
+    <rect
+      x="9"
+      y="17"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#0D9488"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.7s' }}
+    />
+    <rect
+      x="17"
+      y="17"
+      width="6"
+      height="6"
+      rx="1.5"
+      fill="#64748B"
+      style={{ animation: 'cat-brighten 2s ease-in-out 0s infinite', animationDelay: '0.8s' }}
+    />
   </svg>
 )
 
@@ -1479,7 +1547,10 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             signal: controller.signal,
           }),
         ])
-        console.log('[Landing] Fetch completed:', { coursesOk: coursesRes.ok, tutorsOk: tutorsRes.ok })
+        console.log('[Landing] Fetch completed:', {
+          coursesOk: coursesRes.ok,
+          tutorsOk: tutorsRes.ok,
+        })
 
         const parseJsonSafe = async (res: Response) => {
           const ct = res.headers.get('content-type') || ''
@@ -1491,7 +1562,10 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           coursesRes.ok ? parseJsonSafe(coursesRes) : null,
           tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
         ])
-        console.log('[Landing] Parsed JSON:', { coursesCount: coursesJson?.courses?.length, tutorsCount: tutorsJson?.tutors?.length })
+        console.log('[Landing] Parsed JSON:', {
+          coursesCount: coursesJson?.courses?.length,
+          tutorsCount: tutorsJson?.tutors?.length,
+        })
 
         if (!finished) {
           setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
@@ -1529,7 +1603,20 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     if (!iso) return 'Starts TBD'
     const d = new Date(iso)
     if (isNaN(d.getTime())) return 'Starts TBD'
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]
     return `Starts ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear().toString().slice(-2)}`
   }
 
@@ -1576,7 +1663,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          <div className="mt-3 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2 min-h-0">
+          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
             <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-200">
               {(item?.description || '').trim() || 'No course description provided yet.'}
             </div>
@@ -1629,7 +1716,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </div>
 
           {/* Bio — expands to fill available space */}
-          <div className="mt-3 flex-1 min-h-0 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
             <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-100">
               {(item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'}
             </div>
@@ -1640,9 +1727,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <div className="truncate text-slate-300">
               {typeof item?.courseCount === 'number' ? `${item.courseCount} courses` : ''}
             </div>
-            {item?.country ? (
-              <span className="truncate text-slate-200">{item.country}</span>
-            ) : null}
+            {item?.country ? <span className="truncate text-slate-200">{item.country}</span> : null}
           </div>
         </div>
       </div>
@@ -1758,7 +1843,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 {visible.map((item: any, i: number) => (
                   <div key={item?.id || item?.__skeleton || i} className="w-[var(--card-width)]">
                     {item?.__skeleton ? (
-                      <div className={cn(kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]', 'w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]')}>
+                      <div
+                        className={cn(
+                          kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                          'w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]'
+                        )}
+                      >
                         <div className="flex h-full w-full items-center justify-center">
                           <div className="text-center">
                             <div className="mx-auto mb-2 h-8 w-8 animate-pulse rounded-full bg-white/10" />
@@ -1776,7 +1866,10 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 {Array.from({ length: placeholders }).map((_, i) => (
                   <div
                     key={`placeholder-${kind}-${currentPage}-${i}`}
-                    className={cn(kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]', 'w-[var(--card-width)]')}
+                    className={cn(
+                      kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                      'w-[var(--card-width)]'
+                    )}
                     aria-hidden="true"
                   />
                 ))}
@@ -1794,14 +1887,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </div>
         )
       })()}
-
     </div>
   )
 
   return (
     <section
       id="panel-2-search-results"
-      className="relative w-full min-h-[600px] overflow-hidden"
+      className="relative min-h-[600px] w-full overflow-hidden"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
@@ -1818,12 +1910,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               setSelectedCountryCode('')
             }}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               <SelectValue placeholder="Region" />
             </SelectTrigger>
-            <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
               {REGIONS.map(region => (
-                <SelectItem key={region.id} value={region.id} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                <SelectItem
+                  key={region.id}
+                  value={region.id}
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
                   {region.name}
                 </SelectItem>
               ))}
@@ -1835,12 +1931,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             onValueChange={setSelectedCountryCode}
             disabled={!selectedRegion || selectedRegion === 'global'}
           >
-            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm focus-visible:!shadow-none focus:outline-none focus-visible:outline-none transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+            <SelectTrigger className="h-10 w-[212px] rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
               <SelectValue placeholder="Country" />
             </SelectTrigger>
-            <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
               {availableCountries.map(country => (
-                <SelectItem key={country.code} value={country.code} className="text-slate-700 focus:text-slate-900 hover:bg-slate-100/50 focus:bg-slate-100/50 mx-1.5 focus:outline-none rounded-md">
+                <SelectItem
+                  key={country.code}
+                  value={country.code}
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
                   {country.name}
                 </SelectItem>
               ))}
@@ -1853,9 +1953,9 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               setSelectedCountryCode('')
             }}
             className={cn(
-              "inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/60 hover:border-slate-700/50 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50",
-              !showReset && "invisible opacity-0 pointer-events-none",
-              showReset && "visible opacity-100"
+              'inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50',
+              !showReset && 'pointer-events-none invisible opacity-0',
+              showReset && 'visible opacity-100'
             )}
             aria-label="Clear country filter"
           >
@@ -1887,10 +1987,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       </div>
 
       {/* Course Detail Dialog — opens when a course card is clicked on the landing page */}
-      <Dialog
-        open={!!selectedCourse}
-        onOpenChange={open => !open && setSelectedCourse(null)}
-      >
+      <Dialog open={!!selectedCourse} onOpenChange={open => !open && setSelectedCourse(null)}>
         <DialogContent className="flex h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-lg">{selectedCourse?.name}</DialogTitle>
@@ -1899,20 +1996,20 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <DialogPanel className="p-3">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-muted-foreground">Category</div>
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-muted-foreground text-xs font-medium">Category</div>
+                  <div className="text-foreground text-sm font-semibold">
                     {selectedCourse?.categories?.[0] || 'general'}
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-muted-foreground">Sessions</div>
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-muted-foreground text-xs font-medium">Sessions</div>
+                  <div className="text-foreground text-sm font-semibold">
                     {selectedCourse?.lessonCount ?? 0} sessions
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-muted-foreground">Price</div>
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-muted-foreground text-xs font-medium">Price</div>
+                  <div className="text-foreground text-sm font-semibold">
                     {selectedCourse?.isFree
                       ? 'Free'
                       : selectedCourse?.price != null
@@ -1921,8 +2018,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-muted-foreground">Cost per Session</div>
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-muted-foreground text-xs font-medium">Cost per Session</div>
+                  <div className="text-foreground text-sm font-semibold">
                     {selectedCourse?.isFree
                       ? 'Free'
                       : selectedCourse?.price != null && selectedCourse?.lessonCount
@@ -1931,8 +2028,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-muted-foreground">Starts</div>
-                  <div className="text-sm font-semibold text-foreground">
+                  <div className="text-muted-foreground text-xs font-medium">Starts</div>
+                  <div className="text-foreground text-sm font-semibold">
                     {selectedCourse?.startDate
                       ? new Date(selectedCourse.startDate).toLocaleDateString()
                       : 'TBA'}
@@ -1942,15 +2039,15 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </DialogPanel>
             <DialogPanel className="p-3">
               <div className="space-y-0.5">
-                <div className="text-xs font-medium text-muted-foreground">Schedule</div>
-                <div className="text-sm font-semibold text-foreground">
+                <div className="text-muted-foreground text-xs font-medium">Schedule</div>
+                <div className="text-foreground text-sm font-semibold">
                   {selectedCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
                 </div>
               </div>
             </DialogPanel>
             <DialogPanel className="p-3">
-              <h3 className="mb-2 text-sm font-semibold text-foreground">About this course</h3>
-              <p className="whitespace-pre-wrap text-sm leading-snug text-muted-foreground">
+              <h3 className="text-foreground mb-2 text-sm font-semibold">About this course</h3>
+              <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-snug">
                 {selectedCourse?.description || 'More details will be available soon.'}
               </p>
             </DialogPanel>
@@ -1958,9 +2055,9 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               <div className="grid grid-cols-[auto_1fr] gap-3">
                 {/* Left column: heading + photo + name */}
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-semibold text-foreground">About the tutor</h3>
+                  <h3 className="text-foreground text-sm font-semibold">About the tutor</h3>
                   <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                    <div className="border-border bg-muted h-12 w-12 shrink-0 overflow-hidden rounded-xl border">
                       {selectedCourse?.tutor?.avatarUrl ? (
                         <img
                           src={selectedCourse.tutor.avatarUrl}
@@ -1968,16 +2065,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                        <div className="text-muted-foreground flex h-full w-full items-center justify-center">
                           <User className="h-5 w-5" />
                         </div>
                       )}
                     </div>
                     <div className="min-w-[140px] shrink-0">
-                      <div className="text-sm font-semibold text-foreground">
+                      <div className="text-foreground text-sm font-semibold">
                         {selectedCourse?.tutor?.name || 'Anonymous Tutor'}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         @{selectedCourse?.tutor?.username || 'tutor'}
                       </div>
                     </div>
@@ -1988,21 +2085,21 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 {selectedCourse?.tutor?.bio && (
                   <div className="hidden self-stretch md:block">
                     <div className="h-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
-                      <p className="line-clamp-3 text-xs leading-snug text-muted-foreground">
+                      <p className="text-muted-foreground line-clamp-3 text-xs leading-snug">
                         {selectedCourse.tutor.bio}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
                 {selectedCourse?.tutor?.createdAt && (
                   <>
                     <div className="flex items-center gap-1">
-                      <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                      <CalendarDays className="text-muted-foreground h-3.5 w-3.5" />
                       <span>
                         Tutor Since{' '}
-                        <span className="font-semibold text-foreground">
+                        <span className="text-foreground font-semibold">
                           {new Date(selectedCourse.tutor.createdAt).toLocaleDateString('en-US', {
                             month: '2-digit',
                             day: '2-digit',
@@ -2011,29 +2108,29 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                         </span>
                       </span>
                     </div>
-                    <div className="h-3.5 w-px bg-border" />
+                    <div className="bg-border h-3.5 w-px" />
                   </>
                 )}
                 <div className="flex items-center gap-1">
-                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  <BookOpen className="text-muted-foreground h-3.5 w-3.5" />
                   <span>
                     Active Courses{' '}
-                    <span className="font-semibold text-foreground">
+                    <span className="text-foreground font-semibold">
                       {selectedCourse?.tutor?.activeCourses ?? 0}
                     </span>
                   </span>
                 </div>
-                <div className="h-3.5 w-px bg-border" />
+                <div className="bg-border h-3.5 w-px" />
                 <div className="flex items-center gap-1">
-                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Globe className="text-muted-foreground h-3.5 w-3.5" />
                   <span>
                     Country{' '}
-                    <span className="font-semibold text-foreground">
+                    <span className="text-foreground font-semibold">
                       {selectedCourse?.tutor?.country || '—'}
                     </span>
                   </span>
                 </div>
-                <div className="h-3.5 w-px bg-border" />
+                <div className="bg-border h-3.5 w-px" />
                 <div className="flex items-center gap-1">
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                   <span className="font-semibold text-emerald-600">Verified</span>
@@ -2054,10 +2151,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             >
               Go To Public Page
             </Button>
-            <Button
-              variant="modal-secondary-dark"
-              onClick={() => setSelectedCourse(null)}
-            >
+            <Button variant="modal-secondary-dark" onClick={() => setSelectedCourse(null)}>
               Close
             </Button>
           </DialogFooter>
@@ -2458,63 +2552,68 @@ const ComingSoonModal = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4"
         >
-        <div className="absolute inset-0 bg-black/80" onClick={onClose} onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} />
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
-        >
-          <button
+          <div
+            className="absolute inset-0 bg-black/80"
             onClick={onClose}
-            className={`absolute right-4 top-4 p-2 transition-colors ${mode === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}
+            onWheel={e => e.stopPropagation()}
+            onTouchMove={e => e.stopPropagation()}
+          />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
           >
-            <X className="h-5 w-5" />
-          </button>
-          {!submitted ? (
-            <>
-              {type !== 'schools' && (
-                <div className="mb-6 text-center">
-                  <div
-                    className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${mode === 'dark' ? `bg-${theme}-500/10 border-${theme}-500/20 text-${theme}-400` : themeColors[theme].light}`}
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    {t('comingSoon')}
+            <button
+              onClick={onClose}
+              className={`absolute right-4 top-4 p-2 transition-colors ${mode === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {!submitted ? (
+              <>
+                {type !== 'schools' && (
+                  <div className="mb-6 text-center">
+                    <div
+                      className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${mode === 'dark' ? `bg-${theme}-500/10 border-${theme}-500/20 text-${theme}-400` : themeColors[theme].light}`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {t('comingSoon')}
+                    </div>
                   </div>
+                )}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {type === 'tutor' && renderTutorForm()}
+                  {type === 'academy' && renderAcademyForm()}
+                  {type === 'schools' && renderSchoolsForm()}
+                  {(type === 'register' || !type) && renderDefaultForm()}
+                </form>
+              </>
+            ) : (
+              <div className="py-8 text-center">
+                <div
+                  className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${mode === 'dark' ? `bg-${theme}-500/20` : themeColors[theme].light}`}
+                >
+                  <CheckCircle
+                    className={`h-8 w-8 ${mode === 'dark' ? `text-${theme}-400` : `text-${theme}-600`}`}
+                  />
                 </div>
-              )}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {type === 'tutor' && renderTutorForm()}
-                {type === 'academy' && renderAcademyForm()}
-                {type === 'schools' && renderSchoolsForm()}
-                {(type === 'register' || !type) && renderDefaultForm()}
-              </form>
-            </>
-          ) : (
-            <div className="py-8 text-center">
-              <div
-                className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${mode === 'dark' ? `bg-${theme}-500/20` : themeColors[theme].light}`}
-              >
-                <CheckCircle
-                  className={`h-8 w-8 ${mode === 'dark' ? `text-${theme}-400` : `text-${theme}-600`}`}
-                />
+                <h3
+                  className={`mb-2 text-xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
+                >
+                  {t('thankYou')}
+                </h3>
+                <p className={mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
+                  {t('successMessageRegister')}
+                </p>
+                <Button
+                  onClick={onClose}
+                  className={`mt-6 ${mode === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/10 text-zinc-900 hover:bg-black/20'}`}
+                >
+                  {t('close')}
+                </Button>
               </div>
-              <h3
-                className={`mb-2 text-xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
-              >
-                {t('thankYou')}
-              </h3>
-              <p className={mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
-                {t('successMessageRegister')}
-              </p>
-              <Button
-                onClick={onClose}
-                className={`mt-6 ${mode === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/10 text-zinc-900 hover:bg-black/20'}`}
-              >
-                {t('close')}
-              </Button>
-            </div>
-          )}
+            )}
           </motion.div>
         </motion.div>
       )}
@@ -2597,9 +2696,12 @@ const SpecialAccessSection = ({
 
       {expanded && (
         <>
-          <div className="fixed inset-0 z-[990] animate-in fade-in duration-150" onClick={() => setExpanded(false)} />
           <div
-            className="fixed z-[1000] animate-in fade-in zoom-in-95 duration-150"
+            className="animate-in fade-in fixed inset-0 z-[990] duration-150"
+            onClick={() => setExpanded(false)}
+          />
+          <div
+            className="animate-in fade-in zoom-in-95 fixed z-[1000] duration-150"
             style={popoverPos ?? undefined}
             onClick={e => e.stopPropagation()}
           >
@@ -2613,7 +2715,7 @@ const SpecialAccessSection = ({
                 autoCorrect="off"
                 autoCapitalize="off"
                 autoFocus
-                className={`h-10 w-[260px] rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/60 shadow-md backdrop-blur-sm focus:outline-none focus-visible:!shadow-none ${error ? 'border-red-400' : ''}`}
+                className={`h-10 w-[260px] rounded-full border border-white/20 bg-white/10 px-4 text-sm text-white shadow-md backdrop-blur-sm placeholder:text-white/60 focus:outline-none focus-visible:!shadow-none ${error ? 'border-red-400' : ''}`}
               />
             </form>
             {error && <p className="mt-2 text-xs font-medium text-red-300">{t('invalidCode')}</p>}
@@ -3074,13 +3176,7 @@ const TermsOfServiceModal = ({
 
 // --- Category Search Modal sub-components ---
 
-const EmptyState = ({
-  search,
-  fallbackText,
-}: {
-  search: string
-  fallbackText: string
-}) => (
+const EmptyState = ({ search, fallbackText }: { search: string; fallbackText: string }) => (
   <div className="py-12 text-center text-slate-500">
     <Search className="mx-auto mb-3 h-12 w-12 text-slate-300" />
     <p className="text-sm">{search ? `No results for "${search}"` : fallbackText}</p>
@@ -3110,8 +3206,14 @@ const CategorySection = ({
   if (filtered.length === 0) return null
   return (
     <div className="space-y-4">
-      <h4 className="flex items-center gap-2 text-xs font-medium" style={{ color: color || 'white' }}>
-        <Icon className="h-4 w-4" style={{ color: color ? `${color}CC` : 'rgba(255,255,255,0.8)' }} />
+      <h4
+        className="flex items-center gap-2 text-xs font-medium"
+        style={{ color: color || 'white' }}
+      >
+        <Icon
+          className="h-4 w-4"
+          style={{ color: color ? `${color}CC` : 'rgba(255,255,255,0.8)' }}
+        />
         {label}
       </h4>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
@@ -3127,8 +3229,12 @@ const CategorySection = ({
                 onChange={() => onToggleCategory(exam)}
                 className="h-3.5 w-3.5 appearance-none rounded-full border border-white/50 transition-colors"
                 style={{
-                  borderColor: selectedCategories.includes(exam) ? (color || '#4F46E5') : 'rgba(255,255,255,0.5)',
-                  backgroundColor: selectedCategories.includes(exam) ? (color || '#4F46E5') : 'transparent',
+                  borderColor: selectedCategories.includes(exam)
+                    ? color || '#4F46E5'
+                    : 'rgba(255,255,255,0.5)',
+                  backgroundColor: selectedCategories.includes(exam)
+                    ? color || '#4F46E5'
+                    : 'transparent',
                 }}
               />
             </div>
@@ -3194,15 +3300,23 @@ const CategorySearchModal = ({
   const t = (key: string) => translations[key]?.[lang] || translations[key]?.['en'] || key
 
   const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = {
-    global:       { bg: 'bg-[#0A84FF]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    ap:           { bg: 'bg-[#FF1493]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    alevel:       { bg: 'bg-[#BF5AF2]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    ib:           { bg: 'bg-[#32D74B]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    igcse:        { bg: 'bg-[#64D2FF]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    national:     { bg: 'bg-[#FF9F0A]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    universities: { bg: 'bg-[#FF375F]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    languages:    { bg: 'bg-[#00C7BE]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-    professional: { bg: 'bg-[#8E8E93]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    global: { bg: 'bg-[#0A84FF]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    ap: { bg: 'bg-[#FF1493]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    alevel: { bg: 'bg-[#BF5AF2]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    ib: { bg: 'bg-[#32D74B]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    igcse: { bg: 'bg-[#64D2FF]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    national: { bg: 'bg-[#FF9F0A]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    universities: {
+      bg: 'bg-[#FF375F]',
+      text: 'text-white',
+      close: 'text-white/60 hover:text-white',
+    },
+    languages: { bg: 'bg-[#00C7BE]', text: 'text-white', close: 'text-white/60 hover:text-white' },
+    professional: {
+      bg: 'bg-[#8E8E93]',
+      text: 'text-white',
+      close: 'text-white/60 hover:text-white',
+    },
   }
   const UNIVERSITY_TO_COUNTRY = useMemo(() => {
     const map = new Map<string, string>()
@@ -3259,30 +3373,38 @@ const CategorySearchModal = ({
     ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
     : []
 
-  const nationalExamsRaw = selectedCountries.length > 0
-    ? selectedCountries.flatMap(code => NATIONAL_EXAMS_DATA[code] || [])
-    : selectedRegion
-      ? (REGIONS.find(r => r.id === selectedRegion)?.countries.flatMap(c => c.nationalExams) || [])
-      : []
+  const nationalExamsRaw =
+    selectedCountries.length > 0
+      ? selectedCountries.flatMap(code => NATIONAL_EXAMS_DATA[code] || [])
+      : selectedRegion
+        ? REGIONS.find(r => r.id === selectedRegion)?.countries.flatMap(c => c.nationalExams) || []
+        : []
   // Deduplicate by label so identical subcategories from different countries don't appear twice
   const nationalExams = nationalExamsRaw.filter(
     (cat, idx, arr) => arr.findIndex(c => c.label === cat.label) === idx
   )
 
-  const filteredUniversityCategories = selectedCountries.length > 0
-    ? selectedCountries
-        .flatMap(code =>
+  const filteredUniversityCategories =
+    selectedCountries.length > 0
+      ? selectedCountries.flatMap(code =>
           UNIVERSITIES_BY_COUNTRY_CODE[code]
-            ? [{ id: `universities-${code}`, label: 'Universities', exams: UNIVERSITIES_BY_COUNTRY_CODE[code] }]
+            ? [
+                {
+                  id: `universities-${code}`,
+                  label: 'Universities',
+                  exams: UNIVERSITIES_BY_COUNTRY_CODE[code],
+                },
+              ]
             : []
         )
-    : selectedRegion
-      ? UNIVERSITY_CATEGORIES.filter(u => u.id === `universities-${selectedRegion}`)
-      : UNIVERSITY_CATEGORIES
+      : selectedRegion
+        ? UNIVERSITY_CATEGORIES.filter(u => u.id === `universities-${selectedRegion}`)
+        : UNIVERSITY_CATEGORIES
 
   const examToTabKey = useMemo(() => {
     const map = new Map<string, string>()
-    const add = (cats: ExamCategory[], key: string) => cats.forEach(c => c.exams.forEach(e => map.set(e, key)))
+    const add = (cats: ExamCategory[], key: string) =>
+      cats.forEach(c => c.exams.forEach(e => map.set(e, key)))
     add(GLOBAL_EXAMS_CATEGORIES, 'global')
     add(AP_CATEGORIES, 'ap')
     add(A_LEVEL_CATEGORIES, 'alevel')
@@ -3316,386 +3438,657 @@ const CategorySearchModal = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} onWheel={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} />
-      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
-          {/* Header */}
-          <div className="relative shrink-0 px-6 pt-4 pb-4">
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 rounded-full p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 className="mb-1 text-2xl font-bold text-white">
-              {t('browseCategories')}
-            </h2>
-            <p className="mb-3 text-sm text-white/70">
-              {t('selectCategoryPrompt')}
-            </p>
+    <div className="animate-in fade-in fixed inset-0 z-[100] flex items-center justify-center p-4 duration-200">
+      <div
+        className="absolute inset-0 bg-black/80"
+        onClick={onClose}
+        onWheel={e => e.stopPropagation()}
+        onTouchMove={e => e.stopPropagation()}
+      />
+      <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl duration-200">
+        {/* Header */}
+        <div className="relative shrink-0 px-6 pb-4 pt-4">
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-full p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <h2 className="mb-1 text-2xl font-bold text-white">{t('browseCategories')}</h2>
+          <p className="mb-3 text-sm text-white/70">{t('selectCategoryPrompt')}</p>
 
-            {/* Selected category badges container + Search */}
-            <div className="mb-1 flex items-start gap-3">
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div
-                  ref={badgeScrollRef}
-                  className="flex h-10 min-w-0 items-center overflow-x-auto scrollbar-hide rounded-md border border-slate-200 bg-white px-6 py-1"
-                >
-                  <div className="flex min-w-0 flex-nowrap items-center gap-2">
-                    {selectedCategories.length === 0 && (
-                      <span className="select-none text-sm text-slate-400">
-                        {t('selectCategoryBadgePlaceholder')}
-                      </span>
-                    )}
-                    {selectedCategories.flatMap(cat => {
-                      const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || { bg: 'bg-blue-50', text: 'text-[#0A84FF]', close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]' }
-                      if (selectedCountries.length === 0) {
-                        return (
-                          <span
-                            key={cat}
-                            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
-                          >
-                            {examToTabKey.get(cat) === 'universities' ? `${cat} - ${UNIVERSITY_TO_COUNTRY.get(cat) || 'Global'}` : `${cat} - Global`}
-                            <button
-                              onClick={() => removeCategory(cat)}
-                              className={`ml-0.5 ${colors.close}`}
-                              aria-label={`Remove ${cat}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      }
-                      return selectedCountries.map(code => {
-                        const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
-                        return (
-                          <span
-                            key={`${cat}-${code}`}
-                            className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
-                          >
-                            {cat} - {countryName}
-                            <button
-                              onClick={() => removeCategory(cat)}
-                              className={`ml-0.5 ${colors.close}`}
-                              aria-label={`Remove ${cat}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      })
-                    })}
-                  </div>
-                </div>
-                <div className={cn('mt-1 flex items-center justify-end gap-1', (canScrollLeft || canScrollRight) ? 'visible' : 'invisible')}>
-                  <button
-                    onClick={() => scrollBadges(-200)}
-                    disabled={!canScrollLeft}
-                    className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
-                      canScrollLeft
-                        ? 'bg-white/20 text-white hover:bg-white/30'
-                        : 'text-white/30'
-                    )}
-                    aria-label="Scroll left"
-                  >
-                    <ChevronLeft className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => scrollBadges(200)}
-                    disabled={!canScrollRight}
-                    className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
-                      canScrollRight
-                        ? 'bg-white/20 text-white hover:bg-white/30'
-                        : 'text-white/30'
-                    )}
-                    aria-label="Scroll right"
-                  >
-                    <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-              <Button
-                onClick={() => {
-                  const countryNames = selectedCountries.map(code => ALL_COUNTRIES.find(c => c.code === code)?.name || code)
-                  onSelectCategory([...selectedCategories, ...countryNames])
-                }}
-                disabled={selectedCategories.length === 0}
-                className={`h-10 shrink-0 px-5 text-sm focus-visible:!shadow-none focus:outline-none ${
-                  selectedCategories.length === 0
-                    ? 'rounded-md border border-white bg-white/10 text-white shadow-md backdrop-blur-sm disabled:opacity-50'
-                    : 'rounded-md border !border-white bg-blue-700 text-white hover:bg-blue-600 hover:!border-blue-700'
-                }`}
+          {/* Selected category badges container + Search */}
+          <div className="mb-1 flex items-start gap-3">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div
+                ref={badgeScrollRef}
+                className="scrollbar-hide flex h-10 min-w-0 items-center overflow-x-auto rounded-md border border-slate-200 bg-white px-6 py-1"
               >
-                Search
-              </Button>
-            </div>
-
-            {/* Region & Country dropdowns */}
-            <div className="flex flex-wrap gap-3">
-              <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedCountries([]) }}>
-                <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md focus-visible:!shadow-none focus:outline-none focus-visible:outline-none">
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border border-slate-700/25 bg-none bg-white/30 p-1.5 shadow-lg backdrop-blur-xl w-[var(--radix-select-trigger-width)]">
-                  {REGIONS.filter(r => r.id !== 'global').map(region => (
-                    <SelectItem key={region.id} value={region.id} className="text-white focus:text-white hover:bg-white/20 focus:bg-white/20 mx-1.5 focus:outline-none rounded-md">{region.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={!selectedRegion}
-                    className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/60 hover:border-slate-700/50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100/20 disabled:border-slate-400/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:bg-slate-100/20 disabled:hover:border-slate-400/20 disabled:hover:shadow-none focus-visible:!shadow-none focus:outline-none"
-                  >
-                    <span className="truncate">
-                      {selectedCountries.length > 0
-                        ? `${selectedCountries.length} countr${selectedCountries.length === 1 ? 'y' : 'ies'}`
-                        : 'Country'}
+                <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                  {selectedCategories.length === 0 && (
+                    <span className="select-none text-sm text-slate-400">
+                      {t('selectCategoryBadgePlaceholder')}
                     </span>
-                    <svg className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent variant="panel" className="rounded-lg border border-slate-700/25 bg-white/30 text-white p-1.5 shadow-lg backdrop-blur-xl w-[160px]" align="start">
-                  <div className="flex flex-col gap-1">
-                    {availableCountries.map(country => (
-                      <label
-                        key={country.code}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
-                        onClick={() => toggleCountry(country.code)}
-                      >
-                        <div
-                          className={cn(
-                            'h-4 w-4 rounded-full border-2 transition-colors',
-                            selectedCountries.includes(country.code)
-                              ? 'border-white bg-white'
-                              : 'border-white/50 bg-transparent'
-                          )}
-                        />
-                        <span>{country.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-          </div>
-
-          {/* Tabs Content */}
-          <div className="w-full pl-6 pr-2 pb-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div>
-                <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
-                  <TabsTrigger value="global" className={tabTriggerClass} style={{ color: '#0A84FF' }}>
-                    <Globe className="mr-1.5 h-4 w-4" /> Global
-                  </TabsTrigger>
-                  <TabsTrigger value="ap" className={tabTriggerClass}>
-                    <Award className="mr-1.5 h-4 w-4 text-[#FF1493]" />
-                    <span className="bg-gradient-to-b from-[#FF69B4] via-[#FF1493] to-[#C71585] bg-clip-text text-transparent font-semibold">AP</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="alevel" className={tabTriggerClass} style={{ color: '#BF5AF2' }}>
-                    <GraduationCap className="mr-1.5 h-4 w-4" /> A Level
-                  </TabsTrigger>
-                  <TabsTrigger value="ib" className={tabTriggerClass} style={{ color: '#32D74B' }}>
-                    <BookOpen className="mr-1.5 h-4 w-4" /> IB
-                  </TabsTrigger>
-                  <TabsTrigger value="igcse" className={tabTriggerClass} style={{ color: '#64D2FF' }}>
-                    <School className="mr-1.5 h-4 w-4" /> IGCSE
-                  </TabsTrigger>
-                  <TabsTrigger value="national" className={tabTriggerClass} disabled={nationalExams.length === 0} style={{ color: '#FF9F0A' }}>
-                    <Flag className="mr-1.5 h-4 w-4" /> National
-                  </TabsTrigger>
-                  <TabsTrigger value="universities" className={tabTriggerClass} style={{ color: '#FF375F' }}>
-                    <GraduationCap className="mr-1.5 h-4 w-4" /> Universities
-                  </TabsTrigger>
-                  <TabsTrigger value="languages" className={tabTriggerClass} style={{ color: '#00C7BE' }}>
-                    <Globe className="mr-1.5 h-4 w-4" /> Languages
-                  </TabsTrigger>
-                  <TabsTrigger value="professional" className={tabTriggerClass} style={{ color: '#8E8E93' }}>
-                    <Award className="mr-1.5 h-4 w-4" /> Professional
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="relative z-10 pb-2 pt-[15px]">
-                <div className="relative mx-auto max-w-md">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    placeholder={t('searchCategories')}
-                    value={categorySearch}
-                    onChange={e => setCategorySearch(e.target.value)}
-                    className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
+                  )}
+                  {selectedCategories.flatMap(cat => {
+                    const colors = TAB_COLORS[examToTabKey.get(cat) || ''] || {
+                      bg: 'bg-blue-50',
+                      text: 'text-[#0A84FF]',
+                      close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]',
+                    }
+                    if (selectedCountries.length === 0) {
+                      return (
+                        <span
+                          key={cat}
+                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
+                        >
+                          {examToTabKey.get(cat) === 'universities'
+                            ? `${cat} - ${UNIVERSITY_TO_COUNTRY.get(cat) || 'Global'}`
+                            : `${cat} - Global`}
+                          <button
+                            onClick={() => removeCategory(cat)}
+                            className={`ml-0.5 ${colors.close}`}
+                            aria-label={`Remove ${cat}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    }
+                    return selectedCountries.map(code => {
+                      const countryName = ALL_COUNTRIES.find(c => c.code === code)?.name || code
+                      return (
+                        <span
+                          key={`${cat}-${code}`}
+                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
+                        >
+                          {cat} - {countryName}
+                          <button
+                            onClick={() => removeCategory(cat)}
+                            className={`ml-0.5 ${colors.close}`}
+                            aria-label={`Remove ${cat}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })
+                  })}
                 </div>
               </div>
-
               <div
                 className={cn(
-                  'overscroll-contain border-t border-white/10 pt-2 pb-4 scrollbar-no-arrows',
-                  activeTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
+                  'mt-1 flex items-center justify-end gap-1',
+                  canScrollLeft || canScrollRight ? 'visible' : 'invisible'
                 )}
-                style={{
-                  height: globalContentHeight,
-                  maxHeight: globalContentHeight,
-                }}
               >
-                {!categorySearch ? (
-                  <>
-                    {/* Global */}
-                    <TabsContent value="global" className="mt-0 space-y-8">
-                      <div ref={globalContentRef} className="space-y-8">
-                        {GLOBAL_EXAMS_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                <button
+                  onClick={() => scrollBadges(-200)}
+                  disabled={!canScrollLeft}
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
+                    canScrollLeft ? 'bg-white/20 text-white hover:bg-white/30' : 'text-white/30'
+                  )}
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => scrollBadges(200)}
+                  disabled={!canScrollRight}
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full transition-colors',
+                    canScrollRight ? 'bg-white/20 text-white hover:bg-white/30' : 'text-white/30'
+                  )}
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                const countryNames = selectedCountries.map(
+                  code => ALL_COUNTRIES.find(c => c.code === code)?.name || code
+                )
+                onSelectCategory([...selectedCategories, ...countryNames])
+              }}
+              disabled={selectedCategories.length === 0}
+              className={`h-10 shrink-0 px-5 text-sm focus:outline-none focus-visible:!shadow-none ${
+                selectedCategories.length === 0
+                  ? 'rounded-md border border-white bg-white/10 text-white shadow-md backdrop-blur-sm disabled:opacity-50'
+                  : 'rounded-md border !border-white bg-blue-700 text-white hover:!border-blue-700 hover:bg-blue-600'
+              }`}
+            >
+              Search
+            </Button>
+          </div>
+
+          {/* Region & Country dropdowns */}
+          <div className="flex flex-wrap gap-3">
+            <Select
+              value={selectedRegion}
+              onValueChange={v => {
+                setSelectedRegion(v)
+                setSelectedCountries([])
+              }}
+            >
+              <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+                <SelectValue placeholder="Region" />
+              </SelectTrigger>
+              <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                {REGIONS.filter(r => r.id !== 'global').map(region => (
+                  <SelectItem
+                    key={region.id}
+                    value={region.id}
+                    className="mx-1.5 rounded-md text-white hover:bg-white/20 focus:bg-white/20 focus:text-white focus:outline-none"
+                  >
+                    {region.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!selectedRegion}
+                  className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
+                >
+                  <span className="truncate">
+                    {selectedCountries.length > 0
+                      ? `${selectedCountries.length} countr${selectedCountries.length === 1 ? 'y' : 'ies'}`
+                      : 'Country'}
+                  </span>
+                  <svg
+                    className="h-4 w-4 opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                variant="panel"
+                className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
+                align="start"
+              >
+                <div className="flex flex-col gap-1">
+                  {availableCountries.map(country => (
+                    <label
+                      key={country.code}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
+                      onClick={() => toggleCountry(country.code)}
+                    >
+                      <div
+                        className={cn(
+                          'h-4 w-4 rounded-full border-2 transition-colors',
+                          selectedCountries.includes(country.code)
+                            ? 'border-white bg-white'
+                            : 'border-white/50 bg-transparent'
+                        )}
+                      />
+                      <span>{country.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+
+        {/* Tabs Content */}
+        <div className="w-full pb-2 pl-6 pr-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div>
+              <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
+                <TabsTrigger
+                  value="global"
+                  className={tabTriggerClass}
+                  style={{ color: '#0A84FF' }}
+                >
+                  <Globe className="mr-1.5 h-4 w-4" /> Global
+                </TabsTrigger>
+                <TabsTrigger value="ap" className={tabTriggerClass}>
+                  <Award className="mr-1.5 h-4 w-4 text-[#FF1493]" />
+                  <span className="bg-gradient-to-b from-[#FF69B4] via-[#FF1493] to-[#C71585] bg-clip-text font-semibold text-transparent">
+                    AP
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="alevel"
+                  className={tabTriggerClass}
+                  style={{ color: '#BF5AF2' }}
+                >
+                  <GraduationCap className="mr-1.5 h-4 w-4" /> A Level
+                </TabsTrigger>
+                <TabsTrigger value="ib" className={tabTriggerClass} style={{ color: '#32D74B' }}>
+                  <BookOpen className="mr-1.5 h-4 w-4" /> IB
+                </TabsTrigger>
+                <TabsTrigger value="igcse" className={tabTriggerClass} style={{ color: '#64D2FF' }}>
+                  <School className="mr-1.5 h-4 w-4" /> IGCSE
+                </TabsTrigger>
+                <TabsTrigger
+                  value="national"
+                  className={tabTriggerClass}
+                  disabled={nationalExams.length === 0}
+                  style={{ color: '#FF9F0A' }}
+                >
+                  <Flag className="mr-1.5 h-4 w-4" /> National
+                </TabsTrigger>
+                <TabsTrigger
+                  value="universities"
+                  className={tabTriggerClass}
+                  style={{ color: '#FF375F' }}
+                >
+                  <GraduationCap className="mr-1.5 h-4 w-4" /> Universities
+                </TabsTrigger>
+                <TabsTrigger
+                  value="languages"
+                  className={tabTriggerClass}
+                  style={{ color: '#00C7BE' }}
+                >
+                  <Globe className="mr-1.5 h-4 w-4" /> Languages
+                </TabsTrigger>
+                <TabsTrigger
+                  value="professional"
+                  className={tabTriggerClass}
+                  style={{ color: '#8E8E93' }}
+                >
+                  <Award className="mr-1.5 h-4 w-4" /> Professional
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Search — placed inside Tabs so it sits under the active tab */}
+            <div className="relative z-10 pb-2 pt-[15px]">
+              <div className="relative mx-auto max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder={t('searchCategories')}
+                  value={categorySearch}
+                  onChange={e => setCategorySearch(e.target.value)}
+                  className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                'scrollbar-no-arrows overscroll-contain border-t border-white/10 pb-4 pt-2',
+                activeTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
+              )}
+              style={{
+                height: globalContentHeight,
+                maxHeight: globalContentHeight,
+              }}
+            >
+              {!categorySearch ? (
+                <>
+                  {/* Global */}
+                  <TabsContent value="global" className="mt-0 space-y-8">
+                    <div ref={globalContentRef} className="space-y-8">
+                      {GLOBAL_EXAMS_CATEGORIES.map(cat => (
+                        <CategorySection
+                          key={cat.id}
+                          label={cat.label}
+                          icon={BookOpen}
+                          exams={cat.exams}
+                          categorySearch={categorySearch}
+                          selectedCategories={selectedCategories}
+                          onToggleCategory={toggleCategory}
+                          color="#0A84FF"
+                        />
                       ))}
                       {!GLOBAL_EXAMS_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                        <EmptyState
+                          search={categorySearch}
+                          fallbackText={t('noCategoriesAvailable')}
+                        />
                       )}
-                      </div>
-                    </TabsContent>
+                    </div>
+                  </TabsContent>
 
-                    {/* AP */}
-                    <TabsContent value="ap" className="mt-0 space-y-8">
-                      {AP_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
-                      ))}
-                      {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* A Level */}
-                    <TabsContent value="alevel" className="mt-0 space-y-8">
-                      {A_LEVEL_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#BF5AF2" />
-                      ))}
-                      {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* IB */}
-                    <TabsContent value="ib" className="mt-0 space-y-8">
-                      {IB_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#32D74B" />
-                      ))}
-                      {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* IGCSE */}
-                    <TabsContent value="igcse" className="mt-0 space-y-8">
-                      {IGCSE_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
-                      ))}
-                      {!IGCSE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* National */}
-                    <TabsContent value="national" className="mt-0 space-y-8">
-                      {nationalExams.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
-                      ))}
-                      {nationalExams.length === 0 && (
-                        <div className="py-12 text-center text-slate-500">
-                          <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                          <p className="text-sm">{t('selectRegionCountryNational')}</p>
-                        </div>
-                      )}
-                      {nationalExams.length > 0 && !nationalExams.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* Universities */}
-                    <TabsContent value="universities" className="mt-0 space-y-8">
-                      {filteredUniversityCategories.length === 0 && (
-                        <div className="py-12 text-center text-slate-500">
-                          <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                          <p className="text-sm">Select a country to see universities</p>
-                        </div>
-                      )}
-                      {filteredUniversityCategories.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
-                      ))}
-                      {filteredUniversityCategories.length > 0 && !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
-                        <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
-                      )}
-                    </TabsContent>
-
-                    {/* Languages */}
-                    <TabsContent value="languages" className="mt-0 space-y-8">
-                      {LANGUAGE_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
-                      ))}
-                      {!LANGUAGE_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
-                    </TabsContent>
-
-                    {/* Professional */}
-                    <TabsContent value="professional" className="mt-0 space-y-8">
-                      {PROFESSIONAL_CATEGORIES.map(cat => (
-                        <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#8E8E93" />
-                      ))}
-                      {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />}
-                    </TabsContent>
-                  </>
-                ) : (
-                  <div className="space-y-8">
-                    {/* Global results */}
-                    {GLOBAL_EXAMS_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#0A84FF" />
+                  {/* AP */}
+                  <TabsContent value="ap" className="mt-0 space-y-8">
+                    {AP_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={Award}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#FF1493"
+                      />
                     ))}
-                    {/* AP results */}
-                    {AP_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF1493" />
-                    ))}
-                    {/* A Level results */}
-                    {A_LEVEL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#BF5AF2" />
-                    ))}
-                    {/* IB results */}
-                    {IB_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={BookOpen} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#32D74B" />
-                    ))}
-                    {/* IGCSE results */}
-                    {IGCSE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={School} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#64D2FF" />
-                    ))}
-                    {/* National results */}
-                    {nationalExams.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={Flag} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF9F0A" />
-                    ))}
-                    {/* Universities results */}
-                    {filteredUniversityCategories.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={GraduationCap} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#FF375F" />
-                    ))}
-                    {/* Languages results */}
-                    {LANGUAGE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={Globe} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#00C7BE" />
-                    ))}
-                    {/* Professional results */}
-                    {PROFESSIONAL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
-                      <CategorySection key={cat.id} label={cat.label} icon={Award} exams={cat.exams} categorySearch={categorySearch} selectedCategories={selectedCategories} onToggleCategory={toggleCategory} color="#8E8E93" />
-                    ))}
-
-                    {/* Empty state if nothing matches across all tabs */}
-                    {![GLOBAL_EXAMS_CATEGORIES, AP_CATEGORIES, A_LEVEL_CATEGORIES, IB_CATEGORIES, IGCSE_CATEGORIES, nationalExams, filteredUniversityCategories, LANGUAGE_CATEGORIES, PROFESSIONAL_CATEGORIES].some(group => group.some(cat => hasResults(cat.exams))) && (
-                      <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                    {!AP_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
                     )}
-                  </div>
-                )}
-              </div>
-            </Tabs>
-          </div>
+                  </TabsContent>
+
+                  {/* A Level */}
+                  <TabsContent value="alevel" className="mt-0 space-y-8">
+                    {A_LEVEL_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={GraduationCap}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#BF5AF2"
+                      />
+                    ))}
+                    {!A_LEVEL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
+                    )}
+                  </TabsContent>
+
+                  {/* IB */}
+                  <TabsContent value="ib" className="mt-0 space-y-8">
+                    {IB_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={BookOpen}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#32D74B"
+                      />
+                    ))}
+                    {!IB_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
+                    )}
+                  </TabsContent>
+
+                  {/* IGCSE */}
+                  <TabsContent value="igcse" className="mt-0 space-y-8">
+                    {IGCSE_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={School}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#64D2FF"
+                      />
+                    ))}
+                    {!IGCSE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
+                    )}
+                  </TabsContent>
+
+                  {/* National */}
+                  <TabsContent value="national" className="mt-0 space-y-8">
+                    {nationalExams.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={Flag}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#FF9F0A"
+                      />
+                    ))}
+                    {nationalExams.length === 0 && (
+                      <div className="py-12 text-center text-slate-500">
+                        <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                        <p className="text-sm">{t('selectRegionCountryNational')}</p>
+                      </div>
+                    )}
+                    {nationalExams.length > 0 &&
+                      !nationalExams.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState
+                          search={categorySearch}
+                          fallbackText={t('noCategoriesAvailable')}
+                        />
+                      )}
+                  </TabsContent>
+
+                  {/* Universities */}
+                  <TabsContent value="universities" className="mt-0 space-y-8">
+                    {filteredUniversityCategories.length === 0 && (
+                      <div className="py-12 text-center text-slate-500">
+                        <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                        <p className="text-sm">Select a country to see universities</p>
+                      </div>
+                    )}
+                    {filteredUniversityCategories.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={GraduationCap}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#FF375F"
+                      />
+                    ))}
+                    {filteredUniversityCategories.length > 0 &&
+                      !filteredUniversityCategories.some(cat => hasResults(cat.exams)) && (
+                        <EmptyState
+                          search={categorySearch}
+                          fallbackText={t('noCategoriesAvailable')}
+                        />
+                      )}
+                  </TabsContent>
+
+                  {/* Languages */}
+                  <TabsContent value="languages" className="mt-0 space-y-8">
+                    {LANGUAGE_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={Globe}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#00C7BE"
+                      />
+                    ))}
+                    {!LANGUAGE_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
+                    )}
+                  </TabsContent>
+
+                  {/* Professional */}
+                  <TabsContent value="professional" className="mt-0 space-y-8">
+                    {PROFESSIONAL_CATEGORIES.map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={Award}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#8E8E93"
+                      />
+                    ))}
+                    {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
+                      <EmptyState
+                        search={categorySearch}
+                        fallbackText={t('noCategoriesAvailable')}
+                      />
+                    )}
+                  </TabsContent>
+                </>
+              ) : (
+                <div className="space-y-8">
+                  {/* Global results */}
+                  {GLOBAL_EXAMS_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={BookOpen}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#0A84FF"
+                    />
+                  ))}
+                  {/* AP results */}
+                  {AP_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={Award}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#FF1493"
+                    />
+                  ))}
+                  {/* A Level results */}
+                  {A_LEVEL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={GraduationCap}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#BF5AF2"
+                    />
+                  ))}
+                  {/* IB results */}
+                  {IB_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={BookOpen}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#32D74B"
+                    />
+                  ))}
+                  {/* IGCSE results */}
+                  {IGCSE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={School}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#64D2FF"
+                    />
+                  ))}
+                  {/* National results */}
+                  {nationalExams
+                    .filter(cat => hasResults(cat.exams))
+                    .map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={Flag}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#FF9F0A"
+                      />
+                    ))}
+                  {/* Universities results */}
+                  {filteredUniversityCategories
+                    .filter(cat => hasResults(cat.exams))
+                    .map(cat => (
+                      <CategorySection
+                        key={cat.id}
+                        label={cat.label}
+                        icon={GraduationCap}
+                        exams={cat.exams}
+                        categorySearch={categorySearch}
+                        selectedCategories={selectedCategories}
+                        onToggleCategory={toggleCategory}
+                        color="#FF375F"
+                      />
+                    ))}
+                  {/* Languages results */}
+                  {LANGUAGE_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={Globe}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#00C7BE"
+                    />
+                  ))}
+                  {/* Professional results */}
+                  {PROFESSIONAL_CATEGORIES.filter(cat => hasResults(cat.exams)).map(cat => (
+                    <CategorySection
+                      key={cat.id}
+                      label={cat.label}
+                      icon={Award}
+                      exams={cat.exams}
+                      categorySearch={categorySearch}
+                      selectedCategories={selectedCategories}
+                      onToggleCategory={toggleCategory}
+                      color="#8E8E93"
+                    />
+                  ))}
+
+                  {/* Empty state if nothing matches across all tabs */}
+                  {![
+                    GLOBAL_EXAMS_CATEGORIES,
+                    AP_CATEGORIES,
+                    A_LEVEL_CATEGORIES,
+                    IB_CATEGORIES,
+                    IGCSE_CATEGORIES,
+                    nationalExams,
+                    filteredUniversityCategories,
+                    LANGUAGE_CATEGORIES,
+                    PROFESSIONAL_CATEGORIES,
+                  ].some(group => group.some(cat => hasResults(cat.exams))) && (
+                    <EmptyState search={categorySearch} fallbackText={t('noCategoriesAvailable')} />
+                  )}
+                </div>
+              )}
+            </div>
+          </Tabs>
+        </div>
       </div>
     </div>
   )
@@ -3759,7 +4152,10 @@ export default function LandingPage() {
           fetchWithTimeout('/api/public/tutors?page=1&pageSize=1', { signal: controller.signal }),
           fetchWithTimeout('/api/public/courses?page=1&pageSize=1', { signal: controller.signal }),
         ])
-        console.log('[Landing] Counts response:', { tutorsOk: tutorsRes.ok, coursesOk: coursesRes.ok })
+        console.log('[Landing] Counts response:', {
+          tutorsOk: tutorsRes.ok,
+          coursesOk: coursesRes.ok,
+        })
 
         const [tutorsJson, coursesJson] = await Promise.all([
           tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
@@ -3841,7 +4237,7 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm"
             onClick={() => setHowItWorksOpen(false)}
           >
             <motion.div
@@ -3862,24 +4258,23 @@ export default function LandingPage() {
               </button>
 
               {/* Gear animation header */}
-              <div className="flex flex-col items-center justify-center py-4">
+              <div className="flex flex-col items-center justify-center py-2">
                 <div className="flex items-center justify-center gap-0.5">
                   <motion.span
-                    className="inline-flex h-10 w-10 text-white/90"
+                    className="inline-flex h-5 w-5 text-white/90"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                   >
                     <Settings className="h-full w-full" />
                   </motion.span>
                   <motion.span
-                    className="-mt-2 -ml-1 inline-flex h-7 w-7 text-white/90"
+                    className="-ml-0.5 -mt-1 inline-flex h-5 w-5 text-white/90"
                     animate={{ rotate: -360 }}
                     transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                   >
                     <Settings className="h-full w-full" />
                   </motion.span>
                 </div>
-                <h2 className="mt-4 text-2xl font-bold text-white">How It Works</h2>
               </div>
 
               {/* Video placeholder area */}
@@ -3973,7 +4368,7 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => setHowItWorksOpen(true)}
-              className="group relative mt-[22px] min-w-[140px] overflow-hidden rounded-full border border-white/20 bg-transparent px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-transparent focus-visible:!shadow-none focus:outline-none"
+              className="group relative mt-[22px] min-w-[140px] overflow-hidden rounded-full border border-white/20 bg-transparent px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-transparent focus:outline-none focus-visible:!shadow-none"
             >
               <span className="block opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                 How It Works
@@ -3987,7 +4382,7 @@ export default function LandingPage() {
                   <Settings className="h-full w-full" />
                 </motion.span>
                 <motion.span
-                  className="-mt-2 -ml-1 inline-flex h-3.5 w-3.5"
+                  className="-ml-1 -mt-2 inline-flex h-3.5 w-3.5"
                   animate={{ rotate: -360 }}
                   transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                 >
@@ -4022,10 +4417,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <Panel2SearchResults
-          query={searchQuery}
-          onClearAll={() => setSearchQuery('')}
-        />
+        <Panel2SearchResults query={searchQuery} onClearAll={() => setSearchQuery('')} />
 
         <div id="how-it-works" />
 
