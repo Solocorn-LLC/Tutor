@@ -18,6 +18,7 @@ import {
   courseEnrollment,
   sessionParticipant,
   courseLesson,
+  message,
 } from '@/lib/db/schema'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
@@ -648,6 +649,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
       room.chatHistory = room.chatHistory || []
       room.chatHistory.push(msg)
       io.to(targetRoomId).emit('chat_message', msg)
+
+      if (socket.data.userId) {
+        drizzleDb
+          .insert(message)
+          .values({
+            messageId: msg.id,
+            sessionId: targetRoomId,
+            userId: socket.data.userId,
+            content: msg.text,
+            type: 'text',
+            source: socket.data.role === 'tutor' ? 'TUTOR' : 'STUDENT',
+            timestamp: new Date(msg.timestamp),
+          })
+          .catch(err => {
+            console.error('[chat_message] Failed to persist chat message:', err)
+          })
+      }
     })
 
     // Enhanced room management with authentication
@@ -1940,6 +1958,15 @@ export function emitToUser(userId: string, event: string, data: unknown) {
   if (socketId) {
     ioRef.to(socketId).emit(event, data)
   }
+}
+
+/**
+ * Access the shared Socket.io server instance from API routes (e.g. to
+ * broadcast to a session room). Returns null if the socket server hasn't
+ * been initialized yet (e.g. during early startup).
+ */
+export function getIO(): SocketIOServer | null {
+  return ioRef
 }
 
 /**

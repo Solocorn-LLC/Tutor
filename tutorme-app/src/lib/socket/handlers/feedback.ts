@@ -7,6 +7,13 @@ import * as Y from 'yjs'
 import { generateWithFallback } from '@/lib/agents'
 import { z } from 'zod'
 import { safeJsonParseWithSchema } from '@/lib/ai/json'
+import { eq, and } from 'drizzle-orm'
+import { drizzleDb as db } from '@/lib/db/drizzle'
+import {
+  poll as dbPoll,
+  pollOption as dbPollOption,
+  pollResponse as dbPollResponse,
+} from '@/lib/db/schema'
 import {
   CHAT_HISTORY_MAX,
   CHAT_HISTORY_SLICE_TO_STUDENT,
@@ -191,6 +198,35 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
           isActive: true,
           sentAt: data.sentAt,
         })
+
+        // Additive persistence: mirror this in-memory poll into the
+        // poll/pollOption tables so reporting/insights can see it too.
+        Promise.resolve()
+          .then(async () => {
+            await db.insert(dbPoll).values({
+              pollId: data.id,
+              sessionId: roomId,
+              tutorId: data.tutorId,
+              question: data.question,
+              type: 'RATING',
+              isAnonymous: false,
+              allowMultiple: false,
+              showResults: true,
+              status: 'ACTIVE',
+              startedAt: new Date(data.sentAt),
+            })
+            await db.insert(dbPollOption).values(
+              data.options.map((opt, index) => ({
+                optionId: `${data.id}-opt-${opt}`,
+                pollId: data.id,
+                label: String.fromCharCode(65 + index),
+                text: String(opt),
+              }))
+            )
+          })
+          .catch(err => {
+            console.error('[send_poll] Failed to persist poll:', err)
+          })
       }
 
       // Notify tutor of success
@@ -269,6 +305,30 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
         isActive: poll.isActive,
         sentAt: poll.sentAt,
       })
+
+      // Additive persistence: mirror this response into pollResponse so
+      // reporting/insights queries pick up feedback-poll activity too.
+      Promise.resolve()
+        .then(async () => {
+          await db
+            .delete(dbPollResponse)
+            .where(
+              and(
+                eq(dbPollResponse.pollId, data.pollId),
+                eq(dbPollResponse.studentId, data.studentId)
+              )
+            )
+          await db.insert(dbPollResponse).values({
+            responseId: crypto.randomUUID(),
+            pollId: data.pollId,
+            studentId: data.studentId,
+            optionIds: [],
+            rating: data.option,
+          })
+        })
+        .catch(err => {
+          console.error('[poll_response] Failed to persist poll response:', err)
+        })
     }
   )
 
@@ -327,6 +387,14 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
         isActive: false,
         sentAt: poll.sentAt,
       })
+
+      // Additive persistence: mark the mirrored poll row as closed.
+      db.update(dbPoll)
+        .set({ status: 'CLOSED', endedAt: new Date(), totalResponses: poll.responses.size })
+        .where(eq(dbPoll.pollId, data.pollId))
+        .catch(err => {
+          console.error('[close_poll] Failed to persist poll close:', err)
+        })
     }
   })
 

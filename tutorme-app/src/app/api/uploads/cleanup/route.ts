@@ -12,9 +12,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import { removeFile } from '@/lib/storage/service'
+import { canDeleteUploadKey } from '@/lib/security/upload-access'
 
 export const POST = withCsrf(
-  withAuth(async (req: NextRequest) => {
+  withAuth(async (req: NextRequest, session) => {
     try {
       const body = await req.json().catch(() => ({}))
       const keys = Array.isArray(body.keys) ? (body.keys as string[]) : []
@@ -28,6 +29,10 @@ export const POST = withCsrf(
 
       for (const key of keys) {
         if (!key || typeof key !== 'string') continue
+        if (!canDeleteUploadKey(session, key)) {
+          errors.push(`${key}: access denied`)
+          continue
+        }
         try {
           await removeFile(key)
           deleted++

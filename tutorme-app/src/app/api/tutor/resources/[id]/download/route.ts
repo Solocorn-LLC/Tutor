@@ -70,6 +70,5 @@ export const GET = withAuth(
     }
 
     return NextResponse.json({ downloadUrl: resourceRow.url, expiresIn: null })
-  },
-  { role: 'TUTOR' }
+  }
 )

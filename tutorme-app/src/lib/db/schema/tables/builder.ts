@@ -8,6 +8,16 @@ import { user } from './auth'
 import { course, courseLesson } from './course'
 import { liveSession } from './live'
 
+// ============================================
+// BUILDER TASK FAMILY - secondary content model (read-only from the app)
+// ============================================
+// The Course Builder UI's active content model is `courseLesson.builderData`
+// (JSON blob holding lessons/tasks/assessments/quizzes) — see CourseBuilder.tsx.
+// This BuilderTask/BuilderTaskExtension/...Version/TaskPoll/TaskQuestion/TaskDeployment
+// family is a separate, normalized model with no in-app write path; it's populated
+// externally and read by `student/feedback/tasks/route.ts` and the live-session
+// replay-artifact generator. Do not assume it's unused, and don't duplicate
+// `courseLesson.builderData` data into it without a dedicated migration plan.
 export const builderTask = pgTable(
   'BuilderTask',
   {

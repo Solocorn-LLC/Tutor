@@ -21,6 +21,7 @@ import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateSessionSummary } from '@/lib/chat/summary'
 import { dailyProvider } from '@/lib/video/daily-provider'
+import { getIO } from '@/lib/socket-server-enhanced'
 
 function buildTranscript(
   messages: Array<{
@@ -320,6 +321,10 @@ export const PATCH = withCsrf(
           recordingAvailableAt: liveSessionRow.recordingUrl ? endedAt : null,
         })
         .where(eq(liveSession.sessionId, classId))
+
+      getIO()
+        ?.to(classId)
+        .emit('session:ended', { sessionId: classId, reason: 'tutor-ended' })
 
       const [partCount, messagesCountResult] = await Promise.all([
         drizzleDb

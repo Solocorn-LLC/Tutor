@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { eq } from 'drizzle-orm'
+import { eq, and, ne } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest, calendarEvent } from '@/lib/db/schema'
+import { oneOnOneBookingRequest, calendarEvent, liveSession } from '@/lib/db/schema'
+import { notify } from '@/lib/notifications/notify'
 import { z } from 'zod'
 
 const cancelSchema = z.object({
@@ -48,9 +49,9 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // If there's a calendar event, mark it as cancelled
+    // If there's a calendar event, mark it as cancelled and end the linked live session
     if (existingRequest.calendarEventId) {
-      await drizzleDb
+      const [updatedEvent] = await drizzleDb
         .update(calendarEvent)
         .set({
           status: 'CANCELLED',
@@ -58,6 +59,19 @@ export async function PATCH(request: NextRequest) {
           updatedAt: new Date(),
         })
         .where(eq(calendarEvent.eventId, existingRequest.calendarEventId))
+        .returning({ externalId: calendarEvent.externalId })
+
+      if (updatedEvent?.externalId) {
+        await drizzleDb
+          .update(liveSession)
+          .set({ status: 'ended', endedAt: new Date() })
+          .where(
+            and(
+              eq(liveSession.sessionId, updatedEvent.externalId),
+              ne(liveSession.status, 'ended')
+            )
+          )
+      }
     }
 
     // Update request status
@@ -76,7 +90,18 @@ export async function PATCH(request: NextRequest) {
       .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
       .returning()
 
-    // TODO: Send notification to the other party
+    // Notify whichever party did not initiate the cancellation
+    const otherPartyId = isStudent ? existingRequest.tutorId : existingRequest.studentId
+    notify({
+      userId: otherPartyId,
+      type: 'class',
+      title: '1-on-1 Session Cancelled',
+      message: isStudent
+        ? 'Your student has cancelled the upcoming 1-on-1 session.'
+        : 'Your tutor has cancelled the upcoming 1-on-1 session.',
+      data: { requestId: updatedRequest[0].requestId, type: 'one-on-one-cancelled' },
+      actionUrl: isStudent ? '/tutor/dashboard' : '/student/dashboard',
+    }).catch(console.error)
 
     return NextResponse.json({
       success: true,

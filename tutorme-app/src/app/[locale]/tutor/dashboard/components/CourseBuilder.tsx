@@ -3149,17 +3149,17 @@ FEEDBACK: [your explanation]`
     }
 
     // Save handlers
-    const handleSaveCourseBuilderNode = (data: any) => {
-      if (activeModal.itemId) {
-        setCourseBuilderNodes(nodes.map(m => (m.id === activeModal.itemId ? { ...m, ...data } : m)))
-      } else {
-        setCourseBuilderNodes(nodes.map(m => (m.id === editingData.id ? { ...m, ...data } : m)))
-      }
+    const handleSaveCourseBuilderNode = async (data: any) => {
+      const nextNodes = activeModal.itemId
+        ? nodes.map(m => (m.id === activeModal.itemId ? { ...m, ...data } : m))
+        : nodes.map(m => (m.id === editingData.id ? { ...m, ...data } : m))
+      setCourseBuilderNodes(nextNodes)
       setActiveModal({ type: 'node', isOpen: false })
       toast.success('Lesson saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
     }
 
-    const handleSaveLesson = (data: any) => {
+    const handleSaveLesson = async (data: any) => {
       const nodeIndex = nodes.findIndex(m => m.id === activeModal.nodeId)
       if (nodeIndex === -1) return
 
@@ -3176,9 +3176,10 @@ FEEDBACK: [your explanation]`
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'lesson', isOpen: false })
       toast.success('Lesson saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(newCourseBuilderNodes)
     }
 
-    const handleSaveTask = (
+    const handleSaveTask = async (
       data: any,
       targetCourseBuilderNodeId?: string,
       targetLessonId?: string
@@ -3202,9 +3203,10 @@ FEEDBACK: [your explanation]`
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'task', isOpen: false })
       toast.success('Task saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(newCourseBuilderNodes)
     }
 
-    const handleSaveContent = (data: Content) => {
+    const handleSaveContent = async (data: Content) => {
       const nodeIndex = nodes.findIndex(m => m.id === activeModal.nodeId)
       const lessonIndex = nodes[nodeIndex]?.lessons.findIndex(l => l.id === activeModal.lessonId)
       if (nodeIndex === -1 || lessonIndex === -1) return
@@ -3221,9 +3223,10 @@ FEEDBACK: [your explanation]`
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'content', isOpen: false })
       toast.success('Content saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(newCourseBuilderNodes)
     }
 
-    const handleSaveAssessment = (
+    const handleSaveAssessment = async (
       data: any,
       targetCourseBuilderNodeId?: string,
       targetLessonId?: string
@@ -3247,9 +3250,10 @@ FEEDBACK: [your explanation]`
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'homework', isOpen: false })
       toast.success(data.category === 'homework' ? 'Homework saved' : 'Assessment saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(newCourseBuilderNodes)
     }
 
-    const handleSaveCourseBuilderNodeQuiz = (data: any) => {
+    const handleSaveCourseBuilderNodeQuiz = async (data: any) => {
       const nodeIndex = nodes.findIndex(m => m.id === activeModal.nodeId)
       if (nodeIndex === -1) return
 
@@ -3263,6 +3267,7 @@ FEEDBACK: [your explanation]`
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'nodeQuiz', isOpen: false })
       toast.success('Exam saved')
+      if (mainTab !== 'live') await saveNodesIfPossible(newCourseBuilderNodes)
     }
 
     const saveNodesIfPossible = async (nextNodes: CourseBuilderNode[]) => {

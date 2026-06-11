@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 import os from 'os'
 import { withAuth } from '@/lib/api/middleware'
+import { canReadUploadKey } from '@/lib/security/upload-access'
 
 const LOCAL_STORAGE_DIR =
   process.env.LOCAL_STORAGE_DIR || path.join(process.cwd(), '.local-storage')
@@ -39,6 +40,11 @@ export const GET = withAuth(async (request: NextRequest, session: any, context: 
     // Prevent directory traversal attacks
     if (pathSegments.some(segment => segment.includes('..') || segment.includes('/'))) {
       return new NextResponse('Invalid path', { status: 400 })
+    }
+
+    // Authorize access based on the upload key convention (default-deny)
+    if (!(await canReadUploadKey(session, pathSegments))) {
+      return new NextResponse('Forbidden', { status: 403 })
     }
 
     const relativePath = pathSegments.join(path.sep)

@@ -1,236 +1,358 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect, useRef } from 'react'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { MentionInput } from '@/components/mentions/MentionInput'
+import { renderMentions } from '@/lib/mentions/render-mentions'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
-import { MessageSquare, Send, Search, UserCircle, MoreVertical, Lock } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { MessageSquare, Send, Loader2, Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Conversation {
   id: string
-  name: string
-  lastMessage: string
-  timestamp: string
-  unread: number
-  online: boolean
+  otherParticipant: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+  lastMessage: {
+    content: string
+    createdAt: string
+    read: boolean
+    senderId: string
+  } | null
+  unreadCount: number
+  updatedAt: string
 }
 
-interface ChatMessage {
+interface Message {
   id: string
   content: string
-  sender: 'student' | 'tutor'
-  timestamp: string
+  type: string
+  senderId: string
+  sender: {
+    id: string
+    profile: {
+      name: string | null
+      avatarUrl: string | null
+    } | null
+  }
+  createdAt: string
+  read: boolean
 }
 
 export default function StudentMessagesPage() {
+  const { data: session } = useSession()
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      content: 'Hi! How are you doing with the algebra homework?',
-      sender: 'tutor',
-      timestamp: '10:00 AM',
-    },
-    {
-      id: '2',
-      content: "I'm having trouble with problem 5. Can you help?",
-      sender: 'student',
-      timestamp: '10:05 AM',
-    },
-    {
-      id: '3',
-      content: "Don't forget about the quiz tomorrow!",
-      sender: 'tutor',
-      timestamp: '10:30 AM',
-    },
-  ])
-  const [waitingForResponse, setWaitingForResponse] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const conversations: Conversation[] = [
-    {
-      id: '1',
-      name: 'Mr. Smith (Math Tutor)',
-      lastMessage: "Don't forget about the quiz tomorrow!",
-      timestamp: '10 min ago',
-      unread: 2,
-      online: true,
-    },
-    {
-      id: '2',
-      name: 'Study Group - Physics',
-      lastMessage: 'Alice: Can someone explain problem 3?',
-      timestamp: '1 hour ago',
-      unread: 0,
-      online: false,
-    },
-  ]
+  useEffect(() => {
+    fetchConversations()
+  }, [])
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return
-
-    if (waitingForResponse) {
-      toast.info('Please wait for your tutor to respond before sending another message.')
-      return
+  // Load messages when conversation selected
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id)
     }
+  }, [selectedConversation])
 
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      content: inputMessage.trim(),
-      sender: 'student',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/conversations', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setConversations(data.conversations || [])
+      }
+    } catch {
+      toast.error('Failed to load conversations')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    setMessages(prev => [...prev, newMessage])
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.messages || [])
+      }
+    } catch {
+      toast.error('Failed to load messages')
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || !selectedConversation) return
+
+    setSending(true)
+    const content = inputMessage
     setInputMessage('')
-    setWaitingForResponse(true)
-    toast.success('Message sent. Waiting for tutor response.')
+
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(prev => [...prev, data.message])
+        // Update last message in conversations list
+        setConversations(prev =>
+          prev.map(c =>
+            c.id === selectedConversation.id
+              ? {
+                  ...c,
+                  lastMessage: {
+                    content,
+                    createdAt: new Date().toISOString(),
+                    read: true,
+                    senderId: session?.user?.id || 'me',
+                  },
+                }
+              : c
+          )
+        )
+      } else {
+        toast.error('Failed to send message')
+        setInputMessage(content)
+      }
+    } catch {
+      toast.error('Failed to send message')
+      setInputMessage(content)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const filteredConversations = conversations.filter(c =>
+    c.otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#FFFFFF]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#FFFFFF] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen w-full flex-col bg-[#FFFFFF] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 min-h-[52px] shrink-0">
         <div className="flex h-full w-full items-center justify-between gap-2 rounded-2xl border border-[#E5E7EB] bg-white p-1.5 px-4 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-slate-800">Messages</h1>
           </div>
         </div>
-        {waitingForResponse && (
-          <div className="mt-4 flex w-fit items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-600">
-            <Lock className="h-4 w-4" />
-            <span>You have sent a message. Please wait for the tutor to respond.</span>
-          </div>
-        )}
       </div>
 
       <div className="grid h-[600px] grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Conversations List */}
         <div className="flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)] transition-shadow duration-200 hover:shadow-[0_18px_60px_rgba(0,0,0,0.14)] lg:col-span-1">
           <div className="p-4 pb-3">
-            <div className="relative">
+            <h2 className="flex items-center justify-between text-base font-bold text-slate-800">
+              Conversations
+              {totalUnread > 0 && <Badge className="bg-red-500">{totalUnread}</Badge>}
+            </h2>
+            <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 placeholder="Search messages..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="border-slate-200 bg-slate-50/50 pl-9 text-sm"
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-0">
-            <div className="divide-y divide-slate-100">
-              {conversations.map(conv => (
-                <div
-                  key={conv.id}
-                  className="flex cursor-pointer items-center gap-3 p-4 transition-colors hover:bg-slate-50"
-                >
-                  <div className="relative">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
-                      <UserCircle className="h-6 w-6 text-indigo-600" />
-                    </div>
-                    {conv.online && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                    )}
+          <div className="flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full">
+              <div className="divide-y divide-slate-100">
+                {filteredConversations.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">
+                    <MessageSquare className="mx-auto mb-2 h-10 w-10 text-slate-300" />
+                    <p className="text-sm">No conversations yet</p>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="truncate text-sm font-semibold text-slate-800">{conv.name}</h4>
-                      <span className="text-[10px] text-slate-400">{conv.timestamp}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">{conv.lastMessage}</p>
-                  </div>
-                  {conv.unread > 0 && (
-                    <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-medium text-white">
-                      {conv.unread}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+                ) : (
+                  filteredConversations.map(conv => (
+                    <button
+                      key={conv.id}
+                      onClick={() => setSelectedConversation(conv)}
+                      className={cn(
+                        'flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50',
+                        selectedConversation?.id === conv.id && 'bg-slate-50'
+                      )}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+                          {conv.otherParticipant.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate text-sm font-semibold text-slate-800">
+                            {conv.otherParticipant.name}
+                          </span>
+                          {conv.unreadCount > 0 && (
+                            <Badge className="ml-2 bg-red-500 text-[10px]">
+                              {conv.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                          {conv.lastMessage?.content || 'No messages yet'}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </div>
         </div>
 
         {/* Chat Area */}
         <div className="flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)] transition-shadow duration-200 hover:shadow-[0_18px_60px_rgba(0,0,0,0.14)] lg:col-span-2">
-          <div className="border-b border-slate-100 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
-                  <UserCircle className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-800">Mr. Smith (Math Tutor)</h3>
-                  <p className="text-xs font-medium text-emerald-500">Online</p>
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>View Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Clear Chat</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          <div className="flex flex-1 flex-col bg-slate-50/30 p-0">
-            <div className="flex-1 space-y-4 overflow-y-auto p-4">
-              {messages.map(msg => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'student' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`${msg.sender === 'student' ? 'rounded-tr-sm bg-indigo-600 text-white shadow-sm' : 'rounded-tl-sm border border-slate-100 bg-white text-slate-800 shadow-sm'} max-w-[70%] rounded-2xl px-4 py-3`}
-                  >
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
-                    <span
-                      className={`mt-1.5 block text-[10px] font-medium ${msg.sender === 'student' ? 'text-indigo-200' : 'text-slate-400'}`}
-                    >
-                      {msg.timestamp}
-                    </span>
+          {selectedConversation ? (
+            <>
+              <div className="border-b border-slate-100 p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+                      {selectedConversation.otherParticipant.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800">
+                      {selectedConversation.otherParticipant.name}
+                    </h2>
+                    <p className="text-xs font-medium text-slate-500">Tutor</p>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="flex flex-1 flex-col bg-slate-50/30 p-0">
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    {messages.length === 0 ? (
+                      <div className="py-12 text-center text-slate-500">
+                        <MessageSquare className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                        <p className="font-medium text-slate-700">No messages yet</p>
+                        <p className="mt-1 text-sm">Start the conversation!</p>
+                      </div>
+                    ) : (
+                      messages.map(msg => {
+                        const isMe = msg.senderId === session?.user?.id
+                        return (
+                          <div
+                            key={msg.id}
+                            className={cn('flex gap-3', isMe ? 'flex-row-reverse' : 'flex-row')}
+                          >
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarFallback
+                                className={cn(
+                                  'text-xs font-medium',
+                                  isMe
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'border border-slate-200 bg-white text-slate-600'
+                                )}
+                              >
+                                {(msg.sender.profile?.name || 'U').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div
+                              className={cn(
+                                'max-w-[70%] rounded-2xl p-3.5 text-sm shadow-sm',
+                                isMe
+                                  ? 'rounded-tr-sm bg-indigo-600 text-white'
+                                  : 'rounded-tl-sm border border-slate-100 bg-white text-slate-800'
+                              )}
+                            >
+                              <p className="leading-relaxed">{renderMentions(msg.content)}</p>
+                              <span
+                                className={cn(
+                                  'mt-1.5 block text-[10px] font-medium',
+                                  isMe ? 'text-indigo-200' : 'text-slate-400'
+                                )}
+                              >
+                                {new Date(msg.createdAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                                {msg.read && isMe && ' • Read'}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+
+                <div className="border-t border-slate-100 bg-white p-4">
+                  <div className="flex items-center gap-2">
+                    <MentionInput
+                      placeholder="Type a message..."
+                      value={inputMessage}
+                      onChange={setInputMessage}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey && !sending) {
+                          e.preventDefault()
+                          sendMessage()
+                        }
+                      }}
+                      disabled={sending}
+                      className="flex-1 rounded-xl border-slate-200 bg-slate-50/50"
+                    />
+                    <Button
+                      onClick={sendMessage}
+                      disabled={sending || !inputMessage.trim()}
+                      className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 p-0 text-white hover:bg-indigo-700"
+                    >
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="ml-0.5 h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center bg-slate-50/30 text-slate-500">
+              <MessageSquare className="mb-4 h-16 w-16 text-slate-300" />
+              <p className="text-lg font-bold text-slate-700">Select a conversation</p>
+              <p className="mt-1 text-sm">Choose a conversation from the list to start messaging</p>
             </div>
-            <div className="flex items-center gap-2 border-t border-slate-100 bg-white p-4">
-              <Input
-                placeholder={
-                  waitingForResponse ? 'Waiting for tutor response...' : 'Type a message...'
-                }
-                className="flex-1 rounded-xl border-slate-200 bg-slate-50/50"
-                value={inputMessage}
-                onChange={e => setInputMessage(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-                disabled={waitingForResponse}
-              />
-              <Button
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={waitingForResponse || !inputMessage.trim()}
-                className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 p-0 text-white hover:bg-indigo-700"
-              >
-                <Send className="ml-0.5 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

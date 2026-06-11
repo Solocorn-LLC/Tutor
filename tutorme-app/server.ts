@@ -123,11 +123,10 @@ server
         }
       }
 
-      // Step 1b: Apply idempotent schema drift fixes (dev / local only)
+      // Step 1b: Apply idempotent schema drift fixes (safe to run on every boot,
+      // including production — see src/lib/db/startup-schema-fix.ts)
       try {
-        if (process.env.NODE_ENV !== 'production') {
-          await applyStartupSchemaFixes()
-        }
+        await applyStartupSchemaFixes()
       } catch (schemaErr: unknown) {
         const error = schemaErr instanceof Error ? schemaErr : new Error('Schema fix failed')
         console.error('⚠️ [Server] Schema fix warning:', error.message)
