@@ -3110,8 +3110,8 @@ const CategorySection = ({
   if (filtered.length === 0) return null
   return (
     <div className="space-y-4">
-      <h4 className="flex items-center gap-2 text-xs font-medium text-white">
-        <Icon className="h-4 w-4 text-white/80" />
+      <h4 className="flex items-center gap-2 text-xs font-medium" style={{ color: color || 'white' }}>
+        <Icon className="h-4 w-4" style={{ color: color ? `${color}CC` : 'rgba(255,255,255,0.8)' }} />
         {label}
       </h4>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
@@ -3259,11 +3259,15 @@ const CategorySearchModal = ({
     ? REGIONS.find(r => r.id === selectedRegion)?.countries || []
     : []
 
-  const nationalExams = selectedCountries.length > 0
+  const nationalExamsRaw = selectedCountries.length > 0
     ? selectedCountries.flatMap(code => NATIONAL_EXAMS_DATA[code] || [])
     : selectedRegion
       ? (REGIONS.find(r => r.id === selectedRegion)?.countries.flatMap(c => c.nationalExams) || [])
       : []
+  // Deduplicate by label so identical subcategories from different countries don't appear twice
+  const nationalExams = nationalExamsRaw.filter(
+    (cat, idx, arr) => arr.findIndex(c => c.label === cat.label) === idx
+  )
 
   const filteredUniversityCategories = selectedCountries.length > 0
     ? selectedCountries
@@ -3307,7 +3311,7 @@ const CategorySearchModal = ({
   const hasResults = (exams: string[]) => filterExams(exams).length > 0
 
   const tabTriggerClass =
-    'rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
+    'rounded-none border-b-2 border-transparent px-3 py-3 font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
 
   if (!isOpen) return null
 
@@ -3319,7 +3323,7 @@ const CategorySearchModal = ({
           <div className="relative shrink-0 px-6 pt-4 pb-4">
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 p-2 text-white/70 transition-colors hover:text-white"
+              className="absolute right-4 top-4 rounded-full p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>

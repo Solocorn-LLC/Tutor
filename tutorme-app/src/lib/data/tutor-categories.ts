@@ -566,19 +566,6 @@ export const NATIONAL_EXAMS_DATA: Record<string, ExamCategory[]> = {
       ],
     },
   ],
-  CA: [
-    {
-      id: 'university-admission',
-      label: 'University Admission',
-      exams: [
-        'Canadian University Admissions Academic Writing',
-        'Canadian University Admissions Mathematics',
-        'Canadian University Admissions Biology',
-        'Canadian University Admissions Chemistry',
-        'Canadian University Admissions Physics',
-      ],
-    },
-  ],
   MX: [
     {
       id: 'university-admission',
