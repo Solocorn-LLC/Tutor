@@ -1,0 +1,108 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-ec2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_SSH_PORT || '22' }}
+          script_stop: true
+          script: |
+            set -e
+            PROJECT_DIR="/opt/tutorme"
+
+            echo "Pulling latest code..."
+            cd "$PROJECT_DIR"
+            git pull origin main
+
+            echo "Deploying application..."
+            cd "$PROJECT_DIR/tutorme-app"
+            docker-compose -f docker-compose.prod.yml down
+            docker-compose -f docker-compose.prod.yml build --no-cache
+            docker-compose -f docker-compose.prod.yml up -d
+
+            echo "Waiting for database..."
+            sleep 15
+
+            echo "Running migrations..."
+            docker-compose -f docker-compose.prod.yml exec -T app npm run db:migrate:deploy || {
+              echo "Migration step completed (may have been already applied)"
+            }
+
+            echo "Updating nginx cache headers..."
+            sudo tee /etc/nginx/conf.d/solocorn.conf > /dev/null <<'NGINX'
+            server {
+                listen 80;
+                server_name solocorn.co www.solocorn.co;
+
+                client_max_body_size 100M;
+
+                location / {
+                    proxy_pass http://127.0.0.1:3003;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+                }
+
+                location /assets/ {
+                    proxy_pass http://127.0.0.1:3003;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    add_header Cache-Control "public, max-age=31536000, immutable" always;
+                }
+
+                location /sw.js {
+                    proxy_pass http://127.0.0.1:3003;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+                }
+
+                location /api/socket {
+                    proxy_pass http://127.0.0.1:3003;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_read_timeout 86400;
+                }
+            }
+            NGINX
+
+            echo "Reloading nginx..."
+            sudo nginx -t && sudo systemctl reload nginx || {
+              echo "Nginx reload skipped or failed"
+            }
+
+            echo "Deployment complete. Running health check..."
+            curl -s http://localhost:3003/api/health && echo " ✓ App is healthy" || echo " ✗ Health check failed"

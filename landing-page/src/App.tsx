@@ -205,7 +205,7 @@ export default function App() {
                       <Settings className="h-full w-full" />
                     </motion.span>
                     <motion.span
-                      className="-mt-1 -ml-0.5 inline-flex h-3.5 w-3.5 text-white/90"
+                      className="-mt-1 -ml-0.5 inline-flex h-5 w-5 text-white/90"
                       animate={{ rotate: -360 }}
                       transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                     >
