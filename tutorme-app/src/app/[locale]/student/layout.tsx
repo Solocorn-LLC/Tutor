@@ -75,7 +75,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, [])
 
   const isLiveClassRoute = pathname.includes('/student/feedback')
-  const isTutorDirectoryRoute = pathname.startsWith('/student/tutors')
   const isFeedbackRoute = pathname.includes('/student/feedback')
   const liveSessionId = ''
   const liveClassNavItems: NavItem[] = [
@@ -98,34 +97,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       iconColor: 'text-[#64748B]',
     },
   ]
-
-  if (isTutorDirectoryRoute) {
-    return (
-      <div className="min-h-screen bg-white">
-        <header className="sticky top-0 z-40 border-b bg-white">
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <Link
-              href="/student/dashboard"
-              className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to dashboard
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link href="/student/notifications">
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-                </Button>
-              </Link>
-              <UserNav />
-            </div>
-          </div>
-        </header>
-        <main className="bg-white px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      </div>
-    )
-  }
 
   return (
     <div className="isolate flex h-screen overflow-hidden bg-gray-50">

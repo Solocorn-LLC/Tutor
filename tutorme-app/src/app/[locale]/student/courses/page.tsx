@@ -35,6 +35,7 @@ import {
   BookOpen,
   User,
   Users,
+  Sparkles,
 } from 'lucide-react'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import {
@@ -270,6 +271,26 @@ function CoursePageInner() {
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
   const [showAllSessions, setShowAllSessions] = useState(false)
 
+  const [greeting, setGreeting] = useState('Good morning')
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) setGreeting('Good morning')
+    else if (hour < 18) setGreeting('Good afternoon')
+    else setGreeting('Good evening')
+
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+
   const handleRequestMaterials = async (sessionId: string) => {
     setRequestingSessionId(sessionId)
     try {
@@ -466,38 +487,59 @@ function CoursePageInner() {
   )
 
   return (
-    <div className="min-h-screen w-full space-y-6 bg-white p-4 text-slate-900 sm:p-6">
-      {/* Header */}
-      <Card className="overflow-hidden border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-        <div className="bg-gradient-to-br from-sky-50/80 via-cyan-50/80 to-emerald-50/80 p-6 sm:p-8">
-          {isTutor && (
-            <Link
-              href="/tutor/dashboard"
-              className="mb-4 inline-flex items-center text-sm text-gray-500 hover:text-gray-900"
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              Back to dashboard
-            </Link>
-          )}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">My courses</h1>
-              <p className="mt-1 text-gray-600">
-                Track your progress and continue your learning journey
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Total enrolled</p>
-                <p className="text-2xl font-bold text-indigo-600">{myCourses.length}</p>
+    <div className="text-foreground flex min-h-full flex-col px-3 lg:h-full lg:overflow-hidden lg:px-4">
+      {/* Hero */}
+      <div className="mb-4 flex-shrink-0">
+        <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+          <div className="relative z-10 flex min-h-[180px] flex-col p-5">
+            {isTutor && (
+              <Link
+                href="/tutor/dashboard"
+                className="mb-3 inline-flex items-center text-sm text-white/80 hover:text-white"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                Back to dashboard
+              </Link>
+            )}
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="mb-0.5 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-white/70" />
+                  <span className="text-sm font-medium text-white/70">
+                    {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
+                  </span>
+                </div>
+                <h1 className="text-3xl font-bold text-white">My courses</h1>
+                <p className="mt-1 max-w-2xl text-sm text-white/80">
+                  Track your progress and continue your learning journey
+                </p>
               </div>
-              <div className="rounded-full bg-indigo-100 p-3">
-                <GraduationCap className="h-6 w-6 text-indigo-600" />
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <GraduationCap className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Total enrolled</span>
+                  <span className="text-sm font-bold text-white">{myCourses.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action bar */}
+            <div className="mt-auto flex flex-wrap items-center justify-end gap-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>
+                  {formatDate(currentTime)} •{' '}
+                  {currentTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
               </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       {/* Course Details Modal */}
       <Dialog open={!!detailCourse} onOpenChange={open => !open && setDetailCourse(null)}>
@@ -602,9 +644,9 @@ function CoursePageInner() {
       </Dialog>
 
       {/* Tabs */}
-      <Card className="border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-        <CardContent className="p-6">
-          <div className="scrollbar-hide mb-8 flex overflow-x-auto border-b border-gray-200">
+      <Card className="flex flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)] lg:flex-1 lg:min-h-0">
+        <div className="flex-shrink-0 border-b border-gray-200 px-6 pt-4">
+          <div className="scrollbar-hide flex overflow-x-auto">
             <button
               className={cn(
                 'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
@@ -661,7 +703,8 @@ function CoursePageInner() {
               Following ({followingTutors.length})
             </button>
           </div>
-
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map(i => (
@@ -840,7 +883,7 @@ function CoursePageInner() {
                 (activeTab === 'pending' && upcoming.length === 0) ||
                 (activeTab === 'completed' && completed.length === 0) ||
                 (activeTab === 'favorites' && favorites.length === 0)) && (
-                <div className="py-20 text-center">
+                <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
                   <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
                   <h3 className="mb-2 text-lg font-medium text-gray-900">
                     No courses in this section
@@ -857,7 +900,7 @@ function CoursePageInner() {
               )}
             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       {selectedEnrollment && (
