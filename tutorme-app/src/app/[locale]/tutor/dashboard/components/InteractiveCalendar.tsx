@@ -1009,7 +1009,6 @@ export function InteractiveCalendar({
                       currentDate={currentDate}
                       events={filteredEvents}
                       onEventClick={handleEventClick}
-                      onDateClick={handleDateClick}
                       conflicts={showConflictWarning}
                       readOnly={isStudent}
                     />
@@ -1843,7 +1842,6 @@ function WeekView({
   currentDate,
   events: _events,
   onEventClick,
-  onDateClick,
   conflicts,
   readOnly = false,
 }: any) {
@@ -1866,38 +1864,38 @@ function WeekView({
   }
 
   return (
-    <div className="relative flex min-h-full flex-row rounded-lg bg-white/50">
-      <div className="flex w-14 flex-col bg-gray-50">
-        <div className="h-10 shrink-0 border-b" />
-        {hours.map(hour => (
-          <div key={hour} className="h-10 shrink-0 border-b pt-1 text-center text-xs text-gray-500">
-            {formatHour(hour)}
-          </div>
-        ))}
-        <div className="flex-1 bg-gray-50" />
-      </div>
-      <div className="absolute bottom-0 left-14 top-0 z-10 w-px bg-gray-300" />
-
-      <div className="grid flex-1 grid-cols-7">
-        {weekDays.map((day, index) => (
-          <div key={index} className="flex flex-col border-r last:border-r-0">
-            <div
-              className="h-10 shrink-0 cursor-pointer border-b p-1 text-center hover:bg-gray-50"
-              onClick={() => onDateClick(day)}
-            >
-              <p className="text-xs text-gray-500">
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
-              </p>
-              <p
-                className={cn(
-                  'text-sm font-medium leading-tight',
-                  day.toDateString() === new Date().toDateString() && 'text-blue-600'
-                )}
-              >
+    <div className="flex min-h-full flex-col rounded-lg bg-white/50">
+      {/* Sticky days-of-week header */}
+      <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-gray-100 bg-white/50">
+        {weekDays.map((day, index) => {
+          const isToday = day.toDateString() === new Date().toDateString()
+          return (
+            <div key={index} className="p-1.5 text-center text-xs font-medium text-gray-600">
+              <p>{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+              <p className={cn('text-sm', isToday && 'text-blue-600')}>
                 {day.getDate()}
               </p>
             </div>
-            <div className="relative flex flex-1 flex-col">
+          )
+        })}
+      </div>
+
+      {/* Scrollable body */}
+      <div className="relative flex flex-1 flex-row">
+        {/* Sticky time column */}
+        <div className="sticky left-0 z-10 flex w-14 flex-col bg-gray-50">
+          {hours.map(hour => (
+            <div key={hour} className="h-10 shrink-0 border-b px-1 py-1 text-center text-xs text-gray-500">
+              {formatHour(hour)}
+            </div>
+          ))}
+          <div className="flex-1 bg-gray-50" />
+        </div>
+        <div className="absolute bottom-0 left-14 top-0 z-10 w-px bg-gray-300" />
+
+        <div className="grid flex-1 grid-cols-7">
+          {weekDays.map((day, index) => (
+            <div key={index} className="relative flex flex-col border-r last:border-r-0">
               {hours.map(hour => (
                 <DroppableHour
                   key={hour}
@@ -1933,8 +1931,8 @@ function WeekView({
                   )
                 })}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
