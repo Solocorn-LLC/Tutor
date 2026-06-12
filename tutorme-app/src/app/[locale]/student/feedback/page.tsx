@@ -45,6 +45,8 @@ import {
   Minus,
   BookOpen,
   Monitor,
+  GripHorizontal,
+  Settings2,
 } from 'lucide-react'
 import {
   Dialog,
@@ -57,6 +59,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
+import { motion, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type { LiveTask, LiveTaskPoll, LiveTaskQuestion, ChatMessage } from '@/lib/socket'
 
@@ -92,6 +95,135 @@ interface SessionSummary {
   subject: string
   scheduledAt: string
   status: string
+}
+
+interface ClassroomControlsPanelProps {
+  followTutor: boolean
+  setFollowTutor: (value: boolean) => void
+  isConnected: boolean
+  error: string | Error | null
+  roomUrl: string | null | undefined
+  token: string | null | undefined
+  openVideoOverlay: (opts: { roomUrl: string; token?: string | null; autoRecord: boolean }) => void
+  setShowDirectoryPanel: (value: boolean) => void
+}
+
+function ClassroomControlsPanel({
+  followTutor,
+  setFollowTutor,
+  isConnected,
+  error,
+  roomUrl,
+  token,
+  openVideoOverlay,
+  setShowDirectoryPanel,
+}: ClassroomControlsPanelProps) {
+  const [open, setOpen] = useState(true)
+  const dragControls = useDragControls()
+
+  if (!open) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-50">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="pointer-events-auto absolute left-1/2 top-24 -translate-x-1/2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-xl transition-colors hover:bg-white/20"
+        >
+          <Settings2 className="mr-2 inline h-3.5 w-3.5" />
+          Controls
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50">
+      <div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2">
+        <motion.div
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="pointer-events-auto relative w-60 cursor-default select-none rounded-2xl border border-white/20 bg-white/10 p-3 shadow-lg backdrop-blur-xl"
+        >
+        {/* Drag handle / header */}
+        <div
+          className="flex cursor-grab items-center justify-between gap-2 rounded-t-xl border-b border-white/10 pb-2 active:cursor-grabbing"
+          onPointerDown={e => dragControls.start(e)}
+        >
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-white/90">
+            <GripHorizontal className="h-4 w-4 text-white/70" />
+            Classroom
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Hide controls"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Controls */}
+        <div className="mt-2 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setFollowTutor(!followTutor)}
+            className={cn(
+              'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold text-white transition-colors',
+              followTutor
+                ? 'bg-emerald-500 hover:bg-emerald-600'
+                : 'bg-white/10 hover:bg-white/20'
+            )}
+          >
+            <div
+              className={cn(
+                'h-2 w-2 rounded-full',
+                followTutor ? 'animate-pulse bg-white' : 'bg-white/70'
+              )}
+            />
+            {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+          </button>
+
+          <div className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-3 text-xs font-semibold text-white">
+            <div
+              className={cn(
+                'h-2 w-2 rounded-full',
+                isConnected ? 'bg-emerald-400' : error ? 'bg-red-400' : 'bg-amber-300'
+              )}
+            />
+            {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+          </div>
+
+          <button
+            type="button"
+            disabled={!roomUrl}
+            onClick={() => {
+              if (!roomUrl) return
+              openVideoOverlay({ roomUrl, token, autoRecord: false })
+            }}
+            className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Video className="h-4 w-4" />
+            Video
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowDirectoryPanel(true)}
+            className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+          >
+            <Folder className="h-4 w-4" />
+            Directory
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  </div>
+)
 }
 
 export default function StudentFeedbackPage() {
@@ -1018,79 +1150,8 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            {/* Capsule */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setFollowTutor(!followTutor)}
-                  className={cn(
-                    'h-8 rounded-full px-3 text-xs font-semibold shadow-sm',
-                    followTutor
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'mr-2 h-2 w-2 rounded-full',
-                      followTutor ? 'animate-pulse bg-white' : 'bg-slate-500'
-                    )}
-                  />
-                  {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                </Button>
-
-                <div
-                  className={cn(
-                    'flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-semibold',
-                    isConnected
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : error
-                        ? 'border-red-200 bg-red-50 text-red-700'
-                        : 'border-slate-200 bg-slate-50 text-slate-700'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-slate-400'
-                    )}
-                  />
-                  {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                </div>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!sessionContext?.roomUrl}
-                  onClick={() => {
-                    if (!sessionContext?.roomUrl) return
-                    openVideoOverlay({
-                      roomUrl: sessionContext.roomUrl,
-                      token: sessionContext.token,
-                      autoRecord: false,
-                    })
-                  }}
-                  className="h-8 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm"
-                >
-                  <Video className="h-4 w-4" />
-                  Video
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDirectoryPanel(true)}
-                  className="h-8 gap-2 rounded-full px-3 text-xs font-semibold"
-                >
-                  <Folder className="h-4 w-4" />
-                  Directory
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex flex-1 items-center justify-end" />
+            {/* Spacer to balance the left title block */}
+            <div className="hidden flex-1 items-center justify-end sm:flex" />
           </div>
 
           {sessionContext && (sessionContext.topic || sessionContext.objectives) && (
@@ -1116,6 +1177,17 @@ function StudentFeedbackContent() {
           )}
 
         </div>
+
+        <ClassroomControlsPanel
+          followTutor={followTutor}
+          setFollowTutor={setFollowTutor}
+          isConnected={isConnected}
+          error={error}
+          roomUrl={sessionContext?.roomUrl}
+          token={sessionContext?.token}
+          openVideoOverlay={openVideoOverlay}
+          setShowDirectoryPanel={setShowDirectoryPanel}
+        />
 
         {/* Content Wrapper */}
         <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
