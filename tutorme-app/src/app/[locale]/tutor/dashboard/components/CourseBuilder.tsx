@@ -4372,7 +4372,10 @@ FEEDBACK: [your explanation]`
                     {asset.name}
                   </span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div
+                  className="flex shrink-0 items-center gap-2"
+                  onClick={e => e.stopPropagation()}
+                >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -5200,7 +5203,10 @@ FEEDBACK: [your explanation]`
                                 </p>
                               </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
+                            <div
+                              className="flex shrink-0 items-center gap-2"
+                              onClick={e => e.stopPropagation()}
+                            >
                               {/* Folder assignment dropdown */}
                               <select
                                 onClick={e => e.stopPropagation()}
