@@ -1,10 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Calendar, Compass, Search, Sparkles, Users } from 'lucide-react'
+import { BookOpen, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
@@ -55,7 +52,6 @@ interface TutorDirectoryItem {
 export default function StudentTutorDirectoryPage() {
   const params = useParams<{ locale?: string }>()
   const router = useRouter()
-  const { data: session } = useSession()
   const { showOverlay } = useNavigationOverlay()
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
 
@@ -68,19 +64,6 @@ export default function StudentTutorDirectoryPage() {
   const [nationalityFilter, setNationalityFilter] = useState('all')
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate'>('popular')
   const [following, setFollowing] = useState<Set<string>>(new Set())
-
-  const [greeting, setGreeting] = useState('Good morning')
-  const [currentTime, setCurrentTime] = useState(new Date())
-
-  useEffect(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting('Good morning')
-    else if (hour < 18) setGreeting('Good afternoon')
-    else setGreeting('Good evening')
-
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
 
   // Load following from API on mount
   useEffect(() => {
@@ -188,148 +171,94 @@ export default function StudentTutorDirectoryPage() {
     }
   }, [tutors])
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    })
-
   return (
     <div className="text-foreground flex h-full flex-col overflow-hidden">
       <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        {/* Hero */}
-        <div className="mb-4 flex-shrink-0">
-          <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
-            <div className="relative z-10 flex min-h-[180px] flex-col p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="mb-0.5 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-white/70" />
-                    <span className="text-sm font-medium text-white/70">
-                      {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
-                    </span>
-                  </div>
-                  <h1 className="text-3xl font-bold text-white">Find Your Tutor</h1>
-                  <p className="mt-1 max-w-2xl text-sm text-white/80">
-                    Explore tutor profiles, compare subjects and courses, and open any tutor profile
-                    instantly.
-                  </p>
-                </div>
+        {/* Hero + Search & Filter */}
+        <Card className="mb-4 flex-shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+          <div className="flex flex-col gap-4 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <h1 className="text-3xl font-bold text-white">Find Your Tutor</h1>
 
-                <div
-                  className={cn(
-                    'flex flex-wrap items-center justify-end gap-2',
-                    loading && 'animate-pulse'
-                  )}
-                >
-                  <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                    <Users className="h-4 w-4 text-white/80" />
-                    <span className="text-xs font-medium text-white/80">Tutors</span>
-                    <span className="text-sm font-bold text-white">
-                      {headlineMetrics.tutorCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                    <BookOpen className="h-4 w-4 text-white/80" />
-                    <span className="text-xs font-medium text-white/80">Published Courses</span>
-                    <span className="text-sm font-bold text-white">
-                      {headlineMetrics.totalCourses}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                    <Users className="h-4 w-4 text-white/80" />
-                    <span className="text-xs font-medium text-white/80">Total Enrollments</span>
-                    <span className="text-sm font-bold text-white">
-                      {headlineMetrics.totalEnrollments}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action bar */}
-              <div className="mt-auto flex flex-wrap items-center justify-end gap-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>
-                    {formatDate(currentTime)} •{' '}
-                    {currentTime.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+              <div
+                className={cn(
+                  'flex flex-wrap items-center justify-end gap-2',
+                  loading && 'animate-pulse'
+                )}
+              >
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <Users className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Tutors</span>
+                  <span className="text-sm font-bold text-white">
+                    {headlineMetrics.tutorCount}
                   </span>
                 </div>
-                <Button
-                  asChild
-                  size="sm"
-                  className="gap-1.5 rounded-lg bg-white px-4 text-sm font-semibold text-[#EA580C] hover:bg-white/90"
-                >
-                  <Link href={`/${locale}/student/courses`}>
-                    <Compass className="h-4 w-4" />
-                    My Courses
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <BookOpen className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Published Courses</span>
+                  <span className="text-sm font-bold text-white">
+                    {headlineMetrics.totalCourses}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <Users className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Total Enrollments</span>
+                  <span className="text-sm font-bold text-white">
+                    {headlineMetrics.totalEnrollments}
+                  </span>
+                </div>
               </div>
             </div>
-          </Card>
-        </div>
 
-        {/* Search & Filter */}
-        <Card className="mb-4 flex-shrink-0 overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-slate-900">Search & Filter</CardTitle>
-            <CardDescription className="text-slate-600">
-              Refine by keywords, subject, country, and ranking.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={event => setSearchQuery(event.target.value)}
-                placeholder="Search tutor, subject, specialty..."
-                className="border-slate-200 bg-white pl-9 text-slate-900"
-              />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder="Search tutor, subject, specialty..."
+                  className="border-white/20 bg-white/95 pl-9 text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="border-white/20 bg-white/95 text-slate-900">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category.toLowerCase()}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={nationalityFilter} onValueChange={setNationalityFilter}>
+                <SelectTrigger className="border-white/20 bg-white/95 text-slate-900">
+                  <SelectValue placeholder="Filter by country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Countries</SelectItem>
+                  {nationalities.map(nat => (
+                    <SelectItem key={nat} value={nat.toLowerCase()}>
+                      {nat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
+                <SelectTrigger className="border-white/20 bg-white/95 text-slate-900">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="popular">Most Popular</SelectItem>
+                  <SelectItem value="newest">Recently Updated</SelectItem>
+                  <SelectItem value="courses">Most Courses</SelectItem>
+                  <SelectItem value="rate">Highest Rated</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category.toLowerCase()}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={nationalityFilter} onValueChange={setNationalityFilter}>
-              <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                <SelectValue placeholder="Filter by country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
-                {nationalities.map(nat => (
-                  <SelectItem key={nat} value={nat.toLowerCase()}>
-                    {nat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
-              <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="popular">Most Popular</SelectItem>
-                <SelectItem value="newest">Recently Updated</SelectItem>
-                <SelectItem value="courses">Most Courses</SelectItem>
-                <SelectItem value="rate">Highest Rated</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Tutor grid */}
