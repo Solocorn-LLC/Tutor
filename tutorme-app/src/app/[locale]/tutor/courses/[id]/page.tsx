@@ -37,9 +37,7 @@ import {
   ChevronDown,
   ChevronUp,
   Globe,
-  Award,
   GraduationCap,
-  School,
   Flag,
   MapPin,
   Search,
@@ -71,6 +69,11 @@ import {
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
 import { VariantManager, type VariantManagerHandle } from './components/VariantManager'
+import {
+  CATEGORY_TAB_CONFIG,
+  getTabConfig,
+  type CategoryTabConfig,
+} from '@/lib/data/category-tab-config'
 
 // Flatten all categories into a single list
 const ALL_CATEGORIES = [
@@ -83,6 +86,16 @@ const ALL_CATEGORIES = [
   ...LANGUAGE_CATEGORIES.flatMap(c => c.exams),
   ...PROFESSIONAL_CATEGORIES.flatMap(c => c.exams),
 ]
+
+function CategoryHeading({ config, label }: { config: CategoryTabConfig; label: string }) {
+  const Icon = config.icon
+  return (
+    <h4 className="flex items-center gap-2 text-sm font-semibold" style={{ color: config.color }}>
+      <Icon className="h-4 w-4" style={{ color: config.color }} />
+      {label}
+    </h4>
+  )
+}
 
 interface OutlineItem {
   title: string
@@ -855,76 +868,31 @@ export default function TutorCoursePage() {
                       {/* Tabs in direct flow, no background container */}
                       <div className="border-b border-slate-200">
                         <TabsList className="flex w-full flex-wrap justify-start gap-6 bg-transparent p-0">
-                          <TabsTrigger
-                            value="global"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Globe className="mr-2 h-4 w-4" />
-                            Global
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="ap"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Award className="mr-2 h-4 w-4" />
-                            AP
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="alevel"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <GraduationCap className="mr-2 h-4 w-4" />A Level
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="ib"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <BookOpen className="mr-2 h-4 w-4" />
-                            IB
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="igcse"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <School className="mr-2 h-4 w-4" />
-                            IGCSE
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="national"
-                            disabled={nationalExams.length === 0}
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 disabled:opacity-50 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Flag className="mr-2 h-4 w-4" />
-                            National
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="universities"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <GraduationCap className="mr-2 h-4 w-4" />
-                            Universities
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="languages"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Globe className="mr-2 h-4 w-4" />
-                            Languages
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="professional"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Award className="mr-2 h-4 w-4" />
-                            Professional
-                          </TabsTrigger>
-                          <TabsTrigger
-                            value="diy"
-                            className="rounded-none border-b-2 border-transparent px-1 py-3 font-medium text-slate-500 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none"
-                          >
-                            <Wrench className="mr-2 h-4 w-4" />
-                            DIY
-                          </TabsTrigger>
+                          {CATEGORY_TAB_CONFIG.filter(config => config.value !== 'specialties').map(
+                            config => {
+                              const Icon = config.icon
+                              const isNational = config.value === 'national'
+                              const isActive = categoryTab === config.value
+                              return (
+                                <TabsTrigger
+                                  key={config.value}
+                                  value={config.value}
+                                  disabled={isNational && nationalExams.length === 0}
+                                  className={cn(
+                                    'rounded-none border-b-2 border-transparent px-1 py-3 font-medium data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+                                    isNational && nationalExams.length === 0 && 'disabled:opacity-50'
+                                  )}
+                                  style={{
+                                    color: config.color,
+                                    borderBottomColor: isActive ? config.color : 'transparent',
+                                  }}
+                                >
+                                  <Icon className="mr-2 h-4 w-4" style={{ color: config.color }} />
+                                  {config.label}
+                                </TabsTrigger>
+                              )
+                            }
+                          )}
                         </TabsList>
                       </div>
 
@@ -954,10 +922,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <BookOpen className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('global')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -997,10 +962,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <Award className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('ap')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1040,10 +1002,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <GraduationCap className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('alevel')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1083,10 +1042,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <BookOpen className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('ib')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1126,10 +1082,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <School className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('igcse')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1177,10 +1130,7 @@ export default function TutorCoursePage() {
                                 )
                                 .map(category => (
                                   <div key={`${selectedCountryCode}-${category.id}`} className="space-y-3">
-                                    <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                      <Flag className="h-4 w-4 text-[#F17623]" />
-                                      {category.label}
-                                    </h4>
+                                    <CategoryHeading config={getTabConfig('national')!} label={category.label} />
                                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                       {category.exams
                                         .filter(
@@ -1228,10 +1178,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <GraduationCap className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('universities')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1272,10 +1219,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <Globe className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('languages')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1315,10 +1259,7 @@ export default function TutorCoursePage() {
                                 )
                             ).map(category => (
                               <div key={category.id} className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <Award className="h-4 w-4 text-indigo-600" />
-                                  {category.label}
-                                </h4>
+                                <CategoryHeading config={getTabConfig('professional')!} label={category.label} />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {category.exams
                                     .filter(
@@ -1388,10 +1329,7 @@ export default function TutorCoursePage() {
                               </div>
                             ) : (
                               <div className="space-y-3">
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                                  <Wrench className="h-4 w-4 text-indigo-600" />
-                                  Your Custom Categories
-                                </h4>
+                                <CategoryHeading config={getTabConfig('diy')!} label="Your Custom Categories" />
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
                                   {customCategories
                                     .filter(

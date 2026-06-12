@@ -24,18 +24,21 @@ import {
   Search,
   Globe,
   MapPin,
-  GraduationCap,
   Check,
   X,
   ChevronRight,
-  School,
-  Award,
   Flag,
   Plus,
   Sparkles,
   CheckCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  CATEGORY_TAB_CONFIG,
+  getTabConfig,
+  getCategoryConfig,
+  type CategoryTabConfig,
+} from '@/lib/data/category-tab-config'
 
 import {
   REGIONS,
@@ -48,7 +51,6 @@ import {
   LANGUAGE_CATEGORIES,
   PROFESSIONAL_CATEGORIES,
   UNIVERSITIES_BY_COUNTRY_CODE,
-  getUniversityRegionId,
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
 
@@ -161,7 +163,12 @@ export default function CategoriesPage() {
   }
 
   // Render category section
-  const renderCategorySection = (category: ExamCategory) => {
+  const renderCategorySection = (
+    category: ExamCategory,
+    config?: CategoryTabConfig
+  ) => {
+    const tabConfig = config ?? getCategoryConfig(category.id)
+    const Icon = tabConfig.icon
     const filteredExams = filterExams(category.exams)
     if (filteredExams.length === 0) return null
 
@@ -171,10 +178,19 @@ export default function CategoriesPage() {
       <div key={category.id} className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-[#1D4ED8]" />
-            <h4 className="font-semibold text-gray-900">{category.label}</h4>
+            <Icon className="h-4 w-4" style={{ color: tabConfig.color }} />
+            <h4 className="font-semibold" style={{ color: tabConfig.color }}>
+              {category.label}
+            </h4>
             {selectedCount > 0 && (
-              <Badge variant="secondary" className="bg-[#1D4ED8]/20 text-xs text-[#1F2933]">
+              <Badge
+                variant="secondary"
+                className="text-xs"
+                style={{
+                  backgroundColor: `${tabConfig.color}33`,
+                  color: tabConfig.color,
+                }}
+              >
                 {selectedCount}
               </Badge>
             )}
@@ -184,7 +200,8 @@ export default function CategoriesPage() {
               variant="ghost"
               size="sm"
               onClick={() => selectAllInCategory(category.exams)}
-              className="h-7 text-xs text-[#1D4ED8] hover:text-[#1e40af]"
+              className="h-7 text-xs hover:opacity-80"
+              style={{ color: tabConfig.color }}
             >
               All
             </Button>
@@ -206,9 +223,14 @@ export default function CategoriesPage() {
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-md p-2 transition-colors',
                 selectedCategories.includes(exam)
-                  ? 'border border-[#1D4ED8]/30 bg-[#1D4ED8]/10'
+                  ? 'border bg-[rgba(0,0,0,0.04)]'
                   : 'border border-transparent hover:bg-gray-50'
               )}
+              style={
+                selectedCategories.includes(exam)
+                  ? { borderColor: `${tabConfig.color}4D` }
+                  : undefined
+              }
             >
               <Checkbox
                 checked={selectedCategories.includes(exam)}
@@ -342,37 +364,31 @@ export default function CategoriesPage() {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
                 <CardHeader className="pb-0">
                   <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
-                    <TabsTrigger value="global" className="text-xs md:text-sm">
-                      <Globe className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      Global
-                    </TabsTrigger>
-                    <TabsTrigger value="ap" className="text-xs md:text-sm">
-                      <Award className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      AP
-                    </TabsTrigger>
-                    <TabsTrigger value="alevel" className="text-xs md:text-sm">
-                      <GraduationCap className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />A Level
-                    </TabsTrigger>
-                    <TabsTrigger value="ib" className="text-xs md:text-sm">
-                      <BookOpen className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      IB
-                    </TabsTrigger>
-                    <TabsTrigger value="igcse" className="text-xs md:text-sm">
-                      <School className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      IGCSE
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="national"
-                      className="text-xs md:text-sm"
-                      disabled={!selectedCountryCode || nationalExams.length === 0}
-                    >
-                      <Flag className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      National
-                    </TabsTrigger>
-                    <TabsTrigger value="specialties" className="text-xs md:text-sm">
-                      <Sparkles className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4" />
-                      Specialties
-                    </TabsTrigger>
+                    {CATEGORY_TAB_CONFIG.filter(config =>
+                      ['global', 'ap', 'alevel', 'ib', 'igcse', 'national', 'specialties'].includes(
+                        config.value
+                      )
+                    ).map(config => {
+                      const Icon = config.icon
+                      const isNational = config.value === 'national'
+                      return (
+                        <TabsTrigger
+                          key={config.value}
+                          value={config.value}
+                          className={cn(
+                            'text-xs md:text-sm data-[state=active]:bg-transparent'
+                          )}
+                          disabled={isNational && (!selectedCountryCode || nationalExams.length === 0)}
+                          style={{ color: config.color }}
+                        >
+                          <Icon
+                            className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4"
+                            style={{ color: config.color }}
+                          />
+                          {config.label}
+                        </TabsTrigger>
+                      )
+                    })}
                   </TabsList>
                 </CardHeader>
 
@@ -394,7 +410,7 @@ export default function CategoriesPage() {
                     <TabsContent value="global" className="m-0 h-full">
                       <ScrollArea className="h-full pr-4">
                         <div className="space-y-6 pb-4">
-                          {GLOBAL_EXAMS_CATEGORIES.map(renderCategorySection)}
+                          {GLOBAL_EXAMS_CATEGORIES.map(cat => renderCategorySection(cat, getTabConfig('global')!))}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -403,7 +419,7 @@ export default function CategoriesPage() {
                     <TabsContent value="ap" className="m-0 h-full">
                       <ScrollArea className="h-full pr-4">
                         <div className="space-y-6 pb-4">
-                          {AP_CATEGORIES.map(renderCategorySection)}
+                          {AP_CATEGORIES.map(cat => renderCategorySection(cat, getTabConfig('ap')!))}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -412,7 +428,7 @@ export default function CategoriesPage() {
                     <TabsContent value="alevel" className="m-0 h-full">
                       <ScrollArea className="h-full pr-4">
                         <div className="space-y-6 pb-4">
-                          {A_LEVEL_CATEGORIES.map(renderCategorySection)}
+                          {A_LEVEL_CATEGORIES.map(cat => renderCategorySection(cat, getTabConfig('alevel')!))}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -421,7 +437,7 @@ export default function CategoriesPage() {
                     <TabsContent value="ib" className="m-0 h-full">
                       <ScrollArea className="h-full pr-4">
                         <div className="space-y-6 pb-4">
-                          {IB_CATEGORIES.map(renderCategorySection)}
+                          {IB_CATEGORIES.map(cat => renderCategorySection(cat, getTabConfig('ib')!))}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -430,7 +446,7 @@ export default function CategoriesPage() {
                     <TabsContent value="igcse" className="m-0 h-full">
                       <ScrollArea className="h-full pr-4">
                         <div className="space-y-6 pb-4">
-                          {IGCSE_CATEGORIES.map(renderCategorySection)}
+                          {IGCSE_CATEGORIES.map(cat => renderCategorySection(cat, getTabConfig('igcse')!))}
                         </div>
                       </ScrollArea>
                     </TabsContent>
@@ -450,7 +466,7 @@ export default function CategoriesPage() {
                               <p>No national exams available for {selectedCountry?.name}.</p>
                             </div>
                           ) : (
-                            nationalExams.map(renderCategorySection)
+                            nationalExams.map(cat => renderCategorySection(cat, getTabConfig('national')!))
                           )}
                         </div>
                       </ScrollArea>
@@ -466,7 +482,7 @@ export default function CategoriesPage() {
                               <p>No specialties available for the selected region/country.</p>
                             </div>
                           ) : (
-                            filteredSpecialtyCategories.map(renderCategorySection)
+                            filteredSpecialtyCategories.map(cat => renderCategorySection(cat))
                           )}
                         </div>
                       </ScrollArea>
