@@ -3440,7 +3440,7 @@ const CategorySearchModal = ({
   return (
     <div className="animate-in fade-in fixed inset-0 z-[100] flex items-center justify-center p-4 duration-200">
       <div
-        className="absolute inset-0 bg-black/80"
+        className="absolute inset-0 bg-transparent"
         onClick={onClose}
         onWheel={e => e.stopPropagation()}
         onTouchMove={e => e.stopPropagation()}
@@ -4245,7 +4245,7 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg backdrop-blur-xl md:px-8 md:py-6"
+              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-8 md:py-6"
               onClick={e => e.stopPropagation()}
             >
               {/* Close button */}
@@ -4257,31 +4257,33 @@ export default function LandingPage() {
                 <X className="h-5 w-5" />
               </button>
 
-              {/* Gear animation header */}
-              <div className="flex flex-col items-center justify-center py-2">
-                <div className="flex items-center justify-center gap-0.5">
-                  <motion.span
-                    className="inline-flex h-5 w-5 text-white/90"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Settings className="h-full w-full" />
-                  </motion.span>
-                  <motion.span
-                    className="-ml-0.5 -mt-1 inline-flex h-5 w-5 text-white/90"
-                    animate={{ rotate: -360 }}
-                    transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Settings className="h-full w-full" />
-                  </motion.span>
+              <div className="flex w-full max-w-3xl flex-1 flex-col items-center justify-center">
+                {/* Gear animation header */}
+                <div className="flex flex-col items-center justify-center py-2">
+                  <div className="flex items-center justify-center gap-0.5">
+                    <motion.span
+                      className="inline-flex h-5 w-5 text-white/90"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <Settings className="h-full w-full" />
+                    </motion.span>
+                    <motion.span
+                      className="-ml-0.5 -mt-1 inline-flex h-5 w-5 text-white/90"
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <Settings className="h-full w-full" />
+                    </motion.span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Video placeholder area */}
-              <div className="flex-1 overflow-y-auto py-6">
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
-                    <p className="text-sm">Video tutorials coming soon.</p>
+                {/* Video placeholder area */}
+                <div className="w-full py-6">
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+                      <p className="text-sm">Video tutorials coming soon.</p>
+                    </div>
                   </div>
                 </div>
               </div>

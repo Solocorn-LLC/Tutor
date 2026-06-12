@@ -182,7 +182,7 @@ export default function App() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="glass-card relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden p-6 md:p-8"
+                className="glass-card relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden p-6 md:min-h-[70vh] md:p-8"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Close button */}
@@ -194,31 +194,33 @@ export default function App() {
                   <X className="h-5 w-5" />
                 </button>
 
-                {/* Gear animation header */}
-                <div className="flex flex-col items-center justify-center py-2">
-                  <div className="flex items-center justify-center gap-0.5">
-                    <motion.span
-                      className="inline-flex h-5 w-5 text-white/90"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <Settings className="h-full w-full" />
-                    </motion.span>
-                    <motion.span
-                      className="-mt-1 -ml-0.5 inline-flex h-5 w-5 text-white/90"
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <Settings className="h-full w-full" />
-                    </motion.span>
+                <div className="flex w-full max-w-3xl flex-1 flex-col items-center justify-center">
+                  {/* Gear animation header */}
+                  <div className="flex flex-col items-center justify-center py-2">
+                    <div className="flex items-center justify-center gap-0.5">
+                      <motion.span
+                        className="inline-flex h-5 w-5 text-white/90"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Settings className="h-full w-full" />
+                      </motion.span>
+                      <motion.span
+                        className="-mt-1 -ml-0.5 inline-flex h-5 w-5 text-white/90"
+                        animate={{ rotate: -360 }}
+                        transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Settings className="h-full w-full" />
+                      </motion.span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Video placeholder area */}
-                <div className="flex-1 overflow-y-auto py-6">
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
-                      <p className="text-sm">Video tutorials coming soon.</p>
+                  {/* Video placeholder area */}
+                  <div className="w-full py-6">
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+                        <p className="text-sm">Video tutorials coming soon.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
