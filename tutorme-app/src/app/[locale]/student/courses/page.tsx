@@ -29,7 +29,7 @@ import {
   Code,
   Calculator,
   FlaskConical,
-  Globe,
+  Languages,
   ArrowLeft,
   Heart,
   BookOpen,
@@ -83,7 +83,7 @@ const SUBJECT_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   mathematics: Calculator,
   programming: Code,
   science: FlaskConical,
-  language: Globe,
+  language: Languages,
   default: BookOpen,
 }
 
@@ -604,257 +604,259 @@ function CoursePageInner() {
       {/* Tabs */}
       <Card className="border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
         <CardContent className="p-6">
-        <div className="scrollbar-hide mb-8 flex overflow-x-auto border-b border-gray-200">
-          <button
-            className={cn(
-              'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
-              activeTab === 'mine'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-            onClick={() => setActiveTab('mine')}
-          >
-            Ongoing ({ongoing.length})
-          </button>
-          <button
-            className={cn(
-              'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
-              activeTab === 'pending'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-            onClick={() => setActiveTab('pending')}
-          >
-            Pending ({upcoming.length})
-          </button>
-          <button
-            className={cn(
-              'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
-              activeTab === 'completed'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-            onClick={() => setActiveTab('completed')}
-          >
-            Completed ({completed.length})
-          </button>
-          <button
-            className={cn(
-              'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
-              activeTab === 'favorites'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-            onClick={() => setActiveTab('favorites')}
-          >
-            Favorites ({favorites.length})
-          </button>
-          <button
-            className={cn(
-              'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
-              activeTab === 'following'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            )}
-            onClick={() => setActiveTab('following')}
-          >
-            Following ({followingTutors.length})
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map(i => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader className="h-48 bg-gray-200" />
-              </Card>
-            ))}
+          <div className="scrollbar-hide mb-8 flex overflow-x-auto border-b border-gray-200">
+            <button
+              className={cn(
+                'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
+                activeTab === 'mine'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+              onClick={() => setActiveTab('mine')}
+            >
+              Ongoing ({ongoing.length})
+            </button>
+            <button
+              className={cn(
+                'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
+                activeTab === 'pending'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+              onClick={() => setActiveTab('pending')}
+            >
+              Pending ({upcoming.length})
+            </button>
+            <button
+              className={cn(
+                'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
+                activeTab === 'completed'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+              onClick={() => setActiveTab('completed')}
+            >
+              Completed ({completed.length})
+            </button>
+            <button
+              className={cn(
+                'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
+                activeTab === 'favorites'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+              onClick={() => setActiveTab('favorites')}
+            >
+              Favorites ({favorites.length})
+            </button>
+            <button
+              className={cn(
+                'whitespace-nowrap border-b-2 px-6 py-3 text-sm font-medium transition-colors',
+                activeTab === 'following'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+              onClick={() => setActiveTab('following')}
+            >
+              Following ({followingTutors.length})
+            </button>
           </div>
-        ) : (
-          <div className="space-y-12">
-            {activeTab === 'mine' && (
-              <CourseSection
-                title="Ongoing Courses"
-                courses={ongoing}
-                favoriteIds={favoriteIds}
-                toggleFavorite={toggleFavorite}
-                onDetails={setDetailCourse}
-                onSchedule={setScheduleCourse}
-                enteringClass={enteringClass}
-                onEnterClass={handleEnterClass}
-              />
-            )}
-            {activeTab === 'pending' && (
-              <CourseSection
-                title="Pending Courses"
-                courses={upcoming}
-                favoriteIds={favoriteIds}
-                toggleFavorite={toggleFavorite}
-                onDetails={setDetailCourse}
-                onSchedule={setScheduleCourse}
-                enteringClass={enteringClass}
-                onEnterClass={handleEnterClass}
-              />
-            )}
-            {activeTab === 'completed' && (
-              <CourseSection
-                title="Completed Courses"
-                courses={completed}
-                favoriteIds={favoriteIds}
-                toggleFavorite={toggleFavorite}
-                onDetails={setDetailCourse}
-                onSchedule={setScheduleCourse}
-                enteringClass={enteringClass}
-                onEnterClass={handleEnterClass}
-              />
-            )}
-            {activeTab === 'favorites' && (
-              <CourseSection
-                title="Favorite Courses"
-                courses={favorites}
-                favoriteIds={favoriteIds}
-                toggleFavorite={toggleFavorite}
-                onDetails={setDetailCourse}
-                onSchedule={setScheduleCourse}
-                enteringClass={enteringClass}
-                onEnterClass={handleEnterClass}
-              />
-            )}
-            {activeTab === 'following' && (
-              <section>
-                <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">Following tutors</h2>
-                  <Badge variant="outline">{followingTutors.length} tutors</Badge>
-                </div>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {isFollowingLoading ? (
-                    [1, 2, 3].map(i => (
-                      <Card key={i} className="border-border bg-card animate-pulse">
-                        <CardHeader className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-muted h-10 w-10 rounded-full" />
-                            <div className="flex-1 space-y-2">
-                              <div className="bg-muted h-4 w-3/4 rounded" />
-                              <div className="bg-muted h-3 w-1/2 rounded" />
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader className="h-48 bg-gray-200" />
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {activeTab === 'mine' && (
+                <CourseSection
+                  title="Ongoing Courses"
+                  courses={ongoing}
+                  favoriteIds={favoriteIds}
+                  toggleFavorite={toggleFavorite}
+                  onDetails={setDetailCourse}
+                  onSchedule={setScheduleCourse}
+                  enteringClass={enteringClass}
+                  onEnterClass={handleEnterClass}
+                />
+              )}
+              {activeTab === 'pending' && (
+                <CourseSection
+                  title="Pending Courses"
+                  courses={upcoming}
+                  favoriteIds={favoriteIds}
+                  toggleFavorite={toggleFavorite}
+                  onDetails={setDetailCourse}
+                  onSchedule={setScheduleCourse}
+                  enteringClass={enteringClass}
+                  onEnterClass={handleEnterClass}
+                />
+              )}
+              {activeTab === 'completed' && (
+                <CourseSection
+                  title="Completed Courses"
+                  courses={completed}
+                  favoriteIds={favoriteIds}
+                  toggleFavorite={toggleFavorite}
+                  onDetails={setDetailCourse}
+                  onSchedule={setScheduleCourse}
+                  enteringClass={enteringClass}
+                  onEnterClass={handleEnterClass}
+                />
+              )}
+              {activeTab === 'favorites' && (
+                <CourseSection
+                  title="Favorite Courses"
+                  courses={favorites}
+                  favoriteIds={favoriteIds}
+                  toggleFavorite={toggleFavorite}
+                  onDetails={setDetailCourse}
+                  onSchedule={setScheduleCourse}
+                  enteringClass={enteringClass}
+                  onEnterClass={handleEnterClass}
+                />
+              )}
+              {activeTab === 'following' && (
+                <section>
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900">Following tutors</h2>
+                    <Badge variant="outline">{followingTutors.length} tutors</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {isFollowingLoading ? (
+                      [1, 2, 3].map(i => (
+                        <Card key={i} className="border-border bg-card animate-pulse">
+                          <CardHeader className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-muted h-10 w-10 rounded-full" />
+                              <div className="flex-1 space-y-2">
+                                <div className="bg-muted h-4 w-3/4 rounded" />
+                                <div className="bg-muted h-3 w-1/2 rounded" />
+                              </div>
                             </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="bg-muted h-4 rounded" />
-                          <div className="bg-muted h-4 rounded" />
-                        </CardContent>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="bg-muted h-4 rounded" />
+                            <div className="bg-muted h-4 rounded" />
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : followingTutors.length === 0 ? (
+                      <Card className="border-border bg-card col-span-full px-4 py-8 text-center">
+                        <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
+                          <Heart className="text-muted-foreground h-6 w-6" />
+                        </div>
+                        <CardTitle className="mb-1 text-lg">No followed tutors</CardTitle>
+                        <CardDescription className="mb-4">
+                          Follow tutors from the directory to see them here.
+                        </CardDescription>
+                        <Link href="/student/tutors">
+                          <Button variant="outline" size="sm">
+                            Browse Tutors
+                          </Button>
+                        </Link>
                       </Card>
-                    ))
-                  ) : followingTutors.length === 0 ? (
-                    <Card className="border-border bg-card col-span-full px-4 py-8 text-center">
-                      <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-                        <Heart className="text-muted-foreground h-6 w-6" />
-                      </div>
-                      <CardTitle className="mb-1 text-lg">No followed tutors</CardTitle>
-                      <CardDescription className="mb-4">
-                        Follow tutors from the directory to see them here.
-                      </CardDescription>
-                      <Link href="/student/tutors">
-                        <Button variant="outline" size="sm">
-                          Browse Tutors
-                        </Button>
-                      </Link>
-                    </Card>
-                  ) : (
-                    followingTutors.map(tutor => (
-                      <div
-                        key={tutor.id}
-                        className={cn(
-                          'group relative flex flex-col overflow-hidden rounded-[20px] text-left transition-all duration-300',
-                          'border border-[rgba(255,255,255,0.12)]',
-                          'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
-                          'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)]',
-                          'hover:-translate-y-[2px] hover:brightness-105',
-                          'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]'
-                        )}
-                        style={{
-                          backgroundImage:
-                            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
-                        }}
-                      >
-                        <div className="flex h-full flex-col p-5">
-                          <div className="flex items-start gap-4">
-                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)]">
-                              {resolvePublicUrl(tutor.avatarUrl) ? (
-                                <img
-                                  src={resolvePublicUrl(tutor.avatarUrl)}
-                                  alt={tutor.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-lg font-bold text-slate-100">
-                                  {tutor.name?.charAt(0)}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex min-w-0 flex-1 flex-col pt-1">
-                              <h3 className="truncate text-lg font-semibold text-slate-50">
-                                {tutor.name}
-                              </h3>
-                              <p className="mt-1 text-xs font-medium text-slate-300">
-                                @{tutor.username}
-                              </p>
-                            </div>
-                          </div>
-
-                          {tutor.bio && (
-                            <p className="mt-4 line-clamp-2 text-xs text-slate-300">{tutor.bio}</p>
+                    ) : (
+                      followingTutors.map(tutor => (
+                        <div
+                          key={tutor.id}
+                          className={cn(
+                            'group relative flex flex-col overflow-hidden rounded-[20px] text-left transition-all duration-300',
+                            'border border-[rgba(255,255,255,0.12)]',
+                            'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
+                            'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)]',
+                            'hover:-translate-y-[2px] hover:brightness-105',
+                            'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]'
                           )}
+                          style={{
+                            backgroundImage:
+                              'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
+                          }}
+                        >
+                          <div className="flex h-full flex-col p-5">
+                            <div className="flex items-start gap-4">
+                              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.35)]">
+                                {resolvePublicUrl(tutor.avatarUrl) ? (
+                                  <img
+                                    src={resolvePublicUrl(tutor.avatarUrl)}
+                                    alt={tutor.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-lg font-bold text-slate-100">
+                                    {tutor.name?.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex min-w-0 flex-1 flex-col pt-1">
+                                <h3 className="truncate text-lg font-semibold text-slate-50">
+                                  {tutor.name}
+                                </h3>
+                                <p className="mt-1 text-xs font-medium text-slate-300">
+                                  @{tutor.username}
+                                </p>
+                              </div>
+                            </div>
 
-                          <div className="mb-4 mt-4 flex flex-wrap gap-1.5">
-                            {tutor.specialties?.slice(0, 3).map((specialty: string) => (
-                              <span
-                                key={specialty}
-                                className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200"
+                            {tutor.bio && (
+                              <p className="mt-4 line-clamp-2 text-xs text-slate-300">
+                                {tutor.bio}
+                              </p>
+                            )}
+
+                            <div className="mb-4 mt-4 flex flex-wrap gap-1.5">
+                              {tutor.specialties?.slice(0, 3).map((specialty: string) => (
+                                <span
+                                  key={specialty}
+                                  className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200"
+                                >
+                                  {specialty}
+                                </span>
+                              ))}
+                            </div>
+
+                            <div className="mt-auto border-t border-[rgba(255,255,255,0.1)] pt-4">
+                              <Link
+                                href={`/u/${tutor.username}`}
+                                onClick={() => showOverlay()}
+                                className="flex w-full items-center justify-center rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] py-2 text-sm font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)] hover:text-white"
                               >
-                                {specialty}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div className="mt-auto border-t border-[rgba(255,255,255,0.1)] pt-4">
-                            <Link
-                              href={`/u/${tutor.username}`}
-                              onClick={() => showOverlay()}
-                              className="flex w-full items-center justify-center rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] py-2 text-sm font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)] hover:text-white"
-                            >
-                              View Profile
-                            </Link>
+                                View Profile
+                              </Link>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            )}
+                      ))
+                    )}
+                  </div>
+                </section>
+              )}
 
-            {((activeTab === 'mine' && ongoing.length === 0) ||
-              (activeTab === 'pending' && upcoming.length === 0) ||
-              (activeTab === 'completed' && completed.length === 0) ||
-              (activeTab === 'favorites' && favorites.length === 0)) && (
-              <div className="py-20 text-center">
-                <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-                <h3 className="mb-2 text-lg font-medium text-gray-900">
-                  No courses in this section
-                </h3>
-                <p className="mb-6 text-gray-600">
-                  {activeTab === 'favorites'
-                    ? "You haven't added any favorites yet."
-                    : 'Enroll in courses from the catalog to start your journey.'}
-                </p>
-                <Link href="/student/subjects">
-                  <Button variant="default">Browse Available Subjects</Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
+              {((activeTab === 'mine' && ongoing.length === 0) ||
+                (activeTab === 'pending' && upcoming.length === 0) ||
+                (activeTab === 'completed' && completed.length === 0) ||
+                (activeTab === 'favorites' && favorites.length === 0)) && (
+                <div className="py-20 text-center">
+                  <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                  <h3 className="mb-2 text-lg font-medium text-gray-900">
+                    No courses in this section
+                  </h3>
+                  <p className="mb-6 text-gray-600">
+                    {activeTab === 'favorites'
+                      ? "You haven't added any favorites yet."
+                      : 'Enroll in courses from the catalog to start your journey.'}
+                  </p>
+                  <Link href="/student/subjects">
+                    <Button variant="default">Browse Available Subjects</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

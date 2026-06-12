@@ -3695,7 +3695,7 @@ const CategorySearchModal = ({
                   className={tabTriggerClass}
                   style={{ color: '#00C7BE' }}
                 >
-                  <Globe className="mr-1.5 h-4 w-4" /> Languages
+                  <Languages className="mr-1.5 h-4 w-4" /> Languages
                 </TabsTrigger>
                 <TabsTrigger
                   value="professional"
@@ -3739,7 +3739,7 @@ const CategorySearchModal = ({
                         <CategorySection
                           key={cat.id}
                           label={cat.label}
-                          icon={BookOpen}
+                          icon={Globe}
                           exams={cat.exams}
                           categorySearch={categorySearch}
                           selectedCategories={selectedCategories}
@@ -3908,7 +3908,7 @@ const CategorySearchModal = ({
                       <CategorySection
                         key={cat.id}
                         label={cat.label}
-                        icon={Globe}
+                        icon={Languages}
                         exams={cat.exams}
                         categorySearch={categorySearch}
                         selectedCategories={selectedCategories}
@@ -3953,7 +3953,7 @@ const CategorySearchModal = ({
                     <CategorySection
                       key={cat.id}
                       label={cat.label}
-                      icon={BookOpen}
+                      icon={Globe}
                       exams={cat.exams}
                       categorySearch={categorySearch}
                       selectedCategories={selectedCategories}
@@ -4048,7 +4048,7 @@ const CategorySearchModal = ({
                     <CategorySection
                       key={cat.id}
                       label={cat.label}
-                      icon={Globe}
+                      icon={Languages}
                       exams={cat.exams}
                       categorySearch={categorySearch}
                       selectedCategories={selectedCategories}

@@ -13,7 +13,7 @@ import {
   User,
   Clock,
   DollarSign,
-  Globe,
+  Languages,
   Calendar,
   Users,
 } from 'lucide-react'
@@ -220,7 +220,7 @@ export default function CourseDetailsPage() {
               </div>
               {data.languageOfInstruction && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Globe className="text-muted-foreground h-4 w-4" />
+                  <Languages className="text-muted-foreground h-4 w-4" />
                   <span>
                     <strong>Language:</strong> {data.languageOfInstruction}
                   </span>
