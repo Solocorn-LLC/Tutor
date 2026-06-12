@@ -976,10 +976,11 @@ export function InteractiveCalendar({
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col',
-              mode === 'tutor' && embedded ? 'pt-5' : 'pt-3',
+              view === 'week' ? '' : mode === 'tutor' && embedded ? 'pt-5' : 'pt-3',
               !availabilityOnly && 'overflow-hidden rounded-lg border border-[#374151]'
             )}
           >
+            {view === 'week' && <WeekViewHeader currentDate={currentDate} />}
             <div
               ref={cardContentRef}
               className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-auto"
@@ -1841,6 +1842,37 @@ function MonthView({
   )
 }
 
+function WeekViewHeader({ currentDate }: { currentDate: Date }) {
+  const weekStart = new Date(currentDate)
+  weekStart.setDate(currentDate.getDate() - currentDate.getDay())
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(weekStart)
+    day.setDate(weekStart.getDate() + i)
+    return day
+  })
+
+  return (
+    <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-gray-300 bg-white shadow-sm">
+      <div aria-hidden="true" />
+      {weekDays.map((day, index) => {
+        const isToday = day.toDateString() === new Date().toDateString()
+        return (
+          <div
+            key={index}
+            className="flex h-10 items-center justify-center gap-1 border-r border-gray-200 p-1.5 text-center text-xs font-medium text-gray-600 last:border-r-0"
+          >
+            <span>{day.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+            <span className={cn('text-xs tabular-nums', isToday && 'text-blue-600')}>
+              {day.getDate()}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function WeekView({
   currentDate,
   events: _events,
@@ -1868,24 +1900,6 @@ function WeekView({
 
   return (
     <div className="flex min-h-full flex-col rounded-lg bg-white/50">
-      {/* Sticky days-of-week header */}
-      <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-gray-300 bg-white shadow-sm">
-        {weekDays.map((day, index) => {
-          const isToday = day.toDateString() === new Date().toDateString()
-          return (
-            <div
-              key={index}
-              className="flex h-10 items-center justify-center gap-1 p-1.5 text-center text-xs font-medium text-gray-600"
-            >
-              <span>{day.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-              <span className={cn('text-sm', isToday && 'text-blue-600')}>
-                {day.getDate()}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
       {/* Scrollable body */}
       <div className="relative flex flex-1 flex-row">
         {/* Sticky time column */}
