@@ -4,8 +4,13 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { InteractiveCalendar } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
+import { TabsContent } from '@/components/ui/tabs'
+import {
+  InteractiveCalendar,
+  DEFAULT_TIMEZONE,
+  type CalendarView,
+} from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
+import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
 import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -85,6 +90,8 @@ export function DashboardCalendar({
 }: DashboardCalendarProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('classes')
+  const [calendarView, setCalendarView] = useState<CalendarView>('day')
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [month, setMonth] = useState<Date>(() => new Date())
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
@@ -185,146 +192,132 @@ export function DashboardCalendar({
   }, [events])
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full w-full flex-col">
-        <div className="flex-shrink-0 p-6 pb-3">
-          <TabsList
-            variant="pills"
-            fullWidth
-            className="grid w-full grid-cols-2 gap-2 bg-transparent p-0"
-          >
-            <TabsTrigger
-              value="classes"
-              fullWidth
-              className="h-11 gap-2 rounded-lg border px-4 font-semibold transition-all duration-200 data-[state=active]:border-[#374151] data-[state=inactive]:border-[#374151] data-[state=active]:bg-[#374151] data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:bg-[#374151] data-[state=inactive]:hover:text-white"
-            >
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Sessions</span>
-              <span className="sm:hidden">Sessions</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              fullWidth
-              className="h-11 gap-2 rounded-lg border px-4 font-semibold transition-all duration-200 data-[state=active]:border-[#374151] data-[state=inactive]:border-[#374151] data-[state=active]:bg-[#374151] data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=inactive]:hover:bg-[#374151] data-[state=inactive]:hover:text-white"
-            >
-              <CalendarDays className="h-4 w-4" />
-              <span className="hidden sm:inline">Calendar</span>
-              <span className="sm:hidden">Calendar</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+    <SessionCalendarPanel
+      value={activeTab}
+      onValueChange={setActiveTab}
+      tabs={[
+        { value: 'classes', label: 'Sessions' },
+        { value: 'calendar', label: 'Calendar' },
+      ]}
+      showCalendarControls={activeTab === 'calendar'}
+      calendarView={calendarView}
+      onCalendarViewChange={setCalendarView}
+      timezone={timezone}
+      onTimezoneChange={setTimezone}
+    >
+      {/* My Calendar Tab */}
+      <TabsContent value="calendar" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <InteractiveCalendar
+          events={interactiveEvents}
+          loading={loading}
+          mode="student"
+          embedded
+          initialView="day"
+          timezone={timezone}
+          onTimezoneChange={setTimezone}
+          view={calendarView}
+          onViewChange={setCalendarView}
+        />
+      </TabsContent>
 
-        <div className="min-h-0 flex-1 overflow-hidden p-6 pt-0">
-          {/* My Calendar Tab */}
-          <TabsContent value="calendar" className="mt-0 min-h-0 flex-1 overflow-hidden">
-            <InteractiveCalendar
-              events={interactiveEvents}
-              loading={loading}
-              mode="student"
-              embedded
-            />
-          </TabsContent>
-
-          {/* My Classes Tab */}
-          <TabsContent value="classes" className="mt-0 h-full overflow-y-auto px-6 pb-6">
-            {loading ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground text-sm">Loading your classes...</p>
-              </div>
-            ) : classes.length === 0 ? (
-              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-                <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
-                <p className="text-muted-foreground">You haven&apos;t booked any classes yet.</p>
-                <Button className="mt-4" asChild>
-                  <Link href="/student/courses">Browse Classes</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3 pr-2">
-                {classes.map(cls => (
-                  <div
-                    key={cls.id}
-                    className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-foreground font-medium">
-                            {cls.courseName || cls.title}
-                          </h4>
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              'text-[10px]',
-                              cls.status === 'live'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : cls.status === 'completed'
-                                  ? 'bg-slate-100 text-slate-600'
-                                  : 'bg-blue-100 text-blue-700'
-                            )}
-                          >
-                            {cls.status === 'live'
-                              ? 'Live'
+      {/* My Classes Tab */}
+      <TabsContent value="classes" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          {loading ? (
+            <div className="py-8 text-center">
+              <p className="text-muted-foreground text-sm">Loading your classes...</p>
+            </div>
+          ) : classes.length === 0 ? (
+            <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+              <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
+              <p className="text-muted-foreground">You haven&apos;t booked any classes yet.</p>
+              <Button className="mt-4" asChild>
+                <Link href="/student/courses">Browse Classes</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 pr-2">
+              {classes.map(cls => (
+                <div
+                  key={cls.id}
+                  className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-foreground font-medium">
+                          {cls.courseName || cls.title}
+                        </h4>
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'text-[10px]',
+                            cls.status === 'live'
+                              ? 'bg-emerald-100 text-emerald-700'
                               : cls.status === 'completed'
-                                ? 'Completed'
-                                : 'Scheduled'}
-                          </Badge>
-                        </div>
-                        <p className="text-muted-foreground text-sm">
-                          {cls.courseName ? cls.title : cls.subject}
-                        </p>
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-blue-100 text-blue-700'
+                          )}
+                        >
+                          {cls.status === 'live'
+                            ? 'Live'
+                            : cls.status === 'completed'
+                              ? 'Completed'
+                              : 'Scheduled'}
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground text-sm">
+                        {cls.courseName ? cls.title : cls.subject}
+                      </p>
 
-                        <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
-                          <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3" />
-                            {formatDate(cls.scheduledAt)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatEventTime(cls.scheduledAt)}
-                          </span>
-                          <span className={cn('flex items-center gap-1', 'text-primary')}>
-                            {cls.type === 'online' ? (
-                              <Video className="h-3 w-3" />
-                            ) : (
-                              <MapPin className="h-3 w-3" />
-                            )}
-                            {cls.type === 'online' ? 'Online' : 'In-Person'}
-                          </span>
-                        </div>
-
-                        <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {cls.students}/{cls.maxStudents} students
-                          </span>
-                          <span>Tutor: {cls.tutorName}</span>
-                        </div>
+                      <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          {formatDate(cls.scheduledAt)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatEventTime(cls.scheduledAt)}
+                        </span>
+                        <span className={cn('flex items-center gap-1', 'text-primary')}>
+                          {cls.type === 'online' ? (
+                            <Video className="h-3 w-3" />
+                          ) : (
+                            <MapPin className="h-3 w-3" />
+                          )}
+                          {cls.type === 'online' ? 'Online' : 'In-Person'}
+                        </span>
                       </div>
 
-                      {cls.sessionId ? (
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 text-white hover:bg-emerald-500"
-                          onClick={() =>
-                            router.push(`/student/feedback?sessionId=${cls.sessionId}`)
-                          }
-                        >
-                          {cls.status === 'live' ? 'Join' : 'Enter'}
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/student/courses/${cls.id}`}>Details</Link>
-                        </Button>
-                      )}
+                      <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {cls.students}/{cls.maxStudents} students
+                        </span>
+                        <span>Tutor: {cls.tutorName}</span>
+                      </div>
                     </div>
+
+                    {cls.sessionId ? (
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 text-white hover:bg-emerald-500"
+                        onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
+                      >
+                        {cls.status === 'live' ? 'Join' : 'Enter'}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/student/courses/${cls.id}`}>Details</Link>
+                      </Button>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </Tabs>
-    </div>
+      </TabsContent>
+    </SessionCalendarPanel>
   )
 }

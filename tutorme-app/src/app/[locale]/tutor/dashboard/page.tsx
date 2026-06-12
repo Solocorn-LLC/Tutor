@@ -5,16 +5,9 @@ import { useSession } from 'next-auth/react'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { TabsContent } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -43,7 +36,6 @@ import {
   AlertCircle,
   Ban,
   Eye,
-  Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -55,43 +47,9 @@ import {
   InteractiveCalendar,
   type UpcomingClass,
 } from './components'
-import {
-  DEFAULT_TIMEZONE,
-  SUPPORTED_TIMEZONES,
-  type CalendarView,
-} from './components/InteractiveCalendar'
+import { DEFAULT_TIMEZONE, type CalendarView } from './components/InteractiveCalendar'
+import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
-
-const COMMON_TIMEZONES = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Toronto',
-  'America/Vancouver',
-  'America/Mexico_City',
-  'America/Sao_Paulo',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Europe/Moscow',
-  'Europe/Istanbul',
-  'Asia/Dubai',
-  'Asia/Kolkata',
-  'Asia/Shanghai',
-  'Asia/Tokyo',
-  'Asia/Singapore',
-  'Australia/Sydney',
-  'Pacific/Auckland',
-]
-
-function formatTimezoneLabel(tz: string) {
-  const parts = tz.split('/')
-  const city = parts[parts.length - 1]?.replace(/_/g, ' ') || tz
-  const region = parts[0] || ''
-  return { city, region, full: tz }
-}
 
 function DashboardSkeleton() {
   return (
@@ -648,329 +606,259 @@ function TutorDashboardContent() {
         )}
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <Card className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white !pb-4 shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="flex h-full w-full flex-col"
+          <SessionCalendarPanel
+            value={activeTab}
+            onValueChange={setActiveTab}
+            tabs={[
+              { value: 'courses', label: 'Sessions' },
+              { value: 'calendar', label: 'Calendar' },
+              { value: 'availability', label: 'My Availability' },
+              { value: 'oneOnOne', label: '1-on-1 Requests' },
+            ]}
+            showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
+            calendarView={calendarView}
+            onCalendarViewChange={setCalendarView}
+            timezone={timezone}
+            onTimezoneChange={setTimezone}
+          >
+            <TabsContent
+              value="calendar"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <CardHeader className="flex-shrink-0 px-6 pb-0 pt-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <TabsList className="flex gap-1.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5">
-                    <TabsTrigger
-                      value="courses"
-                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
-                    >
-                      Sessions
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="calendar"
-                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
-                    >
-                      Calendar
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="availability"
-                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
-                    >
-                      My Availability
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="oneOnOne"
-                      className="flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm"
-                    >
-                      1-on-1 Requests
-                    </TabsTrigger>
-                  </TabsList>
-                  {(activeTab === 'calendar' || activeTab === 'availability') && (
-                    <div className="flex items-center gap-2">
-                      {activeTab === 'calendar' && (
-                        <div className="grid h-9 min-w-[180px] grid-cols-3 rounded-xl bg-[#2D2B4E] p-1">
-                          {(['day', 'week', 'month'] as CalendarView[]).map(v => (
-                            <button
-                              key={v}
-                              onClick={() => setCalendarView(v)}
-                              className={cn(
-                                'flex items-center justify-center rounded-lg text-xs font-medium capitalize transition-colors',
-                                calendarView === v
-                                  ? 'bg-white text-black shadow-sm'
-                                  : 'text-white/70 hover:text-white'
-                              )}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <Select value={timezone} onValueChange={setTimezone}>
-                        <SelectTrigger className="h-9 w-[150px] rounded-lg border border-slate-300 bg-slate-50 text-xs text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-400 hover:bg-slate-100 hover:shadow-md focus-visible:shadow-none">
-                          <Globe className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
-                          <SelectValue placeholder="Timezone" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[280px] w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-200 !bg-white !bg-none p-1.5 !text-slate-700 shadow-lg">
-                          {COMMON_TIMEZONES.map(tz => {
-                            const { city } = formatTimezoneLabel(tz)
-                            return (
-                              <SelectItem
-                                key={tz}
-                                value={tz}
-                                className="!hover:bg-slate-100 !focus:bg-slate-100 rounded-md text-xs !text-slate-700"
-                              >
-                                {city}
-                              </SelectItem>
-                            )
-                          })}
-                        </SelectContent>
-                      </Select>
+              <InteractiveCalendar
+                initialView="day"
+                dayClickMode="create"
+                loading={loading}
+                embedded
+                timezone={timezone}
+                onTimezoneChange={setTimezone}
+                view={calendarView}
+                onViewChange={setCalendarView}
+              />
+            </TabsContent>
+            <TabsContent
+              value="availability"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <InteractiveCalendar
+                initialView="availability"
+                dayClickMode="availability"
+                loading={loading}
+                availabilityOnly
+                embedded
+                timezone={timezone}
+                onTimezoneChange={setTimezone}
+                view={calendarView}
+                onViewChange={setCalendarView}
+              />
+            </TabsContent>
+            <TabsContent
+              value="courses"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <div className="h-full overflow-y-auto">
+                <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
+                  Session Schedule
+                  <span className="text-muted-foreground text-sm font-normal">
+                    {new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </CardTitle>
+                <div className="space-y-3">
+                  {enrolledCourses.length === 0 ? (
+                    <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                      No courses have enrolled students yet.
                     </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pt-3 pb-2">
-                <TabsContent
-                  value="calendar"
-                  className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-                >
-                  <InteractiveCalendar
-                    initialView="day"
-                    dayClickMode="create"
-                    loading={loading}
-                    embedded
-                    timezone={timezone}
-                    onTimezoneChange={setTimezone}
-                    view={calendarView}
-                    onViewChange={setCalendarView}
-                  />
-                </TabsContent>
-                <TabsContent
-                  value="availability"
-                  className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-                >
-                  <InteractiveCalendar
-                    initialView="availability"
-                    dayClickMode="availability"
-                    loading={loading}
-                    availabilityOnly
-                    embedded
-                    timezone={timezone}
-                    onTimezoneChange={setTimezone}
-                    view={calendarView}
-                    onViewChange={setCalendarView}
-                  />
-                </TabsContent>
-                <TabsContent
-                  value="courses"
-                  className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-                >
-                  <div className="h-full overflow-y-auto">
-                    <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
-                      Session Schedule
-                      <span className="text-muted-foreground text-sm font-normal">
-                        {new Date().toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </span>
-                    </CardTitle>
-                    <div className="space-y-3">
-                      {enrolledCourses.length === 0 ? (
-                        <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                          No courses have enrolled students yet.
-                        </div>
-                      ) : (
-                        enrolledCourses.map(course => {
-                          const courseClasses = classes.filter(c => c.courseId === course.id)
-                          const hasActive = courseClasses.some(
-                            c =>
-                              c.status === 'active' ||
-                              c.status === 'live' ||
-                              c.status === 'preparing'
-                          )
-                          const nextSession = courseClasses.find(c => c.status === 'scheduled')
-                          const isWithin1Hour =
-                            nextSession &&
-                            new Date(nextSession.scheduledAt).getTime() - Date.now() <= 3600000
+                  ) : (
+                    enrolledCourses.map(course => {
+                      const courseClasses = classes.filter(c => c.courseId === course.id)
+                      const hasActive = courseClasses.some(
+                        c =>
+                          c.status === 'active' || c.status === 'live' || c.status === 'preparing'
+                      )
+                      const nextSession = courseClasses.find(c => c.status === 'scheduled')
+                      const isWithin1Hour =
+                        nextSession &&
+                        new Date(nextSession.scheduledAt).getTime() - Date.now() <= 3600000
 
-                          return (
-                            <div
-                              key={course.id}
-                              className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
-                            >
-                              <div className="min-w-0 space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-foreground truncate font-semibold">
-                                    {course.nationality && course.nationality !== 'Global'
-                                      ? `${course.name} — ${course.variantCategory || (course.categories || [])[0] || 'General'} — ${course.nationality}`
-                                      : course.name}
-                                  </p>
-                                </div>
-                                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                                  <span>{(course.categories || [])[0] || 'Untitled'}</span>
-                                  {course.price ? (
-                                    <span>
-                                      • {course.currency ?? 'USD'} {course.price}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                                  <Badge
-                                    variant={hasActive || isWithin1Hour ? 'default' : 'secondary'}
-                                    className={cn(
-                                      'cursor-pointer transition-all duration-200',
-                                      hasActive
-                                        ? 'bg-success text-success-foreground hover:brightness-110'
-                                        : isWithin1Hour
-                                          ? 'bg-warning text-warning-foreground hover:brightness-110'
-                                          : 'border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70'
-                                    )}
-                                    onClick={() => handleOpenSessionsModal(course)}
-                                  >
-                                    {course.upcomingSessionsCount
-                                      ? `${course.upcomingSessionsCount} session${course.upcomingSessionsCount === 1 ? '' : 's'}`
-                                      : course.schedule && course.schedule.length > 0
-                                        ? `${course.schedule.length} slot${course.schedule.length === 1 ? '' : 's'}`
-                                        : '0 sessions'}
-                                  </Badge>
-                                  <Link
-                                    href={withLocalePath(`/tutor/courses/${course.id}/enrollments`)}
-                                  >
-                                    <Badge
-                                      variant="secondary"
-                                      className="border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70 cursor-pointer transition-all duration-200"
-                                    >
-                                      {course.enrollmentCount} enrolled
-                                    </Badge>
-                                  </Link>
-                                </div>
-                                {courseClasses.length > 0 ? (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => handleOpenSessionsModal(course)}
-                                    className="transition-all duration-200"
-                                  >
-                                    <Eye className="mr-1 h-3 w-3" />
-                                    View Sessions
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    disabled={launchingCourseId === course.id}
-                                    onClick={() => handleEnterCourseClassroom(course)}
-                                    className="transition-all duration-200"
-                                  >
-                                    {launchingCourseId === course.id ? (
-                                      <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    ) : (
-                                      <Video className="mr-1 h-3 w-3" />
-                                    )}
-                                    Create Session
-                                  </Button>
-                                )}
-                                <Button
-                                  asChild
-                                  variant="outline"
-                                  size="sm"
-                                  className="hover:bg-muted/80 transition-all duration-200"
-                                >
-                                  <Link
-                                    href={withLocalePath(
-                                      `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
-                                    )}
-                                  >
-                                    Edit
-                                  </Link>
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-                <TabsContent
-                  value="oneOnOne"
-                  className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-                >
-                  <div className="h-full overflow-y-auto">
-                    <div className="mb-4 flex items-center justify-between">
-                      <CardTitle className="text-card-foreground">
-                        Pending 1-on-1 Requests
-                      </CardTitle>
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="hover:bg-muted/80 transition-all duration-200"
-                      >
-                        <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
-                      </Button>
-                    </div>
-                    <div className="space-y-3">
-                      {oneOnOneRequests.length === 0 ? (
-                        <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                          No pending 1 on 1 requests.
-                        </div>
-                      ) : (
-                        oneOnOneRequests.map(request => (
-                          <div
-                            key={request.requestId}
-                            className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
-                          >
-                            <div className="min-w-0 space-y-1">
-                              <p className="text-foreground truncate font-semibold">
-                                @{request.student?.handle || 'student'}
-                              </p>
-                              <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                                <span>
-                                  {new Date(request.requestedDate).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {request.startTime} - {request.endTime}
-                                </span>
-                                <span>•</span>
-                                <span>{request.timezone}</span>
-                              </div>
-                            </div>
+                      return (
+                        <div
+                          key={course.id}
+                          className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
+                        >
+                          <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
-                                className="transition-all duration-200"
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:bg-destructive/10 transition-all duration-200"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
-                              >
-                                Reject
-                              </Button>
+                              <p className="text-foreground truncate font-semibold">
+                                {course.nationality && course.nationality !== 'Global'
+                                  ? `${course.name} — ${course.variantCategory || (course.categories || [])[0] || 'General'} — ${course.nationality}`
+                                  : course.name}
+                              </p>
+                            </div>
+                            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                              <span>{(course.categories || [])[0] || 'Untitled'}</span>
+                              {course.price ? (
+                                <span>
+                                  • {course.currency ?? 'USD'} {course.price}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
-                        ))
-                      )}
+                          <div className="flex items-center gap-3">
+                            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                              <Badge
+                                variant={hasActive || isWithin1Hour ? 'default' : 'secondary'}
+                                className={cn(
+                                  'cursor-pointer transition-all duration-200',
+                                  hasActive
+                                    ? 'bg-success text-success-foreground hover:brightness-110'
+                                    : isWithin1Hour
+                                      ? 'bg-warning text-warning-foreground hover:brightness-110'
+                                      : 'border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70'
+                                )}
+                                onClick={() => handleOpenSessionsModal(course)}
+                              >
+                                {course.upcomingSessionsCount
+                                  ? `${course.upcomingSessionsCount} session${course.upcomingSessionsCount === 1 ? '' : 's'}`
+                                  : course.schedule && course.schedule.length > 0
+                                    ? `${course.schedule.length} slot${course.schedule.length === 1 ? '' : 's'}`
+                                    : '0 sessions'}
+                              </Badge>
+                              <Link
+                                href={withLocalePath(`/tutor/courses/${course.id}/enrollments`)}
+                              >
+                                <Badge
+                                  variant="secondary"
+                                  className="border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70 cursor-pointer transition-all duration-200"
+                                >
+                                  {course.enrollmentCount} enrolled
+                                </Badge>
+                              </Link>
+                            </div>
+                            {courseClasses.length > 0 ? (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleOpenSessionsModal(course)}
+                                className="transition-all duration-200"
+                              >
+                                <Eye className="mr-1 h-3 w-3" />
+                                View Sessions
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                disabled={launchingCourseId === course.id}
+                                onClick={() => handleEnterCourseClassroom(course)}
+                                className="transition-all duration-200"
+                              >
+                                {launchingCourseId === course.id ? (
+                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                ) : (
+                                  <Video className="mr-1 h-3 w-3" />
+                                )}
+                                Create Session
+                              </Button>
+                            )}
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="hover:bg-muted/80 transition-all duration-200"
+                            >
+                              <Link
+                                href={withLocalePath(
+                                  `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
+                                )}
+                              >
+                                Edit
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent
+              value="oneOnOne"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <div className="h-full overflow-y-auto">
+                <div className="mb-4 flex items-center justify-between">
+                  <CardTitle className="text-card-foreground">Pending 1-on-1 Requests</CardTitle>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="hover:bg-muted/80 transition-all duration-200"
+                  >
+                    <Link href={withLocalePath('/tutor/notifications')}>View all</Link>
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {oneOnOneRequests.length === 0 ? (
+                    <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                      No pending 1 on 1 requests.
                     </div>
-                  </div>
-                </TabsContent>
-              </CardContent>
-            </Tabs>
-          </Card>
+                  ) : (
+                    oneOnOneRequests.map(request => (
+                      <div
+                        key={request.requestId}
+                        className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-foreground truncate font-semibold">
+                            @{request.student?.handle || 'student'}
+                          </p>
+                          <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                            <span>
+                              {new Date(request.requestedDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {request.startTime} - {request.endTime}
+                            </span>
+                            <span>•</span>
+                            <span>{request.timezone}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={respondingRequestId === request.requestId}
+                            onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
+                            className="transition-all duration-200"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:bg-destructive/10 transition-all duration-200"
+                            disabled={respondingRequestId === request.requestId}
+                            onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          </SessionCalendarPanel>
         </div>
 
         {/* Create Class Dialog */}
