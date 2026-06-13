@@ -2114,23 +2114,23 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <DialogTitle className="text-lg">{selectedCourse?.name}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 space-y-2 p-3 pt-0">
-            <DialogPanel className="p-3">
+            <DialogPanel variant="glass" className="p-3">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-0.5">
-                  <div className="text-muted-foreground text-xs font-medium">Category</div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-xs font-medium text-white/70">Category</div>
+                  <div className="text-sm font-semibold text-white">
                     {selectedCourse?.categories?.[0] || 'general'}
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-muted-foreground text-xs font-medium">Sessions</div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-xs font-medium text-white/70">Sessions</div>
+                  <div className="text-sm font-semibold text-white">
                     {selectedCourse?.lessonCount ?? 0} sessions
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-muted-foreground text-xs font-medium">Price</div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-xs font-medium text-white/70">Price</div>
+                  <div className="text-sm font-semibold text-white">
                     {selectedCourse?.isFree
                       ? 'Free'
                       : selectedCourse?.price != null
@@ -2139,8 +2139,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-muted-foreground text-xs font-medium">Cost per Session</div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-xs font-medium text-white/70">Cost per Session</div>
+                  <div className="text-sm font-semibold text-white">
                     {selectedCourse?.isFree
                       ? 'Free'
                       : selectedCourse?.price != null && selectedCourse?.lessonCount
@@ -2149,8 +2149,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <div className="text-muted-foreground text-xs font-medium">Starts</div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-xs font-medium text-white/70">Starts</div>
+                  <div className="text-sm font-semibold text-white">
                     {selectedCourse?.startDate
                       ? new Date(selectedCourse.startDate).toLocaleDateString()
                       : 'TBA'}
@@ -2158,28 +2158,28 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 </div>
               </div>
               <div className="flex items-center justify-center py-2">
-                <MoreHorizontal className="text-muted-foreground h-4 w-4" />
+                <MoreHorizontal className="h-4 w-4 text-white/60" />
               </div>
               <div className="space-y-0.5">
-                <div className="text-muted-foreground text-xs font-medium">Schedule</div>
-                <div className="text-foreground text-sm font-semibold">
+                <div className="text-xs font-medium text-white/70">Schedule</div>
+                <div className="text-sm font-semibold text-white">
                   {selectedCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
                 </div>
               </div>
             </DialogPanel>
-            <DialogPanel className="p-3">
-              <h3 className="text-foreground mb-2 text-sm font-semibold">About this course</h3>
-              <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-snug">
+            <DialogPanel variant="glass" className="p-3">
+              <h3 className="mb-2 text-sm font-semibold text-white">About this course</h3>
+              <p className="whitespace-pre-wrap text-sm leading-snug text-white/80">
                 {selectedCourse?.description || 'More details will be available soon.'}
               </p>
             </DialogPanel>
-            <DialogPanel className="p-3">
+            <DialogPanel variant="glass" className="p-3">
               <div className="grid grid-cols-[auto_1fr] gap-3">
                 {/* Left column: heading + photo + name */}
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-foreground text-sm font-semibold">About the tutor</h3>
+                  <h3 className="text-sm font-semibold text-white">About the tutor</h3>
                   <div className="flex items-start gap-3">
-                    <div className="border-border bg-muted h-12 w-12 shrink-0 overflow-hidden rounded-xl border">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white/10">
                       {selectedCourse?.tutor?.avatarUrl ? (
                         <img
                           src={selectedCourse.tutor.avatarUrl}
@@ -2187,16 +2187,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="text-muted-foreground flex h-full w-full items-center justify-center">
+                        <div className="flex h-full w-full items-center justify-center text-white/60">
                           <User className="h-5 w-5" />
                         </div>
                       )}
                     </div>
                     <div className="min-w-[140px] shrink-0">
-                      <div className="text-foreground text-sm font-semibold">
+                      <div className="text-sm font-semibold text-white">
                         {selectedCourse?.tutor?.name || 'Anonymous Tutor'}
                       </div>
-                      <div className="text-muted-foreground text-xs">
+                      <div className="text-xs text-white/70">
                         @{selectedCourse?.tutor?.username || 'tutor'}
                       </div>
                     </div>
@@ -2206,22 +2206,22 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 {/* Right column: bio */}
                 {selectedCourse?.tutor?.bio && (
                   <div className="hidden self-stretch md:block">
-                    <div className="h-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1">
-                      <p className="text-muted-foreground line-clamp-3 text-xs leading-snug">
+                    <div className="h-full rounded-lg border border-white/20 bg-white/10 px-2 py-1">
+                      <p className="line-clamp-3 text-xs leading-snug text-white/80">
                         {selectedCourse.tutor.bio}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/70">
                 {selectedCourse?.tutor?.createdAt && (
                   <>
                     <div className="flex items-center gap-1">
-                      <CalendarDays className="text-muted-foreground h-3.5 w-3.5" />
+                      <CalendarDays className="h-3.5 w-3.5 text-white/60" />
                       <span>
                         Tutor Since{' '}
-                        <span className="text-foreground font-semibold">
+                        <span className="font-semibold text-white">
                           {new Date(selectedCourse.tutor.createdAt).toLocaleDateString('en-US', {
                             month: '2-digit',
                             day: '2-digit',
@@ -2230,34 +2230,37 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                         </span>
                       </span>
                     </div>
-                    <div className="bg-border h-3.5 w-px" />
+                    <div className="h-3.5 w-px bg-white/20" />
                   </>
                 )}
                 <div className="flex items-center gap-1">
-                  <BookOpen className="text-muted-foreground h-3.5 w-3.5" />
+                  <BookOpen className="h-3.5 w-3.5 text-white/60" />
                   <span>
                     Active Courses{' '}
-                    <span className="text-foreground font-semibold">
+                    <span className="font-semibold text-white">
                       {selectedCourse?.tutor?.activeCourses ?? 0}
                     </span>
                   </span>
                 </div>
-                <div className="bg-border h-3.5 w-px" />
+                <div className="h-3.5 w-px bg-white/20" />
                 <div className="flex items-center gap-1">
-                  <Globe className="text-muted-foreground h-3.5 w-3.5" />
+                  <Globe className="h-3.5 w-3.5 text-white/60" />
                   <span>
                     Country{' '}
-                    <span className="text-foreground font-semibold">
+                    <span className="font-semibold text-white">
                       {selectedCourse?.tutor?.country || '—'}
                     </span>
                   </span>
                 </div>
-                <div className="bg-border h-3.5 w-px" />
+                <div className="h-3.5 w-px bg-white/20" />
                 <div className="flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="font-semibold text-emerald-600">Verified</span>
+                  <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="font-semibold text-emerald-400">Verified</span>
                 </div>
               </div>
+            </DialogPanel>
+            <DialogPanel variant="glass" className="flex min-h-[120px] items-center justify-center p-3">
+              <span className="text-sm font-medium text-white/90">Course Videos and Documents</span>
             </DialogPanel>
           </div>
           <DialogFooter className="gap-2">

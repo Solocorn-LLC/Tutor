@@ -374,13 +374,22 @@ DialogBody.displayName = 'DialogBody'
 // DIALOG PANEL (White content panel for universal modal architecture)
 // ============================================
 
-const DialogPanel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => {
-    const theme = useDialogTheme()
+interface DialogPanelProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'glass'
+}
+
+const DialogPanel = React.forwardRef<HTMLDivElement, DialogPanelProps>(
+  ({ className, variant = 'default', ...props }, ref) => {
     return (
       <div
         ref={ref}
-        className={cn('rounded-xl p-4', 'border border-gray-200 bg-white text-gray-900', className)}
+        className={cn(
+          'rounded-xl p-4',
+          variant === 'glass' &&
+            'border border-white/30 bg-white/35 text-white shadow-sm backdrop-blur-xl',
+          variant === 'default' && 'border border-gray-200 bg-white text-gray-900',
+          className
+        )}
         {...props}
       />
     )
