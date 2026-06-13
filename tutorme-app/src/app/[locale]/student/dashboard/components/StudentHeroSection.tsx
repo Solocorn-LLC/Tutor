@@ -114,15 +114,61 @@ export function StudentHeroSection() {
     return sessions.find(s => new Date(s.start).getTime() >= now) || null
   }, [sessions])
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('en-US', {
+  // Live countdown to next session
+  const [countdown, setCountdown] = useState('')
+  useEffect(() => {
+    if (!nextSession) {
+      setCountdown('')
+      return
+    }
+    const target = new Date(nextSession.start).getTime()
+    const tick = () => {
+      const diff = target - Date.now()
+      if (diff <= 0) {
+        setCountdown('Starting now')
+        return
+      }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      )
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [nextSession])
+
+  const timeZoneAbbr = useMemo(() => {
+    try {
+      return (
+        new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''
+      )
+    } catch {
+      return ''
+    }
+  }, [])
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
       weekday: 'long',
+      year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
+  }
 
   return (
-    <div className="relative flex min-h-[300px] flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+    <div className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
       <div className="relative z-10 flex flex-1 flex-col">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -194,34 +240,28 @@ export function StudentHeroSection() {
         </div>
 
         {/* Action bar */}
-        <div className="mt-auto flex flex-wrap items-center gap-2">
-          <div className="flex-1" />
-          <span className="text-xs text-white/60">
-            {formatDate(currentTime)} •{' '}
-            {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {sessionsLoading ? (
-            <span className="text-xs text-white/60">Loading sessions…</span>
-          ) : nextSession ? (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>
-                Next: {nextSession.title} •{' '}
-                {new Date(nextSession.start).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}{' '}
-                {new Date(nextSession.start).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-white/60">No upcoming sessions</span>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-1 items-center justify-start gap-2" />
+          <div className="flex-none text-center">
+            <span className="text-base text-white">
+              {formatDate(currentTime)} • {formatTime(currentTime)} {timeZoneAbbr}
+            </span>
+          </div>
+          <div className="flex flex-1 items-center justify-end gap-2">
+            {sessionsLoading ? (
+              <span className="text-sm text-white/70">Loading sessions…</span>
+            ) : countdown ? (
+              <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
+                <AnimatedClock className="h-3.5 w-3.5" />
+                <span className="tabular-nums">Next session: {countdown}</span>
+              </div>
+            ) : (
+              <span className="text-sm text-white/70">No upcoming sessions</span>
+            )}
+          </div>
         </div>
 
+        {/* Day Detail Modal */}
         <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -268,5 +308,36 @@ export function StudentHeroSection() {
         </Dialog>
       </div>
     </div>
+  )
+}
+
+function AnimatedClock({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line
+        x1="12"
+        y1="12"
+        x2="12"
+        y2="6"
+        className="origin-[12px_12px] animate-[spin_12s_linear_infinite]"
+      />
+      <line
+        x1="12"
+        y1="12"
+        x2="12"
+        y2="8"
+        className="origin-[12px_12px] animate-[spin_2s_linear_infinite]"
+        strokeWidth="1.5"
+      />
+    </svg>
   )
 }
