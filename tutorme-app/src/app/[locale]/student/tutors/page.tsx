@@ -175,40 +175,6 @@ export default function StudentTutorDirectoryPage() {
   return (
     <div className="text-foreground flex h-full flex-col overflow-hidden">
       <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        {/* Hero */}
-        <Card className="mb-3 flex-shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4">
-            <h1 className="text-2xl font-bold text-white">Find Your Tutor</h1>
-
-            <div
-              className={cn(
-                'flex flex-wrap items-center justify-end gap-2',
-                loading && 'animate-pulse'
-              )}
-            >
-              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                <Users className="h-4 w-4 text-white/80" />
-                <span className="text-xs font-medium text-white/80">Tutors</span>
-                <span className="text-sm font-bold text-white">{headlineMetrics.tutorCount}</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                <BookOpen className="h-4 w-4 text-white/80" />
-                <span className="text-xs font-medium text-white/80">Published Courses</span>
-                <span className="text-sm font-bold text-white">
-                  {headlineMetrics.totalCourses}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                <Users className="h-4 w-4 text-white/80" />
-                <span className="text-xs font-medium text-white/80">Total Enrollments</span>
-                <span className="text-sm font-bold text-white">
-                  {headlineMetrics.totalEnrollments}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
         {/* Lower panel: expandable header + filters + tutor grid */}
         <div
           className={cn(
@@ -224,11 +190,39 @@ export default function StudentTutorDirectoryPage() {
               panelExpanded ? 'p-4' : 'p-5'
             )}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-white">Solocorn Tutors</h2>
                 <p className="mt-1 text-sm text-white/60">Find and book your tutor</p>
               </div>
+
+              <div
+                className={cn(
+                  'flex flex-wrap items-center justify-end gap-2',
+                  loading && 'animate-pulse'
+                )}
+              >
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <Users className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Tutors</span>
+                  <span className="text-sm font-bold text-white">{headlineMetrics.tutorCount}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <BookOpen className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Published Courses</span>
+                  <span className="text-sm font-bold text-white">
+                    {headlineMetrics.totalCourses}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
+                  <Users className="h-4 w-4 text-white/80" />
+                  <span className="text-xs font-medium text-white/80">Total Enrollments</span>
+                  <span className="text-sm font-bold text-white">
+                    {headlineMetrics.totalEnrollments}
+                  </span>
+                </div>
+              </div>
+
               {panelExpanded ? (
                 <Minimize2 className="h-5 w-5 text-white/70" />
               ) : (
@@ -291,7 +285,7 @@ export default function StudentTutorDirectoryPage() {
 
           {/* Tutor grid */}
           <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 p-4">
-            <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {loading ? (
                 Array.from({ length: 6 }).map((_, index) => (
                   <Card
@@ -321,6 +315,7 @@ export default function StudentTutorDirectoryPage() {
                 tutors.map(tutor => (
                   <TutorCard
                     key={tutor.id}
+                    compact
                     tutor={{
                       id: tutor.id,
                       username: tutor.username,

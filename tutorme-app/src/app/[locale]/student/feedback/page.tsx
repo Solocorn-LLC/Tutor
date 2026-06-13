@@ -10,7 +10,7 @@ import {
   type ComponentProps,
 } from 'react'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -303,6 +303,7 @@ export default function StudentFeedbackPage() {
 
 function StudentFeedbackContent() {
   const { data: session } = useSession()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const sessionIdFromQuery = searchParams.get('sessionId')
 
@@ -1139,7 +1140,7 @@ function StudentFeedbackContent() {
         <div className="w-full px-4 pt-2">
           <div className="flex w-full flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center">
             <div className="flex flex-1 items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+              <Button variant="ghost" size="icon" onClick={() => router.push('/student/dashboard')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               {sessionContext && (
