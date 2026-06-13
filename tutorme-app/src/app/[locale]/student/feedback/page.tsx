@@ -46,6 +46,7 @@ import {
   BookOpen,
   Monitor,
   GripHorizontal,
+  Wifi,
 } from 'lucide-react'
 import {
   Dialog,
@@ -58,7 +59,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
-import { motion, useDragControls } from 'framer-motion'
+import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type { LiveTask, LiveTaskPoll, LiveTaskQuestion, ChatMessage } from '@/lib/socket'
 
@@ -121,6 +122,8 @@ function ClassroomControlsPanel({
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
+  const wifiColor = isConnected ? 'text-emerald-500' : error ? 'text-red-500' : 'text-amber-400'
+
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
       <div className="pointer-events-none absolute bottom-4 right-4">
@@ -134,19 +137,35 @@ function ClassroomControlsPanel({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className={cn(
-            'pointer-events-auto relative w-60 cursor-default select-none shadow-xl',
+            'pointer-events-auto relative w-60 cursor-default select-none overflow-hidden shadow-xl',
             open
               ? 'rounded-2xl border border-slate-200 bg-white p-3'
               : 'rounded-2xl bg-gray-800'
           )}
         >
+          <style jsx>{`
+            @keyframes wifi-pulse {
+              0%,
+              100% {
+                transform: scale(1);
+                opacity: 1;
+              }
+              50% {
+                transform: scale(1.25);
+                opacity: 0.6;
+              }
+            }
+            .wifi-signal {
+              animation: wifi-pulse 1.5s ease-in-out infinite;
+            }
+          `}</style>
+
           {/* Header / drag handle */}
           <button
             type="button"
             className={cn(
-              'flex w-full cursor-grab items-center justify-center gap-2 active:cursor-grabbing',
-              open && 'rounded-t-xl border-b border-slate-200 pb-2',
-              !open && 'h-10 px-3'
+              'relative flex w-full cursor-grab items-center active:cursor-grabbing',
+              open ? 'h-8 rounded-t-xl border-b border-slate-200' : 'h-10'
             )}
             onPointerDown={e => dragControls.start(e)}
             onClick={() => {
@@ -155,68 +174,93 @@ function ClassroomControlsPanel({
             }}
           >
             <GripHorizontal
-              className={cn('h-4 w-4', open ? 'text-slate-400' : 'text-white/70')}
+              className={cn(
+                'absolute left-0 h-4 w-4',
+                open ? 'text-slate-400' : 'text-white/70'
+              )}
             />
-            <span className={cn('text-xs font-semibold', open ? 'text-slate-700' : 'text-white')}>
+            <span
+              className={cn(
+                'mx-auto text-xs font-semibold',
+                open ? 'text-slate-700' : 'text-white'
+              )}
+            >
               Controls
             </span>
+            <Wifi
+              className={cn(
+                'wifi-signal absolute right-0 h-4 w-4',
+                open ? wifiColor : isConnected ? 'text-emerald-400' : 'text-red-400'
+              )}
+            />
           </button>
 
           {/* Controls */}
-          {open && (
-            <div className="mt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setFollowTutor(!followTutor)}
-                className={cn(
-                  'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-                  followTutor
-                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                )}
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                key="controls-body"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
               >
-                <div
-                  className={cn(
-                    'h-2 w-2 rounded-full',
-                    followTutor ? 'animate-pulse bg-white' : 'bg-slate-400'
-                  )}
-                />
-                {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-              </button>
+                <div className="mt-2 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFollowTutor(!followTutor)}
+                    className={cn(
+                      'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
+                      followTutor
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'h-2 w-2 rounded-full',
+                        followTutor ? 'animate-pulse bg-white' : 'bg-slate-400'
+                      )}
+                    />
+                    {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                  </button>
 
-              <div className="flex h-9 items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700">
-                <div
-                  className={cn(
-                    'h-2 w-2 rounded-full',
-                    isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                  )}
-                />
-                {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-              </div>
+                  <div className="flex h-9 items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700">
+                    <div
+                      className={cn(
+                        'h-2 w-2 rounded-full',
+                        isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+                      )}
+                    />
+                    {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+                  </div>
 
-              <button
-                type="button"
-                disabled={!roomUrl}
-                onClick={() => {
-                  if (!roomUrl) return
-                  openVideoOverlay({ roomUrl, token, autoRecord: false })
-                }}
-                className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Video className="h-4 w-4" />
-                Video
-              </button>
+                  <button
+                    type="button"
+                    disabled={!roomUrl}
+                    onClick={() => {
+                      if (!roomUrl) return
+                      openVideoOverlay({ roomUrl, token, autoRecord: false })
+                    }}
+                    className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Video className="h-4 w-4" />
+                    Video
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setShowDirectoryPanel(true)}
-                className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-              >
-                <Folder className="h-4 w-4" />
-                Directory
-              </button>
-            </div>
-          )}
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectoryPanel(true)}
+                    className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                  >
+                    <Folder className="h-4 w-4" />
+                    Directory
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </div>
