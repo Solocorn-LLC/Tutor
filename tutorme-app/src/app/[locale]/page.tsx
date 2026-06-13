@@ -47,6 +47,7 @@ import {
   Check,
   Settings,
   RefreshCw,
+  MoreHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -2036,8 +2037,9 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   </div>
                 </div>
               </div>
-            </DialogPanel>
-            <DialogPanel className="p-3">
+              <div className="flex items-center justify-center py-2">
+                <MoreHorizontal className="text-muted-foreground h-4 w-4" />
+              </div>
               <div className="space-y-0.5">
                 <div className="text-muted-foreground text-xs font-medium">Schedule</div>
                 <div className="text-foreground text-sm font-semibold">
