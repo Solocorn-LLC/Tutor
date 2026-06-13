@@ -191,10 +191,14 @@ export function LatexFormulaDialog({ open, onOpenChange, onPlace }: LatexFormula
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="modal-secondary-dark" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handlePlace} disabled={isLoading || !previewSvg}>
+            <Button
+              variant="modal-primary-dark"
+              onClick={handlePlace}
+              disabled={isLoading || !previewSvg}
+            >
               <Sigma className="mr-1.5 h-4 w-4" />
               Place on Board
             </Button>
