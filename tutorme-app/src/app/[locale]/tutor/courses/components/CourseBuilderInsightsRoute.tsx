@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
-  ArrowLeft,
   Loader2,
   BookOpen,
   Edit3,
@@ -31,7 +30,7 @@ import {
   Trash2,
   Video as VideoIcon,
 } from 'lucide-react'
-import Link from 'next/link'
+import { BackButton } from '@/components/navigation/BackButton'
 import {
   Select,
   SelectContent,
@@ -457,11 +456,7 @@ function CourseBuilderInsightsRouteInner({
         <div className="flex w-full flex-col gap-4">
           <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 pb-3 pt-4 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/tutor/dashboard">
-                <Button variant="ghost" size="icon">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              </Link>
+              <BackButton href="/tutor/dashboard" />
 
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">

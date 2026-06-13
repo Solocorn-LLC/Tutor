@@ -374,7 +374,7 @@ function TutorClassroomContent() {
       {/* Header */}
       <div className="w-full px-4 pt-2">
         <div className="flex w-full items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/tutor/classes')}>
+          <Button variant="ghost" size="icon" onClick={() => router.push('/tutor/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
 

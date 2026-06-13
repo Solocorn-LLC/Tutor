@@ -25,7 +25,6 @@ import {
   TrendingUp,
   Users,
   BookOpen,
-  ArrowLeft,
   Download,
   BarChart3,
   Loader2,
@@ -41,6 +40,7 @@ import {
   User,
 } from 'lucide-react'
 import Link from 'next/link'
+import { BackButton } from '@/components/navigation/BackButton'
 import { toast } from 'sonner'
 import { EngagementDashboard } from '@/components/reports/engagement-dashboard'
 import { RevenueDashboard } from '../dashboard/components/RevenueDashboard'
@@ -307,11 +307,7 @@ export default function TutorReports() {
           <div className="flex w-full flex-col gap-4">
             <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <Link href="/tutor/dashboard">
-                  <Button variant="ghost" size="icon">
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                </Link>
+                <BackButton href="/tutor/dashboard" />
                 <div>
                   <h1 className="text-2xl font-bold">Analytics</h1>
                 </div>
