@@ -3207,7 +3207,7 @@ const CategorySection = ({
   return (
     <div className="space-y-4">
       <h4
-        className="flex items-center gap-2 text-xs font-medium"
+        className="flex items-center gap-2 text-[13px] font-medium"
         style={{ color: color || 'white' }}
       >
         <Icon
@@ -3220,7 +3220,7 @@ const CategorySection = ({
         {filtered.map((exam, idx) => (
           <label
             key={`${label}-${idx}-${exam}`}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[11px] text-white/90 transition-colors hover:bg-white/10"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-white/90 transition-colors hover:bg-white/10"
           >
             <div className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
               <input
@@ -3313,9 +3313,9 @@ const CategorySearchModal = ({
     },
     languages: { bg: 'bg-[#00C7BE]', text: 'text-white', close: 'text-white/60 hover:text-white' },
     professional: {
-      bg: 'bg-[#8E8E93]',
-      text: 'text-white',
-      close: 'text-white/60 hover:text-white',
+      bg: 'bg-[#FFD60A]',
+      text: 'text-slate-900',
+      close: 'text-slate-900/60 hover:text-slate-900',
     },
   }
   const UNIVERSITY_TO_COUNTRY = useMemo(() => {
@@ -3433,7 +3433,7 @@ const CategorySearchModal = ({
   const hasResults = (exams: string[]) => filterExams(exams).length > 0
 
   const tabTriggerClass =
-    'rounded-none border-b-2 border-transparent px-3 py-3 font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
+    'rounded-none border-b-2 border-transparent px-3 py-3 text-[15px] font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
 
   if (!isOpen) return null
 
@@ -3445,7 +3445,7 @@ const CategorySearchModal = ({
         onWheel={e => e.stopPropagation()}
         onTouchMove={e => e.stopPropagation()}
       />
-      <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/30 bg-white/25 shadow-2xl backdrop-blur-xl duration-200">
+      <div className="animate-in zoom-in-95 relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/30 bg-white/35 shadow-2xl backdrop-blur-xl duration-200">
         {/* Header */}
         <div className="relative shrink-0 px-6 pb-4 pt-4">
           <button
@@ -3700,7 +3700,7 @@ const CategorySearchModal = ({
                 <TabsTrigger
                   value="professional"
                   className={tabTriggerClass}
-                  style={{ color: '#8E8E93' }}
+                  style={{ color: '#FFD60A' }}
                 >
                   <Award className="mr-1.5 h-4 w-4" /> Professional
                 </TabsTrigger>
@@ -3935,7 +3935,7 @@ const CategorySearchModal = ({
                         categorySearch={categorySearch}
                         selectedCategories={selectedCategories}
                         onToggleCategory={toggleCategory}
-                        color="#8E8E93"
+                        color="#FFD60A"
                       />
                     ))}
                     {!PROFESSIONAL_CATEGORIES.some(cat => hasResults(cat.exams)) && (
@@ -4245,7 +4245,7 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/25 px-6 py-5 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-8 md:py-6"
+              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/35 px-6 py-5 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-8 md:py-6"
               onClick={e => e.stopPropagation()}
             >
               {/* Close button */}

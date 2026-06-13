@@ -182,7 +182,7 @@ export default function App() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/25 p-6 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-8"
+                className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/35 p-6 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-8"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Close button */}

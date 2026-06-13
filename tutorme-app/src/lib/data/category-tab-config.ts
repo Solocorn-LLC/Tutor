@@ -27,7 +27,7 @@ export const CATEGORY_TAB_CONFIG: CategoryTabConfig[] = [
   { value: 'national', label: 'National', icon: Flag, color: '#FF9F0A' },
   { value: 'universities', label: 'Universities', icon: GraduationCap, color: '#FF375F' },
   { value: 'languages', label: 'Languages', icon: Languages, color: '#00C7BE' },
-  { value: 'professional', label: 'Professional', icon: Award, color: '#8E8E93' },
+  { value: 'professional', label: 'Professional', icon: Award, color: '#FFD60A' },
   { value: 'diy', label: 'DIY', icon: Wrench, color: '#FF9500' },
   { value: 'specialties', label: 'Specialties', icon: Sparkles, color: '#AF52DE' },
 ]
