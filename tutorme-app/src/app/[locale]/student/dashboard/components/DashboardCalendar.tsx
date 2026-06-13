@@ -267,10 +267,7 @@ export function DashboardCalendar({
           ) : classes.length === 0 ? (
             <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
               <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
-              <p className="text-muted-foreground">You haven&apos;t booked any classes yet.</p>
-              <Button className="mt-4" asChild>
-                <Link href="/student/courses">Browse Classes</Link>
-              </Button>
+              <p className="text-muted-foreground">There are no upcoming sessions.</p>
             </div>
           ) : (
             <div className="space-y-3 pr-2">

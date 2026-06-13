@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   },
   { href: '/student/tutors', label: 'Book a Tutor', icon: Compass, iconColor: 'text-[#7C3AED]' },
   { href: '/student/courses', label: 'Courses', icon: GraduationCap, iconColor: 'text-[#06B6D4]' },
-  { href: '/student/feedback', label: 'Live Classroom', icon: Video, iconColor: 'text-[#16A34A]' },
+  { href: '/student/feedback', label: 'Classroom', icon: Video, iconColor: 'text-[#16A34A]' },
   {
     href: '/student/messages',
     label: 'Messages',
