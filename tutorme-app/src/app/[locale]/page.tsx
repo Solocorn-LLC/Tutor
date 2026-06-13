@@ -891,7 +891,7 @@ function HowItWorksVideoCard({
       href={`https://www.youtube.com/watch?v=${video.id}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+      className="group block w-40 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
     >
       <div className="relative aspect-video overflow-hidden">
         <img
@@ -900,13 +900,13 @@ function HowItWorksVideoCard({
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors group-hover:bg-black/30">
-          <Play className="h-8 w-8 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
+          <Play className="h-5 w-5 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
-      <div className="p-2">
-        <h3 className="text-xs font-semibold text-white">{video.title}</h3>
+      <div className="p-1.5">
+        <h3 className="text-[11px] font-semibold text-white">{video.title}</h3>
         {video.description && (
-          <p className="mt-0.5 text-[11px] text-white/70">{video.description}</p>
+          <p className="mt-0.5 text-[10px] leading-snug text-white/70">{video.description}</p>
         )}
       </div>
     </a>
@@ -924,16 +924,101 @@ function HowItWorksDocumentCard({
       download={doc.filename}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-white/5 p-3 transition-colors hover:bg-white/10"
+      className="group flex w-48 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-3 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
-        <FileText className="h-5 w-5 text-white/80" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+        <FileText className="h-4 w-4 text-white/90" />
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-xs font-semibold text-white">{doc.title}</h3>
-        <p className="mt-0.5 text-[11px] text-white/60">Download PDF</p>
+        <h3 className="truncate text-[11px] font-semibold text-white">{doc.title}</h3>
+        <p className="mt-0.5 text-[10px] text-white/70">Download PDF</p>
       </div>
     </a>
+  )
+}
+
+function HowItWorksArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: 'left' | 'right'
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'shrink-0 transition-all duration-300',
+        'h-24 w-7 self-center',
+        !disabled
+          ? 'cursor-pointer hover:brightness-110 hover:-translate-y-[2px]'
+          : 'cursor-not-allowed opacity-30 grayscale'
+      )}
+      style={{
+        clipPath:
+          direction === 'left'
+            ? 'polygon(100% 0, 100% 100%, 0 50%)'
+            : 'polygon(0 0, 0 100%, 100% 50%)',
+        background: 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)',
+        filter:
+          'drop-shadow(0 8px 16px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))',
+      }}
+      aria-label={direction === 'left' ? 'Previous' : 'Next'}
+    />
+  )
+}
+
+function HowItWorksRow<T>({
+  title,
+  items,
+  renderItem,
+  itemsPerPage = 4,
+}: {
+  title: string
+  items: T[]
+  renderItem: (item: T) => React.ReactNode
+  itemsPerPage?: number
+}) {
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage))
+  const currentPage = Math.min(page, totalPages - 1)
+  const canPrev = currentPage > 0
+  const canNext = currentPage < totalPages - 1
+  const visible = items.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
+
+  return (
+    <div>
+      <h2 className="mb-2 text-center text-base font-semibold text-white">{title}</h2>
+      <div className="flex items-center justify-center gap-4">
+        <HowItWorksArrow
+          direction="left"
+          disabled={!canPrev}
+          onClick={() => setPage(p => Math.max(p - 1, 0))}
+        />
+        <div className="scrollbar-hide flex w-[calc(var(--card-width)*var(--items-per-page)+var(--card-gap)*(var(--items-per-page)-1))] gap-3 overflow-x-auto py-1"
+          style={{
+            ['--card-width' as any]: '10rem',
+            ['--card-gap' as any]: '0.75rem',
+            ['--items-per-page' as any]: String(itemsPerPage),
+          }}
+        >
+          {visible.map((item, i) => (
+            <div key={i} className="shrink-0">
+              {renderItem(item)}
+            </div>
+          ))}
+        </div>
+        <HowItWorksArrow
+          direction="right"
+          disabled={!canNext}
+          onClick={() => setPage(p => Math.min(p + 1, totalPages - 1))}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -4374,15 +4459,14 @@ export default function LandingPage() {
                 </div>
 
                 {/* Scrollable rows */}
-                <div className="w-full flex-1 overflow-y-auto px-2 py-2">
+                <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-2 py-2">
                   {Object.entries(HOW_IT_WORKS_VIDEOS).map(([section, videos], sectionIndex, sections) => (
                     <div key={section}>
-                      <h2 className="mb-2 text-center text-base font-semibold text-white">{section}</h2>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {videos.map(video => (
-                          <HowItWorksVideoCard key={video.id} video={video} />
-                        ))}
-                      </div>
+                      <HowItWorksRow
+                        title={section}
+                        items={videos}
+                        renderItem={video => <HowItWorksVideoCard video={video} />}
+                      />
                       {sectionIndex < sections.length - 1 && (
                         <div className="mx-2 my-3 h-px bg-white/20" />
                       )}
@@ -4391,14 +4475,11 @@ export default function LandingPage() {
 
                   <div className="mx-2 my-3 h-px bg-white/20" />
 
-                  <div>
-                    <h2 className="mb-2 text-center text-base font-semibold text-white">Documents</h2>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {HOW_IT_WORKS_DOCUMENTS.map(doc => (
-                        <HowItWorksDocumentCard key={doc.id} doc={doc} />
-                      ))}
-                    </div>
-                  </div>
+                  <HowItWorksRow
+                    title="Documents"
+                    items={HOW_IT_WORKS_DOCUMENTS}
+                    renderItem={doc => <HowItWorksDocumentCard doc={doc} />}
+                  />
                 </div>
               </div>
             </motion.div>
