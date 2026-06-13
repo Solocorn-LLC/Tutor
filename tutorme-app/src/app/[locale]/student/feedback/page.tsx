@@ -46,8 +46,6 @@ import {
   BookOpen,
   Monitor,
   GripHorizontal,
-  Settings2,
-  X,
 } from 'lucide-react'
 import {
   Dialog,
@@ -120,107 +118,105 @@ function ClassroomControlsPanel({
   setShowDirectoryPanel,
 }: ClassroomControlsPanelProps) {
   const [open, setOpen] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
-
-  if (!open) {
-    return (
-      <div className="pointer-events-none fixed inset-0 z-50">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="pointer-events-auto absolute left-1/2 top-24 -translate-x-1/2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50"
-        >
-          <Settings2 className="mr-2 inline h-3.5 w-3.5" />
-          Controls
-        </button>
-      </div>
-    )
-  }
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2">
+      <div className="pointer-events-none absolute bottom-4 right-4">
         <motion.div
           drag
           dragControls={dragControls}
           dragListener={false}
           dragMomentum={false}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="pointer-events-auto relative w-60 cursor-default select-none rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+          className={cn(
+            'pointer-events-auto relative w-60 cursor-default select-none shadow-xl',
+            open
+              ? 'rounded-2xl border border-slate-200 bg-white p-3'
+              : 'rounded-2xl bg-gray-800'
+          )}
         >
-          {/* Drag handle / header */}
-          <div
-            className="flex cursor-grab items-center justify-between gap-2 rounded-t-xl border-b border-slate-200 pb-2 active:cursor-grabbing"
+          {/* Header / drag handle */}
+          <button
+            type="button"
+            className={cn(
+              'flex w-full cursor-grab items-center justify-center gap-2 active:cursor-grabbing',
+              open && 'rounded-t-xl border-b border-slate-200 pb-2',
+              !open && 'h-10 px-3'
+            )}
             onPointerDown={e => dragControls.start(e)}
+            onClick={() => {
+              if (isDragging) return
+              setOpen(v => !v)
+            }}
           >
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-              <GripHorizontal className="h-4 w-4 text-slate-400" />
-              Classroom
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Hide controls"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+            <GripHorizontal
+              className={cn('h-4 w-4', open ? 'text-slate-400' : 'text-white/70')}
+            />
+            <span className={cn('text-xs font-semibold', open ? 'text-slate-700' : 'text-white')}>
+              Controls
+            </span>
+          </button>
 
           {/* Controls */}
-          <div className="mt-2 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setFollowTutor(!followTutor)}
-              className={cn(
-                'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-                followTutor
-                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              )}
-            >
-              <div
+          {open && (
+            <div className="mt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setFollowTutor(!followTutor)}
                 className={cn(
-                  'h-2 w-2 rounded-full',
-                  followTutor ? 'animate-pulse bg-white' : 'bg-slate-400'
+                  'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
+                  followTutor
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 )}
-              />
-              {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-            </button>
+              >
+                <div
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    followTutor ? 'animate-pulse bg-white' : 'bg-slate-400'
+                  )}
+                />
+                {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+              </button>
 
-            <div className="flex h-9 items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700">
-              <div
-                className={cn(
-                  'h-2 w-2 rounded-full',
-                  isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                )}
-              />
-              {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+              <div className="flex h-9 items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700">
+                <div
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+                  )}
+                />
+                {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+              </div>
+
+              <button
+                type="button"
+                disabled={!roomUrl}
+                onClick={() => {
+                  if (!roomUrl) return
+                  openVideoOverlay({ roomUrl, token, autoRecord: false })
+                }}
+                className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Video className="h-4 w-4" />
+                Video
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDirectoryPanel(true)}
+                className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+              >
+                <Folder className="h-4 w-4" />
+                Directory
+              </button>
             </div>
-
-            <button
-              type="button"
-              disabled={!roomUrl}
-              onClick={() => {
-                if (!roomUrl) return
-                openVideoOverlay({ roomUrl, token, autoRecord: false })
-              }}
-              className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Video className="h-4 w-4" />
-              Video
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowDirectoryPanel(true)}
-              className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-            >
-              <Folder className="h-4 w-4" />
-              Directory
-            </button>
-          </div>
+          )}
         </motion.div>
       </div>
     </div>
@@ -1576,15 +1572,7 @@ function StudentFeedbackContent() {
             >
               {rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">
-                  <div className="mb-4 border-b border-gray-100 pb-2">
-                    <h2 className="text-base font-bold text-gray-900">DMI</h2>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500">
-                      Digital Marking Interface
-                    </p>
-                  </div>
-                  {!activeTask || !activeTask.dmiItems || activeTask.dmiItems.length === 0 ? (
-                    <p className="text-sm text-gray-500">No DMI available for this task.</p>
-                  ) : (
+                  {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
                       {activeTask.dmiItems.map(item => (
                         <div
@@ -1598,7 +1586,7 @@ function StudentFeedbackContent() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ) : rightPanelTab === 'my-board' ? (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
