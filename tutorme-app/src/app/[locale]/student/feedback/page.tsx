@@ -1269,11 +1269,19 @@ function StudentFeedbackContent() {
           </div>
 
           {/* Left Panel */}
-          {!leftPanelHidden && (
-            <div
-              className="relative z-40 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
-              style={{ width: leftPanelWidth }}
-            >
+          <AnimatePresence initial={false}>
+            {!leftPanelHidden && (
+              <motion.div
+                key="left-panel"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: leftPanelWidth, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{
+                  duration: leftPanelResizing ? 0 : 0.5,
+                  ease: 'easeInOut',
+                }}
+                className="relative z-40 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
+              >
               <div className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] px-4 py-3">
                 <h2 className="text-sm font-semibold text-[#1F2933]">Lessons</h2>
                 {unseenTaskIds.length > 0 && (
@@ -1322,10 +1330,18 @@ function StudentFeedbackContent() {
                   leftResizeStartW.current = leftPanelWidth
                 }}
               />
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-300 ease-out">
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              leftPanelResizing || rightPanelResizing
+                ? 'transition-none'
+                : 'transition-all duration-500 ease-out'
+            )}
+          >
             <Tabs
               value={activeTab}
               onValueChange={v => setActiveTab(v as 'task' | 'tutor-board')}
@@ -1535,7 +1551,7 @@ function StudentFeedbackContent() {
           <div
             className={cn(
               'relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
-              'transition-none'
+              rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
               width: rightPanelWidth + (isExpanded ? leftPanelWidth : 0),
