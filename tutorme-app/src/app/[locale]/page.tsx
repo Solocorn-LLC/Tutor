@@ -891,7 +891,7 @@ function HowItWorksVideoCard({
       href={`https://www.youtube.com/watch?v=${video.id}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block w-40 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+      className="group block w-36 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
     >
       <div className="relative aspect-video overflow-hidden">
         <img
@@ -903,10 +903,10 @@ function HowItWorksVideoCard({
           <Play className="h-5 w-5 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
-      <div className="p-1.5">
-        <h3 className="text-[11px] font-semibold text-white">{video.title}</h3>
+      <div className="p-1">
+        <h3 className="text-[10px] font-semibold text-white">{video.title}</h3>
         {video.description && (
-          <p className="mt-0.5 text-[10px] leading-snug text-white/70">{video.description}</p>
+          <p className="mt-0.5 text-[9px] leading-snug text-white/70">{video.description}</p>
         )}
       </div>
     </a>
@@ -924,14 +924,14 @@ function HowItWorksDocumentCard({
       download={doc.filename}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex w-48 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-3 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
+      className="group flex w-40 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-2 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
         <FileText className="h-4 w-4 text-white/90" />
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-[11px] font-semibold text-white">{doc.title}</h3>
-        <p className="mt-0.5 text-[10px] text-white/70">Download PDF</p>
+        <h3 className="truncate text-[10px] font-semibold text-white">{doc.title}</h3>
+        <p className="mt-0.5 text-[9px] text-white/70">Download PDF</p>
       </div>
     </a>
   )
@@ -953,7 +953,7 @@ function HowItWorksArrow({
       disabled={disabled}
       className={cn(
         'shrink-0 transition-all duration-300',
-        'h-24 w-7 self-center',
+        'h-20 w-6 self-center',
         !disabled
           ? 'cursor-pointer hover:brightness-110 hover:-translate-y-[2px]'
           : 'cursor-not-allowed opacity-30 grayscale'
@@ -976,7 +976,7 @@ function HowItWorksRow<T>({
   title,
   items,
   renderItem,
-  itemsPerPage = 4,
+  itemsPerPage = 5,
 }: {
   title: string
   items: T[]
@@ -992,17 +992,17 @@ function HowItWorksRow<T>({
 
   return (
     <div>
-      <h2 className="mb-2 text-center text-base font-semibold text-white">{title}</h2>
-      <div className="flex items-center justify-center gap-4">
+      <h2 className="mb-1 text-center text-sm font-semibold text-white">{title}</h2>
+      <div className="flex items-center justify-center gap-3">
         <HowItWorksArrow
           direction="left"
           disabled={!canPrev}
           onClick={() => setPage(p => Math.max(p - 1, 0))}
         />
-        <div className="scrollbar-hide flex w-[calc(var(--card-width)*var(--items-per-page)+var(--card-gap)*(var(--items-per-page)-1))] gap-3 overflow-x-auto py-1"
+        <div className="scrollbar-hide flex w-[calc(var(--card-width)*var(--items-per-page)+var(--card-gap)*(var(--items-per-page)-1))] gap-2 overflow-x-auto py-1"
           style={{
-            ['--card-width' as any]: '10rem',
-            ['--card-gap' as any]: '0.75rem',
+            ['--card-width' as any]: '9rem',
+            ['--card-gap' as any]: '0.5rem',
             ['--items-per-page' as any]: String(itemsPerPage),
           }}
         >
@@ -4425,7 +4425,7 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/35 px-6 py-5 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-8 md:py-6"
+              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/35 px-4 py-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-6 md:py-5"
               onClick={e => e.stopPropagation()}
             >
               {/* Close button */}
@@ -4439,7 +4439,7 @@ export default function LandingPage() {
 
               <div className="flex w-full max-w-5xl flex-1 flex-col overflow-hidden">
                 {/* Gear animation header */}
-                <div className="flex flex-col items-center justify-center py-2">
+                <div className="flex flex-col items-center justify-center py-1">
                   <div className="flex items-center justify-center gap-1">
                     <motion.span
                       className="inline-flex h-6 w-6 text-white/90"
@@ -4459,7 +4459,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Scrollable rows */}
-                <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-2 py-2">
+                <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1">
                   {Object.entries(HOW_IT_WORKS_VIDEOS).map(([section, videos], sectionIndex, sections) => (
                     <div key={section}>
                       <HowItWorksRow
@@ -4468,12 +4468,12 @@ export default function LandingPage() {
                         renderItem={video => <HowItWorksVideoCard video={video} />}
                       />
                       {sectionIndex < sections.length - 1 && (
-                        <div className="mx-2 my-3 h-px bg-white/20" />
+                        <div className="mx-2 my-2 h-px bg-white/20" />
                       )}
                     </div>
                   ))}
 
-                  <div className="mx-2 my-3 h-px bg-white/20" />
+                  <div className="mx-2 my-2 h-px bg-white/20" />
 
                   <HowItWorksRow
                     title="Documents"
