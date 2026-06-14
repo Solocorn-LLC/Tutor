@@ -300,8 +300,8 @@ export default function TutorReports() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
-      <div className="w-full">
+    <div className="h-screen overflow-hidden bg-[#FFFFFF]">
+      <div className="h-full w-full overflow-y-auto tutor-mypage-scroll">
         {/* Header Container */}
         <div className="bg-[#FFFFFF] px-4 pb-2 pt-4 sm:px-6">
           <div className="flex w-full flex-col gap-4">
