@@ -3,8 +3,8 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   ChevronLeft,
   ChevronRight,
@@ -101,7 +101,7 @@ export function VariantScheduleEditor({
   schedule,
   onScheduleChange,
   price,
-  weeksToSchedule = 8,
+  weeksToSchedule = 1,
   onWeeksChange,
   onWheelScroll,
   allVariantsSchedules,
@@ -110,11 +110,9 @@ export function VariantScheduleEditor({
 }: VariantScheduleEditorProps) {
   const calendarScrollRef = useRef<HTMLDivElement>(null)
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
-  const [scheduleRepeatWeekly, setScheduleRepeatWeekly] = useState(false)
-  const [numberOfWeeks, setNumberOfWeeks] = useState(weeksToSchedule || 8)
-  const [totalSessionsDesired, setTotalSessionsDesired] = useState<number | ''>('')
+  const [numberOfWeeks, setNumberOfWeeks] = useState(Math.max(1, weeksToSchedule || 1))
+  const [modeTab, setModeTab] = useState('schedule')
   const [availabilityData, setAvailabilityData] = useState<AvailabilityData | null>(null)
-  const [availabilityLoading, setAvailabilityLoading] = useState(false)
 
   const scheduleWeekStart = (() => {
     const d = new Date()
@@ -152,7 +150,6 @@ export function VariantScheduleEditor({
   useEffect(() => {
     let active = true
     const fetchAvailability = async () => {
-      setAvailabilityLoading(true)
       try {
         const start = new Date(scheduleWeekStart)
         start.setHours(0, 0, 0, 0)
@@ -177,7 +174,7 @@ export function VariantScheduleEditor({
         console.error('Availability fetch error:', err)
         if (active) setAvailabilityData(null)
       } finally {
-        if (active) setAvailabilityLoading(false)
+        // no-op
       }
     }
     fetchAvailability()
@@ -292,48 +289,27 @@ export function VariantScheduleEditor({
     [availabilityData, allVariantsSchedules, excludedSchedules, siblingSchedules]
   )
 
-  const effectiveWeeks =
-    scheduleRepeatWeekly &&
-    Array.isArray(schedule) &&
-    schedule.filter(Boolean).length > 0 &&
-    totalSessionsDesired !== '' &&
-    Number(totalSessionsDesired) > 0
-      ? Math.max(1, Math.ceil(Number(totalSessionsDesired) / schedule.filter(Boolean).length))
-      : Math.max(1, numberOfWeeks || 8)
+  const effectiveWeeks = Math.max(1, numberOfWeeks || 1)
 
-  // Safely fallback number of weeks if undefined
-  const safeNumberOfWeeks = numberOfWeeks || 8
   useEffect(() => {
     if (effectiveWeeks !== weeksToSchedule) {
       onWeeksChange?.(effectiveWeeks)
     }
   }, [effectiveWeeks, weeksToSchedule, onWeeksChange])
 
-  // Auto-expand schedule when repeat-weekly is enabled or weeks change
-  const prevRepeatWeeklyRef = useRef(scheduleRepeatWeekly)
-  const prevWeeksRef = useRef(safeNumberOfWeeks)
+  // Auto-expand schedule when the number of weeks changes
+  const prevWeeksRef = useRef(effectiveWeeks)
   useEffect(() => {
-    const repeatTurnedOn = scheduleRepeatWeekly && !prevRepeatWeeklyRef.current
-    const weeksChanged = scheduleRepeatWeekly && safeNumberOfWeeks !== prevWeeksRef.current
-
-    if (repeatTurnedOn || weeksChanged) {
+    if (effectiveWeeks !== prevWeeksRef.current) {
       const template = extractTemplate(schedule)
       if (template.length > 0) {
-        const expanded = expandSchedule(template, safeNumberOfWeeks, scheduleWeekStart)
+        const expanded = expandSchedule(template, effectiveWeeks, scheduleWeekStart)
         onScheduleChange(() => expanded)
       }
+      prevWeeksRef.current = effectiveWeeks
     }
-
-    if (!scheduleRepeatWeekly && prevRepeatWeeklyRef.current) {
-      // Repeat turned off: collapse to template (remove dates)
-      const template = extractTemplate(schedule)
-      onScheduleChange(() => template)
-    }
-
-    prevRepeatWeeklyRef.current = scheduleRepeatWeekly
-    prevWeeksRef.current = safeNumberOfWeeks
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduleRepeatWeekly, safeNumberOfWeeks])
+  }, [effectiveWeeks])
 
   const scheduleSummary = useMemo(() => {
     if (!Array.isArray(schedule) || schedule.length === 0) return []
@@ -343,23 +319,15 @@ export function VariantScheduleEditor({
     const hasDates = validSchedule.some(s => s.date)
     if (hasDates) return [...validSchedule]
 
-    // Backward compatibility: expand template slots on-the-fly
-    if (scheduleRepeatWeekly) {
-      const MAX_WEEKS = 52
-      const weeks = Math.min(
-        MAX_WEEKS,
-        totalSessionsDesired !== '' && Number(totalSessionsDesired) > 0 && validSchedule.length > 0
-          ? Math.max(1, Math.ceil(Number(totalSessionsDesired) / validSchedule.length))
-          : Math.max(1, safeNumberOfWeeks)
-      )
-      const expanded: ScheduleItem[] = []
-      for (let w = 0; w < weeks; w++) {
-        validSchedule.forEach(slot => expanded.push({ ...slot }))
-      }
-      return expanded
+    // Expand template slots on-the-fly for summary
+    const MAX_WEEKS = 52
+    const weeks = Math.min(MAX_WEEKS, effectiveWeeks)
+    const expanded: ScheduleItem[] = []
+    for (let w = 0; w < weeks; w++) {
+      validSchedule.forEach(slot => expanded.push({ ...slot }))
     }
-    return [...validSchedule]
-  }, [schedule, scheduleRepeatWeekly, safeNumberOfWeeks, totalSessionsDesired])
+    return expanded
+  }, [schedule, effectiveWeeks])
 
   const priceNumber = Number(price)
   const scheduleCost = scheduleSummary.reduce((sum, slot) => {
@@ -420,451 +388,429 @@ export function VariantScheduleEditor({
         return slotM >= startM && slotM < endM
       })
 
-      if (scheduleRepeatWeekly) {
-        // In repeat mode: toggle the template slot and regenerate all weeks
-        const hasMatch = matchingIndex >= 0
-        const template = extractTemplate(prev)
-        const templateKey = `${day}|${timeStr}`
-        const templateIdx = template.findIndex(s => s.dayOfWeek === day && s.startTime === timeStr)
+      // Always work in repeat mode: toggle the template slot and regenerate all weeks
+      const hasMatch = matchingIndex >= 0
+      const template = extractTemplate(prev)
+      const templateKey = `${day}|${timeStr}`
+      const templateIdx = template.findIndex(s => s.dayOfWeek === day && s.startTime === timeStr)
 
-        if (hasMatch || templateIdx >= 0) {
-          // Remove this day+time from template and regenerate
-          const newTemplate = template.filter(s => `${s.dayOfWeek}|${s.startTime}` !== templateKey)
-          if (newTemplate.length === 0) return []
-          return expandSchedule(newTemplate, safeNumberOfWeeks, scheduleWeekStart)
-        }
-
-        // Add to template and regenerate
-        const newTemplate = [
-          ...template,
-          { dayOfWeek: day, startTime: timeStr, durationMinutes: 60 },
-        ]
-        return expandSchedule(newTemplate, safeNumberOfWeeks, scheduleWeekStart)
+      if (hasMatch || templateIdx >= 0) {
+        // Remove this day+time from template and regenerate
+        const newTemplate = template.filter(s => `${s.dayOfWeek}|${s.startTime}` !== templateKey)
+        if (newTemplate.length === 0) return []
+        return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart)
       }
 
-      // Non-repeat mode: toggle a single dated slot
-      if (matchingIndex >= 0) {
-        return [...prev.slice(0, matchingIndex), ...prev.slice(matchingIndex + 1)]
-      }
-      return [
-        ...prev,
-        {
-          dayOfWeek: day,
-          startTime: timeStr,
-          durationMinutes: 60,
-          date: dateKey,
-        },
-      ]
+      // Add to template and regenerate
+      const newTemplate = [...template, { dayOfWeek: day, startTime: timeStr, durationMinutes: 60 }]
+      return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart)
     })
   }
 
   return (
     <div className="space-y-6">
-      {/* Cost vs Revenue - visible when price and schedule are set */}
-      {priceNumber > 0 && Array.isArray(schedule) && schedule.filter(Boolean).length > 0 && (
-        <div className="grid grid-cols-2 gap-3 rounded-[14px] border border-white/10 bg-white/10 p-4 text-sm text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)]">
-          <div>
-            <div className="text-xs font-medium text-white/70">Cost for course</div>
-            <div className="font-medium">USD {scheduleCost.toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-white/70">Revenue (after 30% commission)</div>
-            <div className="font-medium">USD {totalRevenue.toFixed(2)}</div>
-          </div>
-        </div>
-      )}
+      <Tabs value={modeTab} onValueChange={setModeTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-[#1F2933] p-1.5">
+          <TabsTrigger
+            value="schedule"
+            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+          >
+            Schedule
+          </TabsTrigger>
+          <TabsTrigger
+            value="summary"
+            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+          >
+            Summary
+          </TabsTrigger>
+          <TabsTrigger
+            value="content"
+            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+          >
+            Content
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Weekly repeat option */}
-      <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
-        <label className="flex cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            checked={scheduleRepeatWeekly}
-            onChange={e => setScheduleRepeatWeekly(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
-          />
-          <span className="text-sm font-semibold">Apply same schedule every week</span>
-        </label>
-        {scheduleRepeatWeekly && Array.isArray(schedule) && schedule.filter(Boolean).length > 0 && (
-          <>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs">Number of weeks</Label>
+        <TabsContent value="schedule" className="mt-4 space-y-6">
+          {/* Cost vs Revenue - visible when price and schedule are set */}
+          {priceNumber > 0 && Array.isArray(schedule) && schedule.filter(Boolean).length > 0 && (
+            <div className="grid grid-cols-2 gap-3 rounded-[14px] border border-white/10 bg-white/10 p-4 text-sm text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)]">
+              <div>
+                <div className="text-xs font-medium text-white/70">Cost for course</div>
+                <div className="font-medium">USD {scheduleCost.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-white/70">
+                  Revenue (after 30% commission)
+                </div>
+                <div className="font-medium">USD {totalRevenue.toFixed(2)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Apply same schedule for N weeks */}
+          <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              Apply same schedule for
               <Input
                 type="number"
                 min={1}
                 max={52}
-                value={totalSessionsDesired !== '' ? effectiveWeeks : safeNumberOfWeeks}
+                value={numberOfWeeks}
                 onChange={e => {
                   const val = parseInt(e.target.value, 10)
-                  const v = Math.max(1, Number.isNaN(val) ? 8 : val)
+                  const v = Math.max(1, Math.min(52, Number.isNaN(val) ? 1 : val))
                   setNumberOfWeeks(v)
-                  if (totalSessionsDesired !== '') setTotalSessionsDesired('')
                 }}
-                disabled={totalSessionsDesired !== ''}
-                className="h-8 w-14 text-center text-sm"
+                className="h-8 w-16 text-center text-sm"
               />
-              {totalSessionsDesired !== '' && (
-                <span className="text-muted-foreground text-xs">
-                  = {effectiveWeeks} weeks from {totalSessionsDesired} sessions
+              weeks
+            </label>
+          </div>
+
+          {/* Calendar grid */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-white/70">
+              Click a time slot to add or remove a 1-hour session.
+              {availabilityData && ' Unavailable slots are greyed out.'}
+            </p>
+            {availabilityData && (
+              <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-white/50">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
+                  Selected
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs">Or total sessions</Label>
-              <Input
-                type="number"
-                min={1}
-                placeholder="e.g. 20"
-                value={totalSessionsDesired}
-                onChange={e =>
-                  setTotalSessionsDesired(
-                    e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0)
-                  )
-                }
-                className="h-8 w-24 text-sm"
-              />
-              <span className="text-muted-foreground text-xs">
-                sessions (weeks = sessions ÷ slots per week)
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Availability loading indicator */}
-      {availabilityLoading && (
-        <div className="text-xs font-medium text-white/60">Loading availability…</div>
-      )}
-
-      {/* Calendar grid */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-white/70">
-          Click a time slot to add or remove a 1-hour session.
-          {availabilityData && ' Unavailable slots are greyed out.'}
-        </p>
-        {availabilityData && (
-          <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-white/50">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
-              Selected
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
-              Available
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm bg-slate-200" />
-              Unavailable
-            </span>
-          </div>
-        )}
-      </div>
-      <div
-        key={`week-${scheduleWeekStart.getTime()}`}
-        className="overflow-hidden rounded-[14px] bg-white"
-        style={{
-          margin: '16px 0',
-          boxShadow:
-            '0 18px 45px rgba(0,0,0,0.14), 0 6px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(209,213,219,0.85)] bg-[rgba(31,41,51,0.92)] px-4 py-3 text-white">
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setScheduleWeekOffset(o => o - 1)}
-              aria-label="Previous week"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="min-w-[180px] text-center text-xs font-semibold text-white">
-              {scheduleWeekLabel}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setScheduleWeekOffset(o => o + 1)}
-              aria-label="Next week"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <span className="text-xs font-semibold text-white/70">{scheduleMonthLabel}</span>
-          <div className="flex items-center gap-1">
-            <span className="mr-1 text-[10px] font-semibold text-white/60">Month:</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setScheduleWeekOffset(o => o - 4)}
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setScheduleWeekOffset(o => o + 4)}
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-[150px_repeat(7,_1fr)] border-b border-[rgba(209,213,219,0.85)] bg-white">
-          <div className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700">
-            Time
-          </div>
-          {DAYS.map((day, i) => {
-            const d = weekDates[i]
-            return (
-              <div
-                key={`${day}-${d.getTime()}`}
-                className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700"
-              >
-                <div className="leading-tight">
-                  <div>{day.slice(0, 3)}</div>
-                  <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                    {d.getDate()}
-                  </div>
-                </div>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                  Available
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
+                  Unavailable
+                </span>
               </div>
-            )
-          })}
-        </div>
-        <div className="relative">
+            )}
+          </div>
           <div
-            ref={calendarScrollRef}
-            className="scrollbar-hide h-[320px] overflow-y-auto"
-            onWheel={e => {
-              e.preventDefault()
-              onWheelScroll?.(e.deltaY)
+            key={`week-${scheduleWeekStart.getTime()}`}
+            className="overflow-hidden rounded-[14px] bg-white"
+            style={{
+              margin: '16px 0',
+              boxShadow:
+                '0 18px 45px rgba(0,0,0,0.14), 0 6px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)',
             }}
           >
-            <div className="grid grid-cols-[150px_repeat(7,_1fr)]">
-              {TIME_SLOT_OPTIONS.map(timeStr => {
-                const hour = parseInt(timeStr.slice(0, 2), 10)
-                const endHour = hour + 1
-                const startLabel = `${hour % 12 || 12} ${hour >= 12 ? 'PM' : 'AM'}`
-                const endLabel = `${endHour % 12 || 12} ${endHour >= 12 ? 'PM' : 'AM'}`
-                const displayTime = `${startLabel} \u2013 ${endLabel}`
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(209,213,219,0.85)] bg-[#1D4ED8] px-4 py-3 text-white">
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
+                  onClick={() => setScheduleWeekOffset(o => o - 1)}
+                  aria-label="Previous week"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[180px] text-center text-xs font-semibold text-white">
+                  {scheduleWeekLabel}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
+                  onClick={() => setScheduleWeekOffset(o => o + 1)}
+                  aria-label="Next week"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <span className="text-xs font-semibold text-white/70">{scheduleMonthLabel}</span>
+              <div className="flex items-center gap-1">
+                <span className="mr-1 text-[10px] font-semibold text-white/60">Month:</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
+                  onClick={() => setScheduleWeekOffset(o => o - 4)}
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 text-white hover:bg-white/10 hover:text-white"
+                  onClick={() => setScheduleWeekOffset(o => o + 4)}
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-[150px_repeat(7,_1fr)] border-b border-[rgba(209,213,219,0.85)] bg-white">
+              <div className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700">
+                Time
+              </div>
+              {DAYS.map((day, i) => {
+                const d = weekDates[i]
                 return (
-                  <div key={timeStr} className="contents">
-                    <div className="flex h-12 items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-[11px] font-semibold text-slate-600">
-                      {displayTime}
+                  <div
+                    key={`${day}-${d.getTime()}`}
+                    className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700"
+                  >
+                    <div className="leading-tight">
+                      <div>{day.slice(0, 3)}</div>
+                      <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                        {d.getDate()}
+                      </div>
                     </div>
-                    {DAYS.map((day, dayIndex) => {
-                      const dateKey = formatDateKey(weekDates[dayIndex])
-                      const validScheduleArray = Array.isArray(schedule)
-                        ? schedule.filter(Boolean)
-                        : []
-                      const matchingSlotIndex = validScheduleArray.findIndex(s => {
-                        if (!s || s.dayOfWeek !== day) return false
-                        // For dated slots (expanded schedule), match exact date
-                        if (s.date && s.date !== dateKey) return false
-                        // For non-dated slots (template), match any week
-                        const [sh, sm] = (s.startTime || '00:00').split(':').map(Number)
-                        const startM = sh * 60 + sm
-                        const endM = startM + (s.durationMinutes || 60)
-                        const [th, tm] = timeStr.split(':').map(Number)
-                        const slotM = th * 60 + tm
-                        return slotM >= startM && slotM < endM
-                      })
-                      const inRange = matchingSlotIndex >= 0
-                      // Show week number for expanded schedules, session index for templates
-                      let sessionLabel = ''
-                      if (inRange) {
-                        const currentSlot = validScheduleArray[matchingSlotIndex]
-                        if (currentSlot.date) {
-                          // Find which week this slot belongs to
-                          const allForDayTime = validScheduleArray.filter(
-                            s =>
-                              s.dayOfWeek === currentSlot.dayOfWeek &&
-                              s.startTime === currentSlot.startTime
-                          )
-                          const sorted = allForDayTime.sort((a, b) =>
-                            (a.date || '').localeCompare(b.date || '')
-                          )
-                          const weekNum = sorted.findIndex(s => s.date === currentSlot.date) + 1
-                          sessionLabel = `Week ${weekNum}`
-                        } else {
-                          const sortedSessions = [...validScheduleArray].sort((a, b) => {
-                            const aDate = a.date || ''
-                            const bDate = b.date || ''
-                            if (aDate !== bDate) return aDate.localeCompare(bDate)
-                            return (a.startTime || '').localeCompare(b.startTime || '')
-                          })
-                          const idx = sortedSessions.findIndex(
-                            s =>
-                              s &&
-                              s.dayOfWeek === currentSlot.dayOfWeek &&
-                              s.startTime === currentSlot.startTime &&
-                              s.date === currentSlot.date
-                          )
-                          sessionLabel = `Session ${idx + 1}`
-                        }
-                      }
-
-                      const slotStatus = getSlotStatus(day, dateKey, timeStr, 60)
-                      const isUnavailable = !inRange && !slotStatus.available
-
-                      const cellClass = inRange
-                        ? 'bg-[#1D4ED8] font-semibold text-white'
-                        : isUnavailable
-                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
-
-                      return (
-                        <div
-                          key={`${day}-${timeStr}`}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
-                          }}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
-                            }
-                          }}
-                          className={`flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${cellClass}`}
-                          aria-pressed={inRange}
-                          aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. Click to ${inRange ? 'remove' : 'add'} session.`}
-                          title={isUnavailable ? slotStatus.reason : undefined}
-                        >
-                          {inRange ? <span className="text-[11px]">{sessionLabel}</span> : null}
-                        </div>
-                      )
-                    })}
                   </div>
                 )
               })}
             </div>
-          </div>
-
-          {/* Floating vertical navigation arrows */}
-          <div className="pointer-events-none absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                calendarScrollRef.current?.scrollBy({ top: -192, behavior: 'smooth' })
-              }}
-              className="pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-white/30 bg-white/[0.72] text-slate-700 shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:bg-white/90 hover:shadow-[0_6px_20px_rgba(0,0,0,0.18)] active:scale-95"
-              aria-label="Scroll calendar up"
-            >
-              <ChevronUp className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                calendarScrollRef.current?.scrollBy({ top: 192, behavior: 'smooth' })
-              }}
-              className="pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-white/30 bg-white/[0.72] text-slate-700 shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:bg-white/90 hover:shadow-[0_6px_20px_rgba(0,0,0,0.18)] active:scale-95"
-              aria-label="Scroll calendar down"
-            >
-              <ChevronDown className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Schedule Summary */}
-      {scheduleSummary.length > 0 && (
-        <div className="rounded-[18px] border border-white/10 bg-[rgba(39,43,50,0.72)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.28)] backdrop-blur-[18px]">
-          <div className="flex items-start justify-between gap-4 border-b border-white/15 pb-4">
-            <div>
-              <div className="flex items-center gap-2 text-base font-semibold text-white">
-                <CalendarIcon className="h-5 w-5 text-white/80" />
-                Schedule Summary
-              </div>
-              <div className="mt-1 text-xs font-medium text-white/70">Times in {timezoneLabel}</div>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Sessions
-                </span>
-                <span className="text-sm font-semibold">{totalSessions}</span>
-              </div>
-              <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Total Duration
-                </span>
-                <span className="text-sm font-semibold">{totalDurationHours} h</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-white">By day</div>
-              {dayOrder
-                .filter(day => scheduleByDay[day]?.length)
-                .map(day => {
-                  const slots = scheduleByDay[day]
-                    .slice()
-                    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
-                  const first = slots[0]
-                  const extras = Math.max(0, slots.length - 1)
-                  const dateLabel = first?.date
-                    ? (() => {
-                        try {
-                          const d = new Date(first.date + 'T00:00:00')
-                          if (Number.isNaN(d.getTime())) return first.date
-                          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        } catch {
-                          return first.date
-                        }
-                      })()
-                    : ''
-                  const timeLabel = first
-                    ? formatTimeRange(first.startTime, first.durationMinutes)
-                    : ''
-                  const durationLabel = first ? `${first.durationMinutes}m` : ''
-
-                  return (
-                    <div
-                      key={day}
-                      className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]"
-                    >
-                      <div className="flex min-w-0 items-center gap-4">
-                        <div className="w-[92px] shrink-0 font-semibold">{day}</div>
-                        <div className="min-w-0 text-sm text-slate-700">
-                          <span className="font-medium">{dateLabel}</span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span className="font-medium">{timeLabel}</span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span className="text-slate-600">{durationLabel}</span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span className="text-slate-600">0 students</span>
-                          {extras > 0 ? (
-                            <span className="ml-2 text-slate-500">• +{extras} more</span>
-                          ) : null}
+            <div className="relative">
+              <div
+                ref={calendarScrollRef}
+                className="scrollbar-hide h-[320px] overflow-y-auto"
+                onWheel={e => {
+                  e.preventDefault()
+                  onWheelScroll?.(e.deltaY)
+                }}
+              >
+                <div className="grid grid-cols-[150px_repeat(7,_1fr)]">
+                  {TIME_SLOT_OPTIONS.map(timeStr => {
+                    const hour = parseInt(timeStr.slice(0, 2), 10)
+                    const endHour = hour + 1
+                    const startLabel = `${hour % 12 || 12} ${hour >= 12 ? 'PM' : 'AM'}`
+                    const endLabel = `${endHour % 12 || 12} ${endHour >= 12 ? 'PM' : 'AM'}`
+                    const displayTime = `${startLabel} \u2013 ${endLabel}`
+                    return (
+                      <div key={timeStr} className="contents">
+                        <div className="flex h-12 items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-[11px] font-semibold text-slate-600">
+                          {displayTime}
                         </div>
+                        {DAYS.map((day, dayIndex) => {
+                          const dateKey = formatDateKey(weekDates[dayIndex])
+                          const validScheduleArray = Array.isArray(schedule)
+                            ? schedule.filter(Boolean)
+                            : []
+                          const matchingSlotIndex = validScheduleArray.findIndex(s => {
+                            if (!s || s.dayOfWeek !== day) return false
+                            // For dated slots (expanded schedule), match exact date
+                            if (s.date && s.date !== dateKey) return false
+                            // For non-dated slots (template), match any week
+                            const [sh, sm] = (s.startTime || '00:00').split(':').map(Number)
+                            const startM = sh * 60 + sm
+                            const endM = startM + (s.durationMinutes || 60)
+                            const [th, tm] = timeStr.split(':').map(Number)
+                            const slotM = th * 60 + tm
+                            return slotM >= startM && slotM < endM
+                          })
+                          const inRange = matchingSlotIndex >= 0
+                          // Show week number for expanded schedules, session index for templates
+                          let sessionLabel = ''
+                          if (inRange) {
+                            const currentSlot = validScheduleArray[matchingSlotIndex]
+                            if (currentSlot.date) {
+                              // Find which week this slot belongs to
+                              const allForDayTime = validScheduleArray.filter(
+                                s =>
+                                  s.dayOfWeek === currentSlot.dayOfWeek &&
+                                  s.startTime === currentSlot.startTime
+                              )
+                              const sorted = allForDayTime.sort((a, b) =>
+                                (a.date || '').localeCompare(b.date || '')
+                              )
+                              const weekNum = sorted.findIndex(s => s.date === currentSlot.date) + 1
+                              sessionLabel = `Week ${weekNum}`
+                            } else {
+                              const sortedSessions = [...validScheduleArray].sort((a, b) => {
+                                const aDate = a.date || ''
+                                const bDate = b.date || ''
+                                if (aDate !== bDate) return aDate.localeCompare(bDate)
+                                return (a.startTime || '').localeCompare(b.startTime || '')
+                              })
+                              const idx = sortedSessions.findIndex(
+                                s =>
+                                  s &&
+                                  s.dayOfWeek === currentSlot.dayOfWeek &&
+                                  s.startTime === currentSlot.startTime &&
+                                  s.date === currentSlot.date
+                              )
+                              sessionLabel = `Session ${idx + 1}`
+                            }
+                          }
+
+                          const slotStatus = getSlotStatus(day, dateKey, timeStr, 60)
+                          const isUnavailable = !inRange && !slotStatus.available
+
+                          const cellClass = inRange
+                            ? 'bg-[#1D4ED8] font-semibold text-white'
+                            : isUnavailable
+                              ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
+                              : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+
+                          return (
+                            <div
+                              key={`${day}-${timeStr}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
+                                }
+                              }}
+                              className={`flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${cellClass}`}
+                              aria-pressed={inRange}
+                              aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. Click to ${inRange ? 'remove' : 'add'} session.`}
+                              title={isUnavailable ? slotStatus.reason : undefined}
+                            >
+                              {inRange ? <span className="text-[11px]">{sessionLabel}</span> : null}
+                            </div>
+                          )
+                        })}
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className="shrink-0 rounded-full bg-slate-100 text-xs font-semibold text-slate-600"
-                      >
-                        {slots.length} session{slots.length !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Floating vertical navigation arrows */}
+              <div className="pointer-events-none absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    calendarScrollRef.current?.scrollBy({ top: -192, behavior: 'smooth' })
+                  }}
+                  className="pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-white/30 bg-white/[0.72] text-slate-700 shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:bg-white/90 hover:shadow-[0_6px_20px_rgba(0,0,0,0.18)] active:scale-95"
+                  aria-label="Scroll calendar up"
+                >
+                  <ChevronUp className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    calendarScrollRef.current?.scrollBy({ top: 192, behavior: 'smooth' })
+                  }}
+                  className="pointer-events-auto flex h-[52px] w-[52px] items-center justify-center rounded-full border border-white/30 bg-white/[0.72] text-slate-700 shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:bg-white/90 hover:shadow-[0_6px_20px_rgba(0,0,0,0.18)] active:scale-95"
+                  aria-label="Scroll calendar down"
+                >
+                  <ChevronDown className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="summary" className="mt-4">
+          {scheduleSummary.length > 0 && (
+            <div className="rounded-[18px] border border-white/10 bg-[rgba(39,43,50,0.72)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.28)] backdrop-blur-[18px]">
+              <div className="flex items-start justify-between gap-4 border-b border-white/15 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 text-base font-semibold text-white">
+                    <CalendarIcon className="h-5 w-5 text-white/80" />
+                    Schedule Summary
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-white/70">
+                    Times in {timezoneLabel}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Sessions
+                    </span>
+                    <span className="text-sm font-semibold">{totalSessions}</span>
+                  </div>
+                  <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Total Duration
+                    </span>
+                    <span className="text-sm font-semibold">{totalDurationHours} h</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-white">By day</div>
+                  {dayOrder
+                    .filter(day => scheduleByDay[day]?.length)
+                    .map(day => {
+                      const slots = scheduleByDay[day]
+                        .slice()
+                        .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+                      const first = slots[0]
+                      const extras = Math.max(0, slots.length - 1)
+                      const dateLabel = first?.date
+                        ? (() => {
+                            try {
+                              const d = new Date(first.date + 'T00:00:00')
+                              if (Number.isNaN(d.getTime())) return first.date
+                              return d.toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            } catch {
+                              return first.date
+                            }
+                          })()
+                        : ''
+                      const timeLabel = first
+                        ? formatTimeRange(first.startTime, first.durationMinutes)
+                        : ''
+                      const durationLabel = first ? `${first.durationMinutes}m` : ''
+
+                      return (
+                        <div
+                          key={day}
+                          className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]"
+                        >
+                          <div className="flex min-w-0 items-center gap-4">
+                            <div className="w-[92px] shrink-0 font-semibold">{day}</div>
+                            <div className="min-w-0 text-sm text-slate-700">
+                              <span className="font-medium">{dateLabel}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="font-medium">{timeLabel}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="text-slate-600">{durationLabel}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="text-slate-600">0 students</span>
+                              {extras > 0 ? (
+                                <span className="ml-2 text-slate-500">• +{extras} more</span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 rounded-full bg-slate-100 text-xs font-semibold text-slate-600"
+                          >
+                            {slots.length} session{slots.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="content" className="mt-4">
+          <div className="rounded-[18px] border border-white/10 bg-[rgba(39,43,50,0.72)] p-8 text-center text-white/70">
+            Content settings coming soon.
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
