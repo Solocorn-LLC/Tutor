@@ -8,7 +8,6 @@
 import { Suspense } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,18 +24,16 @@ import {
   Play,
   Trophy,
   Target,
-  GraduationCap,
   Code,
   Calculator,
   FlaskConical,
   Languages,
-  ArrowLeft,
   Heart,
   BookOpen,
   User,
   Users,
-  Sparkles,
 } from 'lucide-react'
+import { StudentHeroSection } from '@/app/[locale]/student/dashboard/components/StudentHeroSection'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import {
   Dialog,
@@ -252,9 +249,7 @@ function SessionList({
 
 function CoursePageInner() {
   const { showOverlay } = useNavigationOverlay()
-  const { data: session } = useSession()
   const searchParams = useSearchParams()
-  const isTutor = session?.user?.role === 'TUTOR'
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<
@@ -270,26 +265,6 @@ function CoursePageInner() {
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null)
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
   const [showAllSessions, setShowAllSessions] = useState(false)
-
-  const [greeting, setGreeting] = useState('Good morning')
-  const [currentTime, setCurrentTime] = useState(new Date())
-
-  useEffect(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting('Good morning')
-    else if (hour < 18) setGreeting('Good afternoon')
-    else setGreeting('Good evening')
-
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    })
 
   const handleRequestMaterials = async (sessionId: string) => {
     setRequestingSessionId(sessionId)
@@ -490,55 +465,7 @@ function CoursePageInner() {
     <div className="text-foreground flex min-h-full flex-col px-3 lg:h-full lg:overflow-hidden lg:px-4">
       {/* Hero */}
       <div className="mb-4 flex-shrink-0">
-        <Card className="overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
-          <div className="relative z-10 flex min-h-[180px] flex-col p-5">
-            {isTutor && (
-              <Link
-                href="/tutor/dashboard"
-                className="mb-3 inline-flex items-center text-sm text-white/80 hover:text-white"
-              >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to dashboard
-              </Link>
-            )}
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="mb-0.5 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-white/70" />
-                  <span className="text-sm font-medium text-white/70">
-                    {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
-                  </span>
-                </div>
-                <h1 className="text-3xl font-bold text-white">My courses</h1>
-                <p className="mt-1 max-w-2xl text-sm text-white/80">
-                  Track your progress and continue your learning journey
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-                  <GraduationCap className="h-4 w-4 text-white/80" />
-                  <span className="text-xs font-medium text-white/80">Total enrolled</span>
-                  <span className="text-sm font-bold text-white">{myCourses.length}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action bar */}
-            <div className="mt-auto flex flex-wrap items-center justify-end gap-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>
-                  {formatDate(currentTime)} •{' '}
-                  {currentTime.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <StudentHeroSection title="My Courses" showGreeting={false} />
       </div>
 
       {/* Course Details Modal */}

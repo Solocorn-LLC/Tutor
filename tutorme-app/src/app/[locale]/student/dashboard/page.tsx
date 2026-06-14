@@ -28,7 +28,7 @@ import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
 function StudentDashboardContent() {
   const router = useRouter()
   const { status } = useSession()
-  const { refreshStats } = useStudentDashboard()
+  const { stats, loading: statsLoading, refreshStats } = useStudentDashboard()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
   const [bookingClassId, setBookingClassId] = useState<string | null>(null)
@@ -212,7 +212,7 @@ function StudentDashboardContent() {
         )}
         {/* Welcome */}
         <div className="mb-4 flex-shrink-0">
-          <StudentHeroSection />
+          <StudentHeroSection stats={stats} statsLoading={statsLoading} />
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">

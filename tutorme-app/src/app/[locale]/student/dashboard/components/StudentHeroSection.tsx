@@ -12,7 +12,14 @@ import {
   DialogBody,
 } from '@/components/ui/dialog'
 import { BookOpen, Calendar, CheckCircle, Sparkles, Users } from 'lucide-react'
-import { useStudentDashboard } from './StudentDashboardContext'
+import type { StudentDashboardStats } from './StudentDashboardContext'
+
+interface StudentHeroSectionProps {
+  title?: string
+  showGreeting?: boolean
+  stats?: StudentDashboardStats
+  statsLoading?: boolean
+}
 
 interface CalendarEventItem {
   id: string
@@ -29,14 +36,31 @@ interface DayEvent {
   duration: number
 }
 
-export function StudentHeroSection() {
+const DEFAULT_STATS: StudentDashboardStats = {
+  coursesEnrolled: 0,
+  coursesCompleted: 0,
+  upcomingSessions: 0,
+  totalBookings: 0,
+}
+
+export function StudentHeroSection({
+  title = 'Welcome Back!',
+  showGreeting = true,
+  stats: statsProp,
+  statsLoading: statsLoadingProp,
+}: StudentHeroSectionProps) {
   const { data: session } = useSession()
-  const { stats, loading: statsLoading } = useStudentDashboard()
   const [greeting, setGreeting] = useState('Good morning')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<{ date: Date; events: DayEvent[] } | null>(null)
   const [sessions, setSessions] = useState<CalendarEventItem[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
+
+  const [internalStats, setInternalStats] = useState<StudentDashboardStats>(DEFAULT_STATS)
+  const [internalLoading, setInternalLoading] = useState(statsProp === undefined)
+
+  const stats = statsProp ?? internalStats
+  const statsLoading = statsLoadingProp ?? internalLoading
 
   useEffect(() => {
     const hour = new Date().getHours()
@@ -47,6 +71,30 @@ export function StudentHeroSection() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (statsProp !== undefined) return
+
+    let cancelled = false
+    setInternalLoading(true)
+    fetch('/api/student/dashboard-stats', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(json => {
+        if (cancelled) return
+        setInternalStats(json?.data ?? DEFAULT_STATS)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setInternalStats(DEFAULT_STATS)
+      })
+      .finally(() => {
+        if (!cancelled) setInternalLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [statsProp])
 
   // Fetch upcoming sessions with a wide date range (today to +90 days)
   useEffect(() => {
@@ -172,13 +220,15 @@ export function StudentHeroSection() {
       <div className="relative z-10 flex flex-1 flex-col">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="mb-0.5 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-white/70" />
-              <span className="text-sm font-medium text-white/70">
-                {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
-              </span>
-            </div>
-            <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
+            {showGreeting && (
+              <div className="mb-0.5 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-white/70" />
+                <span className="text-sm font-medium text-white/70">
+                  {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
+                </span>
+              </div>
+            )}
+            <h1 className="text-3xl font-bold text-white">{title}</h1>
           </div>
 
           <div
