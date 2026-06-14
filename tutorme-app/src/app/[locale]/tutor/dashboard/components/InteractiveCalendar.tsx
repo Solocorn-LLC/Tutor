@@ -1903,7 +1903,7 @@ function WeekView({
       {/* Scrollable body */}
       <div className="relative flex flex-1 flex-row">
         {/* Sticky time column */}
-        <div className="sticky left-0 z-10 flex w-14 flex-col bg-gray-50">
+        <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-gray-300 bg-gray-50">
           {hours.map(hour => (
             <div
               key={hour}
@@ -1914,9 +1914,6 @@ function WeekView({
           ))}
           <div className="flex-1 bg-gray-50" />
         </div>
-
-        {/* Sticky vertical divider - spans visible calendar height */}
-        <div className="sticky left-14 top-0 z-20 h-full w-px bg-gray-300" />
 
         <div className="grid flex-1 grid-cols-7">
           {weekDays.map((day, index) => (
@@ -1979,7 +1976,7 @@ function DayView({ currentDate, events: _events, onEventClick, conflicts, readOn
 
   return (
     <div className="relative flex min-h-full flex-row rounded-lg bg-white/50">
-      <div className="flex w-14 flex-col bg-gray-50">
+      <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-gray-300 bg-gray-50">
         {hours.map(hour => (
           <div
             key={hour}
@@ -1990,9 +1987,6 @@ function DayView({ currentDate, events: _events, onEventClick, conflicts, readOn
         ))}
         <div className="flex-1 bg-gray-50" />
       </div>
-
-      {/* Sticky vertical divider - spans visible calendar height */}
-      <div className="sticky left-14 top-0 z-20 h-full w-px bg-gray-300" />
 
       <div className="relative flex flex-1 flex-col">
         {hours.map(hour => (
