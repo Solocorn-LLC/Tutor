@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -22,32 +22,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  TrendingUp,
-  Users,
-  BookOpen,
   Download,
   BarChart3,
   Loader2,
-  Search,
   ChevronRight,
   Calendar,
-  Activity,
   FileText,
   FileSpreadsheet,
   FileIcon,
   Send,
   Bot,
-  User,
 } from 'lucide-react'
 import Link from 'next/link'
 import { BackButton } from '@/components/navigation/BackButton'
 import { toast } from 'sonner'
-import { EngagementDashboard } from '@/components/reports/engagement-dashboard'
 import { RevenueDashboard } from '../dashboard/components/RevenueDashboard'
 import { StudentReportsTab } from '@/components/reports/student-reports-tab'
-import { DollarSign } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 
 interface ClassOption {
   id: string
@@ -348,51 +341,26 @@ export default function TutorReports() {
           </div>
         </div>
 
-        <div className="px-4 pt-4 sm:px-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="mb-6 min-h-[52px] shrink-0">
-              <TabsList className="grid h-full w-full grid-cols-4 gap-2 border-0 bg-transparent p-0 shadow-none">
-                <TabsTrigger
-                  value="overview"
-                  className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="revenue"
-                  className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                >
-                  <DollarSign className="h-4 w-4" />
-                  Revenue Insights
-                </TabsTrigger>
-                <TabsTrigger
-                  value="students"
-                  className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                >
-                  <Users className="h-4 w-4" />
-                  Student Roster
-                </TabsTrigger>
-                <TabsTrigger
-                  value="reports"
-                  className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                >
-                  <FileText className="h-4 w-4" />
-                  Student Reports
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
+        <div className="h-[calc(100vh-140px)] px-4 pb-6 pt-4 sm:px-6">
+          <SessionCalendarPanel
+            value={activeTab}
+            onValueChange={setActiveTab}
+            variant="orange"
+            tabs={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'revenue', label: 'Revenue Insights' },
+              { value: 'students', label: 'Student Roster' },
+              { value: 'reports', label: 'Student Reports' },
+            ]}
+          >
             {/* Revenue Tab */}
-            <TabsContent value="revenue" className="h-full">
-              <div className="h-[800px] overflow-hidden rounded-xl bg-white">
-                <RevenueDashboard />
-              </div>
+            <TabsContent value="revenue" className="h-full overflow-hidden bg-white">
+              <RevenueDashboard className="border-0 bg-white shadow-none" themeId="current" />
             </TabsContent>
 
             {/* Students Tab */}
-            <TabsContent value="students" className="space-y-6">
-              <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+            <TabsContent value="students" className="h-full overflow-y-auto">
+              <div className="h-full space-y-6">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-slate-800">Student Roster</h2>
@@ -487,13 +455,13 @@ export default function TutorReports() {
             </TabsContent>
 
             {/* Reports Tab */}
-            <TabsContent value="reports" className="space-y-6">
+            <TabsContent value="reports" className="h-full overflow-y-auto">
               <StudentReportsTab />
             </TabsContent>
 
             {/* Courses & Classes Tab */}
             <CoursesAndClassesTab />
-          </Tabs>
+          </SessionCalendarPanel>
         </div>
       </div>
     </div>
@@ -883,7 +851,7 @@ function CoursesAndClassesTab() {
   }
 
   return (
-    <TabsContent value="overview" className="flex flex-col space-y-6 pb-12">
+    <TabsContent value="overview" className="h-full overflow-y-auto space-y-6 pb-4">
       {/* Panel 1 - Shared Courses & Classes / Sessions */}
       <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
         <div className="grid h-[280px] shrink-0 grid-cols-1 gap-6 lg:grid-cols-2">

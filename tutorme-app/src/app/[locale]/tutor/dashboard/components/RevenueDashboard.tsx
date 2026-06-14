@@ -52,6 +52,8 @@ interface RevenueDashboardProps {
   defaultTab?: 'overview' | 'earnings' | 'courses' | 'analytics'
   externalEmailDialogOpen?: boolean
   onExternalEmailDialogChange?: (open: boolean) => void
+  className?: string
+  themeId?: string
 }
 
 interface EarningRecord {
@@ -276,6 +278,8 @@ export function RevenueDashboard({
   defaultTab = 'overview',
   externalEmailDialogOpen,
   onExternalEmailDialogChange,
+  className,
+  themeId: controlledThemeId,
 }: RevenueDashboardProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState(defaultTab)
@@ -287,20 +291,25 @@ export function RevenueDashboard({
   const [sendingEmail, setSendingEmail] = useState(false)
 
   // Theme state with localStorage persistence
-  const [themeId, setThemeId] = useState('current')
+  const [themeId, setThemeId] = useState(controlledThemeId ?? 'current')
   const selectedTheme = DASHBOARD_THEMES.find(theme => theme.id === themeId) ?? DASHBOARD_THEMES[0]
   const themeStyle = getThemeStyle(selectedTheme)
 
   useEffect(() => {
+    if (controlledThemeId) {
+      setThemeId(controlledThemeId)
+      return
+    }
     const savedTheme = localStorage.getItem('tutor-dashboard-theme')
     if (savedTheme) {
       setThemeId(savedTheme)
     }
-  }, [])
+  }, [controlledThemeId])
 
   useEffect(() => {
+    if (controlledThemeId) return
     localStorage.setItem('tutor-dashboard-theme', themeId)
-  }, [themeId])
+  }, [themeId, controlledThemeId])
 
   // Use external dialog state if provided, otherwise use internal
   const showEmailDialog =
@@ -495,7 +504,7 @@ export function RevenueDashboard({
 
   return (
     <>
-      <Card className="border-border bg-card flex h-full flex-col border" style={themeStyle}>
+      <Card className={cn('border-border bg-card flex h-full flex-col border', className)} style={themeStyle}>
         <CardHeader className="text-foreground pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -505,19 +514,20 @@ export function RevenueDashboard({
               </CardTitle>
             </div>
             <div className="flex items-center gap-1">
-              {/* Theme Selector */}
-              <Select value={themeId} onValueChange={setThemeId}>
-                <SelectTrigger className="border-border bg-background text-foreground h-8 w-[140px] text-xs">
-                  <SelectValue placeholder="Theme" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DASHBOARD_THEMES.map(theme => (
-                    <SelectItem key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!controlledThemeId && (
+                <Select value={themeId} onValueChange={setThemeId}>
+                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-[140px] text-xs">
+                    <SelectValue placeholder="Theme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DASHBOARD_THEMES.map(theme => (
+                      <SelectItem key={theme.id} value={theme.id}>
+                        {theme.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Button variant="ghost" size="sm" onClick={() => setShowEmailDialog(true)}>
                 <Mail className="mr-1 h-4 w-4" />
                 Email
