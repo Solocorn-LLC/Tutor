@@ -178,10 +178,10 @@ export default function StudentTutorDirectoryPage() {
         {/* Lower panel: expandable header + filters + tutor grid */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           {/* Header */}
-          <div className="bg-[linear-gradient(135deg,#1E2832_0%,#2D3B4A_50%,#1A2530_100%)] p-5">
+          <div className="bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-[#F97316]">Solocorn Tutors</h2>
+                <h2 className="text-xl font-bold text-white">Solocorn Tutors</h2>
                 <p className="mt-1 text-sm text-white/60">Find and book your tutor</p>
               </div>
 

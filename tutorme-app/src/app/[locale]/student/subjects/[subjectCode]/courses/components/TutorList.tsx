@@ -139,7 +139,7 @@ export function TutorList({ subjectCode }: TutorListProps) {
         {tutors.length} tutor{tutors.length !== 1 ? 's' : ''} available for this subject
       </p>
       {tutors.map(tutor => (
-        <TutorCard key={tutor.id} tutor={tutor} subjectCode={subjectCode} />
+        <TutorCard key={tutor.id} tutor={tutor} />
       ))}
     </div>
   )

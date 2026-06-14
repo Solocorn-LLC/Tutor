@@ -25,7 +25,6 @@ export interface Tutor {
 
 export interface TutorCardProps {
   tutor: Tutor
-  subjectCode?: string
   onClick?: () => void
   followState?: 'following' | 'not-following'
   onFollowToggle?: () => void
@@ -38,7 +37,6 @@ const BIO_MAX_DISPLAY = 400
 
 export function TutorCard({
   tutor,
-  subjectCode,
   onClick,
   followState = 'not-following',
   onFollowToggle,
@@ -56,7 +54,6 @@ export function TutorCard({
   const categories = (tutor.specialties || []).slice(0, 3)
   const countries = (tutor.countries || []).slice(0, 3)
 
-  const displaySubject = subjectCode || categories[0] || 'General'
   const rawBio = tutor.bio || "This area is for the tutor's bio information."
 
   // Bio display: truncate at 300 chars
@@ -68,7 +65,7 @@ export function TutorCard({
     <div
       className={cn(
         'relative flex w-full flex-col overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)]',
-        compact ? 'h-[360px] gap-3 p-4' : 'h-[460px] gap-4 p-5',
+        compact ? 'h-[320px] gap-3 p-4' : 'h-[420px] gap-4 p-5',
         onClick && 'cursor-pointer',
         className
       )}
@@ -103,9 +100,6 @@ export function TutorCard({
           </h3>
           <p className={cn('text-white/70', compact ? 'text-xs' : 'text-sm')}>
             @{tutor.username || tutor.id}
-          </p>
-          <p className={cn('mt-0.5 font-medium text-white/90', compact ? 'text-xs' : 'text-sm')}>
-            {displaySubject}
           </p>
           <div className="mt-1 flex items-center gap-1.5">
             <Star
