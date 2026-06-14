@@ -1899,62 +1899,59 @@ function WeekView({
   }
 
   return (
-    <div className="flex min-h-full flex-col rounded-lg bg-white/50">
-      {/* Scrollable body */}
-      <div className="relative flex flex-1 flex-row">
-        {/* Sticky time column */}
-        <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-gray-300 bg-gray-50">
-          {hours.map(hour => (
-            <div
-              key={hour}
-              className="h-10 shrink-0 border-b px-1 py-1 text-center text-xs text-gray-500"
-            >
-              {formatHour(hour)}
-            </div>
-          ))}
-          <div className="flex-1 bg-gray-50" />
-        </div>
+    <div className="grid min-h-full grid-cols-[3.5rem_1fr] rounded-lg bg-white/50">
+      {/* Sticky time column */}
+      <div className="sticky left-0 z-10 flex flex-col border-r border-gray-300 bg-gray-50">
+        {hours.map(hour => (
+          <div
+            key={hour}
+            className="h-10 shrink-0 border-b px-1 py-1 text-center text-xs text-gray-500"
+          >
+            {formatHour(hour)}
+          </div>
+        ))}
+        <div className="flex-1 bg-gray-50" />
+      </div>
 
-        <div className="grid flex-1 grid-cols-7">
-          {weekDays.map((day, index) => (
-            <div key={index} className="relative flex flex-col border-r last:border-r-0">
-              {hours.map(hour => (
-                <DroppableHour
-                  key={hour}
-                  date={day}
-                  hour={hour}
-                  className="h-10 shrink-0 border-b"
-                />
-              ))}
-              <div className="flex-1" />
+      <div className="grid grid-cols-7">
+        {weekDays.map((day, index) => (
+          <div key={index} className="relative flex flex-col border-r last:border-r-0">
+            {hours.map(hour => (
+              <DroppableHour
+                key={hour}
+                date={day}
+                hour={hour}
+                className="h-10 shrink-0 border-b"
+              />
+            ))}
+            <div className="flex-1" />
 
-              {_events
-                .filter((event: CalendarEvent) => event.date.toDateString() === day.toDateString())
-                .map((event: CalendarEvent) => {
-                  const hour = event.date.getHours()
-                  const minute = event.date.getMinutes()
-                  const top = hour * 40 + (minute / 60) * 40
-                  const height = (event.duration / 60) * 40
-                  const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
+            {_events
+              .filter((event: CalendarEvent) => event.date.toDateString() === day.toDateString())
+              .map((event: CalendarEvent) => {
+                const hour = event.date.getHours()
+                const minute = event.date.getMinutes()
+                const top = hour * 40 + (minute / 60) * 40
+                const height = (event.duration / 60) * 40
+                const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
 
-                  return (
-                    <DraggableEvent
-                      key={event.id}
-                      event={event}
-                      onClick={() => onEventClick(event)}
-                      hasConflict={hasConflict}
-                      disabled={readOnly}
-                      style={{
-                        top: `${top}px`,
-                        height: `${Math.max(height, 24)}px`,
-                        position: 'absolute',
-                      }}
-                    />
-                  )
-                })}
-            </div>
-          ))}
-        </div>
+                return (
+                  <DraggableEvent
+                    key={event.id}
+                    event={event}
+                    onClick={() => onEventClick(event)}
+                    hasConflict={hasConflict}
+                    disabled={readOnly}
+                    style={{
+                      top: `${top}px`,
+                      height: `${Math.max(height, 24)}px`,
+                      position: 'absolute',
+                    }}
+                  />
+                )
+              })}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -1975,8 +1972,8 @@ function DayView({ currentDate, events: _events, onEventClick, conflicts, readOn
     .sort((a: CalendarEvent, b: CalendarEvent) => a.date.getTime() - b.date.getTime())
 
   return (
-    <div className="relative flex min-h-full flex-row rounded-lg bg-white/50">
-      <div className="sticky left-0 z-10 flex w-14 flex-col border-r border-gray-300 bg-gray-50">
+    <div className="grid min-h-full grid-cols-[3.5rem_1fr] rounded-lg bg-white/50">
+      <div className="sticky left-0 z-10 flex flex-col border-r border-gray-300 bg-gray-50">
         {hours.map(hour => (
           <div
             key={hour}
@@ -1988,7 +1985,7 @@ function DayView({ currentDate, events: _events, onEventClick, conflicts, readOn
         <div className="flex-1 bg-gray-50" />
       </div>
 
-      <div className="relative flex flex-1 flex-col">
+      <div className="relative flex flex-col">
         {hours.map(hour => (
           <DroppableHour
             key={hour}
