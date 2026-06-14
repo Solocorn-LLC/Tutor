@@ -1,28 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
-import MessagingPanel from './messaging-panel'
+import MessagingPanel, { type CommSection } from './messaging-panel'
 import NotificationsPanel from './notifications-panel'
-import type { Conversation, Message, AppNotification, CommsRole } from './types'
+import type { AppNotification, CommsRole } from './types'
 
 interface CommunicationsPageProps {
   role: CommsRole
 }
 
 export default function CommunicationsPage({ role }: CommunicationsPageProps) {
-  const { data: session } = useSession()
-
-  // Messaging state
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [inputMessage, setInputMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [messagesLoading, setMessagesLoading] = useState(true)
+  const [activeSection, setActiveSection] = useState<CommSection>('chats')
 
   // Notifications state
   const [notifications, setNotifications] = useState<AppNotification[]>([])
@@ -30,90 +20,8 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
   const [respondingIds, setRespondingIds] = useState<Record<string, 'accept' | 'reject' | null>>({})
 
   useEffect(() => {
-    fetchConversations()
     fetchNotifications()
   }, [])
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id)
-    }
-  }, [selectedConversation])
-
-  const fetchConversations = async () => {
-    try {
-      const res = await fetch('/api/conversations', { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setConversations(data.conversations || [])
-      } else {
-        toast.error('Failed to load conversations')
-      }
-    } catch {
-      toast.error('Failed to load conversations')
-    } finally {
-      setMessagesLoading(false)
-    }
-  }
-
-  const fetchMessages = async (conversationId: string) => {
-    try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(data.messages || [])
-      } else {
-        toast.error('Failed to load messages')
-      }
-    } catch {
-      toast.error('Failed to load messages')
-    }
-  }
-
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || !selectedConversation) return
-
-    setSending(true)
-    const content = inputMessage
-    setInputMessage('')
-
-    try {
-      const res = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ content }),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(prev => [...prev, data.message])
-        setConversations(prev =>
-          prev.map(c =>
-            c.id === selectedConversation.id
-              ? {
-                  ...c,
-                  lastMessage: {
-                    content,
-                    createdAt: new Date().toISOString(),
-                    read: true,
-                    senderId: role === 'student' ? session?.user?.id || 'me' : 'me',
-                  },
-                }
-              : c
-          )
-        )
-      } else {
-        toast.error('Failed to send message')
-        setInputMessage(content)
-      }
-    } catch {
-      toast.error('Failed to send message')
-      setInputMessage(content)
-    } finally {
-      setSending(false)
-    }
-  }
 
   const fetchNotifications = async () => {
     try {
@@ -229,30 +137,20 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  if (messagesLoading && notificationsLoading) {
+  if (notificationsLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-white">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-white px-4 py-4 sm:px-6 lg:px-8">
+    <div className="flex h-full w-full flex-col px-4 sm:px-6 lg:px-8">
       <div className="h-[45%] min-h-0 shrink-0 pb-4">
         <MessagingPanel
-          role={role}
-          conversations={conversations}
-          selectedConversation={selectedConversation}
-          messages={messages}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSelectConversation={setSelectedConversation}
-          inputMessage={inputMessage}
-          onInputChange={setInputMessage}
-          onSend={sendMessage}
-          sending={sending}
-          loading={messagesLoading}
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
         />
       </div>
       <div className="min-h-0 flex-1">

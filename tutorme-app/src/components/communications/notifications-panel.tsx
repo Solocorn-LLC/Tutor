@@ -114,8 +114,8 @@ export default function NotificationsPanel({
   )
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.05)] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-[20px] border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4 text-slate-600" />
           <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
@@ -148,7 +148,7 @@ export default function NotificationsPanel({
           ) : notifications.length === 0 ? (
             EmptyState
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-gray-200">
               {notifications.map(notification => {
                 const Card = (
                   <div
