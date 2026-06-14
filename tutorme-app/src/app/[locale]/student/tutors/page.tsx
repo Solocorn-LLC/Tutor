@@ -14,6 +14,7 @@ import {
 import { BookOpen, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
 
@@ -57,12 +58,15 @@ export default function StudentTutorDirectoryPage() {
 
   const [loading, setLoading] = useState(true)
   const [tutors, setTutors] = useState<TutorDirectoryItem[]>([])
-  const [categories, setCategories] = useState<string[]>([])
-  const [nationalities, setNationalities] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [nationalityFilter, setNationalityFilter] = useState('all')
+  const [selectedRegion, setSelectedRegion] = useState('')
+  const [selectedCountryCode, setSelectedCountryCode] = useState('')
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate'>('popular')
+
+  const availableCountries = useMemo(() => {
+    const region = REGIONS.find(r => r.id === selectedRegion)
+    return region ? region.countries : []
+  }, [selectedRegion])
   const [following, setFollowing] = useState<Set<string>>(new Set())
 
   // Load following from API on mount
@@ -128,8 +132,9 @@ export default function StudentTutorDirectoryPage() {
       try {
         const qs = new URLSearchParams()
         if (searchQuery.trim()) qs.set('q', searchQuery.trim())
-        if (categoryFilter !== 'all') qs.set('subject', categoryFilter)
-        if (nationalityFilter !== 'all') qs.set('nationality', nationalityFilter)
+        if (selectedRegion && selectedRegion !== 'global' && selectedCountryCode) {
+          qs.set('country', selectedCountryCode)
+        }
         qs.set('sort', sortBy)
 
         const res = await fetch(`/api/public/tutors?${qs.toString()}`, {
@@ -143,10 +148,6 @@ export default function StudentTutorDirectoryPage() {
         const enrichedTutors = Array.isArray(data?.tutors) ? data.tutors : []
 
         setTutors(enrichedTutors)
-        setCategories(Array.isArray(data?.availableCategories) ? data.availableCategories : [])
-        setNationalities(
-          Array.isArray(data?.availableNationalities) ? data.availableNationalities : []
-        )
       } catch {
         if (!active) return
         setTutors([])
@@ -159,7 +160,7 @@ export default function StudentTutorDirectoryPage() {
     return () => {
       active = false
     }
-  }, [searchQuery, categoryFilter, nationalityFilter, sortBy])
+  }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
 
   const headlineMetrics = useMemo(() => {
     const totalCourses = tutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
@@ -225,41 +226,77 @@ export default function StudentTutorDirectoryPage() {
                   className="border-slate-200 bg-white pl-9 text-slate-900 placeholder:text-slate-400"
                 />
               </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                  <SelectValue placeholder="Filter by category" />
+              <Select
+                value={selectedRegion}
+                onValueChange={value => {
+                  setSelectedRegion(value)
+                  setSelectedCountryCode('')
+                }}
+              >
+                <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none">
+                  <SelectValue placeholder="Region" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category.toLowerCase()}>
-                      {category}
+                <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                  {REGIONS.map(region => (
+                    <SelectItem
+                      key={region.id}
+                      value={region.id}
+                      className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    >
+                      {region.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={nationalityFilter} onValueChange={setNationalityFilter}>
-                <SelectTrigger className="border-slate-200 bg-white text-slate-900">
-                  <SelectValue placeholder="Filter by country" />
+              <Select
+                value={selectedCountryCode}
+                onValueChange={setSelectedCountryCode}
+                disabled={!selectedRegion || selectedRegion === 'global'}
+              >
+                <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+                  <SelectValue placeholder="Country" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
-                  {nationalities.map(nat => (
-                    <SelectItem key={nat} value={nat.toLowerCase()}>
-                      {nat}
+                <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                  {availableCountries.map(country => (
+                    <SelectItem
+                      key={country.code}
+                      value={country.code}
+                      className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    >
+                      {country.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
-                <SelectTrigger className="border-slate-200 bg-white text-slate-900">
+                <SelectTrigger className="h-10 w-full rounded-lg border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="popular">Most Popular</SelectItem>
-                  <SelectItem value="newest">Recently Updated</SelectItem>
-                  <SelectItem value="courses">Most Courses</SelectItem>
-                  <SelectItem value="rate">Highest Rated</SelectItem>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                  <SelectItem
+                    value="popular"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  >
+                    Most Popular
+                  </SelectItem>
+                  <SelectItem
+                    value="newest"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  >
+                    Recently Updated
+                  </SelectItem>
+                  <SelectItem
+                    value="courses"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  >
+                    Most Courses
+                  </SelectItem>
+                  <SelectItem
+                    value="rate"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  >
+                    Highest Rated
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -289,7 +326,7 @@ export default function StudentTutorDirectoryPage() {
                   <CardHeader>
                     <CardTitle className="text-white">No tutors match your current filters</CardTitle>
                     <CardDescription className="text-white/70">
-                      Try broadening search terms or selecting a different subject or country.
+                      Try broadening search terms or selecting a different region or country.
                     </CardDescription>
                   </CardHeader>
                 </Card>
