@@ -866,19 +866,28 @@ const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; descripti
   ],
 }
 
-const HOW_IT_WORKS_DOCUMENTS = [
+type HowItWorksDocument = {
+  id: string
+  title: string
+  downloadable: boolean
+  url?: string
+  filename?: string
+}
+
+const HOW_IT_WORKS_DOCUMENTS: HowItWorksDocument[] = [
   {
     id: 'pitch-deck',
     title: 'Solocorn Pitch Deck',
-    url: 'https://storage.googleapis.com/YOUR_BUCKET/how-it-works/pdfs/solocorn-pitch-deck.pdf',
+    downloadable: true,
+    url: '/documents/solocorn-pitch-deck.pdf',
     filename: 'solocorn-pitch-deck.pdf',
   },
-  {
-    id: 'course-builder-guide',
-    title: 'Course Builder Guide',
-    url: 'https://storage.googleapis.com/YOUR_BUCKET/how-it-works/pdfs/course-builder-guide.pdf',
-    filename: 'solocorn-course-builder-guide.pdf',
-  },
+  { id: 'features-in-development', title: 'Features in Development', downloadable: false },
+  { id: 'how-it-works', title: 'How It Works', downloadable: false },
+  { id: 'scalability-deck', title: 'Scalability Deck', downloadable: false },
+  { id: 'solocorn-advantage', title: 'Solocorn Advantage', downloadable: false },
+  { id: 'solocorn-pedagogy', title: 'Solocorn Pedagogy', downloadable: false },
+  { id: 'social-media-synergy', title: 'Social Media Synergy', downloadable: false },
 ]
 
 function HowItWorksVideoCard({
@@ -886,22 +895,30 @@ function HowItWorksVideoCard({
 }: {
   video: { id: string; title: string; description: string }
 }) {
-  return (
-    <a
-      href={`https://www.youtube.com/watch?v=${video.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block w-36 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
-    >
-      <div className="relative aspect-video overflow-hidden">
-        <img
-          src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
-          alt={video.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors group-hover:bg-black/30">
-          <Play className="h-5 w-5 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
-        </div>
+  const isPlaceholder = video.id.startsWith('PLACEHOLDER')
+
+  const cardContent = (
+    <>
+      <div className="relative aspect-video overflow-hidden bg-slate-700/40">
+        {isPlaceholder ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5">
+            <Play className="h-5 w-5 fill-white/40 text-white/40" />
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-semibold text-white/80">
+              Coming Soon
+            </span>
+          </div>
+        ) : (
+          <>
+            <img
+              src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
+              alt={video.title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors group-hover:bg-black/30">
+              <Play className="h-5 w-5 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
+            </div>
+          </>
+        )}
       </div>
       <div className="p-1">
         <h3 className="text-[10px] font-semibold text-white">{video.title}</h3>
@@ -909,31 +926,72 @@ function HowItWorksVideoCard({
           <p className="mt-0.5 text-[9px] leading-snug text-white/70">{video.description}</p>
         )}
       </div>
+    </>
+  )
+
+  if (isPlaceholder) {
+    return (
+      <div className="block w-36 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+        {cardContent}
+      </div>
+    )
+  }
+
+  return (
+    <a
+      href={`https://www.youtube.com/watch?v=${video.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block w-36 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
+    >
+      {cardContent}
     </a>
   )
 }
 
 function HowItWorksDocumentCard({
   doc,
+  onRequest,
 }: {
-  doc: { id: string; title: string; url: string; filename: string }
+  doc: HowItWorksDocument
+  onRequest?: (title: string) => void
 }) {
-  return (
-    <a
-      href={doc.url}
-      download={doc.filename}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex w-40 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-2 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
-    >
+  const cardBody = (
+    <>
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
         <FileText className="h-4 w-4 text-white/90" />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         <h3 className="truncate text-[10px] font-semibold text-white">{doc.title}</h3>
-        <p className="mt-0.5 text-[9px] text-white/70">Download PDF</p>
+        <p className="mt-0.5 text-[9px] text-white/70">
+          {doc.downloadable ? 'Download PDF' : 'Request PDF'}
+        </p>
       </div>
-    </a>
+    </>
+  )
+
+  if (doc.downloadable && doc.url) {
+    return (
+      <a
+        href={doc.url}
+        download={doc.filename}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex w-36 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-2 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
+      >
+        {cardBody}
+      </a>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onRequest?.(doc.title)}
+      className="group flex w-36 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-2 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
+    >
+      {cardBody}
+    </button>
   )
 }
 
@@ -955,7 +1013,7 @@ function HowItWorksArrow({
         'shrink-0 transition-all duration-300',
         'h-20 w-6 self-center',
         !disabled
-          ? 'cursor-pointer hover:brightness-110 hover:-translate-y-[2px]'
+          ? 'cursor-pointer hover:-translate-y-[2px] hover:brightness-110'
           : 'cursor-not-allowed opacity-30 grayscale'
       )}
       style={{
@@ -963,7 +1021,8 @@ function HowItWorksArrow({
           direction === 'left'
             ? 'polygon(100% 0, 100% 100%, 0 50%)'
             : 'polygon(0 0, 0 100%, 100% 50%)',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)',
+        background:
+          'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)',
         filter:
           'drop-shadow(0 8px 16px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(255,255,255,0.6)) drop-shadow(0 0 4px rgba(255,255,255,0.4))',
       }}
@@ -977,11 +1036,13 @@ function HowItWorksRow<T>({
   items,
   renderItem,
   itemsPerPage = 5,
+  headerMessage,
 }: {
   title: string
   items: T[]
   renderItem: (item: T) => React.ReactNode
   itemsPerPage?: number
+  headerMessage?: string
 }) {
   const [page, setPage] = useState(0)
   const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage))
@@ -993,8 +1054,9 @@ function HowItWorksRow<T>({
 
   return (
     <div className="flex flex-col items-center">
-      <div style={{ width: trackWidth }}>
+      <div className="flex items-center justify-between gap-2" style={{ width: trackWidth }}>
         <h2 className="mb-1 text-left text-sm font-semibold text-white">{title}</h2>
+        {headerMessage && <span className="mb-1 text-xs text-white/80">{headerMessage}</span>}
       </div>
       <div className="flex items-center justify-center gap-3">
         <HowItWorksArrow
@@ -1002,7 +1064,8 @@ function HowItWorksRow<T>({
           disabled={!canPrev}
           onClick={() => setPage(p => Math.max(p - 1, 0))}
         />
-        <div className="scrollbar-hide flex gap-2 overflow-x-auto py-1"
+        <div
+          className="scrollbar-hide flex gap-2 overflow-x-auto py-1"
           style={{ width: trackWidth }}
         >
           {visible.map((item, i) => (
@@ -2343,7 +2406,10 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 </div>
               </div>
             </DialogPanel>
-            <DialogPanel variant="glass" className="flex min-h-[120px] items-center justify-center p-3">
+            <DialogPanel
+              variant="glass"
+              className="flex min-h-[120px] items-center justify-center p-3"
+            >
               <span className="text-sm font-medium text-white/90">Course Videos and Documents</span>
             </DialogPanel>
           </div>
@@ -4291,6 +4357,7 @@ export default function LandingPage() {
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
   const [howItWorksOpen, setHowItWorksOpen] = useState(false)
+  const [documentMessage, setDocumentMessage] = useState<string | null>(null)
 
   // Lock background scrolling while the How It Works panel is open
   useEffect(() => {
@@ -4303,6 +4370,8 @@ export default function LandingPage() {
         document.body.style.overflow = originalBodyOverflow
         document.documentElement.style.overflow = originalHtmlOverflow
       }
+    } else {
+      setDocumentMessage(null)
     }
   }, [howItWorksOpen])
 
@@ -4477,25 +4546,35 @@ export default function LandingPage() {
 
                 {/* Scrollable rows */}
                 <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1">
-                  {Object.entries(HOW_IT_WORKS_VIDEOS).map(([section, videos], sectionIndex, sections) => (
-                    <div key={section}>
-                      <HowItWorksRow
-                        title={section}
-                        items={videos}
-                        renderItem={video => <HowItWorksVideoCard video={video} />}
-                      />
-                      {sectionIndex < sections.length - 1 && (
-                        <div className="mx-2 my-2 h-px bg-white/20" />
-                      )}
-                    </div>
-                  ))}
+                  {Object.entries(HOW_IT_WORKS_VIDEOS).map(
+                    ([section, videos], sectionIndex, sections) => (
+                      <div key={section}>
+                        <HowItWorksRow
+                          title={section}
+                          items={videos}
+                          renderItem={video => <HowItWorksVideoCard video={video} />}
+                        />
+                        {sectionIndex < sections.length - 1 && (
+                          <div className="mx-2 my-2 h-px bg-white/20" />
+                        )}
+                      </div>
+                    )
+                  )}
 
                   <div className="mx-2 my-2 h-px bg-white/20" />
 
                   <HowItWorksRow
                     title="Documents"
                     items={HOW_IT_WORKS_DOCUMENTS}
-                    renderItem={doc => <HowItWorksDocumentCard doc={doc} />}
+                    renderItem={doc => (
+                      <HowItWorksDocumentCard
+                        doc={doc}
+                        onRequest={title =>
+                          setDocumentMessage(`Request "${title}" from Support@Solocorn.co`)
+                        }
+                      />
+                    )}
+                    headerMessage={documentMessage ?? undefined}
                   />
                 </div>
               </div>
@@ -4623,24 +4702,26 @@ export default function LandingPage() {
                   transition={{ delay: 0.5, duration: 0.6 }}
                 >
                   <div className="w-[300px] rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg sm:w-[360px] md:w-[400px] md:px-8 md:py-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-white/90">
-                  <Users className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {typeof tutorTotal === 'number' ? tutorTotal : 5} Tutors
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-white/90">
-                  <BookOpen className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {typeof courseTotal === 'number' ? courseTotal : 36} Courses
-                  </span>
-                </div>
-              </div>
-              <div className="mb-3">
-                <CountdownTimer />
-              </div>
-              <div className="text-center text-sm font-medium text-white/70">Until Launch</div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-white/90">
+                        <Users className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          {typeof tutorTotal === 'number' ? tutorTotal : 5} Tutors
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-white/90">
+                        <BookOpen className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          {typeof courseTotal === 'number' ? courseTotal : 36} Courses
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <CountdownTimer />
+                    </div>
+                    <div className="text-center text-sm font-medium text-white/70">
+                      Until Launch
+                    </div>
                   </div>
                 </motion.div>
               )}
