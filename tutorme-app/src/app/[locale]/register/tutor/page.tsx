@@ -784,7 +784,15 @@ export default function TutorRegistrationPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-lg backdrop-blur-xl">
+        <div
+          className="overflow-hidden rounded-[20px]"
+          style={{
+            background:
+              'linear-gradient(145deg, rgba(45,55,65,0.95) 0%, rgba(35,45,55,0.96) 40%, rgba(28,38,48,0.97) 100%)',
+            boxShadow:
+              '0 20px 50px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+        >
           {step >= 3 && (
             <div className="border-b border-white/10 px-5 pb-3 pt-5">
               <h2 className="text-lg font-semibold text-white/90">
@@ -929,8 +937,8 @@ export default function TutorRegistrationPage() {
                           role="combobox"
                           aria-expanded={nationalityOpen}
                           className={cn(
-                            'flex h-10 w-full items-center justify-between rounded-lg border border-slate-700/25 bg-white/30 px-3 py-2 text-sm text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:opacity-50',
-                            !formData.nationality && 'text-slate-500'
+                            'flex h-8 w-full items-center justify-between rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40',
+                            !formData.nationality && 'text-gray-400'
                           )}
                         >
                           {formData.nationality || 'Select your nationality'}
@@ -938,8 +946,8 @@ export default function TutorRegistrationPage() {
                         </button>
                       </PopoverTrigger>
                       <PopoverContent
-                        variant="panel"
-                        className="w-[var(--radix-popper-anchor-width)] rounded-lg border border-slate-700/25 bg-white/30 p-0 shadow-lg backdrop-blur-xl"
+                        variant="metallic"
+                        className="w-[var(--radix-popper-anchor-width)] p-0"
                         align="start"
                         side="bottom"
                         sideOffset={4}
@@ -949,10 +957,10 @@ export default function TutorRegistrationPage() {
                             placeholder="Search country..."
                             value={nationalitySearch}
                             onValueChange={setNationalitySearch}
-                            className="h-10 border-b border-slate-700/25 text-slate-700 placeholder:text-slate-500"
+                            className="h-10 text-white placeholder:text-white/60"
                           />
                           <CommandList className="max-h-[260px] overflow-y-auto">
-                            <CommandEmpty className="py-3 text-center text-sm text-slate-700">
+                            <CommandEmpty className="py-3 text-center text-sm text-white">
                               No country found.
                             </CommandEmpty>
                             <CommandGroup>
@@ -965,16 +973,18 @@ export default function TutorRegistrationPage() {
                                     setNationalityOpen(false)
                                     setNationalitySearch('')
                                   }}
-                                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 aria-selected:bg-slate-100/50"
+                                  className="relative rounded-lg py-2 pl-10 pr-4 text-[13px] font-semibold text-white/[0.94] hover:bg-white/10 aria-selected:bg-white/10"
                                 >
-                                  <Check
-                                    className={cn(
-                                      'mr-2 h-4 w-4',
-                                      formData.nationality === country.name
-                                        ? 'opacity-100'
-                                        : 'opacity-0'
-                                    )}
-                                  />
+                                  <span className="absolute left-3 flex h-3.5 w-3.5 items-center justify-center">
+                                    <span
+                                      className={cn(
+                                        'h-1.5 w-1.5 rounded-full bg-current',
+                                        formData.nationality === country.name
+                                          ? 'opacity-100'
+                                          : 'opacity-0'
+                                      )}
+                                    />
+                                  </span>
                                   {country.name}
                                 </CommandItem>
                               ))}
