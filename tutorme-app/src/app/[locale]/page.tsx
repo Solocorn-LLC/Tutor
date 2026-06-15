@@ -847,21 +847,21 @@ const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; descripti
       description: 'Publish and manage course variants.',
     },
   ],
-  'Pitch Deck': [
+  Testimonials: [
     {
       id: 'PLACEHOLDER_4',
-      title: 'Platform Overview',
-      description: 'High-level pitch for institutions.',
+      title: 'Maria S.',
+      description: '“This platform helped me reach students across the country.”',
     },
     {
       id: 'PLACEHOLDER_5',
-      title: 'Tutor Value Proposition',
-      description: 'Why tutors choose Solocorn.',
+      title: 'James L.',
+      description: '“Live sessions feel personal and my grades improved fast.”',
     },
     {
       id: 'PLACEHOLDER_6',
-      title: 'Student Outcomes',
-      description: 'Results and success stories.',
+      title: 'Elena R.',
+      description: '“Booking a tutor took seconds and the AI tools are a game changer.”',
     },
   ],
 }
@@ -989,22 +989,21 @@ function HowItWorksRow<T>({
   const canPrev = currentPage > 0
   const canNext = currentPage < totalPages - 1
   const visible = items.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
+  const trackWidth = `calc(${itemsPerPage} * 9rem + ${itemsPerPage - 1} * 0.5rem)`
 
   return (
-    <div>
-      <h2 className="mb-1 text-center text-sm font-semibold text-white">{title}</h2>
+    <div className="flex flex-col items-center">
+      <div style={{ width: trackWidth }}>
+        <h2 className="mb-1 text-left text-sm font-semibold text-white">{title}</h2>
+      </div>
       <div className="flex items-center justify-center gap-3">
         <HowItWorksArrow
           direction="left"
           disabled={!canPrev}
           onClick={() => setPage(p => Math.max(p - 1, 0))}
         />
-        <div className="scrollbar-hide flex w-[calc(var(--card-width)*var(--items-per-page)+var(--card-gap)*(var(--items-per-page)-1))] gap-2 overflow-x-auto py-1"
-          style={{
-            ['--card-width' as any]: '9rem',
-            ['--card-gap' as any]: '0.5rem',
-            ['--items-per-page' as any]: String(itemsPerPage),
-          }}
+        <div className="scrollbar-hide flex gap-2 overflow-x-auto py-1"
+          style={{ width: trackWidth }}
         >
           {visible.map((item, i) => (
             <div key={i} className="shrink-0">
@@ -4289,6 +4288,18 @@ export default function LandingPage() {
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
   const [howItWorksOpen, setHowItWorksOpen] = useState(false)
+
+  // Lock background scrolling while the How It Works panel is open
+  useEffect(() => {
+    if (howItWorksOpen) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [howItWorksOpen])
+
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Stable motion props to prevent unnecessary re-renders / remounts
@@ -4596,7 +4607,16 @@ export default function LandingPage() {
 
           {/* Bottom-right stats + countdown card */}
           <div className="absolute bottom-6 right-6 z-10">
-            <div className="w-[300px] rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg sm:w-[360px] md:w-[400px] md:px-8 md:py-6">
+            <AnimatePresence>
+              {!howItWorksOpen && (
+                <motion.div
+                  key="launch-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ delay: 0.5, duration: 0.6 }}
+                >
+                  <div className="w-[300px] rounded-2xl border border-white/20 bg-white/10 px-6 py-5 shadow-lg sm:w-[360px] md:w-[400px] md:px-8 md:py-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-white/90">
                   <Users className="h-4 w-4" />
@@ -4615,7 +4635,10 @@ export default function LandingPage() {
                 <CountdownTimer />
               </div>
               <div className="text-center text-sm font-medium text-white/70">Until Launch</div>
-            </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
