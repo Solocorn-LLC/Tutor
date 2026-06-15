@@ -3510,10 +3510,13 @@ const CategorySearchModal = ({
   // Lock body scroll while modal is open
   useEffect(() => {
     if (isOpen) {
-      const originalOverflow = document.body.style.overflow
+      const originalBodyOverflow = document.body.style.overflow
+      const originalHtmlOverflow = document.documentElement.style.overflow
       document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
       return () => {
-        document.body.style.overflow = originalOverflow
+        document.body.style.overflow = originalBodyOverflow
+        document.documentElement.style.overflow = originalHtmlOverflow
       }
     }
   }, [isOpen])
@@ -4292,10 +4295,13 @@ export default function LandingPage() {
   // Lock background scrolling while the How It Works panel is open
   useEffect(() => {
     if (howItWorksOpen) {
-      const originalOverflow = document.body.style.overflow
+      const originalBodyOverflow = document.body.style.overflow
+      const originalHtmlOverflow = document.documentElement.style.overflow
       document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
       return () => {
-        document.body.style.overflow = originalOverflow
+        document.body.style.overflow = originalBodyOverflow
+        document.documentElement.style.overflow = originalHtmlOverflow
       }
     }
   }, [howItWorksOpen])
@@ -4436,7 +4442,7 @@ export default function LandingPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.85)] px-4 py-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-6 md:py-5"
+              className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] px-4 py-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:px-6 md:py-5"
               onClick={e => e.stopPropagation()}
             >
               {/* Close button */}
@@ -4608,7 +4614,7 @@ export default function LandingPage() {
           {/* Bottom-right stats + countdown card */}
           <div className="absolute bottom-6 right-6 z-10">
             <AnimatePresence>
-              {!howItWorksOpen && (
+              {!howItWorksOpen && !showCategories && (
                 <motion.div
                   key="launch-card"
                   initial={{ opacity: 0, y: 20 }}

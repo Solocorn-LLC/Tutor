@@ -228,10 +228,13 @@ export default function App() {
   // Lock background scrolling while the How It Works panel is open
   useEffect(() => {
     if (isHowItWorksOpen) {
-      const originalOverflow = document.body.style.overflow;
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
       return () => {
-        document.body.style.overflow = originalOverflow;
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
       };
     }
   }, [isHowItWorksOpen]);
@@ -400,7 +403,7 @@ export default function App() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/30 bg-white/35 p-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-6"
+                className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] p-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Close button */}
