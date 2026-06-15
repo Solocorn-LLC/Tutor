@@ -32,6 +32,10 @@ import {
   FileIcon,
   Send,
   Bot,
+  BookOpen,
+  Users,
+  DollarSign,
+  Video,
 } from 'lucide-react'
 import Link from 'next/link'
 import { BackButton } from '@/components/navigation/BackButton'
@@ -40,6 +44,7 @@ import { RevenueDashboard } from '../dashboard/components/RevenueDashboard'
 import { StudentReportsTab } from '@/components/reports/student-reports-tab'
 
 import { cn } from '@/lib/utils'
+import { formatEarnings } from '@/lib/format-currency'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 
 interface ClassOption {
@@ -137,6 +142,17 @@ export default function TutorReports() {
   const [globalAllStudents, setGlobalAllStudents] = useState<Student[]>([])
   const [loadingGlobals, setLoadingGlobals] = useState(true)
 
+  interface AnalyticsData {
+    totalCourses: number
+    totalStudents: number
+    totalRevenues: number
+    totalSessions: number
+    currency: string
+  }
+
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
+
   // Fetch real students and classes on mount
   useEffect(() => {
     const loadData = async () => {
@@ -183,6 +199,37 @@ export default function TutorReports() {
     }
 
     loadData()
+  }, [])
+
+  // Fetch lifetime analytics
+  useEffect(() => {
+    let active = true
+    const loadAnalytics = async () => {
+      setAnalyticsLoading(true)
+      try {
+        const res = await fetch('/api/tutor/analytics', { credentials: 'include' })
+        if (!res.ok) throw new Error('Failed to load analytics')
+        const data = await res.json()
+        if (!active) return
+        setAnalytics({
+          totalCourses: data.totalCourses ?? 0,
+          totalStudents: data.totalStudents ?? 0,
+          totalRevenues: data.totalRevenues ?? 0,
+          totalSessions: data.totalSessions ?? 0,
+          currency: data.currency ?? 'SGD',
+        })
+      } catch (error) {
+        console.error('Error loading analytics:', error)
+        if (!active) return
+        setAnalytics(null)
+      } finally {
+        if (active) setAnalyticsLoading(false)
+      }
+    }
+    loadAnalytics()
+    return () => {
+      active = false
+    }
   }, [])
 
   // Fetch report data when selected class changes
@@ -292,67 +339,110 @@ export default function TutorReports() {
     )
   }
 
+  const analyticsPills = [
+    {
+      icon: BookOpen,
+      label: 'Total Courses',
+      value: analytics?.totalCourses ?? 0,
+    },
+    {
+      icon: Users,
+      label: 'Total Students',
+      value: analytics?.totalStudents ?? 0,
+    },
+    {
+      icon: DollarSign,
+      label: 'Total Revenues',
+      value: formatEarnings(analytics?.totalRevenues ?? 0, analytics?.currency ?? 'SGD'),
+    },
+    {
+      icon: Video,
+      label: 'Total Sessions',
+      value: analytics?.totalSessions ?? 0,
+    },
+  ]
+
   return (
-    <div className="h-screen overflow-hidden bg-[#FFFFFF]">
-      <div className="h-full w-full overflow-y-auto tutor-mypage-scroll">
-        {/* Header Container */}
-        <div className="bg-[#FFFFFF] px-4 pb-2 pt-4 sm:px-6">
-          <div className="flex w-full flex-col gap-4">
-            <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex h-screen flex-col overflow-hidden bg-white">
+      <div className="flex h-full w-full flex-col px-3 lg:px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+          {/* Blue hero header */}
+          <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-4">
-                <BackButton href="/tutor/dashboard" />
+                <BackButton
+                  href="/tutor/dashboard"
+                  className="text-white hover:bg-white/10 hover:text-white"
+                />
                 <div>
-                  <h1 className="text-2xl font-bold">Analytics</h1>
+                  <h1 className="text-xl font-bold text-white">Analytics</h1>
+                  <p className="mt-1 text-sm text-white/60">Track your teaching impact</p>
                 </div>
               </div>
 
-              {/* Export Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    disabled={isExporting || !selectedClassId}
-                  >
-                    {isExporting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {analyticsPills.map(pill => (
+                  <div
+                    key={pill.label}
+                    className={cn(
+                      'flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm',
+                      analyticsLoading && 'animate-pulse'
                     )}
-                    Export Report
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleExportReport('pdf')} className="gap-2">
-                    <FileText className="h-4 w-4 text-red-500" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportReport('excel')} className="gap-2">
-                    <FileSpreadsheet className="h-4 w-4 text-green-500" />
-                    Export as Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportReport('csv')} className="gap-2">
-                    <FileIcon className="h-4 w-4 text-blue-500" />
-                    Export as CSV
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  >
+                    <pill.icon className="h-4 w-4 text-white/80" />
+                    <span className="text-xs font-medium text-white/80">{pill.label}</span>
+                    <span className="text-sm font-bold text-white">{pill.value}</span>
+                  </div>
+                ))}
+
+                {/* Export Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                      disabled={isExporting || !selectedClassId}
+                    >
+                      {isExporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      Export Report
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleExportReport('pdf')} className="gap-2">
+                      <FileText className="h-4 w-4 text-red-500" />
+                      Export as PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportReport('excel')} className="gap-2">
+                      <FileSpreadsheet className="h-4 w-4 text-green-500" />
+                      Export as Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportReport('csv')} className="gap-2">
+                      <FileIcon className="h-4 w-4 text-blue-500" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="h-[calc(100vh-140px)] px-4 pb-6 pt-4 sm:px-6">
-          <SessionCalendarPanel
-            value={activeTab}
-            onValueChange={setActiveTab}
-            variant="orange"
-            tabs={[
-              { value: 'overview', label: 'Overview' },
-              { value: 'revenue', label: 'Revenue Insights' },
-              { value: 'students', label: 'Student Roster' },
-              { value: 'reports', label: 'Student Reports' },
-            ]}
-          >
+          {/* Mode selector + tab content */}
+          <div className="flex min-h-0 flex-1 flex-col bg-white p-4 sm:p-6">
+            <SessionCalendarPanel
+              value={activeTab}
+              onValueChange={setActiveTab}
+              variant="orange"
+              tabs={[
+                { value: 'overview', label: 'Overview' },
+                { value: 'revenue', label: 'Revenue Insights' },
+                { value: 'students', label: 'Student Roster' },
+                { value: 'reports', label: 'Student Reports' },
+              ]}
+            >
             {/* Revenue Tab */}
             <TabsContent value="revenue" className="h-full overflow-hidden bg-white">
               <RevenueDashboard className="border-0 bg-white shadow-none" themeId="current" />
@@ -465,6 +555,7 @@ export default function TutorReports() {
         </div>
       </div>
     </div>
+  </div>
   )
 }
 
