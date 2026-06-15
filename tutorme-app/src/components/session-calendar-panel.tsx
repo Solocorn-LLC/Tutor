@@ -103,7 +103,7 @@ export function SessionCalendarPanel({
                     <motion.div
                       layoutId="session-calendar-active-pill"
                       className={cn(
-                        'absolute inset-0 -z-10 rounded-lg shadow-sm',
+                        'absolute inset-0 rounded-lg shadow-sm',
                         variant === 'orange' ? 'bg-[#1F2933]' : 'bg-white'
                       )}
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}

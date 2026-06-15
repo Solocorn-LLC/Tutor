@@ -411,7 +411,7 @@ export function VariantScheduleEditor({
             {modeTab === 'schedule' && (
               <motion.div
                 layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 -z-10 rounded-lg bg-white"
+                className="absolute inset-0 rounded-lg bg-white"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}
@@ -424,7 +424,7 @@ export function VariantScheduleEditor({
             {modeTab === 'summary' && (
               <motion.div
                 layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 -z-10 rounded-lg bg-white"
+                className="absolute inset-0 rounded-lg bg-white"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}
@@ -437,7 +437,7 @@ export function VariantScheduleEditor({
             {modeTab === 'content' && (
               <motion.div
                 layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 -z-10 rounded-lg bg-white"
+                className="absolute inset-0 rounded-lg bg-white"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}
