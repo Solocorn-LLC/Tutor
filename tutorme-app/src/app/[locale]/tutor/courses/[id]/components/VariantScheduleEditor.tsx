@@ -406,22 +406,22 @@ export function VariantScheduleEditor({
   return (
     <div className="flex h-full flex-col">
       <Tabs value={modeTab} onValueChange={setModeTab} className="flex w-full flex-1 flex-col">
-        <TabsList className="grid w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-3">
+        <TabsList className="grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-3">
           <TabsTrigger
             value="schedule"
-            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933]"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-none"
           >
             Schedule
           </TabsTrigger>
           <TabsTrigger
             value="summary"
-            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933]"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-none"
           >
             Summary
           </TabsTrigger>
           <TabsTrigger
             value="content"
-            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933]"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-none"
           >
             Content
           </TabsTrigger>
