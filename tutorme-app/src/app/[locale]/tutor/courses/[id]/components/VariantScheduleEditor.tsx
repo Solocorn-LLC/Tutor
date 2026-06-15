@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSlidingPillMetrics } from '@/hooks/use-sliding-pill'
 import type { ScheduleItem } from '../constants'
 import { DAYS, TIME_SLOT_OPTIONS } from '../constants'
 import { expandSchedule, extractTemplate } from './expand-schedule'
@@ -400,52 +401,36 @@ export function VariantScheduleEditor({
     })
   }
 
+  const listRef = useRef<HTMLDivElement>(null)
+  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const tabValues = ['schedule', 'summary', 'content']
+  const activeIndex = tabValues.indexOf(modeTab)
+  const { left, width } = useSlidingPillMetrics(triggerRefs, activeIndex)
+
   return (
     <div className="flex h-full flex-col">
       <Tabs value={modeTab} onValueChange={setModeTab} className="flex w-full flex-1 flex-col">
         <TabsList className="relative grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-3">
-          <TabsTrigger
-            value="schedule"
-            className="relative rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-          >
-            {modeTab === 'schedule' && (
-              <motion.div
-                layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 rounded-lg bg-white"
-                initial={false}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              />
-            )}
-            Schedule
-          </TabsTrigger>
-          <TabsTrigger
-            value="summary"
-            className="relative rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-          >
-            {modeTab === 'summary' && (
-              <motion.div
-                layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 rounded-lg bg-white"
-                initial={false}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              />
-            )}
-            Summary
-          </TabsTrigger>
-          <TabsTrigger
-            value="content"
-            className="relative rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-          >
-            {modeTab === 'content' && (
-              <motion.div
-                layoutId="schedule-editor-active-pill"
-                className="absolute inset-0 rounded-lg bg-white"
-                initial={false}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              />
-            )}
-            Content
-          </TabsTrigger>
+          {tabValues.map((tabValue, i) => (
+            <TabsTrigger
+              key={tabValue}
+              ref={el => {
+                triggerRefs.current[i] = el
+              }}
+              value={tabValue}
+              className="relative z-10 rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
+            >
+              {tabValue === 'schedule' && 'Schedule'}
+              {tabValue === 'summary' && 'Summary'}
+              {tabValue === 'content' && 'Content'}
+            </TabsTrigger>
+          ))}
+          <motion.div
+            className="absolute bottom-3 top-3 rounded-lg bg-white"
+            initial={false}
+            animate={{ left, width }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          />
         </TabsList>
 
         <TabsContent value="schedule" className="mt-6 flex flex-1 flex-col gap-6 overflow-hidden">

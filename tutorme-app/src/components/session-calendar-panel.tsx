@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSlidingPillMetrics } from '@/hooks/use-sliding-pill'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Select,
@@ -75,14 +77,20 @@ export function SessionCalendarPanel({
   onTimezoneChange,
   variant = 'blue',
 }: SessionCalendarPanelProps) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const activeIndex = tabs.findIndex(tab => tab.value === value)
+  const { left, width } = useSlidingPillMetrics(triggerRefs, activeIndex)
+
   return (
     <Card className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white !pb-4 shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
       <Tabs value={value} onValueChange={onValueChange} className="flex h-full w-full flex-col">
         <CardHeader className="flex-shrink-0 px-6 pb-0 pt-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList
+              ref={listRef}
               className={cn(
-                'flex gap-1.5 rounded-xl p-1.5',
+                'relative flex gap-1.5 rounded-xl p-1.5',
                 variant === 'orange'
                   ? 'bg-gradient-to-r from-[#F97316] to-[#EA580C]'
                   : variant === 'charcoal'
@@ -90,12 +98,15 @@ export function SessionCalendarPanel({
                     : 'bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]'
               )}
             >
-              {tabs.map(tab => (
+              {tabs.map((tab, i) => (
                 <TabsTrigger
                   key={tab.value}
+                  ref={el => {
+                    triggerRefs.current[i] = el
+                  }}
                   value={tab.value}
                   className={cn(
-                    'relative flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+                    'relative z-10 flex-1 rounded-lg text-white/80 hover:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none',
                     variant === 'orange'
                       ? 'data-[state=active]:!text-[#EA580C]'
                       : variant === 'charcoal'
@@ -103,17 +114,15 @@ export function SessionCalendarPanel({
                         : 'data-[state=active]:!text-[#2563EB]'
                   )}
                 >
-                  {value === tab.value && (
-                    <motion.div
-                      layoutId="session-calendar-active-pill"
-                      className="absolute inset-0 rounded-lg bg-white shadow-sm"
-                      initial={false}
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    />
-                  )}
                   {tab.label}
                 </TabsTrigger>
               ))}
+              <motion.div
+                className="absolute bottom-1.5 top-1.5 rounded-lg bg-white shadow-sm"
+                initial={false}
+                animate={{ left, width }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
             </TabsList>
 
             {showCalendarControls && (
