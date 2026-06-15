@@ -28,8 +28,17 @@ import {
   EyeOff,
   Loader2,
   X,
+  Check,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import {
   Dialog,
   DialogContent,
@@ -334,6 +343,8 @@ export default function TutorRegistrationPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showUsernameCheckModal, setShowUsernameCheckModal] = useState(false)
+  const [nationalityOpen, setNationalityOpen] = useState(false)
+  const [nationalitySearch, setNationalitySearch] = useState('')
 
   const [formData, setFormData] = useState({
     email: '',
@@ -752,19 +763,19 @@ export default function TutorRegistrationPage() {
             <div className="absolute left-0 right-0 top-[18px] h-[2px]">
               <div className="h-full w-full bg-gray-200" />
               <div
-                className="absolute left-0 top-0 h-full bg-[#F17623] transition-all duration-300"
+                className="absolute left-0 top-0 h-full bg-[#2563EB] transition-all duration-300"
                 style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
               />
             </div>
-            {steps.map((s, idx) => (
+            {steps.map(s => (
               <div key={s.number} className="relative z-10 flex flex-col items-center">
                 <span
-                  className={`mb-2 text-[11px] font-medium ${step >= s.number ? 'text-[#F17623]' : 'text-gray-400'}`}
+                  className={`mb-2 text-[11px] font-medium ${step >= s.number ? 'text-[#2563EB]' : 'text-gray-400'}`}
                 >
                   {s.title}
                 </span>
                 <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${step > s.number ? 'bg-[#F17623] text-white shadow-[0_0_12px_rgba(241,118,35,0.35)]' : step === s.number ? 'bg-[#F17623] text-white shadow-[0_0_16px_rgba(241,118,35,0.45)]' : 'bg-gray-200 text-gray-500'}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white transition-all duration-200 ${step >= s.number ? 'bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] shadow-[0_0_16px_rgba(37,99,235,0.45)]' : 'bg-gray-200 text-gray-500'}`}
                 >
                   {s.number}
                 </div>
@@ -773,15 +784,7 @@ export default function TutorRegistrationPage() {
           </div>
         </div>
 
-        <div
-          className="overflow-hidden rounded-[20px]"
-          style={{
-            background:
-              'linear-gradient(145deg, rgba(45,55,65,0.95) 0%, rgba(35,45,55,0.96) 40%, rgba(28,38,48,0.97) 100%)',
-            boxShadow:
-              '0 20px 50px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
-          }}
-        >
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-lg backdrop-blur-xl">
           {step >= 3 && (
             <div className="border-b border-white/10 px-5 pb-3 pt-5">
               <h2 className="text-lg font-semibold text-white/90">
@@ -798,65 +801,63 @@ export default function TutorRegistrationPage() {
             {step === 1 && (
               <>
                 <form autoComplete="off" onSubmit={e => e.preventDefault()}>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-white/70">First Name</Label>
-                      <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
-                        value={formData.firstName}
-                        onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                        placeholder="John"
-                        autoComplete="off"
-                      />
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">First Name</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                          value={formData.firstName}
+                          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Middle Name</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                          value={formData.middleName}
+                          onChange={e => setFormData({ ...formData, middleName: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Last Name</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                          value={formData.lastName}
+                          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-white/70">Middle Name</Label>
-                      <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
-                        value={formData.middleName}
-                        onChange={e => setFormData({ ...formData, middleName: e.target.value })}
-                        placeholder="Optional"
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-white/70">Last Name</Label>
-                      <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
-                        value={formData.lastName}
-                        onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                        placeholder="Doe"
-                        autoComplete="off"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-white/70">Email</Label>
-                    <Input
-                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
-                      type="email"
-                      name="tutor_registration_email"
-                      autoComplete="off"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="tutor@example.com"
-                    />
-                    <p
-                      className={cn(
-                        'min-h-[18px] text-xs',
-                        emailStatus.status === 'checking' && 'text-gray-500',
-                        emailStatus.status === 'available' && 'text-green-600',
-                        (emailStatus.status === 'taken' || emailStatus.status === 'invalid') &&
-                          'text-red-600'
-                      )}
-                    >
-                      {emailStatus.status === 'checking'
-                        ? 'Checking availability...'
-                        : emailStatus.status === 'idle'
-                          ? '\u00A0'
-                          : emailStatus.message}
-                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Email</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                        type="email"
+                        name="tutor_registration_email"
+                        autoComplete="off"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      />
+                      <p
+                        className={cn(
+                          'min-h-[18px] text-xs',
+                          emailStatus.status === 'checking' && 'text-gray-500',
+                          emailStatus.status === 'available' && 'text-green-600',
+                          (emailStatus.status === 'taken' || emailStatus.status === 'invalid') &&
+                            'text-red-600'
+                        )}
+                      >
+                        {emailStatus.status === 'checking'
+                          ? 'Checking availability...'
+                          : emailStatus.status === 'idle'
+                            ? '\u00A0'
+                            : emailStatus.message}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -864,7 +865,7 @@ export default function TutorRegistrationPage() {
                       <Label className="text-xs text-white/70">Password</Label>
                       <div className="relative">
                         <Input
-                          className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                          className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                           type={showPassword ? 'text' : 'password'}
                           name="tutor_registration_password"
                           autoComplete="new-password"
@@ -890,7 +891,7 @@ export default function TutorRegistrationPage() {
                       <Label className="text-xs text-white/70">Confirm Password</Label>
                       <div className="relative">
                         <Input
-                          className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                          className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                           type={showConfirmPassword ? 'text' : 'password'}
                           name="tutor_registration_confirm_password"
                           autoComplete="new-password"
@@ -921,31 +922,72 @@ export default function TutorRegistrationPage() {
 
                   <div className="space-y-1">
                     <Label className="text-xs text-white/70">Nationality</Label>
-                    <Select
-                      value={formData.nationality}
-                      onValueChange={value => {
-                        setFormData(prev => ({
-                          ...prev,
-                          nationality: value,
-                        }))
-                      }}
-                    >
-                      <SelectTrigger className="h-8 border-white/10 bg-white text-sm text-[#1F2933] focus:ring-[#F17623]/40">
-                        <SelectValue placeholder="Select your nationality" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ALL_COUNTRIES.map(country => (
-                          <SelectItem key={country.code} value={country.name}>
-                            {country.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={nationalityOpen} onOpenChange={setNationalityOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          role="combobox"
+                          aria-expanded={nationalityOpen}
+                          className={cn(
+                            'flex h-10 w-full items-center justify-between rounded-lg border border-slate-700/25 bg-white/30 px-3 py-2 text-sm text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:opacity-50',
+                            !formData.nationality && 'text-slate-500'
+                          )}
+                        >
+                          {formData.nationality || 'Select your nationality'}
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        variant="panel"
+                        className="w-[var(--radix-popper-anchor-width)] rounded-lg border border-slate-700/25 bg-white/30 p-0 shadow-lg backdrop-blur-xl"
+                        align="start"
+                        side="bottom"
+                        sideOffset={4}
+                      >
+                        <Command>
+                          <CommandInput
+                            placeholder="Search country..."
+                            value={nationalitySearch}
+                            onValueChange={setNationalitySearch}
+                            className="h-10 border-b border-slate-700/25 text-slate-700 placeholder:text-slate-500"
+                          />
+                          <CommandList className="max-h-[260px] overflow-y-auto">
+                            <CommandEmpty className="py-3 text-center text-sm text-slate-700">
+                              No country found.
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {ALL_COUNTRIES.map(country => (
+                                <CommandItem
+                                  key={country.code}
+                                  value={country.name}
+                                  onSelect={currentValue => {
+                                    setFormData(prev => ({ ...prev, nationality: currentValue }))
+                                    setNationalityOpen(false)
+                                    setNationalitySearch('')
+                                  }}
+                                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 aria-selected:bg-slate-100/50"
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      formData.nationality === country.name
+                                        ? 'opacity-100'
+                                        : 'opacity-0'
+                                    )}
+                                  />
+                                  {country.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="mt-4 flex gap-3">
                     <Button
-                      className="flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
+                      className="flex-1 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(37,99,235,0.45)] hover:brightness-110 active:scale-[0.98]"
                       onClick={async () => {
                         if (await validateStepOne()) setStep(2)
                       }}
