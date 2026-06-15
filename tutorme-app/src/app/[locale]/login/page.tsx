@@ -130,23 +130,26 @@ function LoginForm() {
         </div>
 
         <div className="mt-8">
-          {registered && (
-            <div className="border-success/20 bg-success/10 text-success mb-4 rounded-xl border p-3 text-sm">
-              Registration successful! Please log in.
-            </div>
-          )}
+          {/* Reserved message area keeps the card height stable */}
+          <div className="mb-4 min-h-[52px]">
+            {registered && (
+              <div className="border-success/20 bg-success/10 text-success rounded-xl border p-3 text-sm">
+                Registration successful! Please log in.
+              </div>
+            )}
 
-          {(error || authError) && (
-            <div className="border-destructive/20 bg-destructive/10 text-destructive mb-4 flex items-start gap-2 rounded-xl border p-3 text-sm">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span className="leading-snug">
-                {error ||
-                  (authError === 'SessionRequired'
-                    ? 'Session expired or not found. Please log in again.'
-                    : 'An authentication error occurred.')}
-              </span>
-            </div>
-          )}
+            {(error || authError) && (
+              <div className="border-destructive/20 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="leading-snug">
+                  {error ||
+                    (authError === 'SessionRequired'
+                      ? 'Session expired or not found. Please log in again.'
+                      : 'An authentication error occurred.')}
+                </span>
+              </div>
+            )}
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
