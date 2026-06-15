@@ -410,7 +410,7 @@ export function VariantScheduleEditor({
   return (
     <div className="space-y-6">
       <Tabs value={modeTab} onValueChange={setModeTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-[#1F2933] p-1.5">
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-[#1F2933] p-1.5 pb-2">
           <TabsTrigger
             value="schedule"
             className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
@@ -449,23 +449,21 @@ export function VariantScheduleEditor({
           )}
 
           {/* Apply same schedule for N weeks */}
-          <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              Apply same schedule for
-              <Input
-                type="number"
-                min={1}
-                max={52}
-                value={numberOfWeeks}
-                onChange={e => {
-                  const val = parseInt(e.target.value, 10)
-                  const v = Math.max(1, Math.min(52, Number.isNaN(val) ? 1 : val))
-                  setNumberOfWeeks(v)
-                }}
-                className="h-8 w-16 text-center text-sm"
-              />
-              weeks
-            </label>
+          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
+            <span className="text-sm font-semibold">Apply same weekly schedule for</span>
+            <input
+              type="number"
+              min={1}
+              max={52}
+              value={numberOfWeeks}
+              onChange={e => {
+                const val = parseInt(e.target.value, 10)
+                const v = Math.max(1, Math.min(52, Number.isNaN(val) ? 1 : val))
+                setNumberOfWeeks(v)
+              }}
+              className="h-9 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            <span className="text-sm font-semibold">weeks.</span>
           </div>
 
           {/* Calendar grid */}
@@ -475,7 +473,7 @@ export function VariantScheduleEditor({
               {availabilityData && ' Unavailable slots are greyed out.'}
             </p>
             {availabilityData && (
-              <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-white/50">
+              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-white px-3 py-2 text-[10px] font-medium text-slate-600 shadow-sm">
                 <span className="flex items-center gap-1">
                   <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
                   Selected

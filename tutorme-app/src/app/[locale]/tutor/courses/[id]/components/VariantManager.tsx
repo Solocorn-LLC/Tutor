@@ -521,7 +521,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                     type="button"
                     variant="outline"
                     onClick={applyGlobalsToAll}
-                    className="w-full border-slate-200 bg-white hover:bg-[#1F2933] hover:text-white"
+                    className="w-full border-slate-200 bg-white hover:border-[#1F2933] hover:bg-[#1F2933] hover:text-white"
                   >
                     Apply to all
                   </Button>
@@ -772,7 +772,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="min-w-[120px] border-slate-200 bg-white hover:bg-[#1F2933] hover:text-white"
+                                className="min-w-[140px] border-slate-200 bg-white hover:border-[#1F2933] hover:bg-[#1F2933] hover:text-white"
                                 onClick={() => openScheduleDialog(index, schIdx)}
                               >
                                 {Array.isArray(sch.schedule) && sch.schedule.length > 0
@@ -929,16 +929,15 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               <div className="mt-6 flex justify-end gap-3">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="modal-secondary-dark"
                   onClick={cancelScheduleDialog}
-                  className="h-11 rounded-full border-slate-200 bg-white px-6 text-slate-900 hover:bg-[#1F2933] hover:text-white hover:translate-y-0"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
+                  variant="modal-primary-dark"
                   onClick={closeScheduleDialog}
-                  className="h-11 rounded-full bg-[#1D4ED8] px-6 text-white hover:bg-[#1D4ED8]/90 hover:translate-y-0"
                 >
                   Save
                 </Button>
