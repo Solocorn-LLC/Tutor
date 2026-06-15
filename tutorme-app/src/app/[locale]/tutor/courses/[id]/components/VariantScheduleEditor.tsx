@@ -410,22 +410,22 @@ export function VariantScheduleEditor({
   return (
     <div className="space-y-6">
       <Tabs value={modeTab} onValueChange={setModeTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-[#1F2933] p-1.5 pb-2">
+        <TabsList className="grid w-full grid-cols-3 rounded-xl bg-[#1F2933] p-1.5">
           <TabsTrigger
             value="schedule"
-            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
           >
             Schedule
           </TabsTrigger>
           <TabsTrigger
             value="summary"
-            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
           >
             Summary
           </TabsTrigger>
           <TabsTrigger
             value="content"
-            className="rounded-lg text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
+            className="rounded-lg py-1.5 text-white/80 hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
           >
             Content
           </TabsTrigger>
