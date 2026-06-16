@@ -205,6 +205,7 @@ export default function TutorCoursePage() {
   const [scheduleSummary, setScheduleSummary] = useState<ScheduleItem[]>([])
   const [infoOpen, setInfoOpen] = useState(true)
   const [categoriesOpen, setCategoriesOpen] = useState(true)
+  const [allCollapsed, setAllCollapsed] = useState(false)
   const [publishingVariants, setPublishingVariants] = useState(false)
   const [globalContentHeight, setGlobalContentHeight] = useState<number>(480)
   const globalContentRef = useRef<HTMLDivElement>(null)
@@ -727,7 +728,17 @@ export default function TutorCoursePage() {
     <div className="h-full min-h-screen bg-white pb-12">
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-8 sm:px-6">
         <div className="space-y-6">
-          <div className="panel-header panel-header-metallic course-top-header">
+          <button
+            type="button"
+            onClick={() => {
+              const nextCollapsed = !allCollapsed
+              setAllCollapsed(nextCollapsed)
+              setInfoOpen(!nextCollapsed)
+              setCategoriesOpen(!nextCollapsed)
+              variantManagerRef.current?.setPanelsOpen(!nextCollapsed)
+            }}
+            className="panel-header panel-header-metallic course-top-header w-full cursor-pointer text-left"
+          >
             <div className="relative flex items-center justify-center">
               <div className="absolute left-0">
                 <BackButton href={`/tutor/insights?tab=builder&courseId=${id}`} />
@@ -739,7 +750,7 @@ export default function TutorCoursePage() {
                 </div>
               </div>
             </div>
-          </div>
+          </button>
 
           <Card
             variant="floating"
@@ -842,7 +853,7 @@ export default function TutorCoursePage() {
                   <div>
                     <div className="panel-header-title">Categories</div>
                     <div className="panel-header-subtext">
-                      Select the categories and exams relevant to your course.
+                      Select a category for your course.
                     </div>
                   </div>
                 </div>
@@ -930,9 +941,21 @@ export default function TutorCoursePage() {
                     </div>
                   </div>
 
-                  {/* Selected category badges */}
-                  <div className="flex flex-col">
-                    <div className="scrollbar-hide flex h-10 min-w-0 items-center overflow-x-auto rounded-md border border-slate-200 bg-white px-6 py-1">
+                  {/* Search + Selected category badges */}
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        placeholder="Search categories..."
+                        value={categorySearch}
+                        onChange={e => setCategorySearch(e.target.value)}
+                        className="h-10 border-slate-700 bg-white pl-10"
+                      />
+                    </div>
+
+                    {/* Selected category badges */}
+                    <div className="scrollbar-hide flex h-10 min-w-0 items-center overflow-x-auto rounded-md border border-slate-700 bg-white px-6 py-1">
                       <div className="flex min-w-0 flex-nowrap items-center gap-2">
                         {selectedCategories.length === 0 && (
                           <span className="select-none text-sm text-slate-400">
@@ -1005,19 +1028,6 @@ export default function TutorCoursePage() {
                             }
                           )}
                         </TabsList>
-                      </div>
-
-                      {/* Search - Integrated into flow without heavy borders */}
-                      <div className="pb-2 pt-6">
-                        <div className="relative max-w-md">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            placeholder="Search categories..."
-                            value={categorySearch}
-                            onChange={e => setCategorySearch(e.target.value)}
-                            className="h-10 border-slate-200 bg-white pl-10"
-                          />
-                        </div>
                       </div>
 
                       {/* Tab Contents - Fixed to Global height, scrollable */}

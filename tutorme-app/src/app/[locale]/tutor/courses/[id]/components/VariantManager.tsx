@@ -74,6 +74,7 @@ interface VariantManagerProps {
 
 export type VariantManagerHandle = {
   publish: () => Promise<void>
+  setPanelsOpen: (open: boolean) => void
 }
 
 type VariantApiItem = {
@@ -393,14 +394,20 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       onStatsChange?.({ total: variants.length, published: publishedCount })
     }, [variants.length, publishedCount, onStatsChange])
 
+    const setPanelsOpen = useCallback((open: boolean) => {
+      setGlobalDefaultsOpen(open)
+      setGeneratedVariantsOpen(open)
+    }, [])
+
     useImperativeHandle(
       ref,
       () => ({
         publish: async () => {
           await handleSave()
         },
+        setPanelsOpen,
       }),
-      [handleSave]
+      [handleSave, setPanelsOpen]
     )
 
     if (loading) {
