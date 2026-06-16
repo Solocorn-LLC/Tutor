@@ -50,6 +50,9 @@ import {
   MoreHorizontal,
   Play,
   FileText,
+  Youtube,
+  Instagram,
+  Facebook,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -2527,6 +2530,35 @@ const TutorStrip = ({ theme, mode }: { theme: ColorTheme; mode: ThemeMode }) => 
   </div>
 )
 
+const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M208 88.9a71 71 0 0 1-52-22.2v95.5a63.9 63.9 0 1 1-54-63v33.4a30.6 30.6 0 1 0 21 29.1V24h33.1a71 71 0 0 0 52.1 55.3Z" />
+  </svg>
+)
+
+const KakaoTalkBrandIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 512 512" aria-hidden="true" {...props}>
+    <rect width="512" height="512" rx="115" fill="#FEE500" />
+    <g transform="translate(256, 256) scale(1.3) translate(-256, -256)">
+      <path
+        d="M256 120c-79.5 0-144 53.5-144 119.5 0 42 27.5 78.5 69 100.5-3 11-11.5 35-13 41-1.5 5.5 2 8 6.5 5.5 16.5-9 55-33 72.5-46 3 0.5 6 0.5 9 0.5 79.5 0 144-53.5 144-119.5S335.5 120 256 120z"
+        fill="#3C1E1E"
+      />
+      <text
+        x="256"
+        y="275"
+        textAnchor="middle"
+        fill="#FEE500"
+        fontSize="100"
+        fontWeight="bold"
+        fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      >
+        TALK
+      </text>
+    </g>
+  </svg>
+)
+
 const ComingSoonModal = ({
   isOpen,
   onClose,
@@ -2554,6 +2586,7 @@ const ComingSoonModal = ({
     instagram: '',
     tiktok: '',
     facebook: '',
+    kakaoTalk: '',
   })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -2573,6 +2606,7 @@ const ComingSoonModal = ({
       instagram: '',
       tiktok: '',
       facebook: '',
+      kakaoTalk: '',
     })
     setError('')
   }, [type])
@@ -2606,6 +2640,46 @@ const ComingSoonModal = ({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.about.trim()) {
+      setError('Please fill in all required fields.')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+
+    const socialLines = [
+      formData.tiktok.trim() && `TikTok: @${formData.tiktok.trim()}`,
+      formData.youtube.trim() && `YouTube: @${formData.youtube.trim()}`,
+      formData.instagram.trim() && `Instagram: @${formData.instagram.trim()}`,
+      formData.facebook.trim() && `Facebook: https://${formData.facebook.trim()}`,
+      formData.kakaoTalk.trim() && `KakaoTalk: https://${formData.kakaoTalk.trim()}`,
+      formData.website.trim() && `Web: https://${formData.website.trim()}`,
+    ].filter(Boolean) as string[]
+
+    const body = [
+      `Name: ${formData.name.trim()}`,
+      `Email: ${formData.email.trim()}`,
+      `About my tutoring service:`,
+      formData.about.trim(),
+      ...(socialLines.length ? ['Social Media & Web:', ...socialLines] : []),
+    ].join('\n\n')
+
+    const mailto = `mailto:support@solocorn.co?subject=${encodeURIComponent(
+      `Tutor Inquiry: ${formData.name.trim()}`
+    )}&body=${encodeURIComponent(body)}`
+
+    window.location.href = mailto
+    setSubmitted(true)
   }
 
   const themeColors = {
@@ -2798,16 +2872,57 @@ const ComingSoonModal = ({
     </>
   )
 
-  // Default form
+  const SocialField = ({
+    icon: Icon,
+    prefix,
+    value,
+    onChange,
+    placeholder,
+  }: {
+    icon: React.ComponentType<{ className?: string }>
+    prefix: string
+    value: string
+    onChange: (value: string) => void
+    placeholder?: string
+  }) => {
+    const cleanValue =
+      prefix === '@' ? value.replace(/^@+/, '') : value.replace(/^https?:\/\//, '')
+    return (
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 text-white/80" />
+        <div className="flex flex-1 items-center rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+          <span className="select-none text-sm text-zinc-400">{prefix}</span>
+          <input
+            type="text"
+            value={cleanValue}
+            onChange={e =>
+              onChange(
+                prefix === '@'
+                  ? e.target.value.replace(/^@+/, '')
+                  : e.target.value.replace(/^https?:\/\//, '')
+              )
+            }
+            placeholder={placeholder || ''}
+            className="ml-2 flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Default form (used by the Join / register modal)
   const renderDefaultForm = () => (
     <>
+      <h2 className="text-center text-2xl font-bold text-white">
+        Tell us about your tutoring service
+      </h2>
       <Input
         type="text"
         placeholder={t('yourName')}
         value={formData.name}
         onChange={e => setFormData({ ...formData, name: e.target.value })}
         required
-        className={`w-full border ${mode === 'dark' ? 'border-white/10 bg-white/5 text-white placeholder:text-zinc-500' : 'border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500'}`}
+        className="w-full border-white/10 bg-white/5 text-white placeholder:text-zinc-500"
       />
       <Input
         type="email"
@@ -2815,15 +2930,74 @@ const ComingSoonModal = ({
         value={formData.email}
         onChange={e => setFormData({ ...formData, email: e.target.value })}
         required
-        className={`w-full border ${mode === 'dark' ? 'border-white/10 bg-white/5 text-white placeholder:text-zinc-500' : 'border-black/10 bg-black/5 text-zinc-900 placeholder:text-zinc-500'}`}
+        className="w-full border-white/10 bg-white/5 text-white placeholder:text-zinc-500"
       />
-      {error && <p className="text-center text-sm text-red-500">{error}</p>}
+      <div>
+        <textarea
+          placeholder="Describe your tutoring practice (400 characters max)"
+          value={formData.about}
+          onChange={e => setFormData({ ...formData, about: e.target.value.slice(0, 400) })}
+          required
+          rows={4}
+          className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-zinc-500 outline-none"
+        />
+        <div className="mt-1 text-right text-xs text-zinc-400">
+          {formData.about.length}/400
+        </div>
+      </div>
+      <h3 className="text-lg font-semibold text-white">
+        Do you use social media for your tutoring or instructional content?
+      </h3>
+      <div className="space-y-3">
+        <SocialField
+          icon={TikTokIcon}
+          prefix="@"
+          value={formData.tiktok}
+          onChange={v => setFormData({ ...formData, tiktok: v })}
+          placeholder="username"
+        />
+        <SocialField
+          icon={Youtube}
+          prefix="@"
+          value={formData.youtube}
+          onChange={v => setFormData({ ...formData, youtube: v })}
+          placeholder="username"
+        />
+        <SocialField
+          icon={Instagram}
+          prefix="@"
+          value={formData.instagram}
+          onChange={v => setFormData({ ...formData, instagram: v })}
+          placeholder="username"
+        />
+        <SocialField
+          icon={Facebook}
+          prefix="https://"
+          value={formData.facebook}
+          onChange={v => setFormData({ ...formData, facebook: v })}
+          placeholder="profile link"
+        />
+        <SocialField
+          icon={KakaoTalkBrandIcon}
+          prefix="https://"
+          value={formData.kakaoTalk}
+          onChange={v => setFormData({ ...formData, kakaoTalk: v })}
+          placeholder="profile link"
+        />
+      </div>
+      <SocialField
+        icon={Globe}
+        prefix="https://"
+        value={formData.website}
+        onChange={v => setFormData({ ...formData, website: v })}
+        placeholder="website"
+      />
+      {error && <p className="text-center text-sm text-red-400">{error}</p>}
       <Button
         type="submit"
-        disabled={loading}
-        className={`w-full rounded-xl py-3 font-semibold text-white ${themeColors[theme].primary} disabled:cursor-not-allowed disabled:opacity-50`}
+        className={`w-full rounded-xl py-3 font-semibold text-white ${themeColors[theme].primary}`}
       >
-        {loading ? 'Submitting...' : t('notifyMe')}
+        Send
       </Button>
     </>
   )
@@ -2847,17 +3021,27 @@ const ComingSoonModal = ({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className={`relative w-full max-w-md rounded-2xl border p-8 shadow-2xl ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`}
+            className={`relative w-full rounded-2xl border shadow-2xl ${
+              type === 'register'
+                ? 'max-h-[90vh] max-w-2xl overflow-y-auto border-white/10 bg-[rgba(31,41,51,0.60)] p-6 shadow-lg backdrop-blur-xl md:p-8'
+                : `max-w-md p-8 ${mode === 'dark' ? 'border-white/10 bg-zinc-900' : 'border-black/10 bg-white'}`
+            }`}
           >
             <button
               onClick={onClose}
-              className={`absolute right-4 top-4 p-2 transition-colors ${mode === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}
+              className={`absolute right-4 top-4 p-2 transition-colors ${
+                type === 'register'
+                  ? 'text-zinc-400 hover:text-white'
+                  : mode === 'dark'
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-zinc-600 hover:text-black'
+              }`}
             >
               <X className="h-5 w-5" />
             </button>
             {!submitted ? (
               <>
-                {type !== 'schools' && (
+                {type !== 'schools' && type !== 'register' && (
                   <div className="mb-6 text-center">
                     <div
                       className={`mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${mode === 'dark' ? `bg-${theme}-500/10 border-${theme}-500/20 text-${theme}-400` : themeColors[theme].light}`}
@@ -2867,7 +3051,7 @@ const ComingSoonModal = ({
                     </div>
                   </div>
                 )}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={type === 'register' ? handleRegisterSubmit : handleSubmit} className="space-y-4">
                   {type === 'tutor' && renderTutorForm()}
                   {type === 'academy' && renderAcademyForm()}
                   {type === 'schools' && renderSchoolsForm()}
@@ -2877,23 +3061,25 @@ const ComingSoonModal = ({
             ) : (
               <div className="py-8 text-center">
                 <div
-                  className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${mode === 'dark' ? `bg-${theme}-500/20` : themeColors[theme].light}`}
+                  className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${type === 'register' || mode === 'dark' ? `bg-${theme}-500/20` : themeColors[theme].light}`}
                 >
                   <CheckCircle
-                    className={`h-8 w-8 ${mode === 'dark' ? `text-${theme}-400` : `text-${theme}-600`}`}
+                    className={`h-8 w-8 ${type === 'register' || mode === 'dark' ? `text-${theme}-400` : `text-${theme}-600`}`}
                   />
                 </div>
                 <h3
-                  className={`mb-2 text-xl font-bold ${mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
+                  className={`mb-2 text-xl font-bold ${type === 'register' || mode === 'dark' ? 'text-white' : 'text-zinc-900'}`}
                 >
                   {t('thankYou')}
                 </h3>
-                <p className={mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
-                  {t('successMessageRegister')}
+                <p className={type === 'register' || mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
+                  {type === 'register'
+                    ? "Your email client is opening. Send the message to complete your submission."
+                    : t('successMessageRegister')}
                 </p>
                 <Button
                   onClick={onClose}
-                  className={`mt-6 ${mode === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/10 text-zinc-900 hover:bg-black/20'}`}
+                  className={`mt-6 ${type === 'register' || mode === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/10 text-zinc-900 hover:bg-black/20'}`}
                 >
                   {t('close')}
                 </Button>
