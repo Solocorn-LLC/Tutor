@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-  forwardRef,
-  useImperativeHandle,
-} from 'react'
+import { useEffect, useMemo, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -299,22 +292,25 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       []
     )
 
-    const openScheduleDialog = useCallback((variantIndex: number, scheduleIdx: number) => {
-      setScheduleDialogSession(s => s + 1)
-      setScheduleDialogVariantIndex(variantIndex)
-      setScheduleDialogScheduleIndex(scheduleIdx)
-      const variant = variants[variantIndex]
-      const schedule = variant?.schedules[scheduleIdx]
-      if (schedule) {
-        setScheduleDialogOriginalState({
-          schedule: JSON.parse(JSON.stringify(schedule.schedule)) as ScheduleItem[],
-          weeksToSchedule: schedule.weeksToSchedule ?? 8,
-        })
-      }
-      setTimeout(() => {
-        setScheduleDialogOpen(true)
-      }, 0)
-    }, [variants])
+    const openScheduleDialog = useCallback(
+      (variantIndex: number, scheduleIdx: number) => {
+        setScheduleDialogSession(s => s + 1)
+        setScheduleDialogVariantIndex(variantIndex)
+        setScheduleDialogScheduleIndex(scheduleIdx)
+        const variant = variants[variantIndex]
+        const schedule = variant?.schedules[scheduleIdx]
+        if (schedule) {
+          setScheduleDialogOriginalState({
+            schedule: JSON.parse(JSON.stringify(schedule.schedule)) as ScheduleItem[],
+            weeksToSchedule: schedule.weeksToSchedule ?? 8,
+          })
+        }
+        setTimeout(() => {
+          setScheduleDialogOpen(true)
+        }, 0)
+      },
+      [variants]
+    )
 
     const closeScheduleDialog = useCallback(() => {
       setScheduleDialogOpen(false)
@@ -347,7 +343,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         setScheduleDialogScheduleIndex(null)
         setScheduleDialogOriginalState(null)
       }, 300)
-    }, [scheduleDialogOriginalState, scheduleDialogVariantIndex, scheduleDialogScheduleIndex, updateVariant])
+    }, [
+      scheduleDialogOriginalState,
+      scheduleDialogVariantIndex,
+      scheduleDialogScheduleIndex,
+      updateVariant,
+    ])
 
     const handleSave = useCallback(async () => {
       if (variants.length === 0) {
@@ -811,7 +812,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                           Add another schedule
                         </Button>
                       </div>
-
                     </div>
                   </div>
                 ))}
@@ -851,7 +851,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-0 bg-[rgba(31,41,51,0.72)] p-0 shadow-[0_24px_64px_rgba(15,23,42,0.32)] backdrop-blur-[18px] sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
             rounded="lg"
           >
-            <div className="flex h-full flex-col p-7 sm:p-8">
+            <div className="flex h-full flex-col p-5 sm:p-6">
               <DialogHeader className="p-0">
                 <DialogTitle>
                   {dialogVariant && dialogSchedule
@@ -864,9 +864,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               </DialogHeader>
 
               {dialogVariant && dialogSchedule && (
-                <div
-                  className="scrollbar-hide mt-6 flex flex-1 flex-col overflow-hidden pr-2"
-                >
+                <div className="scrollbar-hide mt-3 flex flex-1 flex-col overflow-hidden pr-2">
                   <VariantScheduleEditor
                     key={scheduleEditorKey}
                     schedule={
@@ -921,18 +919,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               )}
 
               <div className="mt-6 flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="modal-secondary-dark"
-                  onClick={cancelScheduleDialog}
-                >
+                <Button type="button" variant="modal-secondary-dark" onClick={cancelScheduleDialog}>
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  variant="modal-primary-dark"
-                  onClick={closeScheduleDialog}
-                >
+                <Button type="button" variant="modal-primary-dark" onClick={closeScheduleDialog}>
                   Save
                 </Button>
               </div>

@@ -410,7 +410,7 @@ export function VariantScheduleEditor({
   return (
     <div className="flex h-full flex-col">
       <Tabs value={modeTab} onValueChange={setModeTab} className="flex w-full flex-1 flex-col">
-        <TabsList className="relative grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-3">
+        <TabsList className="relative grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-1">
           {tabValues.map((tabValue, i) => (
             <TabsTrigger
               key={tabValue}
@@ -427,14 +427,14 @@ export function VariantScheduleEditor({
             </TabsTrigger>
           ))}
           <motion.div
-            className="absolute bottom-3 top-3 rounded-lg bg-white"
+            className="absolute bottom-1 top-1 rounded-lg bg-white"
             initial={false}
             animate={{ left, width }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           />
         </TabsList>
 
-        <TabsContent value="schedule" className="mt-6 flex flex-1 flex-col gap-6 overflow-hidden">
+        <TabsContent value="schedule" className="mt-3 flex flex-1 flex-col gap-4 overflow-hidden">
           {/* Cost vs Revenue - visible when price and schedule are set */}
           {priceNumber > 0 && Array.isArray(schedule) && schedule.filter(Boolean).length > 0 && (
             <div className="grid grid-cols-2 gap-3 rounded-[14px] border border-white/10 bg-white/10 p-4 text-sm text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)]">
@@ -451,38 +451,38 @@ export function VariantScheduleEditor({
             </div>
           )}
 
-          {/* Apply same schedule for N weeks */}
-          <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
-            <span className="text-sm font-semibold">Apply same weekly schedule for</span>
-            <input
-              type="number"
-              min={1}
-              max={52}
-              value={numberOfWeeks}
-              onChange={e => {
-                const val = parseInt(e.target.value, 10)
-                const v = Math.max(1, Math.min(52, Number.isNaN(val) ? 1 : val))
-                setNumberOfWeeks(v)
-              }}
-              className="h-9 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-            <span className="text-sm font-semibold">weeks.</span>
-          </div>
-
-          {/* Calendar legend */}
-          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-white px-3 py-2 text-[10px] font-medium text-slate-600 shadow-sm">
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
-              Selected
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
-              Available
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
-              Unavailable
-            </span>
+          {/* Apply same schedule for N weeks + calendar indicators */}
+          <div className="flex flex-col gap-2 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.22)]">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold">Apply same weekly schedule for</span>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={numberOfWeeks}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10)
+                  const v = Math.max(1, Math.min(52, Number.isNaN(val) ? 1 : val))
+                  setNumberOfWeeks(v)
+                }}
+                className="h-9 w-12 rounded-lg border border-slate-200 bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="text-sm font-semibold">weeks.</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-slate-600">
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
+                Selected
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                Available
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
+                Unavailable
+              </span>
+            </div>
           </div>
           <div
             key={`week-${scheduleWeekStart.getTime()}`}
@@ -563,10 +563,10 @@ export function VariantScheduleEditor({
                 )
               })}
             </div>
-            <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="relative min-h-0 flex-1 overflow-hidden">
               <div
                 ref={calendarScrollRef}
-                className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                className="scrollbar-hide h-full touch-pan-y overflow-y-auto overscroll-contain"
               >
                 {availabilityData ? (
                   <div className="grid grid-cols-[150px_repeat(7,_1fr)]">
