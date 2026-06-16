@@ -2169,7 +2169,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   return (
     <section
       id="panel-2-search-results"
-      className="relative min-h-[600px] w-full overflow-hidden"
+      className="relative flex min-h-[calc(100vh-200px)] flex-col justify-center w-full overflow-hidden"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
@@ -4745,7 +4745,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer
-          className="border-t border-white/10 px-6 py-20"
+          className="border-t border-white/10 px-6 py-8"
           style={{
             background:
               'radial-gradient(ellipse at top left, #1d4ed8 0%, #0a2f78 40%, #041c4a 100%)',
