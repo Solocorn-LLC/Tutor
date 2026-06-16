@@ -28,7 +28,6 @@ import {
   Video,
 } from 'lucide-react'
 import Link from 'next/link'
-import { BackButton } from '@/components/navigation/BackButton'
 import { toast } from 'sonner'
 import { RevenueDashboard } from '../dashboard/components/RevenueDashboard'
 import { StudentReportsTab } from '@/components/reports/student-reports-tab'
@@ -339,21 +338,15 @@ export default function TutorReports() {
   ]
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white">
-      <div className="flex h-full w-full flex-col px-3 py-4 lg:px-4">
+    <div className="flex h-full flex-col overflow-hidden bg-white">
+      <div className="flex h-full w-full flex-col px-3 lg:px-4">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           {/* Blue hero header */}
           <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-4">
-                <BackButton
-                  href="/tutor/dashboard"
-                  className="text-white hover:bg-white/10 hover:text-white"
-                />
-                <div>
-                  <h1 className="text-xl font-bold text-white">Analytics</h1>
-                  <p className="mt-1 text-sm text-white/60">Track your teaching impact</p>
-                </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Analytics</h1>
+                <p className="mt-1 text-sm text-white/60">Track your teaching impact</p>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
