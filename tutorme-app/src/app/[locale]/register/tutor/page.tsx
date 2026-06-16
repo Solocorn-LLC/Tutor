@@ -938,13 +938,12 @@ export default function TutorRegistrationPage() {
                         </button>
                       </PopoverTrigger>
                       <PopoverContent
-                        variant="metallic"
-                        className="w-[var(--radix-popper-anchor-width)] p-0"
+                        className="w-[var(--radix-popper-anchor-width)] rounded-md border border-white/10 bg-[#1F2933] p-0 text-white shadow-lg"
                         align="start"
                         side="bottom"
                         sideOffset={4}
                       >
-                        <Command className="bg-transparent text-white">
+                        <Command className="bg-transparent text-white [&_[cmdk-input-wrapper]]:border-white/10">
                           <CommandInput
                             placeholder="Search country..."
                             value={nationalitySearch}
