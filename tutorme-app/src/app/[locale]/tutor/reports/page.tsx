@@ -626,7 +626,7 @@ function ItemAIChat({
   const isSession = !!session
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-[#1F2933] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-[rgba(0,0,0,0.04)] p-6">
         <span className="text-sm font-bold uppercase tracking-wider text-slate-800">
@@ -881,308 +881,313 @@ function CoursesAndClassesTab() {
   }
 
   return (
-    <TabsContent value="overview" className="h-full space-y-6 overflow-y-auto pb-4">
-      {/* Panel 1 - Shared Courses & Classes / Sessions */}
-      <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-        <div className="grid h-[280px] shrink-0 grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="flex flex-col overflow-hidden">
-            <div className="shrink-0 pb-3">
-              <h3 className="text-base font-bold text-slate-800">
-                Courses & Classes ({courses.length})
-              </h3>
-            </div>
-            <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-              {coursesLoading ? (
-                <div className="flex h-full items-center justify-center py-10 text-sm text-slate-500">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading courses...
+    <TabsContent value="overview" className="flex h-full flex-col overflow-hidden pb-4">
+      {/* Merged Panel - Courses & Classes / Sessions + Analytics Strip */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[#1F2933] bg-[#FFFFFF] shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 pb-0">
+            <div className="grid h-[280px] shrink-0 grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="flex flex-col overflow-hidden">
+                <div className="shrink-0 pb-3">
+                  <h3 className="text-base font-bold text-slate-800">
+                    Courses & Classes ({courses.length})
+                  </h3>
                 </div>
-              ) : courses.length === 0 ? (
-                <div className="flex h-full items-center justify-center py-10 text-center text-sm text-slate-500">
-                  No published courses found.
-                </div>
-              ) : (
-                courses.map(course => (
-                  <div
-                    key={course.id}
-                    className={cn(
-                      'cursor-pointer rounded-[12px] border p-4 transition-colors',
-                      selectedCourseId === course.id
-                        ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/20'
-                        : 'border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] hover:bg-slate-50'
-                    )}
-                    onClick={() => handleCourseClick(course.id)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="text-sm font-semibold text-slate-800">
-                        {course.nationality && course.nationality !== 'Global'
-                          ? `${course.name} — ${course.variantCategory || course.categories[0] || 'General'} — ${course.nationality}`
-                          : course.name}
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="border-0 bg-indigo-100 text-[10px] text-indigo-700 hover:bg-indigo-200"
-                      >
-                        Course
-                      </Badge>
+                <div className="flex-1 space-y-3 overflow-y-auto pr-2">
+                  {coursesLoading ? (
+                    <div className="flex h-full items-center justify-center py-10 text-sm text-slate-500">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading courses...
                     </div>
-                    <div className="mt-1.5 truncate text-xs text-slate-500">
-                      {course.description || course.categories[0] || 'Untitled'}
+                  ) : courses.length === 0 ? (
+                    <div className="flex h-full items-center justify-center py-10 text-center text-sm text-slate-500">
+                      No published courses found.
+                    </div>
+                  ) : (
+                    courses.map(course => (
+                      <div
+                        key={course.id}
+                        className={cn(
+                          'cursor-pointer rounded-[12px] border p-4 transition-colors',
+                          selectedCourseId === course.id
+                            ? 'border-[#1F2933] bg-indigo-50 ring-1 ring-indigo-400/20'
+                            : 'border-[#1F2933] bg-[#FFFFFF] hover:bg-slate-50'
+                        )}
+                        onClick={() => handleCourseClick(course.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="text-sm font-semibold text-slate-800">
+                            {course.nationality && course.nationality !== 'Global'
+                              ? `${course.name} — ${course.variantCategory || course.categories[0] || 'General'} — ${course.nationality}`
+                              : course.name}
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="border-0 bg-indigo-100 text-[10px] text-indigo-700 hover:bg-indigo-200"
+                          >
+                            Course
+                          </Badge>
+                        </div>
+                        <div className="mt-1.5 truncate text-xs text-slate-500">
+                          {course.description || course.categories[0] || 'Untitled'}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col overflow-hidden">
+                <div className="shrink-0 pb-3">
+                  <h3 className="text-base font-bold text-slate-800">
+                    Sessions
+                    {selectedCourse && (
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        ({displayedSessions.length} for{' '}
+                        {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                          ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                          : selectedCourse.name}
+                        )
+                      </span>
+                    )}
+                  </h3>
+                </div>
+                <div className="flex-1 space-y-3 overflow-y-auto pr-2">
+                  {sessionsLoading ? (
+                    <div className="flex h-full items-center justify-center py-10 text-sm text-slate-500">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading sessions...
+                    </div>
+                  ) : displayedSessions.length === 0 ? (
+                    <div className="flex h-full items-center justify-center py-10 text-center text-sm text-slate-500">
+                      {selectedCourse
+                        ? `No sessions found for ${selectedCourse.nationality && selectedCourse.nationality !== 'Global' ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}` : selectedCourse.name}.`
+                        : 'No sessions found.'}
+                    </div>
+                  ) : (
+                    displayedSessions.map((sessionItem: SessionOverviewItem) => {
+                      const isOngoing = sessionItem.status === 'ACTIVE'
+                      const isEnded =
+                        Boolean(sessionItem.endedAt) || sessionItem.status === 'COMPLETED'
+                      const statusLabel = isOngoing ? 'Ongoing' : isEnded ? 'Ended' : 'Scheduled'
+                      return (
+                        <div
+                          key={sessionItem.id}
+                          className={cn(
+                            'cursor-pointer rounded-[12px] border p-4 transition-colors',
+                            selectedSessionId === sessionItem.id
+                              ? 'border-[#1F2933] bg-indigo-50 ring-1 ring-indigo-400/20'
+                              : 'border-[#1F2933] bg-[#FFFFFF] hover:bg-slate-50'
+                          )}
+                          onClick={() => handleSessionClick(sessionItem.id)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-800">
+                                {sessionItem.title}
+                              </p>
+                              <p className="mt-1 truncate text-xs text-slate-500">
+                                {sessionItem.subject}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={isOngoing ? 'default' : isEnded ? 'secondary' : 'outline'}
+                              className={cn(
+                                'shrink-0 border-0 text-[10px]',
+                                isOngoing
+                                  ? 'bg-emerald-500 text-white'
+                                  : isEnded
+                                    ? 'bg-slate-100 text-slate-500'
+                                    : 'bg-blue-100 text-blue-700'
+                              )}
+                            >
+                              {statusLabel}
+                            </Badge>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Analytics Strip */}
+          <div className="shrink-0 border-y border-[#1F2933] bg-white px-6 py-4">
+            <div className="flex shrink-0 items-center gap-6 overflow-x-auto">
+              {selectedCourse && selectedSession ? (
+                <>
+                  {/* Course summary */}
+                  <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
+                    <BarChart3 className="h-5 w-5" />
+                    <span className="text-base">
+                      {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                        ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                        : selectedCourse.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-8 text-sm">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Published
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDate(selectedCourse.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Sessions
+                      </span>
+                      <span className="font-semibold text-slate-800">{courseSessions.length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Category
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedCourse.categories[0] || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Students
+                      </span>
+                      <span className="font-semibold text-slate-800">{students.length}</span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col overflow-hidden">
-            <div className="shrink-0 pb-3">
-              <h3 className="text-base font-bold text-slate-800">
-                Sessions
-                {selectedCourse && (
-                  <span className="ml-2 text-xs font-normal text-slate-500">
-                    ({displayedSessions.length} for{' '}
-                    {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
-                      ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
-                      : selectedCourse.name}
-                    )
-                  </span>
-                )}
-              </h3>
-            </div>
-            <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-              {sessionsLoading ? (
-                <div className="flex h-full items-center justify-center py-10 text-sm text-slate-500">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading sessions...
-                </div>
-              ) : displayedSessions.length === 0 ? (
-                <div className="flex h-full items-center justify-center py-10 text-center text-sm text-slate-500">
-                  {selectedCourse
-                    ? `No sessions found for ${selectedCourse.nationality && selectedCourse.nationality !== 'Global' ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}` : selectedCourse.name}.`
-                    : 'No sessions found.'}
-                </div>
-              ) : (
-                displayedSessions.map((sessionItem: SessionOverviewItem) => {
-                  const isOngoing = sessionItem.status === 'ACTIVE'
-                  const isEnded = Boolean(sessionItem.endedAt) || sessionItem.status === 'COMPLETED'
-                  const statusLabel = isOngoing ? 'Ongoing' : isEnded ? 'Ended' : 'Scheduled'
-                  return (
-                    <div
-                      key={sessionItem.id}
-                      className={cn(
-                        'cursor-pointer rounded-[12px] border p-4 transition-colors',
-                        selectedSessionId === sessionItem.id
-                          ? 'border-indigo-400 bg-indigo-50 ring-1 ring-indigo-400/20'
-                          : 'border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] hover:bg-slate-50'
-                      )}
-                      onClick={() => handleSessionClick(sessionItem.id)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-800">
-                            {sessionItem.title}
-                          </p>
-                          <p className="mt-1 truncate text-xs text-slate-500">
-                            {sessionItem.subject}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={isOngoing ? 'default' : isEnded ? 'secondary' : 'outline'}
-                          className={cn(
-                            'shrink-0 border-0 text-[10px]',
-                            isOngoing
-                              ? 'bg-emerald-500 text-white'
-                              : isEnded
-                                ? 'bg-slate-100 text-slate-500'
-                                : 'bg-blue-100 text-blue-700'
-                          )}
-                        >
-                          {statusLabel}
-                        </Badge>
-                      </div>
+                  {/* Divider */}
+                  <div className="h-8 w-px bg-slate-200" />
+                  {/* Session summary */}
+                  <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-emerald-600">
+                    <Calendar className="h-5 w-5" />
+                    <span className="text-base">{selectedSession.title}</span>
+                  </div>
+                  <div className="flex items-center gap-8 text-sm">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Status
+                      </span>
+                      <span className="font-semibold text-slate-800">{selectedSession.status}</span>
                     </div>
-                  )
-                })
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Scheduled
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDate(selectedSession.scheduledAt)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Subject
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedSession.subject || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Students
+                      </span>
+                      <span className="font-semibold text-slate-800">{students.length}</span>
+                    </div>
+                  </div>
+                </>
+              ) : selectedCourse ? (
+                <>
+                  <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
+                    <BarChart3 className="h-5 w-5" />
+                    <span className="text-base">
+                      {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
+                        ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
+                        : selectedCourse.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-8 text-sm">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Published
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDate(selectedCourse.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Sessions
+                      </span>
+                      <span className="font-semibold text-slate-800">{courseSessions.length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Category
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedCourse.categories[0] || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Students
+                      </span>
+                      <span className="font-semibold text-slate-800">{students.length}</span>
+                    </div>
+                  </div>
+                </>
+              ) : selectedSession ? (
+                <>
+                  <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
+                    <BarChart3 className="h-5 w-5" />
+                    <span className="text-base">{selectedSession.title}</span>
+                  </div>
+                  <div className="flex items-center gap-8 text-sm">
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Status
+                      </span>
+                      <span className="font-semibold text-slate-800">{selectedSession.status}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Scheduled
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDate(selectedSession.scheduledAt)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Subject
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedSession.subject || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Students
+                      </span>
+                      <span className="font-semibold text-slate-800">{students.length}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex w-full items-center justify-center gap-2 py-2 text-slate-500">
+                  <BarChart3 className="h-5 w-5" />
+                  <span className="text-sm font-semibold">
+                    Select a course or class to view analytics
+                  </span>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Panel 2 - Course Overview / Analytics Strip */}
-      <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-        <div className="flex shrink-0 items-center gap-6 overflow-x-auto">
-          {selectedCourse && selectedSession ? (
-            <>
-              {/* Course summary */}
-              <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
-                <BarChart3 className="h-5 w-5" />
-                <span className="text-base">
-                  {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
-                    ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
-                    : selectedCourse.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-8 text-sm">
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Published
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(selectedCourse.createdAt)}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Sessions
-                  </span>
-                  <span className="font-semibold text-slate-800">{courseSessions.length}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Category
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedCourse.categories[0] || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Students
-                  </span>
-                  <span className="font-semibold text-slate-800">{students.length}</span>
-                </div>
-              </div>
-              {/* Divider */}
-              <div className="h-8 w-px bg-slate-200" />
-              {/* Session summary */}
-              <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-emerald-600">
-                <Calendar className="h-5 w-5" />
-                <span className="text-base">{selectedSession.title}</span>
-              </div>
-              <div className="flex items-center gap-8 text-sm">
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Status
-                  </span>
-                  <span className="font-semibold text-slate-800">{selectedSession.status}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Scheduled
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(selectedSession.scheduledAt)}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Subject
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedSession.subject || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Students
-                  </span>
-                  <span className="font-semibold text-slate-800">{students.length}</span>
-                </div>
-              </div>
-            </>
-          ) : selectedCourse ? (
-            <>
-              <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
-                <BarChart3 className="h-5 w-5" />
-                <span className="text-base">
-                  {selectedCourse.nationality && selectedCourse.nationality !== 'Global'
-                    ? `${selectedCourse.name} — ${selectedCourse.variantCategory || selectedCourse.categories[0] || 'General'} — ${selectedCourse.nationality}`
-                    : selectedCourse.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-8 text-sm">
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Published
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(selectedCourse.createdAt)}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Sessions
-                  </span>
-                  <span className="font-semibold text-slate-800">{courseSessions.length}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Category
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedCourse.categories[0] || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Students
-                  </span>
-                  <span className="font-semibold text-slate-800">{students.length}</span>
-                </div>
-              </div>
-            </>
-          ) : selectedSession ? (
-            <>
-              <div className="flex shrink-0 items-center gap-2 border-r border-slate-100 pr-6 font-bold text-indigo-600">
-                <BarChart3 className="h-5 w-5" />
-                <span className="text-base">{selectedSession.title}</span>
-              </div>
-              <div className="flex items-center gap-8 text-sm">
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Status
-                  </span>
-                  <span className="font-semibold text-slate-800">{selectedSession.status}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Scheduled
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(selectedSession.scheduledAt)}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Subject
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {selectedSession.subject || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Students
-                  </span>
-                  <span className="font-semibold text-slate-800">{students.length}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex w-full items-center justify-center gap-2 py-2 text-slate-500">
-              <BarChart3 className="h-5 w-5" />
-              <span className="text-sm font-semibold">
-                Select a course or class to view analytics
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Panel 3 - Ask AI Component */}
-      <div className="h-[500px] shrink-0">
+      <div className="mt-6 h-[500px] shrink-0">
         <ItemAIChat
           course={selectedCourse}
           session={selectedSession}
