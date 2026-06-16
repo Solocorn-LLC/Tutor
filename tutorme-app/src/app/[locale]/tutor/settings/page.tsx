@@ -43,9 +43,10 @@ import {
   AlertTriangle,
   LayoutPanelTop,
   PenTool,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
-import { BackButton } from '@/components/navigation'
 import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 
@@ -58,7 +59,7 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
-const SECTION_CARD_CLASS = 'border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+const SECTION_CARD_CLASS = 'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
 interface PaymentMethod {
   id: string
@@ -263,6 +264,10 @@ export default function TutorSettings() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
+  const [profileOpen, setProfileOpen] = useState(true)
+  const [publicProfileOpen, setPublicProfileOpen] = useState(false)
+  const [taxOpen, setTaxOpen] = useState(false)
+  const [tutorInfoOpen, setTutorInfoOpen] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
@@ -595,15 +600,9 @@ export default function TutorSettings() {
       <div className="flex h-full w-full flex-col px-3 lg:px-4">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
-            <div className="flex items-center gap-3">
-              <BackButton
-                href="/tutor/dashboard"
-                className="text-white hover:bg-white/10 hover:text-white"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-white">Account Settings</h1>
-                <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
-              </div>
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-white">Account Settings</h1>
+              <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
             </div>
           </div>
 
@@ -625,10 +624,26 @@ export default function TutorSettings() {
           <TabsContent value="profile" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="h-full space-y-6 overflow-y-auto pr-2">
             <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Profile & Identity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setProfileOpen(o => !o)}
+                className="panel-header panel-header-metallic w-full text-left"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="panel-header-title">Profile & Identity</div>
+                  </div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                    {profileOpen ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                </div>
+              </button>
+              {profileOpen && (
+                <CardContent className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
                   <AvatarUploader
@@ -729,15 +744,32 @@ export default function TutorSettings() {
                   </Button>
                 </div>
               </CardContent>
+              )}
             </Card>
 
             {/* Public Profile Preview */}
             <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Public Profile</CardTitle>
-                <CardDescription>How students see you on your public page</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setPublicProfileOpen(o => !o)}
+                className="panel-header panel-header-metallic w-full text-left"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="panel-header-title">Public Profile</div>
+                    <div className="panel-header-subtext">How students see you on your public page</div>
+                  </div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                    {publicProfileOpen ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                </div>
+              </button>
+              {publicProfileOpen && (
+                <CardContent className="space-y-6">
                 <div className="flex items-start gap-4">
                   {formData.avatarUrl ? (
                     <img
@@ -789,15 +821,32 @@ export default function TutorSettings() {
                   </Button>
                 </div>
               </CardContent>
+              )}
             </Card>
 
             {/* Tax Information */}
             <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Tax Information</CardTitle>
-                <CardDescription>Required for payout and tax reporting</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setTaxOpen(o => !o)}
+                className="panel-header panel-header-metallic w-full text-left"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="panel-header-title">Tax Information</div>
+                    <div className="panel-header-subtext">Required for payout and tax reporting</div>
+                  </div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                    {taxOpen ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                </div>
+              </button>
+              {taxOpen && (
+                <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Region</Label>
@@ -890,17 +939,32 @@ export default function TutorSettings() {
                   </Button>
                 </div>
               </CardContent>
+              )}
             </Card>
 
             {/* Tutor Information */}
             <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Tutor Information</CardTitle>
-                <CardDescription>
-                  Your tutoring profile details (set during registration)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setTutorInfoOpen(o => !o)}
+                className="panel-header panel-header-metallic w-full text-left"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="panel-header-title">Tutor Information</div>
+                    <div className="panel-header-subtext">Your tutoring profile details (set during registration)</div>
+                  </div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                    {tutorInfoOpen ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                </div>
+              </button>
+              {tutorInfoOpen && (
+                <CardContent className="space-y-6">
                 {/* Nationality & Country of Residence */}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -997,6 +1061,7 @@ export default function TutorSettings() {
                   </>
                 )}
               </CardContent>
+              )}
             </Card>
 
             {/* One-on-One Booking Settings */}
