@@ -1758,7 +1758,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const router = useRouter()
 
   const hasFilters = q !== '' || selectedRegion !== '' || selectedCountryCode !== ''
-  const showReset = selectedCountryCode !== ''
+  const showReset = q !== ''
 
   useEffect(() => {
     if (showReset) {
@@ -2073,7 +2073,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     setPage: (next: number) => void
   }) => (
     <div className="w-full">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <div className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-600">
         <span className="text-slate-500">{icon}</span>
         <span>{title}</span>
       </div>
@@ -2089,6 +2089,14 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             }))
           : items.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE)
         const placeholders = Math.max(0, PAGE_SIZE - visible.length)
+
+        if (!isLoading && items.length === 0) {
+          return (
+            <div className="flex h-[240px] w-full items-center justify-center rounded-[14px] border border-slate-300/50 bg-white/50 px-6 text-center text-sm font-medium text-slate-600">
+              Unfortunately there are no results for your search query. Please try again.
+            </div>
+          )
+        }
 
         return (
           <div
@@ -2218,14 +2226,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           <button
             type="button"
             onClick={() => {
+              setSelectedRegion('')
               setSelectedCountryCode('')
+              onClearAll()
             }}
             className={cn(
               'inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/25 bg-white/30 text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-[0_6px_16px_rgba(0,0,0,0.20)] disabled:opacity-50',
               !showReset && 'pointer-events-none invisible opacity-0',
               showReset && 'visible opacity-100'
             )}
-            aria-label="Clear country filter"
+            aria-label="Clear search and filters"
           >
             <RefreshCw
               className="h-4 w-4 transition-transform duration-500 ease-out"
@@ -2237,7 +2247,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         <div className="mt-8 space-y-10">
           <CarouselRow
             title="Courses"
-            icon={<BookOpen className="h-4 w-4" />}
+            icon={<BookOpen className="h-5 w-5" />}
             items={courses}
             kind="courses"
             page={coursesPage}
@@ -2245,7 +2255,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           />
           <CarouselRow
             title="Tutors"
-            icon={<Users className="h-4 w-4" />}
+            icon={<Users className="h-5 w-5" />}
             items={tutors}
             kind="tutors"
             page={tutorsPage}

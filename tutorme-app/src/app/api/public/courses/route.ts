@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
                 ilike(courseVariant.nationality, searchPattern),
                 sql`exists (
                   select 1
-                  from jsonb_array_elements_text(${course.categories}) cat
+                  from unnest(${course.categories}) cat
                   where lower(cat) like ${searchPattern}
                 )`
               )
