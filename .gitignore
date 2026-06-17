@@ -12,3 +12,12 @@ node_modules/
 *.docx
 *.doc
 ~$*
+
+# GCP service-account keys (never commit secrets)
+forclaude.json
+*-sa-key.json
+*service-account*.json
+gcp-*.json
+
+# Database backups (contain user data)
+_backups/

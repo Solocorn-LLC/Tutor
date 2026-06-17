@@ -19,6 +19,10 @@ COPY . .
 # Ensure the PDF.js worker is present in public/ after the source tree is copied.
 RUN node scripts/copy-pdf-worker.js
 ENV NEXT_TELEMETRY_DISABLED=1
+# Give Node a large heap for `next build` so it doesn't OOM on memory-constrained
+# build machines (Node auto-sizes the default heap to host RAM, which is smaller on
+# Cloud Build's 8GB workers than on CI runners).
+ENV NODE_OPTIONS="--max-old-space-size=6144"
 RUN npm install --no-save --legacy-peer-deps @parcel/watcher-linux-x64-glibc @swc/core-linux-x64-gnu @next/swc-linux-x64-gnu esbuild
 
 # Dummy env for build

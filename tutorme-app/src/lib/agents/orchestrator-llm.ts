@@ -9,8 +9,14 @@
 import { generateWithKimi, chatWithKimi } from '@/lib/ai/kimi'
 import { cache } from '@/lib/db'
 import { adkGenerate, adkChat } from '@/lib/adk-client'
+import { isGeminiActive } from '@/lib/ai/provider'
 
-type AIProvider = 'kimi'
+type AIProvider = 'kimi' | 'gemini'
+
+/** Label results with the provider actually handling generation. */
+function activeProviderLabel(): AIProvider {
+  return isGeminiActive() ? 'gemini' : 'kimi'
+}
 
 interface AIOptions {
   temperature?: number
@@ -70,8 +76,8 @@ export async function generateWithFallback(
     }
   }
 
-  // Try Kimi FIRST (now primary)
-  if (process.env.ADK_BASE_URL) {
+  // ADK path (skip when Gemini is the active provider — ADK itself only speaks Kimi)
+  if (process.env.ADK_BASE_URL && !isGeminiActive()) {
     try {
       const content = await adkGenerate(prompt, { timeoutMs: options.timeoutMs, retries: 1 })
       const result = {
@@ -86,25 +92,24 @@ export async function generateWithFallback(
     }
   }
 
-  if (process.env.KIMI_API_KEY) {
+  // Direct provider (Gemini when active, otherwise Kimi). generateWithKimi delegates
+  // to Gemini internally when GEMINI_API_KEY is configured.
+  if (isGeminiActive() || process.env.KIMI_API_KEY) {
     try {
-      const content = await generateWithKimi(prompt, {
-        ...options,
-        model: 'kimi-k2.5',
-      })
+      const content = await generateWithKimi(prompt, { ...options })
 
       const result = {
         content,
-        provider: 'kimi' as AIProvider,
+        provider: activeProviderLabel(),
         latencyMs: Date.now() - startTime,
       }
       if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('Kimi failed:', error)
+      console.log('Direct provider failed:', error)
     }
   }
-  throw new Error('No AI providers configured. Please set KIMI_API_KEY.')
+  throw new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
 }
 
 /**
@@ -132,8 +137,8 @@ export async function chatWithFallback(
     }
   }
 
-  // Try Kimi FIRST
-  if (process.env.ADK_BASE_URL) {
+  // ADK path (skip when Gemini is the active provider — ADK itself only speaks Kimi)
+  if (process.env.ADK_BASE_URL && !isGeminiActive()) {
     try {
       const content = await adkChat(messages, { timeoutMs: options.timeoutMs, retries: 1 })
       const result = {
@@ -148,25 +153,23 @@ export async function chatWithFallback(
     }
   }
 
-  if (process.env.KIMI_API_KEY) {
+  // Direct provider (Gemini when active, otherwise Kimi).
+  if (isGeminiActive() || process.env.KIMI_API_KEY) {
     try {
-      const content = await chatWithKimi(messages, {
-        ...options,
-        model: 'kimi-k2.5',
-      })
+      const content = await chatWithKimi(messages, { ...options })
 
       const result = {
         content,
-        provider: 'kimi' as AIProvider,
+        provider: activeProviderLabel(),
         latencyMs: Date.now() - startTime,
       }
       if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('Kimi failed:', error)
+      console.log('Direct provider failed:', error)
     }
   }
-  throw new Error('No AI providers configured. Please set KIMI_API_KEY.')
+  throw new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
 }
 
 /**
@@ -204,6 +207,10 @@ export async function getAIProvidersStatus(): Promise<
 > {
   return [
     {
+      name: 'gemini' as AIProvider,
+      available: !!process.env.GEMINI_API_KEY,
+    },
+    {
       name: 'kimi' as AIProvider,
       available: !!process.env.KIMI_API_KEY,
     },
@@ -221,10 +228,12 @@ export async function generateWithProvider(
   const startTime = Date.now()
 
   switch (provider) {
+    case 'gemini':
     case 'kimi':
+      // generateWithKimi delegates to Gemini when GEMINI_API_KEY is active.
       return {
-        content: await generateWithKimi(prompt, { ...options, model: 'kimi-k2.5' }),
-        provider: 'kimi',
+        content: await generateWithKimi(prompt, { ...options }),
+        provider: activeProviderLabel(),
         latencyMs: Date.now() - startTime,
       }
     default:

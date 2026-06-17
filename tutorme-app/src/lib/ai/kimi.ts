@@ -5,6 +5,13 @@
  */
 
 import { fetchWithTimeoutAndRetry } from '@/lib/ai/fetch-utils'
+import { isGeminiActive } from '@/lib/ai/provider'
+import {
+  generateWithGemini,
+  chatWithGemini,
+  streamGemini,
+  generateWithGeminiVision,
+} from '@/lib/ai/gemini'
 
 interface KimiMessage {
   role: 'system' | 'user' | 'assistant'
@@ -48,6 +55,10 @@ export async function generateWithKimi(
     retries?: number
   } = {}
 ): Promise<string> {
+  if (isGeminiActive()) {
+    return generateWithGemini(prompt, options)
+  }
+
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -107,6 +118,10 @@ export async function chatWithKimi(
     retries?: number
   } = {}
 ): Promise<string> {
+  if (isGeminiActive()) {
+    return chatWithGemini(messages, options)
+  }
+
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -161,6 +176,11 @@ export async function* streamKimi(
     timeoutMs?: number
   } = {}
 ): AsyncGenerator<string, void, unknown> {
+  if (isGeminiActive()) {
+    yield* streamGemini(messages, options)
+    return
+  }
+
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -252,6 +272,10 @@ export async function generateWithKimiVision(
     retries?: number
   } = {}
 ): Promise<string> {
+  if (isGeminiActive()) {
+    return generateWithGeminiVision(promptItems, options)
+  }
+
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {

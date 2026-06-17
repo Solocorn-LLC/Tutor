@@ -116,7 +116,6 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
-import { PDFDocument } from 'pdf-lib'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -4515,113 +4514,59 @@ FEEDBACK: [your explanation]`
                       let pdfSplitError: string | null = null
 
                       if (isPdf && assetToLoad.url) {
-                        let pdfBytes: ArrayBuffer | null = null
-
-                        // Try direct fetch first (works for local URLs and GCS with CORS)
+                        // Split + store every page in ONE server request (avoids the
+                        // per-page upload burst that tripped the rate limiter).
                         try {
-                          const directRes = await fetch(assetToLoad.url)
-                          if (directRes.ok) {
-                            pdfBytes = await directRes.arrayBuffer()
+                          const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              key: assetToLoad.fileKey,
+                              url: assetToLoad.url,
+                              fileName: assetToLoad.name,
+                            }),
+                          })
+                          if (!splitRes.ok) {
+                            const errData = await splitRes.json().catch(() => ({}))
+                            throw new Error(errData.error || `Split failed (${splitRes.status})`)
                           }
-                        } catch {
-                          // Direct fetch failed (CORS or network), will try proxy
-                        }
+                          const { pages: splitPages } = (await splitRes.json()) as {
+                            pages: Array<{ pageNumber: number; url: string; key: string }>
+                          }
 
-                        // Try proxy if direct fetch failed
-                        if (!pdfBytes) {
-                          try {
-                            const proxyRes = await fetch(
-                              `/api/proxy-file?url=${encodeURIComponent(assetToLoad.url)}`
-                            )
-                            if (proxyRes.ok) {
-                              pdfBytes = await proxyRes.arrayBuffer()
+                          for (let i = 0; i < splitPages.length; i++) {
+                            const sp = splitPages[i]
+                            const desc = pages[i] || `Page ${i + 1} from ${assetToLoad.name}`
+                            const sourceDocument = {
+                              fileName: `${assetToLoad.name} (Page ${i + 1})`,
+                              fileUrl: sp.url,
+                              fileKey: sp.key,
+                              mimeType: 'application/pdf',
+                              uploadedAt: new Date().toISOString(),
+                              extractedText: desc,
+                            }
+                            if (existingTask && existingTaskIndex !== -1 && i === 0) {
+                              updatedExistingTask = {
+                                ...existingTask,
+                                description: desc,
+                                sourceDocument,
+                              }
+                              updatedTasks[existingTaskIndex] = updatedExistingTask
                             } else {
-                              const errBody = await proxyRes.json().catch(() => null)
-                              pdfSplitError =
-                                errBody?.error || `Failed to fetch document (${proxyRes.status})`
+                              const newTask = DEFAULT_TASK(startIndex + i)
+                              newTask.title = `Task ${groupNumber}.${i + 1}`
+                              newTask.description = desc
+                              newTask.sourceDocument = sourceDocument
+                              newTasks.push(newTask)
                             }
-                          } catch (err) {
-                            pdfSplitError =
-                              err instanceof Error ? err.message : 'Failed to fetch document'
                           }
-                        }
-
-                        if (pdfBytes) {
-                          try {
-                            const pdfDoc = await PDFDocument.load(pdfBytes)
-                            const pageCount = pdfDoc.getPageCount()
-
-                            for (let i = 0; i < pageCount; i++) {
-                              const newPdf = await PDFDocument.create()
-                              const [copiedPage] = await newPdf.copyPages(pdfDoc, [i])
-                              newPdf.addPage(copiedPage)
-                              const splitPdfBytes = await newPdf.save()
-
-                              const blob = new Blob([splitPdfBytes as any], {
-                                type: 'application/pdf',
-                              })
-                              const formData = new FormData()
-                              formData.append(
-                                'file',
-                                blob,
-                                `${assetToLoad.name.replace(/\.pdf$/i, '')}_page_${i + 1}.pdf`
-                              )
-
-                              const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
-                                method: 'POST',
-                                body: formData,
-                              })
-
-                              if (!uploadRes.ok) {
-                                const errData = await uploadRes.json().catch(() => ({}))
-                                throw new Error(
-                                  errData.error || `Upload failed (${uploadRes.status})`
-                                )
-                              }
-                              const uploadData = await uploadRes.json()
-
-                              if (existingTask && existingTaskIndex !== -1 && i === 0) {
-                                updatedExistingTask = {
-                                  ...existingTask,
-                                  description: pages[i] || `Page ${i + 1} from ${assetToLoad.name}`,
-                                  sourceDocument: {
-                                    fileName: `${assetToLoad.name} (Page ${i + 1})`,
-                                    fileUrl: uploadData.url,
-                                    fileKey: uploadData.key,
-                                    mimeType: 'application/pdf',
-                                    uploadedAt: new Date().toISOString(),
-                                    extractedText:
-                                      pages[i] || `Page ${i + 1} from ${assetToLoad.name}`,
-                                  },
-                                }
-                                updatedTasks[existingTaskIndex] = updatedExistingTask
-                              } else {
-                                const newTask = DEFAULT_TASK(startIndex + i)
-                                newTask.title = `Task ${groupNumber}.${existingTask ? i + 1 : i + 1}`
-                                newTask.description =
-                                  pages[i] || `Page ${i + 1} from ${assetToLoad.name}`
-                                newTask.sourceDocument = {
-                                  fileName: `${assetToLoad.name} (Page ${i + 1})`,
-                                  fileUrl: uploadData.url,
-                                  fileKey: uploadData.key,
-                                  mimeType: 'application/pdf',
-                                  uploadedAt: new Date().toISOString(),
-                                  extractedText:
-                                    pages[i] || `Page ${i + 1} from ${assetToLoad.name}`,
-                                }
-                                newTasks.push(newTask)
-                              }
-                            }
-                            pdfSplitSucceeded = true
-                          } catch (splitErr) {
-                            console.error('PDF split/upload failed:', splitErr)
-                            pdfSplitError =
-                              splitErr instanceof Error
-                                ? splitErr.message
-                                : 'Failed to split PDF into pages'
-                          }
-                        } else if (!pdfSplitError) {
-                          pdfSplitError = 'Could not download the document from storage'
+                          pdfSplitSucceeded = true
+                        } catch (splitErr) {
+                          console.error('PDF split failed:', splitErr)
+                          pdfSplitError =
+                            splitErr instanceof Error
+                              ? splitErr.message
+                              : 'Failed to split PDF into pages'
                         }
                       }
 
@@ -4765,78 +4710,38 @@ FEEDBACK: [your explanation]`
                       let pdfSplitSucceeded = false
 
                       if (isPdf && assetToLoad.url) {
-                        let pdfBytes: ArrayBuffer | null = null
-
-                        // Try direct fetch first (works for local URLs and GCS with CORS)
+                        // Split + store every page in ONE server request (avoids the
+                        // per-page upload burst that tripped the rate limiter).
                         try {
-                          const directRes = await fetch(assetToLoad.url)
-                          if (directRes.ok) {
-                            pdfBytes = await directRes.arrayBuffer()
+                          const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              key: assetToLoad.fileKey,
+                              url: assetToLoad.url,
+                              fileName: assetToLoad.name,
+                            }),
+                          })
+                          if (!splitRes.ok) {
+                            const errData = await splitRes.json().catch(() => ({}))
+                            throw new Error(errData.error || `Split failed (${splitRes.status})`)
                           }
-                        } catch {
-                          // Direct fetch failed (CORS or network), will try proxy
-                        }
-
-                        // Try proxy if direct fetch failed
-                        if (!pdfBytes) {
-                          try {
-                            const proxyRes = await fetch(
-                              `/api/proxy-file?url=${encodeURIComponent(assetToLoad.url)}`
-                            )
-                            if (proxyRes.ok) {
-                              pdfBytes = await proxyRes.arrayBuffer()
-                            }
-                          } catch {
-                            // Proxy also failed
+                          const { pages: splitPages } = (await splitRes.json()) as {
+                            pages: Array<{ pageNumber: number; url: string; key: string }>
                           }
-                        }
 
-                        if (pdfBytes) {
-                          try {
-                            const pdfDoc = await PDFDocument.load(pdfBytes)
-                            const pageCount = pdfDoc.getPageCount()
-
-                            for (let i = 0; i < pageCount; i++) {
-                              const newPdf = await PDFDocument.create()
-                              const [copiedPage] = await newPdf.copyPages(pdfDoc, [i])
-                              newPdf.addPage(copiedPage)
-                              const splitPdfBytes = await newPdf.save()
-
-                              const blob = new Blob([splitPdfBytes as any], {
-                                type: 'application/pdf',
-                              })
-                              const formData = new FormData()
-                              formData.append(
-                                'file',
-                                blob,
-                                `${assetToLoad.name.replace(/\.pdf$/i, '')}_page_${i + 1}.pdf`
-                              )
-
-                              const uploadRes = await fetchWithCsrf('/api/uploads/documents', {
-                                method: 'POST',
-                                body: formData,
-                              })
-
-                              if (!uploadRes.ok) {
-                                const errData = await uploadRes.json().catch(() => ({}))
-                                throw new Error(
-                                  errData.error || `Upload failed (${uploadRes.status})`
-                                )
-                              }
-                              const uploadData = await uploadRes.json()
-
-                              pdfPagesUrls.push(uploadData.url)
-                              pdfPageKeys.push(uploadData.key)
-                            }
-
-                            // Dummy text to represent pages since we use physical PDF URLs
-                            pages = Array(pageCount)
-                              .fill('')
-                              .map((_, i) => `Page ${i + 1} from ${assetToLoad.name}`)
-                            pdfSplitSucceeded = true
-                          } catch (splitErr) {
-                            console.error('PDF split/upload failed:', splitErr)
+                          for (const sp of splitPages) {
+                            pdfPagesUrls.push(sp.url)
+                            pdfPageKeys.push(sp.key)
                           }
+
+                          // Dummy text to represent pages since we use physical PDF URLs
+                          pages = Array(splitPages.length)
+                            .fill('')
+                            .map((_, i) => `Page ${i + 1} from ${assetToLoad.name}`)
+                          pdfSplitSucceeded = true
+                        } catch (splitErr) {
+                          console.error('PDF split failed:', splitErr)
                         }
                       }
 

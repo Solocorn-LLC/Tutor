@@ -84,7 +84,11 @@ export async function storeFile(
 
   if (isGcsConfigured()) {
     const result = await uploadBuffer(buffer, key, mimeType, isPublic)
-    return { url: result.url, key, isLocal: false }
+    // The bucket has uniform bucket-level access + public-access-prevention, so the
+    // raw `storage.googleapis.com/...` URL is NOT readable (403). For private files
+    // (the default) return the authenticated serve-upload path, which resolves to a
+    // fresh signed URL on access. Only genuinely public assets keep the direct URL.
+    return { url: isPublic ? result.url : `/api/serve-upload/${key}`, key, isLocal: false }
   }
 
   // Local fallback

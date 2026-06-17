@@ -4,6 +4,8 @@
  */
 
 import { SOLOCORN_SYSTEM_PROMPT } from './system-prompt'
+import { isGeminiActive } from '@/lib/ai/provider'
+import { streamGemini } from '@/lib/ai/gemini'
 
 // Configuration
 const KIMI_API_KEY = process.env.KIMI_API_KEY
@@ -27,6 +29,14 @@ export async function* streamKimiResponse(
   messages: ChatMessage[],
   abortSignal?: AbortSignal
 ): AsyncGenerator<StreamResponse> {
+  if (isGeminiActive()) {
+    for await (const chunk of streamGemini(messages)) {
+      yield { content: chunk, done: false }
+    }
+    yield { content: '', done: true }
+    return
+  }
+
   if (!KIMI_API_KEY) {
     throw new Error('KIMI_API_KEY not configured')
   }
@@ -104,10 +114,9 @@ export async function* streamAIResponse(
   messages: ChatMessage[],
   abortSignal?: AbortSignal
 ): AsyncGenerator<StreamResponse> {
-  if (!KIMI_API_KEY) {
-    throw new Error('KIMI_API_KEY not configured')
+  if (!isGeminiActive() && !KIMI_API_KEY) {
+    throw new Error('No AI provider configured (set GEMINI_API_KEY or KIMI_API_KEY)')
   }
-  console.log('Trying Kimi API...')
   yield* streamKimiResponse(messages, abortSignal)
 }
 
