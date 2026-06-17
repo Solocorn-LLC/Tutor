@@ -31,6 +31,7 @@ export interface TutorCardProps {
   bookHref?: string
   className?: string
   compact?: boolean
+  countryLabel?: string
 }
 
 const BIO_MAX_DISPLAY = 400
@@ -43,6 +44,7 @@ export function TutorCard({
   bookHref,
   className,
   compact = false,
+  countryLabel,
 }: TutorCardProps) {
   const initials = tutor.name
     .split(' ')
@@ -193,10 +195,16 @@ export function TutorCard({
       <div className="border-t border-white/10" />
 
       {/* Stats — text only */}
-      <div className={cn('flex items-center gap-4 text-white/70', compact ? 'text-xs' : 'text-sm')}>
+      <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-white/70', compact ? 'text-xs' : 'text-sm')}>
         <span>Courses: <span className="font-semibold text-white">{tutor.totalClasses}</span></span>
         <span className="text-white/30">·</span>
         <span>Enrollments: <span className="font-semibold text-white">{tutor.totalStudents}</span></span>
+        {countryLabel !== undefined && (
+          <>
+            <span className="text-white/30">·</span>
+            <span>Country: <span className="font-semibold text-white">{countryLabel}</span></span>
+          </>
+        )}
       </div>
 
       {/* Actions — Book 1 on 1 (left, white) | Follow (right, outline) */}

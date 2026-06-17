@@ -14,6 +14,7 @@ import {
 import { BookOpen, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useStudentNav } from '../StudentNavContext'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
@@ -171,6 +172,7 @@ export default function StudentTutorDirectoryPage() {
       totalEnrollments,
     }
   }, [tutors])
+  const { desktopNavOpen } = useStudentNav()
 
   return (
     <div className="text-foreground flex h-full flex-col overflow-hidden">
@@ -179,15 +181,15 @@ export default function StudentTutorDirectoryPage() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           {/* Header */}
           <div className="bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
+            <div className="relative flex flex-wrap items-center justify-center gap-3">
+              <div className="text-center">
                 <h2 className="text-xl font-bold text-white">Solocorn Tutors</h2>
                 <p className="mt-1 text-sm text-white/60">Find and book your tutor</p>
               </div>
 
               <div
                 className={cn(
-                  'flex flex-wrap items-center justify-end gap-2',
+                  'flex w-full flex-wrap items-center justify-center gap-2 md:absolute md:right-5 md:top-1/2 md:w-auto md:-translate-y-1/2 md:justify-end',
                   loading && 'animate-pulse'
                 )}
               >
@@ -304,7 +306,7 @@ export default function StudentTutorDirectoryPage() {
 
           {/* Tutor grid */}
           <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 p-4">
-            <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={cn('grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4', !desktopNavOpen && 'lg:gap-8')}>
               {loading ? (
                 Array.from({ length: 6 }).map((_, index) => (
                   <Card
@@ -358,6 +360,7 @@ export default function StudentTutorDirectoryPage() {
                     followState={following.has(tutor.id) ? 'following' : 'not-following'}
                     onFollowToggle={() => toggleFollow(tutor.id)}
                     bookHref={`/${locale}/u/${tutor.username}?book=1`}
+                    countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
                   />
                 ))
               )}

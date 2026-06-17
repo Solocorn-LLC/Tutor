@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { StudentNavProvider } from './StudentNavContext'
 
 type NavItem = {
   href: string
@@ -393,7 +394,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         )}
       >
         <div className={cn('h-full', isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto')}>
-          {children}
+          <StudentNavProvider desktopNavOpen={desktopNavOpen}>{children}</StudentNavProvider>
         </div>
       </main>
     </div>
