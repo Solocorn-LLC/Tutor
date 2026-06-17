@@ -70,6 +70,20 @@ export const GET = withAuth(async (request: NextRequest, session: any, context: 
       }
     }
 
+    // Not on local disk — fall back to GCS. The bucket is private (UBLA +
+    // public-access-prevention), so we mint a short-lived signed URL and redirect.
+    // Access was already authorized above via canReadUploadKey.
+    try {
+      const { isGcsConfigured, createPresignedDownloadUrl } = await import('@/lib/storage/gcs')
+      if (isGcsConfigured()) {
+        const key = pathSegments.join('/')
+        const signedUrl = await createPresignedDownloadUrl(key, 3600)
+        return NextResponse.redirect(signedUrl, 302)
+      }
+    } catch (gcsError) {
+      console.error('[serve-upload] GCS resolution failed:', gcsError)
+    }
+
     return new NextResponse('File not found', { status: 404 })
   } catch (error) {
     console.error('[serve-upload] Error:', error)
