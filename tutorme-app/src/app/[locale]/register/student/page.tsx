@@ -210,7 +210,7 @@ export default function StudentRegistrationPage() {
     'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40'
 
   const primaryBtnClass =
-    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#F97316] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#2563EB] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
   const secondaryBtnClass =
     'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
 
@@ -385,8 +385,8 @@ export default function StudentRegistrationPage() {
                       >
                         <SelectTrigger
                           className={cn(
-                            'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 disabled:opacity-100',
-                            !formData.region && 'border-slate-400/20 bg-slate-100/50 text-slate-400'
+                            'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 disabled:opacity-100 disabled:text-white',
+                            !formData.region && 'border-slate-400/20 bg-slate-100/50'
                           )}
                         >
                           <SelectValue placeholder="Select Country" />

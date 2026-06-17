@@ -318,7 +318,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:h-[calc(100vh-2rem)] lg:pt-4">
+      <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:h-[calc(100vh-1rem)] lg:pt-4">
         <div className="h-full overflow-y-auto scrollbar-hide">
           {children}
         </div>

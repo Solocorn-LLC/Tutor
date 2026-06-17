@@ -390,7 +390,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {/* Main Content */}
       <main
         className={cn(
-          'relative z-0 h-screen flex-1 overflow-hidden lg:h-[calc(100vh-2rem)]',
+          'relative z-0 h-screen flex-1 overflow-hidden lg:h-[calc(100vh-1rem)]',
           !isFeedbackRoute && 'pt-16 lg:pt-4'
         )}
       >

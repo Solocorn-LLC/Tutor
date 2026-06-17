@@ -35,30 +35,19 @@ const inputVariants = cva(
 
       // Variant styles
       variant: {
-        default: ['border-input', 'focus-visible:border-primary'],
-        filled: [
-          'bg-muted border-transparent',
-          'hover:bg-muted/80',
-          'focus-visible:border-primary focus-visible:bg-background',
-        ],
-        outlined: [
-          'border-input border-2 bg-transparent',
-          'focus-visible:border-primary focus-visible:bg-background',
-        ],
-        ghost: ['border-transparent bg-transparent', 'hover:bg-muted/50', 'focus-visible:bg-muted'],
-        elevated: [
-          'bg-background border-0',
-          'shadow-elevation-1',
-          'focus-visible:shadow-elevation-2',
-        ],
+        default: ['border-input'],
+        filled: ['bg-muted border-transparent', 'hover:bg-muted/80'],
+        outlined: ['border-input border-2 bg-transparent'],
+        ghost: ['border-transparent bg-transparent', 'hover:bg-muted/50'],
+        elevated: ['bg-background border-0', 'shadow-elevation-1'],
       },
 
       // State modifiers
       state: {
         default: '',
-        error: ['border-destructive focus-visible:border-destructive'],
-        success: ['border-success focus-visible:border-success'],
-        warning: ['border-warning focus-visible:border-warning'],
+        error: ['border-destructive'],
+        success: ['border-success'],
+        warning: ['border-warning'],
       },
     },
 

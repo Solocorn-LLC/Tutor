@@ -961,8 +961,8 @@ export default function TutorRegistrationPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:opacity-100',
-                              !region && 'border-slate-400/20 bg-slate-100/50 text-slate-400'
+                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:opacity-100 disabled:text-white',
+                              !region && 'border-slate-400/20 bg-slate-100/50'
                             )}
                           >
                             <SelectValue placeholder="Select Country" />
