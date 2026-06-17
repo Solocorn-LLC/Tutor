@@ -10,7 +10,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
-import { RotateCcw, Pencil, X } from 'lucide-react'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface AvatarUploaderProps {
@@ -63,6 +68,7 @@ export function AvatarUploader({
 }: AvatarUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // Crop dialog state
   const [cropDialogOpen, setCropDialogOpen] = useState(false)
@@ -471,28 +477,48 @@ export function AvatarUploader({
             <div className="text-lg font-semibold text-slate-400">{fallbackText}</div>
           )}
         </div>
-        <div className="absolute -bottom-1 -right-1 flex gap-1">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-700 shadow hover:bg-slate-50 disabled:opacity-50"
-            aria-label="Edit profile photo"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          {allowDelete && avatarUrl && (
+        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+          <PopoverTrigger asChild>
             <button
               type="button"
-              onClick={handleDelete}
               disabled={uploading}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600 disabled:opacity-50"
-              aria-label="Delete profile photo"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-700 shadow hover:bg-slate-50 disabled:opacity-50"
+              aria-label="Edit profile photo"
             >
-              <X className="h-3.5 w-3.5" />
+              <Pencil className="h-3.5 w-3.5" />
             </button>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={6}
+            className="w-44 border-white/10 bg-[#1F2933] p-1.5 text-white shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                fileInputRef.current?.click()
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors hover:bg-white/10"
+            >
+              <Pencil className="h-4 w-4" />
+              Change photo
+            </button>
+            {allowDelete && avatarUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false)
+                  void handleDelete()
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-red-400 transition-colors hover:bg-white/10"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete photo
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
         <input
           ref={fileInputRef}
           type="file"
@@ -515,7 +541,7 @@ export function AvatarUploader({
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Crop Profile Photo</DialogTitle>
+            <DialogTitle className="text-white">Crop Profile Photo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {cropError ? (
@@ -597,7 +623,7 @@ export function AvatarUploader({
 
             {croppedPreviewUrl ? (
               <div className="flex items-center gap-4">
-                <div className="text-sm font-medium text-white">Preview</div>
+                <div className="text-sm font-medium text-white">Preview (256×256)</div>
                 <img
                   src={croppedPreviewUrl}
                   alt="Cropped avatar preview"
@@ -605,11 +631,11 @@ export function AvatarUploader({
                 />
               </div>
             ) : null}
-            <p className="text-xs text-gray-300">
+            <p className="text-xs text-white/80">
               Drag to position. Crop is locked to 1:1 and will upload exactly as previewed.
             </p>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3">
             <Button
               type="button"
               variant="modal-secondary-dark"

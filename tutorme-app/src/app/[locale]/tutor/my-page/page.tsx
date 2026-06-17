@@ -61,7 +61,6 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  RotateCcw,
   User,
   Link2,
   Tags,
@@ -1693,7 +1692,7 @@ export default function TutorMyPage() {
         >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Crop Profile Photo</DialogTitle>
+              <DialogTitle className="text-white">Crop Profile Photo</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {cropError ? (
@@ -1735,24 +1734,7 @@ export default function TutorMyPage() {
 
               {cropSourceUrl ? (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-[#1F2933]">Zoom</div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-2 border-slate-300 bg-white text-gray-900 hover:bg-slate-50"
-                      onClick={() => {
-                        setCropError(null)
-                        setCropZoom(1)
-                        setCropOffset({ x: 0, y: 0 })
-                      }}
-                      disabled={cropping || uploadingAvatar}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Reset
-                    </Button>
-                  </div>
+                  <div className="text-sm font-medium text-white">Zoom</div>
                   <Slider
                     min={1}
                     max={maxCropZoom}
@@ -1766,7 +1748,7 @@ export default function TutorMyPage() {
 
               {croppedPreviewUrl ? (
                 <div className="flex items-center gap-4">
-                  <div className="text-sm font-medium text-[#1F2933]">Preview (256x256)</div>
+                  <div className="text-sm font-medium text-white">Preview (256x256)</div>
                   <img
                     src={croppedPreviewUrl}
                     alt="Cropped avatar preview"
@@ -1774,11 +1756,11 @@ export default function TutorMyPage() {
                   />
                 </div>
               ) : null}
-              <p className="text-xs text-[#64748B]">
+              <p className="text-xs text-white">
                 Drag to position. Crop is locked to 1:1 and will upload exactly as previewed.
               </p>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3">
               <Button
                 variant="modal-secondary-dark"
                 onClick={closeCropDialog}

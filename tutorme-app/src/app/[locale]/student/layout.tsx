@@ -66,12 +66,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isLiveClassRoute = pathname.includes('/student/feedback')
   const isFeedbackRoute = pathname.includes('/student/feedback')
-  const isSupportPage =
-    pathname === '/student/help' || pathname?.startsWith('/student/help/')
+  const isSupportPage = pathname === '/student/help' || pathname?.startsWith('/student/help/')
   const isAccountPage = pathname === '/student/account' || pathname?.startsWith('/student/account/')
-  const [desktopNavOpen, setDesktopNavOpen] = useState(
-    !isSupportPage && !isFeedbackRoute && !isAccountPage
-  )
+  const isBookTutorPage = pathname === '/student/tutors' || pathname?.startsWith('/student/tutors/')
+  const isCommunicationsPage =
+    pathname === '/student/communications' || pathname?.startsWith('/student/communications/')
+  const isCoursesPage = pathname === '/student/courses' || pathname?.startsWith('/student/courses/')
+  const isNavClosedPage =
+    isSupportPage || isFeedbackRoute || isAccountPage || isBookTutorPage || isCommunicationsPage || isCoursesPage
+  const [desktopNavOpen, setDesktopNavOpen] = useState(!isNavClosedPage)
   const [isPeeking, setIsPeeking] = useState(false)
 
   useEffect(() => {
@@ -82,10 +85,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return () => clearInterval(peekInterval)
   }, [])
 
-  // Auto-close on Support, Account, and Live Classroom/Feedback; auto-open elsewhere
+  // Auto-close on Support, Account, Book a Tutor, Courses, Communications, and Live Classroom/Feedback
   useEffect(() => {
-    setDesktopNavOpen(!isSupportPage && !isFeedbackRoute && !isAccountPage)
-  }, [isSupportPage, isFeedbackRoute, isAccountPage])
+    setDesktopNavOpen(!isNavClosedPage)
+  }, [isNavClosedPage])
   const liveSessionId = ''
   const liveClassNavItems: NavItem[] = [
     {
@@ -250,16 +253,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           className={cn(
             'fixed top-1/2 z-[400] hidden h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-500 ease-in-out hover:w-10 lg:flex',
             desktopNavOpen ? 'left-64' : 'left-0',
-            desktopNavOpen
-              ? 'border-[#E5E7EB] bg-white'
-              : 'border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)]',
+            'border-white/20 bg-gradient-to-br from-[#F97316] to-[#EA580C]',
             isPeeking ? 'w-10' : 'w-8'
           )}
           onClick={() => setDesktopNavOpen(!desktopNavOpen)}
           title={desktopNavOpen ? 'Hide navigation' : 'Show navigation'}
         >
           {desktopNavOpen ? (
-            <ChevronLeft className="h-5 w-5 text-[#2B5FB8]" />
+            <ChevronLeft className="h-5 w-5 text-white" />
           ) : (
             <ChevronRight className="h-5 w-5 text-white" />
           )}

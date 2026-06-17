@@ -62,10 +62,22 @@ const topics: Topic[] = [
     description: 'Learn how to use the platform',
     icon: BookOpen,
     items: [
-      { title: 'Welcome to Solocorn', description: 'An overview of the platform for new students.' },
-      { title: 'Navigating your dashboard', description: 'Find your sessions, assignments, and progress at a glance.' },
-      { title: 'Booking a tutor', description: 'Search for tutors and schedule your first session.' },
-      { title: 'Joining your first live class', description: 'How to enter the classroom and use the tools.' },
+      {
+        title: 'Welcome to Solocorn',
+        description: 'An overview of the platform for new students.',
+      },
+      {
+        title: 'Navigating your dashboard',
+        description: 'Find your sessions, assignments, and progress at a glance.',
+      },
+      {
+        title: 'Booking a tutor',
+        description: 'Search for tutors and schedule your first session.',
+      },
+      {
+        title: 'Joining your first live class',
+        description: 'How to enter the classroom and use the tools.',
+      },
     ],
   },
   {
@@ -75,7 +87,10 @@ const topics: Topic[] = [
     icon: Video,
     items: [
       { title: 'Dashboard walkthrough', description: 'A quick guide to your student dashboard.' },
-      { title: 'Joining a live session', description: 'Step-by-step instructions for entering class.' },
+      {
+        title: 'Joining a live session',
+        description: 'Step-by-step instructions for entering class.',
+      },
       { title: 'Using the AI Tutor', description: 'Get help with homework and concepts anytime.' },
       { title: 'Tracking progress', description: 'Understand your stats and achievements.' },
     ],
@@ -89,7 +104,10 @@ const topics: Topic[] = [
       { title: 'Terms of Service', description: 'The rules and agreements for using Solocorn.' },
       { title: 'Privacy Policy', description: 'How we collect, use, and protect your data.' },
       { title: 'Code of Conduct', description: 'Behavior expectations for students and tutors.' },
-      { title: 'Refund and cancellation', description: 'Policies for refunds, cancellations, and disputes.' },
+      {
+        title: 'Refund and cancellation',
+        description: 'Policies for refunds, cancellations, and disputes.',
+      },
     ],
   },
 ]
@@ -110,8 +128,7 @@ export default function StudentHelpPage() {
       .map(topic => ({
         ...topic,
         items: topic.items.filter(
-          item =>
-            item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+          item => item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
         ),
       }))
       .filter(topic => topic.items.length > 0)
@@ -122,10 +139,10 @@ export default function StudentHelpPage() {
       <div className="flex h-full w-full flex-col px-3 lg:px-4">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           {/* Header */}
-          <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
+          <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
             <div className="text-center">
               <h1 className="text-xl font-bold text-white">Support</h1>
-              <p className="mt-1 text-sm text-white/60">Find answers and get support</p>
+              <p className="mt-1 text-sm text-white/70">Find answers and get support</p>
             </div>
           </div>
 
@@ -185,7 +202,7 @@ export default function StudentHelpPage() {
                       : activeTopicData.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="min-h-0 flex-1 overflow-y-auto">
+                <CardContent className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
                   {searchQuery.trim() ? (
                     <div className="space-y-6">
                       {filteredResults?.length ? (

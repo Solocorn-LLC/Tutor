@@ -11,17 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { HANDLE_REGEX, isReservedHandle } from '@/lib/mentions/handles'
-import {
-  GraduationCap,
-  ShieldCheck,
-  Globe,
-  MapPin,
-  UserRound,
-  Eye,
-  EyeOff,
-  Loader2,
-  X,
-} from 'lucide-react'
+import { GraduationCap, ShieldCheck, UserRound, Eye, EyeOff, Loader2, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -760,6 +750,11 @@ export default function TutorRegistrationPage() {
     { number: 4, title: 'Terms' },
   ]
 
+  const primaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#F97316] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+  const secondaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+
   return (
     <div className="flex min-h-screen flex-col items-center bg-white px-4 pt-[120px] sm:pt-[180px]">
       <div className="w-full max-w-4xl">
@@ -792,9 +787,7 @@ export default function TutorRegistrationPage() {
           </div>
         </div>
 
-        <div
-          className="overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_20px_50px_rgba(0,0,0,0.18),0_8px_20px_rgba(0,0,0,0.12)]"
-        >
+        <div className="overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_20px_50px_rgba(0,0,0,0.18),0_8px_20px_rgba(0,0,0,0.12)]">
           {step >= 3 && (
             <div className="border-b border-white/10 px-5 pb-3 pt-5">
               <h2 className="text-lg font-semibold text-white/90">
@@ -932,13 +925,9 @@ export default function TutorRegistrationPage() {
 
                   <div className="space-y-1">
                     <Label className="text-xs text-white/70">Where do you live?</Label>
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {/* Region */}
-                      <div className="flex-1 space-y-3">
-                        <Label className="flex items-center gap-2 text-xs font-medium text-white/80">
-                          <Globe className="h-3.5 w-3.5 text-[#1D4ED8]" />
-                          Where do you live?
-                        </Label>
+                      <div>
                         <Select
                           value={region}
                           onValueChange={v => {
@@ -964,11 +953,7 @@ export default function TutorRegistrationPage() {
                       </div>
 
                       {/* Country */}
-                      <div className="flex-1 space-y-3">
-                        <Label className="flex items-center gap-2 text-xs font-medium text-white/80">
-                          <MapPin className="h-3.5 w-3.5 text-[#F17623]" />
-                          Where do you live?
-                        </Label>
+                      <div>
                         <Select
                           value={countryCode}
                           onValueChange={setCountryCode}
@@ -976,13 +961,11 @@ export default function TutorRegistrationPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40',
+                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:opacity-100',
                               !region && 'border-slate-400/20 bg-slate-100/50 text-slate-400'
                             )}
                           >
-                            <SelectValue
-                              placeholder={region ? 'Select Country...' : 'Select Region First'}
-                            />
+                            <SelectValue placeholder="Select Country" />
                           </SelectTrigger>
                           <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
                             {availableCountries.length === 0 ? (
@@ -1008,7 +991,7 @@ export default function TutorRegistrationPage() {
 
                   <div className="mt-4 flex gap-3">
                     <Button
-                      className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
+                      className={primaryBtnClass}
                       onClick={async () => {
                         if (await validateStepOne()) setStep(2)
                       }}
@@ -1132,14 +1115,13 @@ export default function TutorRegistrationPage() {
 
                 <div className="flex gap-3">
                   <Button
-                    variant="outline"
-                    className="h-9 flex-1 border-white bg-transparent text-sm font-semibold text-white transition-all hover:bg-white hover:text-[#1F2933]"
+                    className={cn(secondaryBtnClass, 'h-9')}
                     onClick={() => setStep(1)}
                   >
                     Back
                   </Button>
                   <Button
-                    className="h-9 flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                    className={cn(primaryBtnClass, 'h-9')}
                     onClick={async () => {
                       const isValid = await validateStepTwo()
                       if (isValid) setStep(3)
@@ -1168,7 +1150,8 @@ export default function TutorRegistrationPage() {
                     </p>
                     {formData.nationality && (
                       <p className="text-sm text-[#1F2933]/80">
-                        <span className="text-[#1F2933]/50">Nationality:</span> {formData.nationality}
+                        <span className="text-[#1F2933]/50">Nationality:</span>{' '}
+                        {formData.nationality}
                       </p>
                     )}
                   </div>
@@ -1178,14 +1161,13 @@ export default function TutorRegistrationPage() {
 
                 <div className="flex gap-3">
                   <Button
-                    variant="outline"
-                    className="flex-1 border-white/20 bg-white/5 text-sm text-white hover:bg-white/10 hover:text-white"
+                    className={secondaryBtnClass}
                     onClick={() => setStep(2)}
                   >
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                    className={primaryBtnClass}
                     onClick={() => setStep(4)}
                   >
                     Register
@@ -1215,14 +1197,13 @@ export default function TutorRegistrationPage() {
 
                 <div className="flex gap-3">
                   <Button
-                    variant="outline"
-                    className="flex-1 border-white/20 bg-white/5 text-sm text-white hover:bg-white/10 hover:text-white"
+                    className={secondaryBtnClass}
                     onClick={() => setStep(3)}
                   >
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
+                    className={primaryBtnClass}
                     onClick={handleSubmit}
                     disabled={isLoading || !formData.agreeToTerms}
                   >
