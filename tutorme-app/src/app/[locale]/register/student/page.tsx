@@ -37,11 +37,9 @@ function Stepper({ currentStep }: { currentStep: number }) {
             <div
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-                currentStep > s.num
-                  ? 'bg-[#1D4ED8] text-white'
-                  : currentStep === s.num
-                    ? 'bg-[#1D4ED8] text-white'
-                    : 'bg-gray-200 text-gray-500'
+                currentStep >= s.num
+                  ? 'bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white'
+                  : 'bg-gray-200 text-gray-500'
               )}
             >
               {currentStep > s.num ? (
@@ -52,7 +50,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
             </div>
             <span
               className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                currentStep >= s.num ? 'text-[#1D4ED8]' : 'text-gray-400'
+                currentStep >= s.num ? 'text-[#F97316]' : 'text-gray-400'
               }`}
             >
               {s.title}
@@ -63,7 +61,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
       <div className="relative mb-8 mt-[-2.25rem]">
         <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-gray-200" />
         <div
-          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-[#1D4ED8] transition-all duration-300 ease-in-out"
+          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-gradient-to-r from-[#F97316] to-[#EA580C] transition-all duration-300 ease-in-out"
           style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
         />
       </div>
@@ -207,37 +205,37 @@ export default function StudentRegistrationPage() {
 
         <Stepper currentStep={step} />
 
-        <Card className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
+        <Card className="overflow-hidden rounded-[22px] border border-white/20 bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
           <CardContent className="space-y-6 px-8 py-8">
             {step === 1 && (
               <>
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName" className="text-white">First Name</Label>
                     <Input
                       id="firstName"
                       autoComplete="given-name"
                       value={formData.firstName}
                       onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                       placeholder="John"
-                      className="h-11 rounded-[12px]"
+                      className="h-11 rounded-[12px] bg-white text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName" className="text-white">Last Name</Label>
                     <Input
                       id="lastName"
                       autoComplete="family-name"
                       value={formData.lastName}
                       onChange={e => setFormData({ ...formData, lastName: e.target.value })}
                       placeholder="Doe"
-                      className="h-11 rounded-[12px]"
+                      className="h-11 rounded-[12px] bg-white text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email" className="text-white">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
@@ -245,13 +243,13 @@ export default function StudentRegistrationPage() {
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="student@example.com"
-                    className="h-11 rounded-[12px]"
+                    className="h-11 rounded-[12px] bg-white text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password" className="text-white">Password</Label>
                     <div className="relative">
                       <Input
                         id="password"
@@ -261,7 +259,7 @@ export default function StudentRegistrationPage() {
                         value={formData.password}
                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                         placeholder="Create password"
-                        className="h-11 rounded-[12px] pr-10"
+                        className="h-11 rounded-[12px] bg-white pr-10 text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                       />
                       <button
                         type="button"
@@ -284,7 +282,7 @@ export default function StudentRegistrationPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="confirmPassword" className="text-white">Confirm Password</Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
@@ -296,7 +294,7 @@ export default function StudentRegistrationPage() {
                           setFormData({ ...formData, confirmPassword: e.target.value })
                         }
                         placeholder="Confirm password"
-                        className="h-11 rounded-[12px] pr-10"
+                        className="h-11 rounded-[12px] bg-white pr-10 text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                       />
                       <button
                         type="button"
@@ -321,12 +319,12 @@ export default function StudentRegistrationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nationality">Nationality</Label>
+                  <Label htmlFor="nationality" className="text-white">Nationality</Label>
                   <Select
                     value={formData.nationality}
                     onValueChange={value => setFormData({ ...formData, nationality: value })}
                   >
-                    <SelectTrigger id="nationality" className="h-11 rounded-[12px]">
+                    <SelectTrigger id="nationality" className="h-11 rounded-[12px] border-transparent bg-white text-[#1F2933] focus:ring-[#F97316]/40">
                       <SelectValue placeholder="Select your nationality" />
                     </SelectTrigger>
                     <SelectContent>
@@ -342,7 +340,7 @@ export default function StudentRegistrationPage() {
             )}
 
             {step === 2 && (
-              <div className="flex items-start space-x-3 rounded-[14px] border border-slate-200 p-5">
+              <div className="flex items-start space-x-3 rounded-[14px] border border-white/20 p-5">
                 <Checkbox
                   id="isSixteen"
                   checked={formData.isSixteen}
@@ -351,7 +349,7 @@ export default function StudentRegistrationPage() {
                   }
                 />
                 <div className="space-y-1">
-                  <Label htmlFor="isSixteen" className="cursor-pointer font-medium text-slate-900">
+                  <Label htmlFor="isSixteen" className="cursor-pointer font-medium text-white">
                     I am 16 years of age or older
                   </Label>
                 </div>
@@ -361,7 +359,7 @@ export default function StudentRegistrationPage() {
             {step === 3 && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="age">Age</Label>
+                  <Label htmlFor="age" className="text-white">Age</Label>
                   <Input
                     id="age"
                     type="number"
@@ -370,7 +368,7 @@ export default function StudentRegistrationPage() {
                     value={formData.age}
                     onChange={e => setFormData({ ...formData, age: e.target.value })}
                     placeholder="Enter age"
-                    className="h-11 rounded-[12px]"
+                    className="h-11 rounded-[12px] bg-white text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40"
                   />
                 </div>
               </>
@@ -378,16 +376,16 @@ export default function StudentRegistrationPage() {
 
             {step === 4 && (
               <>
-                <div className="rounded-lg border bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-800">
+                <div className="rounded-lg border border-white/20 bg-white p-4">
+                  <h3 className="text-sm font-semibold text-[#1F2933]">
                     Agree to Terms of Service
                   </h3>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-[#1F2933]/70">
                     Please review and agree to the Terms of Service and Privacy Policy to complete
                     your registration.
                   </p>
                 </div>
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
+                <div className="flex items-start space-x-3 rounded-lg border border-white/20 bg-white/10 p-4">
                   <Checkbox
                     id="tosAccepted"
                     checked={formData.tosAccepted}
@@ -396,10 +394,10 @@ export default function StudentRegistrationPage() {
                     }
                   />
                   <div className="space-y-1">
-                    <Label htmlFor="tosAccepted" className="cursor-pointer font-medium">
+                    <Label htmlFor="tosAccepted" className="cursor-pointer font-medium text-white">
                       I accept the Terms of Service and Privacy Policy
                     </Label>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-white/70">
                       You must accept the terms to create an account.
                     </p>
                   </div>
@@ -410,7 +408,7 @@ export default function StudentRegistrationPage() {
             <div className={cn(step === 1 ? 'pt-2' : 'pt-1')}>
               {step === 1 ? (
                 <Button
-                  className="h-12 w-full rounded-[14px] bg-[#1D4ED8] text-base font-semibold hover:bg-[#1E40AF]"
+                  className="h-12 w-full rounded-[14px] bg-white text-base font-semibold text-[#1F2933] transition-all hover:bg-[#1F2933] hover:text-white"
                   onClick={handleNext}
                   disabled={isLoading}
                 >
@@ -418,12 +416,17 @@ export default function StudentRegistrationPage() {
                 </Button>
               ) : (
                 <div className="flex items-center justify-between gap-3">
-                  <Button variant="outline" onClick={goBack} disabled={step === 1 || isLoading}>
+                  <Button
+                    variant="outline"
+                    className="border-white bg-transparent text-white transition-all hover:bg-white hover:text-[#1F2933]"
+                    onClick={goBack}
+                    disabled={step === 1 || isLoading}
+                  >
                     Back
                   </Button>
                   {step < 4 ? (
                     <Button
-                      className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
+                      className="bg-white font-semibold text-[#1F2933] transition-all hover:bg-[#1F2933] hover:text-white"
                       onClick={handleNext}
                       disabled={isLoading}
                     >
@@ -431,7 +434,7 @@ export default function StudentRegistrationPage() {
                     </Button>
                   ) : (
                     <Button
-                      className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
+                      className="bg-white font-semibold text-[#1F2933] transition-all hover:bg-[#1F2933] hover:text-white"
                       onClick={handleSubmit}
                       disabled={isLoading}
                     >

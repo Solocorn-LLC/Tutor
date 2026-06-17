@@ -1080,7 +1080,7 @@ export default function TutorRegistrationPage() {
                   <Label className="text-xs text-white/70">Social Media Accounts</Label>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <Input
-                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                       value={formData.socialLinks.instagram}
                       onChange={e =>
                         setFormData({
@@ -1092,7 +1092,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                       value={formData.socialLinks.tiktok}
                       onChange={e =>
                         setFormData({
@@ -1104,7 +1104,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                       value={formData.socialLinks.youtube}
                       onChange={e =>
                         setFormData({
@@ -1116,7 +1116,7 @@ export default function TutorRegistrationPage() {
                       autoComplete="off"
                     />
                     <Input
-                      className="h-8 border-white/10 bg-white/95 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F17623]/40"
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
                       value={formData.socialLinks.facebook}
                       onChange={e =>
                         setFormData({
@@ -1133,13 +1133,13 @@ export default function TutorRegistrationPage() {
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    className="h-9 flex-1 border-white/20 bg-white/5 text-sm font-semibold text-white hover:bg-white/10 hover:text-white"
+                    className="h-9 flex-1 border-white bg-transparent text-sm font-semibold text-white transition-all hover:bg-white hover:text-[#1F2933]"
                     onClick={() => setStep(1)}
                   >
                     Back
                   </Button>
                   <Button
-                    className="h-9 flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
+                    className="h-9 flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
                     onClick={async () => {
                       const isValid = await validateStepTwo()
                       if (isValid) setStep(3)
@@ -1154,21 +1154,21 @@ export default function TutorRegistrationPage() {
             {step === 3 && (
               <>
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/90">
-                      <UserRound className="h-4 w-4 text-white/60" />
+                  <div className="rounded-xl border border-white/20 bg-white p-4">
+                    <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#1F2933]">
+                      <UserRound className="h-4 w-4 text-[#1F2933]/60" />
                       Profile Overview
                     </h4>
-                    <p className="text-sm text-white/80">
-                      <span className="text-white/50">Name:</span> {formData.firstName}{' '}
+                    <p className="text-sm text-[#1F2933]/80">
+                      <span className="text-[#1F2933]/50">Name:</span> {formData.firstName}{' '}
                       {formData.lastName}
                     </p>
-                    <p className="text-sm text-white/80">
-                      <span className="text-white/50">Username:</span> {formData.username}
+                    <p className="text-sm text-[#1F2933]/80">
+                      <span className="text-[#1F2933]/50">Username:</span> {formData.username}
                     </p>
                     {formData.nationality && (
-                      <p className="text-sm text-white/80">
-                        <span className="text-white/50">Nationality:</span> {formData.nationality}
+                      <p className="text-sm text-[#1F2933]/80">
+                        <span className="text-[#1F2933]/50">Nationality:</span> {formData.nationality}
                       </p>
                     )}
                   </div>
@@ -1185,7 +1185,7 @@ export default function TutorRegistrationPage() {
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
+                    className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
                     onClick={() => setStep(4)}
                   >
                     Register
@@ -1222,7 +1222,7 @@ export default function TutorRegistrationPage() {
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-[#F17623] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(241,118,35,0.35)] hover:bg-[#e06613] hover:shadow-[0_6px_20px_rgba(241,118,35,0.45)]"
+                    className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)]"
                     onClick={handleSubmit}
                     disabled={isLoading || !formData.agreeToTerms}
                   >
