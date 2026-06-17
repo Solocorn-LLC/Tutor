@@ -793,13 +793,7 @@ export default function TutorRegistrationPage() {
         </div>
 
         <div
-          className="overflow-hidden rounded-[20px]"
-          style={{
-            background:
-              'linear-gradient(145deg, rgba(45,55,65,0.95) 0%, rgba(35,45,55,0.96) 40%, rgba(28,38,48,0.97) 100%)',
-            boxShadow:
-              '0 20px 50px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
-          }}
+          className="overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_20px_50px_rgba(0,0,0,0.18),0_8px_20px_rgba(0,0,0,0.12)]"
         >
           {step >= 3 && (
             <div className="border-b border-white/10 px-5 pb-3 pt-5">
@@ -937,13 +931,13 @@ export default function TutorRegistrationPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs text-white/70">Region and Country</Label>
+                    <Label className="text-xs text-white/70">Where do you live?</Label>
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                       {/* Region */}
                       <div className="flex-1 space-y-3">
                         <Label className="flex items-center gap-2 text-xs font-medium text-white/80">
                           <Globe className="h-3.5 w-3.5 text-[#1D4ED8]" />
-                          Region
+                          Where do you live?
                         </Label>
                         <Select
                           value={region}
@@ -973,7 +967,7 @@ export default function TutorRegistrationPage() {
                       <div className="flex-1 space-y-3">
                         <Label className="flex items-center gap-2 text-xs font-medium text-white/80">
                           <MapPin className="h-3.5 w-3.5 text-[#F17623]" />
-                          Country
+                          Where do you live?
                         </Label>
                         <Select
                           value={countryCode}
@@ -1014,7 +1008,7 @@ export default function TutorRegistrationPage() {
 
                   <div className="mt-4 flex gap-3">
                     <Button
-                      className="flex-1 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-sm font-semibold text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] transition-all duration-200 hover:shadow-[0_6px_20px_rgba(37,99,235,0.45)] hover:brightness-110 active:scale-[0.98]"
+                      className="flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
                       onClick={async () => {
                         if (await validateStepOne()) setStep(2)
                       }}
