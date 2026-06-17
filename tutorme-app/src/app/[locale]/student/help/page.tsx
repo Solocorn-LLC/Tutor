@@ -202,7 +202,7 @@ export default function StudentHelpPage() {
                       : activeTopicData.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="min-h-0 flex-1 overflow-y-auto">
+                <CardContent className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
                   {searchQuery.trim() ? (
                     <div className="space-y-6">
                       {filteredResults?.length ? (
