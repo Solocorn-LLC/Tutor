@@ -9,6 +9,7 @@ import { getServerSession, getSessionForRealm, authOptions } from '@/lib/auth'
 import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { generateWithKimi, generateWithKimiVision } from '@/lib/ai/kimi'
+import { stripCodeFences } from '@/lib/ai/llm-response'
 import { z } from 'zod'
 
 export const maxDuration = 60
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const questions = parseDmiResponse(aiResponse)
+    const questions = parseDmiResponse(stripCodeFences(aiResponse))
 
     return NextResponse.json({
       response: aiResponse,

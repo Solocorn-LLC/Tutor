@@ -10,6 +10,7 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
+import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
 import { z } from 'zod'
 
 const PciMasterRequestSchema = z.object({
@@ -186,7 +187,18 @@ export async function POST(request: NextRequest) {
           maxTokens: 2048,
           skipCache: true,
         })
-        response = { response: fallback.content }
+        {
+          // Gemini wraps JSON in code fences; parse it so we return clean text
+          // (and the structured fields) instead of the raw fenced JSON.
+          const parsedJson = parseLlmJson<{ response?: string }>(fallback.content)
+          response = {
+            response:
+              parsedJson && typeof parsedJson.response === 'string'
+                ? parsedJson.response
+                : stripCodeFences(fallback.content),
+            parsed: parsedJson ?? null,
+          }
+        }
       }
     } else {
       const fallback = await generateWithFallback(`System:\n${SYSTEM_PROMPT}\n\n${userPrompt}`, {
