@@ -4442,321 +4442,14 @@ FEEDBACK: [your explanation]`
                   Select how you would like to load &quot;{assetToLoad?.name}&quot;:
                 </p>
 
-                {/* Option 1: Tasks (One task per page) */}
-                <Button
-                  className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
-                  variant="outline"
-                  disabled={isSplittingTasks}
-                  onClick={async () => {
-                    if (!assetToLoad) return
-
-                    let nodeIndex = -1
-                    let lessonIndex = -1
-                    let existingTaskIndex = -1
-                    let existingTask: Task | null = null
-
-                    if (loadedTaskId) {
-                      for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
-                        for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
-                          const t = nodes[nIdx].lessons[lIdx].tasks.find(
-                            task => task.id === loadedTaskId
-                          )
-                          if (t) {
-                            nodeIndex = nIdx
-                            lessonIndex = lIdx
-                            existingTaskIndex = nodes[nIdx].lessons[lIdx].tasks.findIndex(
-                              task => task.id === loadedTaskId
-                            )
-                            existingTask = t
-                            break
-                          }
-                        }
-                        if (nodeIndex !== -1) break
-                      }
-                    }
-
-                    if (nodeIndex === -1 || lessonIndex === -1) {
-                      const { nodeId, lessonId } = ensureFirstLessonContext()
-                      nodeIndex = nodes.findIndex(m => m.id === nodeId)
-                      lessonIndex = nodes[nodeIndex].lessons.findIndex(l => l.id === lessonId)
-                    }
-
-                    const textToInsert = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
-
-                    let pages: string[] = []
-                    if (textToInsert.includes('\f')) {
-                      pages = textToInsert.split('\f').filter(p => p.trim())
-                    } else if (textToInsert.includes('--- Page')) {
-                      pages = textToInsert.split(/--- Page \d+ ---/).filter(p => p.trim())
-                    } else {
-                      const chunks = textToInsert.split(/\n\n+/).filter(p => p.trim().length > 50)
-                      pages = chunks.length > 1 ? chunks : [textToInsert]
-                    }
-
-                    setIsSplittingTasks(true)
-                    const newTasks: Task[] = []
-                    const newCourseBuilderNodes = [...nodes]
-                    const startIndex =
-                      newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.length
-                    const groupNumber =
-                      existingTaskIndex !== -1 ? existingTaskIndex + 1 : startIndex + 1
-                    const updatedTasks = [
-                      ...newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks,
-                    ]
-                    let updatedExistingTask: Task | null = null
-
-                    try {
-                      const isPdf =
-                        assetToLoad.mimeType === 'application/pdf' ||
-                        assetToLoad.name.toLowerCase().endsWith('.pdf')
-
-                      let pdfSplitSucceeded = false
-                      let pdfSplitError: string | null = null
-
-                      if (isPdf && assetToLoad.url) {
-                        // Split + store every page in ONE server request (avoids the
-                        // per-page upload burst that tripped the rate limiter).
-                        try {
-                          const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              key: assetToLoad.fileKey,
-                              url: assetToLoad.url,
-                              fileName: assetToLoad.name,
-                            }),
-                          })
-                          if (!splitRes.ok) {
-                            const errData = await splitRes.json().catch(() => ({}))
-                            throw new Error(errData.error || `Split failed (${splitRes.status})`)
-                          }
-                          const { pages: splitPages } = (await splitRes.json()) as {
-                            pages: Array<{ pageNumber: number; url: string; key: string }>
-                          }
-
-                          for (let i = 0; i < splitPages.length; i++) {
-                            const sp = splitPages[i]
-                            const desc = pages[i] || `Page ${i + 1} from ${assetToLoad.name}`
-                            const sourceDocument = {
-                              fileName: `${assetToLoad.name} (Page ${i + 1})`,
-                              fileUrl: sp.url,
-                              fileKey: sp.key,
-                              mimeType: 'application/pdf',
-                              uploadedAt: new Date().toISOString(),
-                              extractedText: desc,
-                            }
-                            if (existingTask && existingTaskIndex !== -1 && i === 0) {
-                              updatedExistingTask = {
-                                ...existingTask,
-                                description: desc,
-                                sourceDocument,
-                              }
-                              updatedTasks[existingTaskIndex] = updatedExistingTask
-                            } else {
-                              const newTask = DEFAULT_TASK(startIndex + i)
-                              newTask.title = `Task ${groupNumber}.${i + 1}`
-                              newTask.description = desc
-                              newTask.sourceDocument = sourceDocument
-                              newTasks.push(newTask)
-                            }
-                          }
-                          pdfSplitSucceeded = true
-                        } catch (splitErr) {
-                          console.error('PDF split failed:', splitErr)
-                          pdfSplitError =
-                            splitErr instanceof Error
-                              ? splitErr.message
-                              : 'Failed to split PDF into pages'
-                        }
-                      }
-
-                      if (isPdf && assetToLoad.url && !pdfSplitSucceeded) {
-                        // The document is a PDF and we attempted to split it into one
-                        // task per page, but fetching/splitting failed (e.g. the file
-                        // is missing from storage or its link expired). Surface the
-                        // real reason instead of silently degrading to a single task
-                        // with a broken document link.
-                        toast.error(
-                          `Could not split '${assetToLoad.name}' into page tasks${
-                            pdfSplitError ? `: ${pdfSplitError}` : ''
-                          }. The task was left unchanged.`
-                        )
-                        return
-                      }
-
-                      if (!pdfSplitSucceeded) {
-                        // Text-based split for non-PDF (or url-less) assets: one task per page.
-                        pages.forEach((pageContent, idx) => {
-                          if (existingTask && existingTaskIndex !== -1 && idx === 0) {
-                            updatedExistingTask = {
-                              ...existingTask,
-                              description: pageContent,
-                              sourceDocument:
-                                assetToLoad.url && assetToLoad.mimeType
-                                  ? {
-                                      fileName: assetToLoad.name,
-                                      fileUrl: assetToLoad.url,
-                                      fileKey: assetToLoad.fileKey,
-                                      mimeType: assetToLoad.mimeType,
-                                      uploadedAt: new Date().toISOString(),
-                                      extractedText: pageContent,
-                                    }
-                                  : existingTask.sourceDocument,
-                            }
-                            updatedTasks[existingTaskIndex] = updatedExistingTask
-                          } else {
-                            const newTask = DEFAULT_TASK(startIndex + idx)
-                            newTask.title = `Task ${groupNumber}.${existingTask ? idx + 1 : idx + 1}`
-                            newTask.description = pageContent
-                            if (assetToLoad.url && assetToLoad.mimeType) {
-                              newTask.sourceDocument = {
-                                fileName: assetToLoad.name,
-                                fileUrl: assetToLoad.url,
-                                fileKey: assetToLoad.fileKey,
-                                mimeType: assetToLoad.mimeType,
-                                uploadedAt: new Date().toISOString(),
-                                extractedText: pageContent,
-                              }
-                            }
-                            newTasks.push(newTask)
-                          }
-                        })
-                      }
-
-                      if (existingTask && existingTaskIndex !== -1) {
-                        updatedTasks.splice(existingTaskIndex + 1, 0, ...newTasks)
-                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks = updatedTasks
-                      } else {
-                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(
-                          ...newTasks
-                        )
-                      }
-
-                      setCourseBuilderNodes(newCourseBuilderNodes)
-                      setMainBuilderTab('task')
-
-                      if (updatedExistingTask) {
-                        const taskId = updatedExistingTask.id
-                        setSelectedItem({ type: 'task', id: updatedExistingTask.id })
-                        loadTaskIntoBuilder(updatedExistingTask)
-                        setTaskPdfVisibleMap(prev => ({ ...prev, [taskId]: true }))
-                        setTaskTextVisibleMap(prev => ({ ...prev, [taskId]: false }))
-                      } else if (newTasks.length > 0) {
-                        const firstNew = newTasks[0]
-                        setSelectedItem({ type: 'task', id: firstNew.id })
-                        loadTaskIntoBuilder(firstNew)
-
-                        setTaskPdfVisibleMap(prev => ({ ...prev, [firstNew.id]: true }))
-                        setTaskTextVisibleMap(prev => ({ ...prev, [firstNew.id]: false }))
-
-                        setTimeout(() => {
-                          handlePciSend(
-                            'task',
-                            `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
-                          )
-                        }, 500)
-                      }
-
-                      toast.success(
-                        updatedExistingTask
-                          ? `Updated Task and created ${newTasks.length} Task(s) from '${assetToLoad?.name}'`
-                          : `Created ${newTasks.length} Task(s) from '${assetToLoad?.name}'`
-                      )
-                      setLoadAsModalOpen(false)
-                      setAssetToLoad(null)
-                    } catch (err: any) {
-                      console.error('PDF splitting error:', err)
-                      toast.error(err.message || 'Failed to split PDF')
-                    } finally {
-                      setIsSplittingTasks(false)
-                    }
-                  }}
-                >
-                  {isSplittingTasks ? (
-                    <Loader2 className="mt-1 h-5 w-5 shrink-0 animate-spin text-orange-500" />
-                  ) : (
-                    <ListTodo className="mt-1 h-5 w-5 shrink-0 text-orange-500" />
-                  )}
-                  <div className="flex flex-col items-start text-left">
-                    <span className="font-semibold text-slate-900">Tasks</span>
-                    <span className="mt-1 text-xs font-normal text-slate-500">
-                      {isSplittingTasks
-                        ? 'Processing and splitting PDF...'
-                        : 'Extract text and create one task per page'}
-                    </span>
-                  </div>
-                </Button>
-
-                {/* Option 2: Task + Extensions */}
-                <Button
-                  className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
-                  variant="outline"
-                  disabled={isSplittingTaskExtensions}
-                  onClick={async () => {
-                    if (!assetToLoad) return
-                    setIsSplittingTaskExtensions(true)
-
-                    try {
-                      const textToInsert = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
-
-                      let pages: string[] = []
-                      const pdfPagesUrls: string[] = []
-                      const pdfPageKeys: string[] = []
-
-                      const isPdf =
-                        assetToLoad.mimeType === 'application/pdf' ||
-                        assetToLoad.name.toLowerCase().endsWith('.pdf')
-
-                      let pdfSplitSucceeded = false
-
-                      if (isPdf && assetToLoad.url) {
-                        // Split + store every page in ONE server request (avoids the
-                        // per-page upload burst that tripped the rate limiter).
-                        try {
-                          const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              key: assetToLoad.fileKey,
-                              url: assetToLoad.url,
-                              fileName: assetToLoad.name,
-                            }),
-                          })
-                          if (!splitRes.ok) {
-                            const errData = await splitRes.json().catch(() => ({}))
-                            throw new Error(errData.error || `Split failed (${splitRes.status})`)
-                          }
-                          const { pages: splitPages } = (await splitRes.json()) as {
-                            pages: Array<{ pageNumber: number; url: string; key: string }>
-                          }
-
-                          for (const sp of splitPages) {
-                            pdfPagesUrls.push(sp.url)
-                            pdfPageKeys.push(sp.key)
-                          }
-
-                          // Dummy text to represent pages since we use physical PDF URLs
-                          pages = Array(splitPages.length)
-                            .fill('')
-                            .map((_, i) => `Page ${i + 1} from ${assetToLoad.name}`)
-                          pdfSplitSucceeded = true
-                        } catch (splitErr) {
-                          console.error('PDF split failed:', splitErr)
-                        }
-                      }
-
-                      if (!pdfSplitSucceeded) {
-                        if (textToInsert.includes('\f')) {
-                          pages = textToInsert.split('\f').filter(p => p.trim())
-                        } else if (textToInsert.includes('--- Page')) {
-                          pages = textToInsert.split(/--- Page \d+ ---/).filter(p => p.trim())
-                        } else {
-                          const chunks = textToInsert
-                            .split(/\n\n+/)
-                            .filter(p => p.trim().length > 50)
-                          pages = chunks.length > 1 ? chunks : [textToInsert]
-                        }
-                      }
+                {/* Option 1: Tasks (One task per page) — hidden when loading as an assessment */}
+                {loadAsStep !== 'assessment-options' && (
+                  <Button
+                    className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
+                    variant="outline"
+                    disabled={isSplittingTasks}
+                    onClick={async () => {
+                      if (!assetToLoad) return
 
                       let nodeIndex = -1
                       let lessonIndex = -1
@@ -4789,217 +4482,530 @@ FEEDBACK: [your explanation]`
                         lessonIndex = nodes[nodeIndex].lessons.findIndex(l => l.id === lessonId)
                       }
 
-                      const newTask =
-                        existingTask && existingTaskIndex !== -1
-                          ? ({ ...existingTask } as Task)
-                          : DEFAULT_TASK(nodes[nodeIndex].lessons[lessonIndex].tasks.length)
+                      const textToInsert = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
 
-                      newTask.description = pages[0] || textToInsert
-
-                      if (isPdf && pdfPagesUrls.length > 0) {
-                        newTask.sourceDocument = {
-                          fileName: `${assetToLoad.name} (Page 1)`,
-                          fileUrl: pdfPagesUrls[0],
-                          fileKey: pdfPageKeys[0],
-                          mimeType: 'application/pdf',
-                          uploadedAt: new Date().toISOString(),
-                          extractedText: pages[0] || textToInsert,
-                        }
-                      } else if (assetToLoad.url && assetToLoad.mimeType) {
-                        newTask.sourceDocument = {
-                          fileName: assetToLoad.name,
-                          fileUrl: assetToLoad.url,
-                          fileKey: assetToLoad.fileKey,
-                          mimeType: assetToLoad.mimeType,
-                          uploadedAt: new Date().toISOString(),
-                          extractedText: pages[0] || textToInsert,
-                        }
+                      let pages: string[] = []
+                      if (textToInsert.includes('\f')) {
+                        pages = textToInsert.split('\f').filter(p => p.trim())
+                      } else if (textToInsert.includes('--- Page')) {
+                        pages = textToInsert.split(/--- Page \d+ ---/).filter(p => p.trim())
+                      } else {
+                        const chunks = textToInsert.split(/\n\n+/).filter(p => p.trim().length > 50)
+                        pages = chunks.length > 1 ? chunks : [textToInsert]
                       }
 
-                      const extensions = pages.slice(1).map((pageContent, idx) => {
-                        const ext: any = {
-                          id: `ext-${Date.now()}-${idx}`,
-                          name: `Extension ${idx + 1}`,
-                          description: '',
-                          content: pageContent,
-                          pci: '',
-                        }
+                      setIsSplittingTasks(true)
+                      const newTasks: Task[] = []
+                      const newCourseBuilderNodes = [...nodes]
+                      const startIndex =
+                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.length
+                      const groupNumber =
+                        existingTaskIndex !== -1 ? existingTaskIndex + 1 : startIndex + 1
+                      const updatedTasks = [
+                        ...newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks,
+                      ]
+                      let updatedExistingTask: Task | null = null
 
-                        if (isPdf && pdfPagesUrls[idx + 1]) {
-                          ext.sourceDocument = {
-                            fileName: `${assetToLoad.name} (Page ${idx + 2})`,
-                            fileUrl: pdfPagesUrls[idx + 1],
-                            fileKey: pdfPageKeys[idx + 1],
-                            mimeType: 'application/pdf',
-                            uploadedAt: new Date().toISOString(),
-                            extractedText: pageContent,
+                      try {
+                        const isPdf =
+                          assetToLoad.mimeType === 'application/pdf' ||
+                          assetToLoad.name.toLowerCase().endsWith('.pdf')
+
+                        let pdfSplitSucceeded = false
+                        let pdfSplitError: string | null = null
+
+                        if (isPdf && assetToLoad.url) {
+                          // Split + store every page in ONE server request (avoids the
+                          // per-page upload burst that tripped the rate limiter).
+                          try {
+                            const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                key: assetToLoad.fileKey,
+                                url: assetToLoad.url,
+                                fileName: assetToLoad.name,
+                              }),
+                            })
+                            if (!splitRes.ok) {
+                              const errData = await splitRes.json().catch(() => ({}))
+                              throw new Error(errData.error || `Split failed (${splitRes.status})`)
+                            }
+                            const { pages: splitPages } = (await splitRes.json()) as {
+                              pages: Array<{ pageNumber: number; url: string; key: string }>
+                            }
+
+                            for (let i = 0; i < splitPages.length; i++) {
+                              const sp = splitPages[i]
+                              const desc = pages[i] || `Page ${i + 1} from ${assetToLoad.name}`
+                              const sourceDocument = {
+                                fileName: `${assetToLoad.name} (Page ${i + 1})`,
+                                fileUrl: sp.url,
+                                fileKey: sp.key,
+                                mimeType: 'application/pdf',
+                                uploadedAt: new Date().toISOString(),
+                                extractedText: desc,
+                              }
+                              if (existingTask && existingTaskIndex !== -1 && i === 0) {
+                                updatedExistingTask = {
+                                  ...existingTask,
+                                  description: desc,
+                                  sourceDocument,
+                                }
+                                updatedTasks[existingTaskIndex] = updatedExistingTask
+                              } else {
+                                const newTask = DEFAULT_TASK(startIndex + i)
+                                newTask.title = `Task ${groupNumber}.${i + 1}`
+                                newTask.description = desc
+                                newTask.sourceDocument = sourceDocument
+                                newTasks.push(newTask)
+                              }
+                            }
+                            pdfSplitSucceeded = true
+                          } catch (splitErr) {
+                            console.error('PDF split failed:', splitErr)
+                            pdfSplitError =
+                              splitErr instanceof Error
+                                ? splitErr.message
+                                : 'Failed to split PDF into pages'
                           }
                         }
 
-                        return ext
-                      })
+                        if (isPdf && assetToLoad.url && !pdfSplitSucceeded) {
+                          // The document is a PDF and we attempted to split it into one
+                          // task per page, but fetching/splitting failed (e.g. the file
+                          // is missing from storage or its link expired). Surface the
+                          // real reason instead of silently degrading to a single task
+                          // with a broken document link.
+                          toast.error(
+                            `Could not split '${assetToLoad.name}' into page tasks${
+                              pdfSplitError ? `: ${pdfSplitError}` : ''
+                            }. The task was left unchanged.`
+                          )
+                          return
+                        }
 
-                      newTask.extensions = [...(newTask.extensions || []), ...extensions]
+                        if (!pdfSplitSucceeded) {
+                          // Text-based split for non-PDF (or url-less) assets: one task per page.
+                          pages.forEach((pageContent, idx) => {
+                            if (existingTask && existingTaskIndex !== -1 && idx === 0) {
+                              updatedExistingTask = {
+                                ...existingTask,
+                                description: pageContent,
+                                sourceDocument:
+                                  assetToLoad.url && assetToLoad.mimeType
+                                    ? {
+                                        fileName: assetToLoad.name,
+                                        fileUrl: assetToLoad.url,
+                                        fileKey: assetToLoad.fileKey,
+                                        mimeType: assetToLoad.mimeType,
+                                        uploadedAt: new Date().toISOString(),
+                                        extractedText: pageContent,
+                                      }
+                                    : existingTask.sourceDocument,
+                              }
+                              updatedTasks[existingTaskIndex] = updatedExistingTask
+                            } else {
+                              const newTask = DEFAULT_TASK(startIndex + idx)
+                              newTask.title = `Task ${groupNumber}.${existingTask ? idx + 1 : idx + 1}`
+                              newTask.description = pageContent
+                              if (assetToLoad.url && assetToLoad.mimeType) {
+                                newTask.sourceDocument = {
+                                  fileName: assetToLoad.name,
+                                  fileUrl: assetToLoad.url,
+                                  fileKey: assetToLoad.fileKey,
+                                  mimeType: assetToLoad.mimeType,
+                                  uploadedAt: new Date().toISOString(),
+                                  extractedText: pageContent,
+                                }
+                              }
+                              newTasks.push(newTask)
+                            }
+                          })
+                        }
+
+                        if (existingTask && existingTaskIndex !== -1) {
+                          updatedTasks.splice(existingTaskIndex + 1, 0, ...newTasks)
+                          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks = updatedTasks
+                        } else {
+                          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(
+                            ...newTasks
+                          )
+                        }
+
+                        setCourseBuilderNodes(newCourseBuilderNodes)
+                        setMainBuilderTab('task')
+
+                        if (updatedExistingTask) {
+                          const taskId = updatedExistingTask.id
+                          setSelectedItem({ type: 'task', id: updatedExistingTask.id })
+                          loadTaskIntoBuilder(updatedExistingTask)
+                          setTaskPdfVisibleMap(prev => ({ ...prev, [taskId]: true }))
+                          setTaskTextVisibleMap(prev => ({ ...prev, [taskId]: false }))
+                        } else if (newTasks.length > 0) {
+                          const firstNew = newTasks[0]
+                          setSelectedItem({ type: 'task', id: firstNew.id })
+                          loadTaskIntoBuilder(firstNew)
+
+                          setTaskPdfVisibleMap(prev => ({ ...prev, [firstNew.id]: true }))
+                          setTaskTextVisibleMap(prev => ({ ...prev, [firstNew.id]: false }))
+
+                          setTimeout(() => {
+                            handlePciSend(
+                              'task',
+                              `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
+                            )
+                          }, 500)
+                        }
+
+                        toast.success(
+                          updatedExistingTask
+                            ? `Updated Task and created ${newTasks.length} Task(s) from '${assetToLoad?.name}'`
+                            : `Created ${newTasks.length} Task(s) from '${assetToLoad?.name}'`
+                        )
+                        setLoadAsModalOpen(false)
+                        setAssetToLoad(null)
+                      } catch (err: any) {
+                        console.error('PDF splitting error:', err)
+                        toast.error(err.message || 'Failed to split PDF')
+                      } finally {
+                        setIsSplittingTasks(false)
+                      }
+                    }}
+                  >
+                    {isSplittingTasks ? (
+                      <Loader2 className="mt-1 h-5 w-5 shrink-0 animate-spin text-orange-500" />
+                    ) : (
+                      <ListTodo className="mt-1 h-5 w-5 shrink-0 text-orange-500" />
+                    )}
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-semibold text-slate-900">Tasks</span>
+                      <span className="mt-1 text-xs font-normal text-slate-500">
+                        {isSplittingTasks
+                          ? 'Processing and splitting PDF...'
+                          : 'Extract text and create one task per page'}
+                      </span>
+                    </div>
+                  </Button>
+                )}
+
+                {/* Option 2: Task + Extensions — hidden when loading as an assessment */}
+                {loadAsStep !== 'assessment-options' && (
+                  <Button
+                    className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
+                    variant="outline"
+                    disabled={isSplittingTaskExtensions}
+                    onClick={async () => {
+                      if (!assetToLoad) return
+                      setIsSplittingTaskExtensions(true)
+
+                      try {
+                        const textToInsert = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
+
+                        let pages: string[] = []
+                        const pdfPagesUrls: string[] = []
+                        const pdfPageKeys: string[] = []
+
+                        const isPdf =
+                          assetToLoad.mimeType === 'application/pdf' ||
+                          assetToLoad.name.toLowerCase().endsWith('.pdf')
+
+                        let pdfSplitSucceeded = false
+
+                        if (isPdf && assetToLoad.url) {
+                          // Split + store every page in ONE server request (avoids the
+                          // per-page upload burst that tripped the rate limiter).
+                          try {
+                            const splitRes = await fetchWithCsrf('/api/tutor/documents/split', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                key: assetToLoad.fileKey,
+                                url: assetToLoad.url,
+                                fileName: assetToLoad.name,
+                              }),
+                            })
+                            if (!splitRes.ok) {
+                              const errData = await splitRes.json().catch(() => ({}))
+                              throw new Error(errData.error || `Split failed (${splitRes.status})`)
+                            }
+                            const { pages: splitPages } = (await splitRes.json()) as {
+                              pages: Array<{ pageNumber: number; url: string; key: string }>
+                            }
+
+                            for (const sp of splitPages) {
+                              pdfPagesUrls.push(sp.url)
+                              pdfPageKeys.push(sp.key)
+                            }
+
+                            // Dummy text to represent pages since we use physical PDF URLs
+                            pages = Array(splitPages.length)
+                              .fill('')
+                              .map((_, i) => `Page ${i + 1} from ${assetToLoad.name}`)
+                            pdfSplitSucceeded = true
+                          } catch (splitErr) {
+                            console.error('PDF split failed:', splitErr)
+                          }
+                        }
+
+                        if (!pdfSplitSucceeded) {
+                          if (textToInsert.includes('\f')) {
+                            pages = textToInsert.split('\f').filter(p => p.trim())
+                          } else if (textToInsert.includes('--- Page')) {
+                            pages = textToInsert.split(/--- Page \d+ ---/).filter(p => p.trim())
+                          } else {
+                            const chunks = textToInsert
+                              .split(/\n\n+/)
+                              .filter(p => p.trim().length > 50)
+                            pages = chunks.length > 1 ? chunks : [textToInsert]
+                          }
+                        }
+
+                        let nodeIndex = -1
+                        let lessonIndex = -1
+                        let existingTaskIndex = -1
+                        let existingTask: Task | null = null
+
+                        if (loadedTaskId) {
+                          for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
+                            for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
+                              const t = nodes[nIdx].lessons[lIdx].tasks.find(
+                                task => task.id === loadedTaskId
+                              )
+                              if (t) {
+                                nodeIndex = nIdx
+                                lessonIndex = lIdx
+                                existingTaskIndex = nodes[nIdx].lessons[lIdx].tasks.findIndex(
+                                  task => task.id === loadedTaskId
+                                )
+                                existingTask = t
+                                break
+                              }
+                            }
+                            if (nodeIndex !== -1) break
+                          }
+                        }
+
+                        if (nodeIndex === -1 || lessonIndex === -1) {
+                          const { nodeId, lessonId } = ensureFirstLessonContext()
+                          nodeIndex = nodes.findIndex(m => m.id === nodeId)
+                          lessonIndex = nodes[nodeIndex].lessons.findIndex(l => l.id === lessonId)
+                        }
+
+                        const newTask =
+                          existingTask && existingTaskIndex !== -1
+                            ? ({ ...existingTask } as Task)
+                            : DEFAULT_TASK(nodes[nodeIndex].lessons[lessonIndex].tasks.length)
+
+                        newTask.description = pages[0] || textToInsert
+
+                        if (isPdf && pdfPagesUrls.length > 0) {
+                          newTask.sourceDocument = {
+                            fileName: `${assetToLoad.name} (Page 1)`,
+                            fileUrl: pdfPagesUrls[0],
+                            fileKey: pdfPageKeys[0],
+                            mimeType: 'application/pdf',
+                            uploadedAt: new Date().toISOString(),
+                            extractedText: pages[0] || textToInsert,
+                          }
+                        } else if (assetToLoad.url && assetToLoad.mimeType) {
+                          newTask.sourceDocument = {
+                            fileName: assetToLoad.name,
+                            fileUrl: assetToLoad.url,
+                            fileKey: assetToLoad.fileKey,
+                            mimeType: assetToLoad.mimeType,
+                            uploadedAt: new Date().toISOString(),
+                            extractedText: pages[0] || textToInsert,
+                          }
+                        }
+
+                        const extensions = pages.slice(1).map((pageContent, idx) => {
+                          const ext: any = {
+                            id: `ext-${Date.now()}-${idx}`,
+                            name: `Extension ${idx + 1}`,
+                            description: '',
+                            content: pageContent,
+                            pci: '',
+                          }
+
+                          if (isPdf && pdfPagesUrls[idx + 1]) {
+                            ext.sourceDocument = {
+                              fileName: `${assetToLoad.name} (Page ${idx + 2})`,
+                              fileUrl: pdfPagesUrls[idx + 1],
+                              fileKey: pdfPageKeys[idx + 1],
+                              mimeType: 'application/pdf',
+                              uploadedAt: new Date().toISOString(),
+                              extractedText: pageContent,
+                            }
+                          }
+
+                          return ext
+                        })
+
+                        newTask.extensions = [...(newTask.extensions || []), ...extensions]
+
+                        const newCourseBuilderNodes = [...nodes]
+                        if (existingTask && existingTaskIndex !== -1) {
+                          const updatedTasks = [
+                            ...newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks,
+                          ]
+                          updatedTasks[existingTaskIndex] = newTask
+                          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks = updatedTasks
+                        } else {
+                          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(newTask)
+                        }
+                        setCourseBuilderNodes(newCourseBuilderNodes)
+                        setMainBuilderTab('task')
+                        setSelectedItem({ type: 'task', id: newTask.id })
+                        loadTaskIntoBuilder(newTask)
+
+                        // Show PDF by default, hide text
+                        setTaskPdfVisibleMap(prev => ({ ...prev, [newTask.id]: true }))
+                        setTaskTextVisibleMap(prev => ({ ...prev, [newTask.id]: false }))
+
+                        toast.success(
+                          existingTask && existingTaskIndex !== -1
+                            ? `Loaded into existing task with ${extensions.length} extension(s) from '${assetToLoad?.name}'`
+                            : `Created Task with ${extensions.length} extension(s) from '${assetToLoad?.name}'`
+                        )
+                        setLoadAsModalOpen(false)
+                        setAssetToLoad(null)
+
+                        // Auto-send first PCI message
+                        setTimeout(() => {
+                          handlePciSend(
+                            'task',
+                            `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
+                          )
+                        }, 500)
+                      } catch (err: any) {
+                        console.error('Task + Extensions splitting error:', err)
+                        toast.error(err.message || 'Failed to process document')
+                      } finally {
+                        setIsSplittingTaskExtensions(false)
+                      }
+                    }}
+                  >
+                    {isSplittingTaskExtensions ? (
+                      <Loader2 className="mt-1 h-5 w-5 shrink-0 animate-spin text-green-500" />
+                    ) : (
+                      <Layers2 className="mt-1 h-5 w-5 shrink-0 text-green-500" />
+                    )}
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-semibold text-slate-900">Task + Extensions</span>
+                      <span className="mt-1 text-xs font-normal text-slate-500">
+                        {isSplittingTaskExtensions
+                          ? 'Processing and splitting PDF...'
+                          : 'First page as task, remaining as extensions'}
+                      </span>
+                    </div>
+                  </Button>
+                )}
+
+                {/* Option 3: Assessment (whole document, never split) — hidden when loading as a task */}
+                {loadAsStep !== 'task-options' && (
+                  <Button
+                    className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
+                    variant="outline"
+                    onClick={() => {
+                      if (!assetToLoad) return
+
+                      let nodeIndex = -1
+                      let lessonIndex = -1
+                      let existingAssess: Assessment | undefined
+
+                      if (loadedAssessmentId) {
+                        for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
+                          for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
+                            const hw = nodes[nIdx].lessons[lIdx].homework.find(
+                              h => h.id === loadedAssessmentId
+                            )
+                            if (hw) {
+                              existingAssess = hw
+                              nodeIndex = nIdx
+                              lessonIndex = lIdx
+                              break
+                            }
+                          }
+                          if (existingAssess) break
+                        }
+                      }
+
+                      if (nodeIndex === -1 || lessonIndex === -1) {
+                        const { nodeId, lessonId } = ensureFirstLessonContext()
+                        nodeIndex = nodes.findIndex(m => m.id === nodeId)
+                        lessonIndex = nodes[nodeIndex].lessons.findIndex(l => l.id === lessonId)
+                      }
+
+                      let targetAssess: Assessment
+
+                      if (existingAssess) {
+                        targetAssess = { ...existingAssess }
+                      } else {
+                        targetAssess = DEFAULT_HOMEWORK(
+                          nodes[nodeIndex].lessons[lessonIndex].homework.length,
+                          'assessment'
+                        )
+                      }
+
+                      const extractedText = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
+                      targetAssess.description = extractedText
+                      if (assetToLoad.url) {
+                        targetAssess.sourceDocument = {
+                          fileName: assetToLoad.name,
+                          fileUrl: assetToLoad.url,
+                          fileKey: assetToLoad.fileKey,
+                          mimeType: assetToLoad.mimeType || 'application/pdf',
+                          uploadedAt: new Date().toISOString(),
+                          extractedText,
+                        }
+                      }
 
                       const newCourseBuilderNodes = [...nodes]
-                      if (existingTask && existingTaskIndex !== -1) {
-                        const updatedTasks = [
-                          ...newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks,
-                        ]
-                        updatedTasks[existingTaskIndex] = newTask
-                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks = updatedTasks
+
+                      if (existingAssess) {
+                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework =
+                          newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.map(h =>
+                            h.id === loadedAssessmentId ? targetAssess : h
+                          )
                       } else {
-                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(newTask)
+                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(
+                          targetAssess
+                        )
                       }
+
                       setCourseBuilderNodes(newCourseBuilderNodes)
-                      setMainBuilderTab('task')
-                      setSelectedItem({ type: 'task', id: newTask.id })
-                      loadTaskIntoBuilder(newTask)
+                      setMainBuilderTab('assessment')
+                      setSelectedItem({ type: 'assessment', id: targetAssess.id })
+                      loadAssessmentIntoBuilder(targetAssess)
 
                       // Show PDF by default, hide text
-                      setTaskPdfVisibleMap(prev => ({ ...prev, [newTask.id]: true }))
-                      setTaskTextVisibleMap(prev => ({ ...prev, [newTask.id]: false }))
+                      setAssessmentPdfVisibleMap(prev => ({ ...prev, [targetAssess.id]: true }))
+                      setAssessmentTextVisibleMap(prev => ({ ...prev, [targetAssess.id]: false }))
 
-                      toast.success(
-                        existingTask && existingTaskIndex !== -1
-                          ? `Loaded into existing task with ${extensions.length} extension(s) from '${assetToLoad?.name}'`
-                          : `Created Task with ${extensions.length} extension(s) from '${assetToLoad?.name}'`
-                      )
+                      toast.success(`Loaded '${assetToLoad?.name}' into Assessment`)
                       setLoadAsModalOpen(false)
                       setAssetToLoad(null)
 
                       // Auto-send first PCI message
                       setTimeout(() => {
                         handlePciSend(
-                          'task',
+                          'assessment',
                           `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
                         )
                       }, 500)
-                    } catch (err: any) {
-                      console.error('Task + Extensions splitting error:', err)
-                      toast.error(err.message || 'Failed to process document')
-                    } finally {
-                      setIsSplittingTaskExtensions(false)
-                    }
-                  }}
-                >
-                  {isSplittingTaskExtensions ? (
-                    <Loader2 className="mt-1 h-5 w-5 shrink-0 animate-spin text-green-500" />
-                  ) : (
-                    <Layers2 className="mt-1 h-5 w-5 shrink-0 text-green-500" />
-                  )}
-                  <div className="flex flex-col items-start text-left">
-                    <span className="font-semibold text-slate-900">Task + Extensions</span>
-                    <span className="mt-1 text-xs font-normal text-slate-500">
-                      {isSplittingTaskExtensions
-                        ? 'Processing and splitting PDF...'
-                        : 'First page as task, remaining as extensions'}
-                    </span>
-                  </div>
-                </Button>
-
-                {/* Option 3: Assessment */}
-                <Button
-                  className="h-auto w-full justify-start gap-3 rounded-xl border-slate-200 bg-white py-4 shadow-sm hover:border-slate-300 hover:bg-slate-50"
-                  variant="outline"
-                  onClick={() => {
-                    if (!assetToLoad) return
-
-                    let nodeIndex = -1
-                    let lessonIndex = -1
-                    let existingAssess: Assessment | undefined
-
-                    if (loadedAssessmentId) {
-                      for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
-                        for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
-                          const hw = nodes[nIdx].lessons[lIdx].homework.find(
-                            h => h.id === loadedAssessmentId
-                          )
-                          if (hw) {
-                            existingAssess = hw
-                            nodeIndex = nIdx
-                            lessonIndex = lIdx
-                            break
-                          }
-                        }
-                        if (existingAssess) break
-                      }
-                    }
-
-                    if (nodeIndex === -1 || lessonIndex === -1) {
-                      const { nodeId, lessonId } = ensureFirstLessonContext()
-                      nodeIndex = nodes.findIndex(m => m.id === nodeId)
-                      lessonIndex = nodes[nodeIndex].lessons.findIndex(l => l.id === lessonId)
-                    }
-
-                    let targetAssess: Assessment
-
-                    if (existingAssess) {
-                      targetAssess = { ...existingAssess }
-                    } else {
-                      targetAssess = DEFAULT_HOMEWORK(
-                        nodes[nodeIndex].lessons[lessonIndex].homework.length,
-                        'assessment'
-                      )
-                    }
-
-                    const extractedText = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
-                    targetAssess.description = extractedText
-                    if (assetToLoad.url) {
-                      targetAssess.sourceDocument = {
-                        fileName: assetToLoad.name,
-                        fileUrl: assetToLoad.url,
-                        fileKey: assetToLoad.fileKey,
-                        mimeType: assetToLoad.mimeType || 'application/pdf',
-                        uploadedAt: new Date().toISOString(),
-                        extractedText,
-                      }
-                    }
-
-                    const newCourseBuilderNodes = [...nodes]
-
-                    if (existingAssess) {
-                      newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework =
-                        newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.map(h =>
-                          h.id === loadedAssessmentId ? targetAssess : h
-                        )
-                    } else {
-                      newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(
-                        targetAssess
-                      )
-                    }
-
-                    setCourseBuilderNodes(newCourseBuilderNodes)
-                    setMainBuilderTab('assessment')
-                    setSelectedItem({ type: 'assessment', id: targetAssess.id })
-                    loadAssessmentIntoBuilder(targetAssess)
-
-                    // Show PDF by default, hide text
-                    setAssessmentPdfVisibleMap(prev => ({ ...prev, [targetAssess.id]: true }))
-                    setAssessmentTextVisibleMap(prev => ({ ...prev, [targetAssess.id]: false }))
-
-                    toast.success(`Loaded '${assetToLoad?.name}' into Assessment`)
-                    setLoadAsModalOpen(false)
-                    setAssetToLoad(null)
-
-                    // Auto-send first PCI message
-                    setTimeout(() => {
-                      handlePciSend(
-                        'assessment',
-                        `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
-                      )
-                    }, 500)
-                  }}
-                >
-                  <FileQuestion className="mt-1 h-5 w-5 shrink-0 text-purple-500" />
-                  <div className="flex flex-col items-start text-left">
-                    <span className="font-semibold text-slate-900">Assessment</span>
-                    <span className="mt-1 text-xs font-normal text-slate-500">
-                      Load entire document into {loadedAssessmentId ? 'current' : 'a new'}{' '}
-                      assessment
-                    </span>
-                  </div>
-                </Button>
+                    }}
+                  >
+                    <FileQuestion className="mt-1 h-5 w-5 shrink-0 text-purple-500" />
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-semibold text-slate-900">Assessment</span>
+                      <span className="mt-1 text-xs font-normal text-slate-500">
+                        Load entire document into {loadedAssessmentId ? 'current' : 'a new'}{' '}
+                        assessment
+                      </span>
+                    </div>
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>
