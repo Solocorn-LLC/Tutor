@@ -124,8 +124,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   // Insights page has its own layout with course builder integrated
   const isInsightsPage = pathname === '/tutor/insights' || pathname?.startsWith('/tutor/insights/')
 
-  const isDashboard = pathname === `${localePrefix}/tutor/dashboard`
-
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
     setDesktopNavOpen(!isMyPage && !isReportsPage && !isAccountPage && !isSupportPage)
@@ -320,20 +318,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main
-        className={cn(
-          'relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:pt-4',
-          isReportsPage ? 'lg:pb-4' : 'lg:pb-3'
-        )}
-      >
-        <div
-          className={cn(
-            'h-full overflow-y-auto',
-            isDashboard && 'tutor-dashboard-scroll',
-            isMyPage && 'tutor-mypage-scroll',
-            isReportsPage && 'tutor-dashboard-scroll'
-          )}
-        >
+      <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:pt-4">
+        <div className="h-full overflow-y-auto scrollbar-hide">
           {children}
         </div>
       </main>

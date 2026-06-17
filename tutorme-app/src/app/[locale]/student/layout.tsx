@@ -390,10 +390,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <main
         className={cn(
           'relative z-0 h-screen flex-1 overflow-hidden',
-          !isFeedbackRoute && 'pt-16 lg:pb-4 lg:pt-4'
+          !isFeedbackRoute && 'pt-16 lg:pt-4'
         )}
       >
-        <div className={cn('h-full', isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto')}>
+        <div
+          className={cn(
+            'h-full scrollbar-hide',
+            isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto'
+          )}
+        >
           <StudentNavProvider desktopNavOpen={desktopNavOpen}>{children}</StudentNavProvider>
         </div>
       </main>
