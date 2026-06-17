@@ -67,12 +67,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isLiveClassRoute = pathname.includes('/student/feedback')
   const isFeedbackRoute = pathname.includes('/student/feedback')
-  const isSupportPage = pathname === '/student/help' || pathname?.startsWith('/student/help/')
-  const isAccountPage = pathname === '/student/account' || pathname?.startsWith('/student/account/')
-  const isBookTutorPage = pathname === '/student/tutors' || pathname?.startsWith('/student/tutors/')
-  const isCommunicationsPage =
-    pathname === '/student/communications' || pathname?.startsWith('/student/communications/')
-  const isCoursesPage = pathname === '/student/courses' || pathname?.startsWith('/student/courses/')
+  const isSupportPage = pathname?.includes('/student/help')
+  const isAccountPage = pathname?.includes('/student/account')
+  const isBookTutorPage = pathname?.includes('/student/tutors')
+  const isCommunicationsPage = pathname?.includes('/student/communications')
+  const isCoursesPage = pathname?.includes('/student/courses')
   const isNavClosedPage =
     isSupportPage || isFeedbackRoute || isAccountPage || isBookTutorPage || isCommunicationsPage || isCoursesPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(!isNavClosedPage)
