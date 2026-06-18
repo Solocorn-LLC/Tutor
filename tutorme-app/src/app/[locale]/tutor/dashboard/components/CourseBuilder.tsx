@@ -2362,7 +2362,8 @@ FEEDBACK: [your explanation]`
         let pdfPages: string[] | undefined
         if (hasPdf) {
           toast.info('Analyzing PDF with AI...')
-          pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 3)
+          // Analyze up to 5 pages (the generate-dmi API cap) instead of silently 3.
+          pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 5)
         }
 
         const response = await fetch('/api/ai/generate-dmi', {

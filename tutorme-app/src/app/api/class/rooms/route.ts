@@ -135,18 +135,11 @@ export const POST = withCsrf(
           classSessionResult = result
         } catch (error) {
           const rootError = (error as { cause?: Error }).cause ?? error
-          const msg = rootError instanceof Error ? rootError.message : String(rootError)
+          // Log full detail server-side, but never leak raw DB error text or internal
+          // remediation hints (e.g. psql commands) to API clients.
           console.error('[Class Rooms] createSession failed:', rootError)
-          const isSchemaError =
-            msg.includes('column') || msg.includes('enum') || msg.includes('does not exist')
           return NextResponse.json(
-            {
-              error: 'Failed to create session. Please try again.',
-              details: msg,
-              hint: isSchemaError
-                ? 'If this is a schema mismatch, run: psql -f scripts/apply-schema-changes.sql'
-                : undefined,
-            },
+            { error: 'Failed to create session. Please try again.' },
             { status: 500 }
           )
         }

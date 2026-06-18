@@ -96,7 +96,7 @@ export function VariantScheduleEditor({
   schedule,
   onScheduleChange,
   price,
-  weeksToSchedule = 1,
+  weeksToSchedule = 8,
   onWeeksChange,
   allVariantsSchedules,
   excludedSchedules,
@@ -104,7 +104,8 @@ export function VariantScheduleEditor({
 }: VariantScheduleEditorProps) {
   const calendarScrollRef = useRef<HTMLDivElement>(null)
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
-  const [numberOfWeeks, setNumberOfWeeks] = useState(Math.max(1, weeksToSchedule || 1))
+  // Default to the DB default (8 weeks) so a new schedule isn't silently collapsed to 1.
+  const [numberOfWeeks, setNumberOfWeeks] = useState(Math.max(1, weeksToSchedule || 8))
   const [modeTab, setModeTab] = useState('schedule')
   const [availabilityData, setAvailabilityData] = useState<AvailabilityData | null>(null)
 
@@ -566,7 +567,7 @@ export function VariantScheduleEditor({
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <div
                 ref={calendarScrollRef}
-                className="absolute inset-0 scrollbar-hide touch-pan-y overflow-y-auto overscroll-contain"
+                className="scrollbar-hide absolute inset-0 touch-pan-y overflow-y-auto overscroll-contain"
               >
                 {availabilityData ? (
                   <div className="grid grid-cols-[150px_repeat(7,_1fr)]">

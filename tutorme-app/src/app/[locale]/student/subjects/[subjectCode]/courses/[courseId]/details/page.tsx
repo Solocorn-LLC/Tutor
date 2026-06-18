@@ -95,10 +95,15 @@ export default function CourseDetailsPage() {
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) return null
     return schedule
       .map(s => {
+        // dayOfWeek may be a number (0-6) or a string ("Monday") depending on the
+        // writer; handle both so the day never renders blank.
+        const dow: unknown = s.dayOfWeek
         const day =
-          typeof s.dayOfWeek === 'number'
-            ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][s.dayOfWeek]
-            : ''
+          typeof dow === 'number'
+            ? (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dow] ?? '')
+            : typeof dow === 'string'
+              ? dow.slice(0, 3)
+              : ''
         const time = s.startTime ?? ''
         const mins = s.durationMinutes ?? 0
         return `${day} ${time} (${mins} min)`.trim()
