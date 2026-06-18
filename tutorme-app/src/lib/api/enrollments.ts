@@ -29,7 +29,10 @@ export async function enrollStudentInCourse(
   studentId: string,
   courseId: string,
   startDate?: string | Date | null,
-  scheduleId?: string | null
+  scheduleId?: string | null,
+  // Set by trusted callers (payment webhooks) where payment is already confirmed, so
+  // the payment gate below is skipped and a paid enrollment is never blocked.
+  paymentConfirmed = false
 ): Promise<EnrollmentResult> {
   const [courseRow] = await drizzleDb
     .select()
@@ -42,7 +45,7 @@ export async function enrollStudentInCourse(
   }
 
   // Payment check for paid courses (read-only, safe outside transaction)
-  if (!courseRow.isFree && courseRow.price && courseRow.price > 0) {
+  if (!paymentConfirmed && !courseRow.isFree && courseRow.price && courseRow.price > 0) {
     const [paymentRow] = await drizzleDb
       .select({ paymentId: payment.paymentId })
       .from(payment)
@@ -102,16 +105,26 @@ export async function enrollStudentInCourse(
     // This prevents race conditions where two concurrent requests both pass a
     // pre-transaction capacity check and both enroll, exceeding the limit.
     if (scheduleId) {
-      const updated = await tx.execute(
-        sql`UPDATE "CourseSchedule"
-            SET "enrolledCount" = "enrolledCount" + 1
-            WHERE id = ${scheduleId}
-              AND "courseId" = ${courseId}
-              AND ("maxStudents" IS NULL OR "enrolledCount" < "maxStudents")
-            RETURNING id`
-      )
-      if (!updated.rows.length) {
-        throw new Error('This schedule is full')
+      if (paymentConfirmed) {
+        // Paid student already committed — always grant the seat (never block a paid
+        // enrollment), even if it slightly exceeds the soft cap.
+        await tx.execute(
+          sql`UPDATE "CourseSchedule"
+              SET "enrolledCount" = "enrolledCount" + 1
+              WHERE id = ${scheduleId} AND "courseId" = ${courseId}`
+        )
+      } else {
+        const updated = await tx.execute(
+          sql`UPDATE "CourseSchedule"
+              SET "enrolledCount" = "enrolledCount" + 1
+              WHERE id = ${scheduleId}
+                AND "courseId" = ${courseId}
+                AND ("maxStudents" IS NULL OR "enrolledCount" < "maxStudents")
+              RETURNING id`
+        )
+        if (!updated.rows.length) {
+          throw new Error('This schedule is full')
+        }
       }
     }
 
@@ -124,14 +137,19 @@ export async function enrollStudentInCourse(
       enrollmentSource: 'browse',
     })
 
-    await tx.insert(courseProgress).values({
-      progressId,
-      studentId,
-      courseId,
-      lessonsCompleted: 0,
-      totalLessons,
-      isCompleted: false,
-    })
+    // Idempotent: a row may already exist from a legacy path that wrote progress
+    // without an enrollment. Don't let that abort the whole enrollment.
+    await tx
+      .insert(courseProgress)
+      .values({
+        progressId,
+        studentId,
+        courseId,
+        lessonsCompleted: 0,
+        totalLessons,
+        isCompleted: false,
+      })
+      .onConflictDoNothing()
   })
 
   if (alreadyEnrolled) {
@@ -163,7 +181,7 @@ export async function enrollStudentInCourse(
   const [progress] = await drizzleDb
     .select()
     .from(courseProgress)
-    .where(eq(courseProgress.progressId, progressId))
+    .where(and(eq(courseProgress.studentId, studentId), eq(courseProgress.courseId, courseId)))
     .limit(1)
 
   return {

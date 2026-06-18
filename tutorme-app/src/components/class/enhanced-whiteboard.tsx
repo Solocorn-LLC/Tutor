@@ -1906,6 +1906,7 @@ export function EnhancedWhiteboard({
       stroke: Stroke & { points?: number[] | Point[] }
       pageIndex?: number
     }) => {
+      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
       if (filterByUserId && data.userId !== filterByUserId) return
       const stroke: Stroke = {
         ...data.stroke,
@@ -1926,6 +1927,7 @@ export function EnhancedWhiteboard({
       shape: ShapeElement
       pageIndex?: number
     }) => {
+      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'shape', pageIndex: idx, shape: data.shape })
@@ -1941,6 +1943,7 @@ export function EnhancedWhiteboard({
     }
 
     const handleTextAdded = (data: { userId?: string; text: TextElement; pageIndex?: number }) => {
+      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'text', pageIndex: idx, text: data.text })
@@ -1962,6 +1965,7 @@ export function EnhancedWhiteboard({
       formula: FormulaElement
       pageIndex?: number
     }) => {
+      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'formula', pageIndex: idx, formula: data.formula })
@@ -1972,6 +1976,7 @@ export function EnhancedWhiteboard({
       graph: GraphElement
       pageIndex?: number
     }) => {
+      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'graph', pageIndex: idx, graph: data.graph })
@@ -2005,7 +2010,7 @@ export function EnhancedWhiteboard({
       socket.off('whiteboard:cursor:moved', handleCursorMoved)
       socket.off('whiteboard:page:cleared', handlePageCleared)
     }
-  }, [socket, roomId, scale, pan, onPagesChange, onRemoteStroke, filterByUserId])
+  }, [socket, roomId, scale, pan, onPagesChange, onRemoteStroke, filterByUserId, userId])
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-lg bg-slate-900">

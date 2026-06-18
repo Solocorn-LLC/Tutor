@@ -3,6 +3,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, courseEnrollment } from '@/lib/db/schema'
 import { eq, desc, and, isNotNull } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
+import { getRecordingDownloadLink } from '@/lib/video/daily-webhook'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -84,17 +85,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // ── recording.ready ─────────────────────────────────────────────────
-  if (type === 'recording.ready') {
+  // ── recording.ready-to-download ─────────────────────────────────────
+  if (type === 'recording.ready-to-download' || type === 'recording.ready') {
     const roomName = body?.payload?.room_name
-    const recordingId = body?.payload?.id
-    const downloadUrl = body?.payload?.download_url as string | undefined
+    const recordingId = (body?.payload?.recording_id || body?.payload?.id) as string | undefined
     const duration = body?.payload?.duration as number | undefined
 
     if (!roomName || !recordingId) return NextResponse.json({ ok: true })
 
     const sessionRow = await findSessionByRoom(roomName)
     if (!sessionRow?.sessionId) return NextResponse.json({ ok: true })
+
+    // The webhook doesn't include the file URL — fetch a temporary access link.
+    const downloadUrl = await getRecordingDownloadLink(recordingId)
 
     // Persist recording URL on the live session
     if (downloadUrl) {

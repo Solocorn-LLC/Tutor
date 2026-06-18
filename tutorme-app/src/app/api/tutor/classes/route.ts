@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq, or, and, gte, asc } from 'drizzle-orm'
+import { eq, or, and, gte, asc, ne } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable } from '@/lib/db/schema'
@@ -24,9 +24,12 @@ export const GET = withAuth(
     const sessions = await drizzleDb.query.liveSession.findMany({
       where: includeEnded
         ? eq(liveSessionTable.tutorId, tutorId)
-        : or(
-            and(eq(liveSessionTable.tutorId, tutorId), gte(liveSessionTable.scheduledAt, now)),
-            and(eq(liveSessionTable.tutorId, tutorId), eq(liveSessionTable.status, 'active'))
+        : // Upcoming = future or in-progress, but never an ended/cancelled session
+          // (an ended session with a future scheduledAt must not show as "upcoming").
+          and(
+            eq(liveSessionTable.tutorId, tutorId),
+            ne(liveSessionTable.status, 'ended'),
+            or(gte(liveSessionTable.scheduledAt, now), eq(liveSessionTable.status, 'active'))
           ),
       with: {
         participants: {

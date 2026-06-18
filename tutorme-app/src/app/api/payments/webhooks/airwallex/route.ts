@@ -119,11 +119,15 @@ export async function POST(req: NextRequest) {
           typeof meta.courseId === 'string' &&
           typeof meta.studentId === 'string'
         ) {
-          const { enrollStudentInCourse } = await import('@/lib/enrollment')
+          // Use the canonical enrollment path (transactional, dedup, schedule-capacity).
+          // paymentConfirmed=true because we only reach here on a completed payment.
+          const { enrollStudentInCourse } = await import('@/lib/api/enrollments')
           await enrollStudentInCourse(
             meta.studentId as string,
             meta.courseId as string,
-            meta.startDate as string | undefined
+            (meta.startDate as string | undefined) ?? null,
+            (meta.scheduleId as string | undefined) ?? null,
+            true
           )
           const [enrollment] = await drizzleDb
             .select({

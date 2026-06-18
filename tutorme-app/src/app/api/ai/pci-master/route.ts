@@ -10,8 +10,27 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
+import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
 import { z } from 'zod'
+
+/**
+ * Normalize a raw LLM response into clean assistant text + parsed structure.
+ * Gemini wraps JSON in code fences, so parse it and surface the `.response` field.
+ */
+function toCleanResponse(content: string): {
+  response: string
+  parsed: { response?: string } | null
+} {
+  const parsedJson = parseLlmJson<{ response?: string }>(content)
+  return {
+    response:
+      parsedJson && typeof parsedJson.response === 'string'
+        ? parsedJson.response
+        : stripCodeFences(content),
+    parsed: parsedJson ?? null,
+  }
+}
 
 const PciMasterRequestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -32,6 +51,10 @@ const PciMasterRequestSchema = z.object({
         .optional(),
     })
     .optional(),
+  // Rendered page images (data URLs) of an attached PDF, so the model can SEE the
+  // document instead of being told only its title. Sent by the builder when a PDF
+  // source document is attached.
+  pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
 })
 
 const SYSTEM_PROMPT = `You are a PCI (Pedagogically Correct Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
@@ -107,7 +130,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { message, sessionId, context } = parsed.data
+    const { message, sessionId, context, pdfPages } = parsed.data
     const safeMessage = AISecurityManager.sanitizeAiInput(message)
     if (!safeMessage) {
       return NextResponse.json(
@@ -140,7 +163,8 @@ export async function POST(request: NextRequest) {
       parsed?: { response?: string } | null
     }
 
-    if (adkBaseUrl) {
+    const useVision = !!(pdfPages && pdfPages.length > 0)
+    if (adkBaseUrl && !useVision) {
       const probe = await probeAdk(adkBaseUrl)
       if (!probe.ok) {
         if (!hasLocalProvider) {
@@ -166,7 +190,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (adkBaseUrl) {
+    if (pdfPages && pdfPages.length > 0) {
+      // Vision path: let the model actually SEE the attached document pages so it can
+      // summarize/critique real content instead of guessing from the title. Bypasses
+      // ADK (text-only) and goes straight to the vision-capable provider (Gemini).
+      const promptItems: Array<
+        { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+      > = [
+        { type: 'text', text: `${SYSTEM_PROMPT}\n\n${userPrompt}` },
+        ...pdfPages.map(url => ({ type: 'image_url' as const, image_url: { url } })),
+      ]
+      const visionText = await generateWithKimiVision(promptItems, {
+        temperature: 0.7,
+        maxTokens: 2048,
+        timeoutMs: 60000,
+      })
+      response = toCleanResponse(visionText)
+    } else if (adkBaseUrl) {
       try {
         response = await adkPciMasterChat({
           userId: session.user.id,
@@ -187,18 +227,7 @@ export async function POST(request: NextRequest) {
           maxTokens: 2048,
           skipCache: true,
         })
-        {
-          // Gemini wraps JSON in code fences; parse it so we return clean text
-          // (and the structured fields) instead of the raw fenced JSON.
-          const parsedJson = parseLlmJson<{ response?: string }>(fallback.content)
-          response = {
-            response:
-              parsedJson && typeof parsedJson.response === 'string'
-                ? parsedJson.response
-                : stripCodeFences(fallback.content),
-            parsed: parsedJson ?? null,
-          }
-        }
+        response = toCleanResponse(fallback.content)
       }
     } else {
       const fallback = await generateWithFallback(`System:\n${SYSTEM_PROMPT}\n\n${userPrompt}`, {
@@ -206,7 +235,7 @@ export async function POST(request: NextRequest) {
         maxTokens: 2048,
         skipCache: true,
       })
-      response = { response: fallback.content }
+      response = toCleanResponse(fallback.content)
     }
 
     const validation = await AISecurityManager.validateAiResponse(response.response)

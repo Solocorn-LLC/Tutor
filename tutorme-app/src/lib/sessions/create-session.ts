@@ -11,6 +11,7 @@ import { eq, and, isNull, not } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, calendarEvent } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
+import { ensureDailyWebhook } from '@/lib/video/daily-webhook'
 import type { LiveSessionStatus } from '@/lib/db/schema/enums'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@/lib/db/schema'
@@ -63,6 +64,10 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
       maxParticipants: input.maxStudents ?? 50,
       durationMinutes: input.durationMinutes,
     }))
+
+  // Make sure the Daily webhook (recording + transcript) is registered. Fire-and-forget
+  // so it never blocks or fails session creation.
+  void ensureDailyWebhook()
 
   // 2. Insert LiveSession (source of truth)
   const [liveSessionRow] = await db
