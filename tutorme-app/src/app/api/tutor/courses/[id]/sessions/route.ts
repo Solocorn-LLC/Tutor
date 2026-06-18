@@ -11,6 +11,7 @@ import { eq, and, asc, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, course } from '@/lib/db/schema'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
+import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
 
 export const GET = withAuth(
   async (req, session, context) => {
@@ -77,12 +78,10 @@ export const GET = withAuth(
         durationMinutes: s.durationMinutes ?? 120,
       }))
 
-      // Generate virtual sessions from schedule
-      const schedule = (courseRow?.schedule || []) as Array<{
-        dayOfWeek: string
-        startTime: string
-        durationMinutes: number
-      }>
+      // Generate virtual sessions from the schedule that publish actually
+      // materializes from (CourseSchedule table), falling back to the legacy
+      // course.schedule JSON for unpublished drafts.
+      const schedule = await resolveCourseScheduleSlots(courseId, courseRow?.schedule)
 
       const virtualSessions = generateUpcomingSessions(
         schedule,

@@ -386,6 +386,13 @@
       "when": 1751803000000,
       "tag": "0054_fix_tutor_application_nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1751804000000,
+      "tag": "0055_add_live_session_schedule_id",
+      "breakpoints": true
     }
   ]
 }

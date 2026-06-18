@@ -16,7 +16,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import * as enums from '../enums'
 import { user } from './auth'
-import { course } from './course'
+import { course, courseSchedule } from './course'
 
 export const liveSession = pgTable(
   'LiveSession',
@@ -26,6 +26,11 @@ export const liveSession = pgTable(
       .notNull()
       .references(() => user.userId, { onDelete: 'cascade' }),
     courseId: text('courseId').references(() => course.courseId, { onDelete: 'set null' }),
+    // The CourseSchedule this session was materialized from (null for ad-hoc / 1:1).
+    // Lets a session trace back to its schedule and makes re-publish idempotent.
+    scheduleId: text('scheduleId').references(() => courseSchedule.scheduleId, {
+      onDelete: 'set null',
+    }),
     title: text('title').notNull(),
     category: text('category').notNull(),
     description: text('description'),
@@ -43,6 +48,7 @@ export const liveSession = pgTable(
   table => ({
     LiveSession_tutorId_idx: index('LiveSession_tutorId_idx').on(table.tutorId),
     LiveSession_courseId_idx: index('LiveSession_courseId_idx').on(table.courseId),
+    LiveSession_scheduleId_idx: index('LiveSession_scheduleId_idx').on(table.scheduleId),
     LiveSession_status_idx: index('LiveSession_status_idx').on(table.status),
     LiveSession_scheduledAt_idx: index('LiveSession_scheduledAt_idx').on(table.scheduledAt),
     LiveSession_roomId_idx: index('LiveSession_roomId_idx').on(table.roomId),
