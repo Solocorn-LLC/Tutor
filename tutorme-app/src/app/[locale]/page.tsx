@@ -4965,7 +4965,7 @@ export default function LandingPage() {
 
       <style jsx global>{`
         html {
-          scroll-behavior: smooth;
+          scroll-behavior: auto !important;
           scroll-snap-type: y mandatory;
         }
         @keyframes marquee {
