@@ -7,40 +7,47 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { withAuth, NotFoundError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseLesson, courseEnrollment, user } from '@/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
-export const POST = withAuth(
-  async (req, session) => {
-    const body = await req.json().catch(() => ({}))
-    const { courseId, startDate } = body
+export const POST = withCsrf(
+  withAuth(
+    async (req, session) => {
+      const body = await req.json().catch(() => ({}))
+      const { courseId, startDate, scheduleId } = body
 
-    if (!courseId || typeof courseId !== 'string') {
-      return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
-    }
+      if (!courseId || typeof courseId !== 'string') {
+        return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
+      }
 
-    try {
-      const result = await enrollStudentInCourse(session.user.id, courseId, startDate)
-      return NextResponse.json(result)
-    } catch (error: unknown) {
-      const err = error as any
-      if (err instanceof NotFoundError) {
-        return NextResponse.json({ error: err.message }, { status: 404 })
+      try {
+        const result = await enrollStudentInCourse(
+          session.user.id,
+          courseId,
+          startDate,
+          typeof scheduleId === 'string' ? scheduleId : null
+        )
+        return NextResponse.json(result)
+      } catch (error: unknown) {
+        const err = error as any
+        if (err instanceof NotFoundError) {
+          return NextResponse.json({ error: err.message }, { status: 404 })
+        }
+        if (err?.requiresPayment) {
+          return enrollmentPaymentRequiredResponse(err)
+        }
+        if (err?.message) {
+          return NextResponse.json({ error: err.message }, { status: 400 })
+        }
+        throw error
       }
-      if (err?.requiresPayment) {
-        return enrollmentPaymentRequiredResponse(err)
-      }
-      if (err?.message) {
-        return NextResponse.json({ error: err.message }, { status: 400 })
-      }
-      throw error
-    }
-  },
-  { role: 'STUDENT' }
+    },
+    { role: 'STUDENT' }
+  )
 )
 
 export const GET = withAuth(

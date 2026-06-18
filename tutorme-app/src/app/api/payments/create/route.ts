@@ -172,6 +172,7 @@ export const POST = withCsrf(
           payerId: session.user.id,
           payerRole: session.user.role,
           startDate: customMetadata?.startDate,
+          scheduleId: customMetadata?.scheduleId,
         },
         successUrl: `${baseUrl}/payment/success?type=course&courseId=${encodeURIComponent(courseId)}`,
         cancelUrl: `${baseUrl}/payment/cancel?type=course&courseId=${encodeURIComponent(courseId)}`,
@@ -196,6 +197,7 @@ export const POST = withCsrf(
             payerId: session.user.id,
             payerRole: session.user.role,
             startDate: customMetadata?.startDate,
+            scheduleId: customMetadata?.scheduleId,
             idempotencyKey: courseIdempotencyKey,
           },
         })

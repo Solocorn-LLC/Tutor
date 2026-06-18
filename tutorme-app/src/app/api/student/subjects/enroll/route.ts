@@ -8,6 +8,7 @@ import { withAuth, withCsrf, ValidationError, withRateLimitPreset } from '@/lib/
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseEnrollment, courseLesson } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { enrollStudentInCourse } from '@/lib/api/enrollments'
 
 const subjectCourseMap: Record<string, { name: string; description: string }> = {
   english: {
@@ -126,23 +127,14 @@ export const POST = withCsrf(
         await createDefaultLessons(courseId, subjectCode)
       }
 
-      const enrollmentId = crypto.randomUUID()
-      await drizzleDb.insert(courseEnrollment).values({
-        enrollmentId,
-        studentId: session.user.id,
-        courseId,
-        enrollmentSource: 'browse',
-      })
-
-      const [enrollment] = await drizzleDb
-        .select()
-        .from(courseEnrollment)
-        .where(eq(courseEnrollment.enrollmentId, enrollmentId))
-        .limit(1)
+      // Route through the canonical enrollment helper so capacity, progress
+      // seeding, and (future) schedule handling stay consistent across all
+      // enrollment entry points.
+      const result = await enrollStudentInCourse(session.user.id, courseId)
 
       return NextResponse.json({
         success: true,
-        enrollment: enrollment!,
+        enrollment: result.enrollment,
         message: `Enrolled in ${subjectInfo.name}`,
       })
     },
