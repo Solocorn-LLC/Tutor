@@ -424,7 +424,9 @@ function CoursePageInner() {
   )
 
   const upcoming = myCourses.filter(
-    c => !c.enrollment?.startDate || new Date(c.enrollment.startDate) > now
+    c =>
+      !c.progress?.isCompleted &&
+      (!c.enrollment?.startDate || new Date(c.enrollment.startDate) > now)
   )
 
   const completed = myCourses.filter(c => c.progress?.isCompleted)
@@ -568,6 +570,7 @@ function CoursePageInner() {
               {activeTab === 'mine' && (
                 <CourseSection
                   title="Ongoing Courses"
+                  description="Courses you've started — your start date has passed and you haven't finished them yet. Join live sessions and keep learning."
                   courses={ongoing}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -580,6 +583,7 @@ function CoursePageInner() {
               {activeTab === 'pending' && (
                 <CourseSection
                   title="Pending Courses"
+                  description="Courses you're enrolled in that haven't started yet — their start date is still in the future. They'll move to Ongoing once they begin."
                   courses={upcoming}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -592,6 +596,7 @@ function CoursePageInner() {
               {activeTab === 'completed' && (
                 <CourseSection
                   title="Completed Courses"
+                  description="Courses you've finished — you've completed all lessons. Revisit materials and recordings anytime."
                   courses={completed}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -604,6 +609,7 @@ function CoursePageInner() {
               {activeTab === 'favorites' && (
                 <CourseSection
                   title="Favorite Courses"
+                  description="Courses you've saved to revisit later. Favoriting doesn't enrol you — open one to enrol or view details."
                   courses={favorites}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -868,6 +874,7 @@ export default function CoursePage() {
 
 function CourseSection({
   title,
+  description,
   courses,
   favoriteIds,
   toggleFavorite,
@@ -877,6 +884,7 @@ function CourseSection({
   onEnterClass,
 }: {
   title: string
+  description?: string
   courses: Course[]
   favoriteIds: string[]
   toggleFavorite: (id: string) => void
@@ -887,9 +895,14 @@ function CourseSection({
 }) {
   return (
     <section>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-        <Badge variant="outline">{courses.length} courses</Badge>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+        </div>
+        <Badge variant="outline" className="shrink-0">
+          {courses.length} courses
+        </Badge>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {courses.map(course => (

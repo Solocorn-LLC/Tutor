@@ -448,62 +448,6 @@ function TutorDashboardContent() {
     [launchingCourseId, router]
   )
 
-  const handleEnterCourseClassroom = useCallback(
-    async (course: EnrolledCourse, scheduledAt?: string | null) => {
-      if (launchingCourseId) return
-      setLaunchingCourseId(course.id)
-      try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        const csrfToken = csrfData?.token ?? null
-
-        const res = await fetch('/api/class/rooms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            courseId: course.id,
-            title: course.name,
-            subject: (course.categories || [])[0] || course.name || 'General',
-            maxStudents: 50,
-            durationMinutes: scheduledAt
-              ? (course.schedule?.find(() => true)?.durationMinutes ?? 60)
-              : 60,
-            scheduledAt,
-          }),
-        })
-
-        const result = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          if (res.status === 409) {
-            toast.info(
-              'You have an active or scheduled session for this slot. Please select it below.'
-            )
-            handleOpenSessionsModal(course)
-            return
-          }
-          toast.error(result?.error || 'Failed to launch classroom')
-          return
-        }
-
-        const sessionId = result?.session?.sessionId
-        if (!sessionId) {
-          toast.error('Classroom created but no session ID returned')
-          return
-        }
-        // Navigate directly to live session page (Live tab)
-        router.push(withLocalePath(`/tutor/classroom?sessionId=${sessionId}`))
-      } catch {
-        toast.error('Failed to launch classroom')
-      } finally {
-        setLaunchingCourseId(null)
-      }
-    },
-    [launchingCourseId, router, handleOpenSessionsModal]
-  )
 
   const handleCancelSession = useCallback(async (sessionId: string, reason?: string) => {
     setCancellingSessionId(sessionId)
@@ -751,19 +695,19 @@ function TutorDashboardContent() {
                                 View Sessions
                               </Button>
                             ) : (
+                              // Sessions come only from the course schedule — send the
+                              // tutor to the scheduler (course details page) to add slots
+                              // and publish, instead of creating an ad-hoc session.
                               <Button
+                                asChild
                                 variant="default"
                                 size="sm"
-                                disabled={launchingCourseId === course.id}
-                                onClick={() => handleEnterCourseClassroom(course)}
                                 className="transition-all duration-200"
                               >
-                                {launchingCourseId === course.id ? (
-                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Video className="mr-1 h-3 w-3" />
-                                )}
-                                Create Session
+                                <Link href={withLocalePath(`/tutor/courses/${course.id}`)}>
+                                  <CalendarClock className="mr-1 h-3 w-3" />
+                                  Schedule sessions
+                                </Link>
                               </Button>
                             )}
                             <Button
@@ -935,19 +879,15 @@ function TutorDashboardContent() {
                 <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
                   <Calendar className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8" />
                   <p>No sessions found for this course.</p>
+                  <p className="mt-1 text-xs">
+                    Sessions are created from the time slots in the course schedule.
+                  </p>
                   {selectedCourseForCancel && (
-                    <Button
-                      size="sm"
-                      className="mt-3 transition-all duration-200"
-                      disabled={launchingCourseId === selectedCourseForCancel.id}
-                      onClick={() => handleEnterCourseClassroom(selectedCourseForCancel)}
-                    >
-                      {launchingCourseId === selectedCourseForCancel.id ? (
-                        <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <Video className="mr-1 h-3 w-3" />
-                      )}
-                      Create session
+                    <Button asChild size="sm" className="mt-3 transition-all duration-200">
+                      <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                        <CalendarClock className="mr-1 h-3 w-3" />
+                        Set up the schedule
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -1063,24 +1003,17 @@ function TutorDashboardContent() {
                               </Button>
                             )}
                             {isVirtual ? (
+                              // Upcoming slot from the schedule that isn't materialized yet.
+                              // It becomes startable automatically once published into range;
+                              // tutors add/extend slots via the scheduler (footer button), not
+                              // by creating an ad-hoc session here.
                               <Button
-                                variant="default"
+                                variant="ghost"
                                 size="sm"
-                                disabled={launchingCourseId === selectedCourseForCancel?.id}
-                                onClick={() =>
-                                  handleEnterCourseClassroom(
-                                    selectedCourseForCancel!,
-                                    session.scheduledAt
-                                  )
-                                }
-                                className="transition-all duration-200"
+                                disabled
+                                title="This scheduled slot opens automatically — manage it from the course scheduler."
                               >
-                                {launchingCourseId === selectedCourseForCancel?.id ? (
-                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Video className="mr-1 h-3 w-3" />
-                                )}
-                                Create Session
+                                Upcoming
                               </Button>
                             ) : isScheduled ? (
                               <Button
@@ -1129,11 +1062,21 @@ function TutorDashboardContent() {
             <DialogFooter className="flex items-center justify-between sm:justify-between">
               <div className="text-muted-foreground flex items-center gap-2 text-xs">
                 <AlertCircle className="h-4 w-4" />
-                <span>Cancelling a session will notify enrolled students</span>
+                <span>Sessions come from the course schedule — add one in the scheduler</span>
               </div>
-              <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
-                Close
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedCourseForCancel && (
+                  <Button asChild variant="outline">
+                    <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                      <CalendarClock className="mr-1 h-4 w-4" />
+                      Add a session
+                    </Link>
+                  </Button>
+                )}
+                <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
