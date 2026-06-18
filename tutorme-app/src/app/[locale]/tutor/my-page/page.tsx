@@ -55,7 +55,6 @@ import {
   Flag,
   Search,
   X,
-  Plus,
   MoreVertical,
   Trash2,
   Edit3,
@@ -167,10 +166,10 @@ interface Course {
   variantCategory?: string | null
 }
 
-function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
+function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'active' | 'unpublished' | 'catalogued'>('active')
+  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>('active')
   const router = useRouter()
 
   const loadCourses = useCallback(async () => {
@@ -279,6 +278,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
   // Categorize courses based on session status
   const categorizeCourses = useMemo(() => {
     const active: Course[] = []
+    const pending: Course[] = []
     const unpublished: Course[] = []
     const catalogued: Course[] = []
 
@@ -289,12 +289,15 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
         // Course was published and had sessions or students in the past,
         // but has no upcoming sessions
         catalogued.push(course)
+      } else if (!course.lastSessionDate) {
+        // Published but has not completed a session yet (enrollment period)
+        pending.push(course)
       } else {
         active.push(course)
       }
     }
 
-    return { active, unpublished, catalogued }
+    return { active, pending, unpublished, catalogued }
   }, [courses])
 
   // Filter courses based on tab
@@ -302,6 +305,8 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
     switch (activeTab) {
       case 'active':
         return categorizeCourses.active
+      case 'pending':
+        return categorizeCourses.pending
       case 'unpublished':
         return categorizeCourses.unpublished
       case 'catalogued':
@@ -314,6 +319,7 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
   const courseCounts = useMemo(
     () => ({
       active: categorizeCourses.active.length,
+      pending: categorizeCourses.pending.length,
       unpublished: categorizeCourses.unpublished.length,
       catalogued: categorizeCourses.catalogued.length,
     }),
@@ -327,20 +333,11 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
           <BookOpen className="h-5 w-5" />
           <span className="text-base font-semibold">My Courses</span>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
-          onClick={onCreateCourse}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Create Course
-        </Button>
       </div>
       <CardContent spacing="none" className="space-y-4 px-6 pb-6">
         {/* Tabs */}
         <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
-          {(['active', 'unpublished', 'catalogued'] as const).map(tab => (
+          {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -360,36 +357,27 @@ function MyCoursesSection({ onCreateCourse }: { onCreateCourse: () => void }) {
         </div>
 
         {/* Course List - Scrollable Container */}
-        <div className="max-h-[400px] overflow-y-auto pr-2">
+        <div className="h-[720px] overflow-y-auto pr-2">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex h-full items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
             </div>
           ) : filteredCourses.length === 0 ? (
-            <div className="py-8 text-center">
-              <BookOpen className="mx-auto h-12 w-12 text-[#CBD5E1]" />
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <BookOpen className="h-12 w-12 text-[#CBD5E1]" />
               <p className="mt-2 text-sm text-[#64748B]">
                 {activeTab === 'active'
-                  ? 'No published courses yet'
-                  : activeTab === 'unpublished'
-                    ? 'No unpublished courses'
-                    : 'No catalogued courses'}
+                  ? 'No active courses yet'
+                  : activeTab === 'pending'
+                    ? 'No pending courses'
+                    : activeTab === 'unpublished'
+                      ? 'No unpublished courses'
+                      : 'No catalogued courses'}
               </p>
-              {activeTab === 'active' && (
-                <Button
-                  onClick={onCreateCourse}
-                  variant="outline"
-                  className="mt-4 text-slate-700"
-                  size="sm"
-                >
-                  <Plus className="mr-1 h-4 w-4" />
-                  Create your first course
-                </Button>
-              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredCourses.map(course => (
+              {filteredCourses.slice(0, 10).map(course => (
                 <div
                   key={course.id}
                   className="rounded-xl border border-[#E2E8F0] p-2.5 hover:border-slate-500"
@@ -1290,48 +1278,6 @@ export default function TutorMyPage() {
     }
   }
 
-  // Quick create course - skip form and go directly to builder
-  const handleQuickCreateCourse = async () => {
-    setCreatingCourse(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const defaultSubject = 'math'
-      const defaultCategory = selectedCategories.length > 0 ? selectedCategories[0] : undefined
-
-      const res = await fetch('/api/tutor/courses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: 'Untitled Course',
-          description: '',
-          categories: defaultCategory ? [defaultCategory] : [],
-          schedule: [],
-          isLiveOnline: false,
-        }),
-      })
-
-      const data = await res.json().catch(() => ({}))
-      const createdCourse = data.courses?.[0]
-      if (res.ok && createdCourse?.id) {
-        toast.success('Course created! Opening builder...')
-        router.push(`/tutor/insights?tab=builder&courseId=${createdCourse.id}&mode=edit`)
-      } else {
-        toast.error(data.error || 'Failed to create course')
-      }
-    } catch {
-      toast.error('Failed to create course')
-    } finally {
-      setCreatingCourse(false)
-    }
-  }
-
   const headerCardClass =
     'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_18px_60px_rgba(0,0,0,0.18)] transition-all duration-200 ease-in-out hover:shadow-[0_24px_80px_rgba(0,0,0,0.22)]'
   const headerInnerClass =
@@ -1352,7 +1298,7 @@ export default function TutorMyPage() {
       className="min-h-screen bg-white text-[#1F2933]"
       style={{ '--density-scale': '0.9' } as React.CSSProperties}
     >
-      <div className="w-full space-y-[calc(2rem*var(--density-scale,1))] px-6 pb-[calc(2rem*var(--density-scale,1))] pt-2">
+      <div className="w-full space-y-[calc(2rem*var(--density-scale,1))] px-6 pt-2">
         <section className={headerCardClass}>
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1933,12 +1879,7 @@ export default function TutorMyPage() {
         </Card>
 
         {/* My Courses Section */}
-        <MyCoursesSection
-          onCreateCourse={() => {
-            if (creatingCourse) return
-            void handleQuickCreateCourse()
-          }}
-        />
+        <MyCoursesSection />
       </div>
 
       <Dialog

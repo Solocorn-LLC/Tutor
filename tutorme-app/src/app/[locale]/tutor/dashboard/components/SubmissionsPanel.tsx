@@ -235,16 +235,6 @@ export function SubmissionsPanel({
               )}
               {headerExtra}
             </div>
-            <div className="ml-2 shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => onToggleHidden(true)}
-              >
-                Close
-              </Button>
-            </div>
           </div>
 
           <ScrollArea className="min-h-0 flex-1 p-3">

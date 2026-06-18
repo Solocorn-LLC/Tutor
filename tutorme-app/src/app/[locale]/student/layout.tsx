@@ -396,7 +396,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       >
         <div
           className={cn(
-            'h-full scrollbar-hide',
+            'h-full scrollbar-hide [&>*:last-child]:mb-0 [&>*:last-child]:pb-0',
             isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto'
           )}
         >

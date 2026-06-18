@@ -7625,16 +7625,16 @@ FEEDBACK: [your explanation]`
                             setLiveRightPanelTab(value as 'submissions' | 'insights')
                           }
                         >
-                          <TabsList className="h-7 rounded-lg border-0 bg-slate-100 p-0.5 shadow-none">
+                          <TabsList className="flex w-full items-center gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                             <TabsTrigger
                               value="submissions"
-                              className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium text-gray-500 transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
                             >
                               Submissions
                             </TabsTrigger>
                             <TabsTrigger
                               value="insights"
-                              className="h-6 rounded-md px-2.5 text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium text-gray-500 transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
                             >
                               Insights
                             </TabsTrigger>
@@ -7669,16 +7669,16 @@ FEEDBACK: [your explanation]`
                               }
                               className="w-full"
                             >
-                              <TabsList className="grid h-7 w-full grid-cols-2 rounded-lg border-0 bg-slate-100 p-0.5 shadow-none">
+                              <TabsList className="flex w-full items-center gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                                 <TabsTrigger
                                   value="submissions"
-                                  className="h-6 rounded-md text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium text-gray-500 transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
                                 >
                                   Submissions
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="insights"
-                                  className="h-6 rounded-md text-[11px] font-medium text-slate-500 transition-all data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm"
+                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium text-gray-500 transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
                                 >
                                   Insights
                                 </TabsTrigger>
