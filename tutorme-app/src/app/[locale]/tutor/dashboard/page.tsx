@@ -678,8 +678,8 @@ function TutorDashboardContent() {
                                 )}
                                 onClick={() => handleOpenSessionsModal(course)}
                               >
-                                {course.upcomingSessionsCount
-                                  ? `${course.upcomingSessionsCount} session${course.upcomingSessionsCount === 1 ? '' : 's'}`
+                                {course.sessionCount
+                                  ? `${course.sessionCount} session${course.sessionCount === 1 ? '' : 's'}`
                                   : course.schedule && course.schedule.length > 0
                                     ? `${course.schedule.length} slot${course.schedule.length === 1 ? '' : 's'}`
                                     : '0 sessions'}
