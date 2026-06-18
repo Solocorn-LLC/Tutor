@@ -8341,6 +8341,11 @@ FEEDBACK: [your explanation]`
                                                   socket={insightsProps?.socket}
                                                   roomId={insightsProps?.sessionId ?? undefined}
                                                   userId={insightsProps?.tutorId ?? undefined}
+                                                  // Tutor board shows only the tutor's own strokes (broadcast to
+                                                  // students); students' boards are scoped separately.
+                                                  filterByUserId={
+                                                    insightsProps?.tutorId ?? undefined
+                                                  }
                                                   userName={insightsProps?.tutorName || 'Tutor'}
                                                   userColor={stringToColor(
                                                     insightsProps?.tutorId || ''

@@ -183,9 +183,7 @@ function ClassroomControlsPanel({
           animate={{ opacity: 1, scale: 1 }}
           className={cn(
             'pointer-events-auto relative w-60 cursor-default select-none overflow-hidden shadow-xl',
-            open
-              ? 'rounded-2xl border border-slate-200 bg-white p-3'
-              : 'rounded-2xl bg-gray-800'
+            open ? 'rounded-2xl border border-slate-200 bg-white p-3' : 'rounded-2xl bg-gray-800'
           )}
         >
           {/* Header / drag handle */}
@@ -193,9 +191,7 @@ function ClassroomControlsPanel({
             type="button"
             className={cn(
               'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open
-                ? 'h-8 rounded-t-xl border-b border-slate-200 px-2'
-                : 'h-10 px-3'
+              open ? 'h-8 rounded-t-xl border-b border-slate-200 px-2' : 'h-10 px-3'
             )}
             onPointerDown={e => dragControls.start(e)}
             onClick={() => {
@@ -1255,56 +1251,56 @@ function StudentFeedbackContent() {
                 }}
                 className="relative z-40 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
               >
-              <div className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] px-4 py-3">
-                <h2 className="text-sm font-semibold text-[#1F2933]">Lessons</h2>
-                {unseenTaskIds.length > 0 && (
-                  <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                    {unseenTaskIds.length}
-                  </span>
-                )}
-              </div>
-              <ScrollArea className="flex-1 p-3">
-                <div className="space-y-2">
-                  {tasks.length === 0 && (
-                    <p className="text-sm text-gray-500">No tasks deployed yet.</p>
+                <div className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] px-4 py-3">
+                  <h2 className="text-sm font-semibold text-[#1F2933]">Lessons</h2>
+                  {unseenTaskIds.length > 0 && (
+                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                      {unseenTaskIds.length}
+                    </span>
                   )}
-                  {[...tasks].reverse().map(task => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => handleSelectTask(task.id)}
-                      className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
-                        activeTaskId === task.id
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                        {unseenTaskIds.includes(task.id) && (
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                            New
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        Deployed {new Date(task.deployedAt).toLocaleTimeString()}
-                      </span>
-                    </button>
-                  ))}
                 </div>
-              </ScrollArea>
+                <ScrollArea className="flex-1 p-3">
+                  <div className="space-y-2">
+                    {tasks.length === 0 && (
+                      <p className="text-sm text-gray-500">No tasks deployed yet.</p>
+                    )}
+                    {[...tasks].reverse().map(task => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => handleSelectTask(task.id)}
+                        className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
+                          activeTaskId === task.id
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                          {unseenTaskIds.includes(task.id) && (
+                            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                              New
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
 
-              <div
-                className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-500/40"
-                onMouseDown={e => {
-                  setLeftPanelResizing(true)
-                  leftResizeStartX.current = e.clientX
-                  leftResizeStartW.current = leftPanelWidth
-                }}
-              />
-            </motion.div>
-          )}
+                <div
+                  className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-500/40"
+                  onMouseDown={e => {
+                    setLeftPanelResizing(true)
+                    leftResizeStartX.current = e.clientX
+                    leftResizeStartW.current = leftPanelWidth
+                  }}
+                />
+              </motion.div>
+            )}
           </AnimatePresence>
 
           <div
@@ -1593,12 +1589,7 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div
-              className={cn(
-                'flex-1',
-                isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4'
-              )}
-            >
+            <div className={cn('flex-1', isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
               {rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
@@ -1627,6 +1618,9 @@ function StudentFeedbackContent() {
                     socket={socket}
                     roomId={selectedSessionId ?? undefined}
                     userId={session?.user?.id ?? undefined}
+                    // "My Board" shows only this student's own strokes (not the tutor's or
+                    // other students'), so scope incoming deltas to this user.
+                    filterByUserId={session?.user?.id ?? undefined}
                     userName={session?.user?.name || 'Student'}
                     userColor={stringToColor(session?.user?.id || '')}
                   />

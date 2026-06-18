@@ -631,6 +631,8 @@ function TutorClassroomContent() {
                     socket={socket}
                     roomId={sessionId}
                     userId={authSession?.user?.id ?? undefined}
+                    // Tutor board shows only the tutor's own strokes.
+                    filterByUserId={authSession?.user?.id ?? undefined}
                     userName={authSession?.user?.name || 'Tutor'}
                   />
                 </div>
