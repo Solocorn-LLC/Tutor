@@ -178,7 +178,6 @@ export default function TutorCoursePage() {
   const [isFree, setIsFree] = useState(false)
   const [currency, setCurrency] = useState<string>('SGD')
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-  const [launchingLiveClass, setLaunchingLiveClass] = useState(false)
   const [tutorProfile, setTutorProfile] = useState<{
     userId?: string
     id?: string
@@ -441,49 +440,8 @@ export default function TutorCoursePage() {
   }, [schedule, scheduleRepeatWeekly, numberOfWeeks, totalSessionsDesired])
 
   // Materials upload removed - using simplified course model
-
-  const handleOpenInLiveClass = async () => {
-    if (!course) return
-    setLaunchingLiveClass(true)
-    try {
-      const durationFromSchedule =
-        Array.isArray(schedule) && schedule.length > 0
-          ? Number(schedule[0]?.durationMinutes) || 60
-          : 60
-
-      const normalizedDescription = (description?.trim() || course.description || '').trim()
-      const payload: Record<string, unknown> = {
-        title: (courseName || course.name || '').trim(),
-        category: (course.categories || [])[0] || 'general',
-        courseId: course.id,
-        maxStudents: 50,
-        durationMinutes: Math.max(15, Math.min(480, durationFromSchedule)),
-      }
-      if (normalizedDescription) payload.description = normalizedDescription
-
-      const res = await fetchWithCsrf('/api/class/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData?.error || 'Failed to create live session')
-      }
-
-      const data = await res.json()
-      const sessionId = data?.session?.sessionId
-      if (!sessionId) throw new Error('Live session created but session ID is missing')
-
-      toast.success('Live session created. Redirecting…')
-      router.push(`/tutor/classroom?sessionId=${sessionId}`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to open live session')
-    } finally {
-      setLaunchingLiveClass(false)
-    }
-  }
+  // (Ad-hoc "Open in Live Class" retired — sessions come from the schedule, and
+  // one-off sessions are created via the sessions modal's "Create one-time session".)
 
   const handleSaveAll = async (): Promise<boolean> => {
     if (!id) {

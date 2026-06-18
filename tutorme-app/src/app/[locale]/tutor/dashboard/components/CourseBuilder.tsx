@@ -821,7 +821,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
-    const [comingSoonDialog, setComingSoonDialog] = useState(false)
     const [alertDialog, setAlertDialog] = useState<{
       open: boolean
       title: string
@@ -10478,23 +10477,6 @@ FEEDBACK: [your explanation]`
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {/* Coming Soon Dialog */}
-        <Dialog open={comingSoonDialog} onOpenChange={setComingSoonDialog}>
-          <DialogContent className="rounded-2xl sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Coming Soon!</DialogTitle>
-              <DialogDescription>
-                The Go Live feature is currently under development. Stay tuned!
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="modal-secondary-dark" onClick={() => setComingSoonDialog(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {/* Global Info/Alert Dialog */}
         <Dialog
           open={alertDialog.open}
