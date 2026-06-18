@@ -2179,7 +2179,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   return (
     <section
       id="panel-2-search-results"
-      className="relative flex min-h-screen w-full snap-start flex-col justify-center overflow-hidden"
+      className="relative flex min-h-screen w-full snap-start flex-col justify-start overflow-hidden"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
