@@ -16,6 +16,7 @@ import {
   profile,
   course,
   sessionReplayArtifact,
+  calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
@@ -475,7 +476,20 @@ export const DELETE = withAuth(
         return NextResponse.json({ error: 'Cannot delete a completed class' }, { status: 400 })
       }
 
-      await drizzleDb.delete(liveSession).where(eq(liveSession.sessionId, classId))
+      // Best-effort: tear down the Daily room so it doesn't leak (roomId is the room name).
+      if (liveSessionRow.roomId) {
+        try {
+          await dailyProvider.deleteRoom(liveSessionRow.roomId)
+        } catch (roomErr) {
+          console.warn('[Class Delete] Failed to delete Daily room:', roomErr)
+        }
+      }
+
+      // Remove the LiveSession and its calendar projection (linked by externalId).
+      await drizzleDb.transaction(async tx => {
+        await tx.delete(calendarEvent).where(eq(calendarEvent.externalId, classId))
+        await tx.delete(liveSession).where(eq(liveSession.sessionId, classId))
+      })
 
       return NextResponse.json({ message: 'Class deleted successfully' })
     } catch (error) {

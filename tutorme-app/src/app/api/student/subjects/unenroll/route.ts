@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseEnrollment } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 
 export const POST = withCsrf(
   withAuth(
@@ -43,9 +43,21 @@ export const POST = withCsrf(
         throw new ValidationError('Not enrolled in this subject')
       }
 
-      await drizzleDb
-        .delete(courseEnrollment)
-        .where(eq(courseEnrollment.enrollmentId, enrollment.enrollmentId))
+      // Delete the enrollment and release the schedule seat in one transaction so the
+      // cohort capacity counter doesn't drift upward and falsely report "full".
+      await drizzleDb.transaction(async tx => {
+        await tx
+          .delete(courseEnrollment)
+          .where(eq(courseEnrollment.enrollmentId, enrollment.enrollmentId))
+
+        if (enrollment.scheduleId) {
+          await tx.execute(
+            sql`UPDATE "CourseSchedule"
+                SET "enrolledCount" = GREATEST("enrolledCount" - 1, 0)
+                WHERE id = ${enrollment.scheduleId}`
+          )
+        }
+      })
 
       return NextResponse.json({
         success: true,
