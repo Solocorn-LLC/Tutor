@@ -72,10 +72,35 @@ export default function StudentAssignmentsPage() {
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
-    // Legacy endpoint removed; show empty state
-    setAssignments([])
-    setStats({ pending: 0, submitted: 0, overdue: 0, total: 0 })
-    setLoading(false)
+    try {
+      const res = await fetch('/api/student/feedback/tasks', { credentials: 'include' })
+      if (!res.ok) throw new Error('failed')
+      const data = await res.json()
+      const tasks: Array<{ id: string; title: string; content?: string; type?: string }> =
+        data?.tasks ?? []
+      const items: AssignmentItem[] = tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        description: (t.content ?? '').slice(0, 240),
+        type: t.type === 'assessment' ? 'assessment' : 'task',
+        difficulty: 'medium',
+        dueDate: null,
+        maxScore: 100,
+        status: 'pending',
+        score: null,
+        submittedAt: null,
+        questionCount: 0,
+        lessonId: null,
+        batchId: null,
+      }))
+      setAssignments(items)
+      setStats({ pending: items.length, submitted: 0, overdue: 0, total: items.length })
+    } catch {
+      setAssignments([])
+      setStats({ pending: 0, submitted: 0, overdue: 0, total: 0 })
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -134,39 +159,23 @@ export default function StudentAssignmentsPage() {
         body: JSON.stringify({
           answers: results.answers,
           timeSpent: timeSpentSec,
+          score: results.score,
+          questionResults: results.questionResults,
         }),
       })
 
       if (submitRes.ok) {
         const data = await submitRes.json()
-        toast.success(`Submitted! Score: ${Math.round(data.submission.score)}%`)
+        const submittedScore = data?.submission?.score
+        toast.success(
+          typeof submittedScore === 'number'
+            ? `Submitted! Score: ${Math.round(submittedScore)}%`
+            : 'Submitted! Awaiting grading.'
+        )
       } else if (submitRes.status === 409) {
         toast.info('Already submitted')
       } else {
         toast.error('Submission failed')
-      }
-
-      // 2. Also call quiz attempt API if this is a quiz type
-      if (activeTask.questions.length > 0) {
-        const attemptRes = await fetch('/api/quiz/attempt', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrf && { 'X-CSRF-Token': csrf }),
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            quizId: activeTask.id,
-            score: results.score,
-            maxScore: 100,
-            answers: results.answers,
-            timeSpent: timeSpentSec,
-            questionResults: results.questionResults,
-          }),
-        })
-        if (!attemptRes.ok) {
-          console.warn('Quiz attempt recording failed (non-critical)')
-        }
       }
     } catch {
       toast.error('Failed to submit')

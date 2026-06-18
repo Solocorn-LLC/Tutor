@@ -5,7 +5,7 @@
 
 import { and, asc, eq, gte, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { feedbackWorkflow, profile, user } from '@/lib/db/schema'
+import { builderTask, feedbackWorkflow, profile, taskSubmission, user } from '@/lib/db/schema'
 import { generateWithFallback } from '@/lib/agents'
 
 export type FeedbackType = 'task_feedback' | 'progress_report' | 'encouragement' | 'correction'
@@ -399,7 +399,8 @@ export async function reviewFeedback(
     modifiedScore?: number
     modifiedComments?: string
     addedNotes?: string
-  }
+  },
+  options?: { bypassOwnership?: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const [workflow] = await drizzleDb
@@ -410,6 +411,22 @@ export async function reviewFeedback(
 
     if (!workflow) {
       return { success: false, error: '反馈记录不存在' }
+    }
+
+    // Ownership: only the tutor who owns the task behind the submission may review
+    // its feedback (admins bypass). Prevents IDOR where any tutor could approve/reject
+    // any feedback by knowing the workflow id.
+    if (!options?.bypassOwnership) {
+      const [owner] = await drizzleDb
+        .select({ tutorId: builderTask.tutorId })
+        .from(taskSubmission)
+        .innerJoin(builderTask, eq(taskSubmission.taskId, builderTask.taskId))
+        .where(eq(taskSubmission.submissionId, workflow.submissionId))
+        .limit(1)
+
+      if (!owner || owner.tutorId !== reviewerId) {
+        return { success: false, error: '无权审核此反馈' }
+      }
     }
 
     if (workflow.status === 'sent_to_student' || workflow.status === 'rejected') {
@@ -509,13 +526,14 @@ export async function getFeedbackStats(tutorId?: string): Promise<{
  */
 export async function batchApproveFeedback(
   workflowIds: string[],
-  reviewerId: string
+  reviewerId: string,
+  options?: { bypassOwnership?: boolean }
 ): Promise<{ success: boolean; approved: number; failed: number; error?: string }> {
   let approved = 0
   let failed = 0
 
   for (const id of workflowIds) {
-    const result = await reviewFeedback(id, 'approve', reviewerId)
+    const result = await reviewFeedback(id, 'approve', reviewerId, undefined, options)
     if (result.success) {
       approved++
     } else {

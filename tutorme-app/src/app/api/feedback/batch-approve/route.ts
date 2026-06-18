@@ -28,7 +28,9 @@ async function postHandler(request: NextRequest, session: Session) {
       return NextResponse.json({ error: '单次最多审核50条反馈' }, { status: 400 })
     }
 
-    const result = await batchApproveFeedback(ids, session.user.id)
+    const result = await batchApproveFeedback(ids, session.user.id, {
+      bypassOwnership: session.user.role === 'ADMIN',
+    })
 
     return NextResponse.json({
       success: result.success,
