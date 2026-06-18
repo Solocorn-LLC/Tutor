@@ -36,9 +36,11 @@ import {
   AlertCircle,
   Ban,
   Eye,
+  CalendarClock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 import {
   CreateClassDialog,
@@ -146,6 +148,7 @@ function TutorDashboardContent() {
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
@@ -777,6 +780,17 @@ function TutorDashboardContent() {
                                 Edit
                               </Link>
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="hover:bg-muted/80 transition-all duration-200"
+                              onClick={() =>
+                                setScheduleCourse({ id: course.id, name: course.name })
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-3 w-3" />
+                              Schedule
+                            </Button>
                           </div>
                         </div>
                       )
@@ -1124,6 +1138,11 @@ function TutorDashboardContent() {
           </DialogContent>
         </Dialog>
       </div>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </div>
   )
 }

@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { Heart, BookOpen, Users, Star, Trash2, ExternalLink } from 'lucide-react'
+import { Heart, BookOpen, Users, Star, Trash2, ExternalLink, CalendarClock } from 'lucide-react'
 import { resolvePublicUrl } from '@/lib/utils'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 interface FavoriteTutor {
   id: string
@@ -51,6 +52,7 @@ export default function StudentFavoritesPage() {
   const [favoriteTutors, setFavoriteTutors] = useState<FavoriteTutor[]>([])
   const [favoriteCourses, setFavoriteCourses] = useState<FavoriteCourse[]>([])
   const [loading, setLoading] = useState(true)
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     loadFavorites()
@@ -319,12 +321,25 @@ export default function StudentFavoritesPage() {
                           {course.price}
                         </span>
                       )}
-                      <Button asChild size="sm">
-                        <Link href={`/${locale}/course/${course.id}`} onClick={() => showOverlay()}>
-                          View Course
-                          <ExternalLink className="ml-1 h-3 w-3" />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setScheduleCourse({ id: course.id, name: course.name })}
+                        >
+                          <CalendarClock className="mr-1 h-3 w-3" />
+                          Schedule
+                        </Button>
+                        <Button asChild size="sm">
+                          <Link
+                            href={`/${locale}/course/${course.id}`}
+                            onClick={() => showOverlay()}
+                          >
+                            View Course
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -333,6 +348,11 @@ export default function StudentFavoritesPage() {
           )}
         </TabsContent>
       </Tabs>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </div>
   )
 }
