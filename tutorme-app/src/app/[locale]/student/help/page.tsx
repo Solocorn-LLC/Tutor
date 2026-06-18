@@ -135,117 +135,111 @@ export default function StudentHelpPage() {
   }, [searchQuery])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-          {/* Header */}
-          <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-white">Support</h1>
-              <p className="mt-1 text-sm text-white/70">Find answers and get support</p>
+    <div className="min-h-full bg-white px-6 pb-6 pt-2">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-white">Support</h1>
+          <p className="mt-1 text-sm text-white/70">Find answers and get support</p>
+        </div>
+      </section>
+
+      {/* Content */}
+      <div className="space-y-4 py-4 sm:py-6">
+        {/* Search */}
+        <Card className={sectionCardClass}>
+          <CardContent className="py-3">
+            <div className="relative mx-auto max-w-2xl">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="h-10 pl-10"
+              />
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Content */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white p-4 sm:p-6">
-            {/* Search */}
-            <Card className={`mb-4 shrink-0 ${sectionCardClass}`}>
-              <CardContent className="py-3">
-                <div className="relative mx-auto max-w-2xl">
-                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="h-10 pl-10"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Topic cards */}
-            <div className="mb-4 grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
-              {topics.map(topic => {
-                const Icon = topic.icon
-                const isActive = activeTopic === topic.value && !searchQuery.trim()
-                return (
-                  <Card
-                    key={topic.value}
-                    onClick={() => {
-                      setActiveTopic(topic.value)
-                      setSearchQuery('')
-                    }}
-                    className={`cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-lg ${sectionCardClass} ${
-                      isActive ? 'ring-2 ring-[#2563EB]' : ''
-                    }`}
-                  >
-                    <CardContent className="p-4">
-                      <Icon className="mb-2 h-8 w-8 text-blue-500" />
-                      <h3 className="text-sm font-semibold text-gray-900">{topic.title}</h3>
-                      <p className="mt-0.5 text-xs text-gray-500">{topic.description}</p>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-
-            {/* Content panel */}
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <Card className={`flex h-full flex-col ${sectionCardClass}`}>
-                <CardHeader className="shrink-0">
-                  <CardTitle>
-                    {searchQuery.trim() ? 'Search Results' : activeTopicData.title}
-                  </CardTitle>
-                  <CardDescription>
-                    {searchQuery.trim()
-                      ? `Showing results for "${searchQuery}"`
-                      : activeTopicData.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1 overflow-y-auto scrollbar-hide">
-                  {searchQuery.trim() ? (
-                    <div className="space-y-6">
-                      {filteredResults?.length ? (
-                        filteredResults.map(topic => (
-                          <div key={topic.value}>
-                            <h4 className="mb-2 text-sm font-semibold text-slate-700">
-                              {topic.title}
-                            </h4>
-                            <div className="space-y-4">
-                              {topic.items.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
-                                >
-                                  <h5 className="font-medium text-gray-900">{item.title}</h5>
-                                  <p className="mt-1 text-sm text-gray-600">{item.description}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-500">No results found.</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {activeTopicData.items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
-                        >
-                          <h4 className="font-medium text-gray-900">{item.title}</h4>
-                          <p className="mt-1 text-sm text-gray-600">{item.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+        {/* Topic cards */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {topics.map(topic => {
+            const Icon = topic.icon
+            const isActive = activeTopic === topic.value && !searchQuery.trim()
+            return (
+              <Card
+                key={topic.value}
+                onClick={() => {
+                  setActiveTopic(topic.value)
+                  setSearchQuery('')
+                }}
+                className={`cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-lg ${sectionCardClass} ${
+                  isActive ? 'ring-2 ring-[#2563EB]' : ''
+                }`}
+              >
+                <CardContent className="p-4">
+                  <Icon className="mb-2 h-8 w-8 text-blue-500" />
+                  <h3 className="text-sm font-semibold text-gray-900">{topic.title}</h3>
+                  <p className="mt-0.5 text-xs text-gray-500">{topic.description}</p>
                 </CardContent>
               </Card>
-            </div>
-          </div>
+            )
+          })}
         </div>
+
+        {/* Content panel */}
+        <Card className={`flex flex-col ${sectionCardClass}`}>
+          <CardHeader>
+            <CardTitle>
+              {searchQuery.trim() ? 'Search Results' : activeTopicData.title}
+            </CardTitle>
+            <CardDescription>
+              {searchQuery.trim()
+                ? `Showing results for "${searchQuery}"`
+                : activeTopicData.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {searchQuery.trim() ? (
+              <div className="space-y-6">
+                {filteredResults?.length ? (
+                  filteredResults.map(topic => (
+                    <div key={topic.value}>
+                      <h4 className="mb-2 text-sm font-semibold text-slate-700">
+                        {topic.title}
+                      </h4>
+                      <div className="space-y-4">
+                        {topic.items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
+                          >
+                            <h5 className="font-medium text-gray-900">{item.title}</h5>
+                            <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No results found.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activeTopicData.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
+                  >
+                    <h4 className="font-medium text-gray-900">{item.title}</h4>
+                    <p className="mt-1 text-sm text-gray-600">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
