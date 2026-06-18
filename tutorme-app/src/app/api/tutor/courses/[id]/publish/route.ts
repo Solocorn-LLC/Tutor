@@ -60,6 +60,7 @@ export const GET = withAuth(
                 scheduleId: courseSchedule.scheduleId,
                 courseId: courseSchedule.courseId,
                 scheduleIndex: courseSchedule.scheduleIndex,
+                name: courseSchedule.name,
                 schedule: courseSchedule.schedule,
                 weeksToSchedule: courseSchedule.weeksToSchedule,
                 maxStudents: courseSchedule.maxStudents,
@@ -82,6 +83,7 @@ export const GET = withAuth(
         schedules: (schedulesByCourse.get(r.publishedCourseId) || []).map(s => ({
           scheduleId: s.scheduleId,
           scheduleIndex: s.scheduleIndex,
+          name: s.name,
           schedule: s.schedule,
           weeksToSchedule: s.weeksToSchedule,
           maxStudents: s.maxStudents,
@@ -460,6 +462,7 @@ export const POST = withCsrf(
                 await tx
                   .update(courseSchedule)
                   .set({
+                    name: s.name ?? null,
                     schedule: s.schedule || [],
                     weeksToSchedule: s.weeksToSchedule || 8,
                     maxStudents: s.maxStudents ?? null,
@@ -473,6 +476,7 @@ export const POST = withCsrf(
                   scheduleId: newScheduleId,
                   courseId: publishedCourseId,
                   scheduleIndex: s.scheduleIndex || i + 1,
+                  name: s.name ?? null,
                   schedule: s.schedule || [],
                   weeksToSchedule: s.weeksToSchedule || 8,
                   maxStudents: s.maxStudents ?? null,

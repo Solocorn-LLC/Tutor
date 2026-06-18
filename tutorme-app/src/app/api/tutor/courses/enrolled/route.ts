@@ -45,28 +45,27 @@ export const GET = withAuth(
       )
       .orderBy(desc(enrollmentCount))
 
-    // Get session counts for each course
+    // Get session counts for each course. `total` counts every non-cancelled
+    // session (so a course whose sessions are all past/ended still shows a real
+    // number rather than 0); `upcoming` counts only the actionable ones.
     const courseIds = courses.map(c => c.courseId)
-    let sessionCounts: { courseId: string; count: number }[] = []
+    let sessionCounts: { courseId: string; total: number; upcoming: number }[] = []
 
     if (courseIds.length > 0) {
       const sessions = await drizzleDb
         .select({
           courseId: liveSession.courseId,
-          count: sql<number>`count(${liveSession.sessionId})::int`,
+          total: sql<number>`count(*) filter (where ${liveSession.status} <> 'cancelled')::int`,
+          upcoming: sql<number>`count(*) filter (where ${liveSession.status} in ('scheduled', 'active', 'live', 'paused'))::int`,
         })
         .from(liveSession)
-        .where(
-          and(
-            eq(liveSession.tutorId, tutorId),
-            inArray(liveSession.status, ['scheduled', 'active', 'live', 'paused'])
-          )
-        )
+        .where(eq(liveSession.tutorId, tutorId))
         .groupBy(liveSession.courseId)
 
       sessionCounts = sessions.map(s => ({
         courseId: s.courseId ?? '',
-        count: s.count,
+        total: s.total,
+        upcoming: s.upcoming,
       }))
     }
 
@@ -91,6 +90,7 @@ export const GET = withAuth(
 
     const coursesWithSessionCount = courses.map(c => {
       const variant = variantMap.get(c.courseId)
+      const counts = sessionCounts.find(s => s.courseId === c.courseId)
       return {
         id: c.courseId,
         name: c.name,
@@ -101,7 +101,8 @@ export const GET = withAuth(
         schedule: c.schedule,
         enrollmentCount: c.enrollmentCount,
         subject: c.categories?.[0] ?? null,
-        upcomingSessionsCount: sessionCounts.find(s => s.courseId === c.courseId)?.count ?? 0,
+        sessionCount: counts?.total ?? 0,
+        upcomingSessionsCount: counts?.upcoming ?? 0,
         nationality: variant?.nationality ?? undefined,
         variantCategory: variant?.category ?? undefined,
       }
