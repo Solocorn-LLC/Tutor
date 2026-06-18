@@ -1917,12 +1917,7 @@ function WeekView({
         {weekDays.map((day, index) => (
           <div key={index} className="relative flex flex-col border-r last:border-r-0">
             {hours.map(hour => (
-              <DroppableHour
-                key={hour}
-                date={day}
-                hour={hour}
-                className="h-10 shrink-0 border-b"
-              />
+              <DroppableHour key={hour} date={day} hour={hour} className="h-10 shrink-0 border-b" />
             ))}
             <div className="flex-1" />
 

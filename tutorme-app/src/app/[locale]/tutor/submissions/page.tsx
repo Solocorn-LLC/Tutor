@@ -107,9 +107,7 @@ export default function TutorSubmissionsPage() {
               key={sub.submissionId}
               submission={sub}
               expanded={expanded === sub.submissionId}
-              onToggle={() =>
-                setExpanded(expanded === sub.submissionId ? null : sub.submissionId)
-              }
+              onToggle={() => setExpanded(expanded === sub.submissionId ? null : sub.submissionId)}
               onGraded={() => load(tab)}
             />
           ))}
@@ -235,7 +233,9 @@ function SubmissionRow({
 
           <div className="grid gap-3 sm:grid-cols-[140px_1fr] sm:items-start">
             <div>
-              <Label htmlFor={`score-${submission.submissionId}`}>Score (/{submission.maxScore})</Label>
+              <Label htmlFor={`score-${submission.submissionId}`}>
+                Score (/{submission.maxScore})
+              </Label>
               <Input
                 id={`score-${submission.submissionId}`}
                 type="number"

@@ -61,7 +61,8 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
-const SECTION_CARD_CLASS = 'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+const SECTION_CARD_CLASS =
+  'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
 interface PaymentMethod {
   id: string
@@ -624,1082 +625,1129 @@ export default function TutorSettings() {
           ]}
         >
           {/* Profile & Identity */}
-          <TabsContent value="profile" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <button
-                type="button"
-                onClick={() => setProfileOpen(o => !o)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="panel-header-title">Profile & Identity</div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {profileOpen ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {profileOpen && (
-                <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-4">
-                  <AvatarUploader
-                    avatarUrl={formData.avatarUrl}
-                    uploadUrl="/api/tutor/public-profile/avatar"
-                    deleteUrl="/api/tutor/public-profile/avatar"
-                    size={80}
-                    fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
-                    onUploadSuccess={url => {
-                      const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
-                      setFormData(prev => ({ ...prev, avatarUrl: busted }))
-                      updateSession({ image: busted }).catch(() => {})
-                    }}
-                    onDeleteSuccess={() => {
-                      setFormData(prev => ({ ...prev, avatarUrl: '' }))
-                      updateSession({ image: null }).catch(() => {})
-                    }}
-                  />
-                  <div className="flex-1">
-                    <Label>Profile Photo</Label>
-                    <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Name & Email */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" value={formData.name} disabled className="bg-white" />
-                    <p className="text-xs text-gray-500">
-                      Contact{' '}
-                      <a
-                        href="mailto:support@solocorn.co"
-                        className="text-blue-600 hover:underline"
-                      >
-                        support@solocorn.co
-                      </a>{' '}
-                      to change your name
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" value={formData.email} disabled className="bg-white" />
-                    <p className="text-xs text-gray-500">
-                      Contact{' '}
-                      <a
-                        href="mailto:support@solocorn.co"
-                        className="text-blue-600 hover:underline"
-                      >
-                        support@solocorn.co
-                      </a>{' '}
-                      to change your email
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Language & Timezone */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="language">Preferred Language</Label>
-                    <select
-                      id="language"
-                      value={formData.language}
-                      onChange={e => setFormData({ ...formData, language: e.target.value })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                    >
-                      {LANGUAGES.map(lang => (
-                        <option key={lang.code} value={lang.code}>
-                          {lang.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Input id="timezone" value={formData.timezone} disabled className="bg-white" />
-                    <p className="text-xs text-gray-500">Automatically detected</p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveProfile} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-              )}
-            </Card>
-
-            {/* Public Profile Preview */}
-            <Card className={SECTION_CARD_CLASS}>
-              <button
-                type="button"
-                onClick={() => setPublicProfileOpen(o => !o)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="panel-header-title">Public Profile</div>
-                    <div className="panel-header-subtext">How students see you on your public page</div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {publicProfileOpen ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {publicProfileOpen && (
-                <CardContent className="space-y-6">
-                <div className="flex items-start gap-4">
-                  {formData.avatarUrl ? (
-                    <img
-                      src={formData.avatarUrl}
-                      alt="Profile"
-                      className="h-16 w-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-500">
-                      {formData.name.charAt(0).toUpperCase() || '?'}
+          <TabsContent
+            value="profile"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen(o => !o)}
+                  className="panel-header panel-header-metallic w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="panel-header-title">Profile & Identity</div>
                     </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
-                    <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                      {formData.bio ||
-                        'No bio added yet. Your bio helps students learn more about you.'}
-                    </p>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                      {profileOpen ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
+                {profileOpen && (
+                  <CardContent className="space-y-6">
+                    {/* Avatar */}
+                    <div className="flex items-center gap-4">
+                      <AvatarUploader
+                        avatarUrl={formData.avatarUrl}
+                        uploadUrl="/api/tutor/public-profile/avatar"
+                        deleteUrl="/api/tutor/public-profile/avatar"
+                        size={80}
+                        fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
+                        onUploadSuccess={url => {
+                          const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+                          setFormData(prev => ({ ...prev, avatarUrl: busted }))
+                          updateSession({ image: busted }).catch(() => {})
+                        }}
+                        onDeleteSuccess={() => {
+                          setFormData(prev => ({ ...prev, avatarUrl: '' }))
+                          updateSession({ image: null }).catch(() => {})
+                        }}
+                      />
+                      <div className="flex-1">
+                        <Label>Profile Photo</Label>
+                        <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
+                      </div>
+                    </div>
 
-                {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(formData.socialLinks)
-                      .filter(([, v]) => v)
-                      .map(([platform, url]) => (
-                        <a
-                          key={platform}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                        >
-                          {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                        </a>
-                      ))}
-                  </div>
-                )}
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      window.location.href = '/tutor/my-page'
-                    }}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Edit Public Profile
-                  </Button>
-                </div>
-              </CardContent>
-              )}
-            </Card>
-
-            {/* Tax Information */}
-            <Card className={SECTION_CARD_CLASS}>
-              <button
-                type="button"
-                onClick={() => setTaxOpen(o => !o)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="panel-header-title">Tax Information</div>
-                    <div className="panel-header-subtext">Required for payout and tax reporting</div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {taxOpen ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {taxOpen && (
-                <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Region</Label>
-                    <Select
-                      value={taxRegion}
-                      onValueChange={value => {
-                        setTaxRegion(value)
-                        setTaxCountry('')
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {REGIONS.map(region => (
-                          <SelectItem key={region.id} value={region.id}>
-                            {region.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Select value={taxCountry} onValueChange={setTaxCountry} disabled={!taxRegion}>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={taxRegion ? 'Select country' : 'Select region first'}
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {taxCountryOptions.map(country => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Legal Name</Label>
-                    <Input
-                      value={taxLegalName}
-                      onChange={e => setTaxLegalName(e.target.value)}
-                      placeholder="Legal name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Address</Label>
-                    <Input
-                      value={taxAddress}
-                      onChange={e => setTaxAddress(e.target.value)}
-                      placeholder="Registered address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tax ID (optional)</Label>
-                    <Input
-                      value={taxId}
-                      onChange={e => setTaxId(e.target.value)}
-                      placeholder="Tax ID"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Business / Individual</Label>
-                    <Select value={taxEntityType} onValueChange={setTaxEntityType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Individual">Individual</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={() => toast.success('Tax information saved')} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Tax Info
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-              )}
-            </Card>
-
-            {/* Tutor Information */}
-            <Card className={SECTION_CARD_CLASS}>
-              <button
-                type="button"
-                onClick={() => setTutorInfoOpen(o => !o)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="panel-header-title">Tutor Information</div>
-                    <div className="panel-header-subtext">Your tutoring profile details (set during registration)</div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {tutorInfoOpen ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {tutorInfoOpen && (
-                <CardContent className="space-y-6">
-                {/* Nationality & Country of Residence */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Nationality</Label>
-                    <Input
-                      value={formData.nationality || 'Not specified'}
-                      disabled
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-gray-500">
-                      Your nationality as selected during registration
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Country of Residence</Label>
-                    <Input
-                      value={formData.countryOfResidence || 'Not specified'}
-                      disabled
-                      className="bg-white"
-                    />
-                    <p className="text-xs text-gray-500">Your current country of residence</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Tutoring Categories */}
-                <div className="space-y-2">
-                  <Label>Tutoring Categories</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.specialties.length > 0 ? (
-                      formData.specialties.map((specialty, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
-                        >
-                          {specialty}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-gray-500">No categories specified</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Subject categories you tutor (set during registration)
-                  </p>
-                </div>
-
-                <Separator />
-
-                {/* Tutoring Nationalities */}
-                <div className="space-y-2">
-                  <Label>Student Nationalities You Tutor</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tutorNationalities.length > 0 ? (
-                      formData.tutorNationalities.map((nationality, idx) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
-                        >
-                          {nationality}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-gray-500">No nationalities specified</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Student nationalities you specialize in tutoring (set during registration)
-                  </p>
-                </div>
-
-                {/* Category-Nationality Combinations */}
-                {formData.categoryNationalityCombinations.length > 0 && (
-                  <>
                     <Separator />
-                    <div className="space-y-2">
-                      <Label>Search Tags</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.categoryNationalityCombinations.map((combo, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
+
+                    {/* Name & Email */}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input id="name" value={formData.name} disabled className="bg-white" />
+                        <p className="text-xs text-gray-500">
+                          Contact{' '}
+                          <a
+                            href="mailto:support@solocorn.co"
+                            className="text-blue-600 hover:underline"
                           >
-                            {combo}
-                          </span>
-                        ))}
+                            support@solocorn.co
+                          </a>{' '}
+                          to change your name
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input id="email" value={formData.email} disabled className="bg-white" />
+                        <p className="text-xs text-gray-500">
+                          Contact{' '}
+                          <a
+                            href="mailto:support@solocorn.co"
+                            className="text-blue-600 hover:underline"
+                          >
+                            support@solocorn.co
+                          </a>{' '}
+                          to change your email
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Language & Timezone */}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="language">Preferred Language</Label>
+                        <select
+                          id="language"
+                          value={formData.language}
+                          onChange={e => setFormData({ ...formData, language: e.target.value })}
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                        >
+                          {LANGUAGES.map(lang => (
+                            <option key={lang.code} value={lang.code}>
+                              {lang.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="timezone">Timezone</Label>
+                        <Input
+                          id="timezone"
+                          value={formData.timezone}
+                          disabled
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-gray-500">Automatically detected</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button onClick={handleSaveProfile} disabled={saving}>
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Public Profile Preview */}
+              <Card className={SECTION_CARD_CLASS}>
+                <button
+                  type="button"
+                  onClick={() => setPublicProfileOpen(o => !o)}
+                  className="panel-header panel-header-metallic w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="panel-header-title">Public Profile</div>
+                      <div className="panel-header-subtext">
+                        How students see you on your public page
+                      </div>
+                    </div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                      {publicProfileOpen ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+                {publicProfileOpen && (
+                  <CardContent className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      {formData.avatarUrl ? (
+                        <img
+                          src={formData.avatarUrl}
+                          alt="Profile"
+                          className="h-16 w-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-500">
+                          {formData.name.charAt(0).toUpperCase() || '?'}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                        <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                          {formData.bio ||
+                            'No bio added yet. Your bio helps students learn more about you.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(formData.socialLinks)
+                          .filter(([, v]) => v)
+                          .map(([platform, url]) => (
+                            <a
+                              key={platform}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                            >
+                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </a>
+                          ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          window.location.href = '/tutor/my-page'
+                        }}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Edit Public Profile
+                      </Button>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Tax Information */}
+              <Card className={SECTION_CARD_CLASS}>
+                <button
+                  type="button"
+                  onClick={() => setTaxOpen(o => !o)}
+                  className="panel-header panel-header-metallic w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="panel-header-title">Tax Information</div>
+                      <div className="panel-header-subtext">
+                        Required for payout and tax reporting
+                      </div>
+                    </div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                      {taxOpen ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+                {taxOpen && (
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Region</Label>
+                        <Select
+                          value={taxRegion}
+                          onValueChange={value => {
+                            setTaxRegion(value)
+                            setTaxCountry('')
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select region" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {REGIONS.map(region => (
+                              <SelectItem key={region.id} value={region.id}>
+                                {region.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Country</Label>
+                        <Select
+                          value={taxCountry}
+                          onValueChange={setTaxCountry}
+                          disabled={!taxRegion}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={taxRegion ? 'Select country' : 'Select region first'}
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {taxCountryOptions.map(country => (
+                              <SelectItem key={country.code} value={country.code}>
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Legal Name</Label>
+                        <Input
+                          value={taxLegalName}
+                          onChange={e => setTaxLegalName(e.target.value)}
+                          placeholder="Legal name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Address</Label>
+                        <Input
+                          value={taxAddress}
+                          onChange={e => setTaxAddress(e.target.value)}
+                          placeholder="Registered address"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tax ID (optional)</Label>
+                        <Input
+                          value={taxId}
+                          onChange={e => setTaxId(e.target.value)}
+                          placeholder="Tax ID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Business / Individual</Label>
+                        <Select value={taxEntityType} onValueChange={setTaxEntityType}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Individual">Individual</SelectItem>
+                            <SelectItem value="Business">Business</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => toast.success('Tax information saved')}
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Tax Info
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Tutor Information */}
+              <Card className={SECTION_CARD_CLASS}>
+                <button
+                  type="button"
+                  onClick={() => setTutorInfoOpen(o => !o)}
+                  className="panel-header panel-header-metallic w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="panel-header-title">Tutor Information</div>
+                      <div className="panel-header-subtext">
+                        Your tutoring profile details (set during registration)
+                      </div>
+                    </div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                      {tutorInfoOpen ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+                {tutorInfoOpen && (
+                  <CardContent className="space-y-6">
+                    {/* Nationality & Country of Residence */}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Nationality</Label>
+                        <Input
+                          value={formData.nationality || 'Not specified'}
+                          disabled
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Your nationality as selected during registration
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Country of Residence</Label>
+                        <Input
+                          value={formData.countryOfResidence || 'Not specified'}
+                          disabled
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-gray-500">Your current country of residence</p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Tutoring Categories */}
+                    <div className="space-y-2">
+                      <Label>Tutoring Categories</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.specialties.length > 0 ? (
+                          formData.specialties.map((specialty, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
+                            >
+                              {specialty}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">No categories specified</span>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        These tags help students find you when searching for specific
-                        category-nationality combinations
+                        Subject categories you tutor (set during registration)
                       </p>
                     </div>
-                  </>
-                )}
-              </CardContent>
-              )}
-            </Card>
 
-            {/* One-on-One Booking Settings */}
-            <OneOnOneSettingsCard />
-          </div></TabsContent>
+                    <Separator />
 
-          {/* Billing & Payment */}
-          <TabsContent value="billing" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Payment Methods</CardTitle>
-                <CardDescription>Manage your payment methods for subscription</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {paymentMethods.map(method => (
-                  <div
-                    key={method.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-                        <CreditCard className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {method.brand} •••• {method.last4}{' '}
-                          {method.isDefault && (
-                            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                              Default
+                    {/* Tutoring Nationalities */}
+                    <div className="space-y-2">
+                      <Label>Student Nationalities You Tutor</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.tutorNationalities.length > 0 ? (
+                          formData.tutorNationalities.map((nationality, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
+                            >
+                              {nationality}
                             </span>
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Expires {method.expiryMonth}/{method.expiryYear}
-                        </p>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">No nationalities specified</span>
+                        )}
                       </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => removePaymentMethod(method.id)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-
-                <Button variant="outline" className="w-full">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Add Payment Method
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Subscription Plan</CardTitle>
-                <CardDescription>Manage your tutor subscription</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Renew Subscription</Label>
-                    <Select value={renewTerm} onValueChange={setRenewTerm}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select term" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 month</SelectItem>
-                        <SelectItem value="2">2 months</SelectItem>
-                        <SelectItem value="12">1 year</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subscription Cost</Label>
-                    <div className="h-10 rounded-md border bg-white px-3 py-2 text-sm">$15</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Action</Label>
-                    <Button
-                      className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
-                      onClick={() => toast.message('Subscription renewal queued')}
-                    >
-                      Renew
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    variant="outline"
-                    className="border-[#F59E0B] text-[#92400E] hover:bg-[#FDE68A]"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to cancel your subscription?')) {
-                        toast.message(
-                          'Thank you for being with us. We hope you return another time.'
-                        )
-                      }
-                    }}
-                  >
-                    Cancel subscription
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => toast.message('Payment history loading')}
-                  >
-                    Payment history
-                  </Button>
-                  <Button variant="outline" onClick={() => toast.message('Billing details')}>
-                    Billing
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Payout Settings</CardTitle>
-                <CardDescription>Manage your earnings and withdrawals</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Payout Available Balance</Label>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 rounded-md border bg-white px-3 py-2 text-sm">
-                        {payoutBalance}
-                      </div>
-                      <Button
-                        variant="modal-primary"
-                        onClick={() => toast.message('Withdrawal request sent')}
-                      >
-                        Withdraw
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Download earnings report</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => toast.message('CSV report generated')}
-                      >
-                        CSV
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => toast.message('PDF report generated')}
-                      >
-                        PDF
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div></TabsContent>
-
-          {/* Billing History */}
-          <TabsContent value="history" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Billing History</CardTitle>
-                <CardDescription>View and download your invoices and receipts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {billingHistory.map(invoice => (
-                    <div
-                      key={invoice.id}
-                      className="flex items-center justify-between rounded-lg border p-4"
-                    >
-                      <div>
-                        <p className="font-medium">{invoice.description}</p>
-                        <p className="text-sm text-gray-500">{invoice.date}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium">${invoice.amount.toFixed(2)}</p>
-                          <span
-                            className={`text-xs ${
-                              invoice.status === 'paid'
-                                ? 'text-green-600'
-                                : invoice.status === 'pending'
-                                  ? 'text-yellow-600'
-                                  : 'text-red-600'
-                            }`}
-                          >
-                            {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                          </span>
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {billingHistory.length === 0 && (
-                    <div className="py-8 text-center text-gray-500">
-                      <FileText className="mx-auto mb-2 h-8 w-8" />
-                      <p>No billing history available</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div></TabsContent>
-
-          {/* Notifications */}
-          <TabsContent value="notifications" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Control how and when we contact you</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Marketing Emails</p>
-                      <p className="text-sm text-gray-500">
-                        Receive updates about new features and offers
+                      <p className="text-xs text-gray-500">
+                        Student nationalities you specialize in tutoring (set during registration)
                       </p>
                     </div>
-                    <Switch
-                      checked={notifications.emailMarketing}
-                      onCheckedChange={checked =>
-                        setNotifications(prev => ({ ...prev, emailMarketing: checked }))
-                      }
-                    />
-                  </div>
 
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Lesson Reminders</p>
-                      <p className="text-sm text-gray-500">Get notified about upcoming lessons</p>
-                    </div>
-                    <Switch
-                      checked={notifications.emailLessons}
-                      onCheckedChange={checked =>
-                        setNotifications(prev => ({ ...prev, emailLessons: checked }))
-                      }
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Billing Notifications</p>
-                      <p className="text-sm text-gray-500">Receipts and payment confirmations</p>
-                    </div>
-                    <Switch
-                      checked={notifications.emailBilling}
-                      onCheckedChange={checked =>
-                        setNotifications(prev => ({ ...prev, emailBilling: checked }))
-                      }
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Push Notifications</p>
-                      <p className="text-sm text-gray-500">Browser and mobile push notifications</p>
-                    </div>
-                    <Switch
-                      checked={notifications.pushNotifications}
-                      onCheckedChange={checked =>
-                        setNotifications(prev => ({ ...prev, pushNotifications: checked }))
-                      }
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">SMS Reminders</p>
-                      <p className="text-sm text-gray-500">Text message reminders for lessons</p>
-                    </div>
-                    <Switch
-                      checked={notifications.smsReminders}
-                      onCheckedChange={checked =>
-                        setNotifications(prev => ({ ...prev, smsReminders: checked }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveNotifications} disabled={saving}>
-                    {saving ? (
+                    {/* Category-Nationality Combinations */}
+                    {formData.categoryNationalityCombinations.length > 0 && (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Preferences
+                        <Separator />
+                        <div className="space-y-2">
+                          <Label>Search Tags</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.categoryNationalityCombinations.map((combo, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
+                              >
+                                {combo}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            These tags help students find you when searching for specific
+                            category-nationality combinations
+                          </p>
+                        </div>
                       </>
                     )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div></TabsContent>
+                  </CardContent>
+                )}
+              </Card>
 
-          {/* Privacy & Security */}
-          <TabsContent value="security" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Privacy & Security</CardTitle>
-                <CardDescription>Manage your password and account security</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Password Change */}
-                <div className="space-y-4">
-                  <h3 className="font-medium">Change Password</h3>
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input id="currentPassword" type="password" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <Input id="newPassword" type="password" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input id="confirmPassword" type="password" />
-                    </div>
-                  </div>
-                  <Button variant="outline">
-                    <Lock className="mr-2 h-4 w-4" />
-                    Update Password
-                  </Button>
-                </div>
+              {/* One-on-One Booking Settings */}
+              <OneOnOneSettingsCard />
+            </div>
+          </TabsContent>
 
-                <Separator />
-
-                {/* Two-Factor Authentication */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Two-Factor Authentication</h3>
-                      <p className="text-sm text-gray-500">
-                        Add an extra layer of security to your account
-                      </p>
-                    </div>
-                    <Switch checked={twoFactorEnabled} onCheckedChange={setTwoFactorEnabled} />
-                  </div>
-                  {twoFactorEnabled && (
-                    <div className="rounded-lg bg-blue-50 p-4">
-                      <div className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-blue-600" />
+          {/* Billing & Payment */}
+          <TabsContent
+            value="billing"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Payment Methods</CardTitle>
+                  <CardDescription>Manage your payment methods for subscription</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {paymentMethods.map(method => (
+                    <div
+                      key={method.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
+                          <CreditCard className="h-5 w-5 text-blue-600" />
+                        </div>
                         <div>
-                          <p className="text-sm font-medium text-blue-800">2FA Enabled</p>
-                          <p className="text-xs text-blue-600">
-                            Your account is protected with two-factor authentication
+                          <p className="font-medium">
+                            {method.brand} •••• {method.last4}{' '}
+                            {method.isDefault && (
+                              <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                                Default
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Expires {method.expiryMonth}/{method.expiryYear}
                           </p>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Connected Devices */}
-                <div className="space-y-4">
-                  <h3 className="font-medium">Connected Devices</h3>
-                  <div className="space-y-3">
-                    {connectedDevices.map(device => (
-                      <div
-                        key={device.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => removePaymentMethod(method.id)}
                       >
-                        <div className="flex items-center gap-3">
-                          <Smartphone className="h-5 w-5 text-gray-400" />
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+
+                  <Button variant="outline" className="w-full">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Add Payment Method
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Subscription Plan</CardTitle>
+                  <CardDescription>Manage your tutor subscription</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Renew Subscription</Label>
+                      <Select value={renewTerm} onValueChange={setRenewTerm}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select term" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 month</SelectItem>
+                          <SelectItem value="2">2 months</SelectItem>
+                          <SelectItem value="12">1 year</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Subscription Cost</Label>
+                      <div className="h-10 rounded-md border bg-white px-3 py-2 text-sm">$15</div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Action</Label>
+                      <Button
+                        className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
+                        onClick={() => toast.message('Subscription renewal queued')}
+                      >
+                        Renew
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="outline"
+                      className="border-[#F59E0B] text-[#92400E] hover:bg-[#FDE68A]"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to cancel your subscription?')) {
+                          toast.message(
+                            'Thank you for being with us. We hope you return another time.'
+                          )
+                        }
+                      }}
+                    >
+                      Cancel subscription
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => toast.message('Payment history loading')}
+                    >
+                      Payment history
+                    </Button>
+                    <Button variant="outline" onClick={() => toast.message('Billing details')}>
+                      Billing
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Payout Settings</CardTitle>
+                  <CardDescription>Manage your earnings and withdrawals</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Payout Available Balance</Label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 rounded-md border bg-white px-3 py-2 text-sm">
+                          {payoutBalance}
+                        </div>
+                        <Button
+                          variant="modal-primary"
+                          onClick={() => toast.message('Withdrawal request sent')}
+                        >
+                          Withdraw
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Download earnings report</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => toast.message('CSV report generated')}
+                        >
+                          CSV
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => toast.message('PDF report generated')}
+                        >
+                          PDF
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Billing History */}
+          <TabsContent
+            value="history"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Billing History</CardTitle>
+                  <CardDescription>View and download your invoices and receipts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {billingHistory.map(invoice => (
+                      <div
+                        key={invoice.id}
+                        className="flex items-center justify-between rounded-lg border p-4"
+                      >
+                        <div>
+                          <p className="font-medium">{invoice.description}</p>
+                          <p className="text-sm text-gray-500">{invoice.date}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-medium">${invoice.amount.toFixed(2)}</p>
+                            <span
+                              className={`text-xs ${
+                                invoice.status === 'paid'
+                                  ? 'text-green-600'
+                                  : invoice.status === 'pending'
+                                    ? 'text-yellow-600'
+                                    : 'text-red-600'
+                              }`}
+                            >
+                              {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                            </span>
+                          </div>
+                          <Button variant="ghost" size="icon">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {billingHistory.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">
+                        <FileText className="mx-auto mb-2 h-8 w-8" />
+                        <p>No billing history available</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Notifications */}
+          <TabsContent
+            value="notifications"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                  <CardDescription>Control how and when we contact you</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Marketing Emails</p>
+                        <p className="text-sm text-gray-500">
+                          Receive updates about new features and offers
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notifications.emailMarketing}
+                        onCheckedChange={checked =>
+                          setNotifications(prev => ({ ...prev, emailMarketing: checked }))
+                        }
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Lesson Reminders</p>
+                        <p className="text-sm text-gray-500">Get notified about upcoming lessons</p>
+                      </div>
+                      <Switch
+                        checked={notifications.emailLessons}
+                        onCheckedChange={checked =>
+                          setNotifications(prev => ({ ...prev, emailLessons: checked }))
+                        }
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Billing Notifications</p>
+                        <p className="text-sm text-gray-500">Receipts and payment confirmations</p>
+                      </div>
+                      <Switch
+                        checked={notifications.emailBilling}
+                        onCheckedChange={checked =>
+                          setNotifications(prev => ({ ...prev, emailBilling: checked }))
+                        }
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Push Notifications</p>
+                        <p className="text-sm text-gray-500">
+                          Browser and mobile push notifications
+                        </p>
+                      </div>
+                      <Switch
+                        checked={notifications.pushNotifications}
+                        onCheckedChange={checked =>
+                          setNotifications(prev => ({ ...prev, pushNotifications: checked }))
+                        }
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">SMS Reminders</p>
+                        <p className="text-sm text-gray-500">Text message reminders for lessons</p>
+                      </div>
+                      <Switch
+                        checked={notifications.smsReminders}
+                        onCheckedChange={checked =>
+                          setNotifications(prev => ({ ...prev, smsReminders: checked }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveNotifications} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Preferences
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Privacy & Security */}
+          <TabsContent
+            value="security"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Privacy & Security</CardTitle>
+                  <CardDescription>Manage your password and account security</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Password Change */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Change Password</h3>
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <Input id="currentPassword" type="password" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input id="newPassword" type="password" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                        <Input id="confirmPassword" type="password" />
+                      </div>
+                    </div>
+                    <Button variant="outline">
+                      <Lock className="mr-2 h-4 w-4" />
+                      Update Password
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  {/* Two-Factor Authentication */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">Two-Factor Authentication</h3>
+                        <p className="text-sm text-gray-500">
+                          Add an extra layer of security to your account
+                        </p>
+                      </div>
+                      <Switch checked={twoFactorEnabled} onCheckedChange={setTwoFactorEnabled} />
+                    </div>
+                    {twoFactorEnabled && (
+                      <div className="rounded-lg bg-blue-50 p-4">
+                        <div className="flex items-start gap-2">
+                          <Check className="mt-0.5 h-4 w-4 text-blue-600" />
                           <div>
-                            <p className="font-medium">
-                              {device.name}
-                              {device.isCurrent && (
-                                <span className="ml-2 text-xs text-green-600">(Current)</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {device.location} • {device.lastActive}
+                            <p className="text-sm font-medium text-blue-800">2FA Enabled</p>
+                            <p className="text-xs text-blue-600">
+                              Your account is protected with two-factor authentication
                             </p>
                           </div>
                         </div>
-                        {!device.isCurrent && (
-                          <Button variant="ghost" size="sm" className="text-red-600">
-                            <LogOut className="mr-1 h-4 w-4" />
-                            Logout
-                          </Button>
-                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                  <Button variant="outline" onClick={handleLogoutAllDevices}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout from All Devices
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div></TabsContent>
+
+                  <Separator />
+
+                  {/* Connected Devices */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Connected Devices</h3>
+                    <div className="space-y-3">
+                      {connectedDevices.map(device => (
+                        <div
+                          key={device.id}
+                          className="flex items-center justify-between rounded-lg border p-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Smartphone className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="font-medium">
+                                {device.name}
+                                {device.isCurrent && (
+                                  <span className="ml-2 text-xs text-green-600">(Current)</span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {device.location} • {device.lastActive}
+                              </p>
+                            </div>
+                          </div>
+                          {!device.isCurrent && (
+                            <Button variant="ghost" size="sm" className="text-red-600">
+                              <LogOut className="mr-1 h-4 w-4" />
+                              Logout
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" onClick={handleLogoutAllDevices}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout from All Devices
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Live Session Mirroring */}
-          <TabsContent value="controls" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full space-y-6 overflow-y-auto pr-2">
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Live Session Mirroring</CardTitle>
-                <CardDescription>
-                  Control what students see by default during live sessions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Mirror Classroom Toggle */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-3">
-                    <LayoutPanelTop className="mt-0.5 h-5 w-5 text-indigo-500" />
-                    <div>
-                      <p className="font-medium">Mirror Classroom by Default</p>
-                      <p className="text-sm text-gray-500">
-                        When a session starts, automatically broadcast your classroom view to all
-                        students
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={mirrorPreferences.defaultMirrorClass}
-                    onCheckedChange={checked =>
-                      setMirrorPreferences(prev => ({ ...prev, defaultMirrorClass: checked }))
-                    }
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Mirror Whiteboard Toggle */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-3">
-                    <PenTool className="mt-0.5 h-5 w-5 text-indigo-500" />
-                    <div>
-                      <p className="font-medium">Mirror Whiteboard by Default</p>
-                      <p className="text-sm text-gray-500">
-                        When a session starts, automatically broadcast your whiteboard to all
-                        students
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={mirrorPreferences.defaultMirrorBoard}
-                    onCheckedChange={checked =>
-                      setMirrorPreferences(prev => ({ ...prev, defaultMirrorBoard: checked }))
-                    }
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={saveMirrorPreferences}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Preferences
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Course Sync Mode */}
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Course Sync Mode</CardTitle>
-                <CardDescription>
-                  Control how course edits are shared with students during live sessions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  {[
-                    {
-                      value: 'auto' as const,
-                      label: 'Automatic',
-                      description:
-                        'Edits sync automatically after you stop editing for 3 seconds. Students always see the latest content.',
-                    },
-                    {
-                      value: 'manual' as const,
-                      label: 'Manual',
-                      description:
-                        'You must click the Sync button to share changes. Best for preparing content privately.',
-                    },
-                    {
-                      value: 'ask' as const,
-                      label: 'Ask Before Syncing',
-                      description:
-                        'A prompt asks you to confirm before syncing. Good for awareness of what students see.',
-                    },
-                  ].map(option => (
-                    <label
-                      key={option.value}
-                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
-                        syncMode === option.value
-                          ? 'border-indigo-300 bg-indigo-50'
-                          : 'border-slate-200 bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="syncMode"
-                        value={option.value}
-                        checked={syncMode === option.value}
-                        onChange={() => setSyncMode(option.value)}
-                        className="mt-1"
-                      />
+          <TabsContent
+            value="controls"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Live Session Mirroring</CardTitle>
+                  <CardDescription>
+                    Control what students see by default during live sessions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Mirror Classroom Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-start gap-3">
+                      <LayoutPanelTop className="mt-0.5 h-5 w-5 text-indigo-500" />
                       <div>
-                        <p className="font-medium text-slate-800">{option.label}</p>
-                        <p className="text-sm text-slate-500">{option.description}</p>
+                        <p className="font-medium">Mirror Classroom by Default</p>
+                        <p className="text-sm text-gray-500">
+                          When a session starts, automatically broadcast your classroom view to all
+                          students
+                        </p>
                       </div>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={saveSyncMode}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Sync Mode
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Document Parsing */}
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Document Import</CardTitle>
-                <CardDescription>
-                  Control how documents are handled when importing into tasks and assessments
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-3">
-                    <FileText className="mt-0.5 h-5 w-5 text-indigo-500" />
-                    <div>
-                      <p className="font-medium">Parse Documents on Import</p>
-                      <p className="text-sm text-gray-500">
-                        Automatically extract text from PDFs, Word docs, and other files when
-                        importing into tasks and assessments
-                      </p>
                     </div>
+                    <Switch
+                      checked={mirrorPreferences.defaultMirrorClass}
+                      onCheckedChange={checked =>
+                        setMirrorPreferences(prev => ({ ...prev, defaultMirrorClass: checked }))
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={parseDocuments}
-                    onCheckedChange={checked => setParseDocuments(checked)}
-                  />
-                </div>
 
-                <div className="flex justify-end">
-                  <Button onClick={saveParseDocuments}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Preference
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <Separator />
 
-            <Card className={SECTION_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Account Controls</CardTitle>
-                <CardDescription>
-                  Temporarily deactivate or permanently delete your account
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Deactivate Account */}
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-                  <div className="flex items-start gap-4">
-                    <Power className="mt-1 h-5 w-5 text-yellow-600" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-yellow-800">Deactivate Account</h3>
-                      <p className="text-sm text-yellow-700">
-                        Temporarily disable your account. You can reactivate it at any time by
-                        logging in. Your data will be preserved.
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="mt-3 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-                        onClick={() => setShowDeactivateDialog(true)}
+                  {/* Mirror Whiteboard Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-start gap-3">
+                      <PenTool className="mt-0.5 h-5 w-5 text-indigo-500" />
+                      <div>
+                        <p className="font-medium">Mirror Whiteboard by Default</p>
+                        <p className="text-sm text-gray-500">
+                          When a session starts, automatically broadcast your whiteboard to all
+                          students
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={mirrorPreferences.defaultMirrorBoard}
+                      onCheckedChange={checked =>
+                        setMirrorPreferences(prev => ({ ...prev, defaultMirrorBoard: checked }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={saveMirrorPreferences}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Preferences
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Course Sync Mode */}
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Course Sync Mode</CardTitle>
+                  <CardDescription>
+                    Control how course edits are shared with students during live sessions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    {[
+                      {
+                        value: 'auto' as const,
+                        label: 'Automatic',
+                        description:
+                          'Edits sync automatically after you stop editing for 3 seconds. Students always see the latest content.',
+                      },
+                      {
+                        value: 'manual' as const,
+                        label: 'Manual',
+                        description:
+                          'You must click the Sync button to share changes. Best for preparing content privately.',
+                      },
+                      {
+                        value: 'ask' as const,
+                        label: 'Ask Before Syncing',
+                        description:
+                          'A prompt asks you to confirm before syncing. Good for awareness of what students see.',
+                      },
+                    ].map(option => (
+                      <label
+                        key={option.value}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                          syncMode === option.value
+                            ? 'border-indigo-300 bg-indigo-50'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
                       >
-                        Deactivate Account
-                      </Button>
-                    </div>
+                        <input
+                          type="radio"
+                          name="syncMode"
+                          value={option.value}
+                          checked={syncMode === option.value}
+                          onChange={() => setSyncMode(option.value)}
+                          className="mt-1"
+                        />
+                        <div>
+                          <p className="font-medium text-slate-800">{option.label}</p>
+                          <p className="text-sm text-slate-500">{option.description}</p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                </div>
 
-                {/* Delete Account */}
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                  <div className="flex items-start gap-4">
-                    <Trash2 className="mt-1 h-5 w-5 text-red-600" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-red-800">Delete Account</h3>
-                      <p className="text-sm text-red-700">
-                        Permanently delete your account and all associated data. This action cannot
-                        be undone.
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="mt-3 border-red-300 text-red-700 hover:bg-red-100"
-                        onClick={() => setShowDeleteDialog(true)}
-                      >
-                        Delete Account
-                      </Button>
+                  <div className="flex justify-end">
+                    <Button onClick={saveSyncMode}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Sync Mode
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Document Parsing */}
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Document Import</CardTitle>
+                  <CardDescription>
+                    Control how documents are handled when importing into tasks and assessments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-start gap-3">
+                      <FileText className="mt-0.5 h-5 w-5 text-indigo-500" />
+                      <div>
+                        <p className="font-medium">Parse Documents on Import</p>
+                        <p className="text-sm text-gray-500">
+                          Automatically extract text from PDFs, Word docs, and other files when
+                          importing into tasks and assessments
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={parseDocuments}
+                      onCheckedChange={checked => setParseDocuments(checked)}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={saveParseDocuments}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Preference
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Account Controls</CardTitle>
+                  <CardDescription>
+                    Temporarily deactivate or permanently delete your account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Deactivate Account */}
+                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                    <div className="flex items-start gap-4">
+                      <Power className="mt-1 h-5 w-5 text-yellow-600" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-yellow-800">Deactivate Account</h3>
+                        <p className="text-sm text-yellow-700">
+                          Temporarily disable your account. You can reactivate it at any time by
+                          logging in. Your data will be preserved.
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="mt-3 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                          onClick={() => setShowDeactivateDialog(true)}
+                        >
+                          Deactivate Account
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div></TabsContent>
+
+                  {/* Delete Account */}
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="flex items-start gap-4">
+                      <Trash2 className="mt-1 h-5 w-5 text-red-600" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-red-800">Delete Account</h3>
+                        <p className="text-sm text-red-700">
+                          Permanently delete your account and all associated data. This action
+                          cannot be undone.
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="mt-3 border-red-300 text-red-700 hover:bg-red-100"
+                          onClick={() => setShowDeleteDialog(true)}
+                        >
+                          Delete Account
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Session Log */}
-          <TabsContent value="session-log" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <TabsContent
+            value="session-log"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
             <SessionLog />
           </TabsContent>
         </SessionCalendarPanel>

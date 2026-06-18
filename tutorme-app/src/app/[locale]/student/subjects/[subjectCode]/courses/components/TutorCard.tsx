@@ -186,7 +186,12 @@ export function TutorCard({
           compact ? 'min-h-[80px] px-3 py-2' : 'min-h-[120px] px-4 py-3'
         )}
       >
-        <p className={cn('text-white/80', compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed')}>
+        <p
+          className={cn(
+            'text-white/80',
+            compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'
+          )}
+        >
           {bioText}
         </p>
       </div>
@@ -195,14 +200,25 @@ export function TutorCard({
       <div className="border-t border-white/10" />
 
       {/* Stats — text only */}
-      <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-white/70', compact ? 'text-xs' : 'text-sm')}>
-        <span>Courses: <span className="font-semibold text-white">{tutor.totalClasses}</span></span>
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-4 gap-y-1 text-white/70',
+          compact ? 'text-xs' : 'text-sm'
+        )}
+      >
+        <span>
+          Courses: <span className="font-semibold text-white">{tutor.totalClasses}</span>
+        </span>
         <span className="text-white/30">·</span>
-        <span>Enrollments: <span className="font-semibold text-white">{tutor.totalStudents}</span></span>
+        <span>
+          Enrollments: <span className="font-semibold text-white">{tutor.totalStudents}</span>
+        </span>
         {countryLabel !== undefined && (
           <>
             <span className="text-white/30">·</span>
-            <span>Country: <span className="font-semibold text-white">{countryLabel}</span></span>
+            <span>
+              Country: <span className="font-semibold text-white">{countryLabel}</span>
+            </span>
           </>
         )}
       </div>

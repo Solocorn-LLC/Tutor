@@ -172,7 +172,9 @@ function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>('active')
+  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>(
+    'active'
+  )
   const [isExpanded, setIsExpanded] = useState(true)
   const [measuredMaxHeight, setMeasuredMaxHeight] = useState(400)
   const measureRefs = {
@@ -391,7 +393,8 @@ function MyCoursesSection() {
                 </div>
                 {showNationality && (
                   <p className="mt-0.5 text-xs font-medium text-blue-400">
-                    {course.variantCategory || (course.categories || [])[0] || 'General'} — {course.nationality}
+                    {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
+                    {course.nationality}
                   </p>
                 )}
                 <p className="mt-0.5 text-xs text-slate-300">
@@ -551,7 +554,10 @@ function MyCoursesSection() {
         </div>
 
         {/* Hidden measurement lists to keep panel height stable across tabs */}
-        <div className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0" aria-hidden="true">
+        <div
+          className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0"
+          aria-hidden="true"
+        >
           <div className="px-6 pb-6">
             {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
               <div key={tab} ref={measureRefs[tab]} className="space-y-3 pr-2">
@@ -1797,7 +1803,10 @@ export default function TutorMyPage() {
 
         <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
           <div
-            className={cn(charcoalHeaderClass, 'panel-header-hover cursor-pointer select-none justify-between')}
+            className={cn(
+              charcoalHeaderClass,
+              'panel-header-hover cursor-pointer select-none justify-between'
+            )}
             onClick={() => setProfileSettingsOpen(prev => !prev)}
           >
             <div className="flex items-center gap-3">

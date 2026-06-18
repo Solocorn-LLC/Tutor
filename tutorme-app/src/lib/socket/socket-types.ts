@@ -365,7 +365,6 @@ export interface MathSyncObservabilitySnapshot {
   averageYjsUpdateBytes: number
 }
 
-
 // Polls
 export interface PollState {
   id: string

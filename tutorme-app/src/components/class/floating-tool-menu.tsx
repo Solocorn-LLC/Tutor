@@ -420,7 +420,9 @@ export function FloatingToolMenu({
           }}
           className={cn(
             'relative z-10 flex h-16 w-16 items-center justify-center rounded-full shadow-[0_0_15px_rgba(0,0,0,0.15)] transition-colors',
-            isOpen ? 'bg-slate-800 text-white hover:bg-[#1F2933] hover:outline hover:outline-1 hover:outline-white' : 'bg-white text-slate-800 hover:bg-slate-50',
+            isOpen
+              ? 'bg-slate-800 text-white hover:bg-[#1F2933] hover:outline hover:outline-1 hover:outline-white'
+              : 'bg-white text-slate-800 hover:bg-slate-50',
             !isOpen &&
               currentColor !== '#000000' &&
               currentTool === 'pen' &&

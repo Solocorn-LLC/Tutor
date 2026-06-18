@@ -34,7 +34,11 @@ interface NotificationsPanelProps {
   onClearAll: () => void
   onMarkRead: (id: string) => void
   onDelete: (id: string) => void
-  onRespondOneOnOne?: (notificationId: string, requestId: string, action: 'accept' | 'reject') => void
+  onRespondOneOnOne?: (
+    notificationId: string,
+    requestId: string,
+    action: 'accept' | 'reject'
+  ) => void
   respondingIds?: Record<string, 'accept' | 'reject' | null>
 }
 
@@ -67,7 +71,8 @@ export default function NotificationsPanel({
   }
 
   const isOneOnOneRequest = (notification: AppNotification) =>
-    notification.data?.type === 'one-on-one-request' && typeof notification.data?.requestId === 'string'
+    notification.data?.type === 'one-on-one-request' &&
+    typeof notification.data?.requestId === 'string'
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -125,13 +130,23 @@ export default function NotificationsPanel({
         </div>
         <div className="flex items-center gap-1">
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={onMarkAllRead} className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMarkAllRead}
+              className="h-7 px-2 text-xs text-slate-600 hover:bg-slate-100"
+            >
               <CheckCheck className="mr-1 h-3.5 w-3.5" />
               Mark all
             </Button>
           )}
           {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={onClearAll} className="h-7 px-2 text-xs text-red-600 hover:bg-red-50">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearAll}
+              className="h-7 px-2 text-xs text-red-600 hover:bg-red-50"
+            >
               <Trash2 className="mr-1 h-3.5 w-3.5" />
               Clear
             </Button>
@@ -165,10 +180,16 @@ export default function NotificationsPanel({
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-900">
                             <span className="truncate">{notification.title}</span>
-                            {!notification.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />}
+                            {!notification.read && (
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                            )}
                           </p>
-                          <p className="mt-0.5 text-[11px] leading-tight text-slate-600">{notification.message}</p>
-                          <p className="mt-0.5 text-[10px] text-slate-400">{formatTime(notification.createdAt)}</p>
+                          <p className="mt-0.5 text-[11px] leading-tight text-slate-600">
+                            {notification.message}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            {formatTime(notification.createdAt)}
+                          </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-0.5">
                           {!notification.read && (
@@ -186,38 +207,40 @@ export default function NotificationsPanel({
                               <CheckCircle2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
-                          {role === 'tutor' && isOneOnOneRequest(notification) && onRespondOneOnOne && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-1.5 text-[10px]"
-                                disabled={!!respondingIds[notification.id]}
-                                onClick={e => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  const requestId = notification.data?.requestId as string
-                                  onRespondOneOnOne(notification.id, requestId, 'accept')
-                                }}
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-1.5 text-[10px] text-red-600 hover:text-red-700"
-                                disabled={!!respondingIds[notification.id]}
-                                onClick={e => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  const requestId = notification.data?.requestId as string
-                                  onRespondOneOnOne(notification.id, requestId, 'reject')
-                                }}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
+                          {role === 'tutor' &&
+                            isOneOnOneRequest(notification) &&
+                            onRespondOneOnOne && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-1.5 text-[10px]"
+                                  disabled={!!respondingIds[notification.id]}
+                                  onClick={e => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    const requestId = notification.data?.requestId as string
+                                    onRespondOneOnOne(notification.id, requestId, 'accept')
+                                  }}
+                                >
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[10px] text-red-600 hover:text-red-700"
+                                  disabled={!!respondingIds[notification.id]}
+                                  onClick={e => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    const requestId = notification.data?.requestId as string
+                                    onRespondOneOnOne(notification.id, requestId, 'reject')
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                           <Button
                             variant="ghost"
                             size="icon"

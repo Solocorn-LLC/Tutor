@@ -31,16 +31,18 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
         throw new Error('Failed to load notifications')
       }
       const data = await res.json()
-      const list: AppNotification[] = (data.notifications || []).map((n: Record<string, unknown>) => ({
-        id: (n.notificationId as string) || (n.id as string),
-        type: (n.type as string) || 'message',
-        title: n.title as string,
-        message: n.message as string,
-        read: !!n.read,
-        createdAt: (n.createdAt as string) || new Date().toISOString(),
-        actionUrl: (n.actionUrl as string | null) || null,
-        data: (n.data as Record<string, unknown> | null) || null,
-      }))
+      const list: AppNotification[] = (data.notifications || []).map(
+        (n: Record<string, unknown>) => ({
+          id: (n.notificationId as string) || (n.id as string),
+          type: (n.type as string) || 'message',
+          title: n.title as string,
+          message: n.message as string,
+          read: !!n.read,
+          createdAt: (n.createdAt as string) || new Date().toISOString(),
+          actionUrl: (n.actionUrl as string | null) || null,
+          data: (n.data as Record<string, unknown> | null) || null,
+        })
+      )
       setNotifications(list)
     } catch {
       toast.error('Failed to load notifications')
@@ -148,10 +150,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
   return (
     <div className="flex h-full w-full flex-col px-4 sm:px-6 lg:px-8">
       <div className="h-[45%] min-h-0 shrink-0 pb-4">
-        <MessagingPanel
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-        />
+        <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
       </div>
       <div className="min-h-0 flex-1">
         <NotificationsPanel

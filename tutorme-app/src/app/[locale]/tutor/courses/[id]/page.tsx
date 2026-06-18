@@ -84,7 +84,11 @@ const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = 
   national: { bg: 'bg-[#FF9F0A]', text: 'text-white', close: 'text-white/60 hover:text-white' },
   universities: { bg: 'bg-[#FF375F]', text: 'text-white', close: 'text-white/60 hover:text-white' },
   languages: { bg: 'bg-[#00C7BE]', text: 'text-white', close: 'text-white/60 hover:text-white' },
-  professional: { bg: 'bg-[#FFD60A]', text: 'text-slate-900', close: 'text-slate-900/60 hover:text-slate-900' },
+  professional: {
+    bg: 'bg-[#FFD60A]',
+    text: 'text-slate-900',
+    close: 'text-slate-900/60 hover:text-slate-900',
+  },
   diy: { bg: 'bg-[#FF9500]', text: 'text-white', close: 'text-white/60 hover:text-white' },
 }
 
@@ -810,9 +814,7 @@ export default function TutorCoursePage() {
                   </div>
                   <div>
                     <div className="panel-header-title">Categories</div>
-                    <div className="panel-header-subtext">
-                      Select a category for your course.
-                    </div>
+                    <div className="panel-header-subtext">Select a category for your course.</div>
                   </div>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
@@ -969,7 +971,7 @@ export default function TutorCoursePage() {
                                   value={config.value}
                                   disabled={isNational && nationalExams.length === 0}
                                   className={cn(
-                                    'text-base rounded-none border-b-2 border-transparent px-1 py-3 font-medium data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+                                    'rounded-none border-b-2 border-transparent px-1 py-3 text-base font-medium data-[state=active]:bg-transparent data-[state=active]:shadow-none',
                                     isNational &&
                                       nationalExams.length === 0 &&
                                       'disabled:opacity-50'
@@ -1499,7 +1501,6 @@ export default function TutorCoursePage() {
                     </Tabs>
                   </div>
                 </div>
-
               </CardContent>
             ) : null}
           </Card>

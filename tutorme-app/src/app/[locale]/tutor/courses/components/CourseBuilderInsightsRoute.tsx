@@ -479,15 +479,16 @@ function CourseBuilderInsightsRouteInner({
                       <SelectTrigger
                         className={cn(
                           'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
-                          hasNoCourses
-                            ? 'cursor-not-allowed opacity-60'
-                            : 'hover:bg-slate-100'
+                          hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
                         )}
                       >
-                        <SelectValue placeholder={hasNoCourses ? 'Create your first course.' : 'Select course'}>
+                        <SelectValue
+                          placeholder={hasNoCourses ? 'Create your first course.' : 'Select course'}
+                        >
                           {(() => {
                             const c = currentCourse
-                            if (!c) return hasNoCourses ? 'Create your first course.' : 'Select course'
+                            if (!c)
+                              return hasNoCourses ? 'Create your first course.' : 'Select course'
                             return c.nationality && c.nationality !== 'Global'
                               ? `${c.name} — ${c.variantCategory || ''} — ${c.nationality}`
                               : c.name
@@ -886,9 +887,7 @@ function CourseBuilderInsightsRouteInner({
               </DialogDescription>
             </DialogHeader>
 
-            <div
-              className="scrollbar-hide mt-6 flex flex-1 flex-col overflow-hidden pr-2"
-            >
+            <div className="scrollbar-hide mt-6 flex flex-1 flex-col overflow-hidden pr-2">
               <div className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium text-white">Course Name</Label>

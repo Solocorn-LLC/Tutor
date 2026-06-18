@@ -23,7 +23,9 @@ async function start() {
       .catch(error => {
         console.error('[Startup] Background migration failed:', error)
         if (migrationsRequired) {
-          console.error('[Startup] Migrations are required (MIGRATIONS_REQUIRED !== false). Check logs and restart.')
+          console.error(
+            '[Startup] Migrations are required (MIGRATIONS_REQUIRED !== false). Check logs and restart.'
+          )
         }
       })
   } else {

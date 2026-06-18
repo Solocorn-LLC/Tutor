@@ -91,38 +91,40 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {schedules.map(s => (
                 <div key={s.scheduleId} className="flex flex-col rounded-lg border bg-gray-50 p-4">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h4 className="font-semibold text-gray-900">{s.name}</h4>
-                  {s.maxStudents != null && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.isFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
-                      }`}
-                    >
-                      {s.isFull ? 'Full' : `${s.spotsLeft} spot${s.spotsLeft === 1 ? '' : 's'} left`}
-                    </span>
-                  )}
-                </div>
-                {s.slots.length > 0 ? (
-                  <ul className="space-y-1.5">
-                    {s.slots.map((slot, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h4 className="font-semibold text-gray-900">{s.name}</h4>
+                    {s.maxStudents != null && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          s.isFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}
                       >
-                        <span className="font-medium text-gray-800">{slot.dayOfWeek}</span>
-                        <span className="text-gray-600">
-                          {slot.startTime} · {slot.durationMinutes} min
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">Times to be arranged with the tutor.</p>
-                )}
-                {s.weeksToSchedule ? (
-                  <p className="mt-2 text-xs text-gray-400">Runs for {s.weeksToSchedule} weeks</p>
-                ) : null}
+                        {s.isFull
+                          ? 'Full'
+                          : `${s.spotsLeft} spot${s.spotsLeft === 1 ? '' : 's'} left`}
+                      </span>
+                    )}
+                  </div>
+                  {s.slots.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {s.slots.map((slot, i) => (
+                        <li
+                          key={i}
+                          className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium text-gray-800">{slot.dayOfWeek}</span>
+                          <span className="text-gray-600">
+                            {slot.startTime} · {slot.durationMinutes} min
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">Times to be arranged with the tutor.</p>
+                  )}
+                  {s.weeksToSchedule ? (
+                    <p className="mt-2 text-xs text-gray-400">Runs for {s.weeksToSchedule} weeks</p>
+                  ) : null}
                 </div>
               ))}
             </div>

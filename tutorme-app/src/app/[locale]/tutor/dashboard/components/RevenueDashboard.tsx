@@ -504,7 +504,10 @@ export function RevenueDashboard({
 
   return (
     <>
-      <Card className={cn('border-border bg-card flex h-full flex-col border', className)} style={themeStyle}>
+      <Card
+        className={cn('border-border bg-card flex h-full flex-col border', className)}
+        style={themeStyle}
+      >
         <CardHeader className="text-foreground pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -1568,35 +1568,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }))
     }, [courseName, courseDescription])
 
-    const doSave = useCallback((isAutoSave = false) => {
-      // If courseName is missing (e.g. builder-draft), prompt for properties
-      if (!courseName?.trim() && !coursePropsModal.name?.trim()) {
-        setCoursePropsModal(prev => ({ ...prev, isOpen: true }))
-        return
-      }
+    const doSave = useCallback(
+      (isAutoSave = false) => {
+        // If courseName is missing (e.g. builder-draft), prompt for properties
+        if (!courseName?.trim() && !coursePropsModal.name?.trim()) {
+          setCoursePropsModal(prev => ({ ...prev, isOpen: true }))
+          return
+        }
 
-      if (onSave) {
-        return onSave(
-          nodes.map(n => n.lessons[0] || ({} as any)),
-          {
-            developmentMode: devMode,
-            previewDifficulty,
-            courseName: coursePropsModal.name || courseName,
-            courseDescription: coursePropsModal.description,
-            isLive: coursePropsModal.isLive,
-            isAutoSave,
-          }
-        )
-      }
-    }, [
-      nodes,
-      courseName,
-      coursePropsModal.name,
-      coursePropsModal.description,
-      devMode,
-      previewDifficulty,
-      onSave,
-    ])
+        if (onSave) {
+          return onSave(
+            nodes.map(n => n.lessons[0] || ({} as any)),
+            {
+              developmentMode: devMode,
+              previewDifficulty,
+              courseName: coursePropsModal.name || courseName,
+              courseDescription: coursePropsModal.description,
+              isLive: coursePropsModal.isLive,
+              isAutoSave,
+            }
+          )
+        }
+      },
+      [
+        nodes,
+        courseName,
+        coursePropsModal.name,
+        coursePropsModal.description,
+        devMode,
+        previewDifficulty,
+        onSave,
+      ]
+    )
 
     // Declared above triggerSync so the sync can record the node ref it produces,
     // preventing the sync's own liveNodes clone from being re-detected as a fresh

@@ -504,7 +504,11 @@ export default function SessionLog() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
   }
 
-  const renderClassCard = (cls: TutorClass, isLive: boolean = false, isUpcoming: boolean = false) => {
+  const renderClassCard = (
+    cls: TutorClass,
+    isLive: boolean = false,
+    isUpcoming: boolean = false
+  ) => {
     const time = formatClassTime(cls.scheduledAt)
     const timeRemaining = getTimeRemaining(cls.scheduledAt)
 
@@ -622,25 +626,27 @@ export default function SessionLog() {
             />
           </div>
           <div className="flex gap-2">
-            {(['all', 'live', 'upcoming', 'scheduled', 'completed'] as FilterStatus[]).map(status => (
-              <Button
-                key={status}
-                variant={filterStatus === status ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus(status)}
-                className="capitalize"
-              >
-                {status === 'live' && categorizedClasses.live.length > 0 && (
-                  <span className="mr-1 h-2 w-2 animate-pulse rounded-full bg-red-500" />
-                )}
-                {status === 'completed' ? 'Completed' : status}
-                {status !== 'all' && (
-                  <span className="ml-1 text-xs opacity-70">
-                    ({categorizedClasses[status === 'completed' ? 'past' : status]?.length || 0})
-                  </span>
-                )}
-              </Button>
-            ))}
+            {(['all', 'live', 'upcoming', 'scheduled', 'completed'] as FilterStatus[]).map(
+              status => (
+                <Button
+                  key={status}
+                  variant={filterStatus === status ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilterStatus(status)}
+                  className="capitalize"
+                >
+                  {status === 'live' && categorizedClasses.live.length > 0 && (
+                    <span className="mr-1 h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                  )}
+                  {status === 'completed' ? 'Completed' : status}
+                  {status !== 'all' && (
+                    <span className="ml-1 text-xs opacity-70">
+                      ({categorizedClasses[status === 'completed' ? 'past' : status]?.length || 0})
+                    </span>
+                  )}
+                </Button>
+              )
+            )}
           </div>
         </div>
 

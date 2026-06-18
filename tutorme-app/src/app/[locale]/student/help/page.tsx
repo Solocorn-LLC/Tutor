@@ -190,9 +190,7 @@ export default function StudentHelpPage() {
         {/* Content panel */}
         <Card className={`flex flex-col ${sectionCardClass}`}>
           <CardHeader>
-            <CardTitle>
-              {searchQuery.trim() ? 'Search Results' : activeTopicData.title}
-            </CardTitle>
+            <CardTitle>{searchQuery.trim() ? 'Search Results' : activeTopicData.title}</CardTitle>
             <CardDescription>
               {searchQuery.trim()
                 ? `Showing results for "${searchQuery}"`
@@ -205,9 +203,7 @@ export default function StudentHelpPage() {
                 {filteredResults?.length ? (
                   filteredResults.map(topic => (
                     <div key={topic.value}>
-                      <h4 className="mb-2 text-sm font-semibold text-slate-700">
-                        {topic.title}
-                      </h4>
+                      <h4 className="mb-2 text-sm font-semibold text-slate-700">{topic.title}</h4>
                       <div className="space-y-4">
                         {topic.items.map((item, idx) => (
                           <div
@@ -228,10 +224,7 @@ export default function StudentHelpPage() {
             ) : (
               <div className="space-y-4">
                 {activeTopicData.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-slate-100 bg-slate-50/50 p-4"
-                  >
+                  <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                     <h4 className="font-medium text-gray-900">{item.title}</h4>
                     <p className="mt-1 text-sm text-gray-600">{item.description}</p>
                   </div>

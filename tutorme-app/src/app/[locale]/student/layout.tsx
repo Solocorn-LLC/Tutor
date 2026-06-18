@@ -73,7 +73,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const isCommunicationsPage = pathname?.includes('/student/communications')
   const isCoursesPage = pathname?.includes('/student/courses')
   const isNavClosedPage =
-    isSupportPage || isFeedbackRoute || isAccountPage || isBookTutorPage || isCommunicationsPage || isCoursesPage
+    isSupportPage ||
+    isFeedbackRoute ||
+    isAccountPage ||
+    isBookTutorPage ||
+    isCommunicationsPage ||
+    isCoursesPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(!isNavClosedPage)
   const [isPeeking, setIsPeeking] = useState(false)
 
@@ -397,7 +402,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       >
         <div
           className={cn(
-            'h-full scrollbar-hide [&>*:last-child]:mb-0 [&>*:last-child]:pb-0',
+            'scrollbar-hide h-full [&>*:last-child]:mb-0 [&>*:last-child]:pb-0',
             isFeedbackRoute ? 'overflow-hidden' : 'overflow-y-auto'
           )}
         >

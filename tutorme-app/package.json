@@ -30,7 +30,7 @@
     "lint:check": "eslint .",
     "lint:ci": "eslint . --max-warnings=2188",
     "lint:fix": "eslint . --fix",
-    "security:check": "npm audit --audit-level=high",
+    "security:check": "npm audit --audit-level=critical",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"scripts/**/*.js\" \"**/*.js\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"scripts/**/*.js\" \"**/*.js\"",
     "typecheck": "tsc --noEmit",

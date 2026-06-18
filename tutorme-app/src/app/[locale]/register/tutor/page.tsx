@@ -884,7 +884,7 @@ export default function TutorRegistrationPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:opacity-100 disabled:text-white',
+                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:text-white disabled:opacity-100',
                               !region && 'border-slate-400/20 bg-slate-100/50'
                             )}
                           >
@@ -1037,10 +1037,7 @@ export default function TutorRegistrationPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={cn(secondaryBtnClass, 'h-9')}
-                    onClick={() => setStep(1)}
-                  >
+                  <Button className={cn(secondaryBtnClass, 'h-9')} onClick={() => setStep(1)}>
                     Back
                   </Button>
                   <Button
@@ -1083,16 +1080,10 @@ export default function TutorRegistrationPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={secondaryBtnClass}
-                    onClick={() => setStep(2)}
-                  >
+                  <Button className={secondaryBtnClass} onClick={() => setStep(2)}>
                     Back
                   </Button>
-                  <Button
-                    className={primaryBtnClass}
-                    onClick={() => setStep(4)}
-                  >
+                  <Button className={primaryBtnClass} onClick={() => setStep(4)}>
                     Register
                   </Button>
                 </div>
@@ -1119,10 +1110,7 @@ export default function TutorRegistrationPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={secondaryBtnClass}
-                    onClick={() => setStep(3)}
-                  >
+                  <Button className={secondaryBtnClass} onClick={() => setStep(3)}>
                     Back
                   </Button>
                   <Button

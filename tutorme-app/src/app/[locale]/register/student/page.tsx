@@ -227,196 +227,192 @@ export default function StudentRegistrationPage() {
               <form autoComplete="off" onSubmit={e => e.preventDefault()}>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="firstName" className="text-xs text-white/70">
-                      First Name
-                    </Label>
-                    <Input
-                      id="firstName"
-                      autoComplete="given-name"
-                      value={formData.firstName}
-                      onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="middleName" className="text-xs text-white/70">
-                      Middle Name
-                    </Label>
-                    <Input
-                      id="middleName"
-                      autoComplete="additional-name"
-                      value={formData.middleName}
-                      onChange={e => setFormData({ ...formData, middleName: e.target.value })}
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="lastName" className="text-xs text-white/70">
-                      Last Name
-                    </Label>
-                    <Input
-                      id="lastName"
-                      autoComplete="family-name"
-                      value={formData.lastName}
-                      onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                      className={inputClassName}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="email" className="text-xs text-white/70">
-                    Email Address
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="password" className="text-xs text-white/70">
-                      Password
-                    </Label>
-                    <div className="relative">
+                    <div className="space-y-1">
+                      <Label htmlFor="firstName" className="text-xs text-white/70">
+                        First Name
+                      </Label>
                       <Input
-                        id="password"
-                        name="new-password"
-                        autoComplete="new-password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={formData.password}
-                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Create a password"
-                        className={cn(inputClassName, 'pr-9')}
+                        id="firstName"
+                        autoComplete="given-name"
+                        value={formData.firstName}
+                        onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                        className={inputClassName}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(prev => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Eye className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="middleName" className="text-xs text-white/70">
+                        Middle Name
+                      </Label>
+                      <Input
+                        id="middleName"
+                        autoComplete="additional-name"
+                        value={formData.middleName}
+                        onChange={e => setFormData({ ...formData, middleName: e.target.value })}
+                        className={inputClassName}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="lastName" className="text-xs text-white/70">
+                        Last Name
+                      </Label>
+                      <Input
+                        id="lastName"
+                        autoComplete="family-name"
+                        value={formData.lastName}
+                        onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                        className={inputClassName}
+                      />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="confirmPassword" className="text-xs text-white/70">
-                      Confirm Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        name="confirm-new-password"
-                        autoComplete="new-password"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={formData.confirmPassword}
-                        onChange={e =>
-                          setFormData({ ...formData, confirmPassword: e.target.value })
-                        }
-                        placeholder="Confirm your password"
-                        className={cn(inputClassName, 'pr-9')}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(prev => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Eye className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
-                    <p className="min-h-[18px] text-xs text-red-400">
-                      {passwordMismatch ? 'Passwords do not match.' : '\u00A0'}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs text-white/70">Where do you live?</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor="email" className="text-xs text-white/70">
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      className={inputClassName}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {/* Region */}
-                    <div>
-                      <Select
-                        value={formData.region}
-                        onValueChange={v => {
-                          setFormData(prev => ({ ...prev, region: v, countryCode: '' }))
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40">
-                          <SelectValue placeholder="Select Region..." />
-                        </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
-                          {REGIONS.filter(r => r.id !== 'global').map(regionItem => (
-                            <SelectItem
-                              key={regionItem.id}
-                              value={regionItem.id}
-                              className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
-                            >
-                              {regionItem.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Country */}
-                    <div>
-                      <Select
-                        value={formData.countryCode}
-                        onValueChange={v => setFormData(prev => ({ ...prev, countryCode: v }))}
-                        disabled={!formData.region}
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 disabled:opacity-100 disabled:text-white',
-                            !formData.region && 'border-slate-400/20 bg-slate-100/50'
-                          )}
+                    <div className="space-y-1">
+                      <Label htmlFor="password" className="text-xs text-white/70">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="new-password"
+                          autoComplete="new-password"
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.password}
+                          onChange={e => setFormData({ ...formData, password: e.target.value })}
+                          placeholder="Create a password"
+                          className={cn(inputClassName, 'pr-9')}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(prev => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
-                          <SelectValue placeholder="Select Country" />
-                        </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
-                          {availableCountries.length === 0 ? (
-                            <div className="py-3 text-center text-[13px] text-white/70">
-                              No countries available
-                            </div>
+                          {showPassword ? (
+                            <EyeOff className="h-3.5 w-3.5" />
                           ) : (
-                            availableCountries.map(country => (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="confirmPassword" className="text-xs text-white/70">
+                        Confirm Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirm-new-password"
+                          autoComplete="new-password"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={formData.confirmPassword}
+                          onChange={e =>
+                            setFormData({ ...formData, confirmPassword: e.target.value })
+                          }
+                          placeholder="Confirm your password"
+                          className={cn(inputClassName, 'pr-9')}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(prev => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+                      <p className="min-h-[18px] text-xs text-red-400">
+                        {passwordMismatch ? 'Passwords do not match.' : '\u00A0'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Where do you live?</Label>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {/* Region */}
+                      <div>
+                        <Select
+                          value={formData.region}
+                          onValueChange={v => {
+                            setFormData(prev => ({ ...prev, region: v, countryCode: '' }))
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40">
+                            <SelectValue placeholder="Select Region..." />
+                          </SelectTrigger>
+                          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                            {REGIONS.filter(r => r.id !== 'global').map(regionItem => (
                               <SelectItem
-                                key={country.code}
-                                value={country.code}
+                                key={regionItem.id}
+                                value={regionItem.id}
                                 className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
                               >
-                                {country.name}
+                                {regionItem.name}
                               </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Country */}
+                      <div>
+                        <Select
+                          value={formData.countryCode}
+                          onValueChange={v => setFormData(prev => ({ ...prev, countryCode: v }))}
+                          disabled={!formData.region}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 disabled:text-white disabled:opacity-100',
+                              !formData.region && 'border-slate-400/20 bg-slate-100/50'
+                            )}
+                          >
+                            <SelectValue placeholder="Select Country" />
+                          </SelectTrigger>
+                          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                            {availableCountries.length === 0 ? (
+                              <div className="py-3 text-center text-[13px] text-white/70">
+                                No countries available
+                              </div>
+                            ) : (
+                              availableCountries.map(country => (
+                                <SelectItem
+                                  key={country.code}
+                                  value={country.code}
+                                  className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                >
+                                  {country.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-4 flex gap-3">
-                  <Button
-                    className={primaryBtnClass}
-                    onClick={handleNext}
-                    disabled={isLoading}
-                  >
+                <div className="mt-4 flex gap-3">
+                  <Button className={primaryBtnClass} onClick={handleNext} disabled={isLoading}>
                     Next
                   </Button>
                 </div>
@@ -442,18 +438,10 @@ export default function StudentRegistrationPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={secondaryBtnClass}
-                    onClick={goBack}
-                    disabled={isLoading}
-                  >
+                  <Button className={secondaryBtnClass} onClick={goBack} disabled={isLoading}>
                     Back
                   </Button>
-                  <Button
-                    className={primaryBtnClass}
-                    onClick={handleNext}
-                    disabled={isLoading}
-                  >
+                  <Button className={primaryBtnClass} onClick={handleNext} disabled={isLoading}>
                     Next
                   </Button>
                 </div>
@@ -479,18 +467,10 @@ export default function StudentRegistrationPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={secondaryBtnClass}
-                    onClick={goBack}
-                    disabled={isLoading}
-                  >
+                  <Button className={secondaryBtnClass} onClick={goBack} disabled={isLoading}>
                     Back
                   </Button>
-                  <Button
-                    className={primaryBtnClass}
-                    onClick={handleNext}
-                    disabled={isLoading}
-                  >
+                  <Button className={primaryBtnClass} onClick={handleNext} disabled={isLoading}>
                     Register
                   </Button>
                 </div>
@@ -512,17 +492,13 @@ export default function StudentRegistrationPage() {
                     htmlFor="tosAccepted"
                     className="cursor-pointer text-sm font-medium text-white/80"
                   >
-                    I agree to the Terms and Agreements and confirm that the information provided
-                    is accurate.
+                    I agree to the Terms and Agreements and confirm that the information provided is
+                    accurate.
                   </Label>
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    className={secondaryBtnClass}
-                    onClick={goBack}
-                    disabled={isLoading}
-                  >
+                  <Button className={secondaryBtnClass} onClick={goBack} disabled={isLoading}>
                     Back
                   </Button>
                   <Button
@@ -537,8 +513,6 @@ export default function StudentRegistrationPage() {
             )}
           </CardContent>
         </Card>
-
-
       </div>
     </div>
   )

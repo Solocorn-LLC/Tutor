@@ -92,7 +92,9 @@ export function AIChat({ context, className }: AIChatProps) {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'h-14 w-14 rounded-full shadow-lg transition-all',
-          isOpen ? 'bg-gray-600 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white' : 'bg-blue-500 hover:bg-blue-600'
+          isOpen
+            ? 'bg-gray-600 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white'
+            : 'bg-blue-500 hover:bg-blue-600'
         )}
       >
         {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}

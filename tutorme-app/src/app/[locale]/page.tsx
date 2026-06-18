@@ -2173,7 +2173,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   return (
     <section
       id="panel-2-search-results"
-      className="relative flex min-h-[calc(100vh-200px)] flex-col justify-center w-full overflow-hidden"
+      className="relative flex min-h-[calc(100vh-200px)] w-full flex-col justify-center overflow-hidden"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
@@ -2275,10 +2275,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <DialogTitle className="text-lg">{selectedCourse?.name}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 space-y-2 p-3 pt-0">
-            <DialogPanel
-              variant="default"
-              className="border-slate-200 bg-white p-3 text-[#1F2933]"
-            >
+            <DialogPanel variant="default" className="border-slate-200 bg-white p-3 text-[#1F2933]">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-0.5">
                   <div className="text-xs font-medium text-[#1F2933]/70">Category</div>
@@ -2331,19 +2328,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 </div>
               </div>
             </DialogPanel>
-            <DialogPanel
-              variant="default"
-              className="border-slate-200 bg-white p-3 text-[#1F2933]"
-            >
+            <DialogPanel variant="default" className="border-slate-200 bg-white p-3 text-[#1F2933]">
               <h3 className="mb-2 text-sm font-semibold text-[#1F2933]">About this course</h3>
               <p className="whitespace-pre-wrap text-sm leading-snug text-[#1F2933]/80">
                 {selectedCourse?.description || 'More details will be available soon.'}
               </p>
             </DialogPanel>
-            <DialogPanel
-              variant="default"
-              className="border-slate-200 bg-white p-3 text-[#1F2933]"
-            >
+            <DialogPanel variant="default" className="border-slate-200 bg-white p-3 text-[#1F2933]">
               <div className="grid grid-cols-[auto_1fr] gap-3">
                 {/* Left column: heading + photo + name */}
                 <div className="flex flex-col gap-2">
@@ -2433,7 +2424,9 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               variant="default"
               className="flex min-h-[120px] items-center justify-center border-slate-200 bg-white p-3 text-[#1F2933]"
             >
-              <span className="text-sm font-medium text-[#1F2933]/90">Course Videos and Documents</span>
+              <span className="text-sm font-medium text-[#1F2933]/90">
+                Course Videos and Documents
+              </span>
             </DialogPanel>
           </div>
           <DialogFooter className="gap-2">
@@ -2895,8 +2888,7 @@ const ComingSoonModal = ({
     onChange: (value: string) => void
     placeholder?: string
   }) => {
-    const cleanValue =
-      prefix === '@' ? value.replace(/^@+/, '') : value.replace(/^https?:\/\//, '')
+    const cleanValue = prefix === '@' ? value.replace(/^@+/, '') : value.replace(/^https?:\/\//, '')
     return (
       <div className="flex items-center gap-3">
         {icon}
@@ -2913,7 +2905,7 @@ const ComingSoonModal = ({
               )
             }
             placeholder={placeholder || ''}
-            className="ml-2 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none"
+            className="ml-2 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -2949,11 +2941,9 @@ const ComingSoonModal = ({
           onChange={e => setFormData({ ...formData, about: e.target.value.slice(0, 400) })}
           required
           rows={4}
-          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none"
+          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400"
         />
-        <div className="mt-1 text-right text-xs text-zinc-400">
-          {formData.about.length}/400
-        </div>
+        <div className="mt-1 text-right text-xs text-zinc-400">{formData.about.length}/400</div>
       </div>
       <h3 className="text-lg font-semibold text-white">
         Do you use social media for your tutoring or instructional content?
@@ -3085,7 +3075,10 @@ const ComingSoonModal = ({
                     </div>
                   </div>
                 )}
-                <form onSubmit={type === 'register' ? handleRegisterSubmit : handleSubmit} className="space-y-4">
+                <form
+                  onSubmit={type === 'register' ? handleRegisterSubmit : handleSubmit}
+                  className="space-y-4"
+                >
                   {type === 'tutor' && renderTutorForm()}
                   {type === 'academy' && renderAcademyForm()}
                   {type === 'schools' && renderSchoolsForm()}
@@ -3106,9 +3099,13 @@ const ComingSoonModal = ({
                 >
                   {t('thankYou')}
                 </h3>
-                <p className={type === 'register' || mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
+                <p
+                  className={
+                    type === 'register' || mode === 'dark' ? 'text-zinc-400' : 'text-zinc-600'
+                  }
+                >
                   {type === 'register'
-                    ? "Your email client is opening. Send the message to complete your submission."
+                    ? 'Your email client is opening. Send the message to complete your submission.'
                     : t('successMessageRegister')}
                 </p>
                 <Button
@@ -3436,7 +3433,6 @@ const ContactModal = ({
                   {loading ? 'Sending...' : 'Send Message'}
                 </Button>
               </form>
-
             </>
           ) : (
             <div className="py-8 text-center">

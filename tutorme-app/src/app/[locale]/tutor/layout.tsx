@@ -100,7 +100,9 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     pathname?.startsWith('/tutor/support/') ||
     pathname === '/tutor/help' ||
     pathname?.startsWith('/tutor/help/')
-  const [desktopNavOpen, setDesktopNavOpen] = useState(!isMyPage && !isReportsPage && !isAccountPage && !isSupportPage)
+  const [desktopNavOpen, setDesktopNavOpen] = useState(
+    !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage
+  )
 
   // Use realm session (tutor tab) first; only redirect if we don't have a tutor session and default session is another role
   useEffect(() => {
@@ -326,7 +328,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:my-4 lg:mr-4 lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:pt-4 lg:shadow-[0_18px_60px_rgba(0,0,0,0.16)] lg:ring-1 lg:ring-black/5">
-        <div className="h-full overflow-y-auto scrollbar-hide [&>*:last-child]:mb-0 [&>*:last-child]:pb-0">
+        <div className="scrollbar-hide h-full overflow-y-auto [&>*:last-child]:mb-0 [&>*:last-child]:pb-0">
           {children}
         </div>
       </main>

@@ -72,10 +72,7 @@ export async function POST(
       .select({ enrollmentId: courseEnrollment.enrollmentId })
       .from(courseEnrollment)
       .where(
-        and(
-          eq(courseEnrollment.studentId, studentId),
-          eq(courseEnrollment.courseId, task.courseId)
-        )
+        and(eq(courseEnrollment.studentId, studentId), eq(courseEnrollment.courseId, task.courseId))
       )
       .limit(1)
 

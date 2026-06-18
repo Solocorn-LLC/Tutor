@@ -18,11 +18,23 @@ const topItems: { id: CommSection; label: string; icon: React.ElementType }[] = 
 ]
 
 const emptyStates: Record<CommSection, { icon: React.ElementType; title: string; hint: string }> = {
-  chats: { icon: MessageSquare, title: 'No conversations yet', hint: 'Start a chat to see it here' },
+  chats: {
+    icon: MessageSquare,
+    title: 'No conversations yet',
+    hint: 'Start a chat to see it here',
+  },
   contacts: { icon: Users, title: 'No contacts yet', hint: 'Your contacts will appear here' },
-  requests: { icon: UserPlus, title: 'No requests yet', hint: 'Connection requests will appear here' },
+  requests: {
+    icon: UserPlus,
+    title: 'No requests yet',
+    hint: 'Connection requests will appear here',
+  },
   followers: { icon: Heart, title: 'No followers yet', hint: 'Your followers will appear here' },
-  settings: { icon: Settings, title: 'Settings', hint: 'Communication preferences will appear here' },
+  settings: {
+    icon: Settings,
+    title: 'Settings',
+    hint: 'Communication preferences will appear here',
+  },
 }
 
 export default function MessagingPanel({ activeSection, onSectionChange }: MessagingPanelProps) {
@@ -70,7 +82,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
       {/* List column */}
       <div className="flex w-full flex-col border-r border-gray-200 sm:w-72 lg:w-80">
         <div className="border-b border-gray-200 p-4">
-          <h2 className="text-lg font-bold text-slate-800 capitalize">{activeSection}</h2>
+          <h2 className="text-lg font-bold capitalize text-slate-800">{activeSection}</h2>
           <div className="relative mt-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
@@ -92,7 +104,9 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
       {/* Detail / chat area */}
       <div className="flex flex-1 flex-col items-center justify-center bg-slate-50/30 p-6 text-center">
         <Inbox className="mb-3 h-16 w-16 text-slate-300" />
-        <p className="text-lg font-bold text-slate-700">Select a {activeSection === 'settings' ? 'setting' : activeSection.slice(0, -1)}</p>
+        <p className="text-lg font-bold text-slate-700">
+          Select a {activeSection === 'settings' ? 'setting' : activeSection.slice(0, -1)}
+        </p>
         <p className="mt-1 text-sm text-slate-500">
           Choose an item from the {activeSection} list to view details
         </p>

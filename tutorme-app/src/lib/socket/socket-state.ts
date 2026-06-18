@@ -463,7 +463,6 @@ export function getMathSyncObservability(sessionId?: string): MathSyncObservabil
   return snapshots.sort((a, b) => b.lastActivity - a.lastActivity)
 }
 
-
 // ============ Feedback & Insights ============
 export const deployedTasks = new Map<
   string,
@@ -533,7 +532,6 @@ export function trimPdfEvents(room: PdfCollabRoomState) {
 export function getRoomState(roomId: string): ClassRoom | undefined {
   return activeRooms.get(roomId)
 }
-
 
 export function getDMRoomState(conversationId: string): DirectMessageRoom | undefined {
   return directMessageRooms.get(conversationId)

@@ -18,9 +18,7 @@ export function StudentNavProvider({
   children: ReactNode
 }) {
   return (
-    <StudentNavContext.Provider value={{ desktopNavOpen }}>
-      {children}
-    </StudentNavContext.Provider>
+    <StudentNavContext.Provider value={{ desktopNavOpen }}>{children}</StudentNavContext.Provider>
   )
 }
 
