@@ -7644,13 +7644,13 @@ FEEDBACK: [your explanation]`
                           <TabsList className="flex w-auto items-center gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                             <TabsTrigger
                               value="submissions"
-                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=inactive]:bg-white data-[state=inactive]:text-gray-700 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
+                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                             >
                               Submissions
                             </TabsTrigger>
                             <TabsTrigger
                               value="insights"
-                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=inactive]:bg-white data-[state=inactive]:text-gray-700 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
+                              className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                             >
                               Insights
                             </TabsTrigger>
@@ -7688,13 +7688,13 @@ FEEDBACK: [your explanation]`
                               <TabsList className="flex w-auto items-center gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                                 <TabsTrigger
                                   value="submissions"
-                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=inactive]:bg-white data-[state=inactive]:text-gray-700 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
+                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                                 >
                                   Submissions
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="insights"
-                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=inactive]:bg-white data-[state=inactive]:text-gray-700 data-[state=active]:bg-gray-800 data-[state=active]:text-white"
+                                  className="h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                                 >
                                   Insights
                                 </TabsTrigger>
