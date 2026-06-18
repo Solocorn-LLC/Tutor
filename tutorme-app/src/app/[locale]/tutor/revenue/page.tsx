@@ -43,7 +43,9 @@ import {
   CheckCircle2,
   XCircle,
   Hourglass,
+  CalendarClock,
 } from 'lucide-react'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 interface Transaction {
   id: string
@@ -118,6 +120,7 @@ interface RevenueData {
 export default function RevenuePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const [emailAddress, setEmailAddress] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -669,15 +672,27 @@ export default function RevenuePage() {
                               )}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              router.push(`/tutor/insights?tab=builder&courseId=${course.id}`)
-                            }
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setScheduleCourse({ id: course.id, name: course.name })
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Schedule
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                router.push(`/tutor/insights?tab=builder&courseId=${course.id}`)
+                              }
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="rounded-lg bg-blue-50 p-3 text-center">
@@ -1044,6 +1059,11 @@ export default function RevenuePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </div>
   )
 }

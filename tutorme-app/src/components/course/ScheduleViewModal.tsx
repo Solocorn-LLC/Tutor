@@ -66,7 +66,7 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
 
   return (
     <Dialog open={!!courseId} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5" /> Class Schedules
@@ -76,7 +76,7 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] space-y-4 overflow-y-auto p-1">
+        <div className="max-h-[65vh] overflow-y-auto p-1">
           {loading ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
@@ -88,8 +88,9 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
               No fixed schedules yet — class times are arranged with the tutor.
             </p>
           ) : (
-            schedules.map(s => (
-              <div key={s.scheduleId} className="rounded-lg border bg-gray-50 p-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {schedules.map(s => (
+                <div key={s.scheduleId} className="flex flex-col rounded-lg border bg-gray-50 p-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <h4 className="font-semibold text-gray-900">{s.name}</h4>
                   {s.maxStudents != null && (
@@ -122,8 +123,9 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
                 {s.weeksToSchedule ? (
                   <p className="mt-2 text-xs text-gray-400">Runs for {s.weeksToSchedule} weeks</p>
                 ) : null}
-              </div>
-            ))
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

@@ -17,6 +17,7 @@ import {
   PreferenceEnrollmentDialog,
   type ScheduleItem,
 } from '@/components/course/PreferenceEnrollmentDialog'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import {
   Clock,
   Calendar,
@@ -524,52 +525,12 @@ function CoursePageInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Schedule Modal */}
-      <Dialog open={!!scheduleCourse} onOpenChange={open => !open && setScheduleCourse(null)}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Course Schedule</DialogTitle>
-            <DialogDescription>
-              {scheduleCourse?.name}
-              {scheduleCourse?.availability?.summary && ` - ${scheduleCourse.availability.summary}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="p-6">
-            <DialogPanel className="space-y-4 p-6">
-              <h4 className="text-sm font-semibold text-gray-900">Weekly Classes</h4>
-              {scheduleCourse?.availability?.slots &&
-              scheduleCourse.availability.slots.length > 0 ? (
-                <div className="space-y-2">
-                  {scheduleCourse.availability.slots.map((slot, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between rounded-lg border bg-gray-50 p-3 text-sm"
-                    >
-                      <span className="font-medium text-gray-900">{slot.dayOfWeek}</span>
-                      <span className="text-gray-600">
-                        {slot.startTime} ({slot.durationMinutes} mins)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg bg-gray-50 p-4 text-center">
-                  <p className="text-sm text-gray-600">Flexible schedule (TBD with tutor)</p>
-                </div>
-              )}
-            </DialogPanel>
-          </div>
-          <DialogFooter align="end" className="gap-3">
-            <Button
-              variant="modal-secondary-dark"
-              className="h-10"
-              onClick={() => setScheduleCourse(null)}
-            >
-              Close Schedule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Schedule Modal — shared named-schedule view (side by side) */}
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
 
       {/* Tabs */}
       <SessionCalendarPanel

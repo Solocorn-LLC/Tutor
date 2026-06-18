@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogPanel,
 } from '@/components/ui/dialog'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { DEFAULT_LOCALE } from '@/lib/i18n/config'
 import {
@@ -2078,45 +2079,11 @@ export default function PublicTutorPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!scheduleCourse} onOpenChange={open => !open && setScheduleCourse(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{scheduleCourse?.name}</DialogTitle>
-            <DialogDescription>{scheduleCourse?.description}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 p-6 pt-0">
-            <DialogPanel>
-              <h4 className="mb-2 text-sm font-semibold text-gray-900">Weekly Schedule</h4>
-              {scheduleCourse?.schedule && scheduleCourse.schedule.length > 0 ? (
-                <div className="space-y-2">
-                  {scheduleCourse.schedule.map((slot: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 p-2 text-sm"
-                    >
-                      <span className="font-medium text-gray-900">{slot.dayOfWeek}</span>
-                      <span className="text-gray-600">
-                        {slot.startTime} ({slot.durationMinutes} mins)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No fixed schedule for this course.</p>
-              )}
-            </DialogPanel>
-          </div>
-          <DialogFooter className="gap-3">
-            <Button
-              variant="modal-secondary-dark"
-              onClick={() => setScheduleCourse(null)}
-              className="h-10"
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
 
       <Dialog
         open={!!classroomPickerCourse}

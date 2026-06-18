@@ -15,8 +15,10 @@ import {
   FileText,
   School,
   Trophy,
+  CalendarClock,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 export interface EnrolledCourse {
   id: string
@@ -41,6 +43,7 @@ interface MyCoursesCardProps {
 export function MyCoursesCard({ courses, onCourseRemoved }: MyCoursesCardProps) {
   const [showAll, setShowAll] = useState(false)
   const [removingSubject, setRemovingSubject] = useState<string | null>(null)
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
 
   const visibleCourses =
     showAll || courses.length <= VISIBLE_COURSES ? courses : courses.slice(0, VISIBLE_COURSES)
@@ -173,6 +176,18 @@ export function MyCoursesCard({ courses, onCourseRemoved }: MyCoursesCardProps) 
                       My scores
                     </Link>
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={e => {
+                      e.stopPropagation()
+                      setScheduleCourse({ id: course.id, name: course.name })
+                    }}
+                  >
+                    <CalendarClock className="mr-1 h-3 w-3" />
+                    Schedule
+                  </Button>
                   <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
                     <Link
                       href={`/student/subjects/${encodeURIComponent(course.subject)}/courses/${encodeURIComponent(course.id)}/details`}
@@ -201,6 +216,11 @@ export function MyCoursesCard({ courses, onCourseRemoved }: MyCoursesCardProps) 
           </div>
         )}
       </CardContent>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </Card>
   )
 }
