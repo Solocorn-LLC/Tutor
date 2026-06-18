@@ -607,97 +607,97 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-                {(activeMainTab === 'builder' || activeMainTab === 'live') &&
-                  onSaveModeChange &&
-                  !modeLocked && (
-                    <Select
-                      value={saveMode}
-                      onValueChange={(val: 'live' | 'draft') => onSaveModeChange(val)}
-                    >
-                      <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="live">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-green-500" />
-                            Live
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="draft">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-amber-500" />
-                            Editing
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                {(activeMainTab === 'builder' || activeMainTab === 'live') && modeLocked && (
-                  <div className="flex h-9 w-[190px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-                    <div className="h-2 w-2 rounded-full bg-amber-500" />
-                    Editing
-                  </div>
-                )}
-                {activeMainTab === 'builder' && onSaveCourse && (
-                  <Button
-                    variant="outline"
-                    className="gap-2 font-medium text-slate-700 hover:text-slate-900"
-                    onClick={async () => {
-                      const cb = (model.courseBuilderRef.current as any)?.saveAll
-                      if (typeof cb === 'function') {
-                        await cb()
-                      } else {
-                        toast.error('Builder not ready to save')
-                      }
-                    }}
+              {(activeMainTab === 'builder' || activeMainTab === 'live') &&
+                onSaveModeChange &&
+                !modeLocked && (
+                  <Select
+                    value={saveMode}
+                    onValueChange={(val: 'live' | 'draft') => onSaveModeChange(val)}
                   >
-                    <Save className="h-4 w-4" />
-                    Save
+                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="live">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          Live
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="draft">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-amber-500" />
+                          Editing
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              {(activeMainTab === 'builder' || activeMainTab === 'live') && modeLocked && (
+                <div className="flex h-9 w-[190px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                  <div className="h-2 w-2 rounded-full bg-amber-500" />
+                  Editing
+                </div>
+              )}
+              {activeMainTab === 'builder' && onSaveCourse && (
+                <Button
+                  variant="outline"
+                  className="gap-2 font-medium text-slate-700 hover:text-slate-900"
+                  onClick={async () => {
+                    const cb = (model.courseBuilderRef.current as any)?.saveAll
+                    if (typeof cb === 'function') {
+                      await cb()
+                    } else {
+                      toast.error('Builder not ready to save')
+                    }
+                  }}
+                >
+                  <Save className="h-4 w-4" />
+                  Save
+                </Button>
+              )}
+              {activeMainTab === 'builder' &&
+                courseId &&
+                courseId !== 'insights-draft' &&
+                (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant)) && (
+                  <Button
+                    variant="default"
+                    className="gap-2 bg-blue-600 font-medium text-white hover:bg-blue-700"
+                    onClick={saveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    {saveMode === 'draft' ? 'Schedule' : 'Reschedule'}
                   </Button>
                 )}
-                {activeMainTab === 'builder' &&
-                  courseId &&
-                  courseId !== 'insights-draft' &&
-                  (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant)) && (
-                    <Button
-                      variant="default"
-                      className="gap-2 bg-blue-600 font-medium text-white hover:bg-blue-700"
-                      onClick={saveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      {saveMode === 'draft' ? 'Schedule' : 'Reschedule'}
+              {/* Kebab menu — visible for all real courses on the builder tab */}
+              {activeMainTab === 'builder' && courseId && courseId !== 'insights-draft' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="shrink-0">
+                      <MoreVertical className="h-5 w-5" />
                     </Button>
-                  )}
-                {/* Kebab menu — visible for all real courses on the builder tab */}
-                {activeMainTab === 'builder' && courseId && courseId !== 'insights-draft' && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon" className="shrink-0">
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {/* Go Live only when in draft mode and no active session */}
-                      {saveMode === 'draft' && !insightsProps.sessionId && (
-                        <DropdownMenuItem onClick={handleStartSessionClick}>
-                          <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
-                          Go Live
-                        </DropdownMenuItem>
-                      )}
-                      {onDeleteCourse && (
-                        <DropdownMenuItem
-                          onClick={onDeleteCourse}
-                          disabled={!!insightsProps.sessionId}
-                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Course
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {/* Go Live only when in draft mode and no active session */}
+                    {saveMode === 'draft' && !insightsProps.sessionId && (
+                      <DropdownMenuItem onClick={handleStartSessionClick}>
+                        <VideoIcon className="mr-2 h-4 w-4 text-green-600" />
+                        Go Live
+                      </DropdownMenuItem>
+                    )}
+                    {onDeleteCourse && (
+                      <DropdownMenuItem
+                        onClick={onDeleteCourse}
+                        disabled={!!insightsProps.sessionId}
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Course
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
