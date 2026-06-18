@@ -1,0 +1,18 @@
+name: Keep server warm
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping production health endpoint
+        run: |
+          if [ -z "${{ secrets.SITE_URL }}" ]; then
+            echo "SITE_URL secret is not set. Skipping keep-alive ping."
+            exit 0
+          fi
+          curl -fsS -m 30 "${{ secrets.SITE_URL }}/api/health" || true

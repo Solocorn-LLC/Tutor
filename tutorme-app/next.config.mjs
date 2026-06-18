@@ -69,14 +69,10 @@ const nextConfig = {
 
     return config
   },
-  // Serve the Vite landing page at root instead of the Next.js App Router page
+  // Classroom route alias (kept for backward compatibility)
   async rewrites() {
     return {
       beforeFiles: [
-        {
-          source: '/',
-          destination: '/index.html',
-        },
         {
           source: '/tutor/classroom',
           destination: '/tutor/insights?view=classroom',

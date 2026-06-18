@@ -56,27 +56,6 @@ const THEME_INIT_SCRIPT = `
 })();
 `
 
-const SW_UNREGISTER_SCRIPT = `
-(function() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      regs.forEach(function(reg) {
-        console.log('[SW-Reset] Unregistering service worker:', reg.scope);
-        reg.unregister();
-      });
-    });
-    if (window.caches) {
-      caches.keys().then(function(names) {
-        names.forEach(function(name) {
-          console.log('[SW-Reset] Deleting cache:', name);
-          caches.delete(name);
-        });
-      });
-    }
-  }
-})();
-`
-
 async function getOptimizedLocaleData() {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()])
   return { locale, messages }
@@ -106,7 +85,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: SW_UNREGISTER_SCRIPT }} />
       </head>
       <body className="font-sans">
         <Providers locale={locale} messages={messages}>

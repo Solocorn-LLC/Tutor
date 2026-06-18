@@ -10,8 +10,23 @@ async function start() {
 
   const skipMigrations = process.env.SKIP_MIGRATIONS === 'true'
   const migrationsRequired = process.env.MIGRATIONS_REQUIRED !== 'false'
+  const backgroundMigrations = process.env.BACKGROUND_MIGRATIONS !== 'false'
 
-  if (!skipMigrations) {
+  if (skipMigrations) {
+    console.log('[Startup] Skipping migrations (SKIP_MIGRATIONS=true)')
+  } else if (backgroundMigrations) {
+    // Run migrations in the background so the server can bind its port immediately.
+    // Schema fixes inside the server provide a safety net while migrations catch up.
+    console.log('[Startup] Running database migrations in the background...')
+    runMigrations()
+      .then(() => console.log('[Startup] Background migrations completed successfully'))
+      .catch(error => {
+        console.error('[Startup] Background migration failed:', error)
+        if (migrationsRequired) {
+          console.error('[Startup] Migrations are required (MIGRATIONS_REQUIRED !== false). Check logs and restart.')
+        }
+      })
+  } else {
     try {
       console.log('[Startup] Running database migrations...')
       await runMigrations()
@@ -21,8 +36,6 @@ async function start() {
         process.exit(1)
       }
     }
-  } else {
-    console.log('[Startup] Skipping migrations (SKIP_MIGRATIONS=true)')
   }
 
   const serverJs = path.join(process.cwd(), 'server.js')
