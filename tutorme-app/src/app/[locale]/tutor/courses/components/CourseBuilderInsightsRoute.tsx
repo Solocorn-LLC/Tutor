@@ -540,10 +540,7 @@ function CourseBuilderInsightsRouteInner({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className={cn(
-                        'h-8 w-8 p-0 text-slate-500 hover:text-slate-700',
-                        hasNoCourses && 'animate-attention-pulse'
-                      )}
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                       onClick={onCreateCourse}
                       title={hasNoCourses ? 'Create your first course' : 'New Course'}
                     >

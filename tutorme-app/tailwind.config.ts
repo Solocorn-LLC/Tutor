@@ -197,7 +197,6 @@ const config: Config = {
         // Pulse and glow
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
         "glow-pulse": "glowPulse 2s ease-in-out infinite",
-        "attention-pulse": "attentionPulse 2s ease-in-out infinite",
         
         // Shimmer for loading states
         "shimmer": "shimmer 2s linear infinite",
@@ -268,19 +267,6 @@ const config: Config = {
         glowPulse: {
           "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" },
           "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.5)" },
-        },
-        attentionPulse: {
-          "0%, 100%": {
-            transform: "scale(1)",
-            backgroundColor: "transparent",
-            color: "#64748b",
-          },
-          "50%": {
-            transform: "scale(1.25)",
-            backgroundColor: "#22c55e",
-            color: "#ffffff",
-            boxShadow: "0 0 14px rgba(34, 197, 94, 0.5)",
-          },
         },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
