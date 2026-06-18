@@ -22,6 +22,7 @@ import {
 import { eq, and, or, gte, lte, gt, lt, asc, isNull, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
+import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 const AvailabilitySchema = z.object({
   dayOfWeek: z.number().min(0).max(6),
@@ -109,7 +110,7 @@ export const GET = withAuth(
           .where(
             and(
               eq(liveSession.tutorId, tutorId),
-              inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
+              inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
               // A live session overlaps if: scheduledAt < endDate AND (scheduledAt + duration) > startDate
               // We approximate with scheduledAt within a window that could overlap
               gte(liveSession.scheduledAt, new Date(startDate.getTime() - 24 * 60 * 60 * 1000)),

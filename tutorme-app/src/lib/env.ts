@@ -9,6 +9,9 @@ const WARN_IF_MISSING_IN_PROD = [
   // AI: either GEMINI_API_KEY or KIMI_API_KEY must be present (see lib/ai/provider.ts)
   'GEMINI_API_KEY',
   'KIMI_API_KEY',
+  // Video: without this, lib/video/daily-provider mints unjoinable mock room URLs
+  // (https://mock.daily.co/...) and every "join video call" fails.
+  'DAILY_API_KEY',
   'SENTRY_DSN',
   'NEXT_PUBLIC_SENTRY_DSN',
 ] as const

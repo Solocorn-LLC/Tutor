@@ -119,6 +119,9 @@ export function FloatingVideoOverlay() {
           <div className="truncate pl-2">Video</div>
           <button
             type="button"
+            // Stop the drag handle's pointer capture from stealing the pointerup
+            // (which would suppress this button's click and prevent closing).
+            onPointerDown={e => e.stopPropagation()}
             onClick={() => {
               window.dispatchEvent(new Event('tutorme:daily-video-leave'))
               closeOverlay()

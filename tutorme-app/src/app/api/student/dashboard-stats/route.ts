@@ -30,15 +30,10 @@ import {
   type RealSession,
   type VirtualSession,
 } from '@/lib/schedule-sessions'
+import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 const ACTIVE_BOOKING_STATUSES: BookingRequestStatus[] = ['PENDING', 'ACCEPTED', 'PAID']
-const ACTIVE_LIVE_SESSION_STATUSES: LiveSessionStatus[] = [
-  'scheduled',
-  'active',
-  'preparing',
-  'live',
-  'paused',
-]
+const ACTIVE_LIVE_SESSION_STATUSES: LiveSessionStatus[] = LIVE_SESSION_OPEN_STATUSES
 
 export const dynamic = 'force-dynamic'
 

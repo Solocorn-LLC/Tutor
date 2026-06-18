@@ -60,6 +60,7 @@ describe('GET /api/courses/list', () => {
     // Build chainable mock for Drizzle queries
     const chainable = {
       from: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       groupBy: vi.fn().mockReturnThis(),
       then: vi.fn((cb: any) => Promise.resolve(cb(mockCourses))),

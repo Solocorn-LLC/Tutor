@@ -15,12 +15,16 @@ import {
   user,
   profile,
   course,
+  courseSchedule,
+  courseVariant,
   sessionReplayArtifact,
   calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateSessionSummary } from '@/lib/chat/summary'
+import { formatScheduleName } from '@/lib/sessions/schedule-name'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
 
@@ -68,6 +72,23 @@ export const GET = withAuth(
         { error: 'Class not found or you do not have permission to view it' },
         { status: 404 }
       )
+    }
+
+    // Tutor entering the live classroom starts the session — same guard as the
+    // explicit POST /start (not before scheduledAt, not once ended) — so students
+    // can join regardless of how the tutor opened the room. Unifies the start path
+    // (previously this GET left the session 'scheduled' while POST flipped it).
+    if (
+      liveSessionRow.status === 'scheduled' &&
+      !(liveSessionRow.scheduledAt && new Date(liveSessionRow.scheduledAt).getTime() > Date.now())
+    ) {
+      const startedAt = liveSessionRow.startedAt || new Date()
+      await drizzleDb
+        .update(liveSession)
+        .set({ status: 'active', startedAt })
+        .where(eq(liveSession.sessionId, classId))
+      liveSessionRow.status = 'active'
+      liveSessionRow.startedAt = startedAt
     }
 
     const participants = await drizzleDb
@@ -175,12 +196,48 @@ export const GET = withAuth(
     const deterministicLinkedCourseId = liveSessionRow.courseId || linkedCourse?.id || null
 
     const sessionDuration = liveSessionRow.durationMinutes ?? 240
-    const token = liveSessionRow.roomId
-      ? await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
+    // Resilient: a Daily token hiccup must not 500 the whole classroom (chat /
+    // whiteboard / roster still load; the room is public so video can still join).
+    let token: string | null = null
+    if (liveSessionRow.roomId) {
+      try {
+        token = await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
           isOwner: true,
           durationMinutes: sessionDuration,
         })
-      : null
+      } catch (err: any) {
+        console.error('[tutor classes GET] Daily token creation failed:', err?.message)
+      }
+    }
+
+    // Schedule name (if this session came from a schedule) + course name/variant,
+    // so the details page can show "Schedule 1" and the course instead of a
+    // generic "Live Session" title.
+    let scheduleName: string | null = null
+    if (liveSessionRow.scheduleId) {
+      const [sch] = await drizzleDb
+        .select({ name: courseSchedule.name, scheduleIndex: courseSchedule.scheduleIndex })
+        .from(courseSchedule)
+        .where(eq(courseSchedule.scheduleId, liveSessionRow.scheduleId))
+        .limit(1)
+      if (sch) scheduleName = formatScheduleName(sch.name, sch.scheduleIndex)
+    }
+    let courseName: string | null = null
+    let variantName = ''
+    if (liveSessionRow.courseId) {
+      const [courseRow2] = await drizzleDb
+        .select({ name: course.name })
+        .from(course)
+        .where(eq(course.courseId, liveSessionRow.courseId))
+        .limit(1)
+      courseName = courseRow2?.name ?? null
+      const [variantRow] = await drizzleDb
+        .select({ category: courseVariant.category, nationality: courseVariant.nationality })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, liveSessionRow.courseId))
+        .limit(1)
+      variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
+    }
 
     return NextResponse.json({
       session: {
@@ -196,6 +253,10 @@ export const GET = withAuth(
         maxStudents: liveSessionRow.maxStudents,
         linkedCourseId: deterministicLinkedCourseId,
         category: liveSessionRow.category,
+        scheduleId: liveSessionRow.scheduleId ?? null,
+        scheduleName,
+        courseName,
+        variantName,
       },
       students,
       messages: messages.map(m => ({
@@ -325,6 +386,18 @@ export const PATCH = withCsrf(
 
       getIO()?.to(classId).emit('session:ended', { sessionId: classId, reason: 'tutor-ended' })
 
+      // Tear down the Daily.co room now that the session is over. Recordings are
+      // stored independently of the room, so deletion does not affect them and the
+      // recording.ready webhook still persists the URL afterwards. Best-effort:
+      // never fail the end request on a teardown error.
+      if (liveSessionRow.roomId) {
+        try {
+          await dailyProvider.deleteRoom(liveSessionRow.roomId)
+        } catch (err) {
+          console.error('[end-class] Daily room teardown failed:', err)
+        }
+      }
+
       const [partCount, messagesCountResult] = await Promise.all([
         drizzleDb
           .select({ count: sql<number>`count(*)::int` })
@@ -438,7 +511,7 @@ export const PATCH = withCsrf(
         console.error('Failed to generate replay artifact:', error)
       }
 
-      return NextResponse.json({ success: true, status: 'COMPLETED' })
+      return NextResponse.json({ success: true, status: 'ended' })
     },
     { role: 'TUTOR' }
   )

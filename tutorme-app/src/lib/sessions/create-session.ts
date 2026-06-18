@@ -26,6 +26,8 @@ export interface CreateSessionInput {
   category: string
   type: SessionType
   courseId?: string
+  /** CourseSchedule this session is materialized from (course sessions only). */
+  scheduleId?: string
   studentId?: string
   maxStudents?: number
   description?: string
@@ -76,6 +78,7 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
       sessionId,
       tutorId: input.tutorId,
       courseId: input.courseId ?? null,
+      scheduleId: input.scheduleId ?? null,
       title: input.title,
       category: input.category,
       description: input.description ?? null,

@@ -36,9 +36,11 @@ import {
   AlertCircle,
   Ban,
   Eye,
+  CalendarClock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 import {
   CreateClassDialog,
@@ -116,6 +118,10 @@ type CourseSession = {
   status: string
   roomUrl?: string | null
   isVirtual?: boolean
+  /** null/absent = a one-time session; set = materialized from the course schedule */
+  scheduleId?: string | null
+  /** Display name of the linked schedule, e.g. "Schedule 1" (null for one-time). */
+  scheduleName?: string | null
   durationMinutes?: number
 }
 
@@ -146,6 +152,14 @@ function TutorDashboardContent() {
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  // Course context for creating a one-time (non-schedule) session from the sessions modal.
+  const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
+  // Course name + variant for the sessions modal (from the sessions API).
+  const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
+    name: string | null
+    variantName: string
+  } | null>(null)
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
@@ -392,6 +406,7 @@ function TutorDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setCourseSessions(data.sessions || [])
+        setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
       } else {
         const errData = await res.json().catch(() => ({}))
         console.error('Tutor session load failed:', errData, res.status)
@@ -443,63 +458,6 @@ function TutorDashboardContent() {
       }
     },
     [launchingCourseId, router]
-  )
-
-  const handleEnterCourseClassroom = useCallback(
-    async (course: EnrolledCourse, scheduledAt?: string | null) => {
-      if (launchingCourseId) return
-      setLaunchingCourseId(course.id)
-      try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        const csrfToken = csrfData?.token ?? null
-
-        const res = await fetch('/api/class/rooms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            courseId: course.id,
-            title: course.name,
-            subject: (course.categories || [])[0] || course.name || 'General',
-            maxStudents: 50,
-            durationMinutes: scheduledAt
-              ? (course.schedule?.find(() => true)?.durationMinutes ?? 60)
-              : 60,
-            scheduledAt,
-          }),
-        })
-
-        const result = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          if (res.status === 409) {
-            toast.info(
-              'You have an active or scheduled session for this slot. Please select it below.'
-            )
-            handleOpenSessionsModal(course)
-            return
-          }
-          toast.error(result?.error || 'Failed to launch classroom')
-          return
-        }
-
-        const sessionId = result?.session?.sessionId
-        if (!sessionId) {
-          toast.error('Classroom created but no session ID returned')
-          return
-        }
-        // Navigate directly to live session page (Live tab)
-        router.push(withLocalePath(`/tutor/classroom?sessionId=${sessionId}`))
-      } catch {
-        toast.error('Failed to launch classroom')
-      } finally {
-        setLaunchingCourseId(null)
-      }
-    },
-    [launchingCourseId, router, handleOpenSessionsModal]
   )
 
   const handleCancelSession = useCallback(async (sessionId: string, reason?: string) => {
@@ -748,19 +706,19 @@ function TutorDashboardContent() {
                                 View Sessions
                               </Button>
                             ) : (
+                              // Sessions come only from the course schedule — send the
+                              // tutor to the scheduler (course details page) to add slots
+                              // and publish, instead of creating an ad-hoc session.
                               <Button
+                                asChild
                                 variant="default"
                                 size="sm"
-                                disabled={launchingCourseId === course.id}
-                                onClick={() => handleEnterCourseClassroom(course)}
                                 className="transition-all duration-200"
                               >
-                                {launchingCourseId === course.id ? (
-                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Video className="mr-1 h-3 w-3" />
-                                )}
-                                Create Session
+                                <Link href={withLocalePath(`/tutor/courses/${course.id}`)}>
+                                  <CalendarClock className="mr-1 h-3 w-3" />
+                                  Schedule sessions
+                                </Link>
                               </Button>
                             )}
                             <Button
@@ -776,6 +734,17 @@ function TutorDashboardContent() {
                               >
                                 Edit
                               </Link>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="hover:bg-muted/80 transition-all duration-200"
+                              onClick={() =>
+                                setScheduleCourse({ id: course.id, name: course.name })
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-3 w-3" />
+                              Schedule
                             </Button>
                           </div>
                         </div>
@@ -873,6 +842,25 @@ function TutorDashboardContent() {
           initialDate={scheduleDate}
         />
 
+        {/* One-time (non-schedule) session for a specific course */}
+        <CreateClassDialog
+          open={!!oneTimeCourse}
+          onOpenChange={open => {
+            if (!open) setOneTimeCourse(null)
+          }}
+          courseId={oneTimeCourse?.id}
+          courseName={oneTimeCourse?.name}
+          redirectToClass={false}
+          onClassCreated={() => {
+            const course = oneTimeCourse
+            setOneTimeCourse(null)
+            if (course) {
+              toast.success('One-time session created')
+              handleOpenSessionsModal({ id: course.id, name: course.name } as EnrolledCourse)
+            }
+          }}
+        />
+
         {/* Course Sessions Modal */}
         <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
           <DialogContent className="max-w-2xl">
@@ -921,19 +909,15 @@ function TutorDashboardContent() {
                 <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
                   <Calendar className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8" />
                   <p>No sessions found for this course.</p>
+                  <p className="mt-1 text-xs">
+                    Sessions are created from the time slots in the course schedule.
+                  </p>
                   {selectedCourseForCancel && (
-                    <Button
-                      size="sm"
-                      className="mt-3 transition-all duration-200"
-                      disabled={launchingCourseId === selectedCourseForCancel.id}
-                      onClick={() => handleEnterCourseClassroom(selectedCourseForCancel)}
-                    >
-                      {launchingCourseId === selectedCourseForCancel.id ? (
-                        <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <Video className="mr-1 h-3 w-3" />
-                      )}
-                      Create session
+                    <Button asChild size="sm" className="mt-3 transition-all duration-200">
+                      <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                        <CalendarClock className="mr-1 h-3 w-3" />
+                        Set up the schedule
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -978,14 +962,37 @@ function TutorDashboardContent() {
                           className="border-border/30 bg-card/50 hover:border-border/50 hover:bg-card flex items-center justify-between rounded-lg border p-3 transition-all duration-200"
                         >
                           <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate font-medium">{session.title}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-medium">
+                                {sessionsCourseMeta?.name
+                                  ? `${sessionsCourseMeta.name}${sessionsCourseMeta.variantName ? ` — ${sessionsCourseMeta.variantName}` : ''}`
+                                  : session.title}
+                              </p>
                               <Badge
                                 variant="outline"
                                 className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
                               >
                                 {displayStatus}
                               </Badge>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-[10px] uppercase tracking-wide',
+                                  isVirtual || session.scheduleId
+                                    ? 'bg-info/10 text-info border-info/25'
+                                    : 'bg-warning/10 text-warning border-warning/25'
+                                )}
+                              >
+                                {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
+                              </Badge>
+                              {session.scheduleName && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-primary/25 bg-primary/10 text-primary text-[10px] uppercase tracking-wide"
+                                >
+                                  {session.scheduleName}
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                               {session.scheduledAt && (
@@ -1049,24 +1056,17 @@ function TutorDashboardContent() {
                               </Button>
                             )}
                             {isVirtual ? (
+                              // Upcoming slot from the schedule that isn't materialized yet.
+                              // It becomes startable automatically once published into range;
+                              // tutors add/extend slots via the scheduler (footer button), not
+                              // by creating an ad-hoc session here.
                               <Button
-                                variant="default"
+                                variant="ghost"
                                 size="sm"
-                                disabled={launchingCourseId === selectedCourseForCancel?.id}
-                                onClick={() =>
-                                  handleEnterCourseClassroom(
-                                    selectedCourseForCancel!,
-                                    session.scheduledAt
-                                  )
-                                }
-                                className="transition-all duration-200"
+                                disabled
+                                title="This scheduled slot opens automatically — manage it from the course scheduler."
                               >
-                                {launchingCourseId === selectedCourseForCancel?.id ? (
-                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Video className="mr-1 h-3 w-3" />
-                                )}
-                                Create Session
+                                Upcoming
                               </Button>
                             ) : isScheduled ? (
                               <Button
@@ -1115,15 +1115,44 @@ function TutorDashboardContent() {
             <DialogFooter className="flex items-center justify-between sm:justify-between">
               <div className="text-muted-foreground flex items-center gap-2 text-xs">
                 <AlertCircle className="h-4 w-4" />
-                <span>Cancelling a session will notify enrolled students</span>
+                <span>Add recurring sessions in the scheduler, or create a one-off session</span>
               </div>
-              <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
-                Close
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedCourseForCancel && (
+                  <>
+                    <Button asChild variant="outline">
+                      <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                        <CalendarClock className="mr-1 h-4 w-4" />
+                        Add to schedule
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setOneTimeCourse({
+                          id: selectedCourseForCancel.id,
+                          name: selectedCourseForCancel.name,
+                        })
+                      }
+                    >
+                      <Video className="mr-1 h-4 w-4" />
+                      Create one-time session
+                    </Button>
+                  </>
+                )}
+                <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
+                  Close
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </div>
   )
 }

@@ -6,8 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment } from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseVariant } from '@/lib/db/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
 export const GET = withAuth(
   async (req: NextRequest) => {
@@ -31,8 +32,11 @@ export const GET = withAuth(
         currency: course.currency,
         isFree: course.isFree,
         createdAt: course.createdAt,
+        variantCategory: courseVariant.category,
+        variantNationality: courseVariant.nationality,
       })
       .from(course)
+      .leftJoin(courseVariant, eq(courseVariant.publishedCourseId, course.courseId))
       .where(whereClause)
 
     const courseIds = coursesRows.map(c => c.courseId)
@@ -66,6 +70,7 @@ export const GET = withAuth(
     const courses = coursesRows.map(c => ({
       id: c.courseId,
       name: c.name,
+      variantName: formatCourseVariantName(c.variantCategory, c.variantNationality),
       subject: c.categories?.[0] || 'general',
       description: c.description,
       difficulty: 'intermediate',

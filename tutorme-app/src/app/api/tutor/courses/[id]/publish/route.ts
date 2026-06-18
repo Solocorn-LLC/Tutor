@@ -16,6 +16,7 @@ import {
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
+import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, sql, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
@@ -449,7 +450,9 @@ export const POST = withCsrf(
               .where(eq(courseSchedule.courseId, publishedCourseId))
               .orderBy(courseSchedule.scheduleIndex)
 
-            // Update or create schedules
+            // Update or create schedules, remembering each row's id so the
+            // sessions we materialize below can be linked back to their schedule.
+            const scheduleIdByPayload = new Map<unknown, string>()
             for (let i = 0; i < schedules.length; i++) {
               const s = schedules[i]
               const existingSch = existingSchedules.find(es => es.scheduleIndex === s.scheduleIndex)
@@ -463,9 +466,11 @@ export const POST = withCsrf(
                     updatedAt: now,
                   })
                   .where(eq(courseSchedule.scheduleId, existingSch.scheduleId))
+                scheduleIdByPayload.set(s, existingSch.scheduleId)
               } else {
+                const newScheduleId = crypto.randomUUID()
                 await tx.insert(courseSchedule).values({
-                  scheduleId: crypto.randomUUID(),
+                  scheduleId: newScheduleId,
                   courseId: publishedCourseId,
                   scheduleIndex: s.scheduleIndex || i + 1,
                   schedule: s.schedule || [],
@@ -475,6 +480,7 @@ export const POST = withCsrf(
                   createdAt: now,
                   updatedAt: now,
                 })
+                scheduleIdByPayload.set(s, newScheduleId)
               }
             }
 
@@ -530,13 +536,7 @@ export const POST = withCsrf(
                         .where(
                           and(
                             eq(liveSession.tutorId, userId),
-                            inArray(liveSession.status, [
-                              'scheduled',
-                              'active',
-                              'preparing',
-                              'live',
-                              'paused',
-                            ]),
+                            inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
                             gte(liveSession.scheduledAt, minScheduledAt),
                             lte(liveSession.scheduledAt, maxScheduledAt)
                           )
@@ -727,9 +727,10 @@ export const POST = withCsrf(
                       category: v.category,
                       type: 'COURSE',
                       courseId: publishedCourseId,
+                      scheduleId: scheduleIdByPayload.get(s) ?? undefined,
                       description: templateCourse.description ?? undefined,
                       status: 'scheduled',
-                      maxStudents: 50,
+                      maxStudents: s.maxStudents ?? 50,
                       timezone: 'UTC',
                     },
                     tx

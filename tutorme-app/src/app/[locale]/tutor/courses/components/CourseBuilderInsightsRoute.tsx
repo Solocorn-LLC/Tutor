@@ -68,7 +68,7 @@ type Props = UseCourseBuilderContentArgs & {
   sessionCategory?: string | null
   sessionNationality?: string | null
   onSaveCourse?: (lessons: any[], options?: any) => void
-  onSyncToLiveSession?: () => void
+  onSyncToLiveSession?: (silent?: boolean) => void
   onCreateCourse?: () => void
   onDeleteCourse?: () => void
   isCreateDialogOpen?: boolean

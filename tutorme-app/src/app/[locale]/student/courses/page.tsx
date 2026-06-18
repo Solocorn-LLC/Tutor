@@ -17,6 +17,8 @@ import {
   PreferenceEnrollmentDialog,
   type ScheduleItem,
 } from '@/components/course/PreferenceEnrollmentDialog'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import {
   Clock,
   Calendar,
@@ -52,6 +54,7 @@ import { toast } from 'sonner'
 interface Course {
   id: string
   name: string
+  variantName?: string
   description: string | null
   subject: string
   difficulty: string
@@ -370,6 +373,10 @@ function CoursePageInner() {
           return {
             id: e.courseId,
             name: e.course?.name || 'Unknown Course',
+            variantName: formatCourseVariantName(
+              e.course?.variantCategory,
+              e.course?.variantNationality
+            ),
             description: e.course?.description || null,
             subject: e.course?.categories?.[0] || 'general',
             tutorHandle: e.course?.tutorHandle || null,
@@ -422,7 +429,9 @@ function CoursePageInner() {
   )
 
   const upcoming = myCourses.filter(
-    c => !c.enrollment?.startDate || new Date(c.enrollment.startDate) > now
+    c =>
+      !c.progress?.isCompleted &&
+      (!c.enrollment?.startDate || new Date(c.enrollment.startDate) > now)
   )
 
   const completed = myCourses.filter(c => c.progress?.isCompleted)
@@ -529,52 +538,12 @@ function CoursePageInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Schedule Modal */}
-      <Dialog open={!!scheduleCourse} onOpenChange={open => !open && setScheduleCourse(null)}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Course Schedule</DialogTitle>
-            <DialogDescription>
-              {scheduleCourse?.name}
-              {scheduleCourse?.availability?.summary && ` - ${scheduleCourse.availability.summary}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="p-6">
-            <DialogPanel className="space-y-4 p-6">
-              <h4 className="text-sm font-semibold text-gray-900">Weekly Classes</h4>
-              {scheduleCourse?.availability?.slots &&
-              scheduleCourse.availability.slots.length > 0 ? (
-                <div className="space-y-2">
-                  {scheduleCourse.availability.slots.map((slot, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between rounded-lg border bg-gray-50 p-3 text-sm"
-                    >
-                      <span className="font-medium text-gray-900">{slot.dayOfWeek}</span>
-                      <span className="text-gray-600">
-                        {slot.startTime} ({slot.durationMinutes} mins)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg bg-gray-50 p-4 text-center">
-                  <p className="text-sm text-gray-600">Flexible schedule (TBD with tutor)</p>
-                </div>
-              )}
-            </DialogPanel>
-          </div>
-          <DialogFooter align="end" className="gap-3">
-            <Button
-              variant="modal-secondary-dark"
-              className="h-10"
-              onClick={() => setScheduleCourse(null)}
-            >
-              Close Schedule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Schedule Modal — shared named-schedule view (side by side) */}
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
 
       {/* Tabs */}
       <SessionCalendarPanel
@@ -606,6 +575,7 @@ function CoursePageInner() {
               {activeTab === 'mine' && (
                 <CourseSection
                   title="Ongoing Courses"
+                  description="Courses you've started — your start date has passed and you haven't finished them yet. Join live sessions and keep learning."
                   courses={ongoing}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -618,6 +588,7 @@ function CoursePageInner() {
               {activeTab === 'pending' && (
                 <CourseSection
                   title="Pending Courses"
+                  description="Courses you're enrolled in that haven't started yet — their start date is still in the future. They'll move to Ongoing once they begin."
                   courses={upcoming}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -630,6 +601,7 @@ function CoursePageInner() {
               {activeTab === 'completed' && (
                 <CourseSection
                   title="Completed Courses"
+                  description="Courses you've finished — you've completed all lessons. Revisit materials and recordings anytime."
                   courses={completed}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -642,6 +614,7 @@ function CoursePageInner() {
               {activeTab === 'favorites' && (
                 <CourseSection
                   title="Favorite Courses"
+                  description="Courses you've saved to revisit later. Favoriting doesn't enrol you — open one to enrol or view details."
                   courses={favorites}
                   favoriteIds={favoriteIds}
                   toggleFavorite={toggleFavorite}
@@ -906,6 +879,7 @@ export default function CoursePage() {
 
 function CourseSection({
   title,
+  description,
   courses,
   favoriteIds,
   toggleFavorite,
@@ -915,6 +889,7 @@ function CourseSection({
   onEnterClass,
 }: {
   title: string
+  description?: string
   courses: Course[]
   favoriteIds: string[]
   toggleFavorite: (id: string) => void
@@ -925,9 +900,14 @@ function CourseSection({
 }) {
   return (
     <section>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-        <Badge variant="outline">{courses.length} courses</Badge>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+        </div>
+        <Badge variant="outline" className="shrink-0">
+          {courses.length} courses
+        </Badge>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {courses.map(course => (
@@ -1015,6 +995,9 @@ function CourseCard({
           </div>
         </div>
         <h3 className="mt-4 text-xl font-semibold text-slate-100">{course.name}</h3>
+        {course.variantName && (
+          <p className="mt-0.5 text-sm font-medium text-blue-300">{course.variantName}</p>
+        )}
         {course.tutorHandle && (
           <p className="mt-1 text-sm font-medium text-slate-300">@{course.tutorHandle}</p>
         )}

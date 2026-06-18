@@ -45,6 +45,9 @@ interface CreateClassDialogProps {
   onClassCreated?: (classData?: { id: string; [key: string]: unknown }) => void
   redirectToClass?: boolean
   initialDate?: Date | null
+  /** When set, the one-time session is linked to this course (still scheduleId-null). */
+  courseId?: string
+  courseName?: string
 }
 
 export function CreateClassDialog({
@@ -53,6 +56,8 @@ export function CreateClassDialog({
   onClassCreated,
   redirectToClass = true,
   initialDate,
+  courseId,
+  courseName,
 }: CreateClassDialogProps) {
   const router = useRouter()
   const [creating, setCreating] = useState(false)
@@ -65,6 +70,17 @@ export function CreateClassDialog({
     durationMinutes: 60,
     scheduledAt: '',
   })
+
+  // When launched from a course's sessions modal, prefill subject/title from the
+  // course so the form is valid and the one-time session is clearly associated.
+  useEffect(() => {
+    if (!open || !courseName) return
+    setForm(prev => ({
+      ...prev,
+      subject: prev.subject || courseName,
+      title: prev.title || `${courseName} — one-time session`,
+    }))
+  }, [open, courseName])
 
   useEffect(() => {
     if (!open || !initialDate) return
@@ -116,6 +132,7 @@ export function CreateClassDialog({
           maxStudents: form.maxStudents,
           durationMinutes: form.durationMinutes,
           scheduledAt: scheduledDate.toISOString(),
+          ...(courseId ? { courseId } : {}),
         }),
       })
 

@@ -821,7 +821,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
-    const [comingSoonDialog, setComingSoonDialog] = useState(false)
     const [alertDialog, setAlertDialog] = useState<{
       open: boolean
       title: string
@@ -1569,7 +1568,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }))
     }, [courseName, courseDescription])
 
-    const doSave = useCallback(() => {
+    const doSave = useCallback((isAutoSave = false) => {
       // If courseName is missing (e.g. builder-draft), prompt for properties
       if (!courseName?.trim() && !coursePropsModal.name?.trim()) {
         setCoursePropsModal(prev => ({ ...prev, isOpen: true }))
@@ -1585,6 +1584,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             courseName: coursePropsModal.name || courseName,
             courseDescription: coursePropsModal.description,
             isLive: coursePropsModal.isLive,
+            isAutoSave,
           }
         )
       }
@@ -1598,21 +1598,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       onSave,
     ])
 
+    // Declared above triggerSync so the sync can record the node ref it produces,
+    // preventing the sync's own liveNodes clone from being re-detected as a fresh
+    // unsynced edit (which previously caused an infinite save/sync toast loop).
+    const prevNodesRef = useRef(nodes)
+
     const handleSyncToLive = useCallback(() => {
-      setLiveNodes(cloneNodes(builderNodes))
+      const cloned = cloneNodes(builderNodes)
+      setLiveNodes(cloned)
+      return cloned
     }, [builderNodes, cloneNodes, setLiveNodes])
 
-    // Trigger full sync: save → sync to live → emit to session
-    const triggerSync = useCallback(() => {
-      doSave()
-      handleSyncToLive()
-      onSyncToLiveSession?.()
-      setHasUnsyncedChanges(false)
-      setAskToastShown(false)
-    }, [doSave, handleSyncToLive, onSyncToLiveSession])
+    // Trigger full sync: save → sync to live → emit to session.
+    // isAuto suppresses the save/sync toasts so background auto-sync is silent.
+    const triggerSync = useCallback(
+      (isAuto = false) => {
+        doSave(isAuto)
+        const cloned = handleSyncToLive()
+        // In live mode `nodes` becomes this clone; record it so the effect below
+        // doesn't treat the sync as a new edit and re-arm another auto-sync.
+        prevNodesRef.current = cloned
+        onSyncToLiveSession?.(isAuto)
+        setHasUnsyncedChanges(false)
+        setAskToastShown(false)
+      },
+      [doSave, handleSyncToLive, onSyncToLiveSession]
+    )
 
     // Track when nodes change during an active session to mark unsynced changes
-    const prevNodesRef = useRef(nodes)
     useEffect(() => {
       if (!isSessionActive) return
       if (!onSyncToLiveSession) return
@@ -1634,9 +1647,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
 
       if (syncMode === 'auto') {
-        // Debounced auto-sync: 3 seconds after last change
+        // Debounced auto-sync: 3 seconds after last change (silent — no toasts)
         syncDebounceRef.current = setTimeout(() => {
-          triggerSync()
+          triggerSync(true)
         }, 3000)
       } else if (syncMode === 'ask' && !askToastShown) {
         // Show confirmation toast once per editing burst
@@ -10464,23 +10477,6 @@ FEEDBACK: [your explanation]`
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        {/* Coming Soon Dialog */}
-        <Dialog open={comingSoonDialog} onOpenChange={setComingSoonDialog}>
-          <DialogContent className="rounded-2xl sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Coming Soon!</DialogTitle>
-              <DialogDescription>
-                The Go Live feature is currently under development. Stay tuned!
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="modal-secondary-dark" onClick={() => setComingSoonDialog(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {/* Global Info/Alert Dialog */}
         <Dialog
           open={alertDialog.open}

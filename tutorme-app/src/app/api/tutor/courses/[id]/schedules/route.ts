@@ -32,6 +32,7 @@ export const GET = withAuth(
           scheduleId: courseSchedule.scheduleId,
           courseId: courseSchedule.courseId,
           scheduleIndex: courseSchedule.scheduleIndex,
+          name: courseSchedule.name,
           schedule: courseSchedule.schedule,
           weeksToSchedule: courseSchedule.weeksToSchedule,
           maxStudents: courseSchedule.maxStudents,

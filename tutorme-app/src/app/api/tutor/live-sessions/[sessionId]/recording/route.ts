@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
+import { requireCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, sessionReplayArtifact } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -11,6 +12,9 @@ export async function PATCH(req: NextRequest, { params }: { params: any }) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const csrfError = await requireCsrf(req)
+  if (csrfError) return csrfError
 
   const liveSessionId = await getParamAsync(params, 'sessionId')
 

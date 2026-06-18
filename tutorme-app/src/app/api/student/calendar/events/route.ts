@@ -17,6 +17,7 @@ import {
   sessionParticipant,
 } from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
+import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -82,7 +83,7 @@ export const GET = withAuth(
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
     const lsFilters = [
       inArray(liveSession.courseId, courseIds),
-      inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
+      inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
     ]
 
     if (startParam) {

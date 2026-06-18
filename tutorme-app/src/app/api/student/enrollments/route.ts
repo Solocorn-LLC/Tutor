@@ -7,40 +7,47 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { withAuth, NotFoundError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment, user } from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseVariant, user } from '@/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
-export const POST = withAuth(
-  async (req, session) => {
-    const body = await req.json().catch(() => ({}))
-    const { courseId, startDate } = body
+export const POST = withCsrf(
+  withAuth(
+    async (req, session) => {
+      const body = await req.json().catch(() => ({}))
+      const { courseId, startDate, scheduleId } = body
 
-    if (!courseId || typeof courseId !== 'string') {
-      return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
-    }
+      if (!courseId || typeof courseId !== 'string') {
+        return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
+      }
 
-    try {
-      const result = await enrollStudentInCourse(session.user.id, courseId, startDate)
-      return NextResponse.json(result)
-    } catch (error: unknown) {
-      const err = error as any
-      if (err instanceof NotFoundError) {
-        return NextResponse.json({ error: err.message }, { status: 404 })
+      try {
+        const result = await enrollStudentInCourse(
+          session.user.id,
+          courseId,
+          startDate,
+          typeof scheduleId === 'string' ? scheduleId : null
+        )
+        return NextResponse.json(result)
+      } catch (error: unknown) {
+        const err = error as any
+        if (err instanceof NotFoundError) {
+          return NextResponse.json({ error: err.message }, { status: 404 })
+        }
+        if (err?.requiresPayment) {
+          return enrollmentPaymentRequiredResponse(err)
+        }
+        if (err?.message) {
+          return NextResponse.json({ error: err.message }, { status: 400 })
+        }
+        throw error
       }
-      if (err?.requiresPayment) {
-        return enrollmentPaymentRequiredResponse(err)
-      }
-      if (err?.message) {
-        return NextResponse.json({ error: err.message }, { status: 400 })
-      }
-      throw error
-    }
-  },
-  { role: 'STUDENT' }
+    },
+    { role: 'STUDENT' }
+  )
 )
 
 export const GET = withAuth(
@@ -55,10 +62,13 @@ export const GET = withAuth(
         courseIsPublished: course.isPublished,
         courseSchedule: course.schedule,
         tutorHandle: user.handle,
+        variantCategory: courseVariant.category,
+        variantNationality: courseVariant.nationality,
       })
       .from(courseEnrollment)
       .innerJoin(course, eq(courseEnrollment.courseId, course.courseId))
       .leftJoin(user, eq(course.creatorId, user.userId))
+      .leftJoin(courseVariant, eq(courseVariant.publishedCourseId, course.courseId))
       .where(eq(courseEnrollment.studentId, session.user.id))
       .orderBy(desc(courseEnrollment.enrolledAt))
 
@@ -87,6 +97,8 @@ export const GET = withAuth(
         isPublished: row.courseIsPublished,
         schedule: row.courseSchedule,
         tutorHandle: row.tutorHandle,
+        variantCategory: row.variantCategory,
+        variantNationality: row.variantNationality,
         _count: {
           lessons: lessonCountByCourse.get(row.courseId) ?? 0,
         },

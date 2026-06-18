@@ -16,7 +16,6 @@ async function fetchTutorUsername(): Promise<string | null> {
     return null
   }
 }
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import {
@@ -29,12 +28,9 @@ import {
   ArrowRight,
   BookOpen,
   Award,
-  Video,
-  Plus,
   MessageSquare,
   User,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
@@ -323,24 +319,7 @@ export function ModernHeroSection({
 
         {/* Action Bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-1 items-center justify-start gap-2">
-            <Button
-              size="sm"
-              className="h-[34px] border border-white bg-[#2563EB] px-3 text-[13px] text-white shadow-none hover:translate-y-0 hover:border-white hover:bg-white hover:text-[#2563EB] hover:shadow-none"
-              onClick={() => toast.info('Coming soon...')}
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              Create Class
-            </Button>
-            <Button
-              size="sm"
-              className="h-[34px] border border-white bg-[#65A30D] px-3 text-[13px] text-white shadow-none hover:translate-y-0 hover:bg-white hover:text-[#65A30D] hover:shadow-none"
-              onClick={() => toast.info('Coming soon...')}
-            >
-              <Video className="mr-1.5 h-4 w-4" />
-              Go Live
-            </Button>
-          </div>
+          <div className="flex flex-1 items-center justify-start gap-2" />
           <div className="flex-none text-center">
             <span className="text-base text-white">
               {formatDate(currentTime)} • {formatTime(currentTime)} {timeZoneAbbr}
