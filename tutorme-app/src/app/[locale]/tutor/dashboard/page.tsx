@@ -534,7 +534,7 @@ function TutorDashboardContent() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-white">
       <div className="flex h-full w-full flex-col px-3 lg:px-4">
         {/* Modern Hero Section */}
         <div className="mb-2 flex-shrink-0">
