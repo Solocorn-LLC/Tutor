@@ -42,7 +42,9 @@ async function postHandler(
       return NextResponse.json({ error: '无效的审核决定' }, { status: 400 })
     }
 
-    const result = await reviewFeedback(id, decision, session.user.id, modifications)
+    const result = await reviewFeedback(id, decision, session.user.id, modifications, {
+      bypassOwnership: session.user.role === 'ADMIN',
+    })
 
     if (!result.success) {
       return NextResponse.json({ error: result.error || '审核失败' }, { status: 400 })

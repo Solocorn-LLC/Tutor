@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { StudentState, ChatMessage, BreakoutRoom, LiveTask } from '@/lib/socket'
+import { StudentState, ChatMessage, LiveTask } from '@/lib/socket'
 
 interface UseSocketOptions {
   roomId: string
@@ -22,16 +22,6 @@ interface UseSocketOptions {
   onAIHint?: (hint: { userId: string; text: string; type: string }) => void
   onWhiteboardUpdate?: (data: { strokes: any[] }) => void
   onCodeUpdate?: (data: { content: string; language: string; userId: string }) => void
-  onBreakoutInvite?: (data: { roomId: string; roomUrl: string; tutorName: string }) => void
-  onBreakoutRoomUpdate?: (rooms: BreakoutRoom[]) => void
-  onBreakoutMessage?: (message: {
-    id: string
-    senderId: string
-    senderName: string
-    content: string
-    timestamp: number
-    isAi?: boolean
-  }) => void
   onNotification?: (notification: { type: string; message: string }) => void
   onRoomState?: (state: {
     students: StudentState[]
@@ -163,19 +153,6 @@ export function useSocket(options?: UseSocketOptions) {
         options?.onCodeUpdate?.(data)
       })
 
-      // Breakout
-      socket.on('breakout_invite', data => {
-        options?.onBreakoutInvite?.(data)
-      })
-
-      socket.on('breakout_room_update', data => {
-        options?.onBreakoutRoomUpdate?.(data.rooms)
-      })
-
-      socket.on('breakout_message', data => {
-        options?.onBreakoutMessage?.(data)
-      })
-
       socket.on('notification', data => {
         options?.onNotification?.(data)
       })
@@ -230,36 +207,6 @@ export function useSocket(options?: UseSocketOptions) {
     []
   )
 
-  // Invite to breakout
-  const inviteToBreakout = useCallback((targetUserId: string, roomId: string) => {
-    socketRef.current?.emit('breakout_invite', { targetUserId, roomId })
-  }, [])
-
-  // Broadcast to all breakout rooms
-  const sendBreakoutBroadcast = useCallback((message: string) => {
-    socketRef.current?.emit('breakout_broadcast', { message })
-  }, [])
-
-  // Close a breakout room
-  const closeBreakoutRoom = useCallback((breakoutRoomId: string) => {
-    socketRef.current?.emit('close_breakout', { breakoutRoomId })
-  }, [])
-
-  // Extend breakout room time
-  const extendBreakoutTime = useCallback((breakoutRoomId: string, minutes: number) => {
-    socketRef.current?.emit('extend_breakout_time', { breakoutRoomId, minutes })
-  }, [])
-
-  // Send message in breakout room
-  const sendBreakoutMessage = useCallback((breakoutRoomId: string, message: string) => {
-    socketRef.current?.emit('breakout_message', { breakoutRoomId, message })
-  }, [])
-
-  // Request help in breakout room
-  const requestHelp = useCallback((breakoutRoomId: string, reason: string) => {
-    socketRef.current?.emit('request_help', { breakoutRoomId, reason })
-  }, [])
-
   return {
     socket: socketRef.current,
     isConnected,
@@ -270,11 +217,5 @@ export function useSocket(options?: UseSocketOptions) {
     sendActivityPing,
     sendBroadcast,
     pushHint,
-    inviteToBreakout,
-    sendBreakoutBroadcast,
-    closeBreakoutRoom,
-    extendBreakoutTime,
-    sendBreakoutMessage,
-    requestHelp,
   }
 }

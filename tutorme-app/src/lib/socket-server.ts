@@ -9,7 +9,6 @@ export type {
   StudentState,
   ClassRoom,
   ChatMessage,
-  BreakoutRoom,
   PollState,
   DirectMessageRoom,
   WhiteboardState,
@@ -19,7 +18,6 @@ export type {
 } from '@/lib/socket'
 export {
   getRoomState,
-  getBreakoutRoomState,
   getDMRoomState,
   getUserSocketId,
   isUserOnline,
@@ -27,4 +25,4 @@ export {
 } from '@/lib/socket'
 
 // Re-export handler registration functions for backward compatibility
-export { initBreakoutHandlers, initPollHandlers, initFeedbackHandlers } from './socket/handlers'
+export { initPollHandlers, initFeedbackHandlers } from './socket/handlers'

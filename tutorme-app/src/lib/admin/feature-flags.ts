@@ -206,7 +206,6 @@ export const DefaultFeatureFlags = {
   AI_TUTOR_SOCRATIC_MODE: 'ai_tutor_socratic_mode',
   AI_TUTOR_REAL_TIME_FEEDBACK: 'ai_tutor_real_time_feedback',
   AI_TUTOR_VOICE_INPUT: 'ai_tutor_voice_input',
-  LIVE_BREAKOUT_ROOMS: 'live_breakout_rooms',
   LIVE_SCREEN_SHARE: 'live_screen_share',
   LIVE_RECORDING: 'live_recording',
   LIVE_AI_MONITORING: 'live_ai_monitoring',
@@ -242,12 +241,6 @@ export async function initializeDefaultFeatureFlags(adminId: string): Promise<vo
       key: DefaultFeatureFlags.AI_TUTOR_REAL_TIME_FEEDBACK,
       name: 'Real-time Feedback',
       description: 'Provide instant feedback during AI tutoring',
-      enabled: true,
-    },
-    {
-      key: DefaultFeatureFlags.LIVE_BREAKOUT_ROOMS,
-      name: 'Breakout Rooms',
-      description: 'Enable breakout rooms for group work',
       enabled: true,
     },
     {

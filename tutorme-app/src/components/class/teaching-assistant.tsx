@@ -154,7 +154,6 @@ interface TeachingAssistantProps {
     hint: string,
     type: 'socratic' | 'direct' | 'encouragement'
   ) => void
-  onInviteBreakout?: (studentId: string) => void
   roomId: string
   chatMessages?: TranscriptEntry[]
 }
@@ -162,7 +161,6 @@ interface TeachingAssistantProps {
 export function TeachingAssistant({
   students,
   onPushHint,
-  onInviteBreakout,
   roomId,
   chatMessages = [],
 }: TeachingAssistantProps) {
@@ -532,14 +530,6 @@ export function TeachingAssistant({
                       }
                     >
                       Send Hint
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs"
-                      onClick={() => onInviteBreakout?.(student.id)}
-                    >
-                      1:1 Session
                     </Button>
                   </div>
                 </div>
