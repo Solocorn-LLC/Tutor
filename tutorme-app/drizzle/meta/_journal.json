@@ -379,6 +379,13 @@
       "when": 1751802000000,
       "tag": "0053_fix_course_schedule_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1751803000000,
+      "tag": "0054_fix_tutor_application_nullable",
+      "breakpoints": true
     }
   ]
 }
