@@ -170,6 +170,14 @@ function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>('active')
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [measuredMaxHeight, setMeasuredMaxHeight] = useState(400)
+  const measureRefs = {
+    active: useRef<HTMLDivElement>(null),
+    pending: useRef<HTMLDivElement>(null),
+    unpublished: useRef<HTMLDivElement>(null),
+    catalogued: useRef<HTMLDivElement>(null),
+  }
   const router = useRouter()
 
   const loadCourses = useCallback(async () => {
@@ -193,6 +201,26 @@ function MyCoursesSection() {
   useEffect(() => {
     loadCourses()
   }, [loadCourses])
+
+  // Measure the tallest category list so the panel height stays stable across tabs.
+  useEffect(() => {
+    if (loading) return
+    const heights = [
+      measureRefs.active.current?.scrollHeight ?? 0,
+      measureRefs.pending.current?.scrollHeight ?? 0,
+      measureRefs.unpublished.current?.scrollHeight ?? 0,
+      measureRefs.catalogued.current?.scrollHeight ?? 0,
+    ]
+    const maxHeight = Math.max(...heights)
+    setMeasuredMaxHeight(Math.max(400, Math.min(720, maxHeight)))
+  }, [
+    loading,
+    courses,
+    measureRefs.active,
+    measureRefs.pending,
+    measureRefs.unpublished,
+    measureRefs.catalogued,
+  ])
 
   const handleDeleteCourse = async (courseId: string) => {
     if (!confirm('Are you sure you want to delete this course?')) return
@@ -326,13 +354,135 @@ function MyCoursesSection() {
     [categorizeCourses]
   )
 
+  const renderCourseRow = (course: Course, tab: typeof activeTab) => {
+    const hasDesc = course.isPublished && course.description
+    const showNationality = course.nationality && course.nationality !== 'Global'
+    return (
+      <div
+        key={course.id}
+        className="rounded-xl border border-[#E2E8F0] p-2.5 hover:border-slate-500"
+        style={{
+          background: 'linear-gradient(135deg, #1E2832 0%, #2D3B4A 50%, #1A2530 100%)',
+        }}
+      >
+        {(() => {
+          return (
+            <div className="flex items-center gap-4">
+              {/* Left: title + metadata */}
+              <div className="flex min-w-0 flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <h4 className="truncate font-medium text-white">{course.name}</h4>
+                  {tab === 'catalogued' ? (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                      Catalogued
+                    </span>
+                  ) : course.isPublished ? (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                      Published
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                      Draft
+                    </span>
+                  )}
+                </div>
+                {showNationality && (
+                  <p className="mt-0.5 text-xs font-medium text-blue-400">
+                    {course.variantCategory || (course.categories || [])[0] || 'General'} — {course.nationality}
+                  </p>
+                )}
+                <p className="mt-0.5 text-xs text-slate-300">
+                  {showNationality
+                    ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
+                    : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
+                </p>
+                {tab === 'catalogued' && course.lastSessionDate && (
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+
+              {/* Middle: description */}
+              {hasDesc && (
+                <>
+                  <div className="h-8 w-px bg-white/20" />
+                  <p className="min-w-0 flex-1 truncate text-sm text-slate-300">
+                    {course.description}
+                  </p>
+                </>
+              )}
+
+              {/* Right: action buttons */}
+              <div className="h-8 w-px bg-white/20" />
+              <div className="flex shrink-0 items-center divide-x divide-white/20">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const prefix = window.location.pathname.replace(/\/tutor\/my-page\/?$/, '')
+                    router.push(`${prefix}/tutor/insights?tab=builder&courseId=${course.id}`)
+                  }}
+                  className="text-blue-400 hover:bg-white/10 hover:text-white"
+                >
+                  <Edit3 className="mr-1 h-4 w-4" />
+                  Edit
+                </Button>
+                {tab !== 'catalogued' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleTogglePublish(course)}
+                    className={cn(
+                      'hover:bg-white/10 hover:text-white',
+                      course.isPublished ? 'text-amber-400' : 'text-emerald-400'
+                    )}
+                  >
+                    {course.isPublished ? (
+                      <>
+                        <EyeOff className="mr-1 h-4 w-4" />
+                        Unpublish
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="mr-1 h-4 w-4" />
+                        Publish
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteCourse(course.id)}
+                  className="text-red-400 hover:bg-white/10 hover:text-white"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )
+        })()}
+      </div>
+    )
+  }
+
   return (
-    <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-      <div className={cn(charcoalHeaderClass, 'panel-header-hover justify-between')}>
+    <Card className="relative border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
+      <div
+        onClick={() => setIsExpanded(prev => !prev)}
+        className={cn(charcoalHeaderClass, 'panel-header-hover cursor-pointer justify-between')}
+      >
         <div className="flex items-center gap-3">
           <BookOpen className="h-5 w-5" />
           <span className="text-base font-semibold">My Courses</span>
         </div>
+        {isExpanded ? (
+          <ChevronUp className="h-5 w-5 text-white/70" />
+        ) : (
+          <ChevronDown className="h-5 w-5 text-white/70" />
+        )}
       </div>
       <CardContent spacing="none" className="space-y-4 px-6 pb-6">
         {/* Tabs */}
@@ -357,7 +507,13 @@ function MyCoursesSection() {
         </div>
 
         {/* Course List - Scrollable Container */}
-        <div className="h-[720px] overflow-y-auto pr-2">
+        <div
+          className={cn(
+            'pr-2 transition-all duration-300 ease-in-out',
+            isExpanded ? 'overflow-y-auto' : 'h-0 overflow-hidden'
+          )}
+          style={isExpanded ? { height: measuredMaxHeight } : undefined}
+        >
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
@@ -377,125 +533,20 @@ function MyCoursesSection() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredCourses.slice(0, 10).map(course => (
-                <div
-                  key={course.id}
-                  className="rounded-xl border border-[#E2E8F0] p-2.5 hover:border-slate-500"
-                  style={{
-                    background: 'linear-gradient(135deg, #1E2832 0%, #2D3B4A 50%, #1A2530 100%)',
-                  }}
-                >
-                  {(() => {
-                    const hasDesc = course.isPublished && course.description
-                    const showNationality = course.nationality && course.nationality !== 'Global'
-                    return (
-                      <div className="flex items-center gap-4">
-                        {/* Left: title + metadata */}
-                        <div className="flex min-w-0 flex-col justify-center">
-                          <div className="flex items-center gap-2">
-                            <h4 className="truncate font-medium text-white">{course.name}</h4>
-                            {activeTab === 'catalogued' ? (
-                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                                Catalogued
-                              </span>
-                            ) : course.isPublished ? (
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                                Published
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                                Draft
-                              </span>
-                            )}
-                          </div>
-                          {showNationality && (
-                            <p className="mt-0.5 text-xs font-medium text-blue-400">
-                              {course.variantCategory || (course.categories || [])[0] || 'General'}{' '}
-                              — {course.nationality}
-                            </p>
-                          )}
-                          <p className="mt-0.5 text-xs text-slate-300">
-                            {showNationality
-                              ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
-                              : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
-                          </p>
-                          {activeTab === 'catalogued' && course.lastSessionDate && (
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Middle: description */}
-                        {hasDesc && (
-                          <>
-                            <div className="h-8 w-px bg-white/20" />
-                            <p className="min-w-0 flex-1 truncate text-sm text-slate-300">
-                              {course.description}
-                            </p>
-                          </>
-                        )}
-
-                        {/* Right: action buttons */}
-                        <div className="h-8 w-px bg-white/20" />
-                        <div className="flex shrink-0 items-center divide-x divide-white/20">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const prefix = window.location.pathname.replace(
-                                /\/tutor\/my-page\/?$/,
-                                ''
-                              )
-                              router.push(
-                                `${prefix}/tutor/insights?tab=builder&courseId=${course.id}`
-                              )
-                            }}
-                            className="text-blue-400 hover:bg-white/10 hover:text-white"
-                          >
-                            <Edit3 className="mr-1 h-4 w-4" />
-                            Edit
-                          </Button>
-                          {activeTab !== 'catalogued' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleTogglePublish(course)}
-                              className={cn(
-                                'hover:bg-white/10 hover:text-white',
-                                course.isPublished ? 'text-amber-400' : 'text-emerald-400'
-                              )}
-                            >
-                              {course.isPublished ? (
-                                <>
-                                  <EyeOff className="mr-1 h-4 w-4" />
-                                  Unpublish
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className="mr-1 h-4 w-4" />
-                                  Publish
-                                </>
-                              )}
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteCourse(course.id)}
-                            className="text-red-400 hover:bg-white/10 hover:text-white"
-                          >
-                            <Trash2 className="mr-1 h-4 w-4" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
-              ))}
+              {filteredCourses.slice(0, 10).map(course => renderCourseRow(course, activeTab))}
             </div>
           )}
+        </div>
+
+        {/* Hidden measurement lists to keep panel height stable across tabs */}
+        <div className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0" aria-hidden="true">
+          <div className="px-6 pb-6">
+            {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
+              <div key={tab} ref={measureRefs[tab]} className="space-y-3 pr-2">
+                {categorizeCourses[tab].slice(0, 10).map(course => renderCourseRow(course, tab))}
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
