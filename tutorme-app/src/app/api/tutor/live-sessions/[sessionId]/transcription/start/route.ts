@@ -4,6 +4,7 @@ import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { ensureDailyWebhook } from '@/lib/video/daily-webhook'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -24,28 +25,6 @@ async function fetchDaily(endpoint: string, options: RequestInit = {}) {
     throw new Error(`Daily API error: ${res.status} ${text}`)
   }
   return res.json().catch(() => ({}))
-}
-
-async function ensureDailyWebhook() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-  const basicAuth = process.env.DAILY_WEBHOOK_BASIC_AUTH
-  if (!baseUrl || !basicAuth) return
-
-  const url = `${baseUrl.replace(/\/$/, '')}/api/webhooks/daily`
-
-  const list = await fetchDaily('/webhooks', { method: 'GET' })
-  const hooks: any[] = Array.isArray(list?.data) ? list.data : Array.isArray(list) ? list : []
-  const exists = hooks.some(h => String(h?.url || '') === url)
-  if (exists) return
-
-  await fetchDaily('/webhooks', {
-    method: 'POST',
-    body: JSON.stringify({
-      url,
-      basicAuth,
-      eventTypes: ['transcript.started', 'transcript.ready-to-download', 'transcript.error'],
-    }),
-  })
 }
 
 export async function POST(req: NextRequest, { params }: { params: any }) {

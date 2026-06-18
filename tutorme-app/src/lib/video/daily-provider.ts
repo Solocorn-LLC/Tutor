@@ -77,7 +77,9 @@ export class DailyCoProvider implements VideoProvider {
         // Auto-join with mic/video off for students
         start_audio_off: true,
         start_video_off: true,
-        // Note: Recording is not supported on current Daily.co plan
+        // Cloud recording: the tutor's client starts it on join (autoRecord); the
+        // recording.ready-to-download webhook then persists the download link.
+        enable_recording: 'cloud',
       },
     }
     console.log('[Daily.co] createRoom payload:', payload)
