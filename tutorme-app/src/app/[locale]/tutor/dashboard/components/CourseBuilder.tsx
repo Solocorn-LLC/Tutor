@@ -346,6 +346,10 @@ interface PreviewCardProps {
 import { MonitoringPanel } from './MonitoringPanel'
 import { SubmissionsPanel } from './SubmissionsPanel'
 
+// Cache of rendered PDF page images keyed by document URL, so PCI vision messages
+// don't re-render the same document on every chat turn.
+const pdfPageCache = new Map<string, string[]>()
+
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
     {
@@ -2038,6 +2042,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }
           : undefined
 
+        // If a PDF document is attached, render its pages (cached) so the PCI model can
+        // actually SEE the document instead of guessing from the title.
+        let pdfPages: string[] | undefined
+        if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+          const cacheKey = sourceDocData.fileUrl
+          const cached = pdfPageCache.get(cacheKey)
+          if (cached) {
+            pdfPages = cached
+          } else {
+            try {
+              const rendered = await renderPdfToImages(sourceDocData.fileUrl, 3)
+              if (rendered.length > 0) {
+                pdfPages = rendered
+                pdfPageCache.set(cacheKey, rendered)
+              }
+            } catch {
+              // Vision is best-effort; fall back to text-only on render failure.
+            }
+          }
+        }
+
         const response = await fetch('/api/ai/pci-master', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2052,6 +2077,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               extensionName,
               sourceDocument,
             },
+            pdfPages,
           }),
         })
         if (!response.ok) {
