@@ -598,17 +598,17 @@ export default function TutorSettings() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-          <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-white">Account Settings</h1>
-              <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
-            </div>
-          </div>
+    <div className="flex min-h-full flex-col bg-white px-6 pb-6 pt-2">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-white">Account Settings</h1>
+          <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
+        </div>
+      </section>
 
-          <div className="flex min-h-0 flex-1 flex-col bg-white p-4 sm:p-6">
+      {/* Mode selector + tab content */}
+      <div className="flex h-[calc(100vh-220px)] min-h-[500px] flex-col py-4 sm:py-6">
         <SessionCalendarPanel
           value={activeTab}
           onValueChange={setActiveTab}
@@ -1703,8 +1703,6 @@ export default function TutorSettings() {
             <SessionLog />
           </TabsContent>
         </SessionCalendarPanel>
-          </div>
-        </div>
       </div>
 
       {/* Delete Account Dialog */}

@@ -138,21 +138,19 @@ export default function TutorHelpPage() {
   }, [searchQuery])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-          {/* Header */}
-          <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-white">Support</h1>
-              <p className="mt-1 text-sm text-white/60">Find answers, tutorials, and get support</p>
-            </div>
-          </div>
+    <div className="flex min-h-full flex-col bg-white px-6 pb-6 pt-2">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-white">Support</h1>
+          <p className="mt-1 text-sm text-white/60">Find answers, tutorials, and get support</p>
+        </div>
+      </section>
 
-          {/* Content */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white p-4 sm:p-6">
+      {/* Content */}
+      <div className="space-y-4 py-4 sm:py-6">
             {/* Search */}
-            <Card className={`mb-4 shrink-0 ${sectionCardClass}`}>
+            <Card className={sectionCardClass}>
               <CardContent className="py-3">
                 <div className="relative mx-auto max-w-2xl">
                   <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -167,7 +165,7 @@ export default function TutorHelpPage() {
             </Card>
 
             {/* Topic cards */}
-            <div className="mb-4 grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {topics.map(topic => {
                 const Icon = topic.icon
                 const isActive = activeTopic === topic.value && !searchQuery.trim()
@@ -193,19 +191,18 @@ export default function TutorHelpPage() {
             </div>
 
             {/* Content panel */}
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <Card className={`flex h-full flex-col ${sectionCardClass}`}>
-                <CardHeader className="shrink-0">
-                  <CardTitle>
-                    {searchQuery.trim() ? 'Search Results' : activeTopicData.title}
-                  </CardTitle>
-                  <CardDescription>
-                    {searchQuery.trim()
-                      ? `Showing results for "${searchQuery}"`
-                      : activeTopicData.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="min-h-0 flex-1 overflow-y-auto">
+            <Card className={sectionCardClass}>
+              <CardHeader>
+                <CardTitle>
+                  {searchQuery.trim() ? 'Search Results' : activeTopicData.title}
+                </CardTitle>
+                <CardDescription>
+                  {searchQuery.trim()
+                    ? `Showing results for "${searchQuery}"`
+                    : activeTopicData.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                   {searchQuery.trim() ? (
                     <div className="space-y-6">
                       {filteredResults?.length ? (
@@ -246,9 +243,6 @@ export default function TutorHelpPage() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -340,38 +340,36 @@ export default function TutorReports() {
   ]
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
-      <div className="flex h-full w-full flex-col px-3 lg:px-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-          {/* Blue hero header */}
-          <div className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h1 className="text-xl font-bold text-white">Analytics</h1>
-                <p className="mt-1 text-sm text-white/60">Track your teaching impact</p>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {analyticsPills.map(pill => (
-                  <div
-                    key={pill.label}
-                    className={cn(
-                      'flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm',
-                      analyticsLoading && 'animate-pulse'
-                    )}
-                  >
-                    {pill.icon && <pill.icon className="h-4 w-4 text-white/80" />}
-                    <span className="text-xs font-medium text-white/80">{pill.label}</span>
-                    <span className="text-sm font-bold text-white">{pill.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+    <div className="flex min-h-full flex-col bg-white px-6 pb-6 pt-2">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white">Analytics</h1>
+            <p className="mt-1 text-sm text-white/60">Track your teaching impact</p>
           </div>
 
-          {/* Mode selector + tab content */}
-          <div className="flex min-h-0 flex-1 flex-col bg-white p-4 sm:p-6">
-            <SessionCalendarPanel
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {analyticsPills.map(pill => (
+              <div
+                key={pill.label}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm',
+                  analyticsLoading && 'animate-pulse'
+                )}
+              >
+                {pill.icon && <pill.icon className="h-4 w-4 text-white/80" />}
+                <span className="text-xs font-medium text-white/80">{pill.label}</span>
+                <span className="text-sm font-bold text-white">{pill.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Mode selector + tab content */}
+      <div className="flex h-[calc(100vh-220px)] min-h-[500px] flex-col py-4 sm:py-6">
+        <SessionCalendarPanel
               value={activeTab}
               onValueChange={setActiveTab}
               variant="charcoal"
@@ -495,10 +493,8 @@ export default function TutorReports() {
             </SessionCalendarPanel>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+      )
+    }
 
 // Inline AI Chat for course insights
 function ItemAIChat({

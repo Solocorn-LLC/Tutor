@@ -343,11 +343,16 @@ function CoursePageInner() {
     return () => window.removeEventListener('storage', loadFavorites)
   }, [])
 
+  // Initial data load: enrollments are shared across all course tabs, so fetch once.
+  useEffect(() => {
+    loadCourses()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Following tab loads its own data when selected.
   useEffect(() => {
     if (activeTab === 'following') {
       loadFollowing()
-    } else {
-      loadCourses()
     }
   }, [activeTab])
 
