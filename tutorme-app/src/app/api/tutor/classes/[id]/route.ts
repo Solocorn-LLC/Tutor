@@ -325,6 +325,18 @@ export const PATCH = withCsrf(
 
       getIO()?.to(classId).emit('session:ended', { sessionId: classId, reason: 'tutor-ended' })
 
+      // Tear down the Daily.co room now that the session is over. Recordings are
+      // stored independently of the room, so deletion does not affect them and the
+      // recording.ready webhook still persists the URL afterwards. Best-effort:
+      // never fail the end request on a teardown error.
+      if (liveSessionRow.roomId) {
+        try {
+          await dailyProvider.deleteRoom(liveSessionRow.roomId)
+        } catch (err) {
+          console.error('[end-class] Daily room teardown failed:', err)
+        }
+      }
+
       const [partCount, messagesCountResult] = await Promise.all([
         drizzleDb
           .select({ count: sql<number>`count(*)::int` })
@@ -438,7 +450,7 @@ export const PATCH = withCsrf(
         console.error('Failed to generate replay artifact:', error)
       }
 
-      return NextResponse.json({ success: true, status: 'COMPLETED' })
+      return NextResponse.json({ success: true, status: 'ended' })
     },
     { role: 'TUTOR' }
   )
