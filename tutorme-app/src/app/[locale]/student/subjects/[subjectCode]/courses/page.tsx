@@ -13,11 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Loader2, FileText, GraduationCap, Users, Clock } from 'lucide-react'
+import {
+  BookOpen,
+  Loader2,
+  FileText,
+  GraduationCap,
+  Users,
+  Clock,
+  CalendarClock,
+} from 'lucide-react'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorList } from './components/TutorList'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
 import { BackButton } from '@/components/navigation'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { cn } from '@/lib/utils'
 
 interface CourseListItem {
@@ -42,6 +51,7 @@ export default function SubjectCoursesPage() {
   const [courses, setCourses] = useState<CourseListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
 
   // Theme state with localStorage persistence
   const [themeId, setThemeId] = useState('current')
@@ -236,12 +246,26 @@ export default function SubjectCoursesPage() {
                           <FileText className="mr-2 h-4 w-4 text-[rgba(255,255,255,0.7)]" />
                           View Details
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleCourse({ id: c.id, name: c.name })}
+                          className="inline-flex items-center justify-center rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:bg-[rgba(255,255,255,0.15)]"
+                        >
+                          <CalendarClock className="mr-2 h-4 w-4 text-[rgba(255,255,255,0.7)]" />
+                          View Schedule
+                        </button>
                       </div>
                     </div>
                   </li>
                 ))}
               </ul>
             )}
+
+            <ScheduleViewModal
+              courseId={scheduleCourse?.id ?? null}
+              courseName={scheduleCourse?.name}
+              onClose={() => setScheduleCourse(null)}
+            />
           </TabsContent>
 
           <TabsContent value="tutors">
