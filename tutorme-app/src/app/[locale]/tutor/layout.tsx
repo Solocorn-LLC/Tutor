@@ -151,14 +151,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="isolate flex h-screen overflow-hidden bg-gray-50">
-      {/* Layout spacer — animates width in sync with sidebar */}
-      <div
-        className={cn(
-          'hidden shrink-0 overflow-hidden transition-all duration-500 ease-in-out lg:block',
-          desktopNavOpen ? 'w-64' : 'w-0'
-        )}
-      />
+    <div className="isolate flex h-screen overflow-hidden bg-white">
 
       {/* Visual sidebar — fixed overlay, animates with transform only */}
       <aside
@@ -327,7 +320,13 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main className="relative z-0 h-screen flex-1 overflow-hidden pt-16 lg:my-4 lg:mr-4 lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:pt-4 lg:shadow-[0_18px_60px_rgba(0,0,0,0.16)] lg:ring-1 lg:ring-black/5">
+      <main
+        className={cn(
+          'relative z-0 h-screen flex-1 overflow-hidden pt-16',
+          'lg:my-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100%-17rem)] lg:rounded-2xl lg:bg-white lg:pt-4 lg:shadow-[0_18px_60px_rgba(0,0,0,0.16)] lg:ring-1 lg:ring-black/5 transition-[margin] duration-500 ease-in-out',
+          desktopNavOpen ? 'lg:ml-64 lg:mr-4' : 'lg:ml-[8.5rem] lg:mr-[8.5rem]'
+        )}
+      >
         <div className="scrollbar-hide h-full overflow-y-auto [&>*:last-child]:mb-0 [&>*:last-child]:pb-0">
           {children}
         </div>

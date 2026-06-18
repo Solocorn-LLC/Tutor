@@ -119,14 +119,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   ]
 
   return (
-    <div className="isolate flex h-screen overflow-hidden bg-gray-50">
-      {/* Layout spacer — animates width in sync with sidebar */}
-      <div
-        className={cn(
-          'hidden shrink-0 overflow-hidden transition-all duration-500 ease-in-out lg:block',
-          isFeedbackRoute ? 'w-0' : desktopNavOpen ? 'w-64' : 'w-0'
-        )}
-      />
+    <div className="isolate flex h-screen overflow-hidden bg-white">
 
       {/* Visual sidebar — fixed overlay, animates with transform only */}
       {!isFeedbackRoute && (
@@ -399,7 +392,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         className={cn(
           'relative z-0 h-screen flex-1 overflow-hidden',
           !isFeedbackRoute && [
-            'pt-16 lg:my-4 lg:mr-4 lg:h-[calc(100vh-2rem)]',
+            'pt-16 lg:my-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100%-17rem)] transition-[margin] duration-500 ease-in-out',
+            desktopNavOpen ? 'lg:ml-64 lg:mr-4' : 'lg:ml-[8.5rem] lg:mr-[8.5rem]',
             (isDashboardPage || isBookTutorPage) && 'lg:pt-0',
             !isDashboardPage &&
               !isBookTutorPage &&
