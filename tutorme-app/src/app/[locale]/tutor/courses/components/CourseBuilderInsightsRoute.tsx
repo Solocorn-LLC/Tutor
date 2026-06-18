@@ -197,6 +197,9 @@ function CourseBuilderInsightsRouteInner({
     return () => clearInterval(timer)
   }, [activeMainTab])
 
+  const hasNoCourses =
+    (!courses || courses.length === 0) && (!draftCourses || draftCourses.length === 0)
+
   const currentSession = insightsProps?.sessions?.find(s => s.id === insightsProps?.sessionId)
   const scheduledDateStr = currentSession?.scheduledAt
   const sessionPlannedDurationMinutes = currentSession?.durationMinutes || 60
@@ -471,12 +474,20 @@ function CourseBuilderInsightsRouteInner({
                     <Select
                       value={courseId ?? ''}
                       onValueChange={v => insightsProps.onCourseChange?.(v)}
+                      disabled={hasNoCourses}
                     >
-                      <SelectTrigger className="h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors hover:bg-slate-100 focus:ring-0">
-                        <SelectValue placeholder="Select course">
+                      <SelectTrigger
+                        className={cn(
+                          'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
+                          hasNoCourses
+                            ? 'cursor-not-allowed opacity-60'
+                            : 'hover:bg-slate-100'
+                        )}
+                      >
+                        <SelectValue placeholder={hasNoCourses ? 'Create your first course.' : 'Select course'}>
                           {(() => {
                             const c = currentCourse
-                            if (!c) return 'Select course'
+                            if (!c) return hasNoCourses ? 'Create your first course.' : 'Select course'
                             return c.nationality && c.nationality !== 'Global'
                               ? `${c.name} — ${c.variantCategory || ''} — ${c.nationality}`
                               : c.name
@@ -528,9 +539,12 @@ function CourseBuilderInsightsRouteInner({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                      className={cn(
+                        'h-8 w-8 p-0 text-slate-500 hover:text-slate-700',
+                        hasNoCourses && 'animate-pulse-soft'
+                      )}
                       onClick={onCreateCourse}
-                      title="New Course"
+                      title={hasNoCourses ? 'Create your first course' : 'New Course'}
                     >
                       <Plus className="h-5 w-5" />
                     </Button>
