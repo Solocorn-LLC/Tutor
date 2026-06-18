@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment, user } from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseVariant, user } from '@/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
@@ -62,10 +62,13 @@ export const GET = withAuth(
         courseIsPublished: course.isPublished,
         courseSchedule: course.schedule,
         tutorHandle: user.handle,
+        variantCategory: courseVariant.category,
+        variantNationality: courseVariant.nationality,
       })
       .from(courseEnrollment)
       .innerJoin(course, eq(courseEnrollment.courseId, course.courseId))
       .leftJoin(user, eq(course.creatorId, user.userId))
+      .leftJoin(courseVariant, eq(courseVariant.publishedCourseId, course.courseId))
       .where(eq(courseEnrollment.studentId, session.user.id))
       .orderBy(desc(courseEnrollment.enrolledAt))
 
@@ -94,6 +97,8 @@ export const GET = withAuth(
         isPublished: row.courseIsPublished,
         schedule: row.courseSchedule,
         tutorHandle: row.tutorHandle,
+        variantCategory: row.variantCategory,
+        variantNationality: row.variantNationality,
         _count: {
           lessons: lessonCountByCourse.get(row.courseId) ?? 0,
         },

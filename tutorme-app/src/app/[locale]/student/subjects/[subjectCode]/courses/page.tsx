@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 interface CourseListItem {
   id: string
   name: string
+  variantName?: string
   subject: string
   description: string | null
   difficulty: string
@@ -197,6 +198,11 @@ export default function SubjectCoursesPage() {
                     >
                       <div className="flex flex-col p-5">
                         <h3 className="text-xl font-semibold text-slate-100">{c.name}</h3>
+                        {c.variantName && (
+                          <p className="mt-0.5 text-sm font-medium text-blue-300">
+                            {c.variantName}
+                          </p>
+                        )}
                         {c.difficulty && (
                           <div className="mt-2 flex flex-wrap gap-2">
                             <span className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-200">

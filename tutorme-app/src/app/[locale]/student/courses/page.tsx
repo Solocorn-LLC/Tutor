@@ -18,6 +18,7 @@ import {
   type ScheduleItem,
 } from '@/components/course/PreferenceEnrollmentDialog'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import {
   Clock,
   Calendar,
@@ -53,6 +54,7 @@ import { toast } from 'sonner'
 interface Course {
   id: string
   name: string
+  variantName?: string
   description: string | null
   subject: string
   difficulty: string
@@ -366,6 +368,10 @@ function CoursePageInner() {
           return {
             id: e.courseId,
             name: e.course?.name || 'Unknown Course',
+            variantName: formatCourseVariantName(
+              e.course?.variantCategory,
+              e.course?.variantNationality
+            ),
             description: e.course?.description || null,
             subject: e.course?.categories?.[0] || 'general',
             tutorHandle: e.course?.tutorHandle || null,
@@ -971,6 +977,9 @@ function CourseCard({
           </div>
         </div>
         <h3 className="mt-4 text-xl font-semibold text-slate-100">{course.name}</h3>
+        {course.variantName && (
+          <p className="mt-0.5 text-sm font-medium text-blue-300">{course.variantName}</p>
+        )}
         {course.tutorHandle && (
           <p className="mt-1 text-sm font-medium text-slate-300">@{course.tutorHandle}</p>
         )}
