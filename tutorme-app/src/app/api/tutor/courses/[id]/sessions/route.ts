@@ -9,9 +9,16 @@ import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { eq, and, asc, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession as liveSessionTable, course } from '@/lib/db/schema'
+import {
+  liveSession as liveSessionTable,
+  course,
+  courseSchedule,
+  courseVariant,
+} from '@/lib/db/schema'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
 import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
+import { formatScheduleName } from '@/lib/sessions/schedule-name'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
 export const GET = withAuth(
   async (req, session, context) => {
@@ -40,6 +47,28 @@ export const GET = withAuth(
         .from(course)
         .where(eq(course.courseId, courseId))
         .limit(1)
+
+      // Map each schedule id -> its display name ("Schedule 1" or the tutor's name),
+      // and resolve this course's variant (category × nationality) for labelling.
+      const [scheduleRows, [variantRow]] = await Promise.all([
+        drizzleDb
+          .select({
+            scheduleId: courseSchedule.scheduleId,
+            name: courseSchedule.name,
+            scheduleIndex: courseSchedule.scheduleIndex,
+          })
+          .from(courseSchedule)
+          .where(eq(courseSchedule.courseId, courseId)),
+        drizzleDb
+          .select({ category: courseVariant.category, nationality: courseVariant.nationality })
+          .from(courseVariant)
+          .where(eq(courseVariant.publishedCourseId, courseId))
+          .limit(1),
+      ])
+      const scheduleNameById = new Map(
+        scheduleRows.map(r => [r.scheduleId, formatScheduleName(r.name, r.scheduleIndex)])
+      )
+      const variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
 
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
@@ -77,6 +106,7 @@ export const GET = withAuth(
         isVirtual: false,
         // null scheduleId = a one-time/ad-hoc session (not tied to the recurring schedule)
         scheduleId: s.scheduleId ?? null,
+        scheduleName: s.scheduleId ? (scheduleNameById.get(s.scheduleId) ?? null) : null,
         durationMinutes: s.durationMinutes ?? 120,
       }))
 
@@ -94,7 +124,10 @@ export const GET = withAuth(
 
       const merged = mergeSessions(formattedReal, virtualSessions)
 
-      return NextResponse.json({ sessions: merged })
+      return NextResponse.json({
+        sessions: merged,
+        course: { name: courseRow?.name ?? null, variantName },
+      })
     } catch (err) {
       // Log full error details for debugging
       const errObj = err as any

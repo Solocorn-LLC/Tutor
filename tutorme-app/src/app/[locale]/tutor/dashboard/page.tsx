@@ -120,6 +120,8 @@ type CourseSession = {
   isVirtual?: boolean
   /** null/absent = a one-time session; set = materialized from the course schedule */
   scheduleId?: string | null
+  /** Display name of the linked schedule, e.g. "Schedule 1" (null for one-time). */
+  scheduleName?: string | null
   durationMinutes?: number
 }
 
@@ -153,6 +155,11 @@ function TutorDashboardContent() {
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   // Course context for creating a one-time (non-schedule) session from the sessions modal.
   const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
+  // Course name + variant for the sessions modal (from the sessions API).
+  const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
+    name: string | null
+    variantName: string
+  } | null>(null)
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null)
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
@@ -399,6 +406,7 @@ function TutorDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setCourseSessions(data.sessions || [])
+        setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
       } else {
         const errData = await res.json().catch(() => ({}))
         console.error('Tutor session load failed:', errData, res.status)
@@ -451,7 +459,6 @@ function TutorDashboardContent() {
     },
     [launchingCourseId, router]
   )
-
 
   const handleCancelSession = useCallback(async (sessionId: string, reason?: string) => {
     setCancellingSessionId(sessionId)
@@ -956,7 +963,11 @@ function TutorDashboardContent() {
                         >
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-medium">{session.title}</p>
+                              <p className="truncate font-medium">
+                                {sessionsCourseMeta?.name
+                                  ? `${sessionsCourseMeta.name}${sessionsCourseMeta.variantName ? ` — ${sessionsCourseMeta.variantName}` : ''}`
+                                  : session.title}
+                              </p>
                               <Badge
                                 variant="outline"
                                 className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
@@ -974,6 +985,14 @@ function TutorDashboardContent() {
                               >
                                 {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
                               </Badge>
+                              {session.scheduleName && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-primary/25 bg-primary/10 text-primary text-[10px] uppercase tracking-wide"
+                                >
+                                  {session.scheduleName}
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                               {session.scheduledAt && (

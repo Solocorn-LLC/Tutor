@@ -15,12 +15,16 @@ import {
   user,
   profile,
   course,
+  courseSchedule,
+  courseVariant,
   sessionReplayArtifact,
   calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateSessionSummary } from '@/lib/chat/summary'
+import { formatScheduleName } from '@/lib/sessions/schedule-name'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
 
@@ -206,6 +210,35 @@ export const GET = withAuth(
       }
     }
 
+    // Schedule name (if this session came from a schedule) + course name/variant,
+    // so the details page can show "Schedule 1" and the course instead of a
+    // generic "Live Session" title.
+    let scheduleName: string | null = null
+    if (liveSessionRow.scheduleId) {
+      const [sch] = await drizzleDb
+        .select({ name: courseSchedule.name, scheduleIndex: courseSchedule.scheduleIndex })
+        .from(courseSchedule)
+        .where(eq(courseSchedule.scheduleId, liveSessionRow.scheduleId))
+        .limit(1)
+      if (sch) scheduleName = formatScheduleName(sch.name, sch.scheduleIndex)
+    }
+    let courseName: string | null = null
+    let variantName = ''
+    if (liveSessionRow.courseId) {
+      const [courseRow2] = await drizzleDb
+        .select({ name: course.name })
+        .from(course)
+        .where(eq(course.courseId, liveSessionRow.courseId))
+        .limit(1)
+      courseName = courseRow2?.name ?? null
+      const [variantRow] = await drizzleDb
+        .select({ category: courseVariant.category, nationality: courseVariant.nationality })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, liveSessionRow.courseId))
+        .limit(1)
+      variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
+    }
+
     return NextResponse.json({
       session: {
         id: liveSessionRow.sessionId,
@@ -220,6 +253,10 @@ export const GET = withAuth(
         maxStudents: liveSessionRow.maxStudents,
         linkedCourseId: deterministicLinkedCourseId,
         category: liveSessionRow.category,
+        scheduleId: liveSessionRow.scheduleId ?? null,
+        scheduleName,
+        courseName,
+        variantName,
       },
       students,
       messages: messages.map(m => ({
