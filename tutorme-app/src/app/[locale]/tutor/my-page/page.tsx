@@ -65,8 +65,10 @@ import {
   Tags,
   ExternalLink,
   Settings,
+  CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { DEFAULT_LOCALE } from '@/lib/i18n/config'
 import {
   REGIONS,
@@ -168,6 +170,7 @@ interface Course {
 
 function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>('active')
   const [isExpanded, setIsExpanded] = useState(true)
@@ -428,6 +431,15 @@ function MyCoursesSection() {
                   <Edit3 className="mr-1 h-4 w-4" />
                   Edit
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setScheduleCourse({ id: course.id, name: course.name })}
+                  className="text-slate-200 hover:bg-white/10 hover:text-white"
+                >
+                  <CalendarClock className="mr-1 h-4 w-4" />
+                  Schedule
+                </Button>
                 {tab !== 'catalogued' && (
                   <Button
                     variant="ghost"
@@ -549,6 +561,11 @@ function MyCoursesSection() {
           </div>
         </div>
       </CardContent>
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </Card>
   )
 }

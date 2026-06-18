@@ -24,6 +24,14 @@ interface CourseDetail {
   enrolled?: boolean
 }
 
+interface CourseScheduleOption {
+  scheduleId: string
+  name: string
+  slots: Array<{ dayOfWeek: string; startTime: string; durationMinutes: number }>
+  spotsLeft: number | null
+  isFull: boolean
+}
+
 function CourseEnrollPageInner() {
   const params = useParams()
   const router = useRouter()
@@ -38,6 +46,8 @@ function CourseEnrollPageInner() {
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<string | null>(null)
+  const [schedules, setSchedules] = useState<CourseScheduleOption[]>([])
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null)
 
   const coursesUrl = `/student/subjects/${encodeURIComponent(subjectCode)}/courses`
   const isFree = course != null && (course.price == null || course.price === 0)
@@ -67,6 +77,27 @@ function CourseEnrollPageInner() {
     }
   }, [courseId])
 
+  useEffect(() => {
+    if (!courseId) return
+    let cancelled = false
+    fetch(`/api/courses/${encodeURIComponent(courseId)}/schedules`, { credentials: 'include' })
+      .then(res => (res.ok ? res.json() : { schedules: [] }))
+      .then(data => {
+        if (cancelled) return
+        const list: CourseScheduleOption[] = Array.isArray(data?.schedules) ? data.schedules : []
+        setSchedules(list)
+        // Preselect the first schedule that still has room.
+        const firstOpen = list.find(s => !s.isFull)
+        if (firstOpen) setSelectedScheduleId(firstOpen.scheduleId)
+      })
+      .catch(() => {
+        if (!cancelled) setSchedules([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [courseId])
+
   const getCsrf = async () => {
     const res = await fetch('/api/csrf', { credentials: 'include' })
     const data = await res.json().catch(() => ({}))
@@ -79,11 +110,16 @@ function CourseEnrollPageInner() {
       toast.error('Please select a start date')
       return
     }
+    if (schedules.length > 0 && !selectedScheduleId) {
+      toast.error('Please choose a schedule')
+      return
+    }
     setEnrolling(true)
     try {
       const csrf = await getCsrf()
       const bodyPayload: any = { startDate }
       if (batchId) bodyPayload.batchId = batchId
+      if (selectedScheduleId) bodyPayload.scheduleId = selectedScheduleId
 
       const res = await fetch(`/api/courses/${encodeURIComponent(courseId)}/enroll`, {
         method: 'POST',
@@ -111,6 +147,10 @@ function CourseEnrollPageInner() {
       toast.error('Please select a start date')
       return
     }
+    if (schedules.length > 0 && !selectedScheduleId) {
+      toast.error('Please choose a schedule')
+      return
+    }
     setPaying(true)
     try {
       const csrf = await getCsrf()
@@ -118,7 +158,10 @@ function CourseEnrollPageInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
         credentials: 'include',
-        body: JSON.stringify({ courseId, metadata: { startDate } }),
+        body: JSON.stringify({
+          courseId,
+          metadata: { startDate, scheduleId: selectedScheduleId ?? undefined },
+        }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -241,6 +284,60 @@ function CourseEnrollPageInner() {
                     />
                   </div>
                 </div>
+
+                {schedules.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">Choose a schedule</label>
+                    <div className="space-y-2">
+                      {schedules.map(s => {
+                        const selected = selectedScheduleId === s.scheduleId
+                        return (
+                          <label
+                            key={s.scheduleId}
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                              s.isFull
+                                ? 'cursor-not-allowed opacity-60'
+                                : selected
+                                  ? 'border-indigo-500 bg-indigo-50'
+                                  : 'hover:bg-muted/50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="schedule"
+                              className="mt-1"
+                              disabled={s.isFull}
+                              checked={selected}
+                              onChange={() => setSelectedScheduleId(s.scheduleId)}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 text-sm font-medium">
+                                {s.name}
+                                {s.isFull ? (
+                                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                                    Full
+                                  </span>
+                                ) : s.spotsLeft != null ? (
+                                  <span className="text-muted-foreground text-xs">
+                                    {s.spotsLeft} left
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                {s.slots.length > 0
+                                  ? s.slots
+                                      .map(slot => `${slot.dayOfWeek} ${slot.startTime}`)
+                                      .join(' · ')
+                                  : 'Times arranged with the tutor'}
+                              </p>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {isFree ? (
                   <Button className="w-full sm:w-auto" onClick={handleEnroll} disabled={enrolling}>
                     {enrolling ? (
