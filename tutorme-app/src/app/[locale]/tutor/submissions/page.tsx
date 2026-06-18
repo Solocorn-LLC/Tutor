@@ -66,10 +66,25 @@ export default function TutorSubmissionsPage() {
       </div>
 
       <Tabs value={tab} onValueChange={v => setTab(v as StatusFilter)}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="submitted">Needs grading</TabsTrigger>
-          <TabsTrigger value="graded">Graded</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
+        <TabsList className="mb-4 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+          <TabsTrigger
+            value="submitted"
+            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+          >
+            Needs grading
+          </TabsTrigger>
+          <TabsTrigger
+            value="graded"
+            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+          >
+            Graded
+          </TabsTrigger>
+          <TabsTrigger
+            value="all"
+            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+          >
+            All
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
