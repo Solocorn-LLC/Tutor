@@ -244,10 +244,9 @@ function TutorInsightsPageInner() {
   const persistRecordingState = useCallback(
     async (recording: boolean) => {
       if (!sessionId) return
-      await fetch(`/api/tutor/live-sessions/${sessionId}/recording`, {
+      await fetchWithCsrf(`/api/tutor/live-sessions/${sessionId}/recording`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           isRecording: recording,
           recordingUrl: null, // Insights only tracks state
