@@ -105,6 +105,9 @@ export const POST = withCsrf(
     })
 
     let token = null
+    // Surfaced to the client so a video-token failure is visible (chat/whiteboard
+    // still work) instead of being silently swallowed into a generic join failure.
+    let videoError: string | null = null
     if (classSessionRow.roomId) {
       const isOwner = userId === classSessionRow.tutorId
       try {
@@ -114,8 +117,10 @@ export const POST = withCsrf(
         })
       } catch (err: any) {
         console.error('[Join] Daily.co token creation failed:', err?.message)
-        // Continue without video token — student can still use directory / chat / whiteboard
+        videoError = 'Video is temporarily unavailable for this session.'
       }
+    } else {
+      videoError = 'No video room is configured for this session.'
     }
 
     const [tutorRow] = await drizzleDb
@@ -159,6 +164,7 @@ export const POST = withCsrf(
       session: classSession,
       token,
       roomUrl: classSessionRow.roomUrl,
+      videoError,
     })
   })
 )

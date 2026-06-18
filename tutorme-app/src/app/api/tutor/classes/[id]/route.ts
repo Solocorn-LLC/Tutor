@@ -70,6 +70,23 @@ export const GET = withAuth(
       )
     }
 
+    // Tutor entering the live classroom starts the session — same guard as the
+    // explicit POST /start (not before scheduledAt, not once ended) — so students
+    // can join regardless of how the tutor opened the room. Unifies the start path
+    // (previously this GET left the session 'scheduled' while POST flipped it).
+    if (
+      liveSessionRow.status === 'scheduled' &&
+      !(liveSessionRow.scheduledAt && new Date(liveSessionRow.scheduledAt).getTime() > Date.now())
+    ) {
+      const startedAt = liveSessionRow.startedAt || new Date()
+      await drizzleDb
+        .update(liveSession)
+        .set({ status: 'active', startedAt })
+        .where(eq(liveSession.sessionId, classId))
+      liveSessionRow.status = 'active'
+      liveSessionRow.startedAt = startedAt
+    }
+
     const participants = await drizzleDb
       .select({
         participant: sessionParticipant,
@@ -175,12 +192,19 @@ export const GET = withAuth(
     const deterministicLinkedCourseId = liveSessionRow.courseId || linkedCourse?.id || null
 
     const sessionDuration = liveSessionRow.durationMinutes ?? 240
-    const token = liveSessionRow.roomId
-      ? await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
+    // Resilient: a Daily token hiccup must not 500 the whole classroom (chat /
+    // whiteboard / roster still load; the room is public so video can still join).
+    let token: string | null = null
+    if (liveSessionRow.roomId) {
+      try {
+        token = await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
           isOwner: true,
           durationMinutes: sessionDuration,
         })
-      : null
+      } catch (err: any) {
+        console.error('[tutor classes GET] Daily token creation failed:', err?.message)
+      }
+    }
 
     return NextResponse.json({
       session: {
