@@ -3,12 +3,12 @@
  * Generates AI summaries of chat sessions for tutors and students
  */
 
-import { asc, eq, like, and } from 'drizzle-orm'
+import { asc, eq, and } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { message, profile, user } from '@/lib/db/schema'
 import { generateWithFallback } from '@/lib/agents'
 
-export type SummaryType = 'session' | 'topic' | 'student' | 'breakout'
+export type SummaryType = 'session' | 'topic' | 'student'
 
 export interface ChatSummary {
   id: string
@@ -118,80 +118,6 @@ export async function generateSessionSummary(
 }
 
 /**
- * Generate summary for a breakout room
- */
-export async function generateBreakoutSummary(
-  breakoutRoomId: string,
-  options: SummaryOptions = { type: 'breakout', maxLength: 'short' }
-): Promise<{ success: boolean; summary?: ChatSummary; error?: string }> {
-  try {
-    const messagesRows = await drizzleDb
-      .select({
-        userId: message.userId,
-        content: message.content,
-        timestamp: message.timestamp,
-        type: message.type,
-        userName: profile.name,
-      })
-      .from(message)
-      .leftJoin(user, eq(message.userId, user.userId))
-      .leftJoin(profile, eq(user.userId, profile.userId))
-      .where(like(message.sessionId, `breakout_${breakoutRoomId}%`))
-      .orderBy(asc(message.timestamp))
-    const messages = messagesRows.map(m => ({
-      userId: m.userId,
-      content: m.content,
-      timestamp: m.timestamp,
-      type: m.type,
-      user: { profile: { name: m.userName } },
-    }))
-
-    if (messages.length === 0) {
-      return { success: false, error: '没有找到分组讨论记录' }
-    }
-
-    const formattedChat = messages.map(m => ({
-      user: m.user?.profile?.name || m.userId,
-      content: m.content,
-      time: m.timestamp,
-      type: m.type,
-    }))
-
-    const prompt = createBreakoutSummaryPrompt(formattedChat, options)
-    const result = await generateWithFallback(prompt, { temperature: 0.5 })
-    const parsed = parseSummaryResponse(result.content)
-
-    const uniqueParticipants = new Set(messages.map(m => m.userId)).size
-    const duration =
-      messages.length > 1
-        ? (messages[messages.length - 1].timestamp.getTime() - messages[0].timestamp.getTime()) /
-          1000 /
-          60
-        : 0
-
-    const summary: ChatSummary = {
-      id: `breakout_summary_${breakoutRoomId}_${Date.now()}`,
-      type: 'breakout',
-      title: parsed.title || '分组讨论总结',
-      overview: parsed.overview,
-      keyPoints: parsed.keyPoints,
-      questions: parsed.questions || [],
-      sentiment: parsed.sentiment,
-      engagementScore: calculateEngagementScore(messages),
-      duration: Math.round(duration),
-      messageCount: messages.length,
-      participantCount: uniqueParticipants,
-      generatedAt: new Date(),
-    }
-
-    return { success: true, summary }
-  } catch (error) {
-    console.error('Failed to generate breakout summary:', error)
-    return { success: false, error: error instanceof Error ? error.message : '生成总结失败' }
-  }
-}
-
-/**
  * Create summary prompt for AI
  */
 function createSummaryPrompt(
@@ -224,35 +150,6 @@ ${options.includeActionItems ? '4. 行动项：列出需要后续跟进的事项
   "keyPoints": ["要点1", "要点2", "要点3"],
   "questions": ["问题1", "问题2"],
   "actionItems": ["行动1", "行动2"],
-  "sentiment": "positive"
-}`
-}
-
-/**
- * Create breakout room summary prompt
- */
-function createBreakoutSummaryPrompt(
-  messages: { user: string; content: string; time: Date; type: string }[],
-  options: SummaryOptions
-): string {
-  const chatText = messages.map(m => `${m.user}: ${m.content}`).join('\n')
-
-  return `请总结以下分组讨论记录：
-
-${chatText}
-
-要求：
-1. 概述：简要总结小组讨论的主要内容（100字以内）
-2. 关键点：列出2-3个主要结论或发现
-3. 协作情况：评估小组协作是否有效
-4. 需要关注：指出是否需要导师介入
-
-请用以下JSON格式返回：
-{
-  "title": "小组讨论总结",
-  "overview": "概述内容...",
-  "keyPoints": ["要点1", "要点2"],
-  "questions": [],
   "sentiment": "positive"
 }`
 }

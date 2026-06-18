@@ -167,7 +167,6 @@ export interface WhiteboardStroke {
   fontFamily?: string
   textStyle?: { bold?: boolean; italic?: boolean; align?: 'left' | 'center' | 'right' }
   layerId?: 'tutor-broadcast' | 'tutor-private' | 'student-personal' | 'shared-group'
-  roomScope?: 'main' | 'breakout'
   groupId?: string
   zIndex?: number
   locked?: boolean
@@ -366,50 +365,6 @@ export interface MathSyncObservabilitySnapshot {
   averageYjsUpdateBytes: number
 }
 
-// Breakout
-export interface BreakoutRoom {
-  id: string
-  name: string
-  mainRoomId: string
-  participants: Map<
-    string,
-    { id: string; name: string; joinedAt: number; engagementScore?: number }
-  >
-  status: 'forming' | 'active' | 'paused' | 'closed'
-  aiEnabled: boolean
-  timeLimit: number
-  timeRemaining?: number
-  startedAt?: Date
-  task?: {
-    id: string
-    title: string
-    description: string
-    type: 'discussion' | 'problem' | 'project' | 'quiz'
-  }
-  alerts: {
-    type: 'confusion' | 'conflict' | 'off_topic' | 'need_help' | 'quiet'
-    message: string
-    timestamp: number
-    severity: 'low' | 'medium' | 'high'
-  }[]
-  metrics?: {
-    messagesExchanged: number
-    avgEngagement: number
-    participationRate: number
-    topicAdherence: number
-  }
-  chatHistory: {
-    id: string
-    senderId: string
-    senderName: string
-    message: string
-    timestamp: number
-  }[]
-  timers?: {
-    countdown?: NodeJS.Timeout
-    closingWarning?: NodeJS.Timeout
-  }
-}
 
 // Polls
 export interface PollState {

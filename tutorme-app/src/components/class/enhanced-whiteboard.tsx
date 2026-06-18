@@ -2732,7 +2732,6 @@ export function EnhancedWhiteboard({
             onPushHint={(studentId, hint, type: 'socratic' | 'direct' | 'encouragement') =>
               onPushHint?.(studentId, hint)
             }
-            onInviteBreakout={studentId => console.log('Invite to breakout:', studentId)}
           />
         )}
       </div>

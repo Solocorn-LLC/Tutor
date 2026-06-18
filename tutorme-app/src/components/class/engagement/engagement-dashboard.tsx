@@ -51,7 +51,6 @@ interface EngagementDashboardProps {
   onToggle: () => void
   onSelectStudent?: (studentId: string) => void
   onSendNudge?: (studentId: string) => void
-  onInviteToBreakout?: (studentId: string) => void
 }
 
 export function EngagementDashboard({
@@ -60,7 +59,6 @@ export function EngagementDashboard({
   onToggle,
   onSelectStudent,
   onSendNudge,
-  onInviteToBreakout,
 }: EngagementDashboardProps) {
   const [filter, setFilter] = useState<'all' | 'struggling' | 'inactive' | 'engaged'>('all')
   const [sortBy, setSortBy] = useState<'engagement' | 'attention' | 'comprehension'>('engagement')
@@ -299,7 +297,6 @@ export function EngagementDashboard({
                 student={student}
                 onSelect={() => onSelectStudent?.(student.studentId)}
                 onNudge={() => onSendNudge?.(student.studentId)}
-                onInviteToBreakout={() => onInviteToBreakout?.(student.studentId)}
                 getAttentionColor={getAttentionColor}
                 getEngagementColor={getEngagementColor}
                 getProgressColor={getProgressColor}
@@ -325,7 +322,6 @@ interface StudentEngagementCardProps {
   student: EngagementMetrics
   onSelect: () => void
   onNudge: () => void
-  onInviteToBreakout: () => void
   getAttentionColor: (level: string) => string
   getEngagementColor: (score: number) => string
   getProgressColor: (score: number) => string
@@ -335,7 +331,6 @@ function StudentEngagementCard({
   student,
   onSelect,
   onNudge,
-  onInviteToBreakout,
   getAttentionColor,
   getEngagementColor,
   getProgressColor,
@@ -504,17 +499,6 @@ function StudentEngagementCard({
                 Send Nudge
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 flex-1 border-blue-600/50 text-[10px] text-blue-400 hover:bg-blue-600/10"
-              onClick={e => {
-                e.stopPropagation()
-                onInviteToBreakout()
-              }}
-            >
-              1:1 Session
-            </Button>
           </div>
         )}
       </CardContent>

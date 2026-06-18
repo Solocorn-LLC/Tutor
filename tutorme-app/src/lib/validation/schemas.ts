@@ -147,13 +147,6 @@ export const JoinRoomSchema = z.object({
   userId: z.string().uuid('Invalid user ID'),
 })
 
-export const CreateBreakoutSchema = z.object({
-  parentSessionId: z.string().cuid('Invalid session ID'),
-  studentIds: z.array(z.string().cuid()).min(1, 'At least one student required'),
-  durationMinutes: z.number().int().min(5).max(120).default(30),
-  topic: z.string().max(200).optional(),
-})
-
 export const SendMessageSchema = z.object({
   sessionId: z.string().cuid('Invalid session ID'),
   content: z.string().min(1, 'Message cannot be empty').max(5000),

@@ -101,51 +101,6 @@ export class DailyCoProvider implements VideoProvider {
     }
   }
 
-  async createBreakoutRoom(
-    parentSessionId: string,
-    options?: {
-      durationMinutes?: number
-    }
-  ): Promise<VideoRoom> {
-    if (!this.apiKey) {
-      console.warn('[VideoProvider] No API key, mocking createBreakoutRoom')
-      return {
-        id: `mock-breakout-${parentSessionId}`,
-        url: `https://mock.daily.co/breakout-${parentSessionId}`,
-        expiry: new Date(Date.now() + 60 * 60 * 1000),
-      }
-    }
-
-    const roomName = `tutorme-breakout-${parentSessionId}-${Date.now()}`
-
-    const expiry = options?.durationMinutes
-      ? new Date(Date.now() + options.durationMinutes * 60 * 1000)
-      : new Date(Date.now() + 60 * 60 * 1000) // Default 1 hour for breakout
-
-    const room = await this.fetchDaily('/rooms', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: roomName,
-        privacy: 'public',
-        properties: {
-          max_participants: 2, // 1:1 breakout
-          enable_screenshare: true,
-          enable_chat: false,
-          // Note: enable_recording omitted - many Daily.co plans don't support it
-          exp: Math.floor(expiry.getTime() / 1000),
-          start_audio_off: false,
-          start_video_off: false,
-        },
-      }),
-    })
-
-    return {
-      id: room.name,
-      url: room.url,
-      expiry,
-    }
-  }
-
   async createMeetingToken(
     roomName: string,
     userId: string,
@@ -164,7 +119,6 @@ export class DailyCoProvider implements VideoProvider {
     const expiry = Math.floor(Date.now() / 1000) + effectiveDuration * 60
 
     const isOwner = options?.isOwner || false
-    const isBreakout = roomName.includes('breakout')
 
     const token = await this.fetchDaily('/meeting-tokens', {
       method: 'POST',
@@ -173,7 +127,7 @@ export class DailyCoProvider implements VideoProvider {
           room_name: roomName,
           user_id: userId,
           is_owner: isOwner,
-          ...(isOwner || isBreakout
+          ...(isOwner
             ? {}
             : {
                 start_video_off: true,

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       includeActionItems = true,
     }: {
       sessionId: string
-      type?: 'session' | 'topic' | 'student' | 'breakout'
+      type?: 'session' | 'topic' | 'student'
       maxLength?: 'short' | 'medium' | 'detailed'
       includeActionItems?: boolean
     } = body

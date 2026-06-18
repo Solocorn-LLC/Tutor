@@ -22,7 +22,6 @@ import type {
   MathWhiteboardRoomState,
   MathSyncMetricsState,
   MathSyncObservabilitySnapshot,
-  BreakoutRoom,
   PollState,
 } from './socket-types'
 import {
@@ -464,9 +463,6 @@ export function getMathSyncObservability(sessionId?: string): MathSyncObservabil
   return snapshots.sort((a, b) => b.lastActivity - a.lastActivity)
 }
 
-// ============ Breakout ============
-export const breakoutRooms = new Map<string, BreakoutRoom>()
-export const mainRoomBreakouts = new Map<string, Set<string>>()
 
 // ============ Feedback & Insights ============
 export const deployedTasks = new Map<
@@ -538,9 +534,6 @@ export function getRoomState(roomId: string): ClassRoom | undefined {
   return activeRooms.get(roomId)
 }
 
-export function getBreakoutRoomState(roomId: string): BreakoutRoom | undefined {
-  return breakoutRooms.get(roomId)
-}
 
 export function getDMRoomState(conversationId: string): DirectMessageRoom | undefined {
   return directMessageRooms.get(conversationId)
@@ -667,19 +660,7 @@ export function cleanupStaleSocketState() {
     }
   }
 
-  // 9. mainRoomBreakouts - verify closed rooms are removed
-  for (const [mainRoomId, roomIds] of mainRoomBreakouts.entries()) {
-    for (const roomId of Array.from(roomIds)) {
-      if (!breakoutRooms.has(roomId)) {
-        roomIds.delete(roomId)
-      }
-    }
-    if (roomIds.size === 0) {
-      mainRoomBreakouts.delete(mainRoomId)
-    }
-  }
-
-  // 10. activePolls - delete closed polls older than 24h
+  // activePolls - delete closed polls older than 24h
   for (const [pollId, poll] of activePolls.entries()) {
     if (poll.status === 'closed' && poll.endedAt && now - poll.endedAt > STALE_STATE_TTL_MS) {
       activePolls.delete(pollId)
