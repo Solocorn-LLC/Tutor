@@ -226,9 +226,28 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       setVariants(prev => {
         const map = new Map(prev.map(v => [`${v.category}|${v.nationality}`, v]))
         let changed = false
+        // The template course schedule (course.schedule) shown as "Schedule 1"
+        // for variants that have no saved CourseSchedule rows of their own.
+        const baselineSchedules =
+          Array.isArray(defaultSchedule) && defaultSchedule.length > 0
+            ? [
+                {
+                  scheduleIndex: 1,
+                  name: null,
+                  schedule: [...defaultSchedule],
+                  weeksToSchedule: 8,
+                  maxStudents: null,
+                },
+              ]
+            : []
+        const variantHasSchedules = (v: VariantConfig): boolean =>
+          v.schedules.some(
+            s => s.scheduleId || (Array.isArray(s.schedule) && s.schedule.length > 0)
+          )
         // Add missing
         for (const key of desiredKeys) {
-          if (!map.has(key)) {
+          const existing = map.get(key)
+          if (!existing) {
             const [category, nationality] = key.split('|')
             map.set(key, {
               category,
@@ -238,19 +257,14 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
               currency: globalCurrency,
               languageOfInstruction: globalLanguage,
-              schedules:
-                Array.isArray(defaultSchedule) && defaultSchedule.length > 0
-                  ? [
-                      {
-                        scheduleIndex: 1,
-                        name: null,
-                        schedule: [...defaultSchedule],
-                        weeksToSchedule: 8,
-                        maxStudents: null,
-                      },
-                    ]
-                  : [],
+              schedules: baselineSchedules,
             })
+            changed = true
+          } else if (!variantHasSchedules(existing) && baselineSchedules.length > 0) {
+            // Backfill: the variant was created before the course schedule had
+            // loaded (course fetch is async), so adopt the template schedule now
+            // instead of leaving the scheduler showing only the "Add" button.
+            map.set(key, { ...existing, schedules: baselineSchedules })
             changed = true
           }
         }
@@ -261,10 +275,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         // scheduler, leaving only the "Add another schedule" button.
         for (const [key, variant] of map.entries()) {
           if (desiredKeys.has(key)) continue
-          const hasSavedSchedules = variant.schedules.some(
-            s => s.scheduleId || (Array.isArray(s.schedule) && s.schedule.length > 0)
-          )
-          if (hasSavedSchedules) continue
+          if (variantHasSchedules(variant)) continue
           map.delete(key)
           changed = true
         }

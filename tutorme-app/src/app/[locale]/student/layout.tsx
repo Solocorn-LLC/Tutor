@@ -391,7 +391,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         className={cn(
           'relative z-0 h-screen flex-1 overflow-hidden',
           !isFeedbackRoute && [
-            'pt-16 lg:mt-4 lg:mb-0 lg:h-[calc(100vh-1rem)] lg:w-[calc(100%-17rem)] transition-[margin] duration-500 ease-in-out',
+            'pt-16 transition-[margin] duration-500 ease-in-out lg:mb-0 lg:mt-4 lg:h-[calc(100vh-1rem)] lg:w-[calc(100%-17rem)]',
             desktopNavOpen ? 'lg:ml-64 lg:mr-4' : 'lg:ml-[8.5rem] lg:mr-[8.5rem]',
             isFloatingPage && 'lg:pt-0',
             !isFloatingPage &&

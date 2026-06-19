@@ -695,6 +695,35 @@ function TutorDashboardContent() {
                                 </Badge>
                               </Link>
                             </div>
+                            {hasActive &&
+                              (() => {
+                                // A session is live right now — give a one-click
+                                // way back into the classroom. Leaving the live
+                                // room (back arrow) doesn't end the session, so a
+                                // tutor must be able to rejoin without hunting
+                                // through the sessions modal.
+                                const live = courseClasses.find(
+                                  c =>
+                                    c.status === 'active' ||
+                                    c.status === 'live' ||
+                                    c.status === 'preparing'
+                                )
+                                return live ? (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() =>
+                                      router.push(
+                                        withLocalePath(`/tutor/classroom?sessionId=${live.id}`)
+                                      )
+                                    }
+                                    className="bg-success text-success-foreground transition-all duration-200 hover:brightness-110"
+                                  >
+                                    <Video className="mr-1 h-3 w-3" />
+                                    Rejoin live
+                                  </Button>
+                                ) : null
+                              })()}
                             {courseClasses.length > 0 ? (
                               <Button
                                 variant="default"

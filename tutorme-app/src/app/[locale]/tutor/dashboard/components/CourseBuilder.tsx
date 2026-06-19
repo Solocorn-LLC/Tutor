@@ -1615,8 +1615,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Trigger full sync: save → sync to live → emit to session.
     // isAuto suppresses the save/sync toasts so background auto-sync is silent.
     const triggerSync = useCallback(
-      (isAuto = false) => {
-        doSave(isAuto)
+      async (isAuto = false) => {
+        // Wait for the builder save (PUT of builderData) to commit BEFORE
+        // emitting course:sync. The server's course:sync handler re-reads
+        // builderData from the DB, so emitting before the save resolves would
+        // sync the previous content — making edits appear one save behind.
+        await doSave(isAuto)
         const cloned = handleSyncToLive()
         // In live mode `nodes` becomes this clone; record it so the effect below
         // doesn't treat the sync as a new edit and re-arm another auto-sync.
@@ -1693,11 +1697,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ref,
       () => ({
         save: doSave,
-        saveAll: doSave,
+        // When a session is open, the manual Save button must also push the
+        // edits into the live session. Otherwise Save persists to the DB but
+        // the live view keeps showing stale content (it only refreshes on a
+        // course:sync emit). triggerSync saves AND emits course:sync. Gate on
+        // sessionId (not status === 'active'), since a stale session list could
+        // otherwise silently suppress the sync on an explicit save.
+        saveAll: (isAuto = false) =>
+          insightsProps?.sessionId && onSyncToLiveSession ? triggerSync(isAuto) : doSave(isAuto),
         syncToLive: handleSyncToLive,
         getLessons: () => nodes.map(n => n.lessons[0]),
       }),
-      [doSave, handleSyncToLive, nodes]
+      [doSave, handleSyncToLive, nodes, insightsProps?.sessionId, onSyncToLiveSession, triggerSync]
     )
 
     const trackObjectUrl = useCallback((url: string) => {
