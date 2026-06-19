@@ -1123,7 +1123,7 @@ function TutorDashboardContent() {
                     <Button asChild variant="outline">
                       <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
                         <CalendarClock className="mr-1 h-4 w-4" />
-                        Add to schedule
+                        +Add schedule
                       </Link>
                     </Button>
                     <Button
