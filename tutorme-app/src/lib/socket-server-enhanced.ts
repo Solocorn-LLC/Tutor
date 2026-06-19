@@ -1055,6 +1055,43 @@ export async function initEnhancedSocketServer(server: NetServer) {
             taskId: normalizedTask.id,
             sequence: sessionSequence,
           })
+
+          // Auto-create a BuilderTask row for this deployed task (if one doesn't
+          // already exist) so student completions can be persisted to
+          // TaskSubmission — whose taskId FK requires a builderTask. This makes
+          // EVERY deployed task gradable, even ad-hoc/unsaved ones. Idempotent
+          // on the PK so a real saved task is never overwritten. Needs a lesson
+          // of the course to satisfy builderTask.lessonId (FK); published
+          // courses always have lessons, so this is virtually always available.
+          try {
+            const tutorId = socket.data.userId
+            if (tutorId) {
+              const [lesson] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(eq(courseLesson.courseId, sessionRec.courseId))
+                .limit(1)
+              if (lesson?.lessonId) {
+                await drizzleDb
+                  .insert(builderTask)
+                  .values({
+                    taskId: normalizedTask.id,
+                    courseId: sessionRec.courseId,
+                    lessonId: lesson.lessonId,
+                    tutorId,
+                    title: normalizedTask.title || 'Untitled',
+                    content: normalizedTask.content || '',
+                    pci: '',
+                    type: normalizedTask.source,
+                    status: 'published',
+                    publishedAt: new Date(),
+                  })
+                  .onConflictDoNothing({ target: builderTask.taskId })
+              }
+            }
+          } catch (btErr) {
+            console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
+          }
         }
       } catch (err) {
         console.error('Failed to persist deployed material to DB:', err)
