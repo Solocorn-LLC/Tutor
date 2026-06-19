@@ -1,0 +1,30 @@
+:global(html) {
+  scroll-behavior: auto !important;
+  scroll-snap-type: y proximity;
+}
+
+/*
+  globals.css sets body { overflow-x: hidden }. On the landing page that makes
+  Chrome treat the body as the viewport scroller and disables root scroll-snap.
+  Reset it here so the viewport scroller stays the html element.
+*/
+:global(body) {
+  overflow-x: visible !important;
+}
+
+:global(.snap-panel) {
+  scroll-snap-stop: always;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+:global(.animate-marquee) {
+  animation: marquee 30s linear infinite;
+}
