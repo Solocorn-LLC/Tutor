@@ -34,6 +34,20 @@ export const GET = withAuth(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
       }
 
+      // Safety net: if the caller passed a *published variant* id (e.g. a link
+      // built from /api/tutor/courses/enrolled, which returns published ids),
+      // resolve it back to its template so the scheduler still loads the full
+      // variant set and its CourseSchedule rows instead of coming up empty.
+      let effectiveTemplateId = templateCourseId
+      const asVariant = await drizzleDb
+        .select({ templateCourseId: courseVariant.templateCourseId })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, templateCourseId))
+        .limit(1)
+      if (asVariant.length > 0) {
+        effectiveTemplateId = asVariant[0].templateCourseId
+      }
+
       const rows = await drizzleDb
         .select({
           variantId: courseVariant.variantId,
@@ -49,7 +63,7 @@ export const GET = withAuth(
         })
         .from(courseVariant)
         .innerJoin(course, eq(course.courseId, courseVariant.publishedCourseId))
-        .where(eq(courseVariant.templateCourseId, templateCourseId))
+        .where(eq(courseVariant.templateCourseId, effectiveTemplateId))
 
       // Load schedules for each variant
       const variantIds = rows.map(r => r.publishedCourseId)

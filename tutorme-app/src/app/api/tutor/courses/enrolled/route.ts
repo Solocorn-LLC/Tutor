@@ -75,6 +75,7 @@ export const GET = withAuth(
         ? await drizzleDb
             .select({
               publishedCourseId: courseVariant.publishedCourseId,
+              templateCourseId: courseVariant.templateCourseId,
               nationality: courseVariant.nationality,
               category: courseVariant.category,
             })
@@ -84,7 +85,11 @@ export const GET = withAuth(
     const variantMap = new Map(
       variantRows.map(v => [
         v.publishedCourseId,
-        { nationality: v.nationality, category: v.category },
+        {
+          templateCourseId: v.templateCourseId,
+          nationality: v.nationality,
+          category: v.category,
+        },
       ])
     )
 
@@ -93,6 +98,10 @@ export const GET = withAuth(
       const counts = sessionCounts.find(s => s.courseId === c.courseId)
       return {
         id: c.courseId,
+        // The scheduler/course builder operates on the TEMPLATE course; this id
+        // is the published variant, so expose its template for "Add schedule"
+        // style links (falls back to the published id for legacy/direct courses).
+        templateCourseId: variant?.templateCourseId ?? c.courseId,
         name: c.name,
         categories: c.categories,
         isPublished: c.isPublished,

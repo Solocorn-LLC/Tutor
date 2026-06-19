@@ -92,6 +92,8 @@ type ScheduleSlot = {
 
 type EnrolledCourse = {
   id: string
+  /** The template course id to open in the scheduler/builder (id is the published variant). */
+  templateCourseId?: string
   name: string
   categories?: string[] | null
   isPublished?: boolean | null
@@ -301,6 +303,23 @@ function TutorDashboardContent() {
       fetchData()
     } else {
       setLoading(false)
+    }
+  }, [session?.user?.id, fetchData])
+
+  // Refresh on return to the dashboard (e.g. backing out of a live classroom,
+  // which is a client-side navigation that doesn't remount this page). Without
+  // this, `classes` stays stale and a now-active session — and its "Rejoin
+  // live" button — never appears.
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchData()
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
     }
   }, [session?.user?.id, fetchData])
 
@@ -744,7 +763,11 @@ function TutorDashboardContent() {
                                 size="sm"
                                 className="transition-all duration-200"
                               >
-                                <Link href={withLocalePath(`/tutor/courses/${course.id}`)}>
+                                <Link
+                                  href={withLocalePath(
+                                    `/tutor/courses/${course.templateCourseId ?? course.id}`
+                                  )}
+                                >
                                   <CalendarClock className="mr-1 h-3 w-3" />
                                   Schedule sessions
                                 </Link>
@@ -943,7 +966,11 @@ function TutorDashboardContent() {
                   </p>
                   {selectedCourseForCancel && (
                     <Button asChild size="sm" className="mt-3 transition-all duration-200">
-                      <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                      <Link
+                        href={withLocalePath(
+                          `/tutor/courses/${selectedCourseForCancel.templateCourseId ?? selectedCourseForCancel.id}`
+                        )}
+                      >
                         <CalendarClock className="mr-1 h-3 w-3" />
                         Set up the schedule
                       </Link>
@@ -1150,7 +1177,11 @@ function TutorDashboardContent() {
                 {selectedCourseForCancel && (
                   <>
                     <Button asChild variant="outline">
-                      <Link href={withLocalePath(`/tutor/courses/${selectedCourseForCancel.id}`)}>
+                      <Link
+                        href={withLocalePath(
+                          `/tutor/courses/${selectedCourseForCancel.templateCourseId ?? selectedCourseForCancel.id}`
+                        )}
+                      >
                         <CalendarClock className="mr-1 h-4 w-4" />
                         +Add schedule
                       </Link>
