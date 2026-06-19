@@ -1409,15 +1409,23 @@ function StudentFeedbackContent() {
                         {activeTask.sourceDocument &&
                           (() => {
                             const doc = activeTask.sourceDocument
-                            const url = doc.fileUrl || ''
-                            // A blob: URL only resolves in the tutor's browser, and
-                            // an empty URL means the document never reached storage —
-                            // either way the student can't load it. Show a clear
-                            // message instead of a silently blank frame.
-                            const loadable = !!url && !url.startsWith('blob:')
+                            const rawUrl = doc.fileUrl || ''
+                            // Prefer streaming by object key through our same-origin
+                            // proxy: it reads from storage server-side (no signed/
+                            // public URL needed), so it works even when GCS URL
+                            // signing is misconfigured or a stored URL has expired.
+                            // Fall back to the direct URL only when there's no key.
+                            const url = doc.fileKey
+                              ? `/api/proxy-file?key=${encodeURIComponent(doc.fileKey)}`
+                              : rawUrl
+                            // Without a key, a blob: URL only resolves in the tutor's
+                            // browser and an empty URL never reached storage — show a
+                            // clear message instead of a silently blank frame.
+                            const loadable =
+                              !!doc.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
                             const isPdf =
                               doc.mimeType === 'application/pdf' ||
-                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(url))
+                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
                             const isImage = doc.mimeType?.startsWith('image/')
                             const pdfSrc = url.includes('#')
                               ? `${url}&toolbar=0&navpanes=0`
