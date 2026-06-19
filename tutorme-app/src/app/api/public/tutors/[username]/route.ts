@@ -198,6 +198,7 @@ export async function GET(
         youtube: getSocial('youtube'),
         instagram: getSocial('instagram'),
         facebook: getSocial('facebook'),
+        x: getSocial('x'),
         kakaoTalk: getSocial('kakaoTalk'),
       },
     }

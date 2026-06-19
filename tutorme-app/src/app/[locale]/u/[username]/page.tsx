@@ -80,6 +80,7 @@ interface PublicTutorResponse {
       youtube?: string | null
       instagram?: string | null
       facebook?: string | null
+      x?: string | null
       kakaoTalk?: string | null
     } | null
   }
@@ -108,6 +109,13 @@ interface PublicTutorResponse {
 const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" {...props}>
     <path d="M208 88.9a71 71 0 0 1-52-22.2v95.5a63.9 63.9 0 1 1-54-63v33.4a30.6 30.6 0 1 0 21 29.1V24h33.1a71 71 0 0 0 52.1 55.3Z" />
+  </svg>
+)
+
+// X (formerly Twitter) brand glyph.
+const XBrandIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
@@ -1776,6 +1784,14 @@ export default function PublicTutorPage() {
                     icon: Facebook,
                     bgClass: 'bg-blue-600',
                     muted: !tutor.socialLinks?.facebook,
+                  },
+                  {
+                    key: 'x',
+                    label: 'X',
+                    value: tutor.socialLinks?.x ? `@${stripAt(tutor.socialLinks.x)}` : '—',
+                    icon: XBrandIcon,
+                    bgClass: 'bg-black',
+                    muted: !tutor.socialLinks?.x,
                   },
                 ].map(item => {
                   const Icon = item.icon

@@ -100,6 +100,13 @@ const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
+// X (formerly Twitter) brand glyph.
+const XBrandIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+)
+
 const KakaoTalkIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 512 512" aria-hidden="true" {...props}>
     <rect width="512" height="512" rx="115" fill="currentColor" />
@@ -634,6 +641,7 @@ export default function TutorMyPage() {
     instagram: '',
     tiktok: '',
     facebook: '',
+    x: '',
     kakaoTalk: '',
   })
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(true)
@@ -745,6 +753,7 @@ export default function TutorMyPage() {
           instagram: typeof links.instagram === 'string' ? stripAt(links.instagram) : '',
           tiktok: typeof links.tiktok === 'string' ? stripAt(links.tiktok) : '',
           facebook: typeof links.facebook === 'string' ? stripAt(links.facebook) : '',
+          x: typeof links.x === 'string' ? stripAt(links.x) : '',
           kakaoTalk: typeof links.kakaoTalk === 'string' ? stripAt(links.kakaoTalk) : '',
         })
         // Derive categories from published courses
@@ -1046,6 +1055,7 @@ export default function TutorMyPage() {
             tiktok: socialAccounts.tiktok.trim().replace(/^@+/, ''),
             youtube: socialAccounts.youtube.trim().replace(/^@+/, ''),
             facebook: socialAccounts.facebook.trim().replace(/^@+/, ''),
+            x: socialAccounts.x.trim().replace(/^@+/, ''),
             kakaoTalk: socialAccounts.kakaoTalk.trim().replace(/^@+/, ''),
           },
         }),
@@ -1635,6 +1645,14 @@ export default function TutorMyPage() {
                     bgClass: 'bg-blue-600',
                     muted: !socialAccounts.facebook,
                   },
+                  {
+                    key: 'x',
+                    label: 'X',
+                    value: socialAccounts.x ? `@${socialAccounts.x}` : '—',
+                    icon: XBrandIcon,
+                    bgClass: 'bg-black',
+                    muted: !socialAccounts.x,
+                  },
                 ].map(item => {
                   const Icon = item.icon
                   return (
@@ -1918,6 +1936,25 @@ export default function TutorMyPage() {
                             setSocialAccounts(prev => ({
                               ...prev,
                               facebook: e.target.value.replace(/^@+/, ''),
+                            }))
+                          }
+                          disabled={loading || saving}
+                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <XBrandIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                        <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                        <Input
+                          placeholder="username"
+                          value={socialAccounts.x.replace(/^@+/, '')}
+                          onChange={e =>
+                            setSocialAccounts(prev => ({
+                              ...prev,
+                              x: e.target.value.replace(/^@+/, ''),
                             }))
                           }
                           disabled={loading || saving}
