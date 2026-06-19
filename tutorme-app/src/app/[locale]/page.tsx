@@ -4968,6 +4968,12 @@ export default function LandingPage() {
           scroll-behavior: auto !important;
           scroll-snap-type: y proximity;
         }
+        /* The global body overflow-x:hidden makes Chrome treat the body as the
+           scroller and disables root scroll-snap. Reset it on this page so the
+           viewport scroller stays the html element. */
+        body {
+          overflow-x: visible !important;
+        }
         .snap-panel {
           scroll-snap-stop: always;
         }
