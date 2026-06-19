@@ -21,12 +21,17 @@ export interface ScheduleSlot {
 
 export async function resolveCourseScheduleSlots(
   courseId: string,
-  fallbackJson: unknown
+  fallbackJson: unknown,
+  // When set, resolve slots for just this schedule (the one a student enrolled
+  // in) rather than aggregating every schedule of the course.
+  scheduleId?: string | null
 ): Promise<ScheduleSlot[]> {
   const rows = await drizzleDb
     .select({ schedule: courseSchedule.schedule })
     .from(courseSchedule)
-    .where(eq(courseSchedule.courseId, courseId))
+    .where(
+      scheduleId ? eq(courseSchedule.scheduleId, scheduleId) : eq(courseSchedule.courseId, courseId)
+    )
 
   const fromTable = rows.flatMap(r => (Array.isArray(r.schedule) ? r.schedule : []))
   if (fromTable.length > 0) {

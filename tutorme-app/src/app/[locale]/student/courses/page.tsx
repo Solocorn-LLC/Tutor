@@ -66,6 +66,10 @@ interface Course {
     lessons: number
     batches: number
   }
+  /** Real number of live sessions (materialized time slots) for the student's schedule. */
+  sessionCount?: number
+  /** The schedule the student enrolled in. */
+  chosenSchedule?: { scheduleId: string; name: string | null; scheduleIndex: number } | null
   availability: {
     summary: string | null
     slots: ScheduleItem[]
@@ -387,6 +391,8 @@ function CoursePageInner() {
               lessons: e.course?._count?.lessons || 0,
               batches: 0,
             },
+            sessionCount: e.sessionCount ?? e.course?.sessionCount ?? 0,
+            chosenSchedule: e.chosenSchedule ?? null,
             availability: {
               summary: null,
               slots: e.course?.schedule || [],
@@ -538,11 +544,39 @@ function CoursePageInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Schedule Modal — shared named-schedule view (side by side) */}
+      {/* Schedule Modal — shared named-schedule view (side by side). Highlights
+          the student's current schedule and lets them switch (cascades). */}
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
+        selectedScheduleId={scheduleCourse?.chosenSchedule?.scheduleId ?? null}
         onClose={() => setScheduleCourse(null)}
+        onSwitch={async (scheduleId: string) => {
+          if (!scheduleCourse) return
+          try {
+            const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+            const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+            const res = await fetch('/api/student/enrollments/schedule', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(csrf && { 'X-CSRF-Token': csrf }),
+              },
+              credentials: 'include',
+              body: JSON.stringify({ courseId: scheduleCourse.id, scheduleId }),
+            })
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}))
+              toast.error(data?.error ?? 'Failed to switch schedule')
+              return
+            }
+            toast.success('Schedule updated')
+            setScheduleCourse(null)
+            await loadCourses()
+          } catch {
+            toast.error('Failed to switch schedule')
+          }
+        }}
       />
 
       {/* Tabs */}
@@ -1025,7 +1059,9 @@ function CourseCard({
           <div className="flex flex-wrap gap-4 text-sm text-slate-300">
             <div className="flex items-center gap-1">
               <Target className="h-4 w-4" />
-              <span>{course._count.lessons} sessions</span>
+              <span>
+                {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
+              </span>
             </div>
           </div>
 
@@ -1051,7 +1087,23 @@ function CourseCard({
             </div>
           )}
 
-          <p className="text-xs font-medium text-emerald-400">No live sessions on record yet</p>
+          {course.chosenSchedule ? (
+            <button
+              type="button"
+              onClick={onSchedule}
+              className="flex w-full items-center justify-between rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] p-2 text-xs text-slate-300 transition-colors hover:bg-[rgba(255,255,255,0.1)]"
+            >
+              <span>
+                Schedule:{' '}
+                <span className="font-medium text-slate-100">
+                  {course.chosenSchedule.name || `Schedule ${course.chosenSchedule.scheduleIndex}`}
+                </span>
+              </span>
+              <span className="font-medium text-blue-300">Change</span>
+            </button>
+          ) : (
+            <p className="text-xs font-medium text-slate-400">No schedule selected</p>
+          )}
         </div>
       </div>
 
