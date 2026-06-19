@@ -35,12 +35,23 @@ interface ScheduleViewModalProps {
   courseId: string | null
   courseName?: string
   onClose: () => void
+  /** The schedule the student is currently enrolled in (highlighted as current). */
+  selectedScheduleId?: string | null
+  /** When provided, each non-current schedule gets a "Switch to this" button. */
+  onSwitch?: (scheduleId: string) => Promise<void> | void
 }
 
-export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleViewModalProps) {
+export function ScheduleViewModal({
+  courseId,
+  courseName,
+  onClose,
+  selectedScheduleId,
+  onSwitch,
+}: ScheduleViewModalProps) {
   const [schedules, setSchedules] = useState<CourseSchedule[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [switchingId, setSwitchingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!courseId) return
@@ -89,44 +100,84 @@ export function ScheduleViewModal({ courseId, courseName, onClose }: ScheduleVie
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {schedules.map(s => (
-                <div key={s.scheduleId} className="flex flex-col rounded-lg border bg-gray-50 p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <h4 className="font-semibold text-gray-900">{s.name}</h4>
-                    {s.maxStudents != null && (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          s.isFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}
+              {schedules.map(s => {
+                const isCurrent = !!selectedScheduleId && s.scheduleId === selectedScheduleId
+                return (
+                  <div
+                    key={s.scheduleId}
+                    className={`flex flex-col rounded-lg border p-4 ${
+                      isCurrent
+                        ? 'border-indigo-400 bg-indigo-50/60 ring-1 ring-indigo-300'
+                        : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900">{s.name}</h4>
+                        {isCurrent && (
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      {s.maxStudents != null && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            s.isFull ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {s.isFull
+                            ? 'Full'
+                            : `${s.spotsLeft} spot${s.spotsLeft === 1 ? '' : 's'} left`}
+                        </span>
+                      )}
+                    </div>
+                    {s.slots.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {s.slots.map((slot, i) => (
+                          <li
+                            key={i}
+                            className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
+                          >
+                            <span className="font-medium text-gray-800">{slot.dayOfWeek}</span>
+                            <span className="text-gray-600">
+                              {slot.startTime} · {slot.durationMinutes} min
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Times to be arranged with the tutor.</p>
+                    )}
+                    {s.weeksToSchedule ? (
+                      <p className="mt-2 text-xs text-gray-400">
+                        Runs for {s.weeksToSchedule} weeks
+                      </p>
+                    ) : null}
+                    {onSwitch && !isCurrent && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={s.isFull || switchingId !== null}
+                        className="mt-3"
+                        onClick={async () => {
+                          setSwitchingId(s.scheduleId)
+                          try {
+                            await onSwitch(s.scheduleId)
+                          } finally {
+                            setSwitchingId(null)
+                          }
+                        }}
                       >
-                        {s.isFull
-                          ? 'Full'
-                          : `${s.spotsLeft} spot${s.spotsLeft === 1 ? '' : 's'} left`}
-                      </span>
+                        {switchingId === s.scheduleId ? (
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        ) : null}
+                        {s.isFull ? 'Full' : 'Switch to this schedule'}
+                      </Button>
                     )}
                   </div>
-                  {s.slots.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {s.slots.map((slot, i) => (
-                        <li
-                          key={i}
-                          className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
-                        >
-                          <span className="font-medium text-gray-800">{slot.dayOfWeek}</span>
-                          <span className="text-gray-600">
-                            {slot.startTime} · {slot.durationMinutes} min
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-500">Times to be arranged with the tutor.</p>
-                  )}
-                  {s.weeksToSchedule ? (
-                    <p className="mt-2 text-xs text-gray-400">Runs for {s.weeksToSchedule} weeks</p>
-                  ) : null}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

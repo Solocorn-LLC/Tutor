@@ -302,6 +302,14 @@ export interface CourseBuilderInsightsProps {
   onSessionChange: (sessionId: string) => void
   onStartSession?: () => void
   liveTasks: LiveTask[]
+  /** In-session task/assessment completions (with answers) for the Submissions tab. */
+  liveSubmissions?: {
+    taskId: string
+    studentId: string
+    studentName?: string
+    submittedAt: string | number
+    answers?: Record<string, string>
+  }[]
   /** Present only inside a live session; deploy buttons hide when undefined. */
   onDeployTask?: (task: LiveTask) => void
   onSendPoll: (payload: { taskId: string; question: string }) => void

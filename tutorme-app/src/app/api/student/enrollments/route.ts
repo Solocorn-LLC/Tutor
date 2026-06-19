@@ -9,7 +9,15 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment, courseVariant, user } from '@/lib/db/schema'
+import {
+  course,
+  courseLesson,
+  courseEnrollment,
+  courseVariant,
+  courseSchedule,
+  liveSession,
+  user,
+} from '@/lib/db/schema'
 import { eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
@@ -87,23 +95,94 @@ export const GET = withAuth(
         : []
     const lessonCountByCourse = new Map(lessonCounts.map(m => [m.courseId, m.count ?? 0]))
 
-    const enrollments = enrollmentsRows.map(row => ({
-      ...row.enrollment,
-      course: {
-        courseId: row.courseId,
-        name: row.courseName,
-        categories: row.courseCategories,
-        description: row.courseDescription,
-        isPublished: row.courseIsPublished,
-        schedule: row.courseSchedule,
-        tutorHandle: row.tutorHandle,
-        variantCategory: row.variantCategory,
-        variantNationality: row.variantNationality,
-        _count: {
-          lessons: lessonCountByCourse.get(row.courseId) ?? 0,
+    // Real session counts: a "session" is a materialized liveSession (one per
+    // scheduled time slot, expanded over the schedule's weeks) — NOT a content
+    // lesson. Count non-cancelled sessions per (course, schedule).
+    const sessionRows =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              courseId: liveSession.courseId,
+              scheduleId: liveSession.scheduleId,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(liveSession)
+            .where(inArray(liveSession.courseId, courseIds))
+            .groupBy(liveSession.courseId, liveSession.scheduleId)
+        : []
+    const sessionCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
+    const sessionCountByCourse = new Map<string, number>() // course-wide total
+    for (const r of sessionRows) {
+      const cid = r.courseId ?? ''
+      sessionCountByCourse.set(cid, (sessionCountByCourse.get(cid) ?? 0) + (r.count ?? 0))
+      if (r.scheduleId) sessionCountBySchedule.set(`${cid}:${r.scheduleId}`, r.count ?? 0)
+    }
+
+    // The chosen schedule per enrollment (name/index for display + slots/weeks
+    // as a fallback session count before sessions are materialized).
+    const scheduleIds = Array.from(
+      new Set(enrollmentsRows.map(r => r.enrollment.scheduleId).filter(Boolean) as string[])
+    )
+    const scheduleRows =
+      scheduleIds.length > 0
+        ? await drizzleDb
+            .select({
+              scheduleId: courseSchedule.scheduleId,
+              name: courseSchedule.name,
+              scheduleIndex: courseSchedule.scheduleIndex,
+              schedule: courseSchedule.schedule,
+              weeksToSchedule: courseSchedule.weeksToSchedule,
+            })
+            .from(courseSchedule)
+            .where(inArray(courseSchedule.scheduleId, scheduleIds))
+        : []
+    const scheduleById = new Map(scheduleRows.map(s => [s.scheduleId, s]))
+
+    const enrollments = enrollmentsRows.map(row => {
+      const schedId = row.enrollment.scheduleId
+      const chosen = schedId ? scheduleById.get(schedId) : null
+      // Prefer the count for the student's chosen schedule; fall back to the
+      // course-wide count, then to the expected slots × weeks (pre-materialize).
+      let sessionCount =
+        (schedId ? sessionCountBySchedule.get(`${row.courseId}:${schedId}`) : undefined) ??
+        sessionCountByCourse.get(row.courseId) ??
+        0
+      if (sessionCount === 0) {
+        const slots = Array.isArray(chosen?.schedule)
+          ? chosen!.schedule
+          : Array.isArray(row.courseSchedule)
+            ? (row.courseSchedule as unknown[])
+            : []
+        const weeks = chosen?.weeksToSchedule ?? 8
+        sessionCount = slots.length * (weeks || 1)
+      }
+      return {
+        ...row.enrollment,
+        chosenSchedule: chosen
+          ? {
+              scheduleId: chosen.scheduleId,
+              name: chosen.name,
+              scheduleIndex: chosen.scheduleIndex,
+            }
+          : null,
+        sessionCount,
+        course: {
+          courseId: row.courseId,
+          name: row.courseName,
+          categories: row.courseCategories,
+          description: row.courseDescription,
+          isPublished: row.courseIsPublished,
+          schedule: row.courseSchedule,
+          tutorHandle: row.tutorHandle,
+          variantCategory: row.variantCategory,
+          variantNationality: row.variantNationality,
+          sessionCount,
+          _count: {
+            lessons: lessonCountByCourse.get(row.courseId) ?? 0,
+          },
         },
-      },
-    }))
+      }
+    })
 
     return NextResponse.json({ enrollments })
   },

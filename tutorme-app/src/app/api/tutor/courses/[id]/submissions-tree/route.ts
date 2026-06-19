@@ -138,6 +138,7 @@ export const GET = withAuth(async (request, session, context) => {
             score: taskSubmission.score,
             maxScore: taskSubmission.maxScore,
             submittedAt: taskSubmission.submittedAt,
+            answers: taskSubmission.answers,
           })
           .from(taskSubmission)
           .where(

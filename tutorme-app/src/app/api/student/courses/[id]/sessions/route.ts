@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, courseEnrollment, course } from '@/lib/db/schema'
+import { or, isNull } from 'drizzle-orm'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
 import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
 
@@ -42,9 +43,20 @@ export const GET = withAuth(
         .where(eq(course.courseId, courseId))
         .limit(1)
 
-      // Fetch real live sessions
+      // Fetch real live sessions, scoped to the student's chosen schedule when
+      // they have one (a switch then cascades to which sessions they see).
+      // One-time/ad-hoc sessions (scheduleId null) are shown to everyone.
+      const enrolledScheduleId = (enrollment as { scheduleId?: string | null }).scheduleId ?? null
       const realSessions = await drizzleDb.query.liveSession.findMany({
-        where: eq(liveSessionTable.courseId, courseId),
+        where: enrolledScheduleId
+          ? and(
+              eq(liveSessionTable.courseId, courseId),
+              or(
+                eq(liveSessionTable.scheduleId, enrolledScheduleId),
+                isNull(liveSessionTable.scheduleId)
+              )
+            )
+          : eq(liveSessionTable.courseId, courseId),
         orderBy: [asc(liveSessionTable.scheduledAt)],
       })
 
@@ -68,7 +80,11 @@ export const GET = withAuth(
       // Generate virtual sessions from the schedule that publish actually
       // materializes from (CourseSchedule table), falling back to the legacy
       // course.schedule JSON for unpublished drafts.
-      const schedule = await resolveCourseScheduleSlots(courseId, courseRow?.schedule)
+      const schedule = await resolveCourseScheduleSlots(
+        courseId,
+        courseRow?.schedule,
+        enrolledScheduleId
+      )
 
       const virtualSessions = generateUpcomingSessions(
         schedule,

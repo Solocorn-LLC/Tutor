@@ -1231,24 +1231,17 @@ export default function PublicTutorPage() {
                             </div>
                             <div className="h-3.5 w-px self-center bg-[rgba(255,255,255,0.12)]" />
                             <div className="min-w-0">
-                              {course.scheduleSummary ? (
-                                <button
-                                  type="button"
-                                  onClick={e => {
-                                    e.preventDefault()
-                                    setScheduleCourse(course)
-                                  }}
-                                  className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
-                                >
-                                  <CalendarDays className="h-3.5 w-3.5" />
-                                  Schedule <ExternalLink className="h-3 w-3" />
-                                </button>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 font-medium text-slate-300">
-                                  <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
-                                  Schedule TBA
-                                </span>
-                              )}
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.preventDefault()
+                                  setScheduleCourse(course)
+                                }}
+                                className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                              >
+                                <CalendarDays className="h-3.5 w-3.5" />
+                                View schedules <ExternalLink className="h-3 w-3" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1263,22 +1256,16 @@ export default function PublicTutorPage() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-slate-200">
                             <CalendarDays className="h-4 w-4 text-slate-400" />
-                            {course.scheduleSummary ? (
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault()
-                                  setScheduleCourse(course)
-                                }}
-                                className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
-                              >
-                                Schedule <ExternalLink className="h-3 w-3" />
-                              </button>
-                            ) : (
-                              <span className="font-medium text-slate-300">
-                                Schedule to be announced
-                              </span>
-                            )}
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.preventDefault()
+                                setScheduleCourse(course)
+                              }}
+                              className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                            >
+                              View schedules <ExternalLink className="h-3 w-3" />
+                            </button>
                           </div>
                           <div className="pt-0.5">
                             <Badge
@@ -2042,9 +2029,19 @@ export default function PublicTutorPage() {
             <DialogPanel className="p-3">
               <div className="space-y-0.5">
                 <div className="text-muted-foreground text-xs font-medium">Schedule</div>
-                <div className="text-foreground text-sm font-semibold">
-                  {detailsCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
-                </div>
+                {detailsCourse?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleCourse(detailsCourse)}
+                    className="text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    View schedules
+                  </button>
+                ) : (
+                  <div className="text-foreground text-sm font-semibold">
+                    Schedule to be announced
+                  </div>
+                )}
               </div>
             </DialogPanel>
             <DialogPanel className="p-3">

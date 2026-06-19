@@ -19,6 +19,8 @@ import {
   sessionParticipant,
   courseLesson,
   message,
+  builderTask,
+  taskSubmission,
 } from '@/lib/db/schema'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
@@ -131,6 +133,8 @@ export interface LiveTask {
   parentId?: string
   isExtension?: boolean
   completedBy?: string[]
+  /** studentId -> { dmiItemId -> answer } captured when a student submits. */
+  responses?: Record<string, Record<string, string>>
 }
 
 // Environment validation
@@ -955,10 +959,17 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
 
-      // Refresh any GCS document URLs before deploying to students
-      const refreshedSourceDocument = task.sourceDocument
-        ? await refreshDocumentUrls(task.sourceDocument)
-        : undefined
+      // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
+      // students get a live URL rather than a possibly-expired one. Never let a
+      // refresh failure block the deploy — fall back to the original document.
+      let refreshedSourceDocument = task.sourceDocument
+      if (task.sourceDocument) {
+        try {
+          refreshedSourceDocument = await refreshDocumentUrls(task.sourceDocument)
+        } catch (err) {
+          console.warn('[task:deploy] document URL refresh failed:', err)
+        }
+      }
 
       const normalizedTask: LiveTask = {
         id: task.id,
@@ -1044,6 +1055,54 @@ export async function initEnhancedSocketServer(server: NetServer) {
             taskId: normalizedTask.id,
             sequence: sessionSequence,
           })
+
+          // Auto-create a BuilderTask row for this deployed task (if one doesn't
+          // already exist) so student completions can be persisted to
+          // TaskSubmission — whose taskId FK requires a builderTask. This makes
+          // EVERY deployed task gradable (even ad-hoc/unsaved ones) and ensures
+          // submissions reach the Grading page. Idempotent on the PK so a real
+          // saved task is never overwritten.
+          try {
+            const tutorId = socket.data.userId
+            if (tutorId) {
+              // builderTask.lessonId is a NOT NULL FK. Most courses have a
+              // lesson, but one published with only a schedule (no built
+              // content) has none — create a placeholder so the deployed task
+              // can still be persisted and graded.
+              let [lesson] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(eq(courseLesson.courseId, sessionRec.courseId))
+                .limit(1)
+              if (!lesson?.lessonId) {
+                const newLessonId = crypto.randomUUID()
+                await drizzleDb.insert(courseLesson).values({
+                  lessonId: newLessonId,
+                  courseId: sessionRec.courseId,
+                  title: 'Live Session',
+                  order: 0,
+                })
+                lesson = { lessonId: newLessonId }
+              }
+              await drizzleDb
+                .insert(builderTask)
+                .values({
+                  taskId: normalizedTask.id,
+                  courseId: sessionRec.courseId,
+                  lessonId: lesson.lessonId,
+                  tutorId,
+                  title: normalizedTask.title || 'Untitled',
+                  content: normalizedTask.content || '',
+                  pci: '',
+                  type: normalizedTask.source,
+                  status: 'published',
+                  publishedAt: new Date(),
+                })
+                .onConflictDoNothing({ target: builderTask.taskId })
+            }
+          } catch (btErr) {
+            console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
+          }
         }
       } catch (err) {
         console.error('Failed to persist deployed material to DB:', err)
@@ -1102,6 +1161,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
               ? await refreshDocumentUrls({
                   fileName: (rawSourceDoc.fileName as string) || '',
                   fileUrl: (rawSourceDoc.fileUrl as string) || '',
+                  // Preserve fileKey so the URL is re-signed from the object key
+                  // (reliable) rather than regex-parsing a possibly-expired URL.
+                  fileKey: (rawSourceDoc.fileKey as string) || undefined,
                   mimeType: (rawSourceDoc.mimeType as string) || '',
                 })
               : undefined
@@ -1129,19 +1191,25 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
             const existingIndex = room.tasks.findIndex(t => t.id === liveTask.id)
             if (existingIndex >= 0) {
+              // Only sync content UPDATES to tasks the tutor has ALREADY
+              // deployed. A task that isn't deployed yet must NOT be introduced
+              // to students here — deployment is explicit via the Deploy button
+              // (task:deploy). Otherwise editing the builder (e.g. adding a new
+              // task) would mass-deploy every task on the next course:sync.
               room.tasks[existingIndex] = { ...room.tasks[existingIndex], ...liveTask }
-            } else {
-              room.tasks.push(liveTask)
+              syncedTasks.push(liveTask)
             }
-            syncedTasks.push(liveTask)
+            // else: not deployed yet — skip; the tutor deploys it explicitly.
           }
         }
 
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
 
+        // Emit only task:updated (not task:deployed) — these are edits to
+        // already-deployed tasks, not new deployments, so they shouldn't trigger
+        // the tutor's "Deployed to students" confirmation.
         for (const task of syncedTasks) {
-          io.to(roomId).emit('task:deployed', task)
           io.to(roomId).emit('task:updated', { task })
         }
 
@@ -1154,40 +1222,86 @@ export async function initEnhancedSocketServer(server: NetServer) {
     })
 
     // Student marks a task as complete
-    socket.on('task:complete', (data: { roomId: string; taskId: string }) => {
-      const { roomId, taskId } = data
-      if (!roomId || !taskId) return
-      const room = activeRooms.get(roomId)
-      if (!room) return
-      const studentId = socket.data.userId
-      if (!studentId || !room.students.has(studentId)) {
-        socket.emit('task:complete:error', { error: 'Not enrolled in this session' })
-        return
+    socket.on(
+      'task:complete',
+      (data: { roomId: string; taskId: string; answers?: Record<string, string> }) => {
+        const { roomId, taskId, answers } = data
+        if (!roomId || !taskId) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+        const studentId = socket.data.userId
+        if (!studentId || !room.students.has(studentId)) {
+          socket.emit('task:complete:error', { error: 'Not enrolled in this session' })
+          return
+        }
+        const task = room.tasks.find(t => t.id === taskId)
+        if (!task) {
+          socket.emit('task:complete:error', { error: 'Task not found' })
+          return
+        }
+        const completed = new Set(task.completedBy || [])
+        if (completed.has(studentId)) {
+          socket.emit('task:complete:error', { error: 'Already marked complete' })
+          return
+        }
+        completed.add(studentId)
+        task.completedBy = Array.from(completed)
+        // Capture the student's typed answers so the tutor's Insights can show
+        // per-student responses, not just a completion count.
+        if (answers && Object.keys(answers).length > 0) {
+          task.responses = task.responses || {}
+          task.responses[studentId] = answers
+        }
+        room.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room)
+        const studentName = room.students.get(studentId)?.name || 'A student'
+        io.to(roomId).emit('task:completed', {
+          taskId,
+          studentId,
+          studentName,
+          completedAt: Date.now(),
+          totalCompleted: task.completedBy.length,
+          answers: answers ?? {},
+        })
+        io.to(roomId).emit('task:updated', { task })
+
+        // Persist to TaskSubmission for durable grading. Best-effort and
+        // FK-safe: taskSubmission.taskId references builderTask, so we only
+        // insert when the deployed task corresponds to a real builderTask row
+        // (it won't for an unsaved/ephemeral task). onConflictDoNothing keeps
+        // the one-submission-per-(task,student) rule and never overwrites a row
+        // a tutor may already have graded. Failures here never affect the live
+        // session — the in-memory/Redis state and the socket overlay still work.
+        void (async () => {
+          try {
+            const [bt] = await drizzleDb
+              .select({ taskId: builderTask.taskId })
+              .from(builderTask)
+              .where(eq(builderTask.taskId, taskId))
+              .limit(1)
+            if (!bt) return // ephemeral/unsaved task — nothing to reference
+            await drizzleDb
+              .insert(taskSubmission)
+              .values({
+                submissionId: crypto.randomUUID(),
+                taskId,
+                studentId,
+                answers: answers ?? {},
+                timeSpent: 0,
+                attempts: 1,
+                questionResults: null,
+                score: null,
+                maxScore: 100,
+                status: 'submitted',
+                tutorApproved: false,
+              })
+              .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
+          } catch (err) {
+            console.warn('[task:complete] TaskSubmission persist failed (non-critical):', err)
+          }
+        })()
       }
-      const task = room.tasks.find(t => t.id === taskId)
-      if (!task) {
-        socket.emit('task:complete:error', { error: 'Task not found' })
-        return
-      }
-      const completed = new Set(task.completedBy || [])
-      if (completed.has(studentId)) {
-        socket.emit('task:complete:error', { error: 'Already marked complete' })
-        return
-      }
-      completed.add(studentId)
-      task.completedBy = Array.from(completed)
-      room.lastActivity = Date.now()
-      void persistRoomToRedis(roomId, room)
-      const studentName = room.students.get(studentId)?.name || 'A student'
-      io.to(roomId).emit('task:completed', {
-        taskId,
-        studentId,
-        studentName,
-        completedAt: Date.now(),
-        totalCompleted: task.completedBy.length,
-      })
-      io.to(roomId).emit('task:updated', { task })
-    })
+    )
 
     // Tutor assigns homework during live class
     socket.on(

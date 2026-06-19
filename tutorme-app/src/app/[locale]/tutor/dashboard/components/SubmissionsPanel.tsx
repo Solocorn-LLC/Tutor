@@ -41,6 +41,7 @@ type SubmissionsTreeResponse = {
     score: number | null
     maxScore: number
     submittedAt: string | Date
+    answers?: Record<string, string> | null
   }[]
   reports: {
     id: string
@@ -73,18 +74,30 @@ type SelectedLeaf = {
   report?: SubmissionsTreeResponse['reports'][number] | null
 }
 
+export interface LiveSubmission {
+  taskId: string
+  studentId: string
+  studentName?: string
+  submittedAt: string | number
+  answers?: Record<string, string>
+}
+
 export function SubmissionsPanel({
   courseId,
   width,
   hidden,
   onToggleHidden,
   headerExtra,
+  liveSubmissions,
 }: {
   courseId: string
   width: number
   hidden: boolean
   onToggleHidden: (value: boolean) => void
   headerExtra?: ReactNode
+  /** In-session completions received over the socket — overlaid on the DB rows
+   *  so a student's "Task Complete" shows immediately without a DB write. */
+  liveSubmissions?: LiveSubmission[]
 }) {
   const [data, setData] = useState<SubmissionsTreeResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -187,8 +200,24 @@ export function SubmissionsPanel({
     ;(data?.submissions || []).forEach(s => {
       map.set(`${s.studentId}:${s.taskId}`, s)
     })
+    // Overlay live (in-session) completions so a student's "Task Complete" shows
+    // up immediately. DB rows (graded, persisted) take precedence when present.
+    ;(liveSubmissions || []).forEach(ls => {
+      const key = `${ls.studentId}:${ls.taskId}`
+      if (map.has(key)) return
+      map.set(key, {
+        submissionId: `live-${key}`,
+        taskId: ls.taskId,
+        studentId: ls.studentId,
+        status: 'submitted',
+        score: null,
+        maxScore: 100,
+        submittedAt: new Date(ls.submittedAt).toISOString(),
+        answers: ls.answers ?? null,
+      })
+    })
     return map
-  }, [data])
+  }, [data, liveSubmissions])
 
   const reportMap = useMemo(() => {
     const map = new Map<string, SubmissionsTreeResponse['reports'][number]>()
@@ -366,6 +395,22 @@ export function SubmissionsPanel({
                           : '—'}
                       </div>
                     </div>
+                    {selected.submission?.answers &&
+                      Object.keys(selected.submission.answers).length > 0 && (
+                        <div className="mt-3 border-t border-slate-200 pt-3">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            Answers
+                          </div>
+                          <div className="mt-2 space-y-2">
+                            {Object.entries(selected.submission.answers).map(([qid, ans]) => (
+                              <div key={qid} className="text-sm">
+                                <span className="font-semibold text-slate-600">{qid}:</span>{' '}
+                                <span className="whitespace-pre-wrap text-slate-800">{ans}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4">

@@ -305,7 +305,11 @@ import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { useCourseBuilderState } from './hooks/useCourseBuilderState'
 import { useBuilderEditors } from './hooks/useBuilderEditors'
-import { InsightsReportView } from './builder-parts/InsightsReportView'
+import {
+  InsightsReportView,
+  type PollResultOption,
+  type QuestionAnswerEntry,
+} from './builder-parts/InsightsReportView'
 
 // ============================================
 // BUILDER MODAL COMPONENTS
@@ -1068,6 +1072,46 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ? taskBuilder.activeExtensionId
         : activeInsightsTaskId || 'default'
     const insightsTab = insightsTabMap[currentInsightsId] ?? 'analytics'
+
+    // Real poll/question results for the active task, derived from the live
+    // (socket-updated) task's responses — not authored builder content. Feeds
+    // InsightsReportView so the Insights tab reflects actual student answers.
+    const studentNameById = useMemo(() => {
+      const map = new Map<string, string>()
+      for (const s of insightsProps?.students ?? []) map.set(s.id, s.name)
+      return map
+    }, [insightsProps?.students])
+
+    const activeLiveTask = useMemo(
+      () => (insightsProps?.liveTasks ?? []).find(t => t.id === currentInsightsId) ?? null,
+      [insightsProps?.liveTasks, currentInsightsId]
+    )
+
+    const pollResults = useMemo<PollResultOption[]>(() => {
+      const poll = activeLiveTask?.polls?.[activeLiveTask.polls.length - 1]
+      if (!poll) return []
+      const total = poll.responses.length
+      const optionCount = poll.options?.length ?? 0
+      return Array.from({ length: optionCount }, (_, i) => {
+        const responders = poll.responses.filter(r => r.value === i)
+        return {
+          label: `Option ${String.fromCharCode(65 + i)}`,
+          count: responders.length,
+          percent: total > 0 ? Math.round((responders.length / total) * 100) : 0,
+          students: responders.map(r => studentNameById.get(r.studentId) || 'Student'),
+        }
+      })
+    }, [activeLiveTask, studentNameById])
+
+    const questionAnswers = useMemo<QuestionAnswerEntry[]>(() => {
+      const q = activeLiveTask?.questions?.[activeLiveTask.questions.length - 1]
+      if (!q) return []
+      return q.responses.map(r => ({
+        studentName: studentNameById.get(r.studentId) || 'Student',
+        answer: r.answer,
+      }))
+    }, [activeLiveTask, studentNameById])
+
     const setInsightsTab = (val: 'analytics' | 'poll' | 'question') =>
       setInsightsTabMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
@@ -5559,6 +5603,11 @@ FEEDBACK: [your explanation]`
         <Tabs
           value={mainTab}
           onValueChange={v => {
+            // Switching to Live shows liveNodes, a snapshot separate from the
+            // builderNodes the Build tab edits. Sync the latest builder content
+            // into it first so edits made in Build don't vanish on the Live tab.
+            // This is a local view sync only — it does not deploy to students.
+            if (v === 'live') handleSyncToLive()
             setMainTab(v as 'live' | 'builder' | 'test-pci')
             // Add callback to notify parent route
             if (onMainTabChange) {
@@ -7646,6 +7695,7 @@ FEEDBACK: [your explanation]`
                       width={rightPanelWidth}
                       hidden={rightPanelHidden}
                       onToggleHidden={setRightPanelHidden}
+                      liveSubmissions={insightsProps?.liveSubmissions}
                       headerExtra={
                         <Tabs
                           value={liveRightPanelTab}
@@ -7763,6 +7813,7 @@ FEEDBACK: [your explanation]`
                                   >
                                     <InsightsReportView
                                       type="poll"
+                                      pollResults={pollResults}
                                       onMentionStudent={name =>
                                         setPollPrompt(
                                           pollPrompt
@@ -7832,6 +7883,7 @@ FEEDBACK: [your explanation]`
                                   >
                                     <InsightsReportView
                                       type="question"
+                                      questionAnswers={questionAnswers}
                                       onMentionStudent={name =>
                                         setQuestionPrompt(
                                           questionPrompt
@@ -7913,6 +7965,7 @@ FEEDBACK: [your explanation]`
                     width={rightPanelWidth}
                     hidden={rightPanelHidden}
                     onToggleHidden={setRightPanelHidden}
+                    liveSubmissions={insightsProps?.liveSubmissions}
                   />
                 )}
               </>
@@ -8069,6 +8122,7 @@ FEEDBACK: [your explanation]`
                                               ) : (
                                                 <InsightsReportView
                                                   type="poll"
+                                                  pollResults={pollResults}
                                                   onMentionStudent={name =>
                                                     setPollPrompt(
                                                       pollPrompt
@@ -8199,6 +8253,7 @@ FEEDBACK: [your explanation]`
                                               ) : (
                                                 <InsightsReportView
                                                   type="question"
+                                                  questionAnswers={questionAnswers}
                                                   onMentionStudent={name =>
                                                     setQuestionPrompt(
                                                       questionPrompt

@@ -218,7 +218,10 @@ export function MonitoringPanel({
           const activeTab = stateUpdate?.payload?.activeTab
           const activeTaskId = stateUpdate?.payload?.activeTaskId
           const isWhiteboard = activeTab === 'my-board' || activeTab === 'tutor-board'
-          const isOnline = !!stateUpdate || student.status === 'online'
+          // The roster only contains currently-present students (departed ones
+          // are removed), so anyone here is online unless explicitly 'offline' —
+          // don't gate on having received a state-sync event yet.
+          const isOnline = student.status !== 'offline'
 
           return (
             <Card

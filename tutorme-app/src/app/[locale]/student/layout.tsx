@@ -74,7 +74,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const isCoursesPage = pathname?.includes('/student/courses')
   const isDashboardPage = pathname?.includes('/student/dashboard')
   const isFloatingPage =
-    isDashboardPage || isBookTutorPage || isCoursesPage || isCommunicationsPage || isAccountPage || isSupportPage
+    isDashboardPage ||
+    isBookTutorPage ||
+    isCoursesPage ||
+    isCommunicationsPage ||
+    isAccountPage ||
+    isSupportPage
   const isNavClosedPage =
     isSupportPage ||
     isFeedbackRoute ||

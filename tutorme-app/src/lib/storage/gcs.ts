@@ -156,7 +156,14 @@ export async function refreshDocumentUrls<T>(obj: T): Promise<T> {
     isGcsConfigured()
   ) {
     const refreshed = { ...record }
-    refreshed.fileUrl = await createPresignedDownloadUrl(fileKey, 3600)
+    try {
+      refreshed.fileUrl = await createPresignedDownloadUrl(fileKey, 3600)
+    } catch (err: any) {
+      // A signing failure (e.g. missing iam.serviceAccounts.signBlob) must not
+      // reject the whole deploy/sync — keep the existing fileUrl so the rest of
+      // the task still reaches students.
+      console.warn('[GCS] fileKey presign failed, keeping existing URL:', err?.message || err)
+    }
     // Recursively refresh nested objects
     for (const [key, value] of Object.entries(refreshed)) {
       if (key !== 'fileUrl' && typeof value === 'object' && value !== null) {
