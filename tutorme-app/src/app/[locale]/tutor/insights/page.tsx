@@ -77,7 +77,20 @@ function TutorInsightsPageInner() {
   const [linkedCourseId, setLinkedCourseId] = useState<string | null>(null)
   const [sessionCategory, setSessionCategory] = useState<string | null>(null)
   const [sessionNationality, setSessionNationality] = useState<string | null>(null)
+  // Canonical "Category — Nationality" label from the API (formatCourseVariantName),
+  // so the tutor header matches exactly what the student side shows.
+  const [sessionVariantName, setSessionVariantName] = useState<string | null>(null)
   const [liveTasks, setLiveTasks] = useState<LiveTask[]>([])
+  // In-session task/assessment completions (with answers) for the Submissions tab.
+  const [liveSubmissions, setLiveSubmissions] = useState<
+    {
+      taskId: string
+      studentId: string
+      studentName?: string
+      submittedAt: string | number
+      answers?: Record<string, string>
+    }[]
+  >([])
   const [studentBoards, setStudentBoards] = useState<
     Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
   >({})
@@ -677,6 +690,7 @@ function TutorInsightsPageInner() {
         setLinkedCourseId(data?.session?.linkedCourseId || null)
         setSessionCategory(data?.session?.category || null)
         setSessionNationality(data?.session?.nationality || null)
+        setSessionVariantName(data?.session?.variantName || null)
       } catch {
         // Ignore; keep existing selection
       }
@@ -766,11 +780,11 @@ function TutorInsightsPageInner() {
         })
       },
       onStudentLeft: (userId: string) => {
-        setStudents(prev =>
-          prev.map(s =>
-            ((s as any)?.userId ?? s?.id) === userId ? { ...s, status: 'offline' } : s
-          )
-        )
+        // Remove the student so the client roster mirrors the server's
+        // room.students (which deletes on disconnect). Previously this only
+        // flipped status to 'offline', so departed students accumulated forever
+        // and the Monitor tab showed people who had already left.
+        setStudents(prev => prev.filter(s => ((s as any)?.userId ?? s?.id) !== userId))
       },
       onStudentStateUpdate: (data: { userId: string; state: any }) => {
         setStudents(prev =>
@@ -839,6 +853,7 @@ function TutorInsightsPageInner() {
       studentName: string
       completedAt: number
       totalCompleted: number
+      answers?: Record<string, string>
     }) => {
       toast.success(`${data.studentName} completed a task`, {
         description: `${data.totalCompleted} student${data.totalCompleted === 1 ? '' : 's'} completed this task`,
@@ -851,6 +866,18 @@ function TutorInsightsPageInner() {
             : item
         )
       )
+      // Record the submission (with any typed answers) so the Submissions tab
+      // shows it live. Replace any prior entry for the same student+task.
+      setLiveSubmissions(prev => [
+        ...prev.filter(s => !(s.taskId === data.taskId && s.studentId === data.studentId)),
+        {
+          taskId: data.taskId,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          submittedAt: data.completedAt,
+          answers: data.answers,
+        },
+      ])
     }
 
     const handleSessionEndingSoon = (data: { sessionId: string; minutesRemaining: number }) => {
@@ -1232,6 +1259,7 @@ function TutorInsightsPageInner() {
           sessions,
           onSessionChange: setSessionId,
           liveTasks,
+          liveSubmissions,
           // Only expose deploy inside a live session — the deploy buttons gate
           // on this callback, so hiding it prevents "deploying" from the plain
           // builder (where the emit would be silently dropped, no session/room).
@@ -1251,6 +1279,7 @@ function TutorInsightsPageInner() {
         }}
         sessionCategory={sessionCategory}
         sessionNationality={sessionNationality}
+        sessionVariantName={sessionVariantName}
         onSaveCourse={handleSave}
         onSyncToLiveSession={handleSyncToLiveSession}
         onCreateCourse={() => setIsCreateDialogOpen(true)}

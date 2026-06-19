@@ -7695,6 +7695,7 @@ FEEDBACK: [your explanation]`
                       width={rightPanelWidth}
                       hidden={rightPanelHidden}
                       onToggleHidden={setRightPanelHidden}
+                      liveSubmissions={insightsProps?.liveSubmissions}
                       headerExtra={
                         <Tabs
                           value={liveRightPanelTab}
@@ -7964,6 +7965,7 @@ FEEDBACK: [your explanation]`
                     width={rightPanelWidth}
                     hidden={rightPanelHidden}
                     onToggleHidden={setRightPanelHidden}
+                    liveSubmissions={insightsProps?.liveSubmissions}
                   />
                 )}
               </>
