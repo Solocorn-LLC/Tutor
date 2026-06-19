@@ -95,7 +95,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isDashboardPage = pathname?.includes('/tutor/dashboard')
   const isCommunicationsPage = pathname?.includes('/tutor/communications')
   const isSubmissionsPage = pathname?.includes('/tutor/submissions')
-  const isFloatingPage = isDashboardPage || isReportsPage || isCommunicationsPage || isSubmissionsPage
+  const isFloatingPage =
+    isDashboardPage || isReportsPage || isCommunicationsPage || isSubmissionsPage
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
   const [desktopNavOpen, setDesktopNavOpen] = useState(
@@ -322,7 +323,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       <main
         className={cn(
           'relative z-0 h-screen flex-1 overflow-hidden pt-16',
-          'lg:mt-4 lg:mb-0 lg:h-[calc(100vh-1rem)] lg:w-[calc(100%-17rem)] transition-[margin] duration-500 ease-in-out',
+          'transition-[margin] duration-500 ease-in-out lg:mb-0 lg:mt-4 lg:h-[calc(100vh-1rem)] lg:w-[calc(100%-17rem)]',
           desktopNavOpen ? 'lg:ml-64 lg:mr-4' : 'lg:ml-[8.5rem] lg:mr-[8.5rem]',
           isFloatingPage && 'lg:pt-0',
           !isFloatingPage &&
