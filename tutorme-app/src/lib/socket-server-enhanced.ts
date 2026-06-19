@@ -19,6 +19,8 @@ import {
   sessionParticipant,
   courseLesson,
   message,
+  builderTask,
+  taskSubmission,
 } from '@/lib/db/schema'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
@@ -1214,6 +1216,42 @@ export async function initEnhancedSocketServer(server: NetServer) {
           answers: answers ?? {},
         })
         io.to(roomId).emit('task:updated', { task })
+
+        // Persist to TaskSubmission for durable grading. Best-effort and
+        // FK-safe: taskSubmission.taskId references builderTask, so we only
+        // insert when the deployed task corresponds to a real builderTask row
+        // (it won't for an unsaved/ephemeral task). onConflictDoNothing keeps
+        // the one-submission-per-(task,student) rule and never overwrites a row
+        // a tutor may already have graded. Failures here never affect the live
+        // session — the in-memory/Redis state and the socket overlay still work.
+        void (async () => {
+          try {
+            const [bt] = await drizzleDb
+              .select({ taskId: builderTask.taskId })
+              .from(builderTask)
+              .where(eq(builderTask.taskId, taskId))
+              .limit(1)
+            if (!bt) return // ephemeral/unsaved task — nothing to reference
+            await drizzleDb
+              .insert(taskSubmission)
+              .values({
+                submissionId: crypto.randomUUID(),
+                taskId,
+                studentId,
+                answers: answers ?? {},
+                timeSpent: 0,
+                attempts: 1,
+                questionResults: null,
+                score: null,
+                maxScore: 100,
+                status: 'submitted',
+                tutorApproved: false,
+              })
+              .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
+          } catch (err) {
+            console.warn('[task:complete] TaskSubmission persist failed (non-critical):', err)
+          }
+        })()
       }
     )
 
