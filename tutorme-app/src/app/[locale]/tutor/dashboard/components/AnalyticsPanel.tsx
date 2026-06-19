@@ -1,38 +1,16 @@
 'use client'
 
 import { useMemo } from 'react'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import {
-  Users,
-  Activity,
-  MessageSquare,
-  Clock,
-  Radio,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Hand,
-  Smile,
-  CheckCircle2,
-} from 'lucide-react'
+import { Users, MessageSquare, Clock, Radio, Smile, CheckCircle2, ListChecks } from 'lucide-react'
 import type { LiveTask } from '@/lib/socket/socket-types'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 
 interface AnalyticsPanelProps {
   students?: LiveStudent[]
+  // Kept for API compatibility; engagement/attention have no real signal source
+  // so they are intentionally not rendered (see below).
   metrics?: EngagementMetrics | null
   liveTasks?: LiveTask[]
   classDuration?: number
@@ -41,42 +19,33 @@ interface AnalyticsPanelProps {
   sessionId?: string | null
 }
 
-const ENGAGEMENT_COLORS = {
-  veryEngaged: '#10b981', // emerald-500
-  engaged: '#3b82f6', // blue-500
-  passive: '#f59e0b', // amber-500
-  disengaged: '#ef4444', // red-500
-}
-
+/**
+ * Live-session analytics. Everything shown here is derived from REAL session
+ * data — present students (socket roster), deployed tasks, and their poll/
+ * question responses and completions. Fields that the app has no real signal
+ * for (engagement score, attention level, hands raised, participation rate)
+ * were previously fabricated and have been removed rather than faked.
+ */
 export function AnalyticsPanel({
   students,
-  metrics,
   liveTasks,
   classDuration,
   isRecording,
   recordingDuration,
   sessionId,
 }: AnalyticsPanelProps) {
-  const engagementData = useMemo(() => {
-    if (!metrics) return []
-    return [
-      { name: 'Very Engaged', value: metrics.veryEngaged, color: ENGAGEMENT_COLORS.veryEngaged },
-      { name: 'Engaged', value: metrics.engaged, color: ENGAGEMENT_COLORS.engaged },
-      { name: 'Passive', value: metrics.passive, color: ENGAGEMENT_COLORS.passive },
-      { name: 'Disengaged', value: metrics.disengaged, color: ENGAGEMENT_COLORS.disengaged },
-    ].filter(d => d.value > 0)
-  }, [metrics])
+  const totalStudents = students?.length ?? 0
+  const activeStudents = useMemo(
+    () => (students || []).filter(s => s.status !== 'offline').length,
+    [students]
+  )
 
   const studentStatusData = useMemo(() => {
     if (!students) return []
-    const online = students.filter(s => s.status === 'online').length
-    const idle = students.filter(s => s.status === 'idle').length
-    const away = students.filter(s => s.status === 'away').length
+    const online = students.filter(s => s.status !== 'offline').length
     const offline = students.filter(s => s.status === 'offline').length
     return [
       { name: 'Online', value: online, color: '#10b981' },
-      { name: 'Idle', value: idle, color: '#f59e0b' },
-      { name: 'Away', value: away, color: '#8b5cf6' },
       { name: 'Offline', value: offline, color: '#9ca3af' },
     ].filter(d => d.value > 0)
   }, [students])
@@ -109,29 +78,15 @@ export function AnalyticsPanel({
     )
   }, [liveTasks])
 
-  const handsRaised = useMemo(() => {
-    return (students || []).filter(s => s.handRaised).length
-  }, [students])
-
+  // Completion across all deployed tasks: unique students who completed at least
+  // one deployed task, over the number present.
   const taskCompletions = useMemo(() => {
-    const activeTask = liveTasks?.find(t => t.completedBy && t.completedBy.length > 0)
-    if (!activeTask?.completedBy)
-      return { completed: 0, total: students?.length ?? 0, taskName: '' }
-    return {
-      completed: activeTask.completedBy.length,
-      total: students?.length ?? 0,
-      taskName: activeTask.title,
+    const completers = new Set<string>()
+    for (const task of liveTasks || []) {
+      for (const id of task.completedBy || []) completers.add(id)
     }
-  }, [liveTasks, students])
-
-  const trendIcon =
-    metrics?.engagementTrend === 'up' ? (
-      <TrendingUp className="h-4 w-4 text-emerald-500" />
-    ) : metrics?.engagementTrend === 'down' ? (
-      <TrendingDown className="h-4 w-4 text-red-500" />
-    ) : (
-      <Minus className="h-4 w-4 text-amber-500" />
-    )
+    return { completed: completers.size, total: totalStudents }
+  }, [liveTasks, totalStudents])
 
   return (
     <div className="flex flex-col space-y-4 px-1 pb-4">
@@ -152,144 +107,78 @@ export function AnalyticsPanel({
             REC {formattedRecording}
           </Badge>
         )}
-        {metrics && (
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            {trendIcon}
-            Engagement {metrics.engagementTrend}
-          </Badge>
-        )}
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — all derived from real session data */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           icon={<Users className="h-4 w-4 text-blue-500" />}
           label="Students"
-          value={`${metrics?.activeStudents ?? 0} / ${metrics?.totalStudents ?? 0}`}
-          sub="active"
-        />
-        <StatCard
-          icon={<Activity className="h-4 w-4 text-emerald-500" />}
-          label="Avg Engagement"
-          value={`${Math.round((metrics?.averageEngagement ?? 0) * 100)}%`}
-          sub={metrics?.engagementTrend}
-        />
-        <StatCard
-          icon={<MessageSquare className="h-4 w-4 text-blue-500" />}
-          label="Chat Messages"
-          value={String(metrics?.totalChatMessages ?? 0)}
-          sub="total"
-        />
-        <StatCard
-          icon={<Hand className="h-4 w-4 text-violet-500" />}
-          label="Hands Raised"
-          value={String(handsRaised)}
-          sub="now"
+          value={`${activeStudents} / ${totalStudents}`}
+          sub="present"
         />
         <StatCard
           icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
           label="Task Done"
           value={`${taskCompletions.completed} / ${taskCompletions.total}`}
-          sub={taskCompletions.taskName || 'No active task'}
+          sub="completed"
+        />
+        <StatCard
+          icon={<Smile className="h-4 w-4 text-violet-500" />}
+          label="Poll Responses"
+          value={String(totalPollResponses)}
+          sub="total"
+        />
+        <StatCard
+          icon={<MessageSquare className="h-4 w-4 text-blue-500" />}
+          label="Question Responses"
+          value={String(totalQuestionResponses)}
+          sub="total"
         />
       </div>
 
-      {/* Participation */}
-      {metrics && (
-        <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-gray-500">
-              Participation Rate
-            </span>
-            <span className="text-sm font-bold text-gray-900">
-              {Math.round(metrics.participationRate * 100)}%
-            </span>
+      {/* Student presence */}
+      <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
+        <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Student Presence</p>
+        {studentStatusData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie
+                data={studentStatusData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={60}
+                paddingAngle={3}
+                dataKey="value"
+              >
+                {studentStatusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-[160px] items-center justify-center text-xs text-gray-400">
+            No students have joined yet
           </div>
-          <Progress value={metrics.participationRate * 100} className="h-2" />
-        </div>
-      )}
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {/* Engagement Pie */}
-        <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Engagement Breakdown</p>
-          {engagementData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart>
-                <Pie
-                  data={engagementData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={60}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {engagementData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-[160px] items-center justify-center text-xs text-gray-400">
-              No engagement data yet
+        )}
+        <div className="mt-1 flex flex-wrap gap-2">
+          {studentStatusData.map(d => (
+            <div key={d.name} className="flex items-center gap-1 text-[10px] text-gray-600">
+              <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
+              {d.name}: {d.value}
             </div>
-          )}
-          <div className="mt-1 flex flex-wrap gap-2">
-            {engagementData.map(d => (
-              <div key={d.name} className="flex items-center gap-1 text-[10px] text-gray-600">
-                <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                {d.name}: {d.value}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Student Status Pie */}
-        <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Student Status</p>
-          {studentStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart>
-                <Pie
-                  data={studentStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={60}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {studentStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-[160px] items-center justify-center text-xs text-gray-400">
-              No student data yet
-            </div>
-          )}
-          <div className="mt-1 flex flex-wrap gap-2">
-            {studentStatusData.map(d => (
-              <div key={d.name} className="flex items-center gap-1 text-[10px] text-gray-600">
-                <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                {d.name}: {d.value}
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Task Activity */}
       {liveTasks && liveTasks.length > 0 && (
         <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-500">
+          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-gray-500">
+            <ListChecks className="h-3 w-3" />
             Deployed Task Activity
           </p>
           <div className="space-y-2">
@@ -336,7 +225,7 @@ export function AnalyticsPanel({
         </div>
       )}
 
-      {/* Student List */}
+      {/* Student List — name, real presence, and real task-completion badge */}
       {students && students.length > 0 && (
         <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
           <p className="mb-2 text-xs font-semibold uppercase text-gray-500">
@@ -351,13 +240,7 @@ export function AnalyticsPanel({
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      s.status === 'online'
-                        ? 'bg-emerald-500'
-                        : s.status === 'idle'
-                          ? 'bg-amber-500'
-                          : s.status === 'away'
-                            ? 'bg-violet-500'
-                            : 'bg-gray-400'
+                      s.status === 'offline' ? 'bg-gray-400' : 'bg-emerald-500'
                     }`}
                   />
                   <span className="text-xs font-medium text-gray-900">{s.name}</span>
@@ -367,26 +250,6 @@ export function AnalyticsPanel({
                       Done
                     </Badge>
                   )}
-                  {s.handRaised && (
-                    <Badge variant="outline" className="h-4 px-1 text-[9px] text-violet-600">
-                      <Hand className="mr-0.5 h-2.5 w-2.5" />
-                      Raised
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                  <span>{Math.round(s.engagementScore * 100)}% eng</span>
-                  <span
-                    className={`capitalize ${
-                      s.attentionLevel === 'high'
-                        ? 'text-emerald-600'
-                        : s.attentionLevel === 'medium'
-                          ? 'text-amber-600'
-                          : 'text-red-600'
-                    }`}
-                  >
-                    {s.attentionLevel}
-                  </span>
                 </div>
               </div>
             ))}

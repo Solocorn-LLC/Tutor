@@ -67,6 +67,7 @@ type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
   sessionCategory?: string | null
   sessionNationality?: string | null
+  sessionVariantName?: string | null
   onSaveCourse?: (lessons: any[], options?: any) => void
   onSyncToLiveSession?: (silent?: boolean) => void
   onCreateCourse?: () => void
@@ -114,6 +115,7 @@ function CourseBuilderInsightsRouteInner({
   detachedCourseName,
   sessionCategory,
   sessionNationality,
+  sessionVariantName,
   onSaveCourse,
   onSyncToLiveSession,
   onCreateCourse,
@@ -588,13 +590,18 @@ function CourseBuilderInsightsRouteInner({
                       )}
                     </h1>
                   )}
-                  {activeMainTab === 'live' && (sessionCategory || sessionNationality) && (
-                    <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                      {sessionCategory && sessionNationality
-                        ? `${sessionCategory} — ${sessionNationality}`
-                        : sessionCategory || sessionNationality}
-                    </span>
-                  )}
+                  {activeMainTab === 'live' &&
+                    (sessionVariantName || sessionCategory || sessionNationality) && (
+                      <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
+                        {/* Prefer the canonical variant label (same helper the
+                            student side uses) so both headers read identically. */}
+                        {sessionVariantName
+                          ? sessionVariantName
+                          : sessionCategory && sessionNationality
+                            ? `${sessionCategory} — ${sessionNationality}`
+                            : sessionCategory || sessionNationality}
+                      </span>
+                    )}
                   {activeMainTab !== 'live' &&
                   currentCourse &&
                   (currentCourse as any).categories?.length > 0 ? (
