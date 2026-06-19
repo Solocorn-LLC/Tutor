@@ -42,7 +42,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const ListIcon = list.icon
 
   return (
-    <div className="flex h-full w-full overflow-hidden rounded-[20px] border border-border/20 bg-white shadow-elevation-3">
+    <div className="border-border/20 shadow-elevation-3 flex h-full w-full overflow-hidden rounded-[20px] border bg-white">
       {/* Left menu rail */}
       <div className="flex w-20 flex-col items-center gap-2 border-r border-gray-200 py-4">
         {topItems.map(item => {

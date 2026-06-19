@@ -189,7 +189,7 @@ export function TutorCard({
         <p
           className={cn(
             'line-clamp-3 text-white/80',
-            compact ? 'text-xs leading-tight' : 'text-sm leading-relaxed line-clamp-5'
+            compact ? 'text-xs leading-tight' : 'line-clamp-5 text-sm leading-relaxed'
           )}
         >
           {bioText}

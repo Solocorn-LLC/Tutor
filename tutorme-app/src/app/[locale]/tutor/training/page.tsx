@@ -68,7 +68,7 @@ export default function TutorTrainingPage() {
   }
 
   return (
-    <div className="min-h-full bg-white px-4 pt-8 pb-0 sm:px-6 lg:px-8">
+    <div className="min-h-full bg-white px-4 pb-0 pt-8 sm:px-6 lg:px-8">
       <div className="space-y-6">
         <div className="mb-6 min-h-[52px] shrink-0">
           <div className="flex h-full w-full items-center justify-between gap-2 rounded-2xl border border-[#D8E0EA] bg-[linear-gradient(to_bottom,_#F8FAFC,_#F1F5F9)] p-1.5 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)]">

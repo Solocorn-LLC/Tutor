@@ -117,7 +117,7 @@ export default function NotificationsPanel({
   )
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-[20px] border border-border/20 bg-white shadow-elevation-3">
+    <div className="border-border/20 shadow-elevation-3 flex h-full w-full flex-col overflow-hidden rounded-[20px] border bg-white">
       <div className="flex items-center justify-between rounded-t-[20px] bg-gradient-to-br from-[#1F2933] to-[#111827] px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
@@ -156,7 +156,7 @@ export default function NotificationsPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hide px-4 pb-4">
+      <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -169,7 +169,7 @@ export default function NotificationsPanel({
               const content = (
                 <div
                   className={cn(
-                    'flex items-start gap-3 rounded-xl border border-border/20 p-3 shadow-sm transition-colors',
+                    'border-border/20 flex items-start gap-3 rounded-xl border p-3 shadow-sm transition-colors',
                     notification.read ? 'bg-white' : 'bg-blue-50/40'
                   )}
                 >

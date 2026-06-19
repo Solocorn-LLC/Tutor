@@ -212,92 +212,92 @@ export default function StudentTutorDirectoryPage() {
       </section>
 
       {/* Bottom panel: filters + results */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/20 bg-white shadow-elevation-3">
+      <div className="border-border/20 shadow-elevation-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-white">
         {/* Filters */}
         <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={searchQuery}
-            onChange={event => setSearchQuery(event.target.value)}
-            placeholder="Search tutor, subject, specialty..."
-            className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search tutor, subject, specialty..."
+              className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+            />
+          </div>
+          <Select
+            value={selectedRegion}
+            onValueChange={value => {
+              setSelectedRegion(value)
+              setSelectedCountryCode('')
+            }}
+          >
+            <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none">
+              <SelectValue placeholder="Region" />
+            </SelectTrigger>
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+              {REGIONS.map(region => (
+                <SelectItem
+                  key={region.id}
+                  value={region.id}
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
+                  {region.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedCountryCode}
+            onValueChange={setSelectedCountryCode}
+            disabled={!selectedRegion || selectedRegion === 'global'}
+          >
+            <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-sm">
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+              {availableCountries.map(country => (
+                <SelectItem
+                  key={country.code}
+                  value={country.code}
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
+                  {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
+            <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+              <SelectItem
+                value="popular"
+                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+              >
+                Most Popular
+              </SelectItem>
+              <SelectItem
+                value="newest"
+                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+              >
+                Recently Updated
+              </SelectItem>
+              <SelectItem
+                value="courses"
+                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+              >
+                Most Courses
+              </SelectItem>
+              <SelectItem
+                value="rate"
+                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+              >
+                Highest Rated
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select
-          value={selectedRegion}
-          onValueChange={value => {
-            setSelectedRegion(value)
-            setSelectedCountryCode('')
-          }}
-        >
-          <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none">
-            <SelectValue placeholder="Region" />
-          </SelectTrigger>
-          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-            {REGIONS.map(region => (
-              <SelectItem
-                key={region.id}
-                value={region.id}
-                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-              >
-                {region.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={selectedCountryCode}
-          onValueChange={setSelectedCountryCode}
-          disabled={!selectedRegion || selectedRegion === 'global'}
-        >
-          <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:backdrop-blur-none disabled:hover:translate-y-0 disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-sm">
-            <SelectValue placeholder="Country" />
-          </SelectTrigger>
-          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-            {availableCountries.map(country => (
-              <SelectItem
-                key={country.code}
-                value={country.code}
-                className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-              >
-                {country.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
-          <SelectTrigger className="h-9 w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-slate-700 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-            <SelectItem
-              value="popular"
-              className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-            >
-              Most Popular
-            </SelectItem>
-            <SelectItem
-              value="newest"
-              className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-            >
-              Recently Updated
-            </SelectItem>
-            <SelectItem
-              value="courses"
-              className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-            >
-              Most Courses
-            </SelectItem>
-            <SelectItem
-              value="rate"
-              className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
-            >
-              Highest Rated
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
         {/* Tutor grid */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4">
@@ -307,63 +307,63 @@ export default function StudentTutorDirectoryPage() {
               !desktopNavOpen && 'lg:gap-4'
             )}
           >
-          {loading ? (
-            Array.from({ length: 6 }).map((_, index) => (
-              <Card
-                key={`loading-${index}`}
-                className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
-              >
-                <CardHeader className="space-y-2 p-4">
-                  <div className="h-5 w-2/3 rounded bg-white/10" />
-                  <div className="h-3 w-1/2 rounded bg-white/10" />
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <Card
+                  key={`loading-${index}`}
+                  className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+                >
+                  <CardHeader className="space-y-2 p-4">
+                    <div className="h-5 w-2/3 rounded bg-white/10" />
+                    <div className="h-3 w-1/2 rounded bg-white/10" />
+                  </CardHeader>
+                  <CardContent className="space-y-2 p-4 pt-0">
+                    <div className="h-3 rounded bg-white/10" />
+                    <div className="h-3 rounded bg-white/10" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : tutors.length === 0 ? (
+              <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+                <CardHeader>
+                  <CardTitle className="text-white">No tutors match your current filters</CardTitle>
+                  <CardDescription className="text-white/70">
+                    Try broadening search terms or selecting a different region or country.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 p-4 pt-0">
-                  <div className="h-3 rounded bg-white/10" />
-                  <div className="h-3 rounded bg-white/10" />
-                </CardContent>
               </Card>
-            ))
-          ) : tutors.length === 0 ? (
-            <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-              <CardHeader>
-                <CardTitle className="text-white">No tutors match your current filters</CardTitle>
-                <CardDescription className="text-white/70">
-                  Try broadening search terms or selecting a different region or country.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            tutors.map(tutor => (
-              <TutorCard
-                key={tutor.id}
-                compact
-                tutor={{
-                  id: tutor.id,
-                  username: tutor.username,
-                  name: tutor.name,
-                  avatar: tutor.avatarUrl,
-                  bio: tutor.bio,
-                  rating: tutor.averageRating || 0,
-                  reviewCount: tutor.totalReviewCount || 0,
-                  hourlyRate: tutor.hourlyRate,
-                  currency: 'SGD',
-                  nextAvailableSlot: null,
-                  totalStudents: tutor.totalEnrollments,
-                  totalClasses: tutor.courseCount,
-                  specialties: tutor.categories,
-                  countries: tutor.tutorNationalities,
-                }}
-                onClick={() => {
-                  showOverlay()
-                  router.push(`/${locale}/u/${tutor.username}`)
-                }}
-                followState={following.has(tutor.id) ? 'following' : 'not-following'}
-                onFollowToggle={() => toggleFollow(tutor.id)}
-                bookHref={`/${locale}/u/${tutor.username}?book=1`}
-                countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
-              />
-            ))
-          )}
+            ) : (
+              tutors.map(tutor => (
+                <TutorCard
+                  key={tutor.id}
+                  compact
+                  tutor={{
+                    id: tutor.id,
+                    username: tutor.username,
+                    name: tutor.name,
+                    avatar: tutor.avatarUrl,
+                    bio: tutor.bio,
+                    rating: tutor.averageRating || 0,
+                    reviewCount: tutor.totalReviewCount || 0,
+                    hourlyRate: tutor.hourlyRate,
+                    currency: 'SGD',
+                    nextAvailableSlot: null,
+                    totalStudents: tutor.totalEnrollments,
+                    totalClasses: tutor.courseCount,
+                    specialties: tutor.categories,
+                    countries: tutor.tutorNationalities,
+                  }}
+                  onClick={() => {
+                    showOverlay()
+                    router.push(`/${locale}/u/${tutor.username}`)
+                  }}
+                  followState={following.has(tutor.id) ? 'following' : 'not-following'}
+                  onFollowToggle={() => toggleFollow(tutor.id)}
+                  bookHref={`/${locale}/u/${tutor.username}?book=1`}
+                  countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>

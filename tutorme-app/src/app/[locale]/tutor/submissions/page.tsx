@@ -56,7 +56,7 @@ export default function TutorSubmissionsPage() {
   }, [load, tab])
 
   return (
-    <div className="mx-auto max-w-5xl bg-white px-4 pt-6 pb-0 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl bg-white px-4 pb-0 pt-6 sm:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
           <ClipboardCheck className="h-6 w-6" />

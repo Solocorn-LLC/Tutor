@@ -20,7 +20,6 @@ import {
   Globe,
   PanelLeftClose,
   PanelLeftOpen,
-
   ClipboardCheck,
   LogOut,
   User,
@@ -99,7 +98,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     pathname === '/tutor/communications' || pathname?.startsWith('/tutor/communications/')
   const isSubmissionsPage =
     pathname === '/tutor/submissions' || pathname?.startsWith('/tutor/submissions/')
-  const isFloatingPage = isDashboardPage || isReportsPage || isCommunicationsPage || isSubmissionsPage
+  const isFloatingPage =
+    isDashboardPage || isReportsPage || isCommunicationsPage || isSubmissionsPage
   const isAccountPage = pathname === '/tutor/settings' || pathname?.startsWith('/tutor/settings/')
   const isSupportPage =
     pathname === '/tutor/support' ||
@@ -141,7 +141,9 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
-    setDesktopNavOpen(!isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage)
+    setDesktopNavOpen(
+      !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
+    )
   }, [isMyPage, isReportsPage, isAccountPage, isSupportPage, isCommunicationsPage])
   // Periodic peek animation for sidebar toggle
   useEffect(() => {
@@ -158,7 +160,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="isolate flex h-screen overflow-hidden bg-white">
-
       {/* Visual sidebar — fixed overlay, animates with transform only */}
       <aside
         className={cn(
@@ -329,7 +330,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       <main
         className={cn(
           'relative z-0 h-screen flex-1 overflow-hidden pt-16',
-          'lg:my-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100%-17rem)] transition-[margin] duration-500 ease-in-out',
+          'transition-[margin] duration-500 ease-in-out lg:my-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100%-17rem)]',
           desktopNavOpen ? 'lg:ml-64 lg:mr-4' : 'lg:ml-[8.5rem] lg:mr-[8.5rem]',
           isFloatingPage && 'lg:pt-0',
           !isFloatingPage &&
