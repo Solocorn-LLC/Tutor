@@ -98,7 +98,12 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
   const isFloatingPage =
-    isDashboardPage || isReportsPage || isCommunicationsPage || isSubmissionsPage || isAccountPage || isMyPage
+    isDashboardPage ||
+    isReportsPage ||
+    isCommunicationsPage ||
+    isSubmissionsPage ||
+    isAccountPage ||
+    isMyPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
   )

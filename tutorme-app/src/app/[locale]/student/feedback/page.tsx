@@ -310,6 +310,8 @@ function StudentFeedbackContent() {
   const [liveHomework, setLiveHomework] = useState<LiveTask[]>([])
   const [selectedDirectoryItem, setSelectedDirectoryItem] = useState<LiveTask | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  // Per-question answers the student types in the task viewer, keyed by DMI item id.
+  const [taskAnswers, setTaskAnswers] = useState<Record<string, string>>({})
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
   const [showDirectoryPanel, setShowDirectoryPanel] = useState(false)
   const [activeTab, setActiveTab] = useState<'task' | 'tutor-board'>('task')
@@ -1101,6 +1103,9 @@ function StudentFeedbackContent() {
 
   const handleSelectTask = (taskId: string) => {
     setActiveTaskId(taskId)
+    // Selecting a task must reveal the viewer — otherwise a student on the
+    // "Tutor Board" tab clicks a task and nothing visibly happens.
+    setActiveTab('task')
     setUnseenTaskIds(prev => prev.filter(id => id !== taskId))
     const notifId = taskNotifMap.current.get(taskId)
     if (notifId) {
@@ -1378,61 +1383,98 @@ function StudentFeedbackContent() {
                   <div className="flex-1 overflow-hidden p-4 pt-6">
                     {activeTask ? (
                       <div
-                        className="h-full w-full"
+                        className="h-full w-full overflow-y-auto"
                         style={{ zoom: viewerZoom } as React.CSSProperties}
                       >
-                        {activeTask.sourceDocument || activeTask.content ? (
-                          <div className="h-full w-full overflow-y-auto">
-                            {activeTask.sourceDocument ? (
-                              <div className="h-full w-full">
-                                {activeTask.sourceDocument.mimeType === 'application/pdf' ||
-                                !activeTask.sourceDocument.mimeType ? (
-                                  <div className="h-full w-full overflow-hidden">
-                                    <iframe
-                                      src={
-                                        activeTask.sourceDocument.fileUrl.includes('#')
-                                          ? `${activeTask.sourceDocument.fileUrl}&toolbar=0&navpanes=0`
-                                          : `${activeTask.sourceDocument.fileUrl}#toolbar=0&navpanes=0`
-                                      }
-                                      title={activeTask.sourceDocument.fileName}
-                                      className="h-full w-full"
-                                    />
-                                  </div>
-                                ) : activeTask.sourceDocument.mimeType.startsWith('image/') ? (
-                                  <div className="flex h-full items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={activeTask.sourceDocument.fileUrl}
-                                      alt={activeTask.sourceDocument.fileName}
-                                      className="max-h-full max-w-full object-contain"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2">
-                                    <FileText className="h-8 w-8 text-blue-600" />
-                                    <a
-                                      href={activeTask.sourceDocument.fileUrl}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-sm text-blue-600 underline"
-                                    >
-                                      Open {activeTask.sourceDocument.fileName}
-                                    </a>
-                                  </div>
-                                )}
+                        <h3 className="mb-3 text-base font-semibold text-gray-900">
+                          {activeTask.title}
+                        </h3>
+
+                        {activeTask.content && (
+                          <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
+                            {activeTask.content}
+                          </div>
+                        )}
+
+                        {activeTask.sourceDocument && (
+                          <div className="mb-4 h-[55vh] w-full">
+                            {activeTask.sourceDocument.mimeType === 'application/pdf' ||
+                            !activeTask.sourceDocument.mimeType ? (
+                              <iframe
+                                src={
+                                  activeTask.sourceDocument.fileUrl.includes('#')
+                                    ? `${activeTask.sourceDocument.fileUrl}&toolbar=0&navpanes=0`
+                                    : `${activeTask.sourceDocument.fileUrl}#toolbar=0&navpanes=0`
+                                }
+                                title={activeTask.sourceDocument.fileName}
+                                className="h-full w-full rounded-lg border"
+                              />
+                            ) : activeTask.sourceDocument.mimeType.startsWith('image/') ? (
+                              <div className="flex h-full items-center justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={activeTask.sourceDocument.fileUrl}
+                                  alt={activeTask.sourceDocument.fileName}
+                                  className="max-h-full max-w-full object-contain"
+                                />
                               </div>
                             ) : (
-                              <div className="whitespace-pre-wrap text-sm text-gray-700">
-                                {activeTask.content}
+                              <div className="flex h-full flex-col items-center justify-center gap-2">
+                                <FileText className="h-8 w-8 text-blue-600" />
+                                <a
+                                  href={activeTask.sourceDocument.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm text-blue-600 underline"
+                                >
+                                  Open {activeTask.sourceDocument.fileName}
+                                </a>
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <div className="flex h-full items-center justify-center" />
                         )}
+
+                        {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Questions
+                            </p>
+                            {activeTask.dmiItems.map(item => (
+                              <div key={item.id} className="rounded-lg border border-gray-200 p-3">
+                                <p className="mb-2 text-sm font-medium text-gray-900">
+                                  {item.questionNumber ? `${item.questionNumber}. ` : ''}
+                                  {item.questionText}
+                                </p>
+                                <textarea
+                                  value={taskAnswers[item.id] ?? ''}
+                                  onChange={e =>
+                                    setTaskAnswers(prev => ({
+                                      ...prev,
+                                      [item.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Type your answer…"
+                                  className="min-h-[64px] w-full resize-y rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {!activeTask.content &&
+                          !activeTask.sourceDocument &&
+                          !(
+                            Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
+                          ) && (
+                            <p className="text-sm text-gray-500">
+                              This task has no content to display.
+                            </p>
+                          )}
                       </div>
                     ) : (
-                      <div className="flex h-full items-center justify-center" />
+                      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                        Select a task from the Lessons panel to open it.
+                      </div>
                     )}
                   </div>
 
@@ -1493,11 +1535,22 @@ function StudentFeedbackContent() {
                     disabled={!activeTaskId || !socket}
                     onClick={() => {
                       if (!activeTaskId || !socket || !selectedSessionId) return
+                      // Include any typed answers so the tutor's Insights can see
+                      // each student's responses, not just a completion tick.
+                      const answers = (activeTask?.dmiItems ?? []).reduce(
+                        (acc, item) => {
+                          const a = taskAnswers[item.id]
+                          if (a && a.trim()) acc[item.id] = a.trim()
+                          return acc
+                        },
+                        {} as Record<string, string>
+                      )
                       socket.emit('task:complete', {
                         roomId: selectedSessionId,
                         taskId: activeTaskId,
+                        answers,
                       })
-                      toast.success('Task marked complete')
+                      toast.success('Task submitted')
                     }}
                   >
                     Task Complete

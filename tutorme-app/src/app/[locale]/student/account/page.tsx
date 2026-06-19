@@ -331,7 +331,7 @@ export default function StudentAccount() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
       {/* Hero */}
-      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-elevation-3 ring-1 ring-white/20">
+      <section className="shadow-elevation-3 relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 ring-1 ring-white/20">
         <div className="text-center">
           <h1 className="text-xl font-bold text-white">Account Settings</h1>
           <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>

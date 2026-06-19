@@ -131,6 +131,8 @@ export interface LiveTask {
   parentId?: string
   isExtension?: boolean
   completedBy?: string[]
+  /** studentId -> { dmiItemId -> answer } captured when a student submits. */
+  responses?: Record<string, Record<string, string>>
 }
 
 // Environment validation
@@ -1129,19 +1131,25 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
             const existingIndex = room.tasks.findIndex(t => t.id === liveTask.id)
             if (existingIndex >= 0) {
+              // Only sync content UPDATES to tasks the tutor has ALREADY
+              // deployed. A task that isn't deployed yet must NOT be introduced
+              // to students here — deployment is explicit via the Deploy button
+              // (task:deploy). Otherwise editing the builder (e.g. adding a new
+              // task) would mass-deploy every task on the next course:sync.
               room.tasks[existingIndex] = { ...room.tasks[existingIndex], ...liveTask }
-            } else {
-              room.tasks.push(liveTask)
+              syncedTasks.push(liveTask)
             }
-            syncedTasks.push(liveTask)
+            // else: not deployed yet — skip; the tutor deploys it explicitly.
           }
         }
 
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
 
+        // Emit only task:updated (not task:deployed) — these are edits to
+        // already-deployed tasks, not new deployments, so they shouldn't trigger
+        // the tutor's "Deployed to students" confirmation.
         for (const task of syncedTasks) {
-          io.to(roomId).emit('task:deployed', task)
           io.to(roomId).emit('task:updated', { task })
         }
 
@@ -1154,40 +1162,50 @@ export async function initEnhancedSocketServer(server: NetServer) {
     })
 
     // Student marks a task as complete
-    socket.on('task:complete', (data: { roomId: string; taskId: string }) => {
-      const { roomId, taskId } = data
-      if (!roomId || !taskId) return
-      const room = activeRooms.get(roomId)
-      if (!room) return
-      const studentId = socket.data.userId
-      if (!studentId || !room.students.has(studentId)) {
-        socket.emit('task:complete:error', { error: 'Not enrolled in this session' })
-        return
+    socket.on(
+      'task:complete',
+      (data: { roomId: string; taskId: string; answers?: Record<string, string> }) => {
+        const { roomId, taskId, answers } = data
+        if (!roomId || !taskId) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+        const studentId = socket.data.userId
+        if (!studentId || !room.students.has(studentId)) {
+          socket.emit('task:complete:error', { error: 'Not enrolled in this session' })
+          return
+        }
+        const task = room.tasks.find(t => t.id === taskId)
+        if (!task) {
+          socket.emit('task:complete:error', { error: 'Task not found' })
+          return
+        }
+        const completed = new Set(task.completedBy || [])
+        if (completed.has(studentId)) {
+          socket.emit('task:complete:error', { error: 'Already marked complete' })
+          return
+        }
+        completed.add(studentId)
+        task.completedBy = Array.from(completed)
+        // Capture the student's typed answers so the tutor's Insights can show
+        // per-student responses, not just a completion count.
+        if (answers && Object.keys(answers).length > 0) {
+          task.responses = task.responses || {}
+          task.responses[studentId] = answers
+        }
+        room.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room)
+        const studentName = room.students.get(studentId)?.name || 'A student'
+        io.to(roomId).emit('task:completed', {
+          taskId,
+          studentId,
+          studentName,
+          completedAt: Date.now(),
+          totalCompleted: task.completedBy.length,
+          answers: answers ?? {},
+        })
+        io.to(roomId).emit('task:updated', { task })
       }
-      const task = room.tasks.find(t => t.id === taskId)
-      if (!task) {
-        socket.emit('task:complete:error', { error: 'Task not found' })
-        return
-      }
-      const completed = new Set(task.completedBy || [])
-      if (completed.has(studentId)) {
-        socket.emit('task:complete:error', { error: 'Already marked complete' })
-        return
-      }
-      completed.add(studentId)
-      task.completedBy = Array.from(completed)
-      room.lastActivity = Date.now()
-      void persistRoomToRedis(roomId, room)
-      const studentName = room.students.get(studentId)?.name || 'A student'
-      io.to(roomId).emit('task:completed', {
-        taskId,
-        studentId,
-        studentName,
-        completedAt: Date.now(),
-        totalCompleted: task.completedBy.length,
-      })
-      io.to(roomId).emit('task:updated', { task })
-    })
+    )
 
     // Tutor assigns homework during live class
     socket.on(
