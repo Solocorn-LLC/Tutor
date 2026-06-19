@@ -80,6 +80,7 @@ interface PublicTutorResponse {
       youtube?: string | null
       instagram?: string | null
       facebook?: string | null
+      x?: string | null
       kakaoTalk?: string | null
     } | null
   }
@@ -108,6 +109,13 @@ interface PublicTutorResponse {
 const TikTokIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" {...props}>
     <path d="M208 88.9a71 71 0 0 1-52-22.2v95.5a63.9 63.9 0 1 1-54-63v33.4a30.6 30.6 0 1 0 21 29.1V24h33.1a71 71 0 0 0 52.1 55.3Z" />
+  </svg>
+)
+
+// X (formerly Twitter) brand glyph.
+const XBrandIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
@@ -195,6 +203,7 @@ function Book1on1Dialog({
   locale: string
 }) {
   const { data: session } = useSession()
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [availability, setAvailability] = useState<AvailabilityData | null>(null)
@@ -248,7 +257,12 @@ function Book1on1Dialog({
       if (res.ok) {
         const data = await res.json()
         setHasPendingRequest(data.hasActiveRequest)
-        setActiveRequest(data.request)
+        // The PK column is `requestId` (Drizzle property), not `id`.
+        setActiveRequest(
+          data.request
+            ? { id: data.request.requestId ?? data.request.id, status: data.request.status }
+            : null
+        )
       }
     } catch {
       // ignore
@@ -292,7 +306,10 @@ function Book1on1Dialog({
       if (res.ok) {
         toast.success('Booking request sent! The tutor will review and confirm.')
         setHasPendingRequest(true)
-        setActiveRequest({ id: data.request.id, status: data.request.status })
+        setActiveRequest({
+          id: data.request.requestId ?? data.request.id,
+          status: data.request.status,
+        })
         onOpenChange(false)
       } else if (res.status === 409) {
         toast.info('You already have a pending request with this tutor')
@@ -344,25 +361,40 @@ function Book1on1Dialog({
   }
 
   if (hasPendingRequest && activeRequest) {
+    const isAccepted = activeRequest.status === 'ACCEPTED'
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Booking Request Pending</DialogTitle>
+            <DialogTitle>
+              {isAccepted ? 'Booking Accepted — Payment Required' : 'Booking Request Pending'}
+            </DialogTitle>
             <DialogDescription>
-              You already have a pending booking request with {tutor.name}.
+              {isAccepted
+                ? `${tutor.name} accepted your booking. Complete payment to confirm your session.`
+                : `You already have a pending booking request with ${tutor.name}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 p-6 pt-0">
             <DialogPanel>
               <p className="font-medium text-gray-900">Status: {activeRequest.status}</p>
               <p className="mt-2 text-sm text-gray-600">
-                Please wait for the tutor to respond. You will receive a notification once they
-                accept or reject your request.
+                {isAccepted
+                  ? 'Your session is reserved pending payment. Complete payment now to secure it.'
+                  : 'Please wait for the tutor to respond. You will receive a notification once they accept or reject your request.'}
               </p>
             </DialogPanel>
           </div>
           <DialogFooter className="gap-3">
+            {isAccepted && activeRequest.id && (
+              <Button
+                variant="modal-primary-dark"
+                className="h-10"
+                onClick={() => router.push(`/${locale}/payment?requestId=${activeRequest.id}`)}
+              >
+                Complete Payment
+              </Button>
+            )}
             <Button
               variant="modal-secondary-dark"
               onClick={() => onOpenChange(false)}
@@ -1776,6 +1808,14 @@ export default function PublicTutorPage() {
                     icon: Facebook,
                     bgClass: 'bg-blue-600',
                     muted: !tutor.socialLinks?.facebook,
+                  },
+                  {
+                    key: 'x',
+                    label: 'X',
+                    value: tutor.socialLinks?.x ? `@${stripAt(tutor.socialLinks.x)}` : '—',
+                    icon: XBrandIcon,
+                    bgClass: 'bg-black',
+                    muted: !tutor.socialLinks?.x,
                   },
                 ].map(item => {
                   const Icon = item.icon
