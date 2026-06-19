@@ -398,117 +398,128 @@ export const PATCH = withCsrf(
         }
       }
 
-      const [partCount, messagesCountResult] = await Promise.all([
-        drizzleDb
-          .select({ count: sql<number>`count(*)::int` })
-          .from(sessionParticipant)
-          .where(eq(sessionParticipant.sessionId, classId)),
-        drizzleDb
-          .select({ count: sql<number>`count(*)::int` })
-          .from(message)
-          .where(eq(message.sessionId, classId)),
-      ])
-
-      const _count = {
-        participants: partCount[0]?.count ?? 0,
-        messages: messagesCountResult[0]?.count ?? 0,
-      }
-
-      const existingArtifact = await drizzleDb
-        .select()
-        .from(sessionReplayArtifact)
-        .where(eq(sessionReplayArtifact.sessionId, classId))
-        .limit(1)
-
-      if (existingArtifact[0]) {
-        await drizzleDb
-          .update(sessionReplayArtifact)
-          .set({
-            recordingUrl: liveSessionRow.recordingUrl,
-            status: 'processing',
-            endedAt,
-          })
-          .where(eq(sessionReplayArtifact.sessionId, classId))
-      } else {
-        await drizzleDb.insert(sessionReplayArtifact).values({
-          artifactId: randomUUID(),
-          sessionId: classId,
-          tutorId,
-          recordingUrl: liveSessionRow.recordingUrl,
-          status: 'processing',
-          startedAt: liveSessionRow.startedAt ?? endedAt,
-          endedAt,
-        })
-      }
-
+      // The session is now ended (status, room teardown and the session:ended
+      // event are done). Everything below is post-processing — replay artifact,
+      // transcript and AI summary. None of it must fail the End request, so it's
+      // all wrapped: a failure here is logged but the tutor still ends cleanly.
       try {
-        const messageRows = await drizzleDb
-          .select({
-            timestamp: message.timestamp,
-            content: message.content,
-            userName: profile.name,
-            userEmail: user.email,
-          })
-          .from(message)
-          .innerJoin(user, eq(message.userId, user.userId))
-          .leftJoin(profile, eq(profile.userId, user.userId))
-          .where(eq(message.sessionId, classId))
-          .orderBy(asc(message.timestamp))
+        const [partCount, messagesCountResult] = await Promise.all([
+          drizzleDb
+            .select({ count: sql<number>`count(*)::int` })
+            .from(sessionParticipant)
+            .where(eq(sessionParticipant.sessionId, classId)),
+          drizzleDb
+            .select({ count: sql<number>`count(*)::int` })
+            .from(message)
+            .where(eq(message.sessionId, classId)),
+        ])
 
-        const transcript =
-          messageRows.length > 0
-            ? buildTranscript(messageRows)
-            : liveSessionRow.recordingUrl
-              ? 'Transcript unavailable from chat history. Recording exists and is pending audio transcription ingestion.'
-              : 'No transcript available for this session.'
-
-        const summaryResult = await generateSessionSummary(classId, {
-          type: 'session',
-          maxLength: 'detailed',
-          includeActionItems: true,
-          language: 'en',
-        })
-
-        const summaryText =
-          summaryResult.success && summaryResult.summary
-            ? summaryResult.summary.overview
-            : 'Summary generation is unavailable for this session.'
-
-        const summaryPayload = {
-          ...(summaryResult.success && summaryResult.summary ? summaryResult.summary : {}),
-          sessionMeta: {
-            title: liveSessionRow.title,
-            subject: liveSessionRow.category,
-            participants: _count.participants,
-            messages: _count.messages,
-            generatedAt: new Date().toISOString(),
-          },
-          transcriptMeta: {
-            source: messageRows.length > 0 ? 'chat_messages' : 'recording_placeholder',
-            hasTranscriptText: Boolean(transcript?.trim()),
-          },
+        const _count = {
+          participants: partCount[0]?.count ?? 0,
+          messages: messagesCountResult[0]?.count ?? 0,
         }
 
-        await drizzleDb
-          .update(sessionReplayArtifact)
-          .set({
-            transcript,
-            summary: summaryText,
-            summaryJson: summaryPayload,
+        const existingArtifact = await drizzleDb
+          .select()
+          .from(sessionReplayArtifact)
+          .where(eq(sessionReplayArtifact.sessionId, classId))
+          .limit(1)
+
+        if (existingArtifact[0]) {
+          await drizzleDb
+            .update(sessionReplayArtifact)
+            .set({
+              recordingUrl: liveSessionRow.recordingUrl,
+              status: 'processing',
+              endedAt,
+            })
+            .where(eq(sessionReplayArtifact.sessionId, classId))
+        } else {
+          await drizzleDb.insert(sessionReplayArtifact).values({
+            artifactId: randomUUID(),
+            sessionId: classId,
+            tutorId,
             recordingUrl: liveSessionRow.recordingUrl,
-            status: summaryResult.success ? 'ready' : 'failed',
-            generatedAt: new Date(),
+            status: 'processing',
+            startedAt: liveSessionRow.startedAt ?? endedAt,
+            endedAt,
           })
-          .where(eq(sessionReplayArtifact.sessionId, classId))
-      } catch (error) {
-        await drizzleDb
-          .update(sessionReplayArtifact)
-          .set({
-            status: 'failed',
-            generatedAt: new Date(),
+        }
+
+        try {
+          const messageRows = await drizzleDb
+            .select({
+              timestamp: message.timestamp,
+              content: message.content,
+              userName: profile.name,
+              userEmail: user.email,
+            })
+            .from(message)
+            .innerJoin(user, eq(message.userId, user.userId))
+            .leftJoin(profile, eq(profile.userId, user.userId))
+            .where(eq(message.sessionId, classId))
+            .orderBy(asc(message.timestamp))
+
+          const transcript =
+            messageRows.length > 0
+              ? buildTranscript(messageRows)
+              : liveSessionRow.recordingUrl
+                ? 'Transcript unavailable from chat history. Recording exists and is pending audio transcription ingestion.'
+                : 'No transcript available for this session.'
+
+          const summaryResult = await generateSessionSummary(classId, {
+            type: 'session',
+            maxLength: 'detailed',
+            includeActionItems: true,
+            language: 'en',
           })
-          .where(eq(sessionReplayArtifact.sessionId, classId))
-        console.error('Failed to generate replay artifact:', error)
+
+          const summaryText =
+            summaryResult.success && summaryResult.summary
+              ? summaryResult.summary.overview
+              : 'Summary generation is unavailable for this session.'
+
+          const summaryPayload = {
+            ...(summaryResult.success && summaryResult.summary ? summaryResult.summary : {}),
+            sessionMeta: {
+              title: liveSessionRow.title,
+              subject: liveSessionRow.category,
+              participants: _count.participants,
+              messages: _count.messages,
+              generatedAt: new Date().toISOString(),
+            },
+            transcriptMeta: {
+              source: messageRows.length > 0 ? 'chat_messages' : 'recording_placeholder',
+              hasTranscriptText: Boolean(transcript?.trim()),
+            },
+          }
+
+          await drizzleDb
+            .update(sessionReplayArtifact)
+            .set({
+              transcript,
+              summary: summaryText,
+              summaryJson: summaryPayload,
+              recordingUrl: liveSessionRow.recordingUrl,
+              status: summaryResult.success ? 'ready' : 'failed',
+              generatedAt: new Date(),
+            })
+            .where(eq(sessionReplayArtifact.sessionId, classId))
+        } catch (error) {
+          await drizzleDb
+            .update(sessionReplayArtifact)
+            .set({
+              status: 'failed',
+              generatedAt: new Date(),
+            })
+            .where(eq(sessionReplayArtifact.sessionId, classId))
+            .catch(() => {})
+          console.error('Failed to generate replay artifact:', error)
+        }
+      } catch (postErr) {
+        // Post-processing (counts / replay artifact / summary) failed — the
+        // session is already ended, so log and still return success.
+        console.error('[end-class] post-processing failed (session still ended):', postErr)
       }
 
       return NextResponse.json({ success: true, status: 'ended' })

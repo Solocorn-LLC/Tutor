@@ -8,7 +8,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { assertSafeProxyUrl } from '@/lib/security/proxy-url'
-import { isGcsConfigured, refreshGcsUrl } from '@/lib/storage/gcs'
+import { isGcsConfigured, refreshGcsUrl, downloadBuffer } from '@/lib/storage/gcs'
+
+/**
+ * Infer an inline-renderable content type from an object key's extension.
+ * Used by the by-key streaming path so PDFs/images display in an <iframe>/<img>.
+ */
+function contentTypeForKey(key: string): string {
+  const ext = key.split('.').pop()?.toLowerCase() ?? ''
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf'
+    case 'png':
+      return 'image/png'
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'gif':
+      return 'image/gif'
+    case 'webp':
+      return 'image/webp'
+    case 'svg':
+      return 'image/svg+xml'
+    default:
+      return 'application/octet-stream'
+  }
+}
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024 // 50MB
 const MAX_REDIRECTS = 5
@@ -78,9 +103,44 @@ async function readLimitedResponse(response: Response): Promise<Buffer> {
 export const GET = withAuth(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url)
   const targetUrl = searchParams.get('url')
+  const objectKey = searchParams.get('key')
+
+  // By-key streaming: download the object server-side using the service
+  // account's READ access (storage.objects.get) and stream it back same-origin.
+  // This is resilient to signing problems — it needs no signed/public URL, so a
+  // missing iam.serviceAccounts.signBlob permission (which makes "signed" URLs
+  // fall back to public URLs that 403 under uniform bucket-level access) no
+  // longer breaks document display for students.
+  if (objectKey) {
+    // Restrict to known upload prefixes and block path traversal so this can't
+    // be used to read arbitrary objects.
+    if (!/^(documents|assets|resources)\//.test(objectKey) || objectKey.includes('..')) {
+      return NextResponse.json({ error: 'Invalid key' }, { status: 400 })
+    }
+    if (!isGcsConfigured()) {
+      return NextResponse.json({ error: 'Storage not configured' }, { status: 503 })
+    }
+    try {
+      const buf = await downloadBuffer(objectKey)
+      if (!buf) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 })
+      }
+      return new NextResponse(new Uint8Array(buf), {
+        status: 200,
+        headers: {
+          'Content-Type': contentTypeForKey(objectKey),
+          'Content-Disposition': 'inline',
+          'Cache-Control': 'private, max-age=3600',
+        },
+      })
+    } catch (error) {
+      console.error('[proxy-file] by-key download failed:', objectKey, error)
+      return NextResponse.json({ error: 'Failed to load file' }, { status: 502 })
+    }
+  }
 
   if (!targetUrl) {
-    return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing url or key parameter' }, { status: 400 })
   }
 
   let urlToFetch = targetUrl
