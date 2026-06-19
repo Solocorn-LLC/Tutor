@@ -13,8 +13,18 @@ import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/mi
 import { getParamAsync } from '@/lib/api/params'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession, sessionParticipant, user, profile, course } from '@/lib/db/schema'
+import {
+  liveSession,
+  sessionParticipant,
+  user,
+  profile,
+  course,
+  courseSchedule,
+  courseVariant,
+} from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { formatScheduleName } from '@/lib/sessions/schedule-name'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000 // students may enter 20 min before scheduledAt
 
@@ -137,6 +147,7 @@ export const POST = withCsrf(
       : [null]
 
     let courseName = null
+    let variantName: string | null = null
     if (classSessionRow.courseId) {
       const [courseRow] = await drizzleDb
         .select({ name: course.name })
@@ -145,6 +156,28 @@ export const POST = withCsrf(
         .limit(1)
       if (courseRow) {
         courseName = courseRow.name
+      }
+      // The session's courseId is the published variant; resolve its
+      // category × nationality label (e.g. "Mathematics — Hong Kong").
+      const [variantRow] = await drizzleDb
+        .select({ category: courseVariant.category, nationality: courseVariant.nationality })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, classSessionRow.courseId))
+        .limit(1)
+      if (variantRow) {
+        variantName = formatCourseVariantName(variantRow.category, variantRow.nationality)
+      }
+    }
+
+    let scheduleName: string | null = null
+    if (classSessionRow.scheduleId) {
+      const [scheduleRow] = await drizzleDb
+        .select({ name: courseSchedule.name, scheduleIndex: courseSchedule.scheduleIndex })
+        .from(courseSchedule)
+        .where(eq(courseSchedule.scheduleId, classSessionRow.scheduleId))
+        .limit(1)
+      if (scheduleRow) {
+        scheduleName = formatScheduleName(scheduleRow.name, scheduleRow.scheduleIndex)
       }
     }
 
@@ -157,6 +190,8 @@ export const POST = withCsrf(
       ...classSessionRow,
       tutor: tutorRow ? { profile: tutorProfile } : null,
       course: courseName ? { name: courseName } : null,
+      variantName,
+      scheduleName,
       participants,
     }
 

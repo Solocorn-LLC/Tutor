@@ -1902,7 +1902,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         // Auto-deploy to student homework folder
         if (insightsProps?.onDeployTask) {
-          insightsProps.onDeployTask({
+          insightsProps.onDeployTask?.({
             id: homeworkItem.id,
             title: homeworkItem.title || 'Homework',
             content: homeworkItem.description || '',
@@ -2527,8 +2527,9 @@ FEEDBACK: [your explanation]`
           : undefined,
       }
 
-      insightsProps.onDeployTask(task)
-      toast.success('DMI deployed to live session')
+      // Success is confirmed by the server's task:deployed broadcast (handled in
+      // insights/page.tsx), not optimistically here.
+      insightsProps.onDeployTask?.(task)
     }, [assessmentBuilder, assessmentDmiItems, insightsProps, loadedAssessmentId])
 
     useEffect(() => {
@@ -6290,7 +6291,7 @@ FEEDBACK: [your explanation]`
                                                                             task.activeDmiVersionId
                                                                         ) ||
                                                                         (task.dmiVersions || [])[0]
-                                                                      insightsProps.onDeployTask({
+                                                                      insightsProps.onDeployTask?.({
                                                                         id: task.id,
                                                                         title: task.title,
                                                                         content:
@@ -6657,7 +6658,7 @@ FEEDBACK: [your explanation]`
                                                                               className="font-medium text-emerald-600 focus:text-emerald-600"
                                                                               onClick={e => {
                                                                                 e.stopPropagation()
-                                                                                insightsProps.onDeployTask(
+                                                                                insightsProps.onDeployTask?.(
                                                                                   {
                                                                                     id: ext.id,
                                                                                     title: ext.name,
@@ -7070,7 +7071,7 @@ FEEDBACK: [your explanation]`
                                                                           v.id ===
                                                                           hw.activeDmiVersionId
                                                                       ) || (hw.dmiVersions || [])[0]
-                                                                    insightsProps.onDeployTask({
+                                                                    insightsProps.onDeployTask?.({
                                                                       id: hw.id,
                                                                       title: hw.title,
                                                                       content:
@@ -7389,7 +7390,7 @@ FEEDBACK: [your explanation]`
                                                                             ) ||
                                                                             (hw.dmiVersions ||
                                                                               [])[0]
-                                                                          insightsProps.onDeployTask(
+                                                                          insightsProps.onDeployTask?.(
                                                                             {
                                                                               id: hw.id,
                                                                               title: hw.title,
@@ -8724,7 +8725,7 @@ FEEDBACK: [your explanation]`
                                                 if (testPciSource === 'task') {
                                                   const task = findTaskById(loadedTaskId || '')
                                                   if (task) {
-                                                    insightsProps.onDeployTask({
+                                                    insightsProps.onDeployTask?.({
                                                       id: task.id,
                                                       title: task.title || 'Task',
                                                       content: task.description || '',

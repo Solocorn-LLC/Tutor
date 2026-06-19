@@ -823,6 +823,10 @@ function TutorInsightsPageInner() {
         }
         return [...prev, task]
       })
+      // Confirm only once the server has broadcast the deploy — this is the real
+      // "it reached students" signal, vs. an optimistic toast fired on click
+      // before the emit was even acknowledged.
+      toast.success(`Deployed to students${task.title ? `: ${task.title}` : ''}`)
     }
 
     const handleTaskUpdated = (payload: { task: LiveTask }) => {
@@ -1056,14 +1060,24 @@ function TutorInsightsPageInner() {
     if (source !== 'homework' && currentSession.status === 'ended') {
       return { ok: false, error: 'Session has ended' }
     }
-    if (new Date(currentSession.scheduledAt).getTime() > Date.now()) {
+    // A live session is deployable regardless of its scheduled time — the tutor
+    // may have started early. Only block a still-scheduled session that hasn't
+    // begun; otherwise an active-but-early session would wrongly reject deploys.
+    const isLive =
+      currentSession.status === 'active' ||
+      currentSession.status === 'live' ||
+      currentSession.status === 'preparing'
+    if (!isLive && new Date(currentSession.scheduledAt).getTime() > Date.now()) {
       return { ok: false, error: 'Session has not started yet' }
     }
     return { ok: true }
   }
 
   const handleDeployTask = (task: LiveTask) => {
-    if (!socket || !sessionId) return
+    if (!socket || !sessionId) {
+      toast.error('Open a live session before deploying')
+      return
+    }
     const check = checkSessionActive(task.source)
     if (!check.ok) {
       toast.error(check.error || 'Cannot deploy right now')
@@ -1218,7 +1232,10 @@ function TutorInsightsPageInner() {
           sessions,
           onSessionChange: setSessionId,
           liveTasks,
-          onDeployTask: handleDeployTask,
+          // Only expose deploy inside a live session — the deploy buttons gate
+          // on this callback, so hiding it prevents "deploying" from the plain
+          // builder (where the emit would be silently dropped, no session/room).
+          onDeployTask: sessionId ? handleDeployTask : undefined,
           onSendPoll: handleSendPoll,
           onSendQuestion: handleSendQuestion,
           students,

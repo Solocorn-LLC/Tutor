@@ -332,6 +332,8 @@ function StudentFeedbackContent() {
     courseCategory: string
     courseId: string | null
     courseName: string | null
+    variantName: string | null
+    scheduleName: string | null
     status: string | null
     startedAt: string | null
     scheduledAt: string | null
@@ -708,6 +710,8 @@ function StudentFeedbackContent() {
           courseCategory: data?.session?.category || 'General',
           courseId: data?.session?.courseId ?? null,
           courseName: data?.session?.course?.name ?? null,
+          variantName: data?.session?.variantName ?? null,
+          scheduleName: data?.session?.scheduleName ?? null,
           status: data?.session?.status ?? null,
           startedAt: data?.session?.startedAt ?? null,
           scheduledAt: data?.session?.scheduledAt ?? null,
@@ -1140,30 +1144,44 @@ function StudentFeedbackContent() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               {sessionContext && (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                      sessionContext.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700'
+                <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1 className="truncate text-sm font-semibold text-[#1F2933]">
+                      {sessionContext.courseName
+                        ? `${sessionContext.courseName}${sessionContext.variantName ? ` — ${sessionContext.variantName}` : ''}`
+                        : sessionContext.courseCategory || 'Live Class'}
+                    </h1>
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        sessionContext.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : sessionContext.status === 'scheduled'
+                            ? 'bg-amber-100 text-amber-700'
+                            : sessionContext.status === 'ended'
+                              ? 'bg-slate-100 text-slate-600'
+                              : 'bg-gray-100 text-gray-600'
+                      )}
+                    >
+                      {sessionContext.status === 'active'
+                        ? '● Live'
                         : sessionContext.status === 'scheduled'
-                          ? 'bg-amber-100 text-amber-700'
+                          ? '⏳ Scheduled'
                           : sessionContext.status === 'ended'
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-gray-100 text-gray-600'
+                            ? '■ Ended'
+                            : sessionContext.status || 'Unknown'}
+                    </span>
+                    {sessionTimer && (
+                      <span className="shrink-0 font-mono text-xs text-slate-500">
+                        {sessionTimer}
+                      </span>
                     )}
-                  >
-                    {sessionContext.status === 'active'
-                      ? '● Live'
-                      : sessionContext.status === 'scheduled'
-                        ? '⏳ Scheduled'
-                        : sessionContext.status === 'ended'
-                          ? '■ Ended'
-                          : sessionContext.status || 'Unknown'}
-                  </span>
-                  {sessionTimer && (
-                    <span className="font-mono text-xs text-slate-500">{sessionTimer}</span>
-                  )}
+                  </div>
+                  <p className="truncate text-xs text-slate-500">
+                    {[sessionContext.scheduleName, `with ${sessionContext.tutorUsername}`]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </p>
                 </div>
               )}
             </div>

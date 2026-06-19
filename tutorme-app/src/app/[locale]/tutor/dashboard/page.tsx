@@ -16,7 +16,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 
 import {
@@ -297,6 +296,21 @@ function TutorDashboardContent() {
     }
   }, [session?.user?.id])
 
+  // Lightweight refresh of just the live-class list — used to keep the
+  // "Rejoin live" button in sync without re-pulling the whole dashboard.
+  const refreshClasses = useCallback(async () => {
+    if (!session?.user?.id) return
+    try {
+      const res = await fetch('/api/tutor/classes', { credentials: 'include' })
+      if (res.ok) {
+        const d = await res.json()
+        setClasses(d.classes ?? [])
+      }
+    } catch {
+      // best-effort; the next refresh will retry
+    }
+  }, [session?.user?.id])
+
   useEffect(() => {
     if (session?.user?.id) {
       setLoading(true)
@@ -306,22 +320,28 @@ function TutorDashboardContent() {
     }
   }, [session?.user?.id, fetchData])
 
-  // Refresh on return to the dashboard (e.g. backing out of a live classroom,
-  // which is a client-side navigation that doesn't remount this page). Without
-  // this, `classes` stays stale and a now-active session — and its "Rejoin
-  // live" button — never appears.
+  // Keep the active-session state fresh so the "Rejoin live" button reliably
+  // appears after a tutor backs out of the live classroom. A session only
+  // flips to 'active' once the tutor is inside the room, and backing out is a
+  // client-side navigation that doesn't always remount this page or fire
+  // `focus` — so poll on an interval and refresh on focus / tab-visibility /
+  // bfcache restore (`pageshow`).
   useEffect(() => {
     if (!session?.user?.id) return
     const refresh = () => {
-      if (document.visibilityState === 'visible') fetchData()
+      if (document.visibilityState === 'visible') refreshClasses()
     }
+    const interval = setInterval(refresh, 20000)
     window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {
+      clearInterval(interval)
       window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }
-  }, [session?.user?.id, fetchData])
+  }, [session?.user?.id, refreshClasses])
 
   const handleClassCreated = useCallback(
     (classData?: { id: string; [key: string]: unknown }) => {
@@ -978,8 +998,13 @@ function TutorDashboardContent() {
                   )}
                 </div>
               ) : (
-                <ScrollArea className="max-h-[400px]">
-                  <div className="space-y-3 pr-4">
+                <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-2">
+                  {courseSessions.length > 6 && (
+                    <p className="text-muted-foreground pb-1 text-xs">
+                      {courseSessions.length} sessions — scroll to see all
+                    </p>
+                  )}
+                  <div className="space-y-3">
                     {courseSessions.map(session => {
                       const isVirtual = session.isVirtual === true
                       const _isPassedSession =
@@ -1162,7 +1187,7 @@ function TutorDashboardContent() {
                       )
                     })}
                   </div>
-                </ScrollArea>
+                </div>
               )}
             </div>
 
@@ -1183,7 +1208,7 @@ function TutorDashboardContent() {
                         )}
                       >
                         <CalendarClock className="mr-1 h-4 w-4" />
-                        +Add schedule
+                        +Add/Edit schedule
                       </Link>
                     </Button>
                     <Button

@@ -302,7 +302,8 @@ export interface CourseBuilderInsightsProps {
   onSessionChange: (sessionId: string) => void
   onStartSession?: () => void
   liveTasks: LiveTask[]
-  onDeployTask: (task: LiveTask) => void
+  /** Present only inside a live session; deploy buttons hide when undefined. */
+  onDeployTask?: (task: LiveTask) => void
   onSendPoll: (payload: { taskId: string; question: string }) => void
   onSendQuestion: (payload: { taskId: string; prompt: string }) => void
   students?: LiveStudent[]
