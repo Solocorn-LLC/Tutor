@@ -32,7 +32,10 @@ export const GET = withAuth(
         enrollmentCount,
       })
       .from(course)
-      .innerJoin(courseEnrollment, eq(courseEnrollment.courseId, course.courseId))
+      // leftJoin (not inner) so a published course with zero enrollments still
+      // appears on the tutor dashboard — enrollment is not a precondition for a
+      // published course to show as active.
+      .leftJoin(courseEnrollment, eq(courseEnrollment.courseId, course.courseId))
       .where(and(eq(course.creatorId, tutorId), eq(course.isPublished, true)))
       .groupBy(
         course.courseId,

@@ -35,6 +35,7 @@ import {
   Loader2,
   Layout,
   ArrowLeft,
+  LogOut,
   FileText,
   ChevronRight,
   ChevronLeft,
@@ -1191,8 +1192,17 @@ function StudentFeedbackContent() {
               )}
             </div>
 
-            <div className="flex flex-1 items-center justify-end">
+            <div className="flex flex-1 items-center justify-end gap-3">
               <WifiSignal connected={isConnected} error={!!error} />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => router.push('/student/dashboard')}
+              >
+                <LogOut className="h-4 w-4" />
+                Leave session
+              </Button>
             </div>
           </div>
 
@@ -1396,43 +1406,63 @@ function StudentFeedbackContent() {
                           </div>
                         )}
 
-                        {activeTask.sourceDocument && (
-                          <div className="mb-4 h-[55vh] w-full">
-                            {activeTask.sourceDocument.mimeType === 'application/pdf' ||
-                            !activeTask.sourceDocument.mimeType ? (
-                              <iframe
-                                src={
-                                  activeTask.sourceDocument.fileUrl.includes('#')
-                                    ? `${activeTask.sourceDocument.fileUrl}&toolbar=0&navpanes=0`
-                                    : `${activeTask.sourceDocument.fileUrl}#toolbar=0&navpanes=0`
-                                }
-                                title={activeTask.sourceDocument.fileName}
-                                className="h-full w-full rounded-lg border"
-                              />
-                            ) : activeTask.sourceDocument.mimeType.startsWith('image/') ? (
-                              <div className="flex h-full items-center justify-center">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={activeTask.sourceDocument.fileUrl}
-                                  alt={activeTask.sourceDocument.fileName}
-                                  className="max-h-full max-w-full object-contain"
-                                />
+                        {activeTask.sourceDocument &&
+                          (() => {
+                            const doc = activeTask.sourceDocument
+                            const url = doc.fileUrl || ''
+                            // A blob: URL only resolves in the tutor's browser, and
+                            // an empty URL means the document never reached storage —
+                            // either way the student can't load it. Show a clear
+                            // message instead of a silently blank frame.
+                            const loadable = !!url && !url.startsWith('blob:')
+                            const isPdf =
+                              doc.mimeType === 'application/pdf' ||
+                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(url))
+                            const isImage = doc.mimeType?.startsWith('image/')
+                            const pdfSrc = url.includes('#')
+                              ? `${url}&toolbar=0&navpanes=0`
+                              : `${url}#toolbar=0&navpanes=0`
+                            return (
+                              <div className="mb-4 h-[55vh] w-full">
+                                {!loadable ? (
+                                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 text-center">
+                                    <FileText className="h-8 w-8 text-slate-400" />
+                                    <p className="text-sm text-slate-500">
+                                      {doc.fileName || 'Document'} is unavailable. Ask your tutor to
+                                      re-deploy it.
+                                    </p>
+                                  </div>
+                                ) : isPdf ? (
+                                  <iframe
+                                    src={pdfSrc}
+                                    title={doc.fileName}
+                                    className="h-full w-full rounded-lg border"
+                                  />
+                                ) : isImage ? (
+                                  <div className="flex h-full items-center justify-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={url}
+                                      alt={doc.fileName}
+                                      className="max-h-full max-w-full object-contain"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex h-full flex-col items-center justify-center gap-2">
+                                    <FileText className="h-8 w-8 text-blue-600" />
+                                    <a
+                                      href={url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm text-blue-600 underline"
+                                    >
+                                      Open {doc.fileName}
+                                    </a>
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="flex h-full flex-col items-center justify-center gap-2">
-                                <FileText className="h-8 w-8 text-blue-600" />
-                                <a
-                                  href={activeTask.sourceDocument.fileUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-sm text-blue-600 underline"
-                                >
-                                  Open {activeTask.sourceDocument.fileName}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                            )
+                          })()}
 
                         {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
                           <div className="space-y-3">
