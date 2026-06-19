@@ -91,6 +91,7 @@ import {
   type ExamCategory,
 } from '@/lib/data/tutor-categories'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { cn } from '@/lib/utils'
 
 // --- Types ---
@@ -1758,6 +1759,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const [coursesPage, setCoursesPage] = useState(0)
   const [tutorsPage, setTutorsPage] = useState(0)
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
+  // Course whose full schedule list is open in the ScheduleViewModal.
+  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [rotation, setRotation] = useState(0)
   const router = useRouter()
 
@@ -2329,9 +2332,21 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               </div>
               <div className="space-y-0.5">
                 <div className="text-xs font-medium text-[#1F2933]/70">Schedule</div>
-                <div className="text-sm font-semibold text-[#1F2933]">
-                  {selectedCourse?.scheduleSummary?.trim() || 'Schedule to be announced'}
-                </div>
+                {selectedCourse?.id ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setScheduleCourse({ id: selectedCourse.id, name: selectedCourse.name })
+                    }
+                    className="text-sm font-semibold text-blue-600 hover:underline"
+                  >
+                    View schedules
+                  </button>
+                ) : (
+                  <div className="text-sm font-semibold text-[#1F2933]">
+                    Schedule to be announced
+                  </div>
+                )}
               </div>
             </DialogPanel>
             <DialogPanel variant="default" className="border-slate-200 bg-white p-3 text-[#1F2933]">
@@ -2454,6 +2469,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ScheduleViewModal
+        courseId={scheduleCourse?.id ?? null}
+        courseName={scheduleCourse?.name}
+        onClose={() => setScheduleCourse(null)}
+      />
     </section>
   )
 }

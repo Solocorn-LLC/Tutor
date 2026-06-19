@@ -957,10 +957,17 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
 
-      // Refresh any GCS document URLs before deploying to students
-      const refreshedSourceDocument = task.sourceDocument
-        ? await refreshDocumentUrls(task.sourceDocument)
-        : undefined
+      // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
+      // students get a live URL rather than a possibly-expired one. Never let a
+      // refresh failure block the deploy — fall back to the original document.
+      let refreshedSourceDocument = task.sourceDocument
+      if (task.sourceDocument) {
+        try {
+          refreshedSourceDocument = await refreshDocumentUrls(task.sourceDocument)
+        } catch (err) {
+          console.warn('[task:deploy] document URL refresh failed:', err)
+        }
+      }
 
       const normalizedTask: LiveTask = {
         id: task.id,
@@ -1104,6 +1111,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
               ? await refreshDocumentUrls({
                   fileName: (rawSourceDoc.fileName as string) || '',
                   fileUrl: (rawSourceDoc.fileUrl as string) || '',
+                  // Preserve fileKey so the URL is re-signed from the object key
+                  // (reliable) rather than regex-parsing a possibly-expired URL.
+                  fileKey: (rawSourceDoc.fileKey as string) || undefined,
                   mimeType: (rawSourceDoc.mimeType as string) || '',
                 })
               : undefined
