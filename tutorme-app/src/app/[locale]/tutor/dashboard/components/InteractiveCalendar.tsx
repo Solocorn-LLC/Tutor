@@ -199,6 +199,20 @@ const generateAvailability = (): AvailabilityBlock[] => {
   return slots
 }
 
+// Whether the tutor is available at a given weekday + hour, per their set
+// availability blocks. Hours with no block default to available (the model is
+// available-by-default / opt-out). Used to shade off-hours on the calendar.
+function isHourAvailable(
+  availability: AvailabilityBlock[],
+  dayOfWeek: number,
+  hour: number
+): boolean {
+  if (!availability || availability.length === 0) return true
+  const startTime = `${String(hour).padStart(2, '0')}:00`
+  const block = availability.find(b => b.dayOfWeek === dayOfWeek && b.startTime === startTime)
+  return block ? block.isAvailable : true
+}
+
 export type CalendarView = 'month' | 'week' | 'day' | 'availability'
 
 // Draggable Event Component
@@ -1024,6 +1038,7 @@ export function InteractiveCalendar({
                       onEventClick={handleEventClick}
                       conflicts={showConflictWarning}
                       readOnly={isStudent}
+                      availability={isStudent ? [] : availability}
                     />
                   )}
 
@@ -1034,6 +1049,7 @@ export function InteractiveCalendar({
                       onEventClick={handleEventClick}
                       conflicts={showConflictWarning}
                       readOnly={isStudent}
+                      availability={isStudent ? [] : availability}
                     />
                   )}
 
@@ -1928,6 +1944,7 @@ function WeekView({
   onEventClick,
   conflicts,
   readOnly = false,
+  availability = [],
 }: any) {
   const weekStart = new Date(currentDate)
   weekStart.setDate(currentDate.getDate() - currentDate.getDay())
@@ -1966,7 +1983,17 @@ function WeekView({
         {weekDays.map((day, index) => (
           <div key={index} className="relative flex flex-col border-r last:border-r-0">
             {hours.map(hour => (
-              <DroppableHour key={hour} date={day} hour={hour} className="h-10 shrink-0 border-b" />
+              <DroppableHour
+                key={hour}
+                date={day}
+                hour={hour}
+                className={cn(
+                  'h-10 shrink-0 border-b',
+                  // Shade hours outside the tutor's set availability.
+                  !isHourAvailable(availability, day.getDay(), hour) &&
+                    'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
+                )}
+              />
             ))}
             <div className="flex-1" />
 
@@ -2001,7 +2028,14 @@ function WeekView({
   )
 }
 
-function DayView({ currentDate, events: _events, onEventClick, conflicts, readOnly = false }: any) {
+function DayView({
+  currentDate,
+  events: _events,
+  onEventClick,
+  conflicts,
+  readOnly = false,
+  availability = [],
+}: any) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
 
   const formatHour = (hour: number) => {
@@ -2035,7 +2069,11 @@ function DayView({ currentDate, events: _events, onEventClick, conflicts, readOn
             key={hour}
             date={currentDate}
             hour={hour}
-            className="h-10 shrink-0 border-b"
+            className={cn(
+              'h-10 shrink-0 border-b',
+              !isHourAvailable(availability, currentDate.getDay(), hour) &&
+                'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
+            )}
           />
         ))}
         <div className="flex-1" />
