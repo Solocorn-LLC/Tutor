@@ -19,7 +19,7 @@ describe('API Auth integration', () => {
     if (createdUserId) {
       try {
         await drizzleDb.delete(profileTable).where(eq(profileTable.userId, createdUserId))
-        await drizzleDb.delete(userTable).where(eq(userTable.id, createdUserId))
+        await drizzleDb.delete(userTable).where(eq(userTable.userId, createdUserId))
       } catch (err) {
         console.warn('Cleanup failed:', err)
       }
@@ -54,7 +54,7 @@ describe('API Auth integration', () => {
     const [user] = await drizzleDb
       .select()
       .from(userTable)
-      .where(eq(userTable.id, createdUserId))
+      .where(eq(userTable.userId, createdUserId))
       .limit(1)
 
     const [profile] = await drizzleDb
