@@ -123,6 +123,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 import { extractTextFromFile } from '@/lib/extract-file-text'
 import { toast } from 'sonner'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
@@ -636,6 +637,42 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [docsOpen, setDocsOpen] = useState(true)
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
     const [collapsedTaskExtensions, setCollapsedTaskExtensions] = useState<Set<string>>(new Set())
+
+    const nodeRefs = useRef<Record<string, HTMLElement | null>>({})
+    const prevExpandedNodesRef = useRef<Set<string>>(new Set())
+    useEffect(() => {
+      expandedCourseBuilderNodes.forEach(id => {
+        if (!prevExpandedNodesRef.current.has(id)) {
+          const el = nodeRefs.current[id]
+          if (el) scrollElementIntoView(el, { margin: 16 })
+        }
+      })
+      prevExpandedNodesRef.current = new Set(expandedCourseBuilderNodes)
+    }, [expandedCourseBuilderNodes])
+
+    const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
+    const prevCollapsedSectionsRef = useRef<Set<string>>(new Set())
+    useEffect(() => {
+      prevCollapsedSectionsRef.current.forEach(key => {
+        if (!collapsedSections.has(key)) {
+          const el = sectionRefs.current[key]
+          if (el) scrollElementIntoView(el, { margin: 16 })
+        }
+      })
+      prevCollapsedSectionsRef.current = new Set(collapsedSections)
+    }, [collapsedSections])
+
+    const extensionRefs = useRef<Record<string, HTMLElement | null>>({})
+    const prevCollapsedExtensionsRef = useRef<Set<string>>(new Set())
+    useEffect(() => {
+      prevCollapsedExtensionsRef.current.forEach(id => {
+        if (!collapsedTaskExtensions.has(id)) {
+          const el = extensionRefs.current[id]
+          if (el) scrollElementIntoView(el, { margin: 16 })
+        }
+      })
+      prevCollapsedExtensionsRef.current = new Set(collapsedTaskExtensions)
+    }, [collapsedTaskExtensions])
 
     const objectUrlsRef = useRef<string[]>([])
 
@@ -6032,7 +6069,12 @@ FEEDBACK: [your explanation]`
                                       </div>
 
                                       {expandedCourseBuilderNodes.has(node.id) && (
-                                        <div className="mt-1 flex flex-col gap-1.5 bg-white px-2 pb-2">
+                                        <div
+                                          ref={el => {
+                                            nodeRefs.current[node.id] = el
+                                          }}
+                                          className="mt-1 flex flex-col gap-1.5 bg-white px-2 pb-2"
+                                        >
                                           {/* Tasks - droppable so homework can be moved here */}
                                           <TreeItem
                                             depth={0}
@@ -6094,7 +6136,12 @@ FEEDBACK: [your explanation]`
                                             </DroppableTaskZone>
                                           </TreeItem>
                                           {!isSectionCollapsed(node.id, 'task') && (
-                                            <div className="mt-1.5 space-y-1">
+                                            <div
+                                              ref={el => {
+                                                sectionRefs.current[`${node.id}:task`] = el
+                                              }}
+                                              className="mt-1.5 space-y-1"
+                                            >
                                               <SortableContext
                                                 items={primaryLesson.tasks?.map(t => t.id) || []}
                                                 strategy={verticalListSortingStrategy}
@@ -6649,7 +6696,12 @@ FEEDBACK: [your explanation]`
                                                             </div>
                                                           </div>
                                                           {!isExtensionsCollapsed(task.id) && (
-                                                            <div className="ml-0 space-y-px">
+                                                            <div
+                                                              ref={el => {
+                                                                extensionRefs.current[task.id] = el
+                                                              }}
+                                                              className="ml-0 space-y-px"
+                                                            >
                                                               {taskBuilder.extensions.map(
                                                                 (ext, extIdx) => (
                                                                   <div
@@ -6895,7 +6947,12 @@ FEEDBACK: [your explanation]`
                                             </DroppableAssessmentZone>
                                           </TreeItem>
                                           {!isSectionCollapsed(node.id, 'assessment') && (
-                                            <div className="mt-1.5 space-y-1">
+                                            <div
+                                              ref={el => {
+                                                sectionRefs.current[`${node.id}:assessment`] = el
+                                              }}
+                                              className="mt-1.5 space-y-1"
+                                            >
                                               <SortableContext
                                                 items={assessments.map(h => h.id)}
                                                 strategy={verticalListSortingStrategy}
@@ -7283,7 +7340,12 @@ FEEDBACK: [your explanation]`
                                                   </DroppableHomeworkZone>
                                                 </TreeItem>
                                                 {!isSectionCollapsed(node.id, 'homework') && (
-                                                  <div className="mt-1.5 space-y-1">
+                                                  <div
+                                                    ref={el => {
+                                                      sectionRefs.current[`${node.id}:homework`] = el
+                                                    }}
+                                                    className="mt-1.5 space-y-1"
+                                                  >
                                                     <SortableContext
                                                       items={hwItems.map(h => h.id)}
                                                       strategy={verticalListSortingStrategy}

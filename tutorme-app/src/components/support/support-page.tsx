@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
@@ -30,6 +30,13 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
     () => topics.find(t => t.value === activeTopic) || topics[0],
     [activeTopic, topics]
   )
+
+  const contentRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0
+    }
+  }, [activeTopic])
 
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
@@ -79,7 +86,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
               <h2 className="text-lg font-semibold text-slate-900">{activeTopicData.title}</h2>
               <p className="text-sm text-slate-500">{activeTopicData.description}</p>
             </div>
-            <div className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            <div ref={contentRef} className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
               {activeTopicData.items.map((item, idx) => (
                 <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <h4 className="font-medium text-gray-900">{item.title}</h4>

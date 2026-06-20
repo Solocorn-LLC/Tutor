@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,7 @@ interface MyCoursesCardProps {
 
 export function MyCoursesCard({ courses, onCourseRemoved }: MyCoursesCardProps) {
   const [showAll, setShowAll] = useState(false)
+  const contentRef = useAutoScrollOnExpand(showAll, { delay: 150 })
   const [removingSubject, setRemovingSubject] = useState<string | null>(null)
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
 
@@ -115,7 +117,7 @@ export function MyCoursesCard({ courses, onCourseRemoved }: MyCoursesCardProps) 
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div ref={contentRef} className="space-y-4">
             {visibleCourses.map(course => (
               <div
                 key={course.id}

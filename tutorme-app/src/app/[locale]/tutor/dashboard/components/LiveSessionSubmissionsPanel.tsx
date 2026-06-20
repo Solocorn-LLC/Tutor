@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 import {
   ChevronDown,
   ChevronLeft,
@@ -97,6 +98,19 @@ export function LiveSessionSubmissionsPanel({
     enrolled: false,
   })
   const [selected, setSelected] = useState<SelectedLeaf | null>(null)
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevOpenRef = useRef<Record<string, boolean>>({})
+
+  useEffect(() => {
+    Object.keys(open).forEach(key => {
+      if (open[key] && !prevOpenRef.current[key]) {
+        const el = itemRefs.current[key]
+        if (el) scrollElementIntoView(el, { margin: 16 })
+      }
+    })
+    prevOpenRef.current = { ...open }
+  }, [open])
 
   useEffect(() => {
     if (!sessionId) return
@@ -262,7 +276,12 @@ export function LiveSessionSubmissionsPanel({
                 />
 
                 {open.root && (
-                  <div className="pl-4">
+                  <div
+                    ref={el => {
+                      itemRefs.current.root = el
+                    }}
+                    className="pl-4"
+                  >
                     <FolderRow
                       isOpen={!!open.enrolled}
                       onToggle={() => toggle('enrolled')}
@@ -271,24 +290,33 @@ export function LiveSessionSubmissionsPanel({
                       subtitle={`${enrolledStudents.length}`}
                     />
 
-                    {open.enrolled &&
-                      enrolledStudents.map(st => (
-                        <StudentNode
-                          key={`e_${st.studentId}`}
-                          student={st}
-                          isSelected={selectedStudentId === st.studentId}
-                          open={open}
-                          toggle={toggle}
-                          submitted={{
-                            task: filterSubmitted(st.studentId, 'task'),
-                            assessment: filterSubmitted(st.studentId, 'assessment'),
-                            homework: filterSubmitted(st.studentId, 'homework'),
-                          }}
-                          buildLeaf={(type, item) => buildLeaf(st.studentId, st.name, type, item)}
-                          onSelectLeaf={setSelected}
-                          onSelectStudent={() => onSelectStudent(st.studentId, st.name)}
-                        />
-                      ))}
+                    {open.enrolled && (
+                      <div
+                        ref={el => {
+                          itemRefs.current.enrolled = el
+                        }}
+                        className="pl-4"
+                      >
+                        {enrolledStudents.map(st => (
+                          <StudentNode
+                            key={`e_${st.studentId}`}
+                            student={st}
+                            isSelected={selectedStudentId === st.studentId}
+                            open={open}
+                            toggle={toggle}
+                            submitted={{
+                              task: filterSubmitted(st.studentId, 'task'),
+                              assessment: filterSubmitted(st.studentId, 'assessment'),
+                              homework: filterSubmitted(st.studentId, 'homework'),
+                            }}
+                            buildLeaf={(type, item) => buildLeaf(st.studentId, st.name, type, item)}
+                            onSelectLeaf={setSelected}
+                            onSelectStudent={() => onSelectStudent(st.studentId, st.name)}
+                            itemRefs={itemRefs}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -436,6 +464,7 @@ function StudentNode({
   buildLeaf,
   onSelectLeaf,
   onSelectStudent,
+  itemRefs,
 }: {
   student: { studentId: string; name: string }
   isSelected: boolean
@@ -445,6 +474,7 @@ function StudentNode({
   buildLeaf: (type: 'task' | 'assessment' | 'homework', item: any) => SelectedLeaf
   onSelectLeaf: (v: SelectedLeaf | null) => void
   onSelectStudent: () => void
+  itemRefs: React.RefObject<Record<string, HTMLElement | null>>
 }) {
   const key = `student_${student.studentId}`
   return (
@@ -476,7 +506,12 @@ function StudentNode({
       </button>
 
       {open[key] && (
-        <div className="pl-4">
+        <div
+          ref={el => {
+            if (itemRefs.current) itemRefs.current[key] = el
+          }}
+          className="pl-4"
+        >
           <CategoryFolder
             studentId={student.studentId}
             type="task"
@@ -487,6 +522,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelectLeaf={onSelectLeaf}
+            itemRefs={itemRefs}
           />
           <CategoryFolder
             studentId={student.studentId}
@@ -498,6 +534,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelectLeaf={onSelectLeaf}
+            itemRefs={itemRefs}
           />
           <CategoryFolder
             studentId={student.studentId}
@@ -509,6 +546,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelectLeaf={onSelectLeaf}
+            itemRefs={itemRefs}
           />
         </div>
       )}
@@ -526,6 +564,7 @@ function CategoryFolder({
   toggle,
   buildLeaf,
   onSelectLeaf,
+  itemRefs,
 }: {
   studentId: string
   type: 'task' | 'assessment' | 'homework'
@@ -536,6 +575,7 @@ function CategoryFolder({
   toggle: (key: string) => void
   buildLeaf: (type: 'task' | 'assessment' | 'homework', item: any) => SelectedLeaf
   onSelectLeaf: (v: SelectedLeaf | null) => void
+  itemRefs: React.RefObject<Record<string, HTMLElement | null>>
 }) {
   const key = `cat_${studentId}_${type}`
   return (
@@ -549,7 +589,12 @@ function CategoryFolder({
       />
 
       {open[key] && (
-        <div className="pl-4">
+        <div
+          ref={el => {
+            if (itemRefs.current) itemRefs.current[key] = el
+          }}
+          className="pl-4"
+        >
           {items.length === 0 ? (
             <div className="px-2 py-2 text-xs text-slate-500">No submissions</div>
           ) : (
@@ -577,7 +622,12 @@ function CategoryFolder({
                   </button>
 
                   {open[leafKey] && (
-                    <div className="pl-4">
+                    <div
+                      ref={el => {
+                        if (itemRefs.current) itemRefs.current[leafKey] = el
+                      }}
+                      className="pl-4"
+                    >
                       <button
                         type="button"
                         onClick={() => onSelectLeaf(leaf)}

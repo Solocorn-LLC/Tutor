@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { RevenueDashboard } from '../dashboard/components/RevenueDashboard'
 import { StudentReportsTab } from '@/components/reports/student-reports-tab'
 
@@ -730,6 +731,8 @@ function CoursesAndClassesTab() {
   const [sessionsLoading, setSessionsLoading] = useState(true)
   const [students, setStudents] = useState<Student[]>([])
   const [expandedPanel, setExpandedPanel] = useState<'courses' | 'ai'>('courses')
+  const coursesPanelRef = useAutoScrollOnExpand(expandedPanel === 'courses')
+  const aiPanelRef = useAutoScrollOnExpand(expandedPanel === 'ai')
 
   const selectedCourse = courses.find(c => c.id === selectedCourseId) || null
 
@@ -901,7 +904,7 @@ function CoursesAndClassesTab() {
           </div>
         </button>
         {expandedPanel === 'courses' && (
-          <div className="min-h-0 flex-1 p-6">
+          <div className="min-h-0 flex-1 p-6" ref={coursesPanelRef}>
             <div className="grid h-[280px] shrink-0 grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="flex flex-col overflow-hidden">
                 <div className="shrink-0 pb-3">
@@ -1218,7 +1221,7 @@ function CoursesAndClassesTab() {
           </div>
         </button>
         {expandedPanel === 'ai' && (
-          <div className="min-h-0 flex-1 p-6">
+          <div className="min-h-0 flex-1 p-6" ref={aiPanelRef}>
             <ItemAIChat
               course={selectedCourse}
               session={selectedSession}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -128,6 +129,7 @@ function SubmissionRow({
   onToggle: () => void
   onGraded: () => void
 }) {
+  const contentRef = useAutoScrollOnExpand(expanded, { delay: 150 })
   const [score, setScore] = useState<string>(submission.score?.toString() ?? '')
   const [feedback, setFeedback] = useState<string>(submission.tutorFeedback ?? '')
   const [saving, setSaving] = useState(false)
@@ -212,7 +214,7 @@ function SubmissionRow({
       </CardHeader>
 
       {expanded && (
-        <CardContent className="space-y-4 border-t pt-4">
+        <CardContent ref={contentRef} className="space-y-4 border-t pt-4">
           <div>
             <h4 className="mb-2 text-sm font-semibold text-gray-700">Answers</h4>
             {answerEntries.length === 0 ? (

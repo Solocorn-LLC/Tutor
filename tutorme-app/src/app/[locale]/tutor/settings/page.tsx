@@ -49,6 +49,7 @@ import {
 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import SessionLog from '@/components/session-log'
@@ -272,6 +273,11 @@ export default function TutorSettings() {
   const [publicProfileOpen, setPublicProfileOpen] = useState(false)
   const [taxOpen, setTaxOpen] = useState(false)
   const [tutorInfoOpen, setTutorInfoOpen] = useState(false)
+
+  const profileRef = useAutoScrollOnExpand(profileOpen)
+  const publicProfileRef = useAutoScrollOnExpand(publicProfileOpen)
+  const taxRef = useAutoScrollOnExpand(taxOpen)
+  const tutorInfoRef = useAutoScrollOnExpand(tutorInfoOpen)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
@@ -651,7 +657,7 @@ export default function TutorSettings() {
                   </div>
                 </button>
                 {profileOpen && (
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6" ref={profileRef}>
                     {/* Avatar */}
                     <div className="flex items-center gap-4">
                       <AvatarUploader
@@ -784,7 +790,7 @@ export default function TutorSettings() {
                   </div>
                 </button>
                 {publicProfileOpen && (
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6" ref={publicProfileRef}>
                     <div className="flex items-start gap-4">
                       {formData.avatarUrl ? (
                         <img
@@ -863,7 +869,7 @@ export default function TutorSettings() {
                   </div>
                 </button>
                 {taxOpen && (
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6" ref={taxRef}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Region</Label>
@@ -990,7 +996,7 @@ export default function TutorSettings() {
                   </div>
                 </button>
                 {tutorInfoOpen && (
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-6" ref={tutorInfoRef}>
                     {/* Nationality & Country of Residence */}
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
@@ -35,12 +35,11 @@ import {
   Download,
   Check,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { CollapsibleCard } from '@/components/collapsible-card'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -283,40 +282,6 @@ export default function StudentAccount() {
   const sectionCardClass =
     'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
 
-  function CollapsibleCard({
-    title,
-    description,
-    defaultOpen = false,
-    children,
-  }: {
-    title: string
-    description?: string
-    defaultOpen?: boolean
-    children: React.ReactNode
-  }) {
-    const [open, setOpen] = useState(defaultOpen)
-    return (
-      <Card className={sectionCardClass}>
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          className="panel-header panel-header-metallic w-full text-left"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="panel-header-title">{title}</div>
-              {description && <div className="panel-header-subtext">{description}</div>}
-            </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-              {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            </div>
-          </div>
-        </button>
-        {open && children}
-      </Card>
-    )
-  }
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -359,7 +324,7 @@ export default function StudentAccount() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pr-2">
-              <CollapsibleCard title="Profile & Identity" defaultOpen>
+              <CollapsibleCard title="Profile & Identity" defaultOpen className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -480,7 +445,7 @@ export default function StudentAccount() {
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
                 defaultOpen
-              >
+               className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   {paymentMethods.map(method => (
                     <div
@@ -546,7 +511,7 @@ export default function StudentAccount() {
                 title="Billing History"
                 description="View and download your invoices and receipts"
                 defaultOpen
-              >
+               className={sectionCardClass}>
                 <CardContent>
                   <div className="space-y-4">
                     {billingHistory.map(invoice => (
@@ -602,7 +567,7 @@ export default function StudentAccount() {
                 title="Notification Preferences"
                 description="Control how and when we contact you"
                 defaultOpen
-              >
+               className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -713,7 +678,7 @@ export default function StudentAccount() {
                 title="Privacy & Security"
                 description="Manage your password and account security"
                 defaultOpen
-              >
+               className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   {/* Password Change */}
                   <div className="space-y-4">
@@ -820,7 +785,7 @@ export default function StudentAccount() {
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
                 defaultOpen
-              >
+               className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   {/* Deactivate Account */}
                   <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">

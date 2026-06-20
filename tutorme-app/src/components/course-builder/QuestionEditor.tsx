@@ -16,7 +16,7 @@
  *  - courseId?: string — required for AI import
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +32,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 import {
   Plus,
@@ -104,6 +105,19 @@ export function QuestionEditor({
   compact = false,
 }: QuestionEditorProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(questions.map(q => q.id)))
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevExpandedRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    expanded.forEach(id => {
+      if (!prevExpandedRef.current.has(id)) {
+        const el = itemRefs.current[id]
+        if (el) scrollElementIntoView(el, { margin: 16 })
+      }
+    })
+    prevExpandedRef.current = new Set(expanded)
+  }, [expanded])
   const [previewMode, setPreviewMode] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiTopic, setAiTopic] = useState('')
@@ -409,7 +423,12 @@ export function QuestionEditor({
 
             {/* Question Body (expanded) */}
             {expanded.has(q.id) && (
-              <div className="mt-3 space-y-3 pl-6">
+              <div
+                ref={el => {
+                  itemRefs.current[q.id] = el
+                }}
+                className="mt-3 space-y-3 pl-6"
+              >
                 {/* Type selector */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>

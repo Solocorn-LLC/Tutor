@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 interface Lesson {
   id: string
@@ -74,6 +75,19 @@ export function CourseSidebar({
   onToggleCollapse,
 }: CourseSidebarProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevExpandedRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    expandedModules.forEach(id => {
+      if (!prevExpandedRef.current.has(id)) {
+        const el = itemRefs.current[id]
+        if (el) scrollElementIntoView(el, { margin: 16 })
+      }
+    })
+    prevExpandedRef.current = new Set(expandedModules)
+  }, [expandedModules])
 
   // Expand first incomplete module by default
   useEffect(() => {
@@ -270,7 +284,12 @@ export function CourseSidebar({
 
                 {/* Lessons List */}
                 {isExpanded && (
-                  <div className="border-t bg-gray-50/50">
+                  <div
+                    ref={el => {
+                      itemRefs.current[module.id] = el
+                    }}
+                    className="border-t bg-gray-50/50"
+                  >
                     {module.lessons.map(lesson => (
                       <button
                         key={lesson.id}

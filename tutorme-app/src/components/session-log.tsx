@@ -36,13 +36,12 @@ import {
   Calendar,
   Zap,
   Loader2,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatClassTime } from '@/lib/format-class-time'
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
+import { CollapsibleCard } from '@/components/collapsible-card'
 
 const SECTION_CARD_CLASS =
   'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
@@ -107,41 +106,6 @@ function getTimeRemaining(scheduledAt: string): string {
   if (diffHours < 24) return `in ${diffHours} hr`
   const diffDays = Math.floor(diffHours / 24)
   return `in ${diffDays} days`
-}
-
-function CollapsibleCard({
-  title,
-  description,
-  defaultOpen = false,
-  children,
-}: {
-  title: string
-  description?: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-
-  return (
-    <Card className={SECTION_CARD_CLASS}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="panel-header panel-header-metallic w-full text-left"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="panel-header-title">{title}</div>
-            {description && <div className="panel-header-subtext">{description}</div>}
-          </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-            {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
-        </div>
-      </button>
-      {open && <CardContent className="space-y-6">{children}</CardContent>}
-    </Card>
-  )
 }
 
 export default function SessionLog() {
@@ -614,6 +578,8 @@ export default function SessionLog() {
         title="Session List"
         description="Search, filter, and manage your sessions"
         defaultOpen
+        className={SECTION_CARD_CLASS}
+        contentClassName="p-6 space-y-6"
       >
         {/* Search & Filter */}
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -785,7 +751,12 @@ export default function SessionLog() {
         )}
       </CollapsibleCard>
 
-      <CollapsibleCard title="Session Calendar" description="Monthly calendar and upcoming events">
+      <CollapsibleCard
+        title="Session Calendar"
+        description="Monthly calendar and upcoming events"
+        className={SECTION_CARD_CLASS}
+        contentClassName="p-6 space-y-6"
+      >
         {/* Calendar Header */}
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={prevMonth}>

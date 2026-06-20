@@ -62,6 +62,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 
 interface PublicTutorResponse {
   tutor: {
@@ -1527,6 +1528,7 @@ export default function PublicTutorPage() {
     forceOpen?: boolean
   }) {
     const [isOpen, setIsOpen] = useState(courses.length > 0)
+    const contentRef = useAutoScrollOnExpand(isOpen, { delay: 350 })
 
     useEffect(() => {
       if (forceOpen !== undefined) {
@@ -1557,7 +1559,7 @@ export default function PublicTutorPage() {
             isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
           )}
         >
-          <div className="overflow-hidden">
+          <div className="overflow-hidden" ref={contentRef}>
             {courses.length === 0 ? (
               <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-slate-50/50 py-12 text-center">
                 <BookOpen className="mx-auto mb-3 h-12 w-12 text-slate-300" />

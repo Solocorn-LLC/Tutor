@@ -5,7 +5,7 @@
  * Tutor interface for reviewing AI-generated feedback
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   CheckCircle,
   XCircle,
@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 interface FeedbackItem {
   id: string
@@ -83,6 +84,17 @@ export function FeedbackReviewPanel({
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
   const [activeTab, setActiveTab] = useState('pending')
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevExpandedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (expandedItem && expandedItem !== prevExpandedRef.current) {
+      const el = itemRefs.current[expandedItem]
+      if (el) scrollElementIntoView(el, { margin: 16 })
+    }
+    prevExpandedRef.current = expandedItem
+  }, [expandedItem])
 
   // Load feedback data
   useEffect(() => {
@@ -409,7 +421,12 @@ export function FeedbackReviewPanel({
 
                       {/* Expanded Content */}
                       {expandedItem === item.id && (
-                        <div className="border-t px-4 pb-4">
+                        <div
+                          ref={el => {
+                            itemRefs.current[item.id] = el
+                          }}
+                          className="border-t px-4 pb-4"
+                        >
                           {editingItem === item.id ? (
                             <div className="space-y-4 py-4">
                               <Textarea

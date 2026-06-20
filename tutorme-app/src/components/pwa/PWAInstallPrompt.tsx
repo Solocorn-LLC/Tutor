@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -182,7 +183,14 @@ export function PWAInstallPrompt() {
                 </div>
               ) : (
                 <div className="mt-3">
-                  <details className="group">
+                  <details
+                    className="group"
+                    onToggle={e => {
+                      if (e.currentTarget.open) {
+                        scrollElementIntoView(e.currentTarget, { margin: 16 })
+                      }
+                    }}
+                  >
                     <summary className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                       {t('ios_how_to_install')}
                     </summary>

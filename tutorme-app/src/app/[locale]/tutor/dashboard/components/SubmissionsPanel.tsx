@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 import {
   ChevronDown,
   ChevronLeft,
@@ -104,6 +105,19 @@ export function SubmissionsPanel({
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [selected, setSelected] = useState<SelectedLeaf | null>(null)
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevOpenRef = useRef<Record<string, boolean>>({})
+
+  useEffect(() => {
+    Object.keys(open).forEach(key => {
+      if (open[key] && !prevOpenRef.current[key]) {
+        const el = itemRefs.current[key]
+        if (el) scrollElementIntoView(el, { margin: 16 })
+      }
+    })
+    prevOpenRef.current = { ...open }
+  }, [open])
 
   useEffect(() => {
     if (!courseId) return
@@ -281,7 +295,13 @@ export function SubmissionsPanel({
 
                 {open.course &&
                   lessons.map(lesson => (
-                    <div key={lesson.id} className="pl-4">
+                    <div
+                      key={lesson.id}
+                      ref={el => {
+                        itemRefs.current.course = el
+                      }}
+                      className="pl-4"
+                    >
                       <FolderRow
                         isOpen={!!open[`lesson_${lesson.id}`]}
                         onToggle={() => toggle(`lesson_${lesson.id}`)}
@@ -293,8 +313,15 @@ export function SubmissionsPanel({
                       {open[`lesson_${lesson.id}`] &&
                         (sessionsByLessonId[lesson.id] || []).map((session, idx) => {
                           const sessionKey = `session_${session.id}`
+                          const lessonKey = `lesson_${lesson.id}`
                           return (
-                            <div key={session.id} className="pl-4">
+                            <div
+                              key={session.id}
+                              ref={el => {
+                                itemRefs.current[lessonKey] = el
+                              }}
+                              className="pl-4"
+                            >
                               <FolderRow
                                 isOpen={!!open[sessionKey]}
                                 onToggle={() => toggle(sessionKey)}
@@ -304,7 +331,12 @@ export function SubmissionsPanel({
                               />
 
                               {open[sessionKey] && (
-                                <div className="pl-4">
+                                <div
+                                  ref={el => {
+                                    itemRefs.current[sessionKey] = el
+                                  }}
+                                  className="pl-4"
+                                >
                                   <FolderRow
                                     isOpen={!!open[`${sessionKey}_enrolled`]}
                                     onToggle={() => toggle(`${sessionKey}_enrolled`)}
@@ -313,20 +345,29 @@ export function SubmissionsPanel({
                                     subtitle={`${enrolled.length}`}
                                   />
 
-                                  {open[`${sessionKey}_enrolled`] &&
-                                    enrolled.map(st => (
-                                      <StudentNode
-                                        key={`${session.id}_${st.studentId}_e`}
-                                        session={session}
-                                        student={st}
-                                        deployedBySession={deployedBySession}
-                                        submissionMap={submissionMap}
-                                        reportMap={reportMap}
-                                        open={open}
-                                        toggle={toggle}
-                                        onSelect={setSelected}
-                                      />
-                                    ))}
+                                  {open[`${sessionKey}_enrolled`] && (
+                                    <div
+                                      ref={el => {
+                                        itemRefs.current[`${sessionKey}_enrolled`] = el
+                                      }}
+                                      className="pl-4"
+                                    >
+                                      {enrolled.map(st => (
+                                        <StudentNode
+                                          key={`${session.id}_${st.studentId}_e`}
+                                          session={session}
+                                          student={st}
+                                          deployedBySession={deployedBySession}
+                                          submissionMap={submissionMap}
+                                          reportMap={reportMap}
+                                          open={open}
+                                          toggle={toggle}
+                                          onSelect={setSelected}
+                                          itemRefs={itemRefs}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -495,6 +536,7 @@ function StudentNode({
   open,
   toggle,
   onSelect,
+  itemRefs,
 }: {
   session: any
   student: { studentId: string; name: string }
@@ -504,6 +546,7 @@ function StudentNode({
   open: Record<string, boolean>
   toggle: (key: string) => void
   onSelect: (v: SelectedLeaf | null) => void
+  itemRefs: React.RefObject<Record<string, HTMLElement | null>>
 }) {
   const studentKey = `student_${session.id}_${student.studentId}`
   const items = deployedBySession[session.id] || { task: [], assessment: [], homework: [] }
@@ -541,7 +584,12 @@ function StudentNode({
       />
 
       {open[studentKey] && (
-        <div className="pl-4">
+        <div
+          ref={el => {
+            if (itemRefs.current) itemRefs.current[studentKey] = el
+          }}
+          className="pl-4"
+        >
           <CategoryFolder
             session={session}
             student={student}
@@ -553,6 +601,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelect={onSelect}
+            itemRefs={itemRefs}
           />
           <CategoryFolder
             session={session}
@@ -565,6 +614,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelect={onSelect}
+            itemRefs={itemRefs}
           />
           <CategoryFolder
             session={session}
@@ -577,6 +627,7 @@ function StudentNode({
             toggle={toggle}
             buildLeaf={buildLeaf}
             onSelect={onSelect}
+            itemRefs={itemRefs}
           />
         </div>
       )}
@@ -595,6 +646,7 @@ function CategoryFolder({
   toggle,
   buildLeaf,
   onSelect,
+  itemRefs,
 }: {
   session: any
   student: { studentId: string; name: string }
@@ -606,6 +658,7 @@ function CategoryFolder({
   toggle: (key: string) => void
   buildLeaf: (type: 'task' | 'assessment' | 'homework', item: any) => SelectedLeaf
   onSelect: (v: SelectedLeaf | null) => void
+  itemRefs: React.RefObject<Record<string, HTMLElement | null>>
 }) {
   const key = `cat_${session.id}_${student.studentId}_${type}`
   return (
@@ -619,7 +672,12 @@ function CategoryFolder({
       />
 
       {open[key] && (
-        <div className="pl-4">
+        <div
+          ref={el => {
+            if (itemRefs.current) itemRefs.current[key] = el
+          }}
+          className="pl-4"
+        >
           {items.length === 0 ? (
             <div className="px-2 py-2 text-xs text-slate-500">No submissions</div>
           ) : (
@@ -647,7 +705,12 @@ function CategoryFolder({
                   </button>
 
                   {open[leafKey] && (
-                    <div className="pl-4">
+                    <div
+                      ref={el => {
+                        if (itemRefs.current) itemRefs.current[leafKey] = el
+                      }}
+                      className="pl-4"
+                    >
                       <button
                         type="button"
                         onClick={() => onSelect(leaf)}

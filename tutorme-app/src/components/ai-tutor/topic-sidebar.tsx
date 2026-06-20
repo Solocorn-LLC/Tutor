@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,7 @@ import {
   Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 interface Topic {
   id: string
@@ -145,6 +146,20 @@ export function TopicSidebar({
   onToggleCollapse,
 }: TopicSidebarProps) {
   const [expandedTopics, setExpandedTopics] = useState<string[]>([])
+
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({})
+  const prevExpandedRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const current = new Set(expandedTopics)
+    current.forEach(id => {
+      if (!prevExpandedRef.current.has(id)) {
+        const el = itemRefs.current[id]
+        if (el) scrollElementIntoView(el, { margin: 16 })
+      }
+    })
+    prevExpandedRef.current = current
+  }, [expandedTopics])
 
   const toggleTopic = (topicId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -307,7 +322,12 @@ export function TopicSidebar({
 
                 {/* Expandable subtopics */}
                 {expandedTopics.includes(topic.id) && topic.subtopics && (
-                  <div className="animate-in slide-in-from-top-1 ml-9 mt-1 space-y-0.5">
+                  <div
+                    ref={el => {
+                      itemRefs.current[topic.id] = el
+                    }}
+                    className="animate-in slide-in-from-top-1 ml-9 mt-1 space-y-0.5"
+                  >
                     {topic.subtopics.map((subtopic, idx) => (
                       <button
                         key={idx}

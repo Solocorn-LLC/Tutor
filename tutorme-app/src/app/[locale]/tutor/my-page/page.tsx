@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
+import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import {
   ArrowLeft,
   CheckCircle,
@@ -184,6 +185,7 @@ function MyCoursesSection() {
     'active'
   )
   const [isExpanded, setIsExpanded] = useState(true)
+  const coursesPanelRef = useAutoScrollOnExpand(isExpanded, { delay: 350 })
   const [measuredMaxHeight, setMeasuredMaxHeight] = useState(400)
   const measureRefs = {
     active: useRef<HTMLDivElement>(null),
@@ -531,6 +533,7 @@ function MyCoursesSection() {
 
         {/* Course List - Scrollable Container */}
         <div
+          ref={coursesPanelRef}
           className={cn(
             'pr-2 transition-all duration-300 ease-in-out',
             isExpanded ? 'overflow-y-auto' : 'h-0 overflow-hidden'
