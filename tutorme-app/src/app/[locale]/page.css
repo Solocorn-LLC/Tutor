@@ -1,6 +1,6 @@
 html {
   scroll-behavior: auto !important;
-  scroll-snap-type: y proximity;
+  scroll-snap-type: y mandatory;
 }
 
 /*

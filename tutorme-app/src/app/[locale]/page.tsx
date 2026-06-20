@@ -4869,7 +4869,7 @@ export default function LandingPage() {
       </div>
 
       <motion.main initial={motionFadeIn} animate={motionFadeIn} className="relative">
-        <section className="snap-panel relative h-screen snap-start overflow-hidden">
+        <section className="relative h-screen overflow-hidden">
           <header className="relative z-10 flex items-center justify-between px-8 pt-8">
             <div className="flex items-center gap-3">
               <img src="/solocornlogo.png" alt="Solocorn" className="h-9 w-9" />
@@ -5047,7 +5047,7 @@ export default function LandingPage() {
       <style jsx global>{`
         html {
           scroll-behavior: auto !important;
-          scroll-snap-type: y proximity;
+          scroll-snap-type: y mandatory;
         }
         /* The global body overflow-x:hidden makes Chrome treat the body as the
            scroller and disables root scroll-snap. Reset it on this page so the
