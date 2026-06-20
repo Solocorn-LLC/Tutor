@@ -407,6 +407,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       isCollapsed = false,
       onMainTabChange,
       initialMainTab,
+      mainTab: mainTabProp,
       leftPanelHidden: leftPanelHiddenProp,
       onLeftPanelHiddenChange,
       hideDirectorySearch = false,
@@ -1748,6 +1749,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return cloned
     }, [builderNodes, cloneNodes, setLiveNodes])
 
+    // Allow the parent route to control the active builder tab (e.g. from the
+    // floating Controls panel mode selector).
+    useEffect(() => {
+      if (mainTabProp && mainTabProp !== mainTab) {
+        if (mainTabProp === 'live') handleSyncToLive()
+        setMainTab(mainTabProp)
+      }
+    }, [mainTabProp, mainTab, handleSyncToLive])
+
     // Trigger full sync: save → sync to live → emit to session.
     // isAuto suppresses the save/sync toasts so background auto-sync is silent.
     const triggerSync = useCallback(
@@ -1843,8 +1853,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           insightsProps?.sessionId && onSyncToLiveSession ? triggerSync(isAuto) : doSave(isAuto),
         syncToLive: handleSyncToLive,
         getLessons: () => nodes.map(n => n.lessons[0]),
+        openVideo: () => {
+          if (!sessionContext?.roomUrl) return
+          openVideoOverlay({
+            roomUrl: sessionContext.roomUrl,
+            token: sessionContext.token,
+            autoRecord: !isStudentView,
+            isTutor: true,
+          })
+        },
+        triggerSync: () => {
+          if (onSyncToLiveSession) triggerSync()
+        },
       }),
-      [doSave, handleSyncToLive, nodes, insightsProps?.sessionId, onSyncToLiveSession, triggerSync]
+      [
+        doSave,
+        handleSyncToLive,
+        nodes,
+        insightsProps?.sessionId,
+        onSyncToLiveSession,
+        triggerSync,
+        sessionContext?.roomUrl,
+        sessionContext?.token,
+        isStudentView,
+        openVideoOverlay,
+      ]
     )
 
     const trackObjectUrl = useCallback((url: string) => {

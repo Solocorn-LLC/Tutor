@@ -29,6 +29,10 @@ import {
   Calendar,
   Trash2,
   Video as VideoIcon,
+  RefreshCw,
+  TestTube2,
+  PencilRuler,
+  MonitorPlay,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
 import {
@@ -46,10 +50,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { motion, AnimatePresence, useDragControls } from 'framer-motion'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
 import { toast } from 'sonner'
 import type { CourseBuilderInsightsProps } from './course-builder-types'
+import type { CourseBuilderRef } from '../../dashboard/components/builder-types'
 import {
   useCourseBuilderContentModel,
   type UseCourseBuilderContentArgs,
@@ -108,6 +115,235 @@ type Props = UseCourseBuilderContentArgs & {
   modeLocked?: boolean
 }
 
+type ControlsMode = 'build' | 'test' | 'classroom'
+
+interface TutorControlsPanelProps {
+  mode: ControlsMode
+  onModeChange: (mode: ControlsMode) => void
+  disabled?: boolean
+  onSave: () => void
+  onSchedule: () => void
+  onDelete: () => void
+  onGoLive: () => void
+  onVideo: () => void
+  onSync: () => void
+  canDelete: boolean
+  canSchedule: boolean
+  canGoLive: boolean
+  hasSession: boolean
+  hasUnsyncedChanges?: boolean
+}
+
+function TutorControlsPanel({
+  mode,
+  onModeChange,
+  disabled,
+  onSave,
+  onSchedule,
+  onDelete,
+  onGoLive,
+  onVideo,
+  onSync,
+  canDelete,
+  canSchedule,
+  canGoLive,
+  hasSession,
+  hasUnsyncedChanges,
+}: TutorControlsPanelProps) {
+  const [open, setOpen] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragControls = useDragControls()
+
+  const modeButtonBase =
+    'flex h-9 w-full items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors'
+
+  const panelDisabled = disabled || false
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50">
+      <div className="pointer-events-none absolute bottom-4 right-4">
+        <motion.div
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden shadow-xl',
+            open ? 'rounded-2xl border border-slate-200 bg-white p-3' : 'rounded-2xl bg-gray-800'
+          )}
+        >
+          {/* Header / drag handle */}
+          <button
+            type="button"
+            className={cn(
+              'relative flex w-full cursor-grab items-center active:cursor-grabbing',
+              open ? 'h-8 rounded-t-xl border-b border-slate-200 px-2' : 'h-10 px-3'
+            )}
+            onPointerDown={e => dragControls.start(e)}
+            onClick={() => {
+              if (isDragging) return
+              setOpen(v => !v)
+            }}
+          >
+            <span className="w-4 shrink-0" aria-hidden="true" />
+            <span
+              className={cn(
+                'mx-auto text-xs font-semibold',
+                open ? 'text-slate-700' : 'text-white'
+              )}
+            >
+              Controls
+            </span>
+            <span className="w-4 shrink-0" aria-hidden="true" />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                key="controls-body"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                {/* Mode selector */}
+                <Tabs
+                  value={mode}
+                  onValueChange={v => onModeChange(v as ControlsMode)}
+                  className="mt-2 w-full"
+                >
+                  <TabsList className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+                    <TabsTrigger
+                      value="build"
+                      className={cn(
+                        modeButtonBase,
+                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
+                        'text-slate-600 hover:text-slate-800'
+                      )}
+                    >
+                      <PencilRuler className="h-3.5 w-3.5" />
+                      Build
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="test"
+                      className={cn(
+                        modeButtonBase,
+                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
+                        'text-slate-600 hover:text-slate-800'
+                      )}
+                    >
+                      <TestTube2 className="h-3.5 w-3.5" />
+                      Test
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="classroom"
+                      className={cn(
+                        modeButtonBase,
+                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
+                        'text-slate-600 hover:text-slate-800'
+                      )}
+                    >
+                      <MonitorPlay className="h-3.5 w-3.5" />
+                      Classroom
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {/* Action buttons */}
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      disabled={panelDisabled}
+                      onClick={onSave}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <Save className="h-4 w-4" />
+                      Save
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                      onClick={onSchedule}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Schedule
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !canDelete}
+                      onClick={onDelete}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !canGoLive}
+                      onClick={onGoLive}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <VideoIcon className="h-4 w-4" />
+                      Go Live
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !hasSession}
+                      onClick={onVideo}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <VideoIcon className="h-4 w-4" />
+                      Video
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !hasSession}
+                      onClick={onSync}
+                      className={cn(
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                      )}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Sync
+                      {hasUnsyncedChanges && (
+                        <span className="ml-auto h-2 w-2 rounded-full bg-amber-400" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
 function CourseBuilderInsightsRouteInner({
   courseId,
   insightsProps,
@@ -151,13 +387,17 @@ function CourseBuilderInsightsRouteInner({
   const isClassroomMode =
     (pathname?.startsWith('/tutor/classroom') ?? false) || searchParams.get('view') === 'classroom'
   const tabFromUrl = searchParams.get('tab') as 'live' | 'builder' | 'test-pci' | null
-  const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(
-    isClassroomMode ? 'live' : (tabFromUrl ?? (insightsProps.sessionId ? 'live' : 'builder'))
-  )
+  const initialMainTab = isClassroomMode
+    ? 'live'
+    : (tabFromUrl ?? (insightsProps.sessionId ? 'live' : 'builder'))
+  const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(initialMainTab)
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
+  const [controlsMode, setControlsMode] = useState<ControlsMode>(
+    initialMainTab === 'live' ? 'classroom' : initialMainTab === 'test-pci' ? 'test' : 'build'
+  )
   const router = useRouter()
 
   // Reschedule dialog state
@@ -174,10 +414,12 @@ function CourseBuilderInsightsRouteInner({
   useEffect(() => {
     if (isClassroomMode) {
       setActiveMainTab('live')
+      setControlsMode('classroom')
       return
     }
     if (insightsProps.sessionId && !tabFromUrl) {
       setActiveMainTab('live')
+      setControlsMode('classroom')
     }
   }, [insightsProps.sessionId, tabFromUrl, isClassroomMode])
 
@@ -189,8 +431,25 @@ function CourseBuilderInsightsRouteInner({
         return
       }
       setActiveMainTab(tab)
+      if (tab === 'builder') setControlsMode('build')
+      if (tab === 'test-pci') setControlsMode('test')
+      if (tab === 'live') setControlsMode('classroom')
     },
     [isClassroomMode]
+  )
+
+  const handleControlsModeChange = useCallback(
+    (mode: ControlsMode) => {
+      setControlsMode(mode)
+      if (mode === 'build') {
+        if (activeMainTab !== 'builder') setActiveMainTab('builder')
+      } else if (mode === 'test') {
+        if (activeMainTab !== 'test-pci') setActiveMainTab('test-pci')
+      } else if (mode === 'classroom') {
+        if (activeMainTab !== 'live') setActiveMainTab('live')
+      }
+    },
+    [activeMainTab]
   )
 
   const [now, setNow] = useState(new Date())
@@ -813,11 +1072,51 @@ function CourseBuilderInsightsRouteInner({
             }}
             onMainTabChange={handleMainTabChange}
             initialMainTab={isClassroomMode ? 'live' : (tabFromUrl ?? 'builder')}
+            mainTab={activeMainTab}
             leftPanelHidden={leftPanelHidden}
             onLeftPanelHiddenChange={setLeftPanelHidden}
             saveMode={saveMode}
             onSaveModeChange={onSaveModeChange}
             onSyncToLiveSession={onSyncToLiveSession}
+          />
+        )}
+
+        {!model.loading && courseId && (
+          <TutorControlsPanel
+            mode={controlsMode}
+            onModeChange={handleControlsModeChange}
+            onSave={async () => {
+              const ref = model.courseBuilderRef.current as CourseBuilderRef | null
+              if (typeof ref?.saveAll === 'function') {
+                await ref.saveAll()
+              } else {
+                toast.error('Builder not ready to save')
+              }
+            }}
+            onSchedule={saveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
+            onDelete={() => onDeleteCourse?.()}
+            onGoLive={handleStartSessionClick}
+            onVideo={() => {
+              const ref = model.courseBuilderRef.current as CourseBuilderRef | null
+              ref?.openVideo?.()
+            }}
+            onSync={() => {
+              const ref = model.courseBuilderRef.current as CourseBuilderRef | null
+              ref?.triggerSync?.()
+            }}
+            canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
+            canSchedule={!!(
+              courseId &&
+              courseId !== 'insights-draft' &&
+              (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant))
+            )}
+            canGoLive={!!(
+              courseId &&
+              courseId !== 'insights-draft' &&
+              saveMode === 'draft' &&
+              !insightsProps.sessionId
+            )}
+            hasSession={!!insightsProps.sessionId}
           />
         )}
       </div>

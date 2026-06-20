@@ -353,6 +353,7 @@ export interface CourseBuilderProps {
   isCollapsed?: boolean
   onMainTabChange?: (tab: 'live' | 'builder' | 'test-pci') => void
   initialMainTab?: 'live' | 'builder' | 'test-pci'
+  mainTab?: 'live' | 'builder' | 'test-pci'
   leftPanelHidden?: boolean
   onLeftPanelHiddenChange?: (hidden: boolean) => void
   saveMode?: 'live' | 'draft'
@@ -365,4 +366,7 @@ export interface CourseBuilderRef {
   save: () => void
   syncToLive?: () => void
   getLessons?: () => unknown[]
+  saveAll?: (isAuto?: boolean) => void
+  openVideo?: () => void
+  triggerSync?: () => void
 }

@@ -167,6 +167,7 @@ function ClassroomControlsPanel({
   openVideoOverlay,
   setShowDirectoryPanel,
 }: ClassroomControlsPanelProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
