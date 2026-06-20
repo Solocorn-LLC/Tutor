@@ -199,9 +199,22 @@ const generateAvailability = (): AvailabilityBlock[] => {
   return slots
 }
 
-// Whether the tutor is available at a given weekday + hour, per their set
+interface CalendarExceptionItem {
+  date: string
+  isAvailable: boolean
+  startTime?: string | null
+  endTime?: string | null
+  reason?: string | null
+}
+
+const sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate()
+
+// Whether the tutor is available at a given weekday + hour, per their recurring
 // availability blocks. Hours with no block default to available (the model is
-// available-by-default / opt-out). Used to shade off-hours on the calendar.
+// available-by-default / opt-out).
 function isHourAvailable(
   availability: AvailabilityBlock[],
   dayOfWeek: number,
@@ -212,6 +225,58 @@ function isHourAvailable(
   const block = availability.find(b => b.dayOfWeek === dayOfWeek && b.startTime === startTime)
   return block ? block.isAvailable : true
 }
+
+// Exceptions that apply to a specific calendar date.
+function exceptionsForDate(
+  exceptions: CalendarExceptionItem[],
+  date: Date
+): CalendarExceptionItem[] {
+  return (exceptions || []).filter(e => {
+    const d = new Date(e.date)
+    return !Number.isNaN(d.getTime()) && sameDay(d, date)
+  })
+}
+
+// A whole day is blocked when an exception marks it unavailable with no time range.
+function isDateFullyBlocked(exceptions: CalendarExceptionItem[], date: Date): boolean {
+  return exceptionsForDate(exceptions, date).some(e => !e.isAvailable && !e.startTime)
+}
+
+// Combined off-hours check for a concrete date+hour: outside recurring
+// availability OR covered by a blocking exception (whole-day or time-range).
+function isHourOff(
+  availability: AvailabilityBlock[],
+  exceptions: CalendarExceptionItem[],
+  date: Date,
+  hour: number
+): boolean {
+  if (!isHourAvailable(availability, date.getDay(), hour)) return true
+  for (const e of exceptionsForDate(exceptions, date)) {
+    if (e.isAvailable) continue
+    if (!e.startTime || !e.endTime) return true // whole-day block
+    const startH = parseInt(e.startTime.split(':')[0], 10)
+    const endH = parseInt(e.endTime.split(':')[0], 10)
+    if (!Number.isNaN(startH) && !Number.isNaN(endH) && hour >= startH && hour < endH) return true
+  }
+  return false
+}
+
+// A day is "fully off" when every hour is off (no working hours that day) or a
+// whole-day exception blocks it — used to shade Month cells.
+function isDayFullyOff(
+  availability: AvailabilityBlock[],
+  exceptions: CalendarExceptionItem[],
+  date: Date
+): boolean {
+  if (isDateFullyBlocked(exceptions, date)) return true
+  if (!availability || availability.length === 0) return false
+  const dayBlocks = availability.filter(b => b.dayOfWeek === date.getDay())
+  if (dayBlocks.length === 0) return false
+  return dayBlocks.every(b => !b.isAvailable)
+}
+
+const OFF_HOURS_HATCH =
+  'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
 
 export type CalendarView = 'month' | 'week' | 'day' | 'availability'
 
@@ -322,6 +387,9 @@ export function InteractiveCalendar({
   const [availability, setAvailability] = useState<AvailabilityBlock[]>(
     isStudent ? [] : generateAvailability()
   )
+  // One-off date exceptions (vacation/blocked days or time ranges) so the
+  // calendars reflect blocked TIMES, not just recurring working hours.
+  const [calendarExceptions, setCalendarExceptions] = useState<CalendarExceptionItem[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<CalendarView>(initialView)
   // Sync controlled view prop
@@ -459,6 +527,29 @@ export function InteractiveCalendar({
       }
     }
     loadAvailability()
+
+    // Load date exceptions (blocked/unblocked specific dates) so the grids can
+    // shade blocked times, not just recurring off-hours. Best-effort.
+    const loadExceptions = async () => {
+      try {
+        const res = await fetch('/api/tutor/calendar/exceptions', { credentials: 'include' })
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        const list = Array.isArray(data?.exceptions) ? data.exceptions : []
+        setCalendarExceptions(
+          list.map((e: any) => ({
+            date: typeof e.date === 'string' ? e.date : new Date(e.date).toISOString(),
+            isAvailable: !!e.isAvailable,
+            startTime: e.startTime ?? null,
+            endTime: e.endTime ?? null,
+            reason: e.reason ?? null,
+          }))
+        )
+      } catch {
+        // ignore
+      }
+    }
+    loadExceptions()
   }, [mode, timezoneProp])
 
   // Load calendar events for the visible month (tutor mode)
@@ -1006,6 +1097,12 @@ export function InteractiveCalendar({
               !availabilityOnly && 'overflow-hidden rounded-lg border border-[#374151]'
             )}
           >
+            {!isStudent && !availabilityOnly && view !== 'availability' && (
+              <div className="flex items-center gap-1.5 px-2 pb-1 text-[10px] text-gray-500">
+                <span className={cn('inline-block h-3 w-4 rounded-sm border', OFF_HOURS_HATCH)} />
+                <span>Outside your availability — set it in the Availability tab</span>
+              </div>
+            )}
             {view === 'week' && <WeekViewHeader currentDate={currentDate} />}
             <div
               ref={cardContentRef}
@@ -1028,6 +1125,8 @@ export function InteractiveCalendar({
                       isToday={isToday}
                       getEventsForDate={getEventsForDate}
                       conflicts={showConflictWarning}
+                      availability={isStudent ? [] : availability}
+                      exceptions={isStudent ? [] : calendarExceptions}
                     />
                   )}
 
@@ -1039,6 +1138,7 @@ export function InteractiveCalendar({
                       conflicts={showConflictWarning}
                       readOnly={isStudent}
                       availability={isStudent ? [] : availability}
+                      exceptions={isStudent ? [] : calendarExceptions}
                     />
                   )}
 
@@ -1050,6 +1150,7 @@ export function InteractiveCalendar({
                       conflicts={showConflictWarning}
                       readOnly={isStudent}
                       availability={isStudent ? [] : availability}
+                      exceptions={isStudent ? [] : calendarExceptions}
                     />
                   )}
 
@@ -1829,6 +1930,8 @@ function MonthView({
   isToday,
   getEventsForDate,
   conflicts,
+  availability = [],
+  exceptions = [],
 }: any) {
   return (
     <div className="min-h-full overflow-hidden rounded-lg">
@@ -1844,64 +1947,84 @@ function MonthView({
       </div>
 
       <div className="grid grid-cols-7">
-        {days.map((date: Date | null, index: number) => (
-          <DroppableDay
-            key={index}
-            date={date || new Date()}
-            className={cn(
-              'min-h-[60px] border-b border-r p-1 last:border-r-0',
-              !date && 'bg-gray-50/50',
-              date && 'cursor-pointer hover:bg-gray-50'
-            )}
-          >
-            {date && (
-              <div onClick={() => onDateClick(date)}>
-                <div
-                  className={cn(
-                    'mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium',
-                    isToday(date) && 'bg-blue-600 text-white'
-                  )}
-                >
-                  {date.getDate()}
+        {days.map((date: Date | null, index: number) => {
+          const dayOff = date ? isDayFullyOff(availability, exceptions, date) : false
+          const blockedException = date ? isDateFullyBlocked(exceptions, date) : false
+          const exReason = date
+            ? (exceptionsForDate(exceptions, date).find(e => !e.isAvailable)?.reason ?? null)
+            : null
+          return (
+            <DroppableDay
+              key={index}
+              date={date || new Date()}
+              className={cn(
+                'min-h-[60px] border-b border-r p-1 last:border-r-0',
+                !date && 'bg-gray-50/50',
+                date && 'cursor-pointer hover:bg-gray-50',
+                dayOff && OFF_HOURS_HATCH
+              )}
+            >
+              {date && (
+                <div onClick={() => onDateClick(date)}>
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <div
+                      className={cn(
+                        'flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium',
+                        isToday(date) && 'bg-blue-600 text-white'
+                      )}
+                    >
+                      {date.getDate()}
+                    </div>
+                    {blockedException && (
+                      <span
+                        title={exReason || 'Unavailable'}
+                        className="rounded-full bg-slate-200 px-1.5 py-px text-[9px] font-medium text-slate-600"
+                      >
+                        Off
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {getEventsForDate(date)
+                      .slice(0, 2)
+                      .map((event: CalendarEvent) => {
+                        const hasConflict = !!conflicts.find(
+                          (e: CalendarEvent) => e.id === event.id
+                        )
+                        return (
+                          <div
+                            key={event.id}
+                            className={cn(
+                              'cursor-pointer truncate rounded px-1 py-0.5 text-[10px] leading-tight',
+                              event.color || 'bg-blue-100',
+                              event.status === 'cancelled' && 'line-through opacity-50',
+                              hasConflict && 'ring-1 ring-red-400'
+                            )}
+                            onClick={(e: any) => {
+                              e.stopPropagation()
+                              onEventClick(event)
+                            }}
+                          >
+                            <span className="truncate font-medium">
+                              {event.date.getHours() > 12
+                                ? event.date.getHours() - 12
+                                : event.date.getHours()}
+                              :{event.date.getMinutes().toString().padStart(2, '0')} {event.title}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    {getEventsForDate(date).length > 2 && (
+                      <p className="pl-0.5 text-[10px] text-gray-500">
+                        +{getEventsForDate(date).length - 2} more
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {getEventsForDate(date)
-                    .slice(0, 2)
-                    .map((event: CalendarEvent) => {
-                      const hasConflict = !!conflicts.find((e: CalendarEvent) => e.id === event.id)
-                      return (
-                        <div
-                          key={event.id}
-                          className={cn(
-                            'cursor-pointer truncate rounded px-1 py-0.5 text-[10px] leading-tight',
-                            event.color || 'bg-blue-100',
-                            event.status === 'cancelled' && 'line-through opacity-50',
-                            hasConflict && 'ring-1 ring-red-400'
-                          )}
-                          onClick={(e: any) => {
-                            e.stopPropagation()
-                            onEventClick(event)
-                          }}
-                        >
-                          <span className="truncate font-medium">
-                            {event.date.getHours() > 12
-                              ? event.date.getHours() - 12
-                              : event.date.getHours()}
-                            :{event.date.getMinutes().toString().padStart(2, '0')} {event.title}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  {getEventsForDate(date).length > 2 && (
-                    <p className="pl-0.5 text-[10px] text-gray-500">
-                      +{getEventsForDate(date).length - 2} more
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </DroppableDay>
-        ))}
+              )}
+            </DroppableDay>
+          )
+        })}
       </div>
     </div>
   )
@@ -1945,6 +2068,7 @@ function WeekView({
   conflicts,
   readOnly = false,
   availability = [],
+  exceptions = [],
 }: any) {
   const weekStart = new Date(currentDate)
   weekStart.setDate(currentDate.getDate() - currentDate.getDay())
@@ -1989,9 +2113,8 @@ function WeekView({
                 hour={hour}
                 className={cn(
                   'h-10 shrink-0 border-b',
-                  // Shade hours outside the tutor's set availability.
-                  !isHourAvailable(availability, day.getDay(), hour) &&
-                    'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
+                  // Shade hours outside availability or blocked by an exception.
+                  isHourOff(availability, exceptions, day, hour) && OFF_HOURS_HATCH
                 )}
               />
             ))}
@@ -2035,6 +2158,7 @@ function DayView({
   conflicts,
   readOnly = false,
   availability = [],
+  exceptions = [],
 }: any) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
 
@@ -2071,8 +2195,7 @@ function DayView({
             hour={hour}
             className={cn(
               'h-10 shrink-0 border-b',
-              !isHourAvailable(availability, currentDate.getDay(), hour) &&
-                'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
+              isHourOff(availability, exceptions, currentDate, hour) && OFF_HOURS_HATCH
             )}
           />
         ))}

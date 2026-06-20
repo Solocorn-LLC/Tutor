@@ -1527,9 +1527,7 @@ export default function TutorMyPage() {
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
-          <div
-            className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}
-          >
+          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}>
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <User className="h-5 w-5" />
               <span className="text-base font-semibold">Bio</span>
@@ -1545,12 +1543,7 @@ export default function TutorMyPage() {
             </div>
           </div>
 
-          <div
-            className={cn(
-              panelCardClass,
-              'flex flex-col lg:col-start-2 lg:row-start-1'
-            )}
-          >
+          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-2 lg:row-start-1')}>
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5" />
