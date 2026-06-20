@@ -693,7 +693,10 @@ function TutorDashboardContent() {
                                 {course.nationality && course.nationality !== 'Global' ? (
                                   <span className="inline-flex items-center gap-1">
                                     {course.name} —{' '}
-                                    {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
+                                    {course.variantCategory ||
+                                      (course.categories || [])[0] ||
+                                      'General'}{' '}
+                                    —{' '}
                                     <CountryFlag
                                       countryName={course.nationality}
                                       size="xs"
@@ -963,7 +966,8 @@ function TutorDashboardContent() {
                           {selectedCourseForCancel.name} —{' '}
                           {selectedCourseForCancel.variantCategory ||
                             (selectedCourseForCancel.categories || [])[0] ||
-                            'General'} —{' '}
+                            'General'}{' '}
+                          —{' '}
                           <CountryFlag
                             countryName={selectedCourseForCancel.nationality}
                             size="xs"
@@ -1077,11 +1081,7 @@ function TutorDashboardContent() {
                                         return (
                                           <span className="inline-flex items-center gap-1">
                                             {sessionsCourseMeta.name} — {cat} —{' '}
-                                            <CountryFlag
-                                              countryName={nat}
-                                              size="xs"
-                                              showLabel
-                                            />
+                                            <CountryFlag countryName={nat} size="xs" showLabel />
                                           </span>
                                         )
                                       }

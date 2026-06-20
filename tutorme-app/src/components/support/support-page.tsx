@@ -36,7 +36,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
       {/* Hero */}
       <section
         className={cn(
-          'relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 p-5 shadow-elevation-3 ring-1 ring-white/20',
+          'shadow-elevation-3 relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 p-5 ring-1 ring-white/20',
           heroGradient
         )}
       >

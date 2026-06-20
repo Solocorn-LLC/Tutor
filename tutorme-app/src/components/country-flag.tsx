@@ -34,9 +34,7 @@ export function CountryFlag({
 }: CountryFlagProps) {
   const [failed, setFailed] = useState(false)
 
-  const resolvedCode = codeProp
-    ? codeProp.trim().toLowerCase()
-    : getCountryCode(countryName)
+  const resolvedCode = codeProp ? codeProp.trim().toLowerCase() : getCountryCode(countryName)
 
   const resolvedName =
     countryName || getCountryName(resolvedCode) || resolvedCode?.toUpperCase() || ''

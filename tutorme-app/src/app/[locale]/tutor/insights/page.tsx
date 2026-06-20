@@ -1197,8 +1197,8 @@ function TutorInsightsPageInner() {
                           <p className="text-sm font-semibold text-gray-900">{course.name}</p>
                           {course.nationality && course.nationality !== 'Global' && (
                             <p className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
-                              {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
-                              <CountryFlag countryName={course.nationality} size="xs" showLabel />
+                              {course.variantCategory || (course.categories || [])[0] || 'General'}{' '}
+                              — <CountryFlag countryName={course.nationality} size="xs" showLabel />
                             </p>
                           )}
                           <p className="text-muted-foreground text-xs">

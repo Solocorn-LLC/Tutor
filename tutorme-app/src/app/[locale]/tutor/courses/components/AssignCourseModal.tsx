@@ -144,12 +144,8 @@ export function AssignCourseModal({
                           {course.nationality && course.nationality !== 'Global' ? (
                             <>
                               {course.name} —{' '}
-                              {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
-                              <CountryFlag
-                                countryName={course.nationality}
-                                size="xs"
-                                showLabel
-                              />
+                              {course.variantCategory || (course.categories || [])[0] || 'General'}{' '}
+                              — <CountryFlag countryName={course.nationality} size="xs" showLabel />
                             </>
                           ) : (
                             course.name
@@ -249,7 +245,8 @@ export function AssignCourseModal({
                           {selectedCourse.name} —{' '}
                           {selectedCourse.variantCategory ||
                             (selectedCourse.categories || [])[0] ||
-                            'General'} —{' '}
+                            'General'}{' '}
+                          —{' '}
                           <CountryFlag
                             countryName={selectedCourse.nationality}
                             size="xs"

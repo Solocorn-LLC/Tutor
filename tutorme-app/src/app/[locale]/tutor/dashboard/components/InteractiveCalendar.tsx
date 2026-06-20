@@ -253,7 +253,9 @@ function DraggableEvent({
                 {event.courseName}
                 {event.nationality && event.nationality !== 'Global' && (
                   <>
-                    {' — '}{event.variantCategory || ''}{' — '}
+                    {' — '}
+                    {event.variantCategory || ''}
+                    {' — '}
                     <CountryFlag countryName={event.nationality} size="xs" showLabel />
                   </>
                 )}
@@ -1122,7 +1124,9 @@ export function InteractiveCalendar({
                             {selectedEvent.nationality &&
                               selectedEvent.nationality !== 'Global' && (
                                 <>
-                                  {' — '}{selectedEvent.variantCategory || ''}{' — '}
+                                  {' — '}
+                                  {selectedEvent.variantCategory || ''}
+                                  {' — '}
                                   <CountryFlag
                                     countryName={selectedEvent.nationality}
                                     size="xs"
@@ -1218,7 +1222,9 @@ export function InteractiveCalendar({
                           {selectedEvent.courseName}
                           {selectedEvent.nationality && selectedEvent.nationality !== 'Global' && (
                             <span className="inline-flex items-center gap-1">
-                              {' — '}{selectedEvent.variantCategory || ''}{' — '}
+                              {' — '}
+                              {selectedEvent.variantCategory || ''}
+                              {' — '}
                               <CountryFlag
                                 countryName={selectedEvent.nationality}
                                 size="xs"
@@ -1318,12 +1324,10 @@ export function InteractiveCalendar({
                             {event.courseName}
                             {event.nationality && event.nationality !== 'Global' && (
                               <>
-                                {' — '}{event.variantCategory || ''}{' — '}
-                                <CountryFlag
-                                  countryName={event.nationality}
-                                  size="xs"
-                                  showLabel
-                                />
+                                {' — '}
+                                {event.variantCategory || ''}
+                                {' — '}
+                                <CountryFlag countryName={event.nationality} size="xs" showLabel />
                               </>
                             )}
                             {' — '}

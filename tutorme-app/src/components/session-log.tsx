@@ -843,7 +843,9 @@ export default function SessionLog() {
                               {event.courseName}
                               {event.nationality && event.nationality !== 'Global' && (
                                 <>
-                                  {' — '}{event.variantCategory || ''}{' — '}
+                                  {' — '}
+                                  {event.variantCategory || ''}
+                                  {' — '}
                                   <CountryFlag
                                     countryName={event.nationality}
                                     size="xs"
@@ -889,12 +891,10 @@ export default function SessionLog() {
                           {event.courseName}
                           {event.nationality && event.nationality !== 'Global' && (
                             <>
-                              {' — '}{event.variantCategory || ''}{' — '}
-                              <CountryFlag
-                                countryName={event.nationality}
-                                size="xs"
-                                showLabel
-                              />
+                              {' — '}
+                              {event.variantCategory || ''}
+                              {' — '}
+                              <CountryFlag countryName={event.nationality} size="xs" showLabel />
                             </>
                           )}
                           {' — '}

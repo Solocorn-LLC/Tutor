@@ -887,11 +887,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                     <span className="inline-flex items-center gap-1">
                       {`Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for `}
                       {dialogVariant.category} —{' '}
-                      <CountryFlag
-                        countryName={dialogVariant.nationality}
-                        size="xs"
-                        showLabel
-                      />
+                      <CountryFlag countryName={dialogVariant.nationality} size="xs" showLabel />
                     </span>
                   ) : (
                     'Configure schedule'
