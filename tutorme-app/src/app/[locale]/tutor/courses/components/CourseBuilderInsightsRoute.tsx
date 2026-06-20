@@ -172,8 +172,8 @@ function TutorControlsPanel({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden shadow-xl',
-            open ? 'rounded-2xl border border-slate-200 bg-white p-3' : 'rounded-2xl bg-gray-800'
+            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
+            open ? 'p-3' : ''
           )}
         >
           {/* Header / drag handle */}
@@ -181,7 +181,7 @@ function TutorControlsPanel({
             type="button"
             className={cn(
               'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open ? 'h-8 rounded-t-xl border-b border-slate-200 px-2' : 'h-10 px-3'
+              open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
             )}
             onPointerDown={e => dragControls.start(e)}
             onClick={() => {
@@ -191,10 +191,7 @@ function TutorControlsPanel({
           >
             <span className="w-4 shrink-0" aria-hidden="true" />
             <span
-              className={cn(
-                'mx-auto text-xs font-semibold',
-                open ? 'text-slate-700' : 'text-white'
-              )}
+              className="mx-auto text-xs font-semibold text-white"
             >
               Controls
             </span>
@@ -217,13 +214,13 @@ function TutorControlsPanel({
                   onValueChange={v => onModeChange(v as ControlsMode)}
                   className="mt-2 w-full"
                 >
-                  <TabsList className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+                  <TabsList className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white/10 p-1">
                     <TabsTrigger
                       value="build"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
-                        'text-slate-600 hover:text-slate-800'
+                        'data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:shadow-sm',
+                        'text-white/70 hover:text-white'
                       )}
                     >
                       <PencilRuler className="h-3.5 w-3.5" />
@@ -233,8 +230,8 @@ function TutorControlsPanel({
                       value="test"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
-                        'text-slate-600 hover:text-slate-800'
+                        'data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:shadow-sm',
+                        'text-white/70 hover:text-white'
                       )}
                     >
                       <TestTube2 className="h-3.5 w-3.5" />
@@ -244,8 +241,8 @@ function TutorControlsPanel({
                       value="classroom"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
-                        'text-slate-600 hover:text-slate-800'
+                        'data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:shadow-sm',
+                        'text-white/70 hover:text-white'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
@@ -262,7 +259,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled}
                       onClick={onSave}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <Save className="h-4 w-4" />
@@ -274,7 +271,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled || mode !== 'build' || !canSchedule}
                       onClick={onSchedule}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <Calendar className="h-4 w-4" />
@@ -286,7 +283,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled || mode !== 'build' || !canDelete}
                       onClick={onDelete}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -300,7 +297,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled || mode !== 'build' || !canGoLive}
                       onClick={onGoLive}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <VideoIcon className="h-4 w-4" />
@@ -312,7 +309,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled || mode !== 'build' || !hasSession}
                       onClick={onVideo}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <VideoIcon className="h-4 w-4" />
@@ -324,7 +321,7 @@ function TutorControlsPanel({
                       disabled={panelDisabled || mode !== 'build' || !hasSession}
                       onClick={onSync}
                       className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50'
+                        'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50'
                       )}
                     >
                       <RefreshCw className="h-4 w-4" />

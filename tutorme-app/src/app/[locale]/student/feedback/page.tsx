@@ -185,8 +185,8 @@ function ClassroomControlsPanel({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden shadow-xl',
-            open ? 'rounded-2xl border border-slate-200 bg-white p-3' : 'rounded-2xl bg-gray-800'
+            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
+            open ? 'p-3' : ''
           )}
         >
           {/* Header / drag handle */}
@@ -194,7 +194,7 @@ function ClassroomControlsPanel({
             type="button"
             className={cn(
               'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open ? 'h-8 rounded-t-xl border-b border-slate-200 px-2' : 'h-10 px-3'
+              open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
             )}
             onPointerDown={e => dragControls.start(e)}
             onClick={() => {
@@ -204,10 +204,7 @@ function ClassroomControlsPanel({
           >
             <span className="w-4 shrink-0" aria-hidden="true" />
             <span
-              className={cn(
-                'mx-auto text-xs font-semibold',
-                open ? 'text-slate-700' : 'text-white'
-              )}
+              className="mx-auto text-xs font-semibold text-white"
             >
               Controls
             </span>
@@ -234,19 +231,19 @@ function ClassroomControlsPanel({
                         'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
                         followTutor
                           ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          : 'bg-white/10 text-white hover:bg-white/20'
                       )}
                     >
                       <div
                         className={cn(
                           'h-2 w-2 rounded-full',
-                          followTutor ? 'animate-pulse bg-white' : 'bg-slate-400'
+                          followTutor ? 'animate-pulse bg-white' : 'bg-white/40'
                         )}
                       />
                       {followTutor ? 'Following Tutor' : 'Follow Tutor'}
                     </button>
 
-                    <div className="flex h-9 items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700">
+                    <div className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white">
                       <div
                         className={cn(
                           'h-2 w-2 rounded-full',
@@ -263,7 +260,7 @@ function ClassroomControlsPanel({
                         if (!roomUrl) return
                         openVideoOverlay({ roomUrl, token, autoRecord: false })
                       }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Video className="h-4 w-4" />
                       Video
@@ -272,7 +269,7 @@ function ClassroomControlsPanel({
                     <button
                       type="button"
                       onClick={() => setShowDirectoryPanel(true)}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
                     >
                       <Folder className="h-4 w-4" />
                       Directory
@@ -283,7 +280,7 @@ function ClassroomControlsPanel({
                     <button
                       type="button"
                       onClick={() => router.push('/student/dashboard')}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
                     >
                       <LogOut className="h-4 w-4" />
                       Leave session
@@ -291,7 +288,7 @@ function ClassroomControlsPanel({
 
                     <button
                       type="button"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-100 px-3 text-xs font-semibold text-red-700 transition-colors hover:bg-red-200"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-500/20 px-3 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30"
                     >
                       <Flag className="h-4 w-4" />
                       Flag
