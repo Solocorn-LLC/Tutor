@@ -45,6 +45,7 @@ import {
   Minus,
   Presentation,
   Pencil,
+  Lock,
 } from 'lucide-react'
 import {
   Dialog,
@@ -986,6 +987,13 @@ function StudentFeedbackContent() {
     currentSession?.scheduledAt &&
     new Date(currentSession.scheduledAt).getTime() + 2 * 60 * 60 * 1000 < Date.now()
 
+  // While a session is live, the Directory should focus the student on the active
+  // course only — other courses are greyed out and locked so they can't open the
+  // wrong folder/task/assessment. This lifts automatically when the session ends.
+  const activeCourseId = sessionContext?.courseId ?? null
+  const isSessionLive =
+    !!activeCourseId && sessionContext?.status !== 'ended' && !sessionContext?.endedAt
+
   const feedbackPolls = activeTask?.polls ?? []
   const feedbackQuestions = activeTask?.questions ?? []
 
@@ -1832,24 +1840,37 @@ function StudentFeedbackContent() {
                                 {Object.entries(coursesDict).map(([courseName, courseData]) => {
                                   const catKey = `cat_${tutorUsername}_${courseName}`
                                   const isCatOpen = foldersOpen[catKey]
-                                  const isCurrentCategory =
-                                    sessionContext?.courseName === courseName &&
-                                    sessionContext?.tutorUsername &&
-                                    tutorUsername ===
-                                      `Tutor@${sessionContext.tutorUsername.replace(/\s+/g, '')}`
+                                  // Lock every course except the live session's own course
+                                  // while the session is running, so students can't open the
+                                  // wrong folder/task/assessment mid-class.
+                                  const courseLocked =
+                                    isSessionLive &&
+                                    (courseData as { courseId?: string }).courseId !== activeCourseId
 
                                   return (
                                     <div key={courseName}>
                                       <button
-                                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100"
-                                        onClick={() =>
+                                        disabled={courseLocked}
+                                        title={
+                                          courseLocked
+                                            ? 'Locked during the live session — available when the session ends'
+                                            : undefined
+                                        }
+                                        className={cn(
+                                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5',
+                                          courseLocked
+                                            ? 'cursor-not-allowed opacity-40'
+                                            : 'hover:bg-slate-100'
+                                        )}
+                                        onClick={() => {
+                                          if (courseLocked) return
                                           setFoldersOpen(prev => ({
                                             ...prev,
                                             [catKey]: !prev[catKey],
                                           }))
-                                        }
+                                        }}
                                       >
-                                        {isCatOpen ? (
+                                        {isCatOpen && !courseLocked ? (
                                           <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
                                         ) : (
                                           <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
@@ -1861,9 +1882,12 @@ function StudentFeedbackContent() {
                                         <span className="truncate text-sm font-medium text-slate-700">
                                           {courseName}
                                         </span>
+                                        {courseLocked && (
+                                          <Lock className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                        )}
                                       </button>
 
-                                      {isCatOpen && (
+                                      {isCatOpen && !courseLocked && (
                                         <div className="mt-1 flex flex-col gap-1 pl-4">
                                           {/* 1. Tasks */}
                                           <div>
