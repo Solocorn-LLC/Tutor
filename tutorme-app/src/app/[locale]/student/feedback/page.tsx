@@ -38,7 +38,6 @@ import {
   LogOut,
   FileText,
   ChevronRight,
-  ChevronLeft,
   ChevronDown,
   Folder,
   Video,
@@ -316,9 +315,9 @@ function StudentFeedbackContent() {
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
   const [showDirectoryPanel, setShowDirectoryPanel] = useState(false)
   const [activeTab, setActiveTab] = useState<'task' | 'tutor-board'>('task')
-  const [rightPanelTab, setRightPanelTab] = useState<'dmi' | 'interactions' | 'my-board'>(
-    'interactions'
-  )
+  const [rightPanelTab, setRightPanelTab] = useState<
+    'lessons' | 'dmi' | 'interactions' | 'my-board'
+  >('interactions')
   const [unseenTaskIds, setUnseenTaskIds] = useState<string[]>([])
   const [unseenHomeworkIds, setUnseenHomeworkIds] = useState<string[]>([])
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
@@ -352,30 +351,16 @@ function StudentFeedbackContent() {
   const saveBoardsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const boardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Left Panel state
-  const [leftPanelHidden, setLeftPanelHidden] = useState(false)
-  const [leftPanelWidth, setLeftPanelWidth] = useState(300)
-  const [leftPanelResizing, setLeftPanelResizing] = useState(false)
-  const leftResizeStartX = useRef(0)
-  const leftResizeStartW = useRef(300)
-
   // Right Panel state
   const [rightPanelWidth, setRightPanelWidth] = useState(380)
   const [rightPanelResizing, setRightPanelResizing] = useState(false)
   const rightResizeStartX = useRef(0)
   const rightResizeStartW = useRef(380)
 
-  // Expanded panels (My Board / Assessment) hide Lessons and widen the right panel
-  // so the center Classroom viewport stays at a stable size.
+  // Expanded panels (My Board / Assessment) widen the right panel so the
+  // whiteboard / assessment has more room while the center Classroom shrinks.
   const isExpanded = rightPanelTab === 'my-board' || rightPanelTab === 'dmi'
-
-  useEffect(() => {
-    if (isExpanded) {
-      setLeftPanelHidden(true)
-    } else {
-      setLeftPanelHidden(false)
-    }
-  }, [isExpanded])
+  const EXPANDED_PANEL_BONUS = 300
 
   // Assets state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
@@ -480,22 +465,6 @@ function StudentFeedbackContent() {
     loadDirectory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (!leftPanelResizing) return
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientX - leftResizeStartX.current
-      const newW = Math.max(200, Math.min(500, leftResizeStartW.current + delta))
-      setLeftPanelWidth(newW)
-    }
-    const onUp = () => setLeftPanelResizing(false)
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-    return () => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-  }, [leftPanelResizing])
 
   useEffect(() => {
     if (!rightPanelResizing) return
@@ -1265,106 +1234,10 @@ function StudentFeedbackContent() {
 
         {/* Content Wrapper */}
         <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
-          {/* Floating collapsed/expanded pill */}
-          <div
-            className={cn(
-              'absolute top-1/2 z-50 flex h-16 w-8 -translate-y-1/2 items-center justify-center rounded-r-full border border-l-0 border-[#E5E7EB] bg-white shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all',
-              isExpanded
-                ? 'cursor-not-allowed opacity-60'
-                : 'cursor-pointer hover:w-10 hover:bg-slate-50'
-            )}
-            style={{ left: leftPanelHidden ? 0 : leftPanelWidth - 16 }}
-            onClick={() => {
-              if (isExpanded) return
-              setLeftPanelHidden(!leftPanelHidden)
-            }}
-            title={
-              isExpanded
-                ? 'Lessons hidden while expanded panel is open'
-                : leftPanelHidden
-                  ? 'Show lessons'
-                  : 'Hide lessons'
-            }
-          >
-            {leftPanelHidden ? (
-              <ChevronRight className="h-5 w-5 text-[#2B5FB8]" />
-            ) : (
-              <ChevronLeft className="h-5 w-5 text-[#2B5FB8]" />
-            )}
-          </div>
-
-          {/* Left Panel */}
-          <AnimatePresence initial={false}>
-            {!leftPanelHidden && (
-              <motion.div
-                key="left-panel"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: leftPanelWidth, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{
-                  duration: leftPanelResizing ? 0 : 0.5,
-                  ease: 'easeInOut',
-                }}
-                className="relative z-40 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
-              >
-                <div className="flex shrink-0 items-center justify-between border-b border-[#E5E7EB] px-4 py-3">
-                  <h2 className="text-sm font-semibold text-[#1F2933]">Lessons</h2>
-                  {unseenTaskIds.length > 0 && (
-                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                      {unseenTaskIds.length}
-                    </span>
-                  )}
-                </div>
-                <ScrollArea className="flex-1 p-3">
-                  <div className="space-y-2">
-                    {tasks.length === 0 && (
-                      <p className="text-sm text-gray-500">No tasks deployed yet.</p>
-                    )}
-                    {[...tasks].reverse().map(task => (
-                      <button
-                        key={task.id}
-                        type="button"
-                        onClick={() => handleSelectTask(task.id)}
-                        className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
-                          activeTaskId === task.id
-                            ? 'border-blue-200 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                          {unseenTaskIds.includes(task.id) && (
-                            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                              New
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          Deployed {new Date(task.deployedAt).toLocaleTimeString()}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-
-                <div
-                  className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize hover:bg-blue-500/20 active:bg-blue-500/40"
-                  onMouseDown={e => {
-                    setLeftPanelResizing(true)
-                    leftResizeStartX.current = e.clientX
-                    leftResizeStartW.current = leftPanelWidth
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col overflow-hidden',
-              leftPanelResizing || rightPanelResizing
-                ? 'transition-none'
-                : 'transition-all duration-500 ease-out'
+              rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
             <Tabs
@@ -1538,7 +1411,7 @@ function StudentFeedbackContent() {
                       </div>
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                        Select a task from the Lessons panel to open it.
+                        Select a task from the Lessons tab to open it.
                       </div>
                     )}
                   </div>
@@ -1659,7 +1532,7 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              width: rightPanelWidth + (isExpanded ? leftPanelWidth : 0),
+              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
             }}
           >
             {/* Resize handle */}
@@ -1679,6 +1552,24 @@ function StudentFeedbackContent() {
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRightPanelTab('lessons')}
+                  className={cn(
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    rightPanelTab === 'lessons'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-500 hover:bg-white hover:text-gray-900'
+                  )}
+                >
+                  Lessons
+                  {unseenTaskIds.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white">
+                      {unseenTaskIds.length}
+                    </span>
+                  )}
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1726,7 +1617,37 @@ function StudentFeedbackContent() {
             </div>
 
             <div className={cn('flex-1', isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
-              {rightPanelTab === 'dmi' ? (
+              {rightPanelTab === 'lessons' ? (
+                <div className="space-y-2">
+                  {tasks.length === 0 && (
+                    <p className="text-sm text-gray-500">No tasks deployed yet.</p>
+                  )}
+                  {[...tasks].reverse().map(task => (
+                    <button
+                      key={task.id}
+                      type="button"
+                      onClick={() => handleSelectTask(task.id)}
+                      className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
+                        activeTaskId === task.id
+                          ? 'border-blue-200 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                        {unseenTaskIds.includes(task.id) && (
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
