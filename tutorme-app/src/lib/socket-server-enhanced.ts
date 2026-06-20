@@ -1279,7 +1279,59 @@ export async function initEnhancedSocketServer(server: NetServer) {
               .from(builderTask)
               .where(eq(builderTask.taskId, taskId))
               .limit(1)
-            if (!bt) return // ephemeral/unsaved task — nothing to reference
+            if (!bt) {
+              // Self-heal: the deploy-time builderTask auto-create is skipped
+              // when the live session has no courseId yet (ad-hoc room) or its
+              // DB write failed. Without a builderTask row, the FK on
+              // taskSubmission.taskId blocks the insert and the submission never
+              // reaches the tutor's grading page. Recreate it now from the
+              // session so the completion is durably persisted. builderTask's
+              // courseId/lessonId/tutorId are all NOT NULL, so we need a
+              // resolvable course; if there genuinely is none, we can't persist.
+              const sess = await drizzleDb.query.liveSession.findFirst({
+                where: eq(liveSession.sessionId, roomId),
+                columns: { courseId: true, tutorId: true },
+              })
+              const courseId = sess?.courseId
+              const tutorId = sess?.tutorId || room.tutorId
+              if (!courseId || !tutorId) {
+                console.warn(
+                  '[task:complete] cannot persist submission — session has no courseId/tutor',
+                  { roomId, taskId }
+                )
+                return
+              }
+              let [lesson] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(eq(courseLesson.courseId, courseId))
+                .limit(1)
+              if (!lesson?.lessonId) {
+                const newLessonId = crypto.randomUUID()
+                await drizzleDb.insert(courseLesson).values({
+                  lessonId: newLessonId,
+                  courseId,
+                  title: 'Live Session',
+                  order: 0,
+                })
+                lesson = { lessonId: newLessonId }
+              }
+              await drizzleDb
+                .insert(builderTask)
+                .values({
+                  taskId,
+                  courseId,
+                  lessonId: lesson.lessonId,
+                  tutorId,
+                  title: task.title || 'Untitled',
+                  content: task.content || '',
+                  pci: '',
+                  type: task.source,
+                  status: 'published',
+                  publishedAt: new Date(),
+                })
+                .onConflictDoNothing({ target: builderTask.taskId })
+            }
             await drizzleDb
               .insert(taskSubmission)
               .values({

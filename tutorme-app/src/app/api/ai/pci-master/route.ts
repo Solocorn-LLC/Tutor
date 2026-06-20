@@ -12,6 +12,12 @@ import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
+import {
+  guardrailSystemPrompt,
+  runTaskGuardrails,
+  GUARDRAILED_TEMPERATURE,
+  type GuardrailViolation,
+} from '@/lib/ai/guardrails'
 import { z } from 'zod'
 
 /**
@@ -131,6 +137,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { message, sessionId, context, pdfPages } = parsed.data
+
+    // Guardrail wiring: when the builder identifies a PCI domain (task or
+    // assessment), swap in the canonical guardrail system prompt and lower the
+    // sampling temperature for consistency (TASK-8). Otherwise keep the generic
+    // Socratic prompt. Enforcement is warn-only — see the validator pass below.
+    const guardrailDomain = context?.type
+    const activeSystemPrompt = guardrailDomain
+      ? guardrailSystemPrompt(guardrailDomain)
+      : SYSTEM_PROMPT
+    const activeTemperature = guardrailDomain ? GUARDRAILED_TEMPERATURE : 0.7
+
     const safeMessage = AISecurityManager.sanitizeAiInput(message)
     if (!safeMessage) {
       return NextResponse.json(
@@ -197,21 +214,32 @@ export async function POST(request: NextRequest) {
       const promptItems: Array<
         { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
       > = [
-        { type: 'text', text: `${SYSTEM_PROMPT}\n\n${userPrompt}` },
+        { type: 'text', text: `${activeSystemPrompt}\n\n${userPrompt}` },
         ...pdfPages.map(url => ({ type: 'image_url' as const, image_url: { url } })),
       ]
       const visionText = await generateWithKimiVision(promptItems, {
-        temperature: 0.7,
+        temperature: activeTemperature,
         maxTokens: 2048,
         timeoutMs: 60000,
       })
       response = toCleanResponse(visionText)
     } else if (adkBaseUrl) {
       try {
+        // Guardrail enforcement on the ADK path. The ADK agent's instructions
+        // live in a separate service we can't edit from here, so we (a) pass the
+        // canonical guardrail prompt as a `systemPrompt` field for a future
+        // guardrail-aware ADK, and (b) — to enforce TODAY regardless of whether
+        // the remote service reads that field — prepend the prompt to the
+        // message the agent actually consumes. The warn-only validator below
+        // still runs on whatever ADK returns.
+        const adkMessage = guardrailDomain
+          ? `${activeSystemPrompt}\n\n---\nTutor message:\n${safeMessage}`
+          : safeMessage
         response = await adkPciMasterChat({
           userId: session.user.id,
           sessionId,
-          message: safeMessage,
+          message: adkMessage,
+          systemPrompt: guardrailDomain ? activeSystemPrompt : undefined,
           context,
         })
       } catch (error) {
@@ -222,19 +250,25 @@ export async function POST(request: NextRequest) {
           )
         }
         console.warn('ADK PCI master failed, falling back to local providers:', error)
-        const fallback = await generateWithFallback(`System:\n${SYSTEM_PROMPT}\n\n${userPrompt}`, {
-          temperature: 0.7,
-          maxTokens: 2048,
-          skipCache: true,
-        })
+        const fallback = await generateWithFallback(
+          `System:\n${activeSystemPrompt}\n\n${userPrompt}`,
+          {
+            temperature: activeTemperature,
+            maxTokens: 2048,
+            skipCache: true,
+          }
+        )
         response = toCleanResponse(fallback.content)
       }
     } else {
-      const fallback = await generateWithFallback(`System:\n${SYSTEM_PROMPT}\n\n${userPrompt}`, {
-        temperature: 0.7,
-        maxTokens: 2048,
-        skipCache: true,
-      })
+      const fallback = await generateWithFallback(
+        `System:\n${activeSystemPrompt}\n\n${userPrompt}`,
+        {
+          temperature: activeTemperature,
+          maxTokens: 2048,
+          skipCache: true,
+        }
+      )
       response = toCleanResponse(fallback.content)
     }
 
@@ -247,10 +281,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Warn-only guardrail validation. We never block here — violations are
+    // logged server-side and returned as `guardrailWarnings` so the builder can
+    // surface them to the tutor. Flip to blocking later by gating on severity.
+    let guardrailWarnings: GuardrailViolation[] = []
+    if (guardrailDomain === 'task') {
+      const finalizing = /\b(confirm|finali[sz]e|approve|looks good|go ahead|activate)\b/i.test(
+        safeMessage
+      )
+      guardrailWarnings = runTaskGuardrails(response.response, {
+        sourceContent: context?.content,
+        finalizing,
+      }).violations
+      if (guardrailWarnings.length > 0) {
+        console.warn(
+          `[guardrails] pci-master task violations (${guardrailWarnings.length}):`,
+          guardrailWarnings.map(v => `${v.ruleId} ${v.severity}`).join(', ')
+        )
+      }
+    }
+
     return NextResponse.json({
       response: response.response,
       conversationId: response.conversationId,
       parsed: response.parsed ?? null,
+      guardrailWarnings,
     })
   } catch (error) {
     console.error('PCI Master error:', error)

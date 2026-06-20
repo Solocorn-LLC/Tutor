@@ -10,6 +10,11 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { generateWithKimi, generateWithKimiVision } from '@/lib/ai/kimi'
 import { stripCodeFences } from '@/lib/ai/llm-response'
+import {
+  runAssessmentGuardrails,
+  GUARDRAILED_TEMPERATURE,
+  type GuardrailViolation,
+} from '@/lib/ai/guardrails'
 import { z } from 'zod'
 
 export const maxDuration = 60
@@ -30,7 +35,13 @@ Q[number]: [question text]
 A[number]: [suggested answer or key points]
 
 Generate 5-10 questions that cover the main concepts, ranging from comprehension to application level.
-Be concise and clear. Do not include any other text outside the Q/A pairs.`
+Be concise and clear. Do not include any other text outside the Q/A pairs.
+
+Assessment guardrails (follow exactly):
+- This is a tutor-facing Draft DMI. The A[number] answers are for tutor verification ONLY and must never be shown to a student.
+- When the source is an existing exam document, preserve question wording EXACTLY — do not paraphrase or rewrite questions.
+- Do not invent content, mark allocations, or evaluation criteria. If something in the source is unclear, say so in the answer line rather than guessing.
+- Treat suggested answers as examples/key points for the tutor to confirm, not as the only acceptable response.`
 
 function parseDmiResponse(
   text: string
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
 
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
-        temperature: 0.7,
+        temperature: GUARDRAILED_TEMPERATURE,
         maxTokens: 4096,
         timeoutMs: 60000,
       })
@@ -121,7 +132,7 @@ export async function POST(request: NextRequest) {
       const prompt = `Generate assessment questions from the following ${type}${title ? ` titled "${title}"` : ''}:\n\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
-        temperature: 0.7,
+        temperature: GUARDRAILED_TEMPERATURE,
         maxTokens: 4096,
         timeoutMs: 60000,
       })
@@ -138,9 +149,27 @@ export async function POST(request: NextRequest) {
 
     const questions = parseDmiResponse(stripCodeFences(aiResponse))
 
+    // Warn-only assessment guardrails. Checks wording fidelity against the
+    // source (ASMT-4) and other structural rules where data is available.
+    // Non-blocking — surfaced as `guardrailWarnings` and logged server-side.
+    let guardrailWarnings: GuardrailViolation[] = []
+    if (type === 'assessment') {
+      guardrailWarnings = runAssessmentGuardrails(
+        { title, questions: questions.map(q => ({ questionText: q.questionText })) },
+        { sourceContent: content }
+      ).violations
+      if (guardrailWarnings.length > 0) {
+        console.warn(
+          `[guardrails] generate-dmi assessment violations (${guardrailWarnings.length}):`,
+          guardrailWarnings.map(v => `${v.ruleId} ${v.severity}`).join(', ')
+        )
+      }
+    }
+
     return NextResponse.json({
       response: aiResponse,
       questions,
+      guardrailWarnings,
     })
   } catch (error) {
     console.error('Generate DMI error:', error)
