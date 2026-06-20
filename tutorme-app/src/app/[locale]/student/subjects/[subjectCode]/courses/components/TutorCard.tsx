@@ -35,7 +35,6 @@ export interface TutorCardProps {
   countryLabel?: string
 }
 
-const BIO_MAX_DISPLAY = 400
 
 export function TutorCard({
   tutor,
@@ -54,13 +53,10 @@ export function TutorCard({
     .toUpperCase()
     .slice(0, 2)
 
-  const categories = (tutor.specialties || []).slice(0, 3)
-  const countries = (tutor.countries || []).slice(0, 3)
+  const categories = (tutor.specialties || []).slice(0, 2)
+  const countries = (tutor.countries || []).slice(0, 1)
 
-  const rawBio = tutor.bio || "This area is for the tutor's bio information."
-
-  // Bio display: truncate at 300 chars
-  const bioText = rawBio.length > BIO_MAX_DISPLAY ? rawBio.slice(0, BIO_MAX_DISPLAY) + '…' : rawBio
+  const bioText = tutor.bio || "This area is for the tutor's bio information."
 
   const avatarUrl = resolvePublicUrl(tutor.avatar)
 
@@ -184,8 +180,8 @@ export function TutorCard({
       {/* Bio */}
       <div
         className={cn(
-          'flex flex-1 flex-col overflow-hidden rounded-[14px] border border-white/15 bg-white/5',
-          compact ? 'min-h-[56px] px-3 py-2' : 'min-h-[120px] px-4 py-3'
+          'flex flex-col overflow-hidden rounded-[14px] border border-white/15 bg-white/5',
+          compact ? 'h-[96px] px-3 py-2' : 'h-[144px] px-4 py-3'
         )}
       >
         <p

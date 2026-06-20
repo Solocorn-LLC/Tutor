@@ -14,7 +14,6 @@ import {
 import { BookOpen, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useStudentNav } from '../StudentNavContext'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
@@ -172,7 +171,6 @@ export default function StudentTutorDirectoryPage() {
       totalEnrollments,
     }
   }, [tutors])
-  const { desktopNavOpen } = useStudentNav()
 
   return (
     <div className="text-foreground flex h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
@@ -302,12 +300,7 @@ export default function StudentTutorDirectoryPage() {
 
           {/* Tutor grid */}
           <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4">
-            <div
-              className={cn(
-                'grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4',
-                !desktopNavOpen && 'lg:gap-4'
-              )}
-            >
+            <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {loading ? (
                 Array.from({ length: 6 }).map((_, index) => (
                   <Card
