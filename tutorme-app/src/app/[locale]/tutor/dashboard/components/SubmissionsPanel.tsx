@@ -183,6 +183,31 @@ export function SubmissionsPanel({
     return map
   }, [sessions, lessons])
 
+  // Color-code sessions by lifecycle/chronology so the tutor can see status at a
+  // glance: green = active now, yellow = the session immediately after the active
+  // one, red = ended, black = the rest (upcoming/scheduled). "Next after active"
+  // is computed on the global chronological order, not per-lesson.
+  const sessionColorById = useMemo(() => {
+    const ACTIVE = new Set(['active', 'live', 'paused', 'preparing'])
+    const sorted = [...sessions].sort((a, b) => {
+      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0
+      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0
+      return ta - tb
+    })
+    const activeIdx = sorted.findIndex(s => ACTIVE.has((s.status || '').toLowerCase()))
+    const nextAfterActiveId =
+      activeIdx >= 0 && activeIdx + 1 < sorted.length ? sorted[activeIdx + 1].id : null
+    const map: Record<string, string> = {}
+    for (const s of sorted) {
+      const st = (s.status || '').toLowerCase()
+      if (ACTIVE.has(st)) map[s.id] = 'text-green-600'
+      else if (st === 'ended') map[s.id] = 'text-red-600'
+      else if (s.id === nextAfterActiveId) map[s.id] = 'text-yellow-600'
+      else map[s.id] = 'text-slate-900'
+    }
+    return map
+  }, [sessions])
+
   const enrolled = useMemo(() => {
     const list =
       (data?.enrolledStudents || [])
@@ -327,6 +352,7 @@ export function SubmissionsPanel({
                                 onToggle={() => toggle(sessionKey)}
                                 icon={<Folder className="h-4 w-4 text-slate-500" />}
                                 title={formatSessionTitle(session)}
+                                titleClassName={sessionColorById[session.id]}
                                 subtitle={session.status || `Session ${idx + 1}`}
                               />
 
@@ -496,12 +522,15 @@ function FolderRow({
   title,
   subtitle,
   icon,
+  titleClassName,
 }: {
   isOpen: boolean
   onToggle: () => void
   title: string
   subtitle?: string
   icon: ReactNode
+  /** Overrides the default title color (used to color-code session status). */
+  titleClassName?: string
 }) {
   return (
     <button
@@ -514,7 +543,9 @@ function FolderRow({
           {icon}
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-800">{title}</div>
+          <div className={`truncate text-sm font-semibold ${titleClassName || 'text-slate-800'}`}>
+            {title}
+          </div>
           {subtitle && <div className="truncate text-xs text-slate-500">{subtitle}</div>}
         </div>
       </div>
