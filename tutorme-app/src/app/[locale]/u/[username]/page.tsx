@@ -1005,7 +1005,7 @@ export default function PublicTutorPage() {
   }
 
   const headerCardClass =
-    'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_18px_60px_rgba(0,0,0,0.18)] transition-all duration-200 ease-in-out hover:shadow-[0_24px_80px_rgba(0,0,0,0.22)]'
+    'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
   const headerInnerClass =
     'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-5 text-white'
   const panelCardClass =
@@ -1624,13 +1624,18 @@ export default function PublicTutorPage() {
                     <div className="hidden h-5 w-px bg-white/20 md:block" />
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-white/70" />
-                      <div className="flex items-baseline gap-2 whitespace-nowrap leading-none">
-                        <span className="text-xs font-semibold text-white/70">Country</span>
-                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
-                          <CountryFlag countryName={tutor.country} size="xs" />
-                          {tutor.country || '—'}
-                        </span>
-                      </div>
+                      <span className="text-xs font-semibold text-white/70">Country</span>
+                      {tutor.country ? (
+                        <CountryFlag
+                          countryName={tutor.country}
+                          size="xs"
+                          showLabel
+                          className="text-sm font-semibold text-white"
+                          labelClassName="font-semibold text-white"
+                        />
+                      ) : (
+                        <span className="text-sm font-semibold text-white">—</span>
+                      )}
                     </div>
                     <div className="hidden h-5 w-px bg-white/20 md:block" />
                     <div className="flex items-center gap-2">
@@ -1668,8 +1673,8 @@ export default function PublicTutorPage() {
           </div>
         </section>
 
-        <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:items-stretch">
-          <div className={cn(panelCardClass, 'flex h-full flex-col')}>
+        <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
+          <div className={cn(panelCardClass, 'flex h-[280px] flex-col lg:col-start-1 lg:row-start-1')}>
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <User className="h-5 w-5" />
               <span className="text-base font-semibold">Bio</span>
@@ -1707,12 +1712,11 @@ export default function PublicTutorPage() {
             </div>
           </div>
 
-          <div className="flex h-full flex-col gap-5">
-            <div className={panelCardClass}>
-              <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
-                <div className="flex items-center gap-3">
-                  <Link2 className="h-5 w-5" />
-                  <span className="text-base font-semibold">Connect</span>
+          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-2 lg:row-start-1 lg:row-span-2')}>
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+              <div className="flex items-center gap-3">
+                <Link2 className="h-5 w-5" />
+                <span className="text-base font-semibold">Connect</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button
@@ -1870,10 +1874,10 @@ export default function PublicTutorPage() {
               </div>
             </div>
 
-            <div className={panelCardClass}>
-              <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
-                <Tags className="h-5 w-5" />
-                <span className="text-base font-semibold">Categories</span>
+          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:col-span-2 lg:row-start-2')}>
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+              <Tags className="h-5 w-5" />
+              <span className="text-base font-semibold">Categories</span>
                 <span className="text-sm text-white">({tutor.specialties.length})</span>
               </div>
 
@@ -1891,7 +1895,6 @@ export default function PublicTutorPage() {
                   <span className="text-sm text-slate-500">General tutoring</span>
                 )}
               </div>
-            </div>
           </div>
         </div>
       </div>
