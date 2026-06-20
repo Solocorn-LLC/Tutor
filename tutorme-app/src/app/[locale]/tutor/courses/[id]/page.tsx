@@ -1525,10 +1525,14 @@ export default function TutorCoursePage() {
               size="lg"
               variant="default"
               onClick={async () => {
-                // Save persists course details only — it must NOT publish.
-                // Publishing (and persisting schedule rows) is the explicit
-                // Publish/Update action, so Save can never put a course live.
-                await handleSaveAll()
+                // Save persists course details, and schedule edits for variants
+                // that are ALREADY published — without publishing anything new
+                // (saveSchedules runs in schedulesOnly mode, a no-op for an
+                // unpublished course). Save never puts a course live.
+                const saved = await handleSaveAll()
+                if (saved) {
+                  await variantManagerRef.current?.saveSchedules()
+                }
               }}
               disabled={saving}
               className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-8 text-white shadow-[0_6px_16px_rgba(37,99,235,0.16),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:translate-y-0 hover:border-[#2563eb] hover:bg-white hover:text-[#2563eb] hover:shadow-[0_8px_18px_rgba(37,99,235,0.18)] hover:[background-image:none] active:bg-gradient-to-r active:from-[#1d4ed8] active:to-[#1e40af] active:shadow-[0_4px_10px_rgba(37,99,235,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
