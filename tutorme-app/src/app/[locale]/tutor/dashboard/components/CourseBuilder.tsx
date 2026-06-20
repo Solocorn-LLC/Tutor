@@ -64,7 +64,6 @@ function sanitizeBlobUrls(obj: unknown, path = ''): { sanitized: unknown; remove
   return { sanitized: obj, removedPaths }
 }
 import NextImage from 'next/image'
-import { createPortal } from 'react-dom'
 import {
   DndContext,
   closestCenter,
@@ -254,8 +253,6 @@ import {
   Layers,
   Upload,
   CheckCircle,
-  Circle,
-  Square,
   Clock,
   GraduationCap,
   ListTodo,
@@ -398,7 +395,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseId,
       courseName,
       courseDescription,
-      panelMode = 'default',
       initialLessons,
       hideCourseNameInTabs = false,
       onSave,
@@ -5742,23 +5738,8 @@ FEEDBACK: [your explanation]`
 
     const isLiveMode = saveMode !== undefined ? saveMode === 'live' : coursePropsModal.isLive
 
-    // Check if the portal target exists
-    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
-
-    useEffect(() => {
-      const el = document.getElementById('course-builder-tabs-portal')
-      if (el) {
-        setPortalTarget(el)
-      }
-    }, [])
-
     return (
-      <div
-        className={cn(
-          'course-builder-density flex h-full w-full flex-col items-stretch',
-          panelMode === 'live-class' && 'pt-3'
-        )}
-      >
+      <div className="course-builder-density flex h-full w-full flex-col items-stretch">
         <Tabs
           value={mainTab}
           onValueChange={v => {
@@ -5775,216 +5756,6 @@ FEEDBACK: [your explanation]`
           }}
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-3 pt-0 sm:px-4"
         >
-          {portalTarget ? (
-            createPortal(
-              <div className="mb-0 flex w-full flex-col gap-2">
-                <div className="flex w-full flex-wrap items-center gap-2">
-                  {!isStudentView && (
-                    <div className="flex min-h-[48px] flex-1 items-center justify-between gap-2 rounded-full border border-slate-200 bg-white px-2 shadow-[0_10px_24px_rgba(0,0,0,0.10)]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {insightsProps && (
-                          <Button
-                            variant={isMirroringToStudents && !canEdit ? 'default' : 'secondary'}
-                            size="sm"
-                            disabled={canEdit}
-                            onClick={() => {
-                              if (!canEdit) setIsMirroringToStudents(!isMirroringToStudents)
-                            }}
-                            className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
-                          >
-                            <div
-                              className={`h-2 w-2 rounded-full ${isMirroringToStudents && !canEdit ? 'animate-pulse bg-green-400' : 'bg-red-400'}`}
-                            />
-                            {isMirroringToStudents && !canEdit
-                              ? 'Syncing to Students'
-                              : 'Sync Paused'}
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            if (!sessionContext?.roomUrl) return
-                            openVideoOverlay({
-                              roomUrl: sessionContext.roomUrl,
-                              token: sessionContext.token,
-                              autoRecord: !isStudentView,
-                              isTutor: true,
-                            })
-                          }}
-                          disabled={!sessionContext?.roomUrl}
-                          className="h-8 gap-2 rounded-full px-3 text-xs shadow-none"
-                        >
-                          <VideoIcon className="h-4 w-4" />
-                          Video
-                        </Button>
-
-                        {/* Mirror Class and Mirror Board moved to Account Settings */}
-                      </div>
-
-                      {(insightsProps?.onToggleRecording || insightsProps?.onEndSession) && (
-                        <div className="flex items-center gap-2 pr-1">
-                          {insightsProps?.isRecording &&
-                            insightsProps?.recordingDuration != null && (
-                              <span className="font-mono text-xs text-red-500">
-                                {formatDuration(insightsProps.recordingDuration)}
-                              </span>
-                            )}
-                          {insightsProps?.onToggleRecording && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                if (!isSessionActive) return
-                                insightsProps.onToggleRecording?.()
-                              }}
-                              disabled={!isSessionActive}
-                              className="h-8 w-8 rounded-full p-0 hover:bg-slate-100 disabled:hover:bg-transparent"
-                              title={
-                                !isSessionActive
-                                  ? 'Recording available when session is active'
-                                  : insightsProps.isRecording
-                                    ? 'Stop Recording'
-                                    : 'Record'
-                              }
-                            >
-                              {insightsProps.isRecording ? (
-                                <Square className="h-4 w-4 fill-current text-red-500" />
-                              ) : (
-                                <Circle className="h-4 w-4 fill-current text-red-500" />
-                              )}
-                            </Button>
-                          )}
-                          {insightsProps?.onEndSession && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                if (!isSessionActive) return
-                                insightsProps.onEndSession?.()
-                              }}
-                              disabled={!isSessionActive || insightsProps.endingSession}
-                              className="h-8 gap-2 rounded-full px-3 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-600 disabled:hover:bg-transparent"
-                              title={
-                                !isSessionActive ? 'End available when session is active' : 'End'
-                              }
-                            >
-                              {insightsProps.endingSession ? 'Ending…' : 'End'}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-
-                      {onSyncToLiveSession && (
-                        <div className="flex items-center gap-2 pr-1">
-                          {syncMode === 'manual' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => triggerSync()}
-                              className="h-8 gap-2 rounded-full px-3 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                              title="Sync course to live session"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Sync
-                              {hasUnsyncedChanges && (
-                                <span className="ml-1 h-2 w-2 rounded-full bg-amber-400" />
-                              )}
-                            </Button>
-                          )}
-                          {syncMode !== 'manual' && hasUnsyncedChanges && (
-                            <span
-                              className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-600"
-                              title="Changes will sync automatically"
-                            >
-                              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-                              Unsynced
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <TabsList className="flex h-[48px] w-full flex-none items-center gap-2 border-0 bg-transparent p-0 shadow-none sm:w-auto">
-                    <TabsTrigger
-                      value="live"
-                      className="z-20 flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                      onClick={e => {
-                        if (mainTab !== 'live') {
-                          setMainTab('live')
-                        }
-                      }}
-                    >
-                      <div className="pointer-events-none relative z-10 flex items-center gap-2 rounded-full px-2 py-0.5 transition-colors">
-                        <VideoIcon
-                          className={cn(
-                            'h-4 w-4 transition-all duration-300',
-                            isSessionActive
-                              ? 'text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,1)]'
-                              : 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,1)]'
-                          )}
-                        />
-                        {saveMode === 'draft' ? 'Classroom' : 'Live'}
-                      </div>
-                    </TabsTrigger>
-                    {!isStudentView && (
-                      <>
-                        <TabsTrigger
-                          value="test-pci"
-                          className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                          onClick={e => {
-                            if (mainTab !== 'test-pci') {
-                              setMainTab('test-pci')
-                            }
-                          }}
-                        >
-                          <TestTube2 className="h-4 w-4" />
-                          Test
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="builder"
-                          className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-[linear-gradient(145deg,rgba(18,20,22,0.82),rgba(62,68,75,0.62))] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
-                          onClick={e => {
-                            if (mainTab !== 'builder') {
-                              setMainTab('builder')
-                            }
-                          }}
-                        >
-                          <div
-                            className={cn(
-                              'relative z-10 flex items-center gap-2 rounded-full px-2 py-0.5 transition-colors',
-                              mainTab === 'builder'
-                                ? 'pointer-events-auto cursor-pointer'
-                                : 'pointer-events-none'
-                            )}
-                          >
-                            <PencilRuler className="h-4 w-4" />
-                            Build
-                          </div>
-                        </TabsTrigger>
-                      </>
-                    )}
-                  </TabsList>
-                </div>
-              </div>,
-              portalTarget
-            )
-          ) : (
-            <div className="hidden">
-              <TabsList>
-                <TabsTrigger value="live">Go Live</TabsTrigger>
-                {!isStudentView && (
-                  <>
-                    <TabsTrigger value="test-pci">Test</TabsTrigger>
-                    <TabsTrigger value="builder">Build</TabsTrigger>
-                  </>
-                )}
-              </TabsList>
-            </div>
-          )}
-
           <div className="relative flex h-full w-full min-w-0 flex-1 gap-0 pb-4 pt-0">
             {/* LEFT PANEL - Course Structure (resizable, ~75% of original width) */}
             {/* Floating collapsed/expanded pill */}

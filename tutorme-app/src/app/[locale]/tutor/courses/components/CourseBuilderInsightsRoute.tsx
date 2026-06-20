@@ -1001,8 +1001,6 @@ function CourseBuilderInsightsRouteInner({
             </div>
           )}
 
-          {/* The outer container for Course Builder Tabs */}
-          <div id="course-builder-tabs-portal" className="w-full"></div>
         </div>
       </div>
 

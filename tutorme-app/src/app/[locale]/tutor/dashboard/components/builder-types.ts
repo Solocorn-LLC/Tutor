@@ -332,7 +332,6 @@ export interface CourseBuilderProps {
   courseId: string | null
   courseName?: string
   courseDescription?: string
-  panelMode?: 'default' | 'live-class'
   initialLessons?: Lesson[]
   hideCourseNameInTabs?: boolean
   hideDirectorySearch?: boolean
