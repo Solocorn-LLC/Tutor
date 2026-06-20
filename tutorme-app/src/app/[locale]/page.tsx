@@ -94,6 +94,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { cn } from '@/lib/utils'
+import { CountryFlag } from '@/components/country-flag'
 
 // --- Types ---
 type ModalType = 'register' | 'tutor' | 'academy' | 'schools' | null
@@ -2017,7 +2018,11 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <div className="truncate text-slate-300">
               {typeof item?.courseCount === 'number' ? `${item.courseCount} courses` : ''}
             </div>
-            {item?.country ? <span className="truncate text-slate-200">{item.country}</span> : null}
+            {item?.country ? (
+              <span className="truncate text-slate-200">
+                <CountryFlag countryName={item.country} size="xs" showLabel />
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -3098,9 +3103,10 @@ const ComingSoonModal = ({
             onTouchMove={e => e.stopPropagation()}
           />
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={`relative w-full rounded-2xl border shadow-2xl ${
               type === 'register'
                 ? 'max-h-[90vh] max-w-xl overflow-y-auto border-white/10 bg-[rgba(31,41,51,0.60)] p-5 shadow-lg backdrop-blur-xl md:p-6'
@@ -4795,14 +4801,14 @@ export default function LandingPage() {
                       animate={{ rotate: 360 }}
                       transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                     >
-                      <Settings className="h-full w-full" />
+                      <Settings className="h-full w-full text-white" />
                     </motion.span>
                     <motion.span
                       className="-ml-1 -mt-2 inline-flex h-3.5 w-3.5"
                       animate={{ rotate: -360 }}
                       transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                     >
-                      <Settings className="h-full w-full" />
+                      <Settings className="h-full w-full text-white" />
                     </motion.span>
                   </div>
                 </div>
@@ -5041,7 +5047,7 @@ export default function LandingPage() {
       <style jsx global>{`
         html {
           scroll-behavior: auto !important;
-          scroll-snap-type: y mandatory;
+          scroll-snap-type: y proximity;
         }
         /* The global body overflow-x:hidden makes Chrome treat the body as the
            scroller and disables root scroll-snap. Reset it on this page so the
