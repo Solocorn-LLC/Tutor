@@ -252,6 +252,10 @@ export const POST = withCsrf(
       const templateCourseId = params.id as string
       const userId = session.user.id
       const body = await req.json().catch(() => ({}))
+      // schedulesOnly: persist schedule edits to ALREADY-published variants
+      // without publishing unpublished ones or changing any publish state — lets
+      // "Save" save schedules on a live course without putting more of it live.
+      const schedulesOnly = body.schedulesOnly === true
       const variants: VariantConfig[] = Array.isArray(body.variants)
         ? body.variants.filter(
             (v: unknown): v is VariantConfig =>
@@ -331,7 +335,7 @@ export const POST = withCsrf(
           nationality: string
           category: string
           isPublished: boolean
-          action: 'created' | 'updated'
+          action: 'created' | 'updated' | 'schedules_saved'
         }> = []
 
         const skippedSessions: Array<{
@@ -355,8 +359,10 @@ export const POST = withCsrf(
               category: courseVariant.category,
               nationality: courseVariant.nationality,
               publishedCourseId: courseVariant.publishedCourseId,
+              isPublished: course.isPublished,
             })
             .from(courseVariant)
+            .innerJoin(course, eq(course.courseId, courseVariant.publishedCourseId))
             .where(eq(courseVariant.templateCourseId, templateCourseId))
 
           const existingMap = new Map(existingRows.map(r => [`${r.category}|${r.nationality}`, r]))
@@ -367,6 +373,9 @@ export const POST = withCsrf(
             const key = `${v.category}|${v.nationality}`
             requestedKeys.add(key)
             const existing = existingMap.get(key)
+            // In schedules-only mode, only touch variants that are already
+            // published; never create/publish anything new.
+            if (schedulesOnly && (!existing || !existing.isPublished)) continue
             const courseName =
               v.nationality === 'Global'
                 ? templateCourse.name
@@ -380,29 +389,34 @@ export const POST = withCsrf(
             if (existing) {
               // Update existing course row
               publishedCourseId = existing.publishedCourseId
-              await tx
-                .update(course)
-                .set({
-                  name: courseName,
-                  description: templateCourse.description,
-                  categories: [v.category],
-                  isPublished: v.isPublished,
-                  updatedAt: now,
-                  isLiveOnline: templateCourse.isLiveOnline ?? false,
-                  languageOfInstruction: v.languageOfInstruction || null,
-                  price,
-                  currency: v.currency || templateCourse.currency || 'USD',
-                  isFree,
-                })
-                .where(eq(course.courseId, publishedCourseId))
+              // Skip the course-row update in schedules-only mode so publish
+              // state and details are left exactly as they are (we only sync the
+              // schedule rows below).
+              if (!schedulesOnly) {
+                await tx
+                  .update(course)
+                  .set({
+                    name: courseName,
+                    description: templateCourse.description,
+                    categories: [v.category],
+                    isPublished: v.isPublished,
+                    updatedAt: now,
+                    isLiveOnline: templateCourse.isLiveOnline ?? false,
+                    languageOfInstruction: v.languageOfInstruction || null,
+                    price,
+                    currency: v.currency || templateCourse.currency || 'USD',
+                    isFree,
+                  })
+                  .where(eq(course.courseId, publishedCourseId))
+              }
 
               result.push({
                 courseId: publishedCourseId,
                 name: courseName,
                 nationality: v.nationality,
                 category: v.category,
-                isPublished: v.isPublished,
-                action: 'updated',
+                isPublished: existing.isPublished,
+                action: schedulesOnly ? 'schedules_saved' : 'updated',
               })
             } else {
               // Create new course + variant
@@ -894,14 +908,18 @@ export const POST = withCsrf(
             }
           }
 
-          // Unpublish variants that exist in DB but were not sent in the request
-          for (const existing of existingRows) {
-            const key = `${existing.category}|${existing.nationality}`
-            if (!requestedKeys.has(key)) {
-              await tx
-                .update(course)
-                .set({ isPublished: false, updatedAt: now })
-                .where(eq(course.courseId, existing.publishedCourseId))
+          // Unpublish variants that exist in DB but were not sent in the request.
+          // Never do this in schedules-only mode — Save must not change publish
+          // state for anything.
+          if (!schedulesOnly) {
+            for (const existing of existingRows) {
+              const key = `${existing.category}|${existing.nationality}`
+              if (!requestedKeys.has(key)) {
+                await tx
+                  .update(course)
+                  .set({ isPublished: false, updatedAt: now })
+                  .where(eq(course.courseId, existing.publishedCourseId))
+              }
             }
           }
         })

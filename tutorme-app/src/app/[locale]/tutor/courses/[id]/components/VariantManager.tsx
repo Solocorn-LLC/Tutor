@@ -75,6 +75,8 @@ interface VariantManagerProps {
 
 export type VariantManagerHandle = {
   publish: () => Promise<void>
+  /** Persist schedule edits to already-published variants without publishing. */
+  saveSchedules: () => Promise<void>
   setPanelsOpen: (open: boolean) => void
 }
 
@@ -407,6 +409,31 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       }
     }, [variants, templateCourseId, onSaved])
 
+    // Persist schedule edits to already-published variants WITHOUT publishing
+    // anything new (schedulesOnly). Used by the page's Save button so a tutor can
+    // save schedule changes on a live course without putting more of it live.
+    const handleSaveSchedules = useCallback(async () => {
+      if (variants.length === 0) return
+      try {
+        const payload = variants.map(v => ({
+          ...v,
+          price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
+        }))
+        const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variants: payload, schedulesOnly: true }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data?.error || 'Failed to save schedules')
+        }
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to save schedules')
+      }
+    }, [variants, templateCourseId])
+
     const publishedCount = variants.filter(v => v.isPublished).length
 
     useEffect(() => {
@@ -424,9 +451,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         publish: async () => {
           await handleSave()
         },
+        saveSchedules: handleSaveSchedules,
         setPanelsOpen,
       }),
-      [handleSave, setPanelsOpen]
+      [handleSave, handleSaveSchedules, setPanelsOpen]
     )
 
     if (loading) {
