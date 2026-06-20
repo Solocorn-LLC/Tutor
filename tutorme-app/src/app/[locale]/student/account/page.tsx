@@ -445,7 +445,8 @@ export default function StudentAccount() {
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
                 defaultOpen
-               className={sectionCardClass}>
+                className={sectionCardClass}
+              >
                 <CardContent className="space-y-6">
                   {paymentMethods.map(method => (
                     <div
@@ -511,7 +512,8 @@ export default function StudentAccount() {
                 title="Billing History"
                 description="View and download your invoices and receipts"
                 defaultOpen
-               className={sectionCardClass}>
+                className={sectionCardClass}
+              >
                 <CardContent>
                   <div className="space-y-4">
                     {billingHistory.map(invoice => (
@@ -567,7 +569,8 @@ export default function StudentAccount() {
                 title="Notification Preferences"
                 description="Control how and when we contact you"
                 defaultOpen
-               className={sectionCardClass}>
+                className={sectionCardClass}
+              >
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -678,7 +681,8 @@ export default function StudentAccount() {
                 title="Privacy & Security"
                 description="Manage your password and account security"
                 defaultOpen
-               className={sectionCardClass}>
+                className={sectionCardClass}
+              >
                 <CardContent className="space-y-6">
                   {/* Password Change */}
                   <div className="space-y-4">
@@ -785,7 +789,8 @@ export default function StudentAccount() {
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
                 defaultOpen
-               className={sectionCardClass}>
+                className={sectionCardClass}
+              >
                 <CardContent className="space-y-6">
                   {/* Deactivate Account */}
                   <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">

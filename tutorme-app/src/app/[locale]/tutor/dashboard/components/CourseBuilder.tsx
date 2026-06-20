@@ -7342,7 +7342,8 @@ FEEDBACK: [your explanation]`
                                                 {!isSectionCollapsed(node.id, 'homework') && (
                                                   <div
                                                     ref={el => {
-                                                      sectionRefs.current[`${node.id}:homework`] = el
+                                                      sectionRefs.current[`${node.id}:homework`] =
+                                                        el
                                                     }}
                                                     className="mt-1.5 space-y-1"
                                                   >

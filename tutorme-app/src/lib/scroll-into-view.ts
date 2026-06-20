@@ -105,10 +105,7 @@ function smoothScrollBy(scroller: HTMLElement | Window, top: number) {
   }
 }
 
-export function scrollElementIntoView(
-  el: Element,
-  options: ScrollIntoViewOptions = {}
-): void {
+export function scrollElementIntoView(el: Element, options: ScrollIntoViewOptions = {}): void {
   if (typeof window === 'undefined') return
 
   const { margin = 16, block = 'end' } = options

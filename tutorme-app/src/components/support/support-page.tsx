@@ -86,7 +86,10 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
               <h2 className="text-lg font-semibold text-slate-900">{activeTopicData.title}</h2>
               <p className="text-sm text-slate-500">{activeTopicData.description}</p>
             </div>
-            <div ref={contentRef} className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            <div
+              ref={contentRef}
+              className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+            >
               {activeTopicData.items.map((item, idx) => (
                 <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                   <h4 className="font-medium text-gray-900">{item.title}</h4>
