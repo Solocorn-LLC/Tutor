@@ -2119,11 +2119,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
 
       try {
-        const slideContent = isTask ? taskBuilder.taskContent : assessmentBuilder.taskContent
+        // When an extension is active, generate from the EXTENSION's own content
+        // and PCI (empty for a fresh extension), not the parent task's — an
+        // extension is a separate item and must not inherit the task's content.
+        const slideContent = isTask
+          ? taskBuilder.activeExtensionId
+            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.content ||
+              ''
+            : taskBuilder.taskContent
+          : assessmentBuilder.taskContent
         const pci = isTask
           ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ||
-              taskBuilder.taskPci
+            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
             : taskBuilder.taskPci
           : assessmentBuilder.taskPci
         const sessionId = isTask
@@ -2270,12 +2277,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTestPciInputs(prev => ({ ...prev, [testPciActiveTab]: '' }))
       setTestPciLoading(true)
 
-      // Get PCI content from active task/assessment
+      // Get PCI content from the active item — an active extension uses its own
+      // PCI (empty for a fresh extension), never the parent task's.
       const pciContent =
         testPciSource === 'task'
           ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ||
-              taskBuilder.taskPci
+            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
             : taskBuilder.taskPci
           : assessmentBuilder.taskPci
 
@@ -5403,9 +5410,12 @@ FEEDBACK: [your explanation]`
       ? taskBuilder.extensions.find(ext => ext.id === taskBuilder.activeExtensionId)
       : null
 
-    // Check if the active extension has a document, otherwise fallback to task document
-    const currentTaskDocument =
-      activeTaskExtension?.sourceDocument || taskSourceDocument || taskBuilder.sourceDocument
+    // An extension is its own item: when one is active, show ONLY its document
+    // (a new extension has none) — do not fall back to the parent task's, which
+    // made extensions look like they inherited the task's content.
+    const currentTaskDocument = activeTaskExtension
+      ? activeTaskExtension.sourceDocument
+      : taskSourceDocument || taskBuilder.sourceDocument
     const hasTaskDocument = !!currentTaskDocument
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
@@ -8560,7 +8570,7 @@ FEEDBACK: [your explanation]`
                                                 ? liveTask?.sourceDocument
                                                 : liveAssessment?.sourceDocument
                                               : testPciSource === 'task'
-                                                ? currentTaskDocument || taskBuilder.sourceDocument
+                                                ? currentTaskDocument
                                                 : currentAssessmentDocument
                                           const versionId = testPciViewMode.startsWith('dmi_')
                                             ? testPciViewMode.replace('dmi_', '')
