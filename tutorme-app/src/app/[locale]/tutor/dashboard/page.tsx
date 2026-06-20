@@ -102,6 +102,8 @@ type EnrolledCourse = {
   enrollmentCount: number
   sessionCount?: number
   upcomingSessionsCount?: number
+  /** Count of weekly-pattern CourseSchedule rows (present even before sessions materialize). */
+  scheduleCount?: number
   schedule?: ScheduleSlot[] | null
   nationality?: string
   variantCategory?: string
@@ -673,6 +675,17 @@ function TutorDashboardContent() {
                   ) : (
                     enrolledCourses.map(course => {
                       const courseClasses = classes.filter(c => c.courseId === course.id)
+                      // "View Sessions" should appear whenever there's anything to view:
+                      // a materialized class, a counted session, or a weekly schedule
+                      // (which the sessions modal materializes on open). Keying only off
+                      // `classes` (upcoming/active liveSession rows) made a course that
+                      // has schedules but no upcoming session wrongly show "Schedule
+                      // sessions".
+                      const hasViewableSessions =
+                        courseClasses.length > 0 ||
+                        (course.sessionCount ?? 0) > 0 ||
+                        (course.scheduleCount ?? 0) > 0 ||
+                        (course.schedule?.length ?? 0) > 0
                       const hasActive = courseClasses.some(
                         c =>
                           c.status === 'active' || c.status === 'live' || c.status === 'preparing'
@@ -777,7 +790,7 @@ function TutorDashboardContent() {
                                   </Button>
                                 ) : null
                               })()}
-                            {courseClasses.length > 0 ? (
+                            {hasViewableSessions ? (
                               <Button
                                 variant="default"
                                 size="sm"

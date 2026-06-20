@@ -83,12 +83,24 @@ export async function adkPciMasterChat(
     userId: string
     sessionId?: string
     message: string
+    /**
+     * Canonical guardrail system prompt for the PCI domain. Forwarded to the
+     * remote ADK service so a guardrail-aware agent can merge it into its
+     * instructions. Until the ADK service consumes this field, enforcement is
+     * carried by prepending the same prompt to `message` at the call site.
+     */
+    systemPrompt?: string
     context?: {
       type?: 'task' | 'assessment'
       title?: string
       content?: string
       pci?: string
       extensionName?: string
+      sourceDocument?: {
+        fileName?: string
+        fileUrl?: string
+        mimeType?: string
+      }
     }
   },
   options?: { timeoutMs?: number; retries?: number }

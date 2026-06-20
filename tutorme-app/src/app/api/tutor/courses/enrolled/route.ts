@@ -7,7 +7,13 @@ import { NextResponse } from 'next/server'
 import { desc, eq, sql, inArray, and } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseEnrollment, liveSession, courseVariant } from '@/lib/db/schema'
+import {
+  course,
+  courseEnrollment,
+  liveSession,
+  courseVariant,
+  courseSchedule,
+} from '@/lib/db/schema'
 
 export const GET = withAuth(
   async (_req, session) => {
@@ -72,6 +78,23 @@ export const GET = withAuth(
       }))
     }
 
+    // Count weekly-pattern schedule rows per course. A course can have schedules
+    // without any materialized liveSession rows (sessions are materialized at
+    // publish), so the dashboard needs this to show "View Sessions" rather than
+    // "Schedule sessions" for a course that already has a schedule.
+    let scheduleCounts: { courseId: string; count: number }[] = []
+    if (courseIds.length > 0) {
+      const rows = await drizzleDb
+        .select({
+          courseId: courseSchedule.courseId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(courseSchedule)
+        .where(inArray(courseSchedule.courseId, courseIds))
+        .groupBy(courseSchedule.courseId)
+      scheduleCounts = rows.map(r => ({ courseId: r.courseId, count: r.count }))
+    }
+
     // Fetch variant info
     const variantRows =
       courseIds.length > 0
@@ -99,6 +122,7 @@ export const GET = withAuth(
     const coursesWithSessionCount = courses.map(c => {
       const variant = variantMap.get(c.courseId)
       const counts = sessionCounts.find(s => s.courseId === c.courseId)
+      const scheduleCount = scheduleCounts.find(s => s.courseId === c.courseId)?.count ?? 0
       return {
         id: c.courseId,
         // The scheduler/course builder operates on the TEMPLATE course; this id
@@ -115,6 +139,7 @@ export const GET = withAuth(
         subject: c.categories?.[0] ?? null,
         sessionCount: counts?.total ?? 0,
         upcomingSessionsCount: counts?.upcoming ?? 0,
+        scheduleCount,
         nationality: variant?.nationality ?? undefined,
         variantCategory: variant?.category ?? undefined,
       }

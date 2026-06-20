@@ -330,6 +330,43 @@ import {
 // Types and payload definitions
 type PreviewUpdatePayload = Partial<Task> | Partial<Assessment>
 
+/** A warn-only guardrail violation surfaced from the PCI/DMI AI endpoints. */
+type GuardrailWarning = {
+  ruleId: string
+  severity: 'info' | 'warning' | 'error'
+  message: string
+}
+
+/**
+ * Non-blocking banner listing guardrail violations the PCI/DMI endpoints
+ * flagged (e.g. an invented retry policy, a paraphrased exam question). Errors
+ * render rose, warnings amber. Renders nothing when there are no warnings.
+ */
+function GuardrailWarningsBanner({ warnings }: { warnings: GuardrailWarning[] }) {
+  if (!warnings || warnings.length === 0) return null
+  const hasError = warnings.some(w => w.severity === 'error')
+  return (
+    <div
+      className={`mb-px rounded-md border px-2 py-1.5 text-xs ${
+        hasError
+          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          : 'border-amber-200 bg-amber-50 text-amber-800'
+      }`}
+    >
+      <p className="mb-0.5 font-semibold">
+        Guardrail {hasError ? 'issues' : 'notes'} — review before relying on this output:
+      </p>
+      <ul className="list-disc space-y-0.5 pl-4">
+        {warnings.map((w, i) => (
+          <li key={`${w.ruleId}-${i}`}>
+            <span className="font-medium">{w.ruleId}:</span> {w.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 interface PreviewCardProps {
   type: 'task' | 'homework' | 'nodeQuiz' | 'lesson' | 'node'
   item: Task | Assessment | Quiz | Lesson | CourseBuilderNode
@@ -787,6 +824,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assessmentPciErrorHintMap, setAssessmentPciErrorHintMap] = useState<
       Record<string, string>
     >({})
+    // Warn-only guardrail violations returned by the PCI/DMI endpoints, surfaced
+    // to the tutor so they can confirm/correct (e.g. an invented retry policy or
+    // a paraphrased exam question) before relying on the output.
+    const [taskPciGuardrailWarnings, setTaskPciGuardrailWarnings] = useState<GuardrailWarning[]>([])
+    const [assessmentPciGuardrailWarningsMap, setAssessmentPciGuardrailWarningsMap] = useState<
+      Record<string, GuardrailWarning[]>
+    >({})
 
     // AI Assist Agent state - separate for task and assessment
     const [aiAssistOpen, setAiAssistOpen] = useState(false)
@@ -938,6 +982,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentPciLoadingMap({})
       setTaskPciErrorHint('')
       setAssessmentPciErrorHintMap({})
+      setTaskPciGuardrailWarnings([])
+      setAssessmentPciGuardrailWarningsMap({})
       setAiAssistOpen(false)
       setTaskAiMessages([])
       setAssessmentAiMessages([])
@@ -2210,6 +2256,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           throw new Error(errorMessage)
         }
         const data = await response.json()
+        const warnings: GuardrailWarning[] = Array.isArray(data.guardrailWarnings)
+          ? data.guardrailWarnings
+          : []
         const assistantMessage = {
           role: 'assistant' as const,
           content: data.response || 'Unable to respond.',
@@ -2226,11 +2275,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
           updateTaskPciFromMessages(updated)
           setTaskPciErrorHint('')
+          setTaskPciGuardrailWarnings(warnings)
         } else {
           const updated = nextMessages.concat(assistantMessage)
           setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: updated }))
           setAssessmentBuilder(prev => ({ ...prev, taskPci: formatPciTranscript(updated) }))
           setAssessmentPciErrorHintMap(prev => ({ ...prev, [assessmentId || '']: '' }))
+          setAssessmentPciGuardrailWarningsMap(prev => ({
+            ...prev,
+            [assessmentId || '']: warnings,
+          }))
         }
       } catch (error) {
         const message =
@@ -2499,6 +2553,16 @@ FEEDBACK: [your explanation]`
 
         const data = await response.json()
         const questions = data.questions || []
+
+        // Surface warn-only assessment guardrail violations (e.g. a question that
+        // may not match the source verbatim) as toasts so the tutor can verify.
+        const dmiWarnings: GuardrailWarning[] = Array.isArray(data.guardrailWarnings)
+          ? data.guardrailWarnings
+          : []
+        for (const w of dmiWarnings) {
+          const notify = w.severity === 'error' ? toast.error : toast.warning
+          notify(`Guardrail ${w.ruleId}: ${w.message}`)
+        }
 
         if (questions.length === 0) {
           toast.warning('No questions could be generated. Try adding more content.')
@@ -9417,6 +9481,9 @@ FEEDBACK: [your explanation]`
                                               PCI assistant error: {taskPciErrorHint}
                                             </div>
                                           )}
+                                          <GuardrailWarningsBanner
+                                            warnings={taskPciGuardrailWarnings}
+                                          />
                                           <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
@@ -9957,6 +10024,13 @@ FEEDBACK: [your explanation]`
                                               ] || ''}
                                             </div>
                                           )}
+                                          <GuardrailWarningsBanner
+                                            warnings={
+                                              assessmentPciGuardrailWarningsMap[
+                                                loadedAssessmentId || ''
+                                              ] || []
+                                            }
+                                          />
                                           <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">

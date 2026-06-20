@@ -225,10 +225,21 @@ export async function POST(request: NextRequest) {
       response = toCleanResponse(visionText)
     } else if (adkBaseUrl) {
       try {
+        // Guardrail enforcement on the ADK path. The ADK agent's instructions
+        // live in a separate service we can't edit from here, so we (a) pass the
+        // canonical guardrail prompt as a `systemPrompt` field for a future
+        // guardrail-aware ADK, and (b) — to enforce TODAY regardless of whether
+        // the remote service reads that field — prepend the prompt to the
+        // message the agent actually consumes. The warn-only validator below
+        // still runs on whatever ADK returns.
+        const adkMessage = guardrailDomain
+          ? `${activeSystemPrompt}\n\n---\nTutor message:\n${safeMessage}`
+          : safeMessage
         response = await adkPciMasterChat({
           userId: session.user.id,
           sessionId,
-          message: safeMessage,
+          message: adkMessage,
+          systemPrompt: guardrailDomain ? activeSystemPrompt : undefined,
           context,
         })
       } catch (error) {
