@@ -414,6 +414,13 @@
       "when": 1781300000000,
       "tag": "0058_fix_tutor_follow_followid",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1781400000000,
+      "tag": "0059_restore_column_defaults",
+      "breakpoints": true
     }
   ]
 }
