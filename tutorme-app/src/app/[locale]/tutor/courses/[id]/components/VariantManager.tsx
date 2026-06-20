@@ -57,6 +57,10 @@ interface VariantConfig {
   currency: string
   languageOfInstruction: string
   schedules: CourseScheduleConfig[]
+  /** Loaded from the DB (an existing published/draft variant) — never churned
+   *  out by the desired-keys sync, so a tutor editing a live course keeps and
+   *  schedules the REAL variant instead of a regenerated Global stand-in. */
+  persisted?: boolean
 }
 
 interface VariantManagerProps {
@@ -192,6 +196,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               languageOfInstruction:
                 typeof v.languageOfInstruction === 'string' ? v.languageOfInstruction : '',
               schedules,
+              persisted: true,
             }
           })
           setVariants(loaded)
@@ -252,6 +257,14 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           const existing = map.get(key)
           if (!existing) {
             const [category, nationality] = key.split('|')
+            // Don't conjure a stand-in (e.g. "<cat>|Global") when the course
+            // already has a persisted variant for this category — on load the
+            // pickers don't reproduce the stored country, and adding a duplicate
+            // would make the tutor schedule the wrong (unsaved) variant.
+            const hasPersistedSameCategory = Array.from(map.values()).some(
+              v => v.persisted && v.category === category
+            )
+            if (hasPersistedSameCategory) continue
             map.set(key, {
               category,
               nationality,
@@ -278,6 +291,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         // scheduler, leaving only the "Add another schedule" button.
         for (const [key, variant] of map.entries()) {
           if (desiredKeys.has(key)) continue
+          if (variant.persisted) continue // keep real DB variants (the live course)
           if (variantHasSchedules(variant)) continue
           map.delete(key)
           changed = true

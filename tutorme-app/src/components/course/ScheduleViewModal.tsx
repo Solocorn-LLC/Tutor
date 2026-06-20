@@ -18,6 +18,19 @@ interface ScheduleSlot {
   durationMinutes: number
 }
 
+// Concise weekly-pattern summary instead of listing every slot.
+function summarizeSlots(slots: ScheduleSlot[]): { line: string; perWeek: number } {
+  if (slots.length === 0) return { line: 'Times arranged with the tutor', perWeek: 0 }
+  const days = Array.from(new Set(slots.map(s => s.dayOfWeek.slice(0, 3)))).join(', ')
+  const times = Array.from(new Set(slots.map(s => s.startTime)))
+  const timePart = times.length === 1 ? times[0] : `${times.length} times/wk`
+  const dur = slots[0]?.durationMinutes
+  return {
+    line: [days, timePart, dur ? `${dur} min` : null].filter(Boolean).join(' · '),
+    perWeek: slots.length,
+  }
+}
+
 interface CourseSchedule {
   scheduleId: string
   scheduleIndex: number
@@ -132,28 +145,22 @@ export function ScheduleViewModal({
                         </span>
                       )}
                     </div>
-                    {s.slots.length > 0 ? (
-                      <ul className="space-y-1.5">
-                        {s.slots.map((slot, i) => (
-                          <li
-                            key={i}
-                            className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
-                          >
-                            <span className="font-medium text-gray-800">{slot.dayOfWeek}</span>
-                            <span className="text-gray-600">
-                              {slot.startTime} · {slot.durationMinutes} min
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-gray-500">Times to be arranged with the tutor.</p>
-                    )}
-                    {s.weeksToSchedule ? (
-                      <p className="mt-2 text-xs text-gray-400">
-                        Runs for {s.weeksToSchedule} weeks
-                      </p>
-                    ) : null}
+                    {(() => {
+                      const { line, perWeek } = summarizeSlots(s.slots)
+                      const weeks = s.weeksToSchedule || 0
+                      return (
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-700">{line}</p>
+                          {perWeek > 0 && (
+                            <p className="text-xs text-gray-400">
+                              {weeks > 0
+                                ? `${perWeek * weeks} sessions over ${weeks} weeks`
+                                : `${perWeek} session${perWeek === 1 ? '' : 's'}/week`}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {onSwitch && !isCurrent && (
                       <Button
                         variant="outline"

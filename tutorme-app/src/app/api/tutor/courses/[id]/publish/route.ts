@@ -249,8 +249,18 @@ export const POST = withCsrf(
   withAuth(
     async (req: NextRequest, session, context) => {
       const params = await context.params
-      const templateCourseId = params.id as string
+      let templateCourseId = params.id as string
       const userId = session.user.id
+      // Safety net (mirrors the GET): if a *published variant* id was passed,
+      // resolve it back to its template so variant lookups aren't empty.
+      const asVariantRow = await drizzleDb
+        .select({ templateCourseId: courseVariant.templateCourseId })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, templateCourseId))
+        .limit(1)
+      if (asVariantRow.length > 0) {
+        templateCourseId = asVariantRow[0].templateCourseId
+      }
       const body = await req.json().catch(() => ({}))
       // schedulesOnly: persist schedule edits to ALREADY-published variants
       // without publishing unpublished ones or changing any publish state — lets
