@@ -350,6 +350,7 @@ function StudentFeedbackContent() {
   )
   const [tutorBoardPageIndex, setTutorBoardPageIndex] = useState(0)
   const saveBoardsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const boardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Left Panel state
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
@@ -796,6 +797,28 @@ function StudentFeedbackContent() {
       if (saveBoardsTimeoutRef.current) clearTimeout(saveBoardsTimeoutRef.current)
     }
   }, [selectedSessionId, myBoardPages, myBoardPageIndex, tutorBoardPages, tutorBoardPageIndex])
+
+  // Push a full snapshot of the student's own board (all pages + the active page)
+  // to the tutor whenever it changes. Per-stroke deltas only reach the tutor when
+  // the student draws, so without this the tutor never sees newly added blank pages
+  // or page switches. Debounced so rapid drawing coalesces into one update.
+  useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    if (boardSyncTimeoutRef.current) clearTimeout(boardSyncTimeoutRef.current)
+    boardSyncTimeoutRef.current = setTimeout(() => {
+      socket.emit('student:whiteboard:update', {
+        roomId: selectedSessionId,
+        board: {
+          pages: myBoardPages,
+          pageIndex: myBoardPageIndex,
+          updatedAt: Date.now(),
+        },
+      })
+    }, 300)
+    return () => {
+      if (boardSyncTimeoutRef.current) clearTimeout(boardSyncTimeoutRef.current)
+    }
+  }, [socket, selectedSessionId, myBoardPages, myBoardPageIndex])
 
   const [followTutor, setFollowTutor] = useState<boolean>(true)
   const openVideoOverlay = useVideoOverlayStore(s => s.openOverlay)
