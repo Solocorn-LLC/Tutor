@@ -1707,7 +1707,7 @@ export default function PublicTutorPage() {
                     onClick={() => setBookDialogOpen(true)}
                   >
                     <CalendarDays className="mr-2 h-4 w-4" />
-                    Book 1 on 1
+                    Book 1-on-1
                   </Button>
                   <Button
                     size="lg"
@@ -1725,9 +1725,9 @@ export default function PublicTutorPage() {
           </div>
         </section>
 
-        <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
+        <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
           <div
-            className={cn(panelCardClass, 'flex h-[280px] flex-col lg:col-start-1 lg:row-start-1')}
+            className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}
           >
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <User className="h-5 w-5" />
@@ -1769,7 +1769,7 @@ export default function PublicTutorPage() {
           <div
             className={cn(
               panelCardClass,
-              'flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1'
+              'flex flex-col lg:col-start-2 lg:row-start-1'
             )}
           >
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
