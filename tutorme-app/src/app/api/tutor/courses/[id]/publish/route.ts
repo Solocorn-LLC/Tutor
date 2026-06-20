@@ -337,7 +337,12 @@ export const POST = withCsrf(
         const skippedSessions: Array<{
           scheduledAt: Date
           durationMinutes: number
-          reason: 'calendar_event' | 'other_course_live_session' | 'one_on_one'
+          reason:
+            | 'calendar_event'
+            | 'other_course_live_session'
+            | 'one_on_one'
+            | 'outside_availability'
+            | 'exception'
           conflictWith?: { start?: Date | null; end?: Date | null }
           recommendations: Array<{ date: string; startTime: string; endTime: string }>
         }> = []
@@ -597,6 +602,86 @@ export const POST = withCsrf(
                     : Promise.resolve([]),
                 ])
 
+              // Tutor availability (recurring available windows) + date exceptions,
+              // so the server enforces the same availability rules the scheduler UI
+              // shows (out-of-availability / blocked sessions are skipped, not
+              // silently published). Matches VariantScheduleEditor.getSlotStatus.
+              const [availabilityWindows, dateExceptions] = await Promise.all([
+                tx
+                  .select({
+                    dayOfWeek: calendarAvailability.dayOfWeek,
+                    startTime: calendarAvailability.startTime,
+                    endTime: calendarAvailability.endTime,
+                  })
+                  .from(calendarAvailability)
+                  .where(
+                    and(
+                      eq(calendarAvailability.tutorId, userId),
+                      eq(calendarAvailability.isAvailable, true),
+                      or(
+                        isNull(calendarAvailability.validUntil),
+                        gte(calendarAvailability.validUntil, now)
+                      )
+                    )
+                  ),
+                minScheduledAt && maxScheduledAt
+                  ? tx
+                      .select({
+                        date: calendarException.date,
+                        startTime: calendarException.startTime,
+                        endTime: calendarException.endTime,
+                        isAvailable: calendarException.isAvailable,
+                      })
+                      .from(calendarException)
+                      .where(
+                        and(
+                          eq(calendarException.tutorId, userId),
+                          gte(calendarException.date, minScheduledAt),
+                          lte(calendarException.date, sessionEndMax ?? maxScheduledAt)
+                        )
+                      )
+                  : Promise.resolve([]),
+              ])
+
+              // Wall-clock helpers (sessions are built as server-local = UTC, the
+              // same wall clock the scheduler compares against).
+              const hhmm = (d: Date) =>
+                `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+              const dateKeyOf = (d: Date) => d.toISOString().split('T')[0]
+              const timesOverlapStr = (s1: string, e1: string, s2: string, e2: string) =>
+                s1 < e2 && e1 > s2
+
+              // Returns a skip reason if the session falls outside availability or
+              // on a blocked exception, else null.
+              function availabilityBlock(
+                start: Date,
+                end: Date
+              ): 'outside_availability' | 'exception' | null {
+                const dow = start.getUTCDay()
+                const sStr = hhmm(start)
+                const eStr = hhmm(end)
+                const dateKey = dateKeyOf(start)
+                const dayWindows = availabilityWindows.filter(a => a.dayOfWeek === dow)
+                if (
+                  dayWindows.length > 0 &&
+                  !dayWindows.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))
+                ) {
+                  return 'outside_availability'
+                }
+                for (const ex of dateExceptions) {
+                  if (dateKeyOf(new Date(ex.date)) !== dateKey) continue
+                  if (!ex.isAvailable) return 'exception'
+                  if (
+                    ex.startTime &&
+                    ex.endTime &&
+                    timesOverlapStr(sStr, eStr, ex.startTime, ex.endTime)
+                  ) {
+                    return 'exception'
+                  }
+                }
+                return null
+              }
+
               // Helper: check if a generated session overlaps with an existing event
               function overlaps(
                 start: Date,
@@ -621,6 +706,24 @@ export const POST = withCsrf(
                 const sessionEnd = new Date(
                   sessionStart.getTime() + session.durationMinutes * 60000
                 )
+
+                // Enforce tutor availability server-side (the scheduler UI guard
+                // is not authoritative on its own).
+                const availReason = availabilityBlock(sessionStart, sessionEnd)
+                if (availReason) {
+                  const recs = await findAlternativeSlots(
+                    userId,
+                    session.scheduledAt,
+                    session.durationMinutes
+                  )
+                  skippedSessions.push({
+                    scheduledAt: session.scheduledAt,
+                    durationMinutes: session.durationMinutes,
+                    reason: availReason,
+                    recommendations: recs,
+                  })
+                  continue
+                }
 
                 const conflictingLs = existingLiveSessions.find(ls =>
                   overlaps(sessionStart, sessionEnd, ls)
