@@ -35,7 +35,6 @@ export interface TutorCardProps {
   countryLabel?: string
 }
 
-
 export function TutorCard({
   tutor,
   onClick,
