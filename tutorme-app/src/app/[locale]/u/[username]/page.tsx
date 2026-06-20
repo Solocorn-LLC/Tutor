@@ -1726,7 +1726,9 @@ export default function PublicTutorPage() {
         </section>
 
         <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
-          <div className={cn(panelCardClass, 'flex h-[280px] flex-col lg:col-start-1 lg:row-start-1')}>
+          <div
+            className={cn(panelCardClass, 'flex h-[280px] flex-col lg:col-start-1 lg:row-start-1')}
+          >
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <User className="h-5 w-5" />
               <span className="text-base font-semibold">Bio</span>
@@ -1764,189 +1766,197 @@ export default function PublicTutorPage() {
             </div>
           </div>
 
-          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-2 lg:row-start-1 lg:row-span-2')}>
+          <div
+            className={cn(
+              panelCardClass,
+              'flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1'
+            )}
+          >
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5" />
                 <span className="text-base font-semibold">Connect</span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onClick={() => void handleCopyPublicUrl()}
+                  disabled={!publicUrl}
+                >
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  Copy URL
+                </Button>
+                {canShare ? (
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                    onClick={() => void handleCopyPublicUrl()}
-                    disabled={!publicUrl}
+                    onClick={() => void handleSharePublicUrl()}
                   >
-                    <Copy className="mr-1.5 h-3.5 w-3.5" />
-                    Copy URL
+                    <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                    Share
                   </Button>
-                  {canShare ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                      onClick={() => void handleSharePublicUrl()}
-                    >
-                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                      Share
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-
-              {publicUrl ? (
-                <div className="grid grid-cols-1 gap-4 border-b border-slate-100 py-4 sm:grid-cols-2">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="/solocorn-app-icon.png"
-                      alt="Solocorn"
-                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                    />
-                    <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <img
-                      src="/solocorn-app-icon.png"
-                      alt="Solocorn"
-                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                    />
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-slate-900">
-                        Public Page
-                        <span className="ml-2 font-normal text-slate-600">{publicUrl}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-                  Add a username below to generate your public link.
-                </div>
-              )}
-
-              <div className="grid gap-4 pt-4 sm:grid-cols-2">
-                {[
-                  {
-                    key: 'tiktok',
-                    label: 'TikTok',
-                    value: tutor.socialLinks?.tiktok
-                      ? `@${stripAt(tutor.socialLinks.tiktok)}`
-                      : '—',
-                    icon: TikTokIcon,
-                    bgClass: 'bg-black',
-                    muted: !tutor.socialLinks?.tiktok,
-                  },
-                  {
-                    key: 'youtube',
-                    label: 'YouTube',
-                    value: tutor.socialLinks?.youtube
-                      ? `@${stripAt(tutor.socialLinks.youtube)}`
-                      : '—',
-                    icon: Youtube,
-                    bgClass: 'bg-red-600',
-                    muted: !tutor.socialLinks?.youtube,
-                  },
-                  {
-                    key: 'instagram',
-                    label: 'Instagram',
-                    value: tutor.socialLinks?.instagram
-                      ? `@${stripAt(tutor.socialLinks.instagram)}`
-                      : '—',
-                    icon: Instagram,
-                    bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
-                    muted: !tutor.socialLinks?.instagram,
-                  },
-                  {
-                    key: 'kakaoTalk',
-                    label: 'KakaoTalk',
-                    value: tutor.socialLinks?.kakaoTalk
-                      ? tutor.socialLinks.kakaoTalk.match(/^https?:\/\//)
-                        ? stripAt(tutor.socialLinks.kakaoTalk)
-                        : `https://${stripAt(tutor.socialLinks.kakaoTalk)}`
-                      : '—',
-                    icon: KakaoTalkIcon,
-                    bgClass: 'bg-[#FEE500]',
-                    muted: !tutor.socialLinks?.kakaoTalk,
-                  },
-                  {
-                    key: 'facebook',
-                    label: 'Facebook',
-                    value: tutor.socialLinks?.facebook
-                      ? tutor.socialLinks.facebook.match(/^https?:\/\//)
-                        ? stripAt(tutor.socialLinks.facebook)
-                        : `https://${stripAt(tutor.socialLinks.facebook)}`
-                      : '—',
-                    icon: Facebook,
-                    bgClass: 'bg-blue-600',
-                    muted: !tutor.socialLinks?.facebook,
-                  },
-                  {
-                    key: 'x',
-                    label: 'X',
-                    value: tutor.socialLinks?.x ? `@${stripAt(tutor.socialLinks.x)}` : '—',
-                    icon: XBrandIcon,
-                    bgClass: 'bg-black',
-                    muted: !tutor.socialLinks?.x,
-                  },
-                ].map(item => {
-                  const Icon = item.icon
-                  return (
-                    <div key={item.key} className="flex items-center gap-4">
-                      <div
-                        className={cn(
-                          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
-                          item.bgClass,
-                          item.muted && 'opacity-40'
-                        )}
-                      >
-                        <Icon
-                          className={cn(
-                            'text-white',
-                            item.key === 'kakaoTalk' ? 'h-10 w-10' : 'h-6 w-6'
-                          )}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-base font-semibold text-slate-900">
-                          {item.label}
-                          <span
-                            className={cn(
-                              'ml-2 font-normal',
-                              item.muted ? 'text-slate-400' : 'text-slate-600'
-                            )}
-                          >
-                            {item.value}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                ) : null}
               </div>
             </div>
 
-          <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:col-span-2 lg:row-start-2')}>
+            {publicUrl ? (
+              <div className="grid grid-cols-1 gap-4 border-b border-slate-100 py-4 sm:grid-cols-2">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/solocorn-app-icon.png"
+                    alt="Solocorn"
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                  />
+                  <div className="text-lg font-semibold text-slate-900">@{tutor.username}</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/solocorn-app-icon.png"
+                    alt="Solocorn"
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-base font-semibold text-slate-900">
+                      Public Page
+                      <span className="ml-2 font-normal text-slate-600">{publicUrl}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                Add a username below to generate your public link.
+              </div>
+            )}
+
+            <div className="grid gap-4 pt-4 sm:grid-cols-2">
+              {[
+                {
+                  key: 'tiktok',
+                  label: 'TikTok',
+                  value: tutor.socialLinks?.tiktok ? `@${stripAt(tutor.socialLinks.tiktok)}` : '—',
+                  icon: TikTokIcon,
+                  bgClass: 'bg-black',
+                  muted: !tutor.socialLinks?.tiktok,
+                },
+                {
+                  key: 'youtube',
+                  label: 'YouTube',
+                  value: tutor.socialLinks?.youtube
+                    ? `@${stripAt(tutor.socialLinks.youtube)}`
+                    : '—',
+                  icon: Youtube,
+                  bgClass: 'bg-red-600',
+                  muted: !tutor.socialLinks?.youtube,
+                },
+                {
+                  key: 'instagram',
+                  label: 'Instagram',
+                  value: tutor.socialLinks?.instagram
+                    ? `@${stripAt(tutor.socialLinks.instagram)}`
+                    : '—',
+                  icon: Instagram,
+                  bgClass: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400',
+                  muted: !tutor.socialLinks?.instagram,
+                },
+                {
+                  key: 'kakaoTalk',
+                  label: 'KakaoTalk',
+                  value: tutor.socialLinks?.kakaoTalk
+                    ? tutor.socialLinks.kakaoTalk.match(/^https?:\/\//)
+                      ? stripAt(tutor.socialLinks.kakaoTalk)
+                      : `https://${stripAt(tutor.socialLinks.kakaoTalk)}`
+                    : '—',
+                  icon: KakaoTalkIcon,
+                  bgClass: 'bg-[#FEE500]',
+                  muted: !tutor.socialLinks?.kakaoTalk,
+                },
+                {
+                  key: 'facebook',
+                  label: 'Facebook',
+                  value: tutor.socialLinks?.facebook
+                    ? tutor.socialLinks.facebook.match(/^https?:\/\//)
+                      ? stripAt(tutor.socialLinks.facebook)
+                      : `https://${stripAt(tutor.socialLinks.facebook)}`
+                    : '—',
+                  icon: Facebook,
+                  bgClass: 'bg-blue-600',
+                  muted: !tutor.socialLinks?.facebook,
+                },
+                {
+                  key: 'x',
+                  label: 'X',
+                  value: tutor.socialLinks?.x ? `@${stripAt(tutor.socialLinks.x)}` : '—',
+                  icon: XBrandIcon,
+                  bgClass: 'bg-black',
+                  muted: !tutor.socialLinks?.x,
+                },
+              ].map(item => {
+                const Icon = item.icon
+                return (
+                  <div key={item.key} className="flex items-center gap-4">
+                    <div
+                      className={cn(
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                        item.bgClass,
+                        item.muted && 'opacity-40'
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          'text-white',
+                          item.key === 'kakaoTalk' ? 'h-10 w-10' : 'h-6 w-6'
+                        )}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-semibold text-slate-900">
+                        {item.label}
+                        <span
+                          className={cn(
+                            'ml-2 font-normal',
+                            item.muted ? 'text-slate-400' : 'text-slate-600'
+                          )}
+                        >
+                          {item.value}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              panelCardClass,
+              'flex flex-col lg:col-span-2 lg:col-start-1 lg:row-start-2'
+            )}
+          >
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <Tags className="h-5 w-5" />
               <span className="text-base font-semibold">Categories</span>
-                <span className="text-sm text-white">({tutor.specialties.length})</span>
-              </div>
+              <span className="text-sm text-white">({tutor.specialties.length})</span>
+            </div>
 
-              <div className="flex flex-wrap gap-2">
-                {tutor.specialties.length > 0 ? (
-                  tutor.specialties.map((s, i) => (
-                    <span
-                      key={`${s}-${i}`}
-                      className="rounded-full border border-slate-100 bg-slate-50 px-4 py-1.5 text-sm font-medium text-slate-700"
-                    >
-                      {s}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-slate-500">General tutoring</span>
-                )}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {tutor.specialties.length > 0 ? (
+                tutor.specialties.map((s, i) => (
+                  <span
+                    key={`${s}-${i}`}
+                    className="rounded-full border border-slate-100 bg-slate-50 px-4 py-1.5 text-sm font-medium text-slate-700"
+                  >
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-slate-500">General tutoring</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
