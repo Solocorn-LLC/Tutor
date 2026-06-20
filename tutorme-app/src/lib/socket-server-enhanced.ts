@@ -1265,73 +1265,107 @@ export async function initEnhancedSocketServer(server: NetServer) {
         })
         io.to(roomId).emit('task:updated', { task })
 
-        // Persist to TaskSubmission for durable grading. Best-effort and
-        // FK-safe: taskSubmission.taskId references builderTask, so we only
-        // insert when the deployed task corresponds to a real builderTask row
-        // (it won't for an unsaved/ephemeral task). onConflictDoNothing keeps
-        // the one-submission-per-(task,student) rule and never overwrites a row
-        // a tutor may already have graded. Failures here never affect the live
-        // session — the in-memory/Redis state and the socket overlay still work.
+        // Persist the completion durably so it reaches the tutor's grading
+        // views. There are THREE tutor readers with DIFFERENT requirements:
+        //   - Grading page (/api/tutor/submissions): taskSubmission ⋈ builderTask,
+        //     filtered by builderTask.tutorId.
+        //   - In-session SubmissionsPanel (/submissions-tree) and the live panel:
+        //     taskSubmission filtered by deployedMaterial.itemId AND the student
+        //     being a sessionParticipant (or course enrollee).
+        // So a submission only shows everywhere if builderTask, deployedMaterial,
+        // and sessionParticipant all exist. The deploy-time creation of those is
+        // skipped when the live session had no courseId (or failed), which is why
+        // completions went missing. Self-heal all of them here. Everything is
+        // FK-safe and idempotent; failures never affect the live session.
         void (async () => {
           try {
-            const [bt] = await drizzleDb
-              .select({ taskId: builderTask.taskId })
-              .from(builderTask)
-              .where(eq(builderTask.taskId, taskId))
-              .limit(1)
-            if (!bt) {
-              // Self-heal: the deploy-time builderTask auto-create is skipped
-              // when the live session has no courseId yet (ad-hoc room) or its
-              // DB write failed. Without a builderTask row, the FK on
-              // taskSubmission.taskId blocks the insert and the submission never
-              // reaches the tutor's grading page. Recreate it now from the
-              // session so the completion is durably persisted. builderTask's
-              // courseId/lessonId/tutorId are all NOT NULL, so we need a
-              // resolvable course; if there genuinely is none, we can't persist.
-              const sess = await drizzleDb.query.liveSession.findFirst({
-                where: eq(liveSession.sessionId, roomId),
-                columns: { courseId: true, tutorId: true },
-              })
-              const courseId = sess?.courseId
-              const tutorId = sess?.tutorId || room.tutorId
-              if (!courseId || !tutorId) {
-                console.warn(
-                  '[task:complete] cannot persist submission — session has no courseId/tutor',
-                  { roomId, taskId }
-                )
-                return
-              }
-              let [lesson] = await drizzleDb
-                .select({ lessonId: courseLesson.lessonId })
-                .from(courseLesson)
-                .where(eq(courseLesson.courseId, courseId))
-                .limit(1)
-              if (!lesson?.lessonId) {
-                const newLessonId = crypto.randomUUID()
-                await drizzleDb.insert(courseLesson).values({
-                  lessonId: newLessonId,
-                  courseId,
-                  title: 'Live Session',
-                  order: 0,
-                })
-                lesson = { lessonId: newLessonId }
-              }
-              await drizzleDb
-                .insert(builderTask)
-                .values({
-                  taskId,
-                  courseId,
-                  lessonId: lesson.lessonId,
-                  tutorId,
-                  title: task.title || 'Untitled',
-                  content: task.content || '',
-                  pci: '',
-                  type: task.source,
-                  status: 'published',
-                  publishedAt: new Date(),
-                })
-                .onConflictDoNothing({ target: builderTask.taskId })
+            const sess = await drizzleDb.query.liveSession.findFirst({
+              where: eq(liveSession.sessionId, roomId),
+              columns: { courseId: true, tutorId: true },
+            })
+            const courseId = sess?.courseId
+            const tutorId = sess?.tutorId || room.tutorId
+            // builderTask/deployedMaterial both require a NOT NULL courseId, and
+            // the tree readers are course-scoped — so without a course we can't
+            // make the submission visible. Log loudly so this is diagnosable.
+            if (!courseId || !tutorId) {
+              console.warn(
+                '[task:complete] NOT persisting — live session has no courseId/tutor (ad-hoc session). Submissions require a course.',
+                { roomId, taskId, studentId, hasSessionRow: !!sess, courseId, tutorId }
+              )
+              return
             }
+
+            // 1) Lesson (builderTask.lessonId is NOT NULL).
+            let [lesson] = await drizzleDb
+              .select({ lessonId: courseLesson.lessonId })
+              .from(courseLesson)
+              .where(eq(courseLesson.courseId, courseId))
+              .limit(1)
+            if (!lesson?.lessonId) {
+              const newLessonId = crypto.randomUUID()
+              await drizzleDb.insert(courseLesson).values({
+                lessonId: newLessonId,
+                courseId,
+                title: 'Live Session',
+                order: 0,
+              })
+              lesson = { lessonId: newLessonId }
+            }
+
+            // 2) builderTask — FK target for taskSubmission; read by the Grading page.
+            await drizzleDb
+              .insert(builderTask)
+              .values({
+                taskId,
+                courseId,
+                lessonId: lesson.lessonId,
+                tutorId,
+                title: task.title || 'Untitled',
+                content: task.content || '',
+                pci: '',
+                type: task.source,
+                status: 'published',
+                publishedAt: new Date(),
+              })
+              .onConflictDoNothing({ target: builderTask.taskId })
+
+            // 3) deployedMaterial — without it, the in-session SubmissionsPanel
+            //    (/submissions-tree) and live panel filter the submission out.
+            //    No unique constraint on (sessionId, itemId), so check first.
+            const [alreadyDeployed] = await drizzleDb
+              .select({ id: deployedMaterial.id })
+              .from(deployedMaterial)
+              .where(
+                and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, taskId))
+              )
+              .limit(1)
+            if (!alreadyDeployed) {
+              await drizzleDb.insert(deployedMaterial).values({
+                sessionId: roomId,
+                courseId,
+                type: task.source,
+                itemId: taskId,
+                title: task.title || 'Untitled',
+                sessionSequence: 1,
+              })
+            }
+
+            // 4) sessionParticipant — the tree readers require the student to be
+            //    a participant (or course enrollee). The student is here now.
+            await drizzleDb
+              .insert(sessionParticipant)
+              .values({
+                participantId: crypto.randomUUID(),
+                sessionId: roomId,
+                studentId,
+              })
+              .onConflictDoNothing({
+                target: [sessionParticipant.sessionId, sessionParticipant.studentId],
+              })
+
+            // 5) The submission itself. onConflictDoNothing preserves the
+            //    one-per-(task,student) rule and never overwrites a graded row.
             await drizzleDb
               .insert(taskSubmission)
               .values({
@@ -1348,6 +1382,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 tutorApproved: false,
               })
               .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
+
+            console.log('[task:complete] submission persisted', {
+              roomId,
+              taskId,
+              studentId,
+              courseId,
+              source: task.source,
+            })
           } catch (err) {
             console.warn('[task:complete] TaskSubmission persist failed (non-critical):', err)
           }

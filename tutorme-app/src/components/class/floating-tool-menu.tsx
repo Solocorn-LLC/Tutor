@@ -328,12 +328,6 @@ export function FloatingToolMenu({
             active: currentTool === 'select',
           },
           {
-            icon: <Sigma className="h-5 w-5" />,
-            label: 'Formula',
-            action: () => onToolChange('formula'),
-            active: currentTool === 'formula',
-          },
-          {
             icon: <TrendingUp className="h-5 w-5" />,
             label: 'Graph',
             action: () => onToolChange('graph'),

@@ -1436,14 +1436,13 @@ function StudentFeedbackContent() {
                                   <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 text-center">
                                     <FileText className="h-8 w-8 text-slate-400" />
                                     <p className="text-sm text-slate-500">
-                                      {doc.fileName || 'Document'} is unavailable. Ask your tutor to
-                                      re-deploy it.
+                                      This document is unavailable. Ask your tutor to re-deploy it.
                                     </p>
                                   </div>
                                 ) : isPdf ? (
                                   <iframe
                                     src={pdfSrc}
-                                    title={doc.fileName}
+                                    title="Document"
                                     className="h-full w-full rounded-lg border"
                                   />
                                 ) : isImage ? (
@@ -1451,7 +1450,7 @@ function StudentFeedbackContent() {
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={url}
-                                      alt={doc.fileName}
+                                      alt="Document"
                                       className="max-h-full max-w-full object-contain"
                                     />
                                   </div>
@@ -1464,7 +1463,7 @@ function StudentFeedbackContent() {
                                       rel="noreferrer"
                                       className="text-sm text-blue-600 underline"
                                     >
-                                      Open {doc.fileName}
+                                      Open document
                                     </a>
                                   </div>
                                 )}
@@ -1485,12 +1484,17 @@ function StudentFeedbackContent() {
                                 </p>
                                 <textarea
                                   value={taskAnswers[item.id] ?? ''}
-                                  onChange={e =>
+                                  // Once the student starts working on a task/assessment,
+                                  // stop auto-following the tutor so their navigation can't
+                                  // yank the student away from what they're answering.
+                                  onFocus={() => setFollowTutor(false)}
+                                  onChange={e => {
+                                    setFollowTutor(false)
                                     setTaskAnswers(prev => ({
                                       ...prev,
                                       [item.id]: e.target.value,
                                     }))
-                                  }
+                                  }}
                                   placeholder="Type your answer…"
                                   className="min-h-[64px] w-full resize-y rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none"
                                 />
@@ -1657,7 +1661,7 @@ function StudentFeedbackContent() {
                   size="sm"
                   onClick={() => setRightPanelTab('interactions')}
                   className={cn(
-                    'h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'interactions'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'
@@ -1672,7 +1676,7 @@ function StudentFeedbackContent() {
                     setRightPanelTab(prev => (prev === 'dmi' ? 'interactions' : 'dmi'))
                   }
                   className={cn(
-                    'h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'dmi'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'
@@ -1687,7 +1691,7 @@ function StudentFeedbackContent() {
                     setRightPanelTab(prev => (prev === 'my-board' ? 'interactions' : 'my-board'))
                   }
                   className={cn(
-                    'h-8 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'my-board'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'

@@ -23,8 +23,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { TeachingAssistant } from './teaching-assistant'
 import { FloatingToolMenu } from './floating-tool-menu'
+import { FloatingMathTool } from './floating-math-tool'
 import { GraphDialog } from './graph-dialog'
-import { LatexFormulaDialog } from './latex-formula-dialog'
 import { sampleGraph, drawGraphOnCanvas, svgToDataUrl } from '@/lib/whiteboard/math-render'
 import {
   Plus,
@@ -408,7 +408,6 @@ export function EnhancedWhiteboard({
 
   // Math tools state
   const [showGraphDialog, setShowGraphDialog] = useState(false)
-  const [showFormulaDialog, setShowFormulaDialog] = useState(false)
   const [snapToGrid, setSnapToGrid] = useState(false)
   const gridStep = 20
 
@@ -1793,13 +1792,6 @@ export function EnhancedWhiteboard({
 
   // Open math dialogs immediately when tool is selected
   useEffect(() => {
-    if (tool === 'formula') {
-      setShowFormulaDialog(true)
-      setTool('select')
-    }
-  }, [tool])
-
-  useEffect(() => {
     if (tool === 'graph') {
       setShowGraphDialog(true)
       setTool('select')
@@ -2029,6 +2021,9 @@ export function EnhancedWhiteboard({
             currentPointerPos={pointerPos}
           />
         )}
+
+        {/* Dedicated, draggable math tool (separate from the radial menu) */}
+        {!readOnly && <FloatingMathTool onPlace={handlePlaceFormula} defaultColor={color} />}
 
         {/* Floating Background Color Toggle */}
         {!readOnly && (
@@ -2742,11 +2737,6 @@ export function EnhancedWhiteboard({
         onOpenChange={setShowGraphDialog}
         onPlot={handlePlotGraph}
         defaultColor={color}
-      />
-      <LatexFormulaDialog
-        open={showFormulaDialog}
-        onOpenChange={setShowFormulaDialog}
-        onPlace={handlePlaceFormula}
       />
 
       {/* Bottom Page Navigation - only show when using internal state */}
