@@ -407,6 +407,13 @@
       "when": 1781200000000,
       "tag": "0057_create_tutor_follow",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1781300000000,
+      "tag": "0058_fix_tutor_follow_followid",
+      "breakpoints": true
     }
   ]
 }
