@@ -109,6 +109,9 @@ export async function POST(
       maxScore: MAX_SCORE,
       status: 'submitted',
       tutorApproved: false,
+      // Explicit: prod's submittedAt column has drifted and lacks its DEFAULT,
+      // so relying on defaultNow() would insert NULL and violate not-null.
+      submittedAt: new Date(),
     })
 
     // Best-effort: generate AI feedback into the tutor's review queue. Submission

@@ -1074,6 +1074,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .from(courseLesson)
                 .where(eq(courseLesson.courseId, sessionRec.courseId))
                 .limit(1)
+              // NOTE: set createdAt/updatedAt explicitly. These columns are
+              // declared notNull().defaultNow() in the schema, but the prod DB
+              // has drifted and lacks the column DEFAULT, so relying on the
+              // default inserts NULL and violates the not-null constraint
+              // (this is exactly what was silently breaking grading). $onUpdate
+              // does not apply to inserts, so it can't cover this either.
+              const now = new Date()
               if (!lesson?.lessonId) {
                 const newLessonId = crypto.randomUUID()
                 await drizzleDb.insert(courseLesson).values({
@@ -1081,6 +1088,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   courseId: sessionRec.courseId,
                   title: 'Live Session',
                   order: 0,
+                  createdAt: now,
+                  updatedAt: now,
                 })
                 lesson = { lessonId: newLessonId }
               }
@@ -1096,7 +1105,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   pci: '',
                   type: normalizedTask.source,
                   status: 'published',
-                  publishedAt: new Date(),
+                  publishedAt: now,
+                  createdAt: now,
+                  updatedAt: now,
                 })
                 .onConflictDoNothing({ target: builderTask.taskId })
             }
@@ -1296,6 +1307,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
               return
             }
 
+            // Set createdAt/updatedAt/etc. explicitly throughout. These columns
+            // are notNull().defaultNow() in the schema, but the prod DB has
+            // drifted and lacks the column DEFAULT — relying on it inserts NULL
+            // and violates the not-null constraint, which is what silently broke
+            // every persist in this chain. Explicit values are drift-proof.
+            const now = new Date()
+
             // 1) Lesson (builderTask.lessonId is NOT NULL).
             let [lesson] = await drizzleDb
               .select({ lessonId: courseLesson.lessonId })
@@ -1309,6 +1327,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 courseId,
                 title: 'Live Session',
                 order: 0,
+                createdAt: now,
+                updatedAt: now,
               })
               lesson = { lessonId: newLessonId }
             }
@@ -1326,7 +1346,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 pci: '',
                 type: task.source,
                 status: 'published',
-                publishedAt: new Date(),
+                publishedAt: now,
+                createdAt: now,
+                updatedAt: now,
               })
               .onConflictDoNothing({ target: builderTask.taskId })
 
@@ -1348,6 +1370,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 itemId: taskId,
                 title: task.title || 'Untitled',
                 sessionSequence: 1,
+                deployedAt: now,
               })
             }
 
@@ -1359,6 +1382,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 participantId: crypto.randomUUID(),
                 sessionId: roomId,
                 studentId,
+                joinedAt: now,
               })
               .onConflictDoNothing({
                 target: [sessionParticipant.sessionId, sessionParticipant.studentId],
@@ -1380,6 +1404,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 maxScore: 100,
                 status: 'submitted',
                 tutorApproved: false,
+                submittedAt: now,
               })
               .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
 
