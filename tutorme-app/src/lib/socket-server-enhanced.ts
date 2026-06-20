@@ -1619,7 +1619,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
             [studentId]: board,
           },
         }
-        // Do NOT broadcast — tutor requests on-demand via whiteboard:state:request
+        // Push the full board (pages + active page) to the rest of the room so the
+        // tutor sees newly added pages and can follow the student's page switches in
+        // realtime — not just on-demand. Per-stroke deltas only grow pages when the
+        // student actually draws, so blank pages and page switches need this snapshot.
+        socket.to(roomId).emit('student:whiteboard:update', {
+          studentId,
+          pages: board.pages,
+          pageIndex: board.pageIndex,
+          updatedAt: board.updatedAt ?? Date.now(),
+        })
       }
     )
 

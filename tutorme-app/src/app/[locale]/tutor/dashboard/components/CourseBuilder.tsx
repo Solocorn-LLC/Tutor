@@ -901,6 +901,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       id: string
       name: string
     } | null>(null)
+    // When viewing a student's board, follow their active page by default; the tutor
+    // can turn this off and page through the board manually to inspect any page.
+    const [followStudentPage, setFollowStudentPage] = useState(true)
+    const [viewedStudentPageIndex, setViewedStudentPageIndex] = useState(0)
+    // Re-enable follow whenever the tutor opens a (different) student's board.
+    useEffect(() => {
+      setFollowStudentPage(true)
+      setViewedStudentPageIndex(0)
+    }, [monitorSelectedStudent?.id])
     const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
       'submissions'
     )
@@ -8509,6 +8518,18 @@ FEEDBACK: [your explanation]`
                                                 typeof studentBoard?.pageIndex === 'number'
                                                   ? studentBoard.pageIndex
                                                   : 0
+                                              const pageCount = Math.max(studentPages.length, 1)
+                                              const clamp = (i: number) =>
+                                                Math.min(Math.max(i, 0), pageCount - 1)
+                                              // Follow → mirror the student's active page; otherwise
+                                              // show whatever page the tutor picked.
+                                              const viewedPageIndex = followStudentPage
+                                                ? clamp(studentPageIndex)
+                                                : clamp(viewedStudentPageIndex)
+                                              const gotoPage = (i: number) => {
+                                                setFollowStudentPage(false)
+                                                setViewedStudentPageIndex(clamp(i))
+                                              }
                                               return (
                                                 <Dialog
                                                   open
@@ -8525,22 +8546,79 @@ FEEDBACK: [your explanation]`
                                                         <div className="font-semibold text-slate-800">
                                                           Viewing: {monitorSelectedStudent.name}
                                                         </div>
-                                                        <Button
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                                          onClick={() =>
-                                                            setMonitorSelectedStudent(null)
-                                                          }
-                                                        >
-                                                          Clear
-                                                        </Button>
+                                                        <div className="flex items-center gap-2">
+                                                          {/* Page navigation: prev / indicator / next */}
+                                                          <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1 py-0.5">
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="icon"
+                                                              className="h-6 w-6 text-slate-600 hover:bg-white disabled:opacity-30"
+                                                              disabled={viewedPageIndex <= 0}
+                                                              onClick={() =>
+                                                                gotoPage(viewedPageIndex - 1)
+                                                              }
+                                                              title="Previous page"
+                                                            >
+                                                              <ChevronLeft className="h-4 w-4" />
+                                                            </Button>
+                                                            <span className="min-w-[64px] text-center text-xs font-medium text-slate-600">
+                                                              Page {viewedPageIndex + 1} /{' '}
+                                                              {pageCount}
+                                                            </span>
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="icon"
+                                                              className="h-6 w-6 text-slate-600 hover:bg-white disabled:opacity-30"
+                                                              disabled={
+                                                                viewedPageIndex >= pageCount - 1
+                                                              }
+                                                              onClick={() =>
+                                                                gotoPage(viewedPageIndex + 1)
+                                                              }
+                                                              title="Next page"
+                                                            >
+                                                              <ChevronRight className="h-4 w-4" />
+                                                            </Button>
+                                                          </div>
+                                                          {/* Follow toggle */}
+                                                          <Button
+                                                            variant={
+                                                              followStudentPage
+                                                                ? 'default'
+                                                                : 'outline'
+                                                            }
+                                                            size="sm"
+                                                            className="h-8 text-xs"
+                                                            onClick={() =>
+                                                              setFollowStudentPage(f => !f)
+                                                            }
+                                                            title={
+                                                              followStudentPage
+                                                                ? "Following the student's page — click to browse freely"
+                                                                : "Jump to and follow the student's current page"
+                                                            }
+                                                          >
+                                                            {followStudentPage
+                                                              ? 'Following'
+                                                              : 'Follow student'}
+                                                          </Button>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                            onClick={() =>
+                                                              setMonitorSelectedStudent(null)
+                                                            }
+                                                          >
+                                                            Clear
+                                                          </Button>
+                                                        </div>
                                                       </div>
                                                       <div className="min-h-0 flex-1">
                                                         <EnhancedWhiteboard
                                                           videoOverlay={false}
                                                           pages={studentPages}
-                                                          currentPageIndex={studentPageIndex}
+                                                          currentPageIndex={viewedPageIndex}
                                                           readOnly
                                                         />
                                                       </div>
