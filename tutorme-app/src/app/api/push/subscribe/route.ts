@@ -57,9 +57,7 @@ export const DELETE = withCsrf(
       if (!endpoint) throw new ValidationError('endpoint required')
       await drizzleDb
         .delete(pushSubscription)
-        .where(
-          and(eq(pushSubscription.endpoint, endpoint), eq(pushSubscription.userId, userId))
-        )
+        .where(and(eq(pushSubscription.endpoint, endpoint), eq(pushSubscription.userId, userId)))
       return NextResponse.json({ ok: true })
     } catch (error) {
       if (error instanceof ValidationError) {

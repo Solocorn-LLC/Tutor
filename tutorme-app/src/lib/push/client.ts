@@ -38,9 +38,7 @@ async function getCsrfToken(): Promise<string | null> {
  *  - 'denied'      — the user blocked notifications
  *  - 'unsupported' — push not available / VAPID not configured
  */
-export async function ensurePushSubscription(): Promise<
-  'subscribed' | 'denied' | 'unsupported'
-> {
+export async function ensurePushSubscription(): Promise<'subscribed' | 'denied' | 'unsupported'> {
   if (!isPushSupported()) return 'unsupported'
 
   // Need the VAPID public key from the server.
