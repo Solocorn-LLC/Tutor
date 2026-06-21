@@ -152,7 +152,12 @@ BEGIN
     ALTER TABLE "TaskDeployment" ALTER COLUMN "status" TYPE "TaskDeploymentStatus" USING ("status"::"TaskDeploymentStatus");
   END IF;
 END $$;
+`)
 
+// Tables that must be ensured on EVERY boot — independent of the LiveSession
+// drift early-exit below. Without this, a prod DB whose LiveSession already
+// looks fine would skip the whole drift block and never get these tables.
+const ENSURE_TABLES_SQL = sql.raw(`
 -- Web Push subscriptions (browser push for session reminders)
 CREATE TABLE IF NOT EXISTS "PushSubscription" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -177,6 +182,14 @@ CREATE INDEX IF NOT EXISTS "PushSubscription_userId_idx" ON "PushSubscription" (
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {
+  // Always ensure new standalone tables exist, even when the drift check below
+  // short-circuits (prod DBs whose LiveSession columns already look fine).
+  try {
+    await drizzleDb.execute(ENSURE_TABLES_SQL)
+  } catch (err: any) {
+    console.error('[SchemaFix] ❌ Failed to ensure tables:', err?.message)
+  }
+
   try {
     console.log('[SchemaFix] Checking for schema drift...')
 
