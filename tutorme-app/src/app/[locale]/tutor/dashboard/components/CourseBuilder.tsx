@@ -7924,6 +7924,21 @@ FEEDBACK: [your explanation]`
                     hidden={rightPanelHidden}
                     onToggleHidden={setRightPanelHidden}
                     liveSubmissions={insightsProps?.liveSubmissions}
+                    headerExtra={
+                      <Tabs
+                        value="submissions"
+                        onValueChange={() => {}}
+                      >
+                        <TabsList className="grid w-full grid-cols-1 gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
+                          <TabsTrigger
+                            value="submissions"
+                            className="h-8 rounded-md px-3 text-xs font-medium transition-all data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
+                          >
+                            Submissions
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    }
                   />
                 )}
               </>
