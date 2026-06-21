@@ -17,8 +17,7 @@ export function SupportAiAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      text:
-        "Hi! I'm your support assistant. Ask me anything about the platform and I'll do my best to help.",
+      text: "Hi! I'm your support assistant. Ask me anything about the platform and I'll do my best to help.",
     },
   ])
   const [input, setInput] = useState('')
@@ -32,10 +31,7 @@ export function SupportAiAssistant() {
     const text = input.trim()
     if (!text) return
 
-    setMessages(prev => [
-      ...prev,
-      { id: String(Date.now()), role: 'user', text },
-    ])
+    setMessages(prev => [...prev, { id: String(Date.now()), role: 'user', text }])
     setInput('')
 
     // Placeholder response — wire this to your AI endpoint later.
@@ -45,8 +41,7 @@ export function SupportAiAssistant() {
         {
           id: String(Date.now() + 1),
           role: 'assistant',
-          text:
-            "Thanks for your question. I'm looking into that for you — this is a placeholder response you can replace with a real AI call.",
+          text: "Thanks for your question. I'm looking into that for you — this is a placeholder response you can replace with a real AI call.",
         },
       ])
     }, 600)
@@ -64,9 +59,7 @@ export function SupportAiAssistant() {
           {messages.map(message => (
             <div
               key={message.id}
-              className={`flex gap-2 ${
-                message.role === 'user' ? 'flex-row-reverse' : ''
-              }`}
+              className={`flex gap-2 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
               <div
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${

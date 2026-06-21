@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { BackButton } from '@/components/navigation'
+import { AvatarGalleryPicker } from '@/components/avatar-gallery-picker'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
@@ -84,6 +85,7 @@ export default function StudentRegistrationPage() {
     countryCode: '',
     isSixteen: false,
     tosAccepted: false,
+    avatarUrl: '',
   })
 
   const [region, countryCode] = [formData.region, formData.countryCode]
@@ -184,6 +186,7 @@ export default function StudentRegistrationPage() {
             country: selectedCountryName,
             isSixteen: formData.isSixteen,
             middleName: formData.middleName,
+            ...(formData.avatarUrl ? { avatarUrl: formData.avatarUrl } : {}),
           },
         }),
       })
@@ -463,6 +466,15 @@ export default function StudentRegistrationPage() {
                     onChange={e => setFormData({ ...formData, age: e.target.value })}
                     placeholder="Enter age"
                     className={inputClassName}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-white/70">Profile photo (optional)</Label>
+                  <AvatarGalleryPicker
+                    value={formData.avatarUrl || null}
+                    onChange={url => setFormData(prev => ({ ...prev, avatarUrl: url || '' }))}
+                    fallbackText={formData.firstName.charAt(0).toUpperCase() || '?'}
                   />
                 </div>
 

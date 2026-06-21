@@ -416,6 +416,17 @@ export async function performRegistration(
     const profileData =
       role === 'TUTOR' ? tutorProfileDataSchema.parse(data.profileData) : undefined
 
+    // Optional preset avatar chosen during registration (gallery). Accept only a
+    // "/avatars/<file>" preset path (no traversal / external URLs); anything else
+    // falls back to no avatar.
+    const presetAvatarUrl = (() => {
+      const raw = (data.profileData as Record<string, unknown> | undefined)?.avatarUrl
+      if (typeof raw !== 'string' || !raw.startsWith('/avatars/')) return null
+      const file = raw.slice('/avatars/'.length)
+      if (!file || file.includes('/') || file.includes('..')) return null
+      return raw
+    })()
+
     // Build profile insert data - ensure all nullable fields are explicitly null
     const profileInsertData = {
       profileId: crypto.randomUUID(),
@@ -423,7 +434,7 @@ export async function performRegistration(
       name,
       username: finalHandle,
       bio: null,
-      avatarUrl: null,
+      avatarUrl: presetAvatarUrl,
       dateOfBirth: null,
       timezone: profileData?.timezone ?? 'Asia/Shanghai',
       emailNotifications: true,
