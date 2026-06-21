@@ -63,6 +63,7 @@ import {
   ChevronDown,
   Maximize2,
   Magnet,
+  Frame,
 } from 'lucide-react'
 
 interface Point {
@@ -1079,11 +1080,22 @@ export function EnhancedWhiteboard({
       if (tool === 'hand') {
         setIsPanning(true)
         setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
+      } else if (tool === 'marquee-zoom') {
+        // Zoom-to-area is a view operation, so allow it even in read-only mode.
+        const p = screenToCanvas(e.clientX, e.clientY)
+        setMarqueeStart(p)
+        setTempMarqueeEnd(p)
       }
       return
     }
 
     const point = screenToCanvas(e.clientX, e.clientY)
+
+    if (tool === 'marquee-zoom') {
+      setMarqueeStart(point)
+      setTempMarqueeEnd(point)
+      return
+    }
 
     // Check if clicking on video
     if (showVideo && !isVideoFullscreen && videoComponent) {
@@ -1377,6 +1389,21 @@ export function EnhancedWhiteboard({
   }
 
   const handleMouseUp = () => {
+    // Commit a zoom-to-area marquee: fit the viewport to the dragged rectangle.
+    if (tool === 'marquee-zoom' && marqueeStart && tempMarqueeEnd) {
+      const minX = Math.min(marqueeStart.x, tempMarqueeEnd.x)
+      const maxX = Math.max(marqueeStart.x, tempMarqueeEnd.x)
+      const minY = Math.min(marqueeStart.y, tempMarqueeEnd.y)
+      const maxY = Math.max(marqueeStart.y, tempMarqueeEnd.y)
+      setMarqueeStart(null)
+      setTempMarqueeEnd(null)
+      // Ignore tiny/accidental drags (treat as a click).
+      if (maxX - minX > 8 && maxY - minY > 8) {
+        fitToBounds(minX, minY, maxX, maxY, 0.03)
+        setTool('select')
+      }
+      return
+    }
     if (isDraggingVideo) {
       setIsDraggingVideo(false)
       return
@@ -1647,6 +1674,79 @@ export function EnhancedWhiteboard({
 
   const zoomIn = () => setScale(prev => Math.min(5, prev * 1.2))
   const zoomOut = () => setScale(prev => Math.max(0.1, prev / 1.2))
+
+  // Set scale+pan so the given canvas-coordinate box fits the visible canvas,
+  // centered, with a little padding. Shared by "zoom to fit" and "zoom to area".
+  const fitToBounds = (minX: number, minY: number, maxX: number, maxY: number, padding = 0.1) => {
+    const W = canvasSize.width
+    const H = canvasSize.height
+    if (!W || !H) return
+    const bw = maxX - minX
+    const bh = maxY - minY
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    if (bw <= 0 && bh <= 0) {
+      setScale(1)
+      setPan({ x: W / 2 - cx, y: H / 2 - cy })
+      return
+    }
+    const sx = bw > 0 ? (W * (1 - 2 * padding)) / bw : Infinity
+    const sy = bh > 0 ? (H * (1 - 2 * padding)) / bh : Infinity
+    let s = Math.min(sx, sy)
+    if (!Number.isFinite(s) || s <= 0) s = 1
+    s = Math.max(0.1, Math.min(5, s))
+    setScale(s)
+    setPan({ x: W / 2 - cx * s, y: H / 2 - cy * s })
+  }
+
+  // Bounding box (in canvas coords) of all drawable content on the current page.
+  // Graphs span the coordinate plane and have no fixed box, so they're excluded.
+  const getContentBounds = (): {
+    minX: number
+    minY: number
+    maxX: number
+    maxY: number
+  } | null => {
+    if (!currentPage) return null
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    const add = (x0: number, y0: number, x1: number, y1: number) => {
+      minX = Math.min(minX, x0, x1)
+      minY = Math.min(minY, y0, y1)
+      maxX = Math.max(maxX, x0, x1)
+      maxY = Math.max(maxY, y0, y1)
+    }
+    for (const stroke of currentPage.strokes) {
+      for (const p of stroke.points) add(p.x, p.y, p.x, p.y)
+    }
+    for (const t of currentPage.texts) {
+      add(t.x, t.y, t.x + (t.width || 0), t.y + (t.height || 0))
+    }
+    for (const sh of currentPage.shapes) {
+      // For line/arrow, width/height hold the END point's absolute coords.
+      if (sh.type === 'line' || sh.type === 'arrow') add(sh.x, sh.y, sh.width, sh.height)
+      else add(sh.x, sh.y, sh.x + sh.width, sh.y + sh.height)
+    }
+    for (const f of currentPage.formulas) {
+      const fs = f.scale || 1
+      add(f.x, f.y, f.x + f.width * fs, f.y + f.height * fs)
+    }
+    if (minX === Infinity) return null
+    return { minX, minY, maxX, maxY }
+  }
+
+  // Zoom/pan so everything on the page is in view (no-op-safe when empty).
+  const zoomToFit = () => {
+    const b = getContentBounds()
+    if (!b) {
+      setScale(1)
+      setPan({ x: 0, y: 0 })
+      return
+    }
+    fitToBounds(b.minX, b.minY, b.maxX, b.maxY, 0.1)
+  }
   const resetView = () => {
     setTool('select')
     setActiveLocalZoom(null)
@@ -2091,6 +2191,16 @@ export function EnhancedWhiteboard({
             <Button
               variant="ghost"
               size="sm"
+              onClick={zoomToFit}
+              className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              title="Zoom to fit (show everything)"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <Frame className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setTool('marquee-zoom')
                 setActiveLocalZoom(null)
@@ -2099,7 +2209,7 @@ export function EnhancedWhiteboard({
                 'h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100',
                 tool === 'marquee-zoom' && 'bg-blue-100 text-blue-600'
               )}
-              title="Area Zoom"
+              title="Zoom to area (drag a box over the region)"
               onMouseDown={e => e.stopPropagation()}
             >
               <ZoomIn className="h-4 w-4" />
