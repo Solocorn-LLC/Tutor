@@ -398,10 +398,10 @@ function CoursePageInner() {
               slots: e.course?.schedule || [],
             },
             progress: {
-              lessonsCompleted: 0,
-              totalLessons: e.course?._count?.lessons || 0,
-              averageScore: null,
-              isCompleted: false,
+              lessonsCompleted: e.progress?.lessonsCompleted ?? 0,
+              totalLessons: e.progress?.totalLessons ?? e.course?._count?.lessons ?? 0,
+              averageScore: e.progress?.averageScore ?? null,
+              isCompleted: e.progress?.isCompleted ?? false,
             },
             enrollment: {
               startDate: startDate,
