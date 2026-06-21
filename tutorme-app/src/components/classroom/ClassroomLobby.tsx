@@ -30,7 +30,13 @@ interface LobbySession {
 
 const ALERT_THRESHOLDS = [20, 10, 5, 1] // minutes before start
 
-export function ClassroomLobby({ courseId, role }: { courseId: string; role: 'student' | 'tutor' }) {
+export function ClassroomLobby({
+  courseId,
+  role,
+}: {
+  courseId: string
+  role: 'student' | 'tutor'
+}) {
   const router = useRouter()
   const params = useParams()
   const locale = (params?.locale as string) || 'en'
@@ -96,7 +102,9 @@ export function ClassroomLobby({ courseId, role }: { courseId: string; role: 'st
       .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
     const past = sessions
       .filter(s => s.status === 'ended' || (s.endedAt != null && !s.isVirtual))
-      .sort((a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime())
+      .sort(
+        (a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime()
+      )
     return { nextSession: active || upcoming[0] || null, pastSessions: past }
   }, [sessions])
 
@@ -142,7 +150,10 @@ export function ClassroomLobby({ courseId, role }: { courseId: string; role: 'st
         const res = await fetch(`/api/tutor/classes/${sessionId}`, {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+          },
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({}))
@@ -261,7 +272,9 @@ export function ClassroomLobby({ courseId, role }: { courseId: string; role: 'st
               ) : (
                 <span className="inline-flex items-center gap-2 text-2xl font-bold tabular-nums text-slate-900">
                   <Clock className="h-5 w-5 text-slate-400" />
-                  {msUntilStart != null && msUntilStart > 0 ? countdownLabel(msUntilStart) : '0m 0s'}
+                  {msUntilStart != null && msUntilStart > 0
+                    ? countdownLabel(msUntilStart)
+                    : '0m 0s'}
                 </span>
               )}
               {role === 'tutor' ? (
