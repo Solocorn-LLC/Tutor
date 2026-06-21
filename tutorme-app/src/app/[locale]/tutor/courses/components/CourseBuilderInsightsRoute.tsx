@@ -32,6 +32,7 @@ import {
   TestTube2,
   PencilRuler,
   MonitorPlay,
+  Wrench,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
 import {
@@ -152,7 +153,7 @@ function TutorControlsPanel({
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
 
   const actionButtonBase =
-    'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50'
+    'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
 
   const panelDisabled = disabled || false
 
@@ -220,7 +221,7 @@ function TutorControlsPanel({
                         'data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm'
                       )}
                     >
-                      <PencilRuler className="h-3.5 w-3.5" />
+                      <Wrench className="h-3.5 w-3.5" />
                       Build
                     </TabsTrigger>
                     <TabsTrigger
@@ -255,7 +256,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled}
                       onClick={onSave}
-                      className={cn(actionButtonBase, 'text-gray-900')}
+                      className={cn(actionButtonBase, 'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200')}
                     >
                       <Save className="h-4 w-4" />
                       Save
@@ -265,7 +266,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canSchedule}
                       onClick={onSchedule}
-                      className={cn(actionButtonBase, 'text-[#2563EB]')}
+                      className={cn(actionButtonBase, 'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100')}
                     >
                       <Calendar className="h-4 w-4" />
                       Schedule
@@ -275,7 +276,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canDelete}
                       onClick={onDelete}
-                      className={cn(actionButtonBase, 'text-red-600')}
+                      className={cn(actionButtonBase, 'bg-white text-red-600 hover:bg-red-50 active:bg-red-100')}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -315,7 +316,7 @@ function TutorControlsPanel({
                       onClick={onSync}
                       className={cn(
                         actionButtonBase,
-                        'group disabled:opacity-100 text-amber-400'
+                        'group bg-white text-amber-500 hover:bg-amber-50 active:bg-amber-100'
                       )}
                     >
                       <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
