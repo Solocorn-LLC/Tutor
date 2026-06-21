@@ -317,10 +317,7 @@ function TutorInsightsPageInner() {
         toast.error('Session has ended')
         return
       }
-      if (new Date(currentSession.scheduledAt).getTime() > Date.now()) {
-        toast.error('Session has not started yet')
-        return
-      }
+      // No scheduledAt gate — a tutor can start (and record) the session early.
 
       setIsRecording(true)
       setRecordingDurationSeconds(0)
