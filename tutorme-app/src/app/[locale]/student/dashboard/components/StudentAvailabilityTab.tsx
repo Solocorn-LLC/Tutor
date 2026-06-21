@@ -96,7 +96,8 @@ export function StudentAvailabilityTab() {
             .map((e: Record<string, unknown>) => ({
               id: String(e.id ?? e.eventId ?? Math.random()),
               title: String(e.title ?? 'Session'),
-              startTime: String(e.startTime ?? e.scheduledAt ?? ''),
+              // The events endpoint names the time field `start` (ISO string).
+              startTime: String(e.start ?? e.startTime ?? e.scheduledAt ?? ''),
               courseName: (e.courseName as string) ?? null,
             }))
             .filter((e: SessionItem) => e.startTime)
