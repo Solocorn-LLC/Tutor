@@ -216,8 +216,8 @@ function TutorControlsPanel({
                       value="build"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm',
-                        'text-[#2563EB] hover:bg-white/5 hover:text-blue-400'
+                        'text-white hover:bg-white/5 hover:text-white',
+                        'data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm'
                       )}
                     >
                       <PencilRuler className="h-3.5 w-3.5" />
@@ -227,8 +227,8 @@ function TutorControlsPanel({
                       value="test"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm',
-                        'text-white/70 hover:bg-white/5 hover:text-white'
+                        'text-white hover:bg-white/5 hover:text-white',
+                        'data-[state=active]:bg-white data-[state=active]:text-[#7C3AED] data-[state=active]:shadow-sm'
                       )}
                     >
                       <TestTube2 className="h-3.5 w-3.5" />
@@ -238,8 +238,8 @@ function TutorControlsPanel({
                       value="classroom"
                       className={cn(
                         modeButtonBase,
-                        'data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm',
-                        'text-[#F97316] hover:bg-white/5 hover:text-orange-400'
+                        'text-white hover:bg-white/5 hover:text-white',
+                        'data-[state=active]:bg-white data-[state=active]:text-[#F97316] data-[state=active]:shadow-sm'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
