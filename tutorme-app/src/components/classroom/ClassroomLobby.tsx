@@ -97,10 +97,7 @@ export function ClassroomLobby({
     })
   }, [])
 
-  const { nextSession, pastSessions } = useMemo(
-    () => categorizeLobbySessions(sessions),
-    [sessions]
-  )
+  const { nextSession, pastSessions } = useMemo(() => categorizeLobbySessions(sessions), [sessions])
 
   const msUntilStart =
     nextSession?.scheduledAt != null ? new Date(nextSession.scheduledAt).getTime() - now : null
@@ -306,10 +303,7 @@ export function ClassroomLobby({
                 key={s.id}
                 className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40"
               >
-                <button
-                  onClick={() => goToSession(s.id)}
-                  className="min-w-0 flex-1 text-left"
-                >
+                <button onClick={() => goToSession(s.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate text-sm font-medium text-slate-800">{s.title}</p>
                   <p className="text-xs text-slate-500">{fmt(s.scheduledAt)}</p>
                 </button>

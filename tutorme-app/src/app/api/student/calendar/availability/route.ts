@@ -13,22 +13,58 @@ import crypto from 'crypto'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { studentAvailability, studentAvailabilityException } from '@/lib/db/schema'
+import { defaultStudentAvailabilitySlots } from '@/lib/student-availability-defaults'
 
 export const dynamic = 'force-dynamic'
 
 export const GET = withAuth(
   async (_req: NextRequest, session) => {
     const studentId = session.user.id
-    const [availability, exceptions] = await Promise.all([
-      drizzleDb
+
+    let availability = await drizzleDb
+      .select()
+      .from(studentAvailability)
+      .where(eq(studentAvailability.studentId, studentId))
+
+    // First time: seed the default (8am–9pm free, every day) so the student is
+    // available 8am–9pm by default. Idempotent; subsequent reads return whatever
+    // the student has since customized.
+    if (availability.length === 0) {
+      const now = new Date()
+      await drizzleDb
+        .insert(studentAvailability)
+        .values(
+          defaultStudentAvailabilitySlots().map(s => ({
+            availabilityId: crypto.randomUUID(),
+            studentId,
+            dayOfWeek: s.dayOfWeek,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            timezone: 'UTC',
+            isAvailable: true,
+            createdAt: now,
+            updatedAt: now,
+          }))
+        )
+        .onConflictDoNothing({
+          target: [
+            studentAvailability.studentId,
+            studentAvailability.dayOfWeek,
+            studentAvailability.startTime,
+            studentAvailability.endTime,
+          ],
+        })
+      availability = await drizzleDb
         .select()
         .from(studentAvailability)
-        .where(eq(studentAvailability.studentId, studentId)),
-      drizzleDb
-        .select()
-        .from(studentAvailabilityException)
-        .where(eq(studentAvailabilityException.studentId, studentId)),
-    ])
+        .where(eq(studentAvailability.studentId, studentId))
+    }
+
+    const exceptions = await drizzleDb
+      .select()
+      .from(studentAvailabilityException)
+      .where(eq(studentAvailabilityException.studentId, studentId))
+
     return NextResponse.json({ availability, exceptions })
   },
   { role: 'STUDENT' }

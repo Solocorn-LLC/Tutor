@@ -28,9 +28,7 @@ export function categorizeLobbySessions<T extends LobbySessionLike>(
 
   const past = sessions
     .filter(s => s.status === 'ended' || (s.endedAt != null && !s.isVirtual))
-    .sort(
-      (a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime()
-    )
+    .sort((a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime())
 
   return { nextSession: active || upcoming[0] || null, pastSessions: past }
 }
