@@ -344,7 +344,7 @@ export default function TutorReports() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
       {/* Hero */}
-      <section className="shadow-elevation-3 relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-white/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-white">Analytics</h1>
