@@ -165,23 +165,25 @@ export const GET = withAuth(
     const tutorProfiles =
       tutorIds.length > 0
         ? await drizzleDb
-            .select({ userId: profile.userId, name: profile.name })
+            .select({ userId: profile.userId, name: profile.name, avatarUrl: profile.avatarUrl })
             .from(profile)
             .where(inArray(profile.userId, tutorIds))
         : []
 
     const tutorMap = new Map(tutorProfiles.map(t => [t.userId, t.name]))
+    const tutorAvatarMap = new Map(tutorProfiles.map(t => [t.userId, t.avatarUrl]))
 
     // Fetch course names
     const eventCourseIds = [...new Set(merged.map(e => e.courseId).filter(Boolean))] as string[]
     const courseRows =
       eventCourseIds.length > 0
         ? await drizzleDb
-            .select({ courseId: course.courseId, name: course.name })
+            .select({ courseId: course.courseId, name: course.name, description: course.description })
             .from(course)
             .where(inArray(course.courseId, eventCourseIds))
         : []
     const courseMap = new Map(courseRows.map(c => [c.courseId, c.name]))
+    const courseDescriptionMap = new Map(courseRows.map(c => [c.courseId, c.description]))
 
     // Fetch session participant counts
     const sessionIds = [...new Set(merged.map(e => e.sessionId).filter(Boolean))] as string[]
@@ -201,8 +203,10 @@ export const GET = withAuth(
     const formatted = merged.map(e => ({
       ...e,
       tutorName: e.tutorId ? (tutorMap.get(e.tutorId) ?? 'Tutor') : 'Tutor',
+      tutorAvatarUrl: e.tutorId ? (tutorAvatarMap.get(e.tutorId) ?? null) : null,
       courseName: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
       category: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
+      courseDescription: e.courseId ? (courseDescriptionMap.get(e.courseId) ?? undefined) : undefined,
       enrolledCount: e.sessionId ? (participantMap.get(e.sessionId) ?? 0) : 0,
     }))
 

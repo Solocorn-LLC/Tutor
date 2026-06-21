@@ -25,6 +25,8 @@ export interface CalendarEvent {
   duration: number
   type: 'class'
   tutorName: string | null
+  tutorAvatarUrl?: string | null
+  courseDescription?: string | null
 }
 
 interface DashboardCalendarProps {
@@ -51,6 +53,7 @@ interface ClassItem {
   title: string
   subject: string
   tutorName: string
+  tutorAvatarUrl?: string | null
   scheduledAt: string
   duration: number
   type: 'online' | 'in-person'
@@ -62,6 +65,7 @@ interface ClassItem {
   status?: 'scheduled' | 'live' | 'completed' | 'cancelled'
   meetingUrl?: string | null
   courseName?: string | null
+  courseDescription?: string | null
 }
 
 function formatEventTime(iso: string): string {
@@ -128,36 +132,40 @@ export function DashboardCalendar({
     }
   }, [monthStart, monthEnd, onRefresh])
 
-  // Derive classes list from calendar events for the Sessions tab
-  // Sorted reverse-chronologically: newest first, oldest at bottom
+  // Derive classes list from calendar events for the Sessions tab.
+  // Exclude completed/ended sessions and sort chronologically so the next session is on top.
   const classes = useMemo<ClassItem[]>(() => {
-    const mapped = events.map(ev => {
-      const evStatus = (ev as any).status as string | undefined
-      const status: ClassItem['status'] =
-        evStatus === 'live' || evStatus === 'active'
-          ? 'live'
-          : evStatus === 'ended' || evStatus === 'completed'
-            ? 'completed'
-            : 'scheduled'
-      return {
-        id: ev.id,
-        title: ev.title,
-        subject: ev.subject,
-        tutorName: ev.tutorName || 'Tutor',
-        scheduledAt: ev.start,
-        duration: ev.duration,
-        type: (ev as any).isVirtual === false ? ('in-person' as const) : ('online' as const),
-        students: (ev as any).enrolledCount ?? 0,
-        maxStudents: (ev as any).maxAttendees ?? 50,
-        isBooked: true,
-        status,
-        meetingUrl: (ev as any).meetingUrl || null,
-        sessionId: (ev as any).sessionId || ev.id,
-        courseName: (ev as any).courseName || null,
-      }
-    })
-    // Reverse chronological: newest first
-    mapped.sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+    const mapped = events
+      .map(ev => {
+        const evStatus = (ev as any).status as string | undefined
+        const status: ClassItem['status'] =
+          evStatus === 'live' || evStatus === 'active'
+            ? 'live'
+            : evStatus === 'ended' || evStatus === 'completed'
+              ? 'completed'
+              : 'scheduled'
+        return {
+          id: ev.id,
+          title: ev.title,
+          subject: ev.subject,
+          tutorName: ev.tutorName || 'Tutor',
+          tutorAvatarUrl: ev.tutorAvatarUrl || null,
+          scheduledAt: ev.start,
+          duration: ev.duration,
+          type: (ev as any).isVirtual === false ? ('in-person' as const) : ('online' as const),
+          students: (ev as any).enrolledCount ?? 0,
+          maxStudents: (ev as any).maxAttendees ?? 50,
+          isBooked: true,
+          status,
+          meetingUrl: (ev as any).meetingUrl || null,
+          sessionId: (ev as any).sessionId || ev.id,
+          courseName: (ev as any).courseName || null,
+          courseDescription: ev.courseDescription || null,
+        }
+      })
+      .filter(cls => cls.status !== 'completed')
+    // Chronological: next session first
+    mapped.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
     return mapped
   }, [events])
 
@@ -274,78 +282,83 @@ export function DashboardCalendar({
               {classes.map(cls => (
                 <div
                   key={cls.id}
-                  className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
+                  className="flex items-center gap-3 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-foreground font-medium">
-                          {cls.courseName || cls.title}
-                        </h4>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'text-[10px]',
-                            cls.status === 'live'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : cls.status === 'completed'
-                                ? 'bg-slate-100 text-slate-600'
-                                : 'bg-blue-100 text-blue-700'
-                          )}
-                        >
-                          {cls.status === 'live'
-                            ? 'Live'
-                            : cls.status === 'completed'
-                              ? 'Completed'
-                              : 'Scheduled'}
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground text-sm">
-                        {cls.courseName ? cls.title : cls.subject}
-                      </p>
-
-                      <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {formatDate(cls.scheduledAt)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatEventTime(cls.scheduledAt)}
-                        </span>
-                        <span className={cn('flex items-center gap-1', 'text-primary')}>
-                          {cls.type === 'online' ? (
-                            <Video className="h-3 w-3" />
-                          ) : (
-                            <MapPin className="h-3 w-3" />
-                          )}
-                          {cls.type === 'online' ? 'Online' : 'In-Person'}
-                        </span>
-                      </div>
-
-                      <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {cls.students}/{cls.maxStudents} students
-                        </span>
-                        <span>Tutor: {cls.tutorName}</span>
-                      </div>
+                  {cls.tutorAvatarUrl ? (
+                    <img
+                      src={cls.tutorAvatarUrl}
+                      alt={cls.tutorName}
+                      className="h-10 w-10 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-500">
+                      {cls.tutorName.charAt(0).toUpperCase()}
                     </div>
+                  )}
 
-                    {cls.sessionId ? (
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 text-white hover:bg-emerald-500"
-                        onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="truncate font-medium text-gray-900">
+                        {cls.courseName || cls.title}
+                      </h4>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          'text-[10px]',
+                          cls.status === 'live'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-blue-100 text-blue-700'
+                        )}
                       >
-                        {cls.status === 'live' ? 'Join' : 'Enter'}
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/student/courses/${cls.id}`}>Details</Link>
-                      </Button>
-                    )}
+                        {cls.status === 'live' ? 'Live' : 'Scheduled'}
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      {cls.courseName ? cls.title : cls.subject}
+                    </p>
+
+                    <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                      <span className="flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        {formatDate(cls.scheduledAt)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatEventTime(cls.scheduledAt)}
+                      </span>
+                      <span className={cn('flex items-center gap-1', 'text-primary')}>
+                        {cls.type === 'online' ? (
+                          <Video className="h-3 w-3" />
+                        ) : (
+                          <MapPin className="h-3 w-3" />
+                        )}
+                        {cls.type === 'online' ? 'Online' : 'In-Person'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {cls.students}/{cls.maxStudents} students
+                      </span>
+                      <span>Tutor: {cls.tutorName}</span>
+                    </div>
                   </div>
+
+                  <div className="hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 line-clamp-3 sm:block">
+                    {cls.courseDescription || 'No description available.'}
+                  </div>
+
+                  {cls.sessionId ? (
+                    <Button
+                      size="sm"
+                      className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
+                      onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
+                    >
+                      {cls.status === 'live' ? 'Join' : 'Enter'}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="shrink-0" asChild>
+                      <Link href={`/student/courses/${cls.id}`}>Details</Link>
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
