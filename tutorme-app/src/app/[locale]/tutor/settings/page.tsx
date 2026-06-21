@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -46,12 +47,15 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  DollarSign,
 } from 'lucide-react'
+import { CollapsibleCard } from '@/components/collapsible-card'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
 
 const LANGUAGES = [
@@ -268,7 +272,21 @@ export default function TutorSettings() {
   const { data: session, update: updateSession } = useSession()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('profile')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab')
+    const validTabs = [
+      'profile',
+      'billing',
+      'history',
+      'refunds',
+      'notifications',
+      'security',
+      'controls',
+      'session-log',
+    ]
+    return validTabs.find(tab => tab === tabParam) ?? 'profile'
+  })
   const [profileOpen, setProfileOpen] = useState(true)
   const [publicProfileOpen, setPublicProfileOpen] = useState(false)
   const [taxOpen, setTaxOpen] = useState(false)
@@ -625,9 +643,10 @@ export default function TutorSettings() {
             { value: 'profile', label: 'Profile', icon: User },
             { value: 'billing', label: 'Billing', icon: CreditCard },
             { value: 'history', label: 'History', icon: FileText },
+            { value: 'refunds', label: 'Refunds', icon: DollarSign },
             { value: 'notifications', label: 'Notifications', icon: Bell },
             { value: 'security', label: 'Security', icon: Shield },
-            { value: 'controls', label: 'Controls', icon: Power },
+            { value: 'controls', label: 'Account', icon: User },
             { value: 'session-log', label: 'Session Log', icon: History },
           ]}
         >
@@ -1127,12 +1146,14 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Payment Methods</CardTitle>
-                  <CardDescription>Manage your payment methods for subscription</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Payment Methods"
+                description="Manage your payment methods for subscription"
+                defaultOpen
+              >
+                <div className="space-y-6 p-6">
                   {paymentMethods.map(method => (
                     <div
                       key={method.id}
@@ -1171,15 +1192,16 @@ export default function TutorSettings() {
                     <CreditCard className="mr-2 h-4 w-4" />
                     Add Payment Method
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
 
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Subscription Plan</CardTitle>
-                  <CardDescription>Manage your tutor subscription</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Subscription Plan"
+                description="Manage your tutor subscription"
+              >
+                <div className="space-y-6 p-6">
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label>Renew Subscription</Label>
@@ -1232,15 +1254,16 @@ export default function TutorSettings() {
                       Billing
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
 
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Payout Settings</CardTitle>
-                  <CardDescription>Manage your earnings and withdrawals</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Payout Settings"
+                description="Manage your earnings and withdrawals"
+              >
+                <div className="space-y-6 p-6">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Payout Available Balance</Label>
@@ -1274,8 +1297,8 @@ export default function TutorSettings() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 
@@ -1285,13 +1308,14 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Billing History</CardTitle>
-                  <CardDescription>View and download your invoices and receipts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Billing History"
+                description="View and download your invoices and receipts"
+                defaultOpen
+              >
+                <div className="space-y-4 p-6">
                     {billingHistory.map(invoice => (
                       <div
                         key={invoice.id}
@@ -1330,8 +1354,27 @@ export default function TutorSettings() {
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </CollapsibleCard>
+            </div>
+          </TabsContent>
+
+          {/* Refunds */}
+          <TabsContent
+            value="refunds"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Refunds"
+                description="Pending refund requests across all your courses — approve to process via the payment gateway, or decline."
+                defaultOpen
+              >
+                <div className="p-6">
+                  <PendingRefundsPanel showCourse hideWhenEmpty={false} />
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 
@@ -1341,12 +1384,14 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Notification Preferences</CardTitle>
-                  <CardDescription>Control how and when we contact you</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Notification Preferences"
+                description="Control how and when we contact you"
+                defaultOpen
+              >
+                <div className="space-y-6 p-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1441,8 +1486,8 @@ export default function TutorSettings() {
                       )}
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 
@@ -1452,12 +1497,14 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Privacy & Security</CardTitle>
-                  <CardDescription>Manage your password and account security</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Privacy & Security"
+                description="Manage your password and account security"
+                defaultOpen
+              >
+                <div className="space-y-6 p-6">
                   {/* Password Change */}
                   <div className="space-y-4">
                     <h3 className="font-medium">Change Password</h3>
@@ -1548,8 +1595,8 @@ export default function TutorSettings() {
                       Logout from All Devices
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 
@@ -1559,14 +1606,14 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Live Session Mirroring</CardTitle>
-                  <CardDescription>
-                    Control what students see by default during live sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Live Session Mirroring"
+                description="Control what students see by default during live sessions"
+                defaultOpen
+              >
+                <div className="space-y-6 p-6">
                   {/* Mirror Classroom Toggle */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-3">
@@ -1615,18 +1662,17 @@ export default function TutorSettings() {
                       Save Preferences
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
 
               {/* Course Sync Mode */}
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Course Sync Mode</CardTitle>
-                  <CardDescription>
-                    Control how course edits are shared with students during live sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Course Sync Mode"
+                description="Control how course edits are shared with students during live sessions"
+              >
+                <div className="space-y-6 p-6">
                   <div className="space-y-3">
                     {[
                       {
@@ -1678,18 +1724,17 @@ export default function TutorSettings() {
                       Save Sync Mode
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
 
               {/* Document Parsing */}
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Document Import</CardTitle>
-                  <CardDescription>
-                    Control how documents are handled when importing into tasks and assessments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Document Import"
+                description="Control how documents are handled when importing into tasks and assessments"
+              >
+                <div className="space-y-6 p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-3">
                       <FileText className="mt-0.5 h-5 w-5 text-indigo-500" />
@@ -1713,17 +1758,16 @@ export default function TutorSettings() {
                       Save Preference
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
 
-              <Card className={SECTION_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Account Controls</CardTitle>
-                  <CardDescription>
-                    Temporarily deactivate or permanently delete your account
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Account Controls"
+                description="Temporarily deactivate or permanently delete your account"
+              >
+                <div className="space-y-6 p-6">
                   {/* Deactivate Account */}
                   <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                     <div className="flex items-start gap-4">
@@ -1765,8 +1809,8 @@ export default function TutorSettings() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 

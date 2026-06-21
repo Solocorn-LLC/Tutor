@@ -17,6 +17,7 @@ import {
   NotebookPen,
   ClipboardList,
 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type SubmissionsTreeResponse = {
   course: { id: string; name: string }

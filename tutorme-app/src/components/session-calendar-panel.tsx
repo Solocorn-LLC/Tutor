@@ -90,7 +90,7 @@ export function SessionCalendarPanel({
   return (
     <Card
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+        'flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5',
         className
       )}
     >

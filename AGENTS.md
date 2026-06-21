@@ -1,6 +1,6 @@
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-19
+> **Last updated:** 2026-06-21
 > **Repository root:** `c:\VSCODE\Tutor`
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens), `Classroom/` (tutor documentation)
 
@@ -28,14 +28,14 @@ Solocorn (also marketed as CogniClass / TutorMekimi) is an AI-human hybrid tutor
 - **Main app default port:** `3003`
 - **Landing page default port:** `3000`
 - **ADK service default port:** `8080` (container port); `services/adk/docker-compose.yml` maps host `4310`, so run the container with `PORT=4310` for that mapping to work
-- **API routes:** 226 `route.ts` files under `src/app/api/` (228 `route.ts` files total in `src/`)
-- **Components:** 144 files in `tutorme-app/src/components/`
-- **Library modules:** 274 files in `tutorme-app/src/lib/`
+- **API routes:** 228 `route.ts` files under `src/app/api/`
+- **Components:** 30 top-level directories in `tutorme-app/src/components/`
+- **Library modules:** 45 top-level directories in `tutorme-app/src/lib/`
 - **Custom hooks:** 13 in `tutorme-app/src/hooks/`
 - **Zustand stores:** 2 in `tutorme-app/src/stores/`
-- **Migrations:** 60 SQL files in `tutorme-app/drizzle/` (99 total files including `meta/`)
-- **TypeScript/TSX files in `tutorme-app/src/`:** 919
-- **Unit/integration test files:** 65 `.test.ts` / `.test.tsx` files
+- **Migrations:** 83 SQL files in `tutorme-app/drizzle/` (61 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
+- **TypeScript/TSX files in `tutorme-app/src/`:** 930
+- **Unit/integration test files:** 66 `.test.ts` files
 - **Playwright E2E specs:** 10 in `tutorme-app/e2e/`
 
 ---
@@ -66,13 +66,13 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (top-level domains, 226 route.ts files)
-│   │   ├── components/       # React components (feature-organized, 144 files)
-│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (274 files)
+│   │   │   └── api/          # REST API endpoints (top-level domains, 228 route.ts files)
+│   │   ├── components/       # React components (feature-organized, 30 top-level dirs)
+│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (45 top-level dirs)
 │   │   ├── hooks/            # Custom React hooks (13 files)
 │   │   └── stores/           # Zustand client stores (2 files)
 │   ├── e2e/                  # Playwright E2E specs (10 test files)
-│   ├── drizzle/              # Drizzle migration files (60 SQL files + meta/)
+│   ├── drizzle/              # Drizzle migration files (83 SQL files + meta/ + archive/)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (40+ files)
 │   ├── src/scripts/          # TypeScript runtime scripts (seed, verify, etc.)
@@ -124,7 +124,7 @@ c:\VSCODE\Tutor/
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   ├── deploy.sh
-│   └── DEPLOY.md
+│   └── README.md
 │
 ├── design-system/            # Shared design tokens and guidelines
 │   └── solocorn/
@@ -179,7 +179,6 @@ c:\VSCODE\Tutor/
 | `tutorme-app/.env.local.example` | Main app | Template for local environment overrides (KIMI_API_KEY, ADK_BASE_URL, ADK_AUTH_TOKEN, NEXTAUTH_URL, etc.) |
 | `landing-page/package.json` | Landing page | Vite 6, React 19, Tailwind CSS v4. Package name is `react-example`, not Solocorn |
 | `landing-page/vite.config.ts` | Landing page | Vite 6 with React plugin, Tailwind CSS v4 Vite plugin, static export to `dist/`, port 3000, HMR disabled when `DISABLE_HMR=true` |
-| `landing-page/tsconfig.json` | Landing page | ES2022, `moduleResolution: bundler`, path alias `@/*` → `./*`, `allowImportingTsExtensions: true` |
 | `services/adk/package.json` | ADK | Express + Google ADK, port controlled by `PORT` env |
 | `services/adk/tsconfig.json` | ADK | `target: ES2022`, `module: NodeNext`, `outDir: dist`, `rootDir: src`, `strict: false` |
 | `services/adk/Dockerfile` | ADK | Multi-stage Node 20 Alpine build, exposes 8080 |
@@ -454,7 +453,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 226 `route.ts` files across the API tree.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 228 `route.ts` files across the API tree.
 
 **Role-specific layout behaviors:**
 
@@ -465,19 +464,21 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 
 ### Components (`src/components/`)
 
-Organized by feature domain (144 component files across many top-level directories):
+Organized by feature domain (30 top-level directories):
 
 - `ui/` — shadcn/ui primitives (Button, Card, Dialog, etc.) — ~30 components
 - `ai/`, `ai-chat/`, `ai-tutor/` — AI interaction UIs
+- `analytics/` — Analytics dashboards and charts
 - `class/` — Live classroom (whiteboard, polls, breakout rooms, engagement)
 - `student/`, `tutor/`, `parent/`, `admin/` — Role-specific dashboards
 - `video-player/`, `quiz/`, `polls/`, `whiteboard/`, `course-builder/` — Content & assessment UIs
 - `spaced-repetition/` — Components for spaced repetition system
-- `assignments/`, `communications/`, `course/`, `feedback/`, `mentions/`, `monitoring/`, `reports/`, `categories/`, `common/`, `legal/`, `navigation/`, `notifications/`, `pdf/`, `providers/`, `pwa/` — Supporting UI domains
+- `achievements.tsx`, `avatar-gallery-picker.tsx`, `avatar-uploader.tsx`, `bookmarks-list.tsx`, `collapsible-card.tsx`, `country-flag.tsx`, `dashboard-theme.ts`, `knowledge-graph.tsx`, `my-subjects.tsx`, `payment-gateway-selector.tsx`, `session-calendar-panel.tsx`, `session-log.tsx`, `student-profile.tsx`, `study-recommendations.tsx`, `user-nav.tsx` — Single-file shared components at the top level
+- `assignments/`, `communications/`, `course/`, `feedback/`, `mentions/`, `monitoring/`, `reports/`, `categories/`, `common/`, `legal/`, `navigation/`, `notifications/`, `pdf/`, `providers/`, `pwa/`, `support/` — Supporting UI domains
 
 ### Library (`src/lib/`)
 
-Domain-organized business logic (274 files across many top-level directories):
+Domain-organized business logic (45 top-level directories):
 
 - `lib/db/` — Drizzle client (`drizzle.ts`), schema (`schema/`), and migrations
 - `lib/ai/` — AI provider integrations (`kimi.ts`, `gemini.ts`), prompts, teaching prompts, types, memory services
@@ -491,6 +492,7 @@ Domain-organized business logic (274 files across many top-level directories):
 - `lib/reports/`, `lib/analytics/` — Reporting & analytics
 - `lib/monitoring/`, `lib/performance/` — Observability helpers
 - `lib/api/middleware.ts` — Standardized API route middleware (auth, RBAC, rate limit, CSRF, error handling)
+- `lib/accessibility/`, `lib/admin/`, `lib/chat/`, `lib/code-runner/`, `lib/commission/`, `lib/compliance/`, `lib/course/`, `lib/courses/`, `lib/data/`, `lib/documents/`, `lib/feedback/`, `lib/financial/`, `lib/geo/`, `lib/math/`, `lib/mentions/`, `lib/messaging/`, `lib/middleware-edge/`, `lib/notifications/`, `lib/openapi/`, `lib/progress/`, `lib/pwa/`, `lib/quiz/`, `lib/registration/`, `lib/schedule/`, `lib/sdk/`, `lib/services/`, `lib/sessions/`, `lib/storage/`, `lib/tutoring/`, `lib/video/`, `lib/whiteboard/` — Additional domain modules
 
 ### Hooks (`src/hooks/`)
 
@@ -520,13 +522,13 @@ Zustand stores for client state:
 - **Drizzle ORM** is the only ORM in use. No Prisma client is present.
 - Schema source of truth: `src/lib/db/schema/`
   - `enums.ts` — PostgreSQL enums (Role, PollType, PaymentStatus, LiveSessionStatus, BuilderTaskType, etc.)
-  - `tables/` — Table definitions (13 table modules: admin, analytics, assistant, auth, builder, calendar, classroom, collaboration, content, course, family, finance, live)
+  - `tables/` — Table definitions (14 table modules including `assistant.ts`; 13 re-exported via `tables/index.ts`: admin, analytics, assistant, auth, builder, calendar, classroom, collaboration, content, course, family, finance, live)
   - `relations.ts` — Drizzle relational definitions
   - `next-auth.ts` — NextAuth.js Drizzle adapter tables (`Session`, `VerificationToken`)
   - `compliance.ts` — GDPR / COPPA / FERPA compliance tables
   - `landing.ts` — Landing page inquiry/signup tables
 - ~110 `pgTable` definitions across the schema.
-- Migrations live in `drizzle/` (60 SQL files, numbered through the `0050+` range, plus `meta/`).
+- Migrations live in `drizzle/` (83 SQL files total: 61 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
 - Runtime client: `src/lib/db/drizzle.ts` uses `pg.Pool` with singleton pooling (dev pool cached on `globalThis`).
 - Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; new code should import `drizzleDb` from `./drizzle`.
 
@@ -540,7 +542,7 @@ Zustand stores for client state:
 ### Key Tables
 
 - **Auth/Users** (`tables/auth.ts`): `User`, `Account`, `Profile`, `TutorApplication`, `AvatarStorage`
-- **AI Assistant** (`tables/assistant.ts`): `AssistantThread`, `AssistantMessage`
+- **AI Assistant** (`tables/assistant.ts`): `AssistantThread`, `AssistantMessage` (file exists but is **not** re-exported by `tables/index.ts`)
 - **Courses** (`tables/course.ts`): `Course`, `CourseLesson`, `CourseEnrollment`, `CourseProgress`, `CourseLessonProgress`, `LessonSession`, `StudentPerformance`, `TaskSubmission`, `FeedbackWorkflow`, `CourseVariant`, `CourseSchedule`
 - **Live Sessions** (`tables/live.ts`): `LiveSession`, `SessionParticipant`, `Poll`, `PollOption`, `PollResponse`, `Message`, `Conversation`, `DirectMessage`, `Notification`, `DeployedMaterial`, `SessionReplayArtifact`
 - **Payments** (`tables/finance.ts`): `Payment`, `Refund`, `WebhookEvent`, `Payout`, `PaymentOnPayout`, `PlatformRevenue`
@@ -558,7 +560,7 @@ Zustand stores for client state:
 
 - **Soft deletes:** Multiple tables support soft deletion via `deletedAt` timestamp (e.g., `Course`, `CourseLesson`, `BuilderTask`, `CalendarEvent`, `FeatureFlag`).
 - **Heavy JSONB usage:** `builderData` (lessons), `availability` (profile), `metadata` (payments, tasks), `conceptMastery`, `answers`, `aiFeedback`, `schedule` (courses).
-- **Indexes:** Almost every table has domain-relevant indexes on foreign keys, status columns, and composite unique indexes for junction tables. Migration `0052_add_missing_indexes.sql` added performance indexes on `BuilderTask`, `FamilyMember`, `ContentProgress`, and `LiveSession`.
+- **Indexes:** Almost every table has domain-relevant indexes on foreign keys, status columns, and composite unique indexes for junction tables. Recent migrations added performance indexes on `BuilderTask`, `FamilyMember`, `ContentProgress`, and `LiveSession`.
 - **Primary keys:** Most tables use `text('id').primaryKey()` with app-generated CUID-style IDs; some use `uuid('id').defaultRandom()`.
 - **Timestamps:** Standard pattern: `createdAt` (defaultNow) and `updatedAt` (defaultNow + $onUpdate).
 - **Naming:** Main app tables use PascalCase table names and camelCase columns. Compliance and landing tables use snake_case table names and columns.
@@ -643,7 +645,7 @@ export async function fetchUser(id: string): Promise<User | null> {
 
 ### ESLint Rules (`eslint.config.mjs`)
 
-Flat config extending `nextVitals`, `nextTs`, and `prettier`:
+Flat config using `nextVitals`, `nextTs`, and `prettier`:
 
 - `@typescript-eslint/no-explicit-any`: `warn`
 - `@typescript-eslint/no-require-imports`: `off`
@@ -706,7 +708,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Include:** `src/**/*.test.{ts,tsx}` and `src/**/__tests__/**/*.{test,spec}.{ts,tsx}`
 - **Exclude:** `node_modules`, `.next`, integration, accessibility
 - **No database required.**
-- **Count:** 65 `.test.ts` / `.test.tsx` files scattered across `src/` (including API route tests, lib tests, and component tests).
+- **Count:** 66 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
 
 ### Integration Tests (Vitest)
 
@@ -816,6 +818,53 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 
 ---
 
+## ADK Service Details
+
+The `services/adk/` directory contains an optional Express + TypeScript microservice. It is **not** the main AI path for the app; the main app calls AI providers directly from `src/lib/ai/`.
+
+### Actually Exposed Routes
+
+`src/server/routes.ts` exposes only these endpoints:
+
+- `GET  /health`
+- `GET  /v1/status`
+- `GET  /v1/llm/smoke`
+- `POST /v1/live-transcription/transcript-started`
+- `GET  /v1/live-transcription/:sessionId/status`
+- `POST /v1/llm/generate`
+- `POST /v1/llm/chat`
+- `POST /v1/pci-master`
+- `POST /v1/chat`
+
+`services/adk/README.md` lists additional endpoints (`/v1/grading/essay`, `/v1/content/generate`, `/v1/briefing`, `/v1/live-monitor`) that are **not currently wired** in `routes.ts`.
+
+### Auth
+
+- `Authorization: Bearer <ADK_AUTH_TOKEN>` required for all routes except `/health` (unless `ADK_PUBLIC_HEALTH=true`).
+- `ADK_AUTH_DISABLED=true` bypasses auth in non-production.
+- `ADK_AUTH_TOKEN` is mandatory in production.
+
+### Runtime Gating
+
+The HTTP listener only starts when:
+
+- The file is the entry point,
+- Not under Node's test runner,
+- `NODE_ENV !== 'test'`,
+- `ADK_START_LISTENER === 'true'`,
+- `ADK_DISABLE_LISTEN !== 'true'`.
+
+### Database Adapter
+
+- File `src/adapters/db/drizzle.ts` uses raw `pg.Pool`, **not** Drizzle ORM.
+- If `DATABASE_URL` is missing or contains `localhost`, it creates a dummy pool and `query()` silently returns `[]`.
+
+### Port Quirk
+
+- Service default is `8080`; `services/adk/docker-compose.yml` maps host `4310` → container `4310`, so you must set `PORT=4310` for that compose mapping to work.
+
+---
+
 ## Development Conventions
 
 ### Workflow (from `.cursorrules`)
@@ -860,14 +909,18 @@ The following items were discovered during exploration and should be kept in min
 11. **Nested package-lock anomaly.** A nested `tutorme-app/tutorme-app/package-lock.json` exists and is likely accidental.
 12. **ADK listener gating.** The ADK service only starts its HTTP listener when `ADK_START_LISTENER=true` and is not running under Node's test runner. In production it requires `ADK_AUTH_TOKEN`.
 13. **PDF worker copy.** The `postinstall` script in `tutorme-app/package.json` runs `scripts/copy-pdf-worker.js` to ensure `pdfjs-dist` worker files are available in `public/`. Both `Dockerfile` and `Dockerfile.production` copy this script into the image before `npm ci` and re-run it after the full source tree is copied, because the multi-stage `deps` layer does not yet have the rest of `scripts/` available.
-14. **Landing page integration.** The landing page is built as a static Vite app and its `dist/` contents are copied into `tutorme-app/public/` (producing `public/index.html`) so Next.js serves it at the root path. There is no active `public/landing/` directory.
+14. **Landing page integration.** CI copies the landing-page `dist/` contents directly into `tutorme-app/public/` (producing `public/index.html`). The landing-page `README.md` describes an alternative integration copying into `public/landing/`. There is no active `public/landing/` directory in the current build pipeline.
 15. **Prompt-injection artifacts.** Some files (a prior version of `CLAUDE.md` and files under `.understand-anything/`) previously contained prompt-injection text instructing agents to install third-party plugins or run unfamiliar slash commands. These are not real project commands; do not run them.
 16. **Production-only development mode.** `tutorme-app/package.json` describes the project as "Production-only development. All development uses production Neon database." The `dev` script runs with `NODE_ENV=production`.
 17. **No global Next.js middleware.** There is no `middleware.ts` at `tutorme-app/middleware.ts` or `tutorme-app/src/middleware.ts`. Security, i18n, and rate limiting are applied inline in route handlers and via library helpers.
-18. **Landing-page `package.json` name mismatch.** The landing-page package is named `react-example` in `package.json`, even though the branding refers to it as the Solocorn landing page.
+18. **Landing-page `package.json` name mismatch.** The landing-page package is named `react-example` in `package.json`, even though the branding refers to it as the Solocorn landing page. Its `index.html` title is currently "My Google AI Studio App".
 19. **ADK README endpoint drift.** `services/adk/README.md` lists several `/v1/*` agent endpoints (e.g., `/v1/grading/essay`, `/v1/content/generate`) that are not actually wired in `src/server/routes.ts`. Only generic LLM, chat, PCI-master, live-transcription, and health/status routes are exposed.
 20. **ADK DB adapter is raw pg, not Drizzle.** Despite the filename `src/adapters/db/drizzle.ts`, the ADK service uses raw `pg` SQL, not the Drizzle ORM.
 21. **Committed env files present in working tree.** `tutorme-app/.env` and `tutorme-app/.env.local` exist in the working directory even though `.gitignore` excludes them. Do not commit them.
 22. **Build artifacts present.** `.next/`, `server-production.js`, `tsconfig.tsbuildinfo`, `playwright-report/`, `test-results/`, `build.log`, and `lint.txt` are present in the working tree. Verify they are gitignored before committing.
-23. **`QUICKSTART.md` stale commands.** `QUICKSTART.md` refers to `npm run dev:all` (which only runs the app) and `npm run db:studio` (which does not exist; use `npm run drizzle:studio`). Treat it as a high-level onboarding guide rather than exact command reference.
+23. **`QUICKSTART.md` stale commands.** `QUICKSTART.md` refers to `npm run dev:all` (which only runs the app), `npm run db:studio` (which does not exist; use `npm run drizzle:studio`), and `npm run initialize` (not present). Treat it as a high-level onboarding guide rather than exact command reference.
 24. **Auto-sync script is risky.** `scripts/auto-sync.sh` performs `git pull --rebase`, auto-commits, and pushes to `origin/main`. Do not run it on an active codebase without review.
+25. **Empty `package.json.tmp`.** A zero-byte `package.json.tmp` exists at the repository root and is likely accidental.
+26. **`assistant.ts` schema not re-exported.** `src/lib/db/schema/tables/assistant.ts` exists but is not included in `src/lib/db/schema/tables/index.ts` exports.
+27. **Tailwind content path references pages router.** `tailwind.config.ts` includes `src/pages/**/*` in its content paths even though the project uses the App Router exclusively.
+28. **Massive landing page component.** `tutorme-app/src/app/[locale]/page.tsx` is over 5,000 lines and contains hardcoded translations, mock data, YouTube placeholders, and special access codes inline.

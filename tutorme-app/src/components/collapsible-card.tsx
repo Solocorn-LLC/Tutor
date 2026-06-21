@@ -12,6 +12,7 @@ export interface CollapsibleCardProps {
   defaultOpen?: boolean
   className?: string
   contentClassName?: string
+  flush?: boolean
   children: React.ReactNode
 }
 
@@ -21,6 +22,7 @@ export function CollapsibleCard({
   defaultOpen = false,
   className,
   contentClassName,
+  flush = false,
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
@@ -31,7 +33,10 @@ export function CollapsibleCard({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="panel-header panel-header-metallic w-full text-left"
+        className={cn(
+          'panel-header w-full text-left',
+          flush ? 'panel-header-metallic-flush' : 'panel-header-metallic'
+        )}
       >
         <div className="flex items-center justify-between gap-3">
           <div>

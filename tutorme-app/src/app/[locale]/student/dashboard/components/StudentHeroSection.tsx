@@ -19,6 +19,8 @@ interface StudentHeroSectionProps {
   showGreeting?: boolean
   stats?: StudentDashboardStats
   statsLoading?: boolean
+  /** Bump this to force a re-fetch of internally-managed stats (e.g. after an unregister). */
+  refreshSignal?: number
 }
 
 interface CalendarEventItem {
@@ -48,6 +50,7 @@ export function StudentHeroSection({
   showGreeting = true,
   stats: statsProp,
   statsLoading: statsLoadingProp,
+  refreshSignal,
 }: StudentHeroSectionProps) {
   const { data: session } = useSession()
   const [greeting, setGreeting] = useState('Good morning')
@@ -94,7 +97,7 @@ export function StudentHeroSection({
     return () => {
       cancelled = true
     }
-  }, [statsProp])
+  }, [statsProp, refreshSignal])
 
   // Fetch upcoming sessions with a wide date range (today to +90 days)
   useEffect(() => {

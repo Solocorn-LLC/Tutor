@@ -4498,7 +4498,7 @@ FEEDBACK: [your explanation]`
     }, [courseAssets, assetViewFolder, assetViewSearch])
 
     const renderAssetsFolder = () => (
-      <div className="mt-3 rounded-xl border bg-white shadow-sm">
+      <div className="mt-3 mb-3 rounded-xl border bg-white shadow-sm">
         {/* Header row matching image 1 */}
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-sm font-semibold text-slate-700">Assets</span>
@@ -5783,11 +5783,14 @@ FEEDBACK: [your explanation]`
                 style={{ width: leftPanelWidth }}
               >
                 <div className="flex h-full min-h-0 flex-col">
-                  <Card className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+                  <Card
+                    padding="none"
+                    className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+                  >
                     <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                       Curriculum
                     </div>
-                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3 pb-0">
                       {mainTab !== 'live' && mainTab !== 'test-pci' && canEdit && (
                         <Button
                           size="sm"
@@ -7921,6 +7924,29 @@ FEEDBACK: [your explanation]`
                     hidden={rightPanelHidden}
                     onToggleHidden={setRightPanelHidden}
                     liveSubmissions={insightsProps?.liveSubmissions}
+                    headerExtra={
+                      <Tabs
+                        value={liveRightPanelTab}
+                        onValueChange={value =>
+                          setLiveRightPanelTab(value as 'submissions' | 'insights')
+                        }
+                      >
+                        <TabsList className="grid w-full grid-cols-2 gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
+                          <TabsTrigger
+                            value="submissions"
+                            className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
+                          >
+                            Submissions
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="insights"
+                            className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
+                          >
+                            Insights
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    }
                   />
                 )}
               </>
@@ -7928,16 +7954,16 @@ FEEDBACK: [your explanation]`
 
             {/* CENTER PANEL - New Three-Section Design */}
             <div
-              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pl-2"
+              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center pl-4"
               style={{
-                paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth + 16 : 0,
+                paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth + 16 : 16,
               }}
             >
-              <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch gap-3">
+              <div className="flex h-full min-h-0 w-full max-w-6xl flex-1 grow flex-col items-stretch gap-3">
                 {mainTab !== 'builder' && (
                   <div className="h-full w-full flex-1">
-                    <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
-                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-0 pt-1">
+                    <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-2">
                         <CardTitle className="mb-1 flex items-center justify-between gap-2 px-1 text-base font-semibold">
                           <div>
                             {/* Timer removed — kept in CourseBuilderInsightsRoute header instead */}
@@ -8841,7 +8867,7 @@ FEEDBACK: [your explanation]`
                 {mainTab === 'builder' && (
                   <div className="h-full w-full flex-1">
                     {/* COMBINED BUILDER: Task & Assessment Tabs */}
-                    <Card className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
+                    <Card className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
                       <CardContent className="flex h-full flex-col overflow-hidden p-2">
                         <Tabs
                           value={mainBuilderTab}
