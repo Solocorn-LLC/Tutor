@@ -188,11 +188,7 @@ function TutorControlsPanel({
             }}
           >
             <span className="w-4 shrink-0" aria-hidden="true" />
-            <span
-              className="mx-auto text-xs font-semibold text-white"
-            >
-              Controls
-            </span>
+            <span className="mx-auto text-xs font-semibold text-white">Controls</span>
             <span className="w-4 shrink-0" aria-hidden="true" />
           </button>
 
@@ -256,7 +252,10 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled}
                       onClick={onSave}
-                      className={cn(actionButtonBase, 'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200')}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200'
+                      )}
                     >
                       <Save className="h-4 w-4" />
                       Save
@@ -266,7 +265,10 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canSchedule}
                       onClick={onSchedule}
-                      className={cn(actionButtonBase, 'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100')}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                      )}
                     >
                       <Calendar className="h-4 w-4" />
                       Schedule
@@ -276,7 +278,10 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canDelete}
                       onClick={onDelete}
-                      className={cn(actionButtonBase, 'bg-white text-red-600 hover:bg-red-50 active:bg-red-100')}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-white text-red-600 hover:bg-red-50 active:bg-red-100'
+                      )}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -384,7 +389,9 @@ function CourseBuilderInsightsRouteInner({
   const initialMainTab = isClassroomMode
     ? 'live'
     : (tabFromUrl ?? (insightsProps.sessionId ? 'live' : 'builder'))
-  const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(initialMainTab)
+  const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(
+    initialMainTab
+  )
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
@@ -925,7 +932,6 @@ function CourseBuilderInsightsRouteInner({
                   Editing
                 </div>
               )}
-
             </div>
           </div>
 
@@ -936,7 +942,6 @@ function CourseBuilderInsightsRouteInner({
               Live Classroom — Students can see your screen
             </div>
           )}
-
         </div>
       </div>
 
@@ -1041,17 +1046,21 @@ function CourseBuilderInsightsRouteInner({
               ref?.triggerSync?.()
             }}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            canSchedule={!!(
-              courseId &&
-              courseId !== 'insights-draft' &&
-              (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant))
-            )}
-            canGoLive={!!(
-              courseId &&
-              courseId !== 'insights-draft' &&
-              saveMode === 'draft' &&
-              !insightsProps.sessionId
-            )}
+            canSchedule={
+              !!(
+                courseId &&
+                courseId !== 'insights-draft' &&
+                (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant))
+              )
+            }
+            canGoLive={
+              !!(
+                courseId &&
+                courseId !== 'insights-draft' &&
+                saveMode === 'draft' &&
+                !insightsProps.sessionId
+              )
+            }
             hasSession={!!insightsProps.sessionId}
             hasUnsyncedChanges={hasUnsyncedChanges}
           />

@@ -178,7 +178,11 @@ export const GET = withAuth(
     const courseRows =
       eventCourseIds.length > 0
         ? await drizzleDb
-            .select({ courseId: course.courseId, name: course.name, description: course.description })
+            .select({
+              courseId: course.courseId,
+              name: course.name,
+              description: course.description,
+            })
             .from(course)
             .where(inArray(course.courseId, eventCourseIds))
         : []
@@ -206,7 +210,9 @@ export const GET = withAuth(
       tutorAvatarUrl: e.tutorId ? (tutorAvatarMap.get(e.tutorId) ?? null) : null,
       courseName: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
       category: e.courseId ? (courseMap.get(e.courseId) ?? undefined) : undefined,
-      courseDescription: e.courseId ? (courseDescriptionMap.get(e.courseId) ?? undefined) : undefined,
+      courseDescription: e.courseId
+        ? (courseDescriptionMap.get(e.courseId) ?? undefined)
+        : undefined,
       enrolledCount: e.sessionId ? (participantMap.get(e.sessionId) ?? 0) : 0,
     }))
 

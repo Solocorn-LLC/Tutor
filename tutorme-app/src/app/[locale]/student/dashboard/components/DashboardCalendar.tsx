@@ -342,7 +342,7 @@ export function DashboardCalendar({
                     </div>
                   </div>
 
-                  <div className="hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 line-clamp-3 sm:block">
+                  <div className="line-clamp-3 hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 sm:block">
                     {cls.courseDescription || 'No description available.'}
                   </div>
 

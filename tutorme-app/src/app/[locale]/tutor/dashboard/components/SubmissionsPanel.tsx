@@ -301,7 +301,7 @@ export function SubmissionsPanel({
           className="absolute bottom-4 right-0 top-0 z-40 flex flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
           style={{ width }}
         >
-          <div className="flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white sticky top-0 z-10">
+          <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
             Desk
           </div>
           {headerExtra && <div className="px-2 pt-2">{headerExtra}</div>}
