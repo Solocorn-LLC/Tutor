@@ -1733,6 +1733,24 @@ export function EnhancedWhiteboard({
       const fs = f.scale || 1
       add(f.x, f.y, f.x + f.width * fs, f.y + f.height * fs)
     }
+    // Include not-yet-confirmed text (HTML overlays + the inline "type anywhere"
+    // box). Without these, fitting a page whose only content is still being typed
+    // would find nothing and reset the view, moving the text out of frame.
+    for (const ov of textOverlays) {
+      add(ov.x, ov.y, ov.x + (ov.width || 0), ov.y + (ov.height || 0))
+    }
+    if (inlineTextInput) {
+      const approxW = Math.max(
+        40,
+        (inlineTextInput.text.length || 1) * inlineTextInput.fontSize * 0.6
+      )
+      add(
+        inlineTextInput.x,
+        inlineTextInput.y,
+        inlineTextInput.x + approxW,
+        inlineTextInput.y + inlineTextInput.fontSize * 1.4
+      )
+    }
     if (minX === Infinity) return null
     return { minX, minY, maxX, maxY }
   }
@@ -2171,11 +2189,15 @@ export function EnhancedWhiteboard({
               size="sm"
               onClick={() => setScale(s => Math.max(0.1, s - 0.1))}
               className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              title="Zoom out"
               onMouseDown={e => e.stopPropagation()}
             >
               <Minus className="h-4 w-4" />
             </Button>
-            <span className="w-12 text-center text-xs font-medium text-slate-700">
+            <span
+              className="w-12 text-center text-xs font-medium text-slate-700"
+              title="Current zoom level"
+            >
               {Math.round(scale * 100)}%
             </span>
             <Button
@@ -2183,6 +2205,7 @@ export function EnhancedWhiteboard({
               size="sm"
               onClick={() => setScale(s => Math.min(5, s + 0.1))}
               className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
+              title="Zoom in"
               onMouseDown={e => e.stopPropagation()}
             >
               <Plus className="h-4 w-4" />
@@ -2255,11 +2278,15 @@ export function EnhancedWhiteboard({
               className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
               disabled={currentPageIndex <= 0}
               aria-label="Previous page"
+              title="Previous page"
               onMouseDown={e => e.stopPropagation()}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="w-12 text-center text-[10px] font-medium text-slate-700">
+            <span
+              className="w-12 text-center text-[10px] font-medium text-slate-700"
+              title="Current page / total pages"
+            >
               {currentPageIndex + 1}/{Math.max(1, pages.length)}
             </span>
             <Button
@@ -2269,6 +2296,7 @@ export function EnhancedWhiteboard({
               className="h-8 w-8 rounded-xl p-0 text-slate-700 hover:bg-slate-100"
               disabled={currentPageIndex >= pages.length - 1}
               aria-label="Next page"
+              title="Next page"
               onMouseDown={e => e.stopPropagation()}
             >
               <ChevronRight className="h-4 w-4" />
