@@ -607,7 +607,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
   // 'session:starting-soon' for anyone already in the lobby/room). Fires once per
   // (session, threshold). Auto-start is NOT done here — a class only goes live
   // when the tutor takes it live (their presence). This just reminds everyone.
+  // Cross-instance dedup: with >1 app instance each runs this sweep, so guard
+  // each (session, threshold) with a Redis NX claim — only one instance sends.
+  // Falls back to a per-process Set when Redis is unavailable.
   const startAlertSent = new Set<string>()
+  const claimStartAlert = async (key: string): Promise<boolean> => {
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        const res = await redisClient.set(`notif:startalert:${key}`, '1', 'EX', 3600, 'NX')
+        return res === 'OK'
+      } catch {
+        // fall through to local dedup
+      }
+    }
+    if (startAlertSent.has(key)) return false
+    startAlertSent.add(key)
+    return true
+  }
   const START_THRESHOLDS = [20, 10, 5, 1] // minutes
   intervalHandles.push(
     setInterval(async () => {
@@ -631,10 +647,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
           for (const t of START_THRESHOLDS) {
             const key = `${s.sessionId}:${t}`
-            // 30s window aligned to the interval, deduped by key.
+            // 30s window aligned to the interval; one send per (session, threshold)
+            // across all instances via the Redis-backed claim.
             if (remaining <= t * 60_000 && remaining > t * 60_000 - 30_000) {
-              if (startAlertSent.has(key)) continue
-              startAlertSent.add(key)
+              if (!(await claimStartAlert(key))) continue
 
               const minLabel = t === 1 ? '1 minute' : `${t} minutes`
               io.to(s.sessionId).emit('session:starting-soon', {
