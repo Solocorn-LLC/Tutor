@@ -280,7 +280,7 @@ export default function StudentAccount() {
   }
 
   const sectionCardClass =
-    'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
+    'min-h-full overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
 
   if (loading) {
     return (
@@ -323,7 +323,7 @@ export default function StudentAccount() {
             value="profile"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard title="Profile & Identity" defaultOpen className={sectionCardClass}>
                 <CardContent className="space-y-6">
                   {/* Avatar */}
@@ -444,7 +444,7 @@ export default function StudentAccount() {
             value="billing"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
@@ -511,7 +511,7 @@ export default function StudentAccount() {
             value="history"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Billing History"
                 description="View and download your invoices and receipts"
@@ -568,7 +568,7 @@ export default function StudentAccount() {
             value="notifications"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Notification Preferences"
                 description="Control how and when we contact you"
@@ -680,7 +680,7 @@ export default function StudentAccount() {
             value="security"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Privacy & Security"
                 description="Manage your password and account security"
@@ -788,7 +788,7 @@ export default function StudentAccount() {
             value="controls"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"

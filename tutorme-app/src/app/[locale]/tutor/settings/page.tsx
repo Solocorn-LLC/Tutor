@@ -64,7 +64,7 @@ const LANGUAGES = [
 ]
 
 const SECTION_CARD_CLASS =
-  'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+  'min-h-full overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
 interface PaymentMethod {
   id: string
@@ -636,7 +636,7 @@ export default function TutorSettings() {
             value="profile"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <button
                   type="button"
@@ -1126,7 +1126,7 @@ export default function TutorSettings() {
             value="billing"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Payment Methods</CardTitle>
@@ -1284,7 +1284,7 @@ export default function TutorSettings() {
             value="history"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Billing History</CardTitle>
@@ -1340,7 +1340,7 @@ export default function TutorSettings() {
             value="notifications"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Notification Preferences</CardTitle>
@@ -1451,7 +1451,7 @@ export default function TutorSettings() {
             value="security"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Privacy & Security</CardTitle>
@@ -1558,7 +1558,7 @@ export default function TutorSettings() {
             value="controls"
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="h-full space-y-6 overflow-y-auto pr-2">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <Card className={SECTION_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Live Session Mirroring</CardTitle>

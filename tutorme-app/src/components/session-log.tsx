@@ -44,7 +44,7 @@ import { CountryFlag } from '@/components/country-flag'
 import { CollapsibleCard } from '@/components/collapsible-card'
 
 const SECTION_CARD_CLASS =
-  'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+  'min-h-full overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
 interface TutorClass {
   id: string
@@ -564,7 +564,7 @@ export default function SessionLog() {
   }
 
   return (
-    <div className="h-full space-y-6 overflow-y-auto pr-2">
+    <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
       {error && (
         <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {error}
