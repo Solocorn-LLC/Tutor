@@ -660,7 +660,7 @@ export default function TutorSettings() {
                 <button
                   type="button"
                   onClick={() => setProfileOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
+                  className="panel-header panel-header-metallic-flush w-full text-left"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -790,7 +790,7 @@ export default function TutorSettings() {
                 <button
                   type="button"
                   onClick={() => setPublicProfileOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
+                  className="panel-header panel-header-metallic-flush w-full text-left"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -869,7 +869,7 @@ export default function TutorSettings() {
                 <button
                   type="button"
                   onClick={() => setTaxOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
+                  className="panel-header panel-header-metallic-flush w-full text-left"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -996,7 +996,7 @@ export default function TutorSettings() {
                 <button
                   type="button"
                   onClick={() => setTutorInfoOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
+                  className="panel-header panel-header-metallic-flush w-full text-left"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
