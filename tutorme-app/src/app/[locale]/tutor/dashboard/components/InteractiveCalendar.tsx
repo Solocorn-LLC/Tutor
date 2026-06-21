@@ -275,8 +275,10 @@ function isDayFullyOff(
   return dayBlocks.every(b => !b.isAvailable)
 }
 
+// Clear grey base + a diagonal hatch so unavailable/off hours are obviously
+// shaded (the previous near-transparent hatch was easy to miss).
 const OFF_HOURS_HATCH =
-  'bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.12),rgba(148,163,184,0.12)_6px,transparent_6px,transparent_12px)]'
+  'bg-slate-200/70 bg-[repeating-linear-gradient(45deg,rgba(100,116,139,0.28),rgba(100,116,139,0.28)_6px,transparent_6px,transparent_12px)]'
 
 export type CalendarView = 'month' | 'week' | 'day' | 'availability'
 
