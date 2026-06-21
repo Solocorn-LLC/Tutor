@@ -1,9 +1,10 @@
 /**
- * GET /api/avatars
+ * GET /api/public/avatars
  *
- * Lists the preset avatars students can choose from. Reads `public/avatars/`
- * at request time, so dropping a new image into that folder (and deploying)
- * makes it available immediately — no code change required.
+ * Lists the preset avatars students can choose from. Public (under /api/public,
+ * so reachable before login — e.g. during registration/onboarding). Reads
+ * `public/avatars/` at request time, so dropping a new image into that folder
+ * (and deploying) makes it available immediately — no code change required.
  */
 
 import { NextResponse } from 'next/server'

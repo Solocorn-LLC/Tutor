@@ -203,11 +203,7 @@ function ClassroomControlsPanel({
             }}
           >
             <span className="w-4 shrink-0" aria-hidden="true" />
-            <span
-              className="mx-auto text-xs font-semibold text-white"
-            >
-              Controls
-            </span>
+            <span className="mx-auto text-xs font-semibold text-white">Controls</span>
             <WifiSignal connected={isConnected} error={!!error} />
           </button>
 

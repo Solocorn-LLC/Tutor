@@ -332,7 +332,7 @@ export default function StudentAccount() {
                       avatarUrl={formData.avatarUrl}
                       uploadUrl="/api/user/avatar"
                       deleteUrl="/api/user/avatar"
-                      presetListUrl="/api/avatars"
+                      presetListUrl="/api/public/avatars"
                       presetSelectUrl="/api/user/avatar/preset"
                       size={80}
                       fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
