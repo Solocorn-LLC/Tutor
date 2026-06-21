@@ -94,11 +94,18 @@ export function MonitoringPanel({
     }
     load()
     const id = setInterval(load, 20_000)
-    const onCompleted = () => load()
+    // The completion broadcast races the server-side live auto-grade write, so
+    // refetch immediately and again shortly after the score has landed.
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const onCompleted = () => {
+      load()
+      timers.push(setTimeout(load, 2_500))
+    }
     socket?.on('task:completed', onCompleted)
     return () => {
       cancelled = true
       clearInterval(id)
+      timers.forEach(clearTimeout)
       socket?.off('task:completed', onCompleted)
     }
   }, [sessionId, socket])

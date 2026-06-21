@@ -7,7 +7,7 @@ import { Server as NetServer } from 'http'
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, desc } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -20,8 +20,10 @@ import {
   courseLesson,
   message,
   builderTask,
+  builderTaskDmi,
   taskSubmission,
 } from '@/lib/db/schema'
+import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
 import type { PollState } from '@/lib/socket'
@@ -1486,8 +1488,34 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 target: [sessionParticipant.sessionId, sessionParticipant.studentId],
               })
 
+            // Live auto-grade: score the answers against the task's DMI answer
+            // key (stored server-side in BuilderTaskDmi.items; never sent to
+            // students). Conservative + best-effort — leaves score null when
+            // there's no answer key. This feeds the tutor's live Understanding.
+            let autoScore: number | null = null
+            let autoResults: Record<string, unknown> | null = null
+            try {
+              const [dmi] = await drizzleDb
+                .select({ items: builderTaskDmi.items })
+                .from(builderTaskDmi)
+                .where(eq(builderTaskDmi.taskId, taskId))
+                .orderBy(desc(builderTaskDmi.updatedAt))
+                .limit(1)
+              if (dmi?.items) {
+                const graded = autoGradeDmi(
+                  dmi.items as { id: string; answer?: string }[],
+                  (answers ?? {}) as Record<string, string>
+                )
+                autoScore = graded.score
+                autoResults = graded.questionResults
+              }
+            } catch (gradeErr) {
+              console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
+            }
+
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(task,student) rule and never overwrites a graded row.
+            //    Status stays 'submitted' so the tutor can still review/override.
             await drizzleDb
               .insert(taskSubmission)
               .values({
@@ -1497,8 +1525,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 answers: answers ?? {},
                 timeSpent: 0,
                 attempts: 1,
-                questionResults: null,
-                score: null,
+                questionResults: autoResults,
+                score: autoScore,
                 maxScore: 100,
                 status: 'submitted',
                 tutorApproved: false,
