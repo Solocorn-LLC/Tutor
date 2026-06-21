@@ -19,6 +19,8 @@ export type FeedbackStatus =
 export interface FeedbackRequest {
   studentId: string
   submissionId: string // Required by schema
+  /** Course this feedback belongs to — used to attribute LLM token usage. */
+  courseId?: string
   type: FeedbackType
   context: {
     taskId?: string
@@ -71,7 +73,14 @@ export async function generateFeedback(
         return { success: false, error: '未知的反馈类型' }
     }
 
-    const result = await generateWithFallback(prompt, { temperature: 0.7 })
+    const result = await generateWithFallback(prompt, {
+      temperature: 0.7,
+      usageContext: {
+        studentId: request.studentId,
+        courseId: request.courseId ?? null,
+        feature: 'submission-feedback',
+      },
+    })
     const parsed = parseFeedbackResponse(result.content, request.type)
 
     // Calculate confidence based on context completeness

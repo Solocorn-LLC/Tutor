@@ -895,19 +895,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [])
 
     const openVideoOverlay = useVideoOverlayStore(s => s.openOverlay)
-    const [monitorSelectedStudent, setMonitorSelectedStudent] = useState<{
-      id: string
-      name: string
-    } | null>(null)
-    // When viewing a student's board, follow their active page by default; the tutor
-    // can turn this off and page through the board manually to inspect any page.
-    const [followStudentPage, setFollowStudentPage] = useState(true)
-    const [viewedStudentPageIndex, setViewedStudentPageIndex] = useState(0)
-    // Re-enable follow whenever the tutor opens a (different) student's board.
-    useEffect(() => {
-      setFollowStudentPage(true)
-      setViewedStudentPageIndex(0)
-    }, [monitorSelectedStudent?.id])
+    // Students whose whiteboards the tutor is currently viewing (multi-view grid).
+    const [monitorSelectedStudents, setMonitorSelectedStudents] = useState<
+      { id: string; name: string }[]
+    >([])
+    const toggleMonitorStudent = useCallback((id: string, name: string) => {
+      setMonitorSelectedStudents(prev =>
+        prev.some(s => s.id === id) ? prev.filter(s => s.id !== id) : [...prev, { id, name }]
+      )
+    }, [])
+    const addMonitorStudent = useCallback((id: string, name: string) => {
+      setMonitorSelectedStudents(prev =>
+        prev.some(s => s.id === id) ? prev : [...prev, { id, name }]
+      )
+    }, [])
+    const removeMonitorStudent = useCallback((id: string) => {
+      setMonitorSelectedStudents(prev => prev.filter(s => s.id !== id))
+    }, [])
     const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
       'submissions'
     )
@@ -8314,121 +8318,102 @@ FEEDBACK: [your explanation]`
                                       <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0">
                                         {(() => {
                                           if (mainTab === 'live' && tab.id === 'student1') {
-                                            if (monitorSelectedStudent) {
-                                              const studentBoard =
-                                                insightsProps?.studentBoards?.[
-                                                  monitorSelectedStudent.id
-                                                ]
-                                              const studentPages =
-                                                (studentBoard?.pages as WhiteboardPages) ||
-                                                createDefaultWhiteboardPages()
-                                              const studentPageIndex =
-                                                typeof studentBoard?.pageIndex === 'number'
-                                                  ? studentBoard.pageIndex
-                                                  : 0
-                                              const pageCount = Math.max(studentPages.length, 1)
-                                              const clamp = (i: number) =>
-                                                Math.min(Math.max(i, 0), pageCount - 1)
-                                              // Follow → mirror the student's active page; otherwise
-                                              // show whatever page the tutor picked.
-                                              const viewedPageIndex = followStudentPage
-                                                ? clamp(studentPageIndex)
-                                                : clamp(viewedStudentPageIndex)
-                                              const gotoPage = (i: number) => {
-                                                setFollowStudentPage(false)
-                                                setViewedStudentPageIndex(clamp(i))
-                                              }
+                                            if (monitorSelectedStudents.length > 0) {
+                                              const count = monitorSelectedStudents.length
+                                              const gridCols =
+                                                count === 1
+                                                  ? 'grid-cols-1'
+                                                  : count === 2
+                                                    ? 'grid-cols-1 lg:grid-cols-2'
+                                                    : 'grid-cols-1 md:grid-cols-2'
                                               return (
                                                 <Dialog
                                                   open
                                                   onOpenChange={open => {
                                                     if (!open) {
-                                                      setMonitorSelectedStudent(null)
+                                                      setMonitorSelectedStudents([])
                                                       setTestPciActiveTab('student-monitor')
                                                     }
                                                   }}
                                                 >
-                                                  <DialogContent className="h-[90vh] w-[90vw] max-w-none overflow-hidden p-6">
-                                                    <div className="flex h-full w-full flex-col overflow-hidden rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-                                                      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 text-sm">
-                                                        <div className="font-semibold text-slate-800">
-                                                          Viewing: {monitorSelectedStudent.name}
+                                                  <DialogContent className="h-[92vh] w-[94vw] max-w-none overflow-hidden p-4">
+                                                    <div className="flex h-full w-full flex-col overflow-hidden">
+                                                      <div className="mb-2 flex items-center justify-between">
+                                                        <div className="text-sm font-semibold text-slate-800">
+                                                          Viewing {count} student whiteboard
+                                                          {count === 1 ? '' : 's'}
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                          {/* Page navigation: prev / indicator / next */}
-                                                          <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1 py-0.5">
-                                                            <Button
-                                                              variant="ghost"
-                                                              size="icon"
-                                                              className="h-6 w-6 text-slate-600 hover:bg-white disabled:opacity-30"
-                                                              disabled={viewedPageIndex <= 0}
-                                                              onClick={() =>
-                                                                gotoPage(viewedPageIndex - 1)
-                                                              }
-                                                              title="Previous page"
-                                                            >
-                                                              <ChevronLeft className="h-4 w-4" />
-                                                            </Button>
-                                                            <span className="min-w-[64px] text-center text-xs font-medium text-slate-600">
-                                                              Page {viewedPageIndex + 1} /{' '}
-                                                              {pageCount}
-                                                            </span>
-                                                            <Button
-                                                              variant="ghost"
-                                                              size="icon"
-                                                              className="h-6 w-6 text-slate-600 hover:bg-white disabled:opacity-30"
-                                                              disabled={
-                                                                viewedPageIndex >= pageCount - 1
-                                                              }
-                                                              onClick={() =>
-                                                                gotoPage(viewedPageIndex + 1)
-                                                              }
-                                                              title="Next page"
-                                                            >
-                                                              <ChevronRight className="h-4 w-4" />
-                                                            </Button>
-                                                          </div>
-                                                          {/* Follow toggle */}
-                                                          <Button
-                                                            variant={
-                                                              followStudentPage
-                                                                ? 'default'
-                                                                : 'outline'
-                                                            }
-                                                            size="sm"
-                                                            className="h-8 text-xs"
-                                                            onClick={() =>
-                                                              setFollowStudentPage(f => !f)
-                                                            }
-                                                            title={
-                                                              followStudentPage
-                                                                ? "Following the student's page — click to browse freely"
-                                                                : "Jump to and follow the student's current page"
-                                                            }
-                                                          >
-                                                            {followStudentPage
-                                                              ? 'Following'
-                                                              : 'Follow student'}
-                                                          </Button>
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                                            onClick={() =>
-                                                              setMonitorSelectedStudent(null)
-                                                            }
-                                                          >
-                                                            Clear
-                                                          </Button>
-                                                        </div>
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                          onClick={() =>
+                                                            setMonitorSelectedStudents([])
+                                                          }
+                                                        >
+                                                          Close all
+                                                        </Button>
                                                       </div>
-                                                      <div className="min-h-0 flex-1">
-                                                        <EnhancedWhiteboard
-                                                          videoOverlay={false}
-                                                          pages={studentPages}
-                                                          currentPageIndex={viewedPageIndex}
-                                                          readOnly
-                                                        />
+                                                      <div
+                                                        className={cn(
+                                                          'grid min-h-0 flex-1 gap-3 overflow-auto',
+                                                          gridCols
+                                                        )}
+                                                      >
+                                                        {monitorSelectedStudents.map(s => {
+                                                          const board =
+                                                            insightsProps?.studentBoards?.[s.id]
+                                                          const pages =
+                                                            (board?.pages as WhiteboardPages) ||
+                                                            createDefaultWhiteboardPages()
+                                                          const pageCount = Math.max(
+                                                            pages.length,
+                                                            1
+                                                          )
+                                                          const pageIndex =
+                                                            typeof board?.pageIndex === 'number'
+                                                              ? Math.min(
+                                                                  Math.max(board.pageIndex, 0),
+                                                                  pageCount - 1
+                                                                )
+                                                              : 0
+                                                          return (
+                                                            <div
+                                                              key={s.id}
+                                                              className="flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
+                                                            >
+                                                              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
+                                                                <span className="min-w-0 truncate font-semibold text-slate-700">
+                                                                  {s.name}
+                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                  <span className="text-slate-400">
+                                                                    Page {pageIndex + 1}/{pageCount}
+                                                                  </span>
+                                                                  <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-slate-500 hover:bg-white hover:text-slate-800"
+                                                                    onClick={() =>
+                                                                      removeMonitorStudent(s.id)
+                                                                    }
+                                                                    title={`Stop viewing ${s.name}`}
+                                                                  >
+                                                                    <X className="h-4 w-4" />
+                                                                  </Button>
+                                                                </div>
+                                                              </div>
+                                                              <div className="min-h-0 flex-1">
+                                                                <EnhancedWhiteboard
+                                                                  videoOverlay={false}
+                                                                  pages={pages}
+                                                                  currentPageIndex={pageIndex}
+                                                                  readOnly
+                                                                />
+                                                              </div>
+                                                            </div>
+                                                          )
+                                                        })}
                                                       </div>
                                                     </div>
                                                   </DialogContent>
@@ -8480,23 +8465,18 @@ FEEDBACK: [your explanation]`
                                                     sessionId={insightsProps.sessionId}
                                                     tutorId={insightsProps.tutorId}
                                                     students={insightsProps?.students || []}
-                                                    selectedStudentId={
-                                                      monitorSelectedStudent?.id ?? null
-                                                    }
-                                                    onNavigateToWhiteboard={(
+                                                    liveTasks={insightsProps?.liveTasks || []}
+                                                    selectedStudentIds={monitorSelectedStudents.map(
+                                                      s => s.id
+                                                    )}
+                                                    onToggleWhiteboardSelection={(
                                                       studentId,
                                                       studentName
                                                     ) => {
-                                                      setMonitorSelectedStudent({
-                                                        id: studentId,
-                                                        name: studentName,
-                                                      })
+                                                      toggleMonitorStudent(studentId, studentName)
                                                     }}
-                                                    onOpenWhiteboard={(studentId, studentName) => {
-                                                      setMonitorSelectedStudent({
-                                                        id: studentId,
-                                                        name: studentName,
-                                                      })
+                                                    onOpenWhiteboards={(studentId, studentName) => {
+                                                      addMonitorStudent(studentId, studentName)
                                                       setTestPciActiveTab('student1')
                                                     }}
                                                   />

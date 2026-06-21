@@ -52,7 +52,7 @@ export const POST = withCsrf(
   withAuth(
     async (req, session, routeContext: any) => {
       const params = await routeContext?.params
-      const { lessonId } = await params
+      const { id: routeCourseId, lessonId } = await params
       const body = await req.json()
       const { message, sessionId, currentSection } = body
 
@@ -142,6 +142,11 @@ export const POST = withCsrf(
       const aiResult = await generateWithFallback(prompt, {
         temperature: 0.7,
         maxTokens: 2000,
+        usageContext: {
+          studentId: session.user.id,
+          courseId: courseId || routeCourseId || null,
+          feature: 'lesson-chat',
+        },
       })
 
       const aiResponse = aiResult.content

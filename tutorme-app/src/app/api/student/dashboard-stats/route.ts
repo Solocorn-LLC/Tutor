@@ -2,10 +2,10 @@
  * GET /api/student/dashboard-stats
  *
  * Returns aggregate counts for the student dashboard hero:
- *  - coursesEnrolled: active enrollments with remaining sessions
- *  - coursesCompleted: enrollments where all scheduled sessions are in the past
- *  - upcomingSessions: remaining course sessions across active enrollments
- *  - totalBookings: active/upcoming 1-on-1 bookings
+ *  - coursesEnrolled: number of (non-deleted) course enrollments
+ *  - coursesCompleted: enrollments explicitly marked complete (progress flag or completedAt)
+ *  - upcomingSessions: remaining (future) course sessions across enrollments
+ *  - totalBookings: 1-on-1 bookings the student has placed (PENDING/ACCEPTED/PAID)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -37,15 +37,6 @@ const ACTIVE_LIVE_SESSION_STATUSES: LiveSessionStatus[] = LIVE_SESSION_OPEN_STAT
 
 export const dynamic = 'force-dynamic'
 
-function parseDateTime(date: Date | string | null, timeStr: string): Date | null {
-  if (!date || !timeStr) return null
-  const base = new Date(date)
-  const [hours, minutes] = timeStr.split(':').map(Number)
-  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null
-  base.setHours(hours, minutes, 0, 0)
-  return base
-}
-
 function isFuture(date: Date | string | null): boolean {
   if (!date) return false
   return new Date(date).getTime() > Date.now()
@@ -63,6 +54,7 @@ export const GET = withAuth(
           enrollmentId: courseEnrollment.enrollmentId,
           courseId: courseEnrollment.courseId,
           startDate: courseEnrollment.startDate,
+          completedAt: courseEnrollment.completedAt,
           isCompleted: courseProgress.isCompleted,
           courseDeletedAt: course.deletedAt,
         })
@@ -104,11 +96,7 @@ export const GET = withAuth(
       // Early return if no enrollments and no bookings
       if (courseIds.length === 0) {
         const bookingRows = await drizzleDb
-          .select({
-            requestId: oneOnOneBookingRequest.requestId,
-            requestedDate: oneOnOneBookingRequest.requestedDate,
-            endTime: oneOnOneBookingRequest.endTime,
-          })
+          .select({ requestId: oneOnOneBookingRequest.requestId })
           .from(oneOnOneBookingRequest)
           .where(
             and(
@@ -117,10 +105,7 @@ export const GET = withAuth(
             )
           )
 
-        const totalBookings = bookingRows.filter(b => {
-          const endDateTime = parseDateTime(b.requestedDate, b.endTime)
-          return endDateTime && endDateTime.getTime() >= now.getTime()
-        }).length
+        const totalBookings = bookingRows.length
 
         return NextResponse.json({
           success: true,
@@ -189,9 +174,15 @@ export const GET = withAuth(
         )
       }
 
-      // --- 3. Compute per-course session counts ---
-      let coursesEnrolled = 0
-      let coursesCompleted = 0
+      // --- 3. Compute counts ---
+      // Enrolled = every active (non-deleted) enrollment. Completed = those
+      // explicitly marked complete via course progress or enrollment.completedAt.
+      const coursesEnrolled = activeEnrollments.length
+      const coursesCompleted = activeEnrollments.filter(
+        e => e.isCompleted === true || e.completedAt != null
+      ).length
+
+      // Upcoming sessions = total future sessions across enrolled courses.
       let upcomingSessions = 0
 
       for (const enrollment of activeEnrollments) {
@@ -252,22 +243,12 @@ export const GET = withAuth(
 
         const merged = mergeSessions(realSessions, virtualSessions)
         const futureSessions = merged.filter(s => isFuture(s.scheduledAt))
-
-        if (futureSessions.length > 0) {
-          coursesEnrolled++
-          upcomingSessions += futureSessions.length
-        } else {
-          coursesCompleted++
-        }
+        upcomingSessions += futureSessions.length
       }
 
-      // --- 4. Active/upcoming 1-on-1 bookings ---
+      // --- 4. 1-on-1 bookings placed (lifetime; excludes rejected/expired/cancelled) ---
       const bookingRows = await drizzleDb
-        .select({
-          requestId: oneOnOneBookingRequest.requestId,
-          requestedDate: oneOnOneBookingRequest.requestedDate,
-          endTime: oneOnOneBookingRequest.endTime,
-        })
+        .select({ requestId: oneOnOneBookingRequest.requestId })
         .from(oneOnOneBookingRequest)
         .where(
           and(
@@ -276,10 +257,7 @@ export const GET = withAuth(
           )
         )
 
-      const totalBookings = bookingRows.filter(b => {
-        const endDateTime = parseDateTime(b.requestedDate, b.endTime)
-        return endDateTime && endDateTime.getTime() >= now.getTime()
-      }).length
+      const totalBookings = bookingRows.length
 
       return NextResponse.json({
         success: true,

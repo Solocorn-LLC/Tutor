@@ -74,14 +74,11 @@ export const GET = withAuth(
       )
     }
 
-    // Tutor entering the live classroom starts the session — same guard as the
-    // explicit POST /start (not before scheduledAt, not once ended) — so students
-    // can join regardless of how the tutor opened the room. Unifies the start path
-    // (previously this GET left the session 'scheduled' while POST flipped it).
-    if (
-      liveSessionRow.status === 'scheduled' &&
-      !(liveSessionRow.scheduledAt && new Date(liveSessionRow.scheduledAt).getTime() > Date.now())
-    ) {
+    // Tutor entering the live classroom starts the session at any time — the
+    // tutor's presence is what takes a class live (students can then join). No
+    // scheduledAt gate for the tutor; unifies the start path so the session is
+    // 'active' however the tutor opened the room.
+    if (liveSessionRow.status === 'scheduled') {
       const startedAt = liveSessionRow.startedAt || new Date()
       await drizzleDb
         .update(liveSession)
@@ -315,16 +312,9 @@ export const POST = withCsrf(
         return NextResponse.json({ error: 'Cannot start a completed class' }, { status: 400 })
       }
 
-      // Enforce scheduled time: cannot start before scheduledAt
-      if (
-        liveSessionRow.scheduledAt &&
-        new Date(liveSessionRow.scheduledAt).getTime() > Date.now()
-      ) {
-        return NextResponse.json(
-          { error: 'Cannot start before the scheduled time' },
-          { status: 403 }
-        )
-      }
+      // Tutors may start at any time — even before scheduledAt. The tutor's
+      // presence is what takes a class live; students remain gated to the 20-minute
+      // early-entry window in the room join route.
 
       const [updated] = await drizzleDb
         .update(liveSession)

@@ -71,6 +71,7 @@ export const GET = withAuth(
         status: s.status,
         roomId: s.roomId,
         roomUrl: s.roomUrl,
+        recordingUrl: s.recordingUrl ?? null,
         tutorId: s.tutorId,
         isVirtual: false,
         durationMinutes: s.durationMinutes ?? 120,

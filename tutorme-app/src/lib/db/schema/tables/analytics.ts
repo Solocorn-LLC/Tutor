@@ -19,6 +19,34 @@ import { course } from './course'
 import { builderTask } from './builder'
 import { liveSession } from './live'
 
+// Per-call LLM token consumption, optionally attributed to a student + course.
+// Used (among other things) to compute the token-cost deduction when a student
+// unregisters from a paid course.
+export const llmTokenUsage = pgTable(
+  'LlmTokenUsage',
+  {
+    usageId: text('id').primaryKey().notNull(),
+    studentId: text('studentId').references(() => user.userId, { onDelete: 'set null' }),
+    courseId: text('courseId').references(() => course.courseId, { onDelete: 'set null' }),
+    provider: text('provider').notNull(),
+    model: text('model'),
+    promptTokens: integer('promptTokens').notNull().default(0),
+    completionTokens: integer('completionTokens').notNull().default(0),
+    totalTokens: integer('totalTokens').notNull().default(0),
+    costUsd: doublePrecision('costUsd').notNull().default(0),
+    feature: text('feature'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    LlmTokenUsage_studentId_idx: index('LlmTokenUsage_studentId_idx').on(table.studentId),
+    LlmTokenUsage_courseId_idx: index('LlmTokenUsage_courseId_idx').on(table.courseId),
+    LlmTokenUsage_student_course_idx: index('LlmTokenUsage_student_course_idx').on(
+      table.studentId,
+      table.courseId
+    ),
+  })
+)
+
 export const performanceMetric = pgTable(
   'PerformanceMetric',
   {

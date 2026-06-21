@@ -7,7 +7,7 @@ import { Server as NetServer } from 'http'
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, desc } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -20,8 +20,10 @@ import {
   courseLesson,
   message,
   builderTask,
+  builderTaskDmi,
   taskSubmission,
 } from '@/lib/db/schema'
+import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
 import type { PollState } from '@/lib/socket'
@@ -537,8 +539,24 @@ export async function initEnhancedSocketServer(server: NetServer) {
     }
   }
 
-  // Track which sessions have already received the 5-min warning
-  const sessionAlertSent = new Set<string>()
+  // Cross-instance dedup for one-shot session alerts (end warning + start
+  // reminders): with >1 app instance each runs these sweeps, so guard each key
+  // with a Redis NX claim — only one instance sends. Falls back to a per-process
+  // Set when Redis is unavailable.
+  const alertClaimFallback = new Set<string>()
+  const claimAlertOnce = async (key: string): Promise<boolean> => {
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        const res = await redisClient.set(`notif:alert:${key}`, '1', 'EX', 3600, 'NX')
+        return res === 'OK'
+      } catch {
+        // fall through to local dedup
+      }
+    }
+    if (alertClaimFallback.has(key)) return false
+    alertClaimFallback.add(key)
+    return true
+  }
 
   // Session end alert: warn tutors when 5 minutes remain
   intervalHandles.push(
@@ -567,10 +585,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
           const endTime = startTime + durationMs
           const remaining = endTime - now
 
-          // Alert when between 5 min and 4 min 30 sec remaining (to avoid duplicate alerts)
+          // Alert when between 5 min and 4 min 30 sec remaining (deduped across
+          // instances so only one sends the warning).
           if (remaining <= 5 * 60 * 1000 && remaining > 4.5 * 60 * 1000) {
-            if (!sessionAlertSent.has(s.sessionId)) {
-              sessionAlertSent.add(s.sessionId)
+            if (await claimAlertOnce(`ending:${s.sessionId}`)) {
               io.to(s.sessionId).emit('session:ending-soon', {
                 sessionId: s.sessionId,
                 minutesRemaining: 5,
@@ -585,21 +603,85 @@ export async function initEnhancedSocketServer(server: NetServer) {
               .set({ status: 'ended', endedAt: new Date() })
               .where(eq(liveSession.sessionId, s.sessionId))
             io.to(s.sessionId).emit('session:ended', { sessionId: s.sessionId, reason: 'timeout' })
-            sessionAlertSent.delete(s.sessionId)
-          }
-        }
-
-        // Clean up alerts for sessions that are no longer active
-        const activeSessionIds = new Set(activeSessions.map(s => s.sessionId))
-        for (const id of Array.from(sessionAlertSent)) {
-          if (!activeSessionIds.has(id)) {
-            sessionAlertSent.delete(id)
           }
         }
       } catch (err) {
         console.error('[Session Alert] Error:', err)
       }
     }, 30 * 1000) // Check every 30 seconds
+  )
+
+  // Session START reminders: notify the tutor + enrolled students at 20/10/5/1
+  // minutes before scheduledAt (in-app + web-push via notify()). Fires once per
+  // (session, threshold), deduped across instances via claimAlertOnce. Auto-start
+  // is NOT done here — a class only goes live when the tutor takes it live.
+  const START_THRESHOLDS = [20, 10, 5, 1] // minutes
+  intervalHandles.push(
+    setInterval(async () => {
+      const now = Date.now()
+      try {
+        const upcoming = await drizzleDb
+          .select({
+            sessionId: liveSession.sessionId,
+            title: liveSession.title,
+            scheduledAt: liveSession.scheduledAt,
+            courseId: liveSession.courseId,
+            tutorId: liveSession.tutorId,
+          })
+          .from(liveSession)
+          .where(eq(liveSession.status, 'scheduled'))
+
+        for (const s of upcoming) {
+          if (!s.scheduledAt) continue
+          const remaining = new Date(s.scheduledAt).getTime() - now
+          if (remaining <= 0) continue
+
+          for (const t of START_THRESHOLDS) {
+            const key = `${s.sessionId}:${t}`
+            // 30s window aligned to the interval; one send per (session, threshold)
+            // across all instances via the Redis-backed claim.
+            if (remaining <= t * 60_000 && remaining > t * 60_000 - 30_000) {
+              if (!(await claimAlertOnce(`start:${key}`))) continue
+
+              const minLabel = t === 1 ? '1 minute' : `${t} minutes`
+
+              // Tutor reminder → tutor lobby.
+              void notifyMany({
+                userIds: [s.tutorId],
+                type: 'reminder',
+                title: 'Your class starts soon',
+                message: `"${s.title}" starts in ${minLabel}.`,
+                actionUrl: s.courseId ? `/tutor/classroom/${s.courseId}` : undefined,
+              }).catch(() => {})
+
+              // Enrolled students reminder → student lobby.
+              if (s.courseId) {
+                try {
+                  const rows = await drizzleDb
+                    .select({ studentId: courseEnrollment.studentId })
+                    .from(courseEnrollment)
+                    .where(eq(courseEnrollment.courseId, s.courseId))
+                  const studentIds = rows.map(r => r.studentId).filter(Boolean)
+                  if (studentIds.length > 0) {
+                    void notifyMany({
+                      userIds: studentIds,
+                      type: 'reminder',
+                      title: 'Class starting soon',
+                      message: `"${s.title}" starts in ${minLabel}.`,
+                      actionUrl: `/student/classroom/${s.courseId}`,
+                    }).catch(() => {})
+                  }
+                } catch (e) {
+                  console.error('[Session Start Alert] enrollment lookup failed:', e)
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Session Start Alert] Error:', err)
+      }
+    }, 30 * 1000)
   )
 
   // Start cleanup intervals
@@ -868,6 +950,24 @@ export async function initEnhancedSocketServer(server: NetServer) {
           if (typeof data?.engagement === 'number') student.engagement = data.engagement
           if (typeof data?.understanding === 'number') student.understanding = data.understanding
           if (data?.activity) student.currentActivity = data.activity
+          // Recompute a coarse status from the (now live) engagement signal so the
+          // tutor's Monitor shows a real badge: engaged → on track, waning → needs
+          // a nudge, disengaged/away → idle.
+          const eng = student.engagement
+          student.status = eng >= 60 ? 'on_track' : eng >= 30 ? 'needs_help' : 'idle'
+          // Broadcast to tutors so the Monitor reflects the change immediately
+          // (room_state is only sent on join). use-socket maps this to the roster.
+          io.to(roomId).emit('student_state_update', {
+            userId: socket.data.userId,
+            state: {
+              engagement: student.engagement,
+              understanding: student.understanding,
+              frustration: student.frustration,
+              status: student.status,
+              currentActivity: student.currentActivity,
+              lastActivity: student.lastActivity,
+            },
+          })
         }
       }
     )
@@ -1388,8 +1488,34 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 target: [sessionParticipant.sessionId, sessionParticipant.studentId],
               })
 
+            // Live auto-grade: score the answers against the task's DMI answer
+            // key (stored server-side in BuilderTaskDmi.items; never sent to
+            // students). Conservative + best-effort — leaves score null when
+            // there's no answer key. This feeds the tutor's live Understanding.
+            let autoScore: number | null = null
+            let autoResults: ReturnType<typeof autoGradeDmi>['questionResults'] = null
+            try {
+              const [dmi] = await drizzleDb
+                .select({ items: builderTaskDmi.items })
+                .from(builderTaskDmi)
+                .where(eq(builderTaskDmi.taskId, taskId))
+                .orderBy(desc(builderTaskDmi.updatedAt))
+                .limit(1)
+              if (dmi?.items) {
+                const graded = autoGradeDmi(
+                  dmi.items as { id: string; answer?: string }[],
+                  (answers ?? {}) as Record<string, string>
+                )
+                autoScore = graded.score
+                autoResults = graded.questionResults
+              }
+            } catch (gradeErr) {
+              console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
+            }
+
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(task,student) rule and never overwrites a graded row.
+            //    Status stays 'submitted' so the tutor can still review/override.
             await drizzleDb
               .insert(taskSubmission)
               .values({
@@ -1399,8 +1525,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 answers: answers ?? {},
                 timeSpent: 0,
                 attempts: 1,
-                questionResults: null,
-                score: null,
+                questionResults: autoResults,
+                score: autoScore,
                 maxScore: 100,
                 status: 'submitted',
                 tutorApproved: false,

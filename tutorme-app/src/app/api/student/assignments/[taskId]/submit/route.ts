@@ -120,6 +120,7 @@ export async function POST(
       const request_ = {
         studentId,
         submissionId,
+        courseId: task.courseId,
         type: 'task_feedback' as const,
         context: { taskId, recentPerformance: score ?? undefined },
         priority: 'medium' as const,

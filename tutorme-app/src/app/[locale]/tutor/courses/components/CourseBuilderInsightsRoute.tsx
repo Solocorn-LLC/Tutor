@@ -33,6 +33,7 @@ import {
   PencilRuler,
   MonitorPlay,
   Wrench,
+  PhoneOff,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
 import {
@@ -127,6 +128,8 @@ interface TutorControlsPanelProps {
   canGoLive: boolean
   hasSession: boolean
   hasUnsyncedChanges?: boolean
+  onEndSession?: () => void
+  endingSession?: boolean
 }
 
 function TutorControlsPanel({
@@ -144,6 +147,8 @@ function TutorControlsPanel({
   canGoLive,
   hasSession,
   hasUnsyncedChanges,
+  onEndSession,
+  endingSession,
 }: TutorControlsPanelProps) {
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
@@ -334,6 +339,27 @@ function TutorControlsPanel({
                     </button>
                   </div>
                 </div>
+
+                {/* End the live session — finalizes recording + analytics. Only
+                    shown while a session is active. */}
+                {onEndSession && hasSession && (
+                  <button
+                    type="button"
+                    disabled={panelDisabled || endingSession}
+                    onClick={onEndSession}
+                    className={cn(
+                      actionButtonBase,
+                      'mt-2 justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                    )}
+                  >
+                    {endingSession ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PhoneOff className="h-4 w-4" />
+                    )}
+                    {endingSession ? 'Ending…' : 'End Session'}
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -425,20 +451,15 @@ function CourseBuilderInsightsRouteInner({
     }
   }, [insightsProps.sessionId, tabFromUrl, isClassroomMode])
 
-  // Prevent tab switching away from live in classroom mode
-  const handleMainTabChange = useCallback(
-    (tab: 'live' | 'builder' | 'test-pci') => {
-      if (isClassroomMode) {
-        setActiveMainTab('live')
-        return
-      }
-      setActiveMainTab(tab)
-      if (tab === 'builder') setControlsMode('build')
-      if (tab === 'test-pci') setControlsMode('test')
-      if (tab === 'live') setControlsMode('classroom')
-    },
-    [isClassroomMode]
-  )
+  // Allow switching between Live / Build / Test even during a live session so
+  // tutors can edit and test the course mid-class. Classroom mode only sets the
+  // INITIAL tab to 'live' (see the effect above) — it no longer locks it.
+  const handleMainTabChange = useCallback((tab: 'live' | 'builder' | 'test-pci') => {
+    setActiveMainTab(tab)
+    if (tab === 'builder') setControlsMode('build')
+    if (tab === 'test-pci') setControlsMode('test')
+    if (tab === 'live') setControlsMode('classroom')
+  }, [])
 
   const handleControlsModeChange = useCallback(
     (mode: ControlsMode) => {
@@ -1063,6 +1084,8 @@ function CourseBuilderInsightsRouteInner({
             }
             hasSession={!!insightsProps.sessionId}
             hasUnsyncedChanges={hasUnsyncedChanges}
+            onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
+            endingSession={endingSession}
           />
         )}
       </div>

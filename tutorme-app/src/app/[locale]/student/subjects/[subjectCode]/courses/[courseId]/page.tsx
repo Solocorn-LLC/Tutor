@@ -44,6 +44,7 @@ function CourseEnrollPageInner() {
   const [course, setCourse] = useState<CourseDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
+  const [unenrolling, setUnenrolling] = useState(false)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<string | null>(null)
@@ -168,6 +169,42 @@ function CourseEnrollPageInner() {
     }
   }
 
+  const handleUnenroll = async () => {
+    if (!course) return
+    const confirmed = window.confirm(
+      'Unregister from this course? Your progress will be removed. For a paid course, a partial refund (based on sessions taken) will be sent to your tutor for review.'
+    )
+    if (!confirmed) return
+    setUnenrolling(true)
+    try {
+      const csrf = await getCsrf()
+      const res = await fetch(`/api/student/courses/${encodeURIComponent(courseId)}/unenroll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
+        credentials: 'include',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json?.error ?? 'Could not unregister')
+        return
+      }
+      if (json?.refund) {
+        toast.success(
+          `Unregistered. A partial refund of ${json.refund.currency} ${Number(
+            json.refund.amount
+          ).toFixed(2)} is pending review.`
+        )
+      } else {
+        toast.success('Unregistered from the course')
+      }
+      router.push('/student/courses?tab=mine')
+    } catch {
+      toast.error('Could not unregister')
+    } finally {
+      setUnenrolling(false)
+    }
+  }
+
   const handlePayAndEnroll = async () => {
     if (!course || isFree) return
     if (!startDate) {
@@ -281,6 +318,11 @@ function CourseEnrollPageInner() {
                 <p className="text-sm font-medium">You&apos;re already enrolled in this course.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild>
+                    <Link href={`/student/classroom/${encodeURIComponent(courseId)}`}>
+                      Enter classroom
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
                     <Link href="/student/dashboard">Go to dashboard</Link>
                   </Button>
                   <Button variant="outline" asChild>
@@ -292,6 +334,14 @@ function CourseEnrollPageInner() {
                     >
                       View course details
                     </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleUnenroll}
+                    disabled={unenrolling}
+                    className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    {unenrolling ? 'Unregistering…' : 'Unregister'}
                   </Button>
                 </div>
               </div>

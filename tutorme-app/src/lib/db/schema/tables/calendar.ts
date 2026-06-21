@@ -156,6 +156,62 @@ export const calendarException = pgTable(
   })
 )
 
+// Student weekly availability (mirror of CalendarAvailability, keyed by student)
+export const studentAvailability = pgTable(
+  'StudentAvailability',
+  {
+    availabilityId: text('id').primaryKey().notNull(),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    dayOfWeek: integer('dayOfWeek').notNull(),
+    startTime: text('startTime').notNull(),
+    endTime: text('endTime').notNull(),
+    timezone: text('timezone').notNull(),
+    isAvailable: boolean('isAvailable').notNull(),
+    validFrom: timestamp('validFrom', { withTimezone: true }),
+    validUntil: timestamp('validUntil', { withTimezone: true }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    StudentAvailability_studentId_idx: index('StudentAvailability_studentId_idx').on(
+      table.studentId
+    ),
+    StudentAvailability_studentId_dayOfWeek_startTime_endTime_key: uniqueIndex(
+      'StudentAvailability_studentId_dayOfWeek_startTime_endTime_key'
+    ).on(table.studentId, table.dayOfWeek, table.startTime, table.endTime),
+  })
+)
+
+// Student date-specific availability exceptions (mirror of CalendarException)
+export const studentAvailabilityException = pgTable(
+  'StudentAvailabilityException',
+  {
+    exceptionId: text('id').primaryKey().notNull(),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    date: timestamp('date', { withTimezone: true }).notNull(),
+    isAvailable: boolean('isAvailable').notNull(),
+    startTime: text('startTime'),
+    endTime: text('endTime'),
+    reason: text('reason'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    StudentAvailabilityException_studentId_idx: index(
+      'StudentAvailabilityException_studentId_idx'
+    ).on(table.studentId),
+    StudentAvailabilityException_studentId_date_startTime_key: uniqueIndex(
+      'StudentAvailabilityException_studentId_date_startTime_key'
+    ).on(table.studentId, table.date, table.startTime),
+  })
+)
+
 // One-on-one booking requests
 export const oneOnOneBookingRequest = pgTable(
   'OneOnOneBookingRequest',

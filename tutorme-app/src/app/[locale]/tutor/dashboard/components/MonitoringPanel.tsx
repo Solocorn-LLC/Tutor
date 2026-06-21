@@ -19,14 +19,17 @@ type StudentUpdate = {
   payload: StudentState
 }
 
+type LiveTaskLite = { id?: string; completedBy?: string[] }
+
 type MonitoringPanelProps = {
   socket: Socket
   sessionId: string
   tutorId?: string // Optional: exclude tutor from participant list
   students?: any[] // Optional: pass the room's student list if available
-  selectedStudentId?: string | null
-  onNavigateToWhiteboard?: (studentId: string, studentName: string) => void
-  onOpenWhiteboard?: (studentId: string, studentName: string) => void
+  liveTasks?: LiveTaskLite[] // Deployed tasks, for per-student completion progress
+  selectedStudentIds?: string[] // Students currently open in the multi-whiteboard view
+  onToggleWhiteboardSelection?: (studentId: string, studentName: string) => void
+  onOpenWhiteboards?: (studentId: string, studentName: string) => void
 }
 
 export function MonitoringPanel({
@@ -34,9 +37,10 @@ export function MonitoringPanel({
   sessionId,
   tutorId,
   students,
-  selectedStudentId,
-  onNavigateToWhiteboard,
-  onOpenWhiteboard,
+  liveTasks,
+  selectedStudentIds = [],
+  onToggleWhiteboardSelection,
+  onOpenWhiteboards,
 }: MonitoringPanelProps) {
   const [studentStates, setStudentStates] = useState<Record<string, StudentUpdate>>({})
 
@@ -66,6 +70,45 @@ export function MonitoringPanel({
       socket.off('student:state_update', handleStudentStateUpdate)
     }
   }, [socket])
+
+  // Per-student comprehension from real task-submission correctness. Polled, and
+  // refetched when a student completes a task (scores arrive as work is graded).
+  const [comprehension, setComprehension] = useState<
+    Record<string, { understanding: number | null; scored: number; total: number }>
+  >({})
+  useEffect(() => {
+    if (!sessionId) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/tutor/live-sessions/${sessionId}/comprehension`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (!cancelled && data?.comprehension) setComprehension(data.comprehension)
+      } catch {
+        // ignore
+      }
+    }
+    load()
+    const id = setInterval(load, 20_000)
+    // The completion broadcast races the server-side live auto-grade write, so
+    // refetch immediately and again shortly after the score has landed.
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const onCompleted = () => {
+      load()
+      timers.push(setTimeout(load, 2_500))
+    }
+    socket?.on('task:completed', onCompleted)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      timers.forEach(clearTimeout)
+      socket?.off('task:completed', onCompleted)
+    }
+  }, [sessionId, socket])
 
   const handleSendHelp = (studentId: string, studentName: string, customMessage?: string) => {
     if (!socket) {
@@ -177,22 +220,75 @@ export function MonitoringPanel({
   }, [isAIOpen, sessionId])
 
   const activeStudents = Object.values(studentStates)
-  const rosterStudents: { id: string; name: string; status: string | null }[] = (students || [])
-    .map((s: any) => ({
-      id: (s as any)?.id ?? (s as any)?.studentId ?? (s as any)?.userId,
-      name: (s as any)?.name ?? (s as any)?.studentName ?? 'Student',
-      status: (s as any)?.status ?? null,
-    }))
-    .filter((s: any) => !!s.id && s.id !== tutorId)
+  const num = (v: unknown): number | null => (typeof v === 'number' && !Number.isNaN(v) ? v : null)
+  const totalTasks = Array.isArray(liveTasks) ? liveTasks.length : 0
+  const completedTaskCount = (id: string) =>
+    Array.isArray(liveTasks)
+      ? liveTasks.filter(t => Array.isArray(t.completedBy) && t.completedBy.includes(id)).length
+      : 0
+  const minutesSince = (joinedAt: unknown): number | null => {
+    const t =
+      typeof joinedAt === 'number'
+        ? joinedAt
+        : joinedAt
+          ? new Date(joinedAt as string).getTime()
+          : NaN
+    if (Number.isNaN(t)) return null
+    return Math.max(0, Math.round((Date.now() - t) / 60000))
+  }
 
-  const displayStudents =
+  type RosterStudent = {
+    id: string
+    name: string
+    status: string | null
+    engagement: number | null
+    understanding: number | null
+    frustration: number | null
+    joinedAt: unknown
+    currentActivity: string | null
+  }
+  const rosterStudents: RosterStudent[] = (students || [])
+    .map((s: any) => ({
+      id: s?.id ?? s?.studentId ?? s?.userId,
+      name: s?.name ?? s?.studentName ?? 'Student',
+      status: s?.status ?? null,
+      engagement: num(s?.engagement) ?? num(s?.engagementScore),
+      understanding: num(s?.understanding),
+      frustration: num(s?.frustration),
+      joinedAt: s?.joinedAt ?? null,
+      currentActivity: typeof s?.currentActivity === 'string' ? s.currentActivity : null,
+    }))
+    .filter((s: RosterStudent) => !!s.id && s.id !== tutorId)
+
+  const displayStudents: RosterStudent[] =
     rosterStudents.length > 0
       ? rosterStudents
       : activeStudents.map(s => ({
           id: s.studentId,
           name: s.studentName,
-          status: null as string | null,
+          status: null,
+          engagement: null,
+          understanding: null,
+          frustration: null,
+          joinedAt: null,
+          currentActivity: null,
         }))
+
+  // Map the server's student status to a small colored badge.
+  const statusBadge = (status: string | null): { label: string; cls: string } | null => {
+    switch (status) {
+      case 'needs_help':
+        return { label: 'Needs help', cls: 'bg-amber-100 text-amber-700' }
+      case 'struggling':
+        return { label: 'Struggling', cls: 'bg-red-100 text-red-700' }
+      case 'idle':
+        return { label: 'Idle', cls: 'bg-slate-100 text-slate-500' }
+      case 'on_track':
+        return { label: 'On track', cls: 'bg-emerald-100 text-emerald-700' }
+      default:
+        return null
+    }
+  }
 
   if (displayStudents.length === 0) {
     return (
@@ -213,15 +309,27 @@ export function MonitoringPanel({
   return (
     <div className="animate-in fade-in relative h-full w-full duration-300">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {displayStudents.map((student: any) => {
+        {displayStudents.map((student: RosterStudent) => {
           const stateUpdate = studentStates[student.id]
           const activeTab = stateUpdate?.payload?.activeTab
           const activeTaskId = stateUpdate?.payload?.activeTaskId
           const isWhiteboard = activeTab === 'my-board' || activeTab === 'tutor-board'
           // The roster only contains currently-present students (departed ones
-          // are removed), so anyone here is online unless explicitly 'offline' —
-          // don't gate on having received a state-sync event yet.
+          // are removed), so anyone here is online unless explicitly 'offline'.
           const isOnline = student.status !== 'offline'
+          const isViewing = selectedStudentIds.includes(student.id)
+          const badge = statusBadge(student.status)
+          const activityLabel =
+            student.currentActivity ||
+            (isWhiteboard
+              ? 'Drawing'
+              : activeTaskId
+                ? 'Working on a task'
+                : isOnline
+                  ? 'Idle'
+                  : 'Offline')
+          const mins = minutesSince(student.joinedAt)
+          const done = completedTaskCount(student.id)
 
           return (
             <Card
@@ -232,70 +340,131 @@ export function MonitoringPanel({
                   target: 'studentBoard',
                   studentId: student.id,
                 })
-                onNavigateToWhiteboard?.(student.id, student.name)
+                onToggleWhiteboardSelection?.(student.id, student.name)
               }}
               className={cn(
                 'cursor-pointer overflow-hidden border-slate-200 bg-white/50 backdrop-blur-sm transition-all hover:shadow-md',
-                selectedStudentId === student.id && 'ring-2 ring-indigo-200'
+                isViewing && 'ring-2 ring-indigo-300'
               )}
             >
               <CardHeader className="border-b bg-slate-50/50 px-4 py-3">
                 <CardTitle className="flex min-w-0 items-center justify-between gap-2 text-base">
-                  <span className="min-w-0 truncate font-semibold text-slate-800">
-                    {student.name}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={cn(
+                        'flex h-2 w-2 flex-shrink-0 rounded-full',
+                        isOnline ? 'animate-pulse bg-green-500' : 'bg-slate-300'
+                      )}
+                      title={isOnline ? 'Online' : 'Offline'}
+                    />
+                    <span className="min-w-0 truncate font-semibold text-slate-800">
+                      {student.name}
+                    </span>
                   </span>
-                  <span
-                    className={cn(
-                      'flex h-2 w-2 rounded-full',
-                      isOnline ? 'animate-pulse bg-green-500' : 'bg-slate-300'
-                    )}
-                    title="Live"
-                  />
+                  {badge && (
+                    <span
+                      className={cn(
+                        'flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                        badge.cls
+                      )}
+                    >
+                      {badge.label}
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                    <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                      <span className="flex-shrink-0 text-slate-500">Current View:</span>
-                      <span className="min-w-0 font-medium capitalize text-indigo-600">
-                        {activeTab?.replace('-', ' ') || 'No data yet'}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                      <span className="flex-shrink-0 text-slate-500">Activity:</span>
-                      <span
-                        className="min-w-0 max-w-[120px] truncate font-medium text-slate-700"
-                        title={activeTaskId || 'None'}
-                      >
-                        {isWhiteboard
-                          ? 'Drawing'
-                          : activeTaskId
-                            ? 'Reading Task'
-                            : isOnline
-                              ? 'Idle'
-                              : 'Offline'}
-                      </span>
-                    </div>
+                <div className="space-y-3">
+                  <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm">
+                    <Row
+                      label="Current view"
+                      value={activeTab?.replace('-', ' ') || '—'}
+                      valueClass="capitalize text-indigo-600"
+                    />
+                    <Row label="Activity" value={activityLabel} title={activeTaskId || undefined} />
+                    <Row label="In session" value={mins != null ? `${mins} min` : '—'} />
+                    <Row
+                      label="Tasks done"
+                      value={totalTasks > 0 ? `${done}/${totalTasks}` : '—'}
+                    />
                   </div>
+
+                  {student.engagement != null && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Engagement</span>
+                        <span className="font-medium text-slate-700">
+                          {Math.round(student.engagement)}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            student.engagement >= 66
+                              ? 'bg-emerald-500'
+                              : student.engagement >= 33
+                                ? 'bg-amber-500'
+                                : 'bg-red-500'
+                          )}
+                          style={{
+                            width: `${Math.min(100, Math.max(0, student.engagement))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const compr = comprehension[student.id]
+                    const u = compr?.understanding
+                    if (u == null) {
+                      return compr && compr.total > 0 ? (
+                        <div className="text-[11px] text-slate-400">
+                          Understanding: awaiting grading
+                        </div>
+                      ) : null
+                    }
+                    return (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>Understanding{compr ? ` (${compr.scored} graded)` : ''}</span>
+                          <span className="font-medium text-slate-700">{u}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={cn(
+                              'h-full rounded-full',
+                              u >= 66 ? 'bg-emerald-500' : u >= 33 ? 'bg-amber-500' : 'bg-red-500'
+                            )}
+                            style={{ width: `${Math.min(100, Math.max(0, u))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={e => {
                         e.stopPropagation()
-                        // Request the student's latest board snapshot before opening
                         socket.emit('whiteboard:state:request', {
                           roomId: sessionId,
                           target: 'studentBoard',
                           studentId: student.id,
                         })
-                        onOpenWhiteboard?.(student.id, student.name)
+                        onOpenWhiteboards?.(student.id, student.name)
                       }}
-                      variant="outline"
-                      className="min-w-[100px] flex-1 gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      variant={isViewing ? 'default' : 'outline'}
+                      className={cn(
+                        'min-w-[110px] flex-1 gap-2',
+                        isViewing
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          : 'border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                      )}
                     >
                       <MonitorPlay className="h-4 w-4 flex-shrink-0" />
-                      Whiteboard
+                      {isViewing ? 'Viewing' : 'View board'}
                     </Button>
                     <Button
                       onClick={e => {
@@ -438,6 +607,30 @@ export function MonitoringPanel({
           <Sparkles className="h-6 w-6 text-white" />
         </Button>
       </div>
+    </div>
+  )
+}
+
+function Row({
+  label,
+  value,
+  valueClass,
+  title,
+}: {
+  label: string
+  value: string
+  valueClass?: string
+  title?: string
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+      <span className="flex-shrink-0 text-slate-500">{label}:</span>
+      <span
+        className={cn('min-w-0 max-w-[150px] truncate font-medium text-slate-700', valueClass)}
+        title={title}
+      >
+        {value}
+      </span>
     </div>
   )
 }

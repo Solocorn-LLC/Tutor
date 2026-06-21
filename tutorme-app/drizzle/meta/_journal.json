@@ -421,6 +421,20 @@
       "when": 1781400000000,
       "tag": "0059_restore_column_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1781500000000,
+      "tag": "0060_student_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1781600000000,
+      "tag": "0061_llm_token_usage",
+      "breakpoints": true
     }
   ]
 }

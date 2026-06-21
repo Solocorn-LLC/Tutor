@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Users } from 'lucide-react'
 import { BackButton } from '@/components/navigation'
+import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import { toast } from 'sonner'
 
 interface EnrollmentItem {
@@ -69,6 +70,8 @@ export default function TutorCourseEnrollmentsPage() {
         </div>
         <BackButton href={coursePath} iconDirection="right" />
       </div>
+
+      <PendingRefundsPanel courseId={courseId} />
 
       <Card>
         <CardHeader>

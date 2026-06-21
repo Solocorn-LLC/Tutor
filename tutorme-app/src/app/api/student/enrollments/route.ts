@@ -13,12 +13,13 @@ import {
   course,
   courseLesson,
   courseEnrollment,
+  courseProgress,
   courseVariant,
   courseSchedule,
   liveSession,
   user,
 } from '@/lib/db/schema'
-import { eq, inArray, desc } from 'drizzle-orm'
+import { and, eq, inArray, desc } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
@@ -95,6 +96,28 @@ export const GET = withAuth(
         : []
     const lessonCountByCourse = new Map(lessonCounts.map(m => [m.courseId, m.count ?? 0]))
 
+    // Real per-course progress for this student. Completion mirrors dashboard-stats:
+    // courseProgress.isCompleted OR enrollment.completedAt is set.
+    const progressRows =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              courseId: courseProgress.courseId,
+              lessonsCompleted: courseProgress.lessonsCompleted,
+              totalLessons: courseProgress.totalLessons,
+              averageScore: courseProgress.averageScore,
+              isCompleted: courseProgress.isCompleted,
+            })
+            .from(courseProgress)
+            .where(
+              and(
+                eq(courseProgress.studentId, session.user.id),
+                inArray(courseProgress.courseId, courseIds)
+              )
+            )
+        : []
+    const progressByCourse = new Map(progressRows.map(p => [p.courseId, p]))
+
     // Real session counts: a "session" is a materialized liveSession (one per
     // scheduled time slot, expanded over the schedule's weeks) — NOT a content
     // lesson. Count non-cancelled sessions per (course, schedule).
@@ -156,6 +179,13 @@ export const GET = withAuth(
         const weeks = chosen?.weeksToSchedule ?? 8
         sessionCount = slots.length * (weeks || 1)
       }
+      const p = progressByCourse.get(row.courseId)
+      const lessonTotal =
+        p?.totalLessons && p.totalLessons > 0
+          ? p.totalLessons
+          : (lessonCountByCourse.get(row.courseId) ?? 0)
+      const lessonsDone = Math.min(p?.lessonsCompleted ?? 0, lessonTotal)
+      const isCompleted = p?.isCompleted === true || row.enrollment.completedAt != null
       return {
         ...row.enrollment,
         chosenSchedule: chosen
@@ -166,6 +196,12 @@ export const GET = withAuth(
             }
           : null,
         sessionCount,
+        progress: {
+          lessonsCompleted: lessonsDone,
+          totalLessons: lessonTotal,
+          averageScore: p?.averageScore ?? null,
+          isCompleted,
+        },
         course: {
           courseId: row.courseId,
           name: row.courseName,

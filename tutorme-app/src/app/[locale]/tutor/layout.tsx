@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { UserNav } from '@/components/user-nav'
 import {
   LayoutDashboard,
+  DollarSign,
   BarChart3,
   MessageSquare,
   Settings,
@@ -62,6 +63,7 @@ const navItems: NavItem[] = [
     iconColor: 'text-[#16A34A]',
   },
   { href: '/tutor/reports', label: 'Analytics', icon: BarChart3, iconColor: 'text-[#F59E0B]' },
+  { href: '/tutor/refunds', label: 'Refunds', icon: DollarSign, iconColor: 'text-[#D97706]' },
   { href: '/tutor/support', label: 'Support', icon: HelpCircle, iconColor: 'text-[#8B5CF6]' },
 
   // Whiteboard audit links

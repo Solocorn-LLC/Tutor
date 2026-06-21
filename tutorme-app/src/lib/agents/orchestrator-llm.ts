@@ -7,6 +7,7 @@
  */
 
 import { generateWithKimi, chatWithKimi } from '@/lib/ai/kimi'
+import type { UsageContext } from '@/lib/ai/usage'
 import { cache } from '@/lib/db'
 import { adkGenerate, adkChat } from '@/lib/adk-client'
 import { isGeminiActive } from '@/lib/ai/provider'
@@ -24,6 +25,8 @@ interface AIOptions {
   timeoutMs?: number
   /** Skip response cache (default false for generate, true when cache not desired) */
   skipCache?: boolean
+  /** Attribute token usage to a student/course/feature (recorded by the Kimi provider). */
+  usageContext?: UsageContext
 }
 
 interface GenerationResult {

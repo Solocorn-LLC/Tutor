@@ -853,6 +853,63 @@ function StudentFeedbackContent() {
     socket.emit('student:state_sync', { roomId: selectedSessionId, payload })
   }, [socket, selectedSessionId, activeTab, activeTaskId])
 
+  // Track real interaction recency so we can report a live engagement signal to
+  // the tutor's Monitor (instead of a static placeholder).
+  const lastInteractionRef = useRef<number>(Date.now())
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const bump = () => {
+      lastInteractionRef.current = Date.now()
+    }
+    const events: (keyof WindowEventMap)[] = [
+      'pointerdown',
+      'pointermove',
+      'keydown',
+      'wheel',
+      'touchstart',
+    ]
+    events.forEach(e => window.addEventListener(e, bump, { passive: true }))
+    return () => events.forEach(e => window.removeEventListener(e, bump))
+  }, [])
+
+  // Periodically emit an activity_ping with a behaviour-derived engagement score
+  // and the student's current activity, so the tutor's Monitor reflects reality.
+  useEffect(() => {
+    if (!socket || !selectedSessionId) return
+    const computeAndEmit = () => {
+      const hidden = typeof document !== 'undefined' && document.hidden
+      const idleMs = Date.now() - lastInteractionRef.current
+      // Engagement: full when recently active and focused; decays while idle, and
+      // is low when the tab isn't focused.
+      let engagement: number
+      if (hidden) engagement = 20
+      else if (idleMs < 20_000) engagement = 100
+      else if (idleMs < 60_000) engagement = 75
+      else if (idleMs < 120_000) engagement = 50
+      else if (idleMs < 300_000) engagement = 30
+      else engagement = 10
+      const onBoard = activeTab === 'tutor-board' || rightPanelTab === 'my-board'
+      const activity = hidden
+        ? 'Away (tab not focused)'
+        : onBoard
+          ? 'On the whiteboard'
+          : activeTaskId
+            ? 'Working on a task'
+            : idleMs > 60_000
+              ? 'Idle'
+              : 'Active'
+      socket.emit('activity_ping', { roomId: selectedSessionId, engagement, activity })
+    }
+    computeAndEmit()
+    const id = setInterval(computeAndEmit, 12_000)
+    const onVis = () => computeAndEmit()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [socket, selectedSessionId, activeTab, activeTaskId, rightPanelTab])
+
   useEffect(() => {
     if (!socket) return
 

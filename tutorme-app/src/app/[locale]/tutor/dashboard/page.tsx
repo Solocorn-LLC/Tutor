@@ -36,6 +36,7 @@ import {
   Ban,
   Eye,
   CalendarClock,
+  Presentation,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -790,6 +791,21 @@ function TutorDashboardContent() {
                                   </Button>
                                 ) : null
                               })()}
+                            {/* Classroom lobby: review past sessions, see the next
+                                session's countdown, and get pulled in when it
+                                starts. Uses the published course id (course.id) —
+                                the one live sessions live under. */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                router.push(withLocalePath(`/tutor/classroom/${course.id}`))
+                              }
+                              className="transition-all duration-200"
+                            >
+                              <Presentation className="mr-1 h-3 w-3" />
+                              Classroom
+                            </Button>
                             {hasViewableSessions ? (
                               <Button
                                 variant="default"

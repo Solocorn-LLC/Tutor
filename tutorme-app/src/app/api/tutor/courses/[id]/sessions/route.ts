@@ -103,6 +103,7 @@ export const GET = withAuth(
         enrolledStudents: s.participants?.length || 0,
         status: s.status,
         roomUrl: s.roomUrl,
+        recordingUrl: s.recordingUrl ?? null,
         isVirtual: false,
         // null scheduleId = a one-time/ad-hoc session (not tied to the recurring schedule)
         scheduleId: s.scheduleId ?? null,

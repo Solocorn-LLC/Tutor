@@ -419,3 +419,22 @@ export const notificationPreference = pgTable('NotificationPreference', {
     .defaultNow()
     .$onUpdate(() => new Date()),
 })
+
+// Web Push (browser) subscriptions — one row per device/endpoint per user.
+export const pushSubscription = pgTable(
+  'PushSubscription',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    userId: text('userId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('userAgent'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    PushSubscription_userId_idx: index('PushSubscription_userId_idx').on(table.userId),
+  })
+)

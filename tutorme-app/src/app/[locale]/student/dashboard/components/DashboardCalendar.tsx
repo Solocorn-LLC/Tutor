@@ -11,6 +11,7 @@ import {
   type CalendarView,
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { StudentAvailabilityTab } from './StudentAvailabilityTab'
 import { Badge } from '@/components/ui/badge'
 import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -206,6 +207,7 @@ export function DashboardCalendar({
       tabs={[
         { value: 'classes', label: 'Sessions' },
         { value: 'calendar', label: 'Calendar' },
+        { value: 'availability', label: 'My Availability' },
         { value: 'bookings', label: 'Bookings' },
       ]}
       showCalendarControls={activeTab === 'calendar'}
@@ -228,6 +230,14 @@ export function DashboardCalendar({
           view={calendarView}
           onViewChange={setCalendarView}
         />
+      </TabsContent>
+
+      {/* My Availability Tab */}
+      <TabsContent
+        value="availability"
+        className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <StudentAvailabilityTab />
       </TabsContent>
 
       {/* Bookings Tab */}
