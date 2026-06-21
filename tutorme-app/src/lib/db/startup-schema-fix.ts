@@ -152,6 +152,28 @@ BEGIN
     ALTER TABLE "TaskDeployment" ALTER COLUMN "status" TYPE "TaskDeploymentStatus" USING ("status"::"TaskDeploymentStatus");
   END IF;
 END $$;
+
+-- Web Push subscriptions (browser push for session reminders)
+CREATE TABLE IF NOT EXISTS "PushSubscription" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "userId" text NOT NULL,
+  "endpoint" text NOT NULL,
+  "p256dh" text NOT NULL,
+  "auth" text NOT NULL,
+  "userAgent" text,
+  "createdAt" timestamptz DEFAULT now() NOT NULL
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PushSubscription_endpoint_unique') THEN
+    ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_endpoint_unique" UNIQUE ("endpoint");
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PushSubscription_userId_fkey') THEN
+    ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS "PushSubscription_userId_idx" ON "PushSubscription" ("userId");
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

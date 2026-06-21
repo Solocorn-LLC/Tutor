@@ -431,6 +431,43 @@ self.addEventListener('sync', (event: any) => {
   }
 })
 
+// --- Web Push: session reminders ---
+self.addEventListener('push', (event: any) => {
+  let payload: { title?: string; body?: string; url?: string; tag?: string } = {}
+  try {
+    payload = event.data ? event.data.json() : {}
+  } catch {
+    payload = { body: event.data ? event.data.text() : '' }
+  }
+  const title = payload.title || 'TutorMe'
+  const options: any = {
+    body: payload.body || '',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    tag: payload.tag || 'tutorme',
+    data: { url: payload.url || '/' },
+    renotify: true,
+  }
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event: any) => {
+  event.notification.close()
+  const url = event.notification?.data?.url || '/'
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients: any[]) => {
+      // Focus an existing tab if one is open; otherwise open a new one.
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.navigate?.(url)
+          return client.focus()
+        }
+      }
+      return self.clients.openWindow ? self.clients.openWindow(url) : undefined
+    })
+  )
+})
+
 async function replayOfflineRequests(): Promise<void> {
   if (isSyncing) return
   isSyncing = true

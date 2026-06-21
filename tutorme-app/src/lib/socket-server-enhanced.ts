@@ -602,6 +602,92 @@ export async function initEnhancedSocketServer(server: NetServer) {
     }, 30 * 1000) // Check every 30 seconds
   )
 
+  // Session START reminders: notify the tutor + enrolled students at 20/10/5/1
+  // minutes before scheduledAt (in-app + web-push via notify(); also a socket
+  // 'session:starting-soon' for anyone already in the lobby/room). Fires once per
+  // (session, threshold). Auto-start is NOT done here — a class only goes live
+  // when the tutor takes it live (their presence). This just reminds everyone.
+  const startAlertSent = new Set<string>()
+  const START_THRESHOLDS = [20, 10, 5, 1] // minutes
+  intervalHandles.push(
+    setInterval(async () => {
+      const now = Date.now()
+      try {
+        const upcoming = await drizzleDb
+          .select({
+            sessionId: liveSession.sessionId,
+            title: liveSession.title,
+            scheduledAt: liveSession.scheduledAt,
+            courseId: liveSession.courseId,
+            tutorId: liveSession.tutorId,
+          })
+          .from(liveSession)
+          .where(eq(liveSession.status, 'scheduled'))
+
+        for (const s of upcoming) {
+          if (!s.scheduledAt) continue
+          const remaining = new Date(s.scheduledAt).getTime() - now
+          if (remaining <= 0) continue
+
+          for (const t of START_THRESHOLDS) {
+            const key = `${s.sessionId}:${t}`
+            // 30s window aligned to the interval, deduped by key.
+            if (remaining <= t * 60_000 && remaining > t * 60_000 - 30_000) {
+              if (startAlertSent.has(key)) continue
+              startAlertSent.add(key)
+
+              const minLabel = t === 1 ? '1 minute' : `${t} minutes`
+              io.to(s.sessionId).emit('session:starting-soon', {
+                sessionId: s.sessionId,
+                minutesRemaining: t,
+              })
+
+              // Tutor reminder → tutor lobby.
+              void notifyMany({
+                userIds: [s.tutorId],
+                type: 'reminder',
+                title: 'Your class starts soon',
+                message: `"${s.title}" starts in ${minLabel}.`,
+                actionUrl: s.courseId ? `/tutor/classroom/${s.courseId}` : undefined,
+              }).catch(() => {})
+
+              // Enrolled students reminder → student lobby.
+              if (s.courseId) {
+                try {
+                  const rows = await drizzleDb
+                    .select({ studentId: courseEnrollment.studentId })
+                    .from(courseEnrollment)
+                    .where(eq(courseEnrollment.courseId, s.courseId))
+                  const studentIds = rows.map(r => r.studentId).filter(Boolean)
+                  if (studentIds.length > 0) {
+                    void notifyMany({
+                      userIds: studentIds,
+                      type: 'reminder',
+                      title: 'Class starting soon',
+                      message: `"${s.title}" starts in ${minLabel}.`,
+                      actionUrl: `/student/classroom/${s.courseId}`,
+                    }).catch(() => {})
+                  }
+                } catch (e) {
+                  console.error('[Session Start Alert] enrollment lookup failed:', e)
+                }
+              }
+            }
+          }
+        }
+
+        // Prune dedup keys for sessions no longer scheduled/upcoming.
+        const upcomingIds = new Set(upcoming.map(s => s.sessionId))
+        for (const key of Array.from(startAlertSent)) {
+          const sid = key.split(':')[0]
+          if (!upcomingIds.has(sid)) startAlertSent.delete(key)
+        }
+      } catch (err) {
+        console.error('[Session Start Alert] Error:', err)
+      }
+    }, 30 * 1000)
+  )
+
   // Start cleanup intervals
   intervalHandles.push(setInterval(cleanupInactiveClassRooms, ROOM_CLEANUP_INTERVAL))
   intervalHandles.push(setInterval(cleanupInactiveDMRooms, DM_CLEANUP_INTERVAL))

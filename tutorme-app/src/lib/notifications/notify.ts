@@ -8,6 +8,7 @@
 import { eq } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { notificationPreference, notification, user } from '@/lib/db/schema'
+import { sendWebPushToUser } from '@/lib/push/web-push'
 
 export type NotificationType =
   | 'assignment'
@@ -239,6 +240,13 @@ export async function notify(params: NotifyParams) {
       userId,
       inAppRecord ?? { type, title, message, actionUrl, createdAt: new Date() }
     )
+    // Browser web-push (best-effort; no-op when VAPID is unconfigured).
+    void sendWebPushToUser(userId, {
+      title,
+      body: message,
+      url: actionUrl ?? undefined,
+      tag: type,
+    }).catch(e => console.error('[notify] web-push error:', e))
   }
 
   if (channels.email) {
