@@ -38,8 +38,18 @@ describe('categorizeLobbySessions', () => {
   })
 
   it('treats a real session with endedAt as past, but not a virtual one', () => {
-    const realEnded = mk({ id: 'r', status: 'scheduled', endedAt: '2020-01-01T11:00:00Z', isVirtual: false })
-    const virtual = mk({ id: 'v', status: 'scheduled', endedAt: '2020-01-01T11:00:00Z', isVirtual: true })
+    const realEnded = mk({
+      id: 'r',
+      status: 'scheduled',
+      endedAt: '2020-01-01T11:00:00Z',
+      isVirtual: false,
+    })
+    const virtual = mk({
+      id: 'v',
+      status: 'scheduled',
+      endedAt: '2020-01-01T11:00:00Z',
+      isVirtual: true,
+    })
     const { pastSessions } = categorizeLobbySessions([realEnded, virtual])
     expect(pastSessions.map(s => s.id)).toEqual(['r'])
   })
