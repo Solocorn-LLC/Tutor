@@ -71,6 +71,38 @@ export function MonitoringPanel({
     }
   }, [socket])
 
+  // Per-student comprehension from real task-submission correctness. Polled, and
+  // refetched when a student completes a task (scores arrive as work is graded).
+  const [comprehension, setComprehension] = useState<
+    Record<string, { understanding: number | null; scored: number; total: number }>
+  >({})
+  useEffect(() => {
+    if (!sessionId) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/tutor/live-sessions/${sessionId}/comprehension`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (!cancelled && data?.comprehension) setComprehension(data.comprehension)
+      } catch {
+        // ignore
+      }
+    }
+    load()
+    const id = setInterval(load, 20_000)
+    const onCompleted = () => load()
+    socket?.on('task:completed', onCompleted)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      socket?.off('task:completed', onCompleted)
+    }
+  }, [sessionId, socket])
+
   const handleSendHelp = (studentId: string, studentName: string, customMessage?: string) => {
     if (!socket) {
       toast.error('Socket not connected')
@@ -375,6 +407,35 @@ export function MonitoringPanel({
                       </div>
                     </div>
                   )}
+
+                  {(() => {
+                    const compr = comprehension[student.id]
+                    const u = compr?.understanding
+                    if (u == null) {
+                      return compr && compr.total > 0 ? (
+                        <div className="text-[11px] text-slate-400">
+                          Understanding: awaiting grading
+                        </div>
+                      ) : null
+                    }
+                    return (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>Understanding{compr ? ` (${compr.scored} graded)` : ''}</span>
+                          <span className="font-medium text-slate-700">{u}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={cn(
+                              'h-full rounded-full',
+                              u >= 66 ? 'bg-emerald-500' : u >= 33 ? 'bg-amber-500' : 'bg-red-500'
+                            )}
+                            style={{ width: `${Math.min(100, Math.max(0, u))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   <div className="flex flex-wrap gap-2">
                     <Button
