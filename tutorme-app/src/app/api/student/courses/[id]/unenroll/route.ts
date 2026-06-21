@@ -1,5 +1,5 @@
 /**
- * POST /api/student/courses/[courseId]/unenroll
+ * POST /api/student/courses/[id]/unenroll
  *
  * Lets a student unregister from a course with full cleanup:
  *  - delete the enrollment + its progress row, release the schedule seat
@@ -25,7 +25,7 @@ export const POST = withCsrf(
   withAuth(
     async (req: NextRequest, session, context) => {
       const studentId = session.user.id
-      const courseId = await getParamAsync(context.params, 'courseId')
+      const courseId = await getParamAsync(context.params, 'id')
       if (!courseId) {
         return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
       }
