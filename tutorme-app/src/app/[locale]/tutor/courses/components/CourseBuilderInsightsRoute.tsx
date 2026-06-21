@@ -223,7 +223,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm',
-                        'text-white/70 hover:bg-white/5 hover:text-white'
+                        'text-[#2563EB] hover:bg-white/5 hover:text-blue-400'
                       )}
                     >
                       <PencilRuler className="h-3.5 w-3.5" />
@@ -245,7 +245,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm',
-                        'text-white/70 hover:bg-white/5 hover:text-white'
+                        'text-[#F97316] hover:bg-white/5 hover:text-orange-400'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
@@ -261,7 +261,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled}
                       onClick={onSave}
-                      className={cn(actionButtonBase)}
+                      className={cn(actionButtonBase, 'text-gray-900')}
                     >
                       <Save className="h-4 w-4" />
                       Save
@@ -271,7 +271,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canSchedule}
                       onClick={onSchedule}
-                      className={cn(actionButtonBase)}
+                      className={cn(actionButtonBase, 'text-[#2563EB]')}
                     >
                       <Calendar className="h-4 w-4" />
                       Schedule
@@ -281,7 +281,7 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canDelete}
                       onClick={onDelete}
-                      className={cn(actionButtonBase)}
+                      className={cn(actionButtonBase, 'text-red-600')}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -293,7 +293,10 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canGoLive}
                       onClick={onGoLive}
-                      className={cn(actionButtonBase)}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700'
+                      )}
                     >
                       <VideoIcon className="h-4 w-4" />
                       Go Live
@@ -303,7 +306,10 @@ function TutorControlsPanel({
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !hasSession}
                       onClick={onVideo}
-                      className={cn(actionButtonBase)}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
+                      )}
                     >
                       <VideoIcon className="h-4 w-4" />
                       Video
@@ -315,7 +321,7 @@ function TutorControlsPanel({
                       onClick={onSync}
                       className={cn(
                         actionButtonBase,
-                        'group disabled:opacity-100'
+                        'group disabled:opacity-100 text-amber-400'
                       )}
                     >
                       <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
