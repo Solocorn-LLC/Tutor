@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -46,12 +47,14 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  DollarSign,
 } from 'lucide-react'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
 
 const LANGUAGES = [
@@ -268,7 +271,21 @@ export default function TutorSettings() {
   const { data: session, update: updateSession } = useSession()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('profile')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab')
+    const validTabs = [
+      'profile',
+      'billing',
+      'history',
+      'refunds',
+      'notifications',
+      'security',
+      'controls',
+      'session-log',
+    ]
+    return validTabs.find(tab => tab === tabParam) ?? 'profile'
+  })
   const [profileOpen, setProfileOpen] = useState(true)
   const [publicProfileOpen, setPublicProfileOpen] = useState(false)
   const [taxOpen, setTaxOpen] = useState(false)
@@ -625,6 +642,7 @@ export default function TutorSettings() {
             { value: 'profile', label: 'Profile', icon: User },
             { value: 'billing', label: 'Billing', icon: CreditCard },
             { value: 'history', label: 'History', icon: FileText },
+            { value: 'refunds', label: 'Refunds', icon: DollarSign },
             { value: 'notifications', label: 'Notifications', icon: Bell },
             { value: 'security', label: 'Security', icon: Shield },
             { value: 'controls', label: 'Controls', icon: Power },
@@ -1330,6 +1348,27 @@ export default function TutorSettings() {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Refunds */}
+          <TabsContent
+            value="refunds"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+              <Card className={SECTION_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Refunds</CardTitle>
+                  <CardDescription>
+                    Pending refund requests across all your courses — approve to process via the
+                    payment gateway, or decline.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PendingRefundsPanel showCourse hideWhenEmpty={false} />
                 </CardContent>
               </Card>
             </div>

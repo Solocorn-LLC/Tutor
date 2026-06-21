@@ -85,6 +85,22 @@ const nextConfig = {
     }
   },
 
+  // Refunds moved into Account settings
+  async redirects() {
+    return [
+      {
+        source: '/tutor/refunds',
+        destination: '/tutor/settings?tab=refunds',
+        permanent: true,
+      },
+      {
+        source: '/:locale/tutor/refunds',
+        destination: '/:locale/tutor/settings?tab=refunds',
+        permanent: true,
+      },
+    ]
+  },
+
   // Security headers (CSP, X-Frame-Options, etc.) are set by proxy.ts
   // to avoid duplication and ensure consistent policy.
   async headers() {
