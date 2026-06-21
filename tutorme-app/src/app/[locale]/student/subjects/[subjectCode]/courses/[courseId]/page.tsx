@@ -318,6 +318,11 @@ function CourseEnrollPageInner() {
                 <p className="text-sm font-medium">You&apos;re already enrolled in this course.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button asChild>
+                    <Link href={`/student/classroom/${encodeURIComponent(courseId)}`}>
+                      Enter classroom
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
                     <Link href="/student/dashboard">Go to dashboard</Link>
                   </Button>
                   <Button variant="outline" asChild>

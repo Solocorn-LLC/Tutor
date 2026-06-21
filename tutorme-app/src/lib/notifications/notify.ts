@@ -22,6 +22,15 @@ export type NotificationType =
   | 'achievement'
   | 'grade'
 
+// Types worth an OS-level browser push (time-sensitive or interruptive). Other
+// transactional types still go in-app/SSE/email but not browser push.
+const WEB_PUSH_TYPES = new Set<NotificationType>([
+  'reminder', // session start/countdown reminders
+  'class', // live class / session events
+  'message', // direct messages
+  'mention', // @-mentions
+])
+
 interface NotifyParams {
   userId: string
   type: NotificationType
@@ -240,13 +249,17 @@ export async function notify(params: NotifyParams) {
       userId,
       inAppRecord ?? { type, title, message, actionUrl, createdAt: new Date() }
     )
-    // Browser web-push (best-effort; no-op when VAPID is unconfigured).
-    void sendWebPushToUser(userId, {
-      title,
-      body: message,
-      url: actionUrl ?? undefined,
-      tag: type,
-    }).catch(e => console.error('[notify] web-push error:', e))
+    // Browser web-push only for time-sensitive / interruptive types — avoids
+    // turning every transactional in-app notification into an OS-level push.
+    // (best-effort; no-op when VAPID is unconfigured.)
+    if (WEB_PUSH_TYPES.has(type)) {
+      void sendWebPushToUser(userId, {
+        title,
+        body: message,
+        url: actionUrl ?? undefined,
+        tag: type,
+      }).catch(e => console.error('[notify] web-push error:', e))
+    }
   }
 
   if (channels.email) {
