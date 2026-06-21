@@ -74,7 +74,10 @@ export function MonitoringPanel({
   // Per-student comprehension from real task-submission correctness. Polled, and
   // refetched when a student completes a task (scores arrive as work is graded).
   const [comprehension, setComprehension] = useState<
-    Record<string, { understanding: number | null; scored: number; total: number }>
+    Record<
+      string,
+      { understanding: number | null; scored: number; total: number; needsReview?: number }
+    >
   >({})
   useEffect(() => {
     if (!sessionId) return
@@ -418,7 +421,15 @@ export function MonitoringPanel({
                   {(() => {
                     const compr = comprehension[student.id]
                     const u = compr?.understanding
+                    const needsReview = compr?.needsReview ?? 0
+                    const reviewNote =
+                      needsReview > 0 ? (
+                        <div className="text-[11px] font-medium text-amber-600">
+                          {needsReview} answer{needsReview === 1 ? '' : 's'} need review
+                        </div>
+                      ) : null
                     if (u == null) {
+                      if (needsReview > 0) return reviewNote
                       return compr && compr.total > 0 ? (
                         <div className="text-[11px] text-slate-400">
                           Understanding: awaiting grading
@@ -440,6 +451,7 @@ export function MonitoringPanel({
                             style={{ width: `${Math.min(100, Math.max(0, u))}%` }}
                           />
                         </div>
+                        {reviewNote}
                       </div>
                     )
                   })()}

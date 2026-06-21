@@ -50,14 +50,24 @@ const answerKey = [
   { id: 'q1', questionNumber: 1, questionText: 'Capital of France?', answer: 'Paris' },
   { id: 'q2', questionNumber: 2, questionText: '6 x 7?', answer: '42' },
   { id: 'q3', questionNumber: 3, questionText: 'Plant energy process?', answer: 'Photosynthesis' },
+  // Open-ended: a non-matching answer is excluded from the score and flagged.
+  {
+    id: 'q4',
+    questionNumber: 4,
+    questionText: 'Explain it',
+    answer: 'Plants convert sunlight carbon dioxide and water into glucose and oxygen',
+  },
 ]
-// Student gets 2 of 3 right (q2 wrong) -> 67.
+// Of the three short items the student gets 2 right (q2 wrong) -> 67. The
+// open-ended q4 is paraphrased (no key match) so it's set aside, not counted.
 const studentAnswers: Record<string, string> = {
   q1: 'It is Paris',
   q2: '7',
   q3: 'photosynthesis',
+  q4: 'plants make food from the sun',
 }
 const EXPECTED_SCORE = 67
+const EXPECTED_NEEDS_REVIEW = 1
 
 // Mock auth so the real comprehension handler runs as our tutor.
 const mockSession = {
@@ -192,13 +202,18 @@ describe('Live auto-grading end-to-end', () => {
     expect(row?.score).toBe(EXPECTED_SCORE)
     // Per-item correctness recorded; stays 'submitted' so the tutor can override.
     expect(row?.status).toBe('submitted')
-    const qr = row?.questionResults as { questionId: string; correct: boolean }[] | null
+    const qr = row?.questionResults as
+      | { questionId: string; correct: boolean; needsReview?: boolean }[]
+      | null
     expect(Array.isArray(qr)).toBe(true)
     expect(qr?.find(x => x.questionId === 'q1')?.correct).toBe(true)
     expect(qr?.find(x => x.questionId === 'q2')?.correct).toBe(false)
     expect(qr?.find(x => x.questionId === 'q3')?.correct).toBe(true)
+    // The open-ended q4 is set aside for review, not counted wrong.
+    expect(qr?.find(x => x.questionId === 'q4')?.needsReview).toBe(true)
     // The answer key must never be persisted in the student-readable results.
     expect(JSON.stringify(qr)).not.toContain('Photosynthesis')
+    expect(JSON.stringify(qr)).not.toContain('glucose')
   })
 
   it('surfaces the score as live Understanding via the real comprehension route', async () => {
@@ -211,5 +226,7 @@ describe('Live auto-grading end-to-end', () => {
     expect(data.comprehension?.[studentId]).toBeTruthy()
     expect(data.comprehension[studentId].understanding).toBe(EXPECTED_SCORE)
     expect(data.comprehension[studentId].scored).toBe(1)
+    // The open-ended answer surfaces as a review flag, not a lowered score.
+    expect(data.comprehension[studentId].needsReview).toBe(EXPECTED_NEEDS_REVIEW)
   })
 })

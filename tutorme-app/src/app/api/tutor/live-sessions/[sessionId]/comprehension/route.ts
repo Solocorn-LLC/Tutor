@@ -4,7 +4,9 @@
  * Per-student comprehension for the live session's course, derived from real
  * task-submission correctness: the average of (score / maxScore) over the
  * student's scored submissions on the course's tasks. Returns null understanding
- * for students with no scored submissions yet (never fabricated).
+ * for students with no scored submissions yet (never fabricated). Also returns a
+ * `needsReview` count — open-ended answers the live auto-grader set aside for the
+ * tutor to grade (excluded from the score, not penalized).
  *
  * Used by the tutor Monitor tab to show a live "Understanding" indicator.
  */
@@ -46,14 +48,28 @@ export const GET = withAuth(
         studentId: taskSubmission.studentId,
         score: taskSubmission.score,
         maxScore: taskSubmission.maxScore,
+        questionResults: taskSubmission.questionResults,
       })
       .from(taskSubmission)
       .where(and(inArray(taskSubmission.taskId, taskIds)))
 
-    const agg: Record<string, { sum: number; scored: number; total: number }> = {}
+    const countNeedsReview = (qr: unknown): number =>
+      Array.isArray(qr)
+        ? qr.filter(
+            q =>
+              q &&
+              typeof q === 'object' &&
+              'needsReview' in q &&
+              (q as { needsReview?: unknown }).needsReview
+          ).length
+        : 0
+
+    const agg: Record<string, { sum: number; scored: number; total: number; needsReview: number }> =
+      {}
     for (const s of subs) {
-      const a = (agg[s.studentId] ||= { sum: 0, scored: 0, total: 0 })
+      const a = (agg[s.studentId] ||= { sum: 0, scored: 0, total: 0, needsReview: 0 })
       a.total += 1
+      a.needsReview += countNeedsReview(s.questionResults)
       if (typeof s.score === 'number') {
         a.scored += 1
         a.sum += (s.score / (s.maxScore || 100)) * 100
@@ -67,6 +83,7 @@ export const GET = withAuth(
           understanding: a.scored > 0 ? Math.round(a.sum / a.scored) : null,
           scored: a.scored,
           total: a.total,
+          needsReview: a.needsReview,
         },
       ])
     )
