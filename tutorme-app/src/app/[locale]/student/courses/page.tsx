@@ -446,7 +446,47 @@ function CoursePageInner() {
   const [detailCourse, setDetailCourse] = useState<Course | null>(null)
   const [scheduleCourse, setScheduleCourse] = useState<Course | null>(null)
   const [enteringClass, setEnteringClass] = useState<string | null>(null)
+  const [unregisteringId, setUnregisteringId] = useState<string | null>(null)
   const router = useRouter()
+
+  const handleUnregister = useCallback(
+    async (course: Course) => {
+      if (
+        !window.confirm(
+          `Unregister from "${course.name}"? You'll lose access to its sessions and materials. If you paid, a partial refund may apply.`
+        )
+      ) {
+        return
+      }
+      setUnregisteringId(course.id)
+      try {
+        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+        const res = await fetch(`/api/student/courses/${course.id}/unenroll`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
+          credentials: 'include',
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error(json?.message ?? 'Failed to unregister from the course')
+          return
+        }
+        if (json?.refund) {
+          toast.success('Unregistered — a partial refund has been issued')
+        } else {
+          toast.success('Unregistered from the course')
+        }
+        await loadCourses()
+      } catch {
+        toast.error('Failed to unregister from the course')
+      } finally {
+        setUnregisteringId(null)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
 
   const handleEnterClass = useCallback(
     async (courseId: string) => {
@@ -618,6 +658,8 @@ function CoursePageInner() {
                     onSchedule={setScheduleCourse}
                     enteringClass={enteringClass}
                     onEnterClass={handleEnterClass}
+                    onUnregister={handleUnregister}
+                    unregisteringId={unregisteringId}
                   />
                 )}
                 {activeTab === 'pending' && (
@@ -631,6 +673,8 @@ function CoursePageInner() {
                     onSchedule={setScheduleCourse}
                     enteringClass={enteringClass}
                     onEnterClass={handleEnterClass}
+                    onUnregister={handleUnregister}
+                    unregisteringId={unregisteringId}
                   />
                 )}
                 {activeTab === 'completed' && (
@@ -644,6 +688,8 @@ function CoursePageInner() {
                     onSchedule={setScheduleCourse}
                     enteringClass={enteringClass}
                     onEnterClass={handleEnterClass}
+                    onUnregister={handleUnregister}
+                    unregisteringId={unregisteringId}
                   />
                 )}
                 {activeTab === 'favorites' && (
@@ -925,6 +971,8 @@ function CourseSection({
   onSchedule,
   enteringClass,
   onEnterClass,
+  onUnregister,
+  unregisteringId,
 }: {
   title: string
   description?: string
@@ -935,6 +983,8 @@ function CourseSection({
   onSchedule: (c: Course) => void
   enteringClass: string | null
   onEnterClass: (courseId: string) => void
+  onUnregister?: (c: Course) => void
+  unregisteringId?: string | null
 }) {
   return (
     <section>
@@ -958,6 +1008,8 @@ function CourseSection({
             onSchedule={() => onSchedule(course)}
             enteringClass={enteringClass}
             onEnterClass={onEnterClass}
+            onUnregister={onUnregister}
+            unregisteringId={unregisteringId}
           />
         ))}
       </div>
@@ -973,6 +1025,8 @@ function CourseCard({
   onSchedule,
   enteringClass,
   onEnterClass,
+  onUnregister,
+  unregisteringId,
 }: {
   course: Course
   isFavorite: boolean
@@ -981,6 +1035,8 @@ function CourseCard({
   onSchedule: () => void
   enteringClass: string | null
   onEnterClass: (courseId: string) => void
+  onUnregister?: (c: Course) => void
+  unregisteringId?: string | null
 }) {
   const SubjectIcon = SUBJECT_ICONS[course.subject] || SUBJECT_ICONS.default
   const progress = course.progress
@@ -1147,6 +1203,20 @@ function CourseCard({
         >
           Details
         </Button>
+        {onUnregister && course.enrollment && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 border-rose-500/30 bg-rose-500/10 px-3 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+            disabled={unregisteringId === course.id}
+            onClick={e => {
+              e.stopPropagation()
+              onUnregister(course)
+            }}
+          >
+            {unregisteringId === course.id ? 'Unregistering...' : 'Unregister'}
+          </Button>
+        )}
       </div>
     </div>
   )
