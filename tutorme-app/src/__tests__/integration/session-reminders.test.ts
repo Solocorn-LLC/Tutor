@@ -34,15 +34,13 @@ function reminderRows() {
 describe('session reminder scheduler', () => {
   beforeAll(async () => {
     const now = Date.now()
-    await drizzleDb
-      .insert(user)
-      .values({
-        userId: tutorId,
-        email: tutorEmail,
-        role: 'TUTOR',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
+    await drizzleDb.insert(user).values({
+      userId: tutorId,
+      email: tutorEmail,
+      role: 'TUTOR',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
     await drizzleDb.insert(liveSession).values([
       {
         sessionId: soonId,
