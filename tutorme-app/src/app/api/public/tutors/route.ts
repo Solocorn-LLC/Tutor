@@ -147,22 +147,33 @@ export async function GET(request: NextRequest) {
             ? desc(sql`max(${profile.hourlyRate})`)
             : desc(sql`count(distinct ${course.courseId})`)
 
+    // Root the directory on tutors (user/profile), LEFT JOINing their published
+    // courses, so EVERY tutor is discoverable — not only those who have published
+    // a course. The published/not-deleted filter lives on the JOIN condition (not
+    // the WHERE) so a course-less tutor isn't filtered out. Course-derived
+    // filters (subject/combination/nationality) still naturally restrict to
+    // tutors who have matching courses.
     const tutorAggSubq = drizzleDb
       .select({
-        creatorId: course.creatorId,
+        creatorId: user.userId,
         latestUpdatedAt: sql<Date>`max(${course.updatedAt})`.as('latestUpdatedAt'),
         courseCount: sql<number>`count(distinct ${course.courseId})::int`.as('courseCount'),
         hourlyRate: sql<number>`max(${profile.hourlyRate})`.as('hourlyRate'),
         totalCount: sql<number>`count(*) over()::int`.as('totalCount'),
       })
-      .from(course)
-      .innerJoin(user, eq(course.creatorId, user.userId))
+      .from(user)
       .innerJoin(profile, eq(user.userId, profile.userId))
+      .leftJoin(
+        course,
+        and(
+          eq(course.creatorId, user.userId),
+          eq(course.isPublished, true),
+          isNull(course.deletedAt)
+        )
+      )
       .leftJoin(courseVariant, eq(course.courseId, courseVariant.publishedCourseId))
       .where(
         and(
-          eq(course.isPublished, true),
-          isNull(course.deletedAt),
           eq(user.role, 'TUTOR'),
           searchPattern
             ? or(
@@ -197,8 +208,10 @@ export async function GET(request: NextRequest) {
             : undefined
         )
       )
-      .groupBy(course.creatorId)
-      .orderBy(orderByClause)
+      .groupBy(user.userId)
+      // Stable tiebreaker so pagination is deterministic when the primary metric
+      // ties (e.g. all the course-less tutors with 0 courses).
+      .orderBy(orderByClause, sql`${user.userId} asc`)
       .limit(pageSize)
       .offset(offset)
       .as('tutorAgg')
