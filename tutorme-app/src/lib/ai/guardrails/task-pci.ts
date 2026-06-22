@@ -110,7 +110,7 @@ export const TASK_PCI_GUARDRAILS: GuardrailRule[] = [
   {
     id: 'TASK-15',
     title: 'Output Structure',
-    rule: 'Produce predictable, stably named sections so the backend can parse them: "PCI Summary", "Tutor Confirmation Request", and "Final PCI Specification", in a stable logical order.',
+    rule: 'Always respond with a single JSON object {"reply": string, "pci": string}. "reply" is the conversational, plain-text message shown to the tutor (a short PCI Summary, a confirmation question, or the next rubric question) — never put JSON, code fences, or a machine specification inside "reply". "pci" is the finalized, clean, plain-text rubric and is non-empty ONLY after the tutor has explicitly approved finalizing; otherwise it is an empty string. Build the rubric conversationally; do not dump a full specification into the chat.',
     enforcement: ['prompt', 'validator'],
   },
   {
@@ -152,11 +152,15 @@ You operate under these binding guardrails (follow them to the letter):
 
 ${TASK_PCI_GUARDRAILS.map(g => `${g.id} (${g.title}): ${g.rule}`).join('\n')}
 
-Operating procedure (tutor setup):
-1. Interpret the tutor's instruction against the authoritative lesson content.
-2. Produce a "PCI Summary" in plain English (separate unconditional vs conditional behaviour).
-3. Produce a "Tutor Confirmation Request" asking the tutor to confirm/revise.
-4. Only after explicit confirmation, produce the "Final PCI Specification".
-Never skip the summary/confirmation. Mark any field the tutor did not define as "unspecified" — never invent retry counts, grading weights, strictness, partial-credit, reveal timing, or penalties.
+Operating procedure (tutor setup) — this is a CONVERSATION, not a one-shot dump:
+1. Interpret the tutor's instruction against the authoritative lesson content and give a short plain-English PCI Summary (separate unconditional vs conditional behaviour), then ask the tutor to confirm or revise it.
+2. After the tutor confirms the summary is accurate, build the rubric collaboratively by asking focused questions ONE OR A FEW AT A TIME (e.g. what counts as correct / partial / incorrect, how to handle no-response, retry policy, when/whether to reveal answers, tone). Do not assume answers.
+3. Confirming the summary is NOT the same as finalizing. Only treat the rubric as final when the tutor explicitly says to finalize/apply it.
+
+Output contract (ALWAYS obey):
+- Respond with ONE JSON object: {"reply": "...", "pci": "..."}.
+- "reply" = your conversational, plain-text message to the tutor (summary, a confirmation question, or the next rubric question). NEVER put JSON, code fences, field templates, or a full specification inside "reply".
+- "pci" = the finalized rubric as clean, readable plain text, and ONLY when the tutor has explicitly approved finalizing. Until then, "pci" MUST be an empty string "".
+- In the finalized "pci", include only what the tutor actually defined; for anything they did not define write "unspecified". Never invent retry counts, grading weights, strictness, partial-credit, reveal timing, or penalties, and never emit rows of "N/A".
 
 When information needed for reliable evaluation is missing or unclear, say so plainly and ask the tutor — do not fabricate certainty.`

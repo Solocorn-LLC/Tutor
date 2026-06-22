@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
       ]
       const visionText = await generateWithKimiVision(promptItems, {
         temperature: activeTemperature,
-        maxTokens: 2048,
+        maxTokens: 4096,
         timeoutMs: 60000,
       })
       response = toCleanResponse(visionText)
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
           `System:\n${activeSystemPrompt}\n\n${userPrompt}`,
           {
             temperature: activeTemperature,
-            maxTokens: 2048,
+            maxTokens: 4096,
             skipCache: true,
           }
         )
@@ -265,11 +265,26 @@ export async function POST(request: NextRequest) {
         `System:\n${activeSystemPrompt}\n\n${userPrompt}`,
         {
           temperature: activeTemperature,
-          maxTokens: 2048,
+          maxTokens: 4096,
           skipCache: true,
         }
       )
       response = toCleanResponse(fallback.content)
+    }
+
+    // Guardrail (task/assessment) output is a {"reply","pci"} envelope: `reply`
+    // is the conversational chat text, `pci` is the finalized rubric (non-empty
+    // only after the tutor approves finalizing). Extract both so the chat never
+    // shows a raw spec and the builder can write a clean PCI to the field.
+    let pciDraft = ''
+    if (guardrailDomain) {
+      const env = parseLlmJson<{ reply?: string; pci?: string }>(response.response)
+      if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
+        if (typeof env.reply === 'string' && env.reply.trim()) {
+          response.response = env.reply.trim()
+        }
+        if (typeof env.pci === 'string') pciDraft = env.pci.trim()
+      }
     }
 
     const validation = await AISecurityManager.validateAiResponse(response.response)
@@ -303,6 +318,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response: response.response,
+      pciDraft,
       conversationId: response.conversationId,
       parsed: response.parsed ?? null,
       guardrailWarnings,

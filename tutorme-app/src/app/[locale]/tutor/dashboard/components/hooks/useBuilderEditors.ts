@@ -500,21 +500,20 @@ export function useBuilderEditors(): UseBuilderEditorsReturn {
         content: userMessage,
       })
 
-      const updateTaskPciFromMessages = (
-        messages: { role: 'user' | 'assistant'; content: string }[]
-      ) => {
+      // Write a finalized, clean PCI string straight to the field (used when the
+      // PCI assistant returns a finalized rubric — keeps the conversation out of
+      // the saved PCI).
+      const setTaskPciValue = (value: string) => {
         setTaskBuilder(prev => {
           if (prev.activeExtensionId) {
             return {
               ...prev,
               extensions: prev.extensions.map(ext =>
-                ext.id === prev.activeExtensionId
-                  ? { ...ext, pci: formatPciTranscript(messages) }
-                  : ext
+                ext.id === prev.activeExtensionId ? { ...ext, pci: value } : ext
               ),
             }
           }
-          return { ...prev, taskPci: formatPciTranscript(messages) }
+          return { ...prev, taskPci: value }
         })
       }
 
@@ -527,14 +526,14 @@ export function useBuilderEditors(): UseBuilderEditorsReturn {
         } else {
           setTaskPciMessages(nextMessages)
         }
-        updateTaskPciFromMessages(nextMessages)
+        // PCI field is written only from a finalized rubric (see pciDraft below),
+        // not from the running conversation transcript.
         setTaskPciLoading(true)
       } else {
         setAssessmentPciMessagesMap(prev => ({
           ...prev,
           [currentAssessmentId || '']: nextMessages,
         }))
-        setAssessmentBuilder(prev => ({ ...prev, taskPci: formatPciTranscript(nextMessages) }))
         setAssessmentPciLoadingMap(prev => ({ ...prev, [currentAssessmentId || '']: true }))
       }
 
@@ -603,6 +602,10 @@ export function useBuilderEditors(): UseBuilderEditorsReturn {
           throw new Error(errorMessage)
         }
         const data = await response.json()
+        // The PCI assistant returns a finalized, clean rubric in `pciDraft` ONLY
+        // after the tutor approves finalizing; until then it's empty and the PCI
+        // field is left untouched (the chat stays conversational).
+        const pciDraft = typeof data.pciDraft === 'string' ? data.pciDraft.trim() : ''
         const assistantMessage = {
           role: 'assistant' as const,
           content: data.response || 'Unable to respond.',
@@ -617,12 +620,14 @@ export function useBuilderEditors(): UseBuilderEditorsReturn {
           } else {
             setTaskPciMessages(updated)
           }
-          updateTaskPciFromMessages(updated)
+          if (pciDraft) setTaskPciValue(pciDraft)
           setTaskPciErrorHint('')
         } else {
           const updated = nextMessages.concat(assistantMessage)
           setAssessmentPciMessagesMap(prev => ({ ...prev, [currentAssessmentId || '']: updated }))
-          setAssessmentBuilder(prev => ({ ...prev, taskPci: formatPciTranscript(updated) }))
+          if (pciDraft) {
+            setAssessmentBuilder(prev => ({ ...prev, taskPci: pciDraft }))
+          }
           setAssessmentPciErrorHintMap(prev => ({ ...prev, [currentAssessmentId || '']: '' }))
         }
       } catch (error) {
