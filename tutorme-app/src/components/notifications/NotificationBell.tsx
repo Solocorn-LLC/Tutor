@@ -41,7 +41,14 @@ interface NotificationItem {
   createdAt: string
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  /** Where the "View all notifications" footer links (role-specific). */
+  viewAllHref?: string
+}
+
+export function NotificationBell({
+  viewAllHref = '/student/communications',
+}: NotificationBellProps = {}) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
@@ -310,7 +317,7 @@ export function NotificationBell() {
 
           {/* Footer */}
           <div className="border-t px-4 py-2">
-            <Link href="/student/communications" onClick={() => setOpen(false)}>
+            <Link href={viewAllHref} onClick={() => setOpen(false)}>
               <Button variant="ghost" size="sm" className="w-full text-xs">
                 View all notifications
               </Button>

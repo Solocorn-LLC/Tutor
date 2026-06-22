@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useRealmSession } from '@/hooks/use-realm-session'
 import { Button } from '@/components/ui/button'
 import { UserNav } from '@/components/user-nav'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
   LayoutDashboard,
   BarChart3,
@@ -15,7 +16,6 @@ import {
   Wrench,
   Menu,
   X,
-  Bell,
   HelpCircle,
   Globe,
   PanelLeftClose,
@@ -180,12 +180,9 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
                 <Link href="/tutor/dashboard" className="text-xl font-bold text-blue-600"></Link>
               </div>
               <div className="flex items-center gap-2">
-                <Link href="/tutor/communications" onClick={e => e.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-                  </Button>
-                </Link>
+                <div onClick={e => e.stopPropagation()}>
+                  <NotificationBell viewAllHref="/tutor/notifications" />
+                </div>
               </div>
             </div>
 

@@ -63,7 +63,6 @@ import {
   BookOpen,
   Video,
   Filter,
-  Bell,
   Repeat,
   X,
   CheckCircle2,
@@ -1119,21 +1118,19 @@ export function InteractiveCalendar({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label={`${notifications.length} upcoming session notifications`}
+                          title="Upcoming sessions"
+                          aria-label={`${notifications.length} upcoming sessions in the next 24 hours`}
                           className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
-                          <Badge
-                            variant="destructive"
-                            className="cursor-pointer text-xs transition-transform hover:scale-105"
-                          >
-                            <Bell className="mr-1 h-3 w-3" />
+                          <Badge className="cursor-pointer gap-1 bg-blue-600 text-xs text-white transition-transform hover:scale-105 hover:bg-blue-700">
+                            <Clock className="h-3 w-3" />
                             {notifications.length}
                           </Badge>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-72 p-0">
                         <div className="border-b px-3 py-2">
-                          <p className="text-sm font-semibold text-slate-800">Notifications</p>
+                          <p className="text-sm font-semibold text-slate-800">Upcoming sessions</p>
                           <p className="text-xs text-slate-500">
                             {notifications.length} session{notifications.length === 1 ? '' : 's'} in
                             the next 24 hours
@@ -1145,7 +1142,7 @@ export function InteractiveCalendar({
                               key={`${note}-${idx}`}
                               className="flex items-start gap-2 px-3 py-2 text-sm text-slate-700"
                             >
-                              <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
                               <span className="min-w-0 break-words">{note}</span>
                             </li>
                           ))}
