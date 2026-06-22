@@ -1,16 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, liveSession, courseEnrollment, sessionParticipant } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import {
+  calendarEvent,
+  liveSession,
+  courseEnrollment,
+  sessionParticipant,
+  profile,
+} from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
-import { notifyMany } from '@/lib/notifications/notify'
+import { notify } from '@/lib/notifications/notify'
+
+/** Format an instant in a specific IANA timezone, with the zone labelled. */
+function formatInZone(date: Date, tz: string): string {
+  try {
+    // NB: timeZoneName can't be combined with dateStyle/timeStyle (throws),
+    // so spell out the fields explicitly.
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: tz,
+      timeZoneName: 'short',
+    }).format(date)
+  } catch {
+    // Invalid/unknown tz → fall back to UTC, still labelled.
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: 'UTC',
+        timeZoneName: 'short',
+      }).format(date)
+    } catch {
+      return `${date.toISOString().replace('T', ' ').slice(0, 16)} UTC`
+    }
+  }
+}
 
 /**
  * Notify every student of a rescheduled session (in-app + SSE + web push +
  * email, via notify.ts). Students come from the course enrollment (the
- * reliable roster) plus anyone already added as a session participant.
+ * reliable roster) plus anyone already added as a session participant. The new
+ * time is formatted in EACH student's own profile timezone so it reads as their
+ * local time; the session's timezone (or UTC) is the fallback.
  * Best-effort: never throws into the reschedule request.
  */
 async function notifyStudentsOfReschedule(opts: {
@@ -39,31 +79,30 @@ async function notifyStudentsOfReschedule(opts: {
     const userIds = Array.from(ids)
     if (userIds.length === 0) return
 
-    let when: string
-    try {
-      // NB: timeZoneName can't be combined with dateStyle/timeStyle (throws),
-      // so spell out the fields explicitly.
-      when = new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZone: timezone || 'UTC',
-        timeZoneName: 'short',
-      }).format(newStart)
-    } catch {
-      when = `${newStart.toISOString().replace('T', ' ').slice(0, 16)} UTC`
-    }
+    // Each student's own timezone (default 'UTC' in schema) → localize per user.
+    const tzRows = await drizzleDb
+      .select({ userId: profile.userId, timezone: profile.timezone })
+      .from(profile)
+      .where(inArray(profile.userId, userIds))
+    const tzByUser = new Map(tzRows.map(r => [r.userId, r.timezone]))
+    const fallbackTz = timezone || 'UTC'
 
-    await notifyMany({
-      userIds,
-      type: 'class',
-      title: 'Session rescheduled',
-      message: `"${title || 'Your session'}" has been moved to ${when}.`,
-      data: { sessionId, scheduledAt: newStart.toISOString() },
-      actionUrl: courseId ? `/student/classroom/${courseId}` : '/student/schedule',
-    })
+    const name = title || 'Your session'
+    const actionUrl = courseId ? `/student/classroom/${courseId}` : '/student/schedule'
+
+    await Promise.allSettled(
+      userIds.map(userId => {
+        const when = formatInZone(newStart, tzByUser.get(userId) || fallbackTz)
+        return notify({
+          userId,
+          type: 'class',
+          title: 'Session rescheduled',
+          message: `"${name}" has been moved to ${when}.`,
+          data: { sessionId, scheduledAt: newStart.toISOString() },
+          actionUrl,
+        })
+      })
+    )
   } catch (err) {
     console.warn('[reschedule] student notification failed (non-critical):', err)
   }
