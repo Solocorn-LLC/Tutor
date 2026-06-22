@@ -823,6 +823,37 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assessmentPciErrorHintMap, setAssessmentPciErrorHintMap] = useState<
       Record<string, string>
     >({})
+    // Finalized rubric the PCI assistant produced (after the tutor approves
+    // finalizing). Held as a draft until the tutor clicks "Apply to PCI".
+    const [taskPciDraft, setTaskPciDraft] = useState('')
+    const [assessmentPciDraftMap, setAssessmentPciDraftMap] = useState<Record<string, string>>({})
+    const applyTaskPciDraft = () => {
+      if (!taskPciDraft) return
+      setTaskBuilder(prev => {
+        if (prev.activeExtensionId) {
+          return {
+            ...prev,
+            extensions: prev.extensions.map(ext =>
+              ext.id === prev.activeExtensionId ? { ...ext, pci: taskPciDraft } : ext
+            ),
+          }
+        }
+        return { ...prev, taskPci: taskPciDraft }
+      })
+      setTaskPciDraft('')
+      toast.success('Rubric applied to PCI')
+    }
+    const applyAssessmentPciDraft = (assessmentId: string) => {
+      const draft = assessmentPciDraftMap[assessmentId]
+      if (!draft) return
+      setAssessmentBuilder(prev => ({ ...prev, taskPci: draft }))
+      setAssessmentPciDraftMap(prev => {
+        const next = { ...prev }
+        delete next[assessmentId]
+        return next
+      })
+      toast.success('Rubric applied to PCI')
+    }
     // Warn-only guardrail violations returned by the PCI/DMI endpoints, surfaced
     // to the tutor so they can confirm/correct (e.g. an invented retry policy or
     // a paraphrased exam question) before relying on the output.
@@ -1974,11 +2005,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [collectTaskFileKeys, collectAssessmentFileKeys]
     )
 
-    const formatPciTranscript = (messages: { role: 'user' | 'assistant'; content: string }[]) =>
-      messages
-        .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-        .join('\n')
-
     const cloneTask = (task: Task): Task => ({
       ...task,
       id: `task-${generateId()}`,
@@ -2200,24 +2226,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         role: 'user',
         content: userMessage,
       })
-      const updateTaskPciFromMessages = (
-        messages: { role: 'user' | 'assistant'; content: string }[]
-      ) => {
-        setTaskBuilder(prev => {
-          if (prev.activeExtensionId) {
-            return {
-              ...prev,
-              extensions: prev.extensions.map(ext =>
-                ext.id === prev.activeExtensionId
-                  ? { ...ext, pci: formatPciTranscript(messages) }
-                  : ext
-              ),
-            }
-          }
-          return { ...prev, taskPci: formatPciTranscript(messages) }
-        })
-      }
-
       if (isTask) {
         if (taskBuilder.activeExtensionId) {
           setTaskExtensionPciMessages(prev => ({
@@ -2227,11 +2235,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           setTaskPciMessages(nextMessages)
         }
-        updateTaskPciFromMessages(nextMessages)
+        // PCI field is written only from a finalized rubric (pciDraft + Apply),
+        // not from the running conversation transcript.
         setTaskPciLoading(true)
       } else {
         setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: nextMessages }))
-        setAssessmentBuilder(prev => ({ ...prev, taskPci: formatPciTranscript(nextMessages) }))
         setAssessmentPciLoadingMap(prev => ({ ...prev, [assessmentId || '']: true }))
       }
 
@@ -2330,6 +2338,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const warnings: GuardrailWarning[] = Array.isArray(data.guardrailWarnings)
           ? data.guardrailWarnings
           : []
+        // The PCI assistant returns a finalized, clean rubric in `pciDraft` ONLY
+        // after the tutor approves finalizing; until then it's empty. We hold it
+        // as a draft and write it to the PCI field only when the tutor clicks
+        // "Apply to PCI" — the conversation never pollutes the saved PCI.
+        const pciDraft = typeof data.pciDraft === 'string' ? data.pciDraft.trim() : ''
         const assistantMessage = {
           role: 'assistant' as const,
           content: data.response || 'Unable to respond.',
@@ -2344,13 +2357,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           } else {
             setTaskPciMessages(updated)
           }
-          updateTaskPciFromMessages(updated)
+          if (pciDraft) setTaskPciDraft(pciDraft)
           setTaskPciErrorHint('')
           setTaskPciGuardrailWarnings(warnings)
         } else {
           const updated = nextMessages.concat(assistantMessage)
           setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: updated }))
-          setAssessmentBuilder(prev => ({ ...prev, taskPci: formatPciTranscript(updated) }))
+          if (pciDraft) {
+            setAssessmentPciDraftMap(prev => ({ ...prev, [assessmentId || '']: pciDraft }))
+          }
           setAssessmentPciErrorHintMap(prev => ({ ...prev, [assessmentId || '']: '' }))
           setAssessmentPciGuardrailWarningsMap(prev => ({
             ...prev,
@@ -9442,6 +9457,20 @@ FEEDBACK: [your explanation]`
                                           )}
                                         </div>
                                         <div className="mt-auto p-0">
+                                          {taskPciDraft && (
+                                            <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                              <span>
+                                                Finalized rubric ready to apply to the PCI field.
+                                              </span>
+                                              <Button
+                                                size="sm"
+                                                className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
+                                                onClick={applyTaskPciDraft}
+                                              >
+                                                Apply to PCI
+                                              </Button>
+                                            </div>
+                                          )}
                                           {taskPciErrorHint && (
                                             <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">
                                               PCI assistant error: {taskPciErrorHint}
@@ -9922,6 +9951,22 @@ FEEDBACK: [your explanation]`
                                           )}
                                         </div>
                                         <div className="mt-auto p-0">
+                                          {assessmentPciDraftMap[loadedAssessmentId || ''] && (
+                                            <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                              <span>
+                                                Finalized rubric ready to apply to the PCI field.
+                                              </span>
+                                              <Button
+                                                size="sm"
+                                                className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
+                                                onClick={() =>
+                                                  applyAssessmentPciDraft(loadedAssessmentId || '')
+                                                }
+                                              >
+                                                Apply to PCI
+                                              </Button>
+                                            </div>
+                                          )}
                                           {(assessmentPciErrorHintMap[loadedAssessmentId || ''] ||
                                             '') && (
                                             <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">

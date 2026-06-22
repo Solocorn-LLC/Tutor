@@ -99,4 +99,76 @@ describe('/api/ai/pci-master', () => {
     const res = await POST(req as unknown as NextRequest)
     expect(res.status).toBe(401)
   })
+
+  const postBody = async (body: Record<string, unknown>) => {
+    const req = new Request('http://localhost/api/ai/pci-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return POST(req as unknown as NextRequest)
+  }
+
+  it('task domain: extracts {reply,pci} — chat shows reply, pciDraft holds the finalized rubric', async () => {
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.adkPciMasterChat.mockResolvedValue({
+      response: '{"reply":"What counts as a correct answer?","pci":"FINAL RUBRIC TEXT"}',
+      conversationId: 'c1',
+      parsed: null,
+    })
+
+    const res = await postBody({ message: 'help', context: { type: 'task' } })
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    // chat shows only the conversational reply — never the raw JSON envelope
+    expect(data.response).toBe('What counts as a correct answer?')
+    expect(data.response).not.toContain('{')
+    expect(data.pciDraft).toBe('FINAL RUBRIC TEXT')
+  })
+
+  it('task domain: empty pci until finalized (no draft surfaced)', async () => {
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.adkPciMasterChat.mockResolvedValue({
+      response: '{"reply":"Here is the summary, is it right?","pci":""}',
+      conversationId: 'c1',
+      parsed: null,
+    })
+
+    const res = await postBody({ message: 'summarize', context: { type: 'task' } })
+    const data = await res.json()
+
+    expect(data.response).toBe('Here is the summary, is it right?')
+    expect(data.pciDraft).toBe('')
+  })
+
+  it('task domain: falls back gracefully when the model ignores the envelope', async () => {
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.adkPciMasterChat.mockResolvedValue({
+      response: 'Just plain prose, no JSON at all.',
+      conversationId: 'c1',
+      parsed: null,
+    })
+
+    const res = await postBody({ message: 'hi', context: { type: 'task' } })
+    const data = await res.json()
+
+    expect(data.response).toBe('Just plain prose, no JSON at all.')
+    expect(data.pciDraft).toBe('')
+  })
+
+  it('non-guardrail domain: no pciDraft extraction', async () => {
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.adkPciMasterChat.mockResolvedValue({
+      response: 'ok',
+      conversationId: 'c1',
+      parsed: null,
+    })
+
+    const res = await postBody({ message: 'hi' }) // no context.type
+    const data = await res.json()
+
+    expect(data.response).toBe('ok')
+    expect(data.pciDraft).toBe('')
+  })
 })
