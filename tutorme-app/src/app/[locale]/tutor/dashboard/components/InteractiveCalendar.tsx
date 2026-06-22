@@ -13,6 +13,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 import {
   Dialog,
@@ -698,9 +699,9 @@ export function InteractiveCalendar({
       return timeDiff > 0 && timeDiff < 24 * 60 * 60 * 1000 && e.status === 'scheduled'
     })
 
-    if (upcoming.length > 0) {
-      setNotifications(upcoming.map(e => `${e.title} at ${e.date.toLocaleTimeString()}`))
-    }
+    // Always sync (including to empty) so the indicator clears when there are no
+    // longer any upcoming sessions, instead of showing a stale count.
+    setNotifications(upcoming.map(e => `${e.title} at ${e.date.toLocaleTimeString()}`))
   }, [events])
 
   const filteredEvents = useMemo(() => {
@@ -1077,10 +1078,43 @@ export function InteractiveCalendar({
                     </SelectContent>
                   </Select>
                   {notifications.length > 0 && (
-                    <Badge variant="destructive" className="text-xs">
-                      <Bell className="mr-1 h-3 w-3" />
-                      {notifications.length}
-                    </Badge>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={`${notifications.length} upcoming session notifications`}
+                          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                        >
+                          <Badge
+                            variant="destructive"
+                            className="cursor-pointer text-xs transition-transform hover:scale-105"
+                          >
+                            <Bell className="mr-1 h-3 w-3" />
+                            {notifications.length}
+                          </Badge>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-72 p-0">
+                        <div className="border-b px-3 py-2">
+                          <p className="text-sm font-semibold text-slate-800">Notifications</p>
+                          <p className="text-xs text-slate-500">
+                            {notifications.length} session{notifications.length === 1 ? '' : 's'} in
+                            the next 24 hours
+                          </p>
+                        </div>
+                        <ul className="max-h-72 divide-y overflow-y-auto">
+                          {notifications.map((note, idx) => (
+                            <li
+                              key={`${note}-${idx}`}
+                              className="flex items-start gap-2 px-3 py-2 text-sm text-slate-700"
+                            >
+                              <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                              <span className="min-w-0 break-words">{note}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
 
