@@ -11,11 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Search, Users } from 'lucide-react'
+import { BookOpen, Filter, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
+import { CollapsibleCard } from '@/components/collapsible-card'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
 
 interface TutorCoursePreview {
@@ -162,6 +163,27 @@ export default function StudentTutorDirectoryPage() {
     }
   }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
 
+  const filteredTutorCount = useMemo(() => {
+    if (!searchQuery && !selectedRegion && !selectedCountryCode) return tutors.length
+    return tutors.filter(t => {
+      const matchesSearch = !searchQuery ||
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.bio.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+      const matchesRegion = !selectedRegion || selectedRegion === 'global' ||
+        t.tutorNationalities?.some(n => {
+          const region = REGIONS.find(r => r.id === selectedRegion)
+          return region?.countries.some(c => c.name.toLowerCase() === n.toLowerCase())
+        })
+      const matchesCountry = !selectedCountryCode ||
+        t.tutorNationalities?.some(n => {
+          const country = availableCountries.find(c => c.code === selectedCountryCode)
+          return country?.name.toLowerCase() === n.toLowerCase()
+        })
+      return matchesSearch && matchesRegion && matchesCountry
+    }).length
+  }, [tutors, searchQuery, selectedRegion, selectedCountryCode, availableCountries])
+
   const headlineMetrics = useMemo(() => {
     const totalCourses = tutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
     const totalEnrollments = tutors.reduce((sum, tutor) => sum + tutor.totalEnrollments, 0)
@@ -175,34 +197,31 @@ export default function StudentTutorDirectoryPage() {
   return (
     <div className="text-foreground flex h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
       {/* Hero */}
-      <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
+      <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="relative flex flex-wrap items-center justify-center gap-3">
           <div className="text-center">
             <h2 className="text-xl font-bold text-white">Solocorn Tutors</h2>
             <p className="mt-1 text-sm text-white/60">Find and book your tutor</p>
           </div>
 
-          <div
-            className={cn(
-              'flex w-full flex-wrap items-center justify-center gap-2 md:absolute md:right-5 md:top-1/2 md:w-auto md:-translate-y-1/2 md:justify-end',
-              loading && 'animate-pulse'
-            )}
-          >
+          <div className="flex w-full flex-wrap items-center justify-center gap-2 md:absolute md:right-5 md:top-1/2 md:w-auto md:-translate-y-1/2 md:justify-end">
             <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
               <Users className="h-4 w-4 text-white/80" />
               <span className="text-xs font-medium text-white/80">Tutors</span>
-              <span className="text-sm font-bold text-white">{headlineMetrics.tutorCount}</span>
+              <span className="text-sm font-bold text-white">{tutors.length}</span>
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
               <BookOpen className="h-4 w-4 text-white/80" />
               <span className="text-xs font-medium text-white/80">Published Courses</span>
-              <span className="text-sm font-bold text-white">{headlineMetrics.totalCourses}</span>
+              <span className="text-sm font-bold text-white">
+                {tutors.reduce((sum, t) => sum + t.courseCount, 0)}
+              </span>
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
               <Users className="h-4 w-4 text-white/80" />
               <span className="text-xs font-medium text-white/80">Total Enrollments</span>
               <span className="text-sm font-bold text-white">
-                {headlineMetrics.totalEnrollments}
+                {tutors.reduce((sum, t) => sum + t.totalEnrollments, 0)}
               </span>
             </div>
           </div>
@@ -210,9 +229,14 @@ export default function StudentTutorDirectoryPage() {
       </section>
 
       {/* Bottom panel: filters + results */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
-          {/* Filters */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pb-0.5">
+        {/* Filters Panel */}
+        <CollapsibleCard
+          title="Filters"
+          description="Search and filter tutors by region, country, and more"
+          defaultOpen={true}
+          className="shadow-[0_14px_45px_rgba(0,0,0,0.14)]"
+        >
           <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -297,10 +321,17 @@ export default function StudentTutorDirectoryPage() {
               </SelectContent>
             </Select>
           </div>
+        </CollapsibleCard>
 
-          {/* Tutor grid */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4">
-            <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Tutors Panel */}
+        <CollapsibleCard
+          title="Tutors"
+          description={`${filteredTutorCount} tutor${filteredTutorCount === 1 ? '' : 's'} found`}
+          defaultOpen={true}
+          className="flex-1 shadow-[0_14px_45px_rgba(0,0,0,0.14)]"
+          contentClassName="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4"
+        >
+          <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {loading ? (
                 Array.from({ length: 6 }).map((_, index) => (
                   <Card
@@ -362,7 +393,7 @@ export default function StudentTutorDirectoryPage() {
               )}
             </div>
           </div>
-        </div>
+        </CollapsibleCard>
       </div>
     </div>
   )
