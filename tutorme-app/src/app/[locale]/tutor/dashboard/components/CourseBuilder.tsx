@@ -1002,23 +1002,40 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentUploadedFiles([])
     }, [mainTab])
 
+    // Depend on a STABLE boolean, not the insightsProps object. The parent
+    // recreates insightsProps on every render, so depending on the object made
+    // this effect re-run every render and, because it setStates a fresh array,
+    // it looped infinitely (React #185 "Maximum update depth exceeded" — seen
+    // when loading a DMI, which switches to the test-pci tab). The body only
+    // needs to know whether insights mode is active.
+    const insightsActive = !!insightsProps
     useEffect(() => {
-      if (!insightsProps) return
-      if (mainTab === 'test-pci') {
-        setTestPciTabs([
-          { id: 'classroom', label: 'Classroom' },
-          { id: 'student1', label: 'Test Student 1' },
-          { id: 'student2', label: 'Test Student 2' },
-        ])
-      } else if (mainTab === 'live') {
-        setTestPciTabs([
-          { id: 'classroom', label: 'Classroom' },
-          { id: 'student1', label: 'Whiteboards' },
-          { id: 'student-monitor', label: 'Monitor' },
-          { id: 'insights', label: 'Insights' },
-        ])
-      }
-    }, [insightsProps, mainTab])
+      if (!insightsActive) return
+      const next =
+        mainTab === 'test-pci'
+          ? [
+              { id: 'classroom', label: 'Classroom' },
+              { id: 'student1', label: 'Test Student 1' },
+              { id: 'student2', label: 'Test Student 2' },
+            ]
+          : mainTab === 'live'
+            ? [
+                { id: 'classroom', label: 'Classroom' },
+                { id: 'student1', label: 'Whiteboards' },
+                { id: 'student-monitor', label: 'Monitor' },
+                { id: 'insights', label: 'Insights' },
+              ]
+            : null
+      if (!next) return
+      // Bail if the tab set is unchanged so we never setState a fresh array on
+      // every run (the other half of the loop).
+      setTestPciTabs(prev =>
+        prev.length === next.length &&
+        prev.every((t, i) => t.id === next[i].id && t.label === next[i].label)
+          ? prev
+          : next
+      )
+    }, [insightsActive, mainTab])
 
     const visibleTestPciTabs = useMemo(
       () => (mainTab === 'live' ? testPciTabs.filter(tab => tab.id !== 'insights') : testPciTabs),
@@ -1654,20 +1671,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Sync active builder content to classroom tab when in insights mode
     useEffect(() => {
-      if (!insightsProps) return
+      if (!insightsActive) return
       if (mainTab !== 'test-pci') return
 
+      let contentToDisplay: string | null = null
       if (mainBuilderTab === 'task' && loadedTaskId) {
         const activeTaskExtension = taskBuilder.activeExtensionId
           ? taskBuilder.extensions.find(ext => ext.id === taskBuilder.activeExtensionId)
           : null
-        const contentToDisplay = activeTaskExtension
+        contentToDisplay = activeTaskExtension
           ? activeTaskExtension.content
           : taskBuilder.taskContent
-        setTestPciContent(prev => ({ ...prev, classroom: contentToDisplay || '' }))
       } else if (mainBuilderTab === 'assessment' && loadedAssessmentId) {
-        setTestPciContent(prev => ({ ...prev, classroom: assessmentBuilder.taskContent || '' }))
+        contentToDisplay = assessmentBuilder.taskContent
       }
+      if (contentToDisplay == null) return
+      const classroom = contentToDisplay || ''
+      // Bail when unchanged so we don't setState a new object every render
+      // (depending on the unstable insightsProps object caused React #185).
+      setTestPciContent(prev => (prev.classroom === classroom ? prev : { ...prev, classroom }))
     }, [
       mainBuilderTab,
       loadedTaskId,
@@ -1676,7 +1698,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.extensions,
       loadedAssessmentId,
       assessmentBuilder.taskContent,
-      insightsProps,
+      insightsActive,
       mainTab,
     ])
 
@@ -4498,7 +4520,7 @@ FEEDBACK: [your explanation]`
     }, [courseAssets, assetViewFolder, assetViewSearch])
 
     const renderAssetsFolder = () => (
-      <div className="mt-3 mb-3 rounded-xl border bg-white shadow-sm">
+      <div className="mb-3 mt-3 rounded-xl border bg-white shadow-sm">
         {/* Header row matching image 1 */}
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-sm font-semibold text-slate-700">Assets</span>
@@ -5790,7 +5812,7 @@ FEEDBACK: [your explanation]`
                     <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                       Curriculum
                     </div>
-                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3 pb-0">
+                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-0 pt-3">
                       {mainTab !== 'live' && mainTab !== 'test-pci' && canEdit && (
                         <Button
                           size="sm"

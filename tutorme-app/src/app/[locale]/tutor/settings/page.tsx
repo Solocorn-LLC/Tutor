@@ -656,417 +656,413 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-<CollapsibleCard
+              <CollapsibleCard
                 flush
                 className={SECTION_CARD_CLASS}
-                title="Profile & Identity" defaultOpen>
+                title="Profile & Identity"
+                defaultOpen
+              >
                 <div className="space-y-6 p-6">
-                  
-                    {/* Avatar */}
-                    <div className="flex items-center gap-4">
-                      <AvatarUploader
-                        avatarUrl={formData.avatarUrl}
-                        uploadUrl="/api/tutor/public-profile/avatar"
-                        deleteUrl="/api/tutor/public-profile/avatar"
-                        size={80}
-                        fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
-                        onUploadSuccess={url => {
-                          const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
-                          setFormData(prev => ({ ...prev, avatarUrl: busted }))
-                          updateSession({ image: busted }).catch(() => {})
-                        }}
-                        onDeleteSuccess={() => {
-                          setFormData(prev => ({ ...prev, avatarUrl: '' }))
-                          updateSession({ image: null }).catch(() => {})
-                        }}
-                      />
-                      <div className="flex-1">
-                        <Label>Profile Photo</Label>
-                        <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
-                      </div>
+                  {/* Avatar */}
+                  <div className="flex items-center gap-4">
+                    <AvatarUploader
+                      avatarUrl={formData.avatarUrl}
+                      uploadUrl="/api/tutor/public-profile/avatar"
+                      deleteUrl="/api/tutor/public-profile/avatar"
+                      size={80}
+                      fallbackText={formData.name.charAt(0).toUpperCase() || '?'}
+                      onUploadSuccess={url => {
+                        const busted = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`
+                        setFormData(prev => ({ ...prev, avatarUrl: busted }))
+                        updateSession({ image: busted }).catch(() => {})
+                      }}
+                      onDeleteSuccess={() => {
+                        setFormData(prev => ({ ...prev, avatarUrl: '' }))
+                        updateSession({ image: null }).catch(() => {})
+                      }}
+                    />
+                    <div className="flex-1">
+                      <Label>Profile Photo</Label>
+                      <p className="mt-1 text-xs text-gray-500">Upload a profile photo</p>
                     </div>
+                  </div>
 
-                    <Separator />
+                  <Separator />
 
-                    {/* Name & Email */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" value={formData.name} disabled className="bg-white" />
-                        <p className="text-xs text-gray-500">
-                          Contact{' '}
-                          <a
-                            href="mailto:support@solocorn.co"
-                            className="text-blue-600 hover:underline"
-                          >
-                            support@solocorn.co
-                          </a>{' '}
-                          to change your name
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" value={formData.email} disabled className="bg-white" />
-                        <p className="text-xs text-gray-500">
-                          Contact{' '}
-                          <a
-                            href="mailto:support@solocorn.co"
-                            className="text-blue-600 hover:underline"
-                          >
-                            support@solocorn.co
-                          </a>{' '}
-                          to change your email
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Language & Timezone */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="language">Preferred Language</Label>
-                        <select
-                          id="language"
-                          value={formData.language}
-                          onChange={e => setFormData({ ...formData, language: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  {/* Name & Email */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" value={formData.name} disabled className="bg-white" />
+                      <p className="text-xs text-gray-500">
+                        Contact{' '}
+                        <a
+                          href="mailto:support@solocorn.co"
+                          className="text-blue-600 hover:underline"
                         >
-                          {LANGUAGES.map(lang => (
-                            <option key={lang.code} value={lang.code}>
-                              {lang.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Input
-                          id="timezone"
-                          value={formData.timezone}
-                          disabled
-                          className="bg-white"
-                        />
-                        <p className="text-xs text-gray-500">Automatically detected</p>
-                      </div>
+                          support@solocorn.co
+                        </a>{' '}
+                        to change your name
+                      </p>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input id="email" value={formData.email} disabled className="bg-white" />
+                      <p className="text-xs text-gray-500">
+                        Contact{' '}
+                        <a
+                          href="mailto:support@solocorn.co"
+                          className="text-blue-600 hover:underline"
+                        >
+                          support@solocorn.co
+                        </a>{' '}
+                        to change your email
+                      </p>
+                    </div>
+                  </div>
 
-                    <div className="flex justify-end">
-                      <Button onClick={handleSaveProfile} disabled={saving}>
-                        {saving ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                          </>
-                        )}
-                      </Button>
+                  <Separator />
+
+                  {/* Language & Timezone */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="language">Preferred Language</Label>
+                      <select
+                        id="language"
+                        value={formData.language}
+                        onChange={e => setFormData({ ...formData, language: e.target.value })}
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        {LANGUAGES.map(lang => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  
-                
+                    <div className="space-y-2">
+                      <Label htmlFor="timezone">Timezone</Label>
+                      <Input
+                        id="timezone"
+                        value={formData.timezone}
+                        disabled
+                        className="bg-white"
+                      />
+                      <p className="text-xs text-gray-500">Automatically detected</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveProfile} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CollapsibleCard>
 
               {/* Public Profile Preview */}
-<CollapsibleCard
+              <CollapsibleCard
                 flush
                 className={SECTION_CARD_CLASS}
-                title="Public Profile" description="How students see you on your public page">
+                title="Public Profile"
+                description="How students see you on your public page"
+              >
                 <div className="space-y-6 p-6">
-                  
-                    <div className="flex items-start gap-4">
-                      {formData.avatarUrl ? (
-                        <img
-                          src={formData.avatarUrl}
-                          alt="Profile"
-                          className="h-16 w-16 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-500">
-                          {formData.name.charAt(0).toUpperCase() || '?'}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
-                        <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                          {formData.bio ||
-                            'No bio added yet. Your bio helps students learn more about you.'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(formData.socialLinks)
-                          .filter(([, v]) => v)
-                          .map(([platform, url]) => (
-                            <a
-                              key={platform}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                            >
-                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                            </a>
-                          ))}
+                  <div className="flex items-start gap-4">
+                    {formData.avatarUrl ? (
+                      <img
+                        src={formData.avatarUrl}
+                        alt="Profile"
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-500">
+                        {formData.name.charAt(0).toUpperCase() || '?'}
                       </div>
                     )}
-
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          window.location.href = '/tutor/my-page'
-                        }}
-                      >
-                        <User className="mr-2 h-4 w-4" />
-                        Edit Public Profile
-                      </Button>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                      <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                        {formData.bio ||
+                          'No bio added yet. Your bio helps students learn more about you.'}
+                      </p>
                     </div>
-                  
-                
+                  </div>
+
+                  {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(formData.socialLinks)
+                        .filter(([, v]) => v)
+                        .map(([platform, url]) => (
+                          <a
+                            key={platform}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                          >
+                            {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                          </a>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        window.location.href = '/tutor/my-page'
+                      }}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Edit Public Profile
+                    </Button>
+                  </div>
                 </div>
               </CollapsibleCard>
 
               {/* Tax Information */}
-<CollapsibleCard
+              <CollapsibleCard
                 flush
                 className={SECTION_CARD_CLASS}
-                title="Tax Information" description="Required for payout and tax reporting">
+                title="Tax Information"
+                description="Required for payout and tax reporting"
+              >
                 <div className="space-y-6 p-6">
-                  
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Region</Label>
-                        <Select
-                          value={taxRegion}
-                          onValueChange={value => {
-                            setTaxRegion(value)
-                            setTaxCountry('')
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select region" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {REGIONS.map(region => (
-                              <SelectItem key={region.id} value={region.id}>
-                                {region.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Country</Label>
-                        <Select
-                          value={taxCountry}
-                          onValueChange={setTaxCountry}
-                          disabled={!taxRegion}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={taxRegion ? 'Select country' : 'Select region first'}
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {taxCountryOptions.map(country => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Legal Name</Label>
-                        <Input
-                          value={taxLegalName}
-                          onChange={e => setTaxLegalName(e.target.value)}
-                          placeholder="Legal name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Address</Label>
-                        <Input
-                          value={taxAddress}
-                          onChange={e => setTaxAddress(e.target.value)}
-                          placeholder="Registered address"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tax ID (optional)</Label>
-                        <Input
-                          value={taxId}
-                          onChange={e => setTaxId(e.target.value)}
-                          placeholder="Tax ID"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Business / Individual</Label>
-                        <Select value={taxEntityType} onValueChange={setTaxEntityType}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Individual">Individual</SelectItem>
-                            <SelectItem value="Business">Business</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={() => toast.success('Tax information saved')}
-                        disabled={saving}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Region</Label>
+                      <Select
+                        value={taxRegion}
+                        onValueChange={value => {
+                          setTaxRegion(value)
+                          setTaxCountry('')
+                        }}
                       >
-                        {saving ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Tax Info
-                          </>
-                        )}
-                      </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {REGIONS.map(region => (
+                            <SelectItem key={region.id} value={region.id}>
+                              {region.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  
-                
+                    <div className="space-y-2">
+                      <Label>Country</Label>
+                      <Select
+                        value={taxCountry}
+                        onValueChange={setTaxCountry}
+                        disabled={!taxRegion}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={taxRegion ? 'Select country' : 'Select region first'}
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {taxCountryOptions.map(country => (
+                            <SelectItem key={country.code} value={country.code}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Legal Name</Label>
+                      <Input
+                        value={taxLegalName}
+                        onChange={e => setTaxLegalName(e.target.value)}
+                        placeholder="Legal name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Address</Label>
+                      <Input
+                        value={taxAddress}
+                        onChange={e => setTaxAddress(e.target.value)}
+                        placeholder="Registered address"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tax ID (optional)</Label>
+                      <Input
+                        value={taxId}
+                        onChange={e => setTaxId(e.target.value)}
+                        placeholder="Tax ID"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Business / Individual</Label>
+                      <Select value={taxEntityType} onValueChange={setTaxEntityType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Individual">Individual</SelectItem>
+                          <SelectItem value="Business">Business</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => toast.success('Tax information saved')}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Tax Info
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CollapsibleCard>
 
               {/* Tutor Information */}
-<CollapsibleCard
+              <CollapsibleCard
                 flush
                 className={SECTION_CARD_CLASS}
-                title="Tutor Information" description="Your tutoring profile details (set during registration)">
+                title="Tutor Information"
+                description="Your tutoring profile details (set during registration)"
+              >
                 <div className="space-y-6 p-6">
-                  
-                    {/* Nationality & Country of Residence */}
-                    <div className="grid gap-4 md:grid-cols-2">
+                  {/* Nationality & Country of Residence */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="inline-flex items-center gap-1.5">
+                        <CountryFlag countryName={formData.nationality} size="xs" />
+                        Nationality
+                      </Label>
+                      <Input
+                        value={formData.nationality || 'Not specified'}
+                        disabled
+                        className="bg-white"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Your nationality as selected during registration
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="inline-flex items-center gap-1.5">
+                        <CountryFlag countryName={formData.countryOfResidence} size="xs" />
+                        Country of Residence
+                      </Label>
+                      <Input
+                        value={formData.countryOfResidence || 'Not specified'}
+                        disabled
+                        className="bg-white"
+                      />
+                      <p className="text-xs text-gray-500">Your current country of residence</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tutoring Categories */}
+                  <div className="space-y-2">
+                    <Label>Tutoring Categories</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.specialties.length > 0 ? (
+                        formData.specialties.map((specialty, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
+                          >
+                            {specialty}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">No categories specified</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Subject categories you tutor (set during registration)
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tutoring Nationalities */}
+                  <div className="space-y-2">
+                    <Label>Student Nationalities You Tutor</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.tutorNationalities.length > 0 ? (
+                        formData.tutorNationalities.map((nationality, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
+                          >
+                            <CountryFlag countryName={nationality} size="xs" />
+                            {nationality}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">No nationalities specified</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Student nationalities you specialize in tutoring (set during registration)
+                    </p>
+                  </div>
+
+                  {/* Category-Nationality Combinations */}
+                  {formData.categoryNationalityCombinations.length > 0 && (
+                    <>
+                      <Separator />
                       <div className="space-y-2">
-                        <Label className="inline-flex items-center gap-1.5">
-                          <CountryFlag countryName={formData.nationality} size="xs" />
-                          Nationality
-                        </Label>
-                        <Input
-                          value={formData.nationality || 'Not specified'}
-                          disabled
-                          className="bg-white"
-                        />
+                        <Label>Search Tags</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {formData.categoryNationalityCombinations.map((combo, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
+                            >
+                              {(() => {
+                                const parts = combo.split(' — ')
+                                const countryPart = parts.length > 1 ? parts.pop() : null
+                                const categoryPart = parts.join(' — ')
+                                return (
+                                  <>
+                                    {countryPart && (
+                                      <CountryFlag countryName={countryPart} size="xs" />
+                                    )}
+                                    {categoryPart}
+                                    {countryPart && ` — ${countryPart}`}
+                                  </>
+                                )
+                              })()}
+                            </span>
+                          ))}
+                        </div>
                         <p className="text-xs text-gray-500">
-                          Your nationality as selected during registration
+                          These tags help students find you when searching for specific
+                          category-nationality combinations
                         </p>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="inline-flex items-center gap-1.5">
-                          <CountryFlag countryName={formData.countryOfResidence} size="xs" />
-                          Country of Residence
-                        </Label>
-                        <Input
-                          value={formData.countryOfResidence || 'Not specified'}
-                          disabled
-                          className="bg-white"
-                        />
-                        <p className="text-xs text-gray-500">Your current country of residence</p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Tutoring Categories */}
-                    <div className="space-y-2">
-                      <Label>Tutoring Categories</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.specialties.length > 0 ? (
-                          formData.specialties.map((specialty, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
-                            >
-                              {specialty}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-gray-500">No categories specified</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Subject categories you tutor (set during registration)
-                      </p>
-                    </div>
-
-                    <Separator />
-
-                    {/* Tutoring Nationalities */}
-                    <div className="space-y-2">
-                      <Label>Student Nationalities You Tutor</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.tutorNationalities.length > 0 ? (
-                          formData.tutorNationalities.map((nationality, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
-                            >
-                              <CountryFlag countryName={nationality} size="xs" />
-                              {nationality}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-gray-500">No nationalities specified</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Student nationalities you specialize in tutoring (set during registration)
-                      </p>
-                    </div>
-
-                    {/* Category-Nationality Combinations */}
-                    {formData.categoryNationalityCombinations.length > 0 && (
-                      <>
-                        <Separator />
-                        <div className="space-y-2">
-                          <Label>Search Tags</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {formData.categoryNationalityCombinations.map((combo, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
-                              >
-                                {(() => {
-                                  const parts = combo.split(' — ')
-                                  const countryPart = parts.length > 1 ? parts.pop() : null
-                                  const categoryPart = parts.join(' — ')
-                                  return (
-                                    <>
-                                      {countryPart && (
-                                        <CountryFlag countryName={countryPart} size="xs" />
-                                      )}
-                                      {categoryPart}
-                                      {countryPart && ` — ${countryPart}`}
-                                    </>
-                                  )
-                                })()}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            These tags help students find you when searching for specific
-                            category-nationality combinations
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  
-                
+                    </>
+                  )}
                 </div>
               </CollapsibleCard>
 
@@ -1251,45 +1247,45 @@ export default function TutorSettings() {
                 defaultOpen
               >
                 <div className="space-y-4 p-6">
-                    {billingHistory.map(invoice => (
-                      <div
-                        key={invoice.id}
-                        className="flex items-center justify-between rounded-lg border p-4"
-                      >
-                        <div>
-                          <p className="font-medium">{invoice.description}</p>
-                          <p className="text-sm text-gray-500">{invoice.date}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="font-medium">${invoice.amount.toFixed(2)}</p>
-                            <span
-                              className={`text-xs ${
-                                invoice.status === 'paid'
-                                  ? 'text-green-600'
-                                  : invoice.status === 'pending'
-                                    ? 'text-yellow-600'
-                                    : 'text-red-600'
-                              }`}
-                            >
-                              {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                            </span>
-                          </div>
-                          <Button variant="ghost" size="icon">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
+                  {billingHistory.map(invoice => (
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div>
+                        <p className="font-medium">{invoice.description}</p>
+                        <p className="text-sm text-gray-500">{invoice.date}</p>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium">${invoice.amount.toFixed(2)}</p>
+                          <span
+                            className={`text-xs ${
+                              invoice.status === 'paid'
+                                ? 'text-green-600'
+                                : invoice.status === 'pending'
+                                  ? 'text-yellow-600'
+                                  : 'text-red-600'
+                            }`}
+                          >
+                            {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          </span>
+                        </div>
+                        <Button variant="ghost" size="icon">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
 
-                    {billingHistory.length === 0 && (
-                      <div className="py-8 text-center text-gray-500">
-                        <FileText className="mx-auto mb-2 h-8 w-8" />
-                        <p>No billing history available</p>
-                      </div>
-                    )}
-                  </div>
-                </CollapsibleCard>
+                  {billingHistory.length === 0 && (
+                    <div className="py-8 text-center text-gray-500">
+                      <FileText className="mx-auto mb-2 h-8 w-8" />
+                      <p>No billing history available</p>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleCard>
             </div>
           </TabsContent>
 
