@@ -44,6 +44,9 @@ export const liveSession = pgTable(
     recordingAvailableAt: timestamp('recordingAvailableAt', { withTimezone: true }),
     maxStudents: integer('maxStudents').notNull().default(50),
     durationMinutes: integer('durationMinutes').notNull().default(120),
+    // Set when an upcoming-session reminder notification has been sent, so the
+    // reminder scheduler sends exactly one per session (race-safe across workers).
+    reminderSentAt: timestamp('reminderSentAt', { withTimezone: true }),
   },
   table => ({
     LiveSession_tutorId_idx: index('LiveSession_tutorId_idx').on(table.tutorId),

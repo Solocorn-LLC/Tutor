@@ -435,6 +435,13 @@
       "when": 1781600000000,
       "tag": "0061_llm_token_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1781700000000,
+      "tag": "0062_session_reminder_sent_at",
+      "breakpoints": true
     }
   ]
 }

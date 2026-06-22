@@ -11,6 +11,7 @@ import { config as dotenvConfig } from 'dotenv'
 import { initEnhancedSocketServer } from './src/lib/socket-server-enhanced'
 import { validateEnv } from './src/lib/env'
 import { applyStartupSchemaFixes } from './src/lib/db/startup-schema-fix'
+import { startSessionReminderScheduler } from './src/lib/notifications/session-reminder-scheduler'
 
 // Load environment variables from .env.local before validation
 // .env.local takes precedence over .env
@@ -53,7 +54,9 @@ const hostname = process.env.HOSTNAME || '0.0.0.0'
  * In monorepos, standalone output is nested. We ensure 'dir' points to where .next is.
  */
 const appDir = resolve(__dirname)
-console.log(`[Server] Environment: ${process.env.NODE_ENV}, Port: ${port}, Hostname: ${hostname}, App Dir: ${appDir}`)
+console.log(
+  `[Server] Environment: ${process.env.NODE_ENV}, Port: ${port}, Hostname: ${hostname}, App Dir: ${appDir}`
+)
 
 const app = next({
   dev,
@@ -214,6 +217,9 @@ server
 
         console.log(`🎉 [Server] FULLY OPERATIONAL in ${elapsed(startupStart)}.`)
         isReady = true
+
+        // Background: send upcoming-session reminders into the notification bell.
+        startSessionReminderScheduler()
       } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error('Background initialization failed')
         console.error('❌ [Server] Background Initialization Failed:', error)
