@@ -5795,9 +5795,9 @@ FEEDBACK: [your explanation]`
               onMainTabChange(v as 'live' | 'builder' | 'test-pci')
             }
           }}
-          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 pt-0"
+          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-3 pt-0 sm:px-4"
         >
-          <div className="relative flex h-full w-full min-w-0 flex-1 gap-0 pt-0">
+          <div className="relative flex h-full w-full min-w-0 flex-1 gap-0 pb-4 pt-0">
             {/* LEFT PANEL - Course Structure (resizable, ~75% of original width) */}
             {/* Floating collapsed/expanded pill */}
             <div
