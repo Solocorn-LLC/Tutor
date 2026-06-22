@@ -22,6 +22,7 @@ import {
   builderTask,
   builderTaskDmi,
   taskSubmission,
+  course,
 } from '@/lib/db/schema'
 import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
@@ -418,6 +419,39 @@ async function getRoomFromRedis(roomId: string): Promise<ClassRoom | null> {
     console.error('Failed to retrieve room from Redis:', error)
     return null
   }
+}
+
+// A live session can legitimately have no courseId — it is nullable, and is
+// even nulled out (onDelete: 'set null') when the course is deleted. But
+// BuilderTask.courseId and DeployedMaterial.courseId are NOT NULL, so without a
+// course we previously couldn't persist a submission at all, and ad-hoc-session
+// completions vanished. Anchor those rows to a single hidden system course so
+// the submission persists and reaches the tutor. The real ownership/scoping is
+// preserved elsewhere: BuilderTask.tutorId (Grading page) and
+// DeployedMaterial.sessionId (live Understanding) — so anchored rows never leak
+// across tutors or sessions. The anchor is creatorId=null + isPublished=false,
+// so it shows up in no tutor "My courses" list and no student/published list.
+const ADHOC_ANCHOR_COURSE_ID = '__system_adhoc_course__'
+let adhocAnchorEnsured = false
+async function ensureAdhocAnchorCourseId(): Promise<string> {
+  if (adhocAnchorEnsured) return ADHOC_ANCHOR_COURSE_ID
+  const now = new Date()
+  // Explicit createdAt/updatedAt: those columns are notNull().defaultNow() in
+  // the schema, but the prod DB has drifted and lacks the column DEFAULT, so
+  // relying on the default inserts NULL and violates the constraint.
+  await drizzleDb
+    .insert(course)
+    .values({
+      courseId: ADHOC_ANCHOR_COURSE_ID,
+      name: 'Ad-hoc Sessions (system)',
+      isPublished: false,
+      creatorId: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing({ target: course.courseId })
+  adhocAnchorEnsured = true
+  return ADHOC_ANCHOR_COURSE_ID
 }
 
 // Per-event rate limiting middleware
@@ -1394,18 +1428,20 @@ export async function initEnhancedSocketServer(server: NetServer) {
               where: eq(liveSession.sessionId, roomId),
               columns: { courseId: true, tutorId: true },
             })
-            const courseId = sess?.courseId
             const tutorId = sess?.tutorId || room.tutorId
-            // builderTask/deployedMaterial both require a NOT NULL courseId, and
-            // the tree readers are course-scoped — so without a course we can't
-            // make the submission visible. Log loudly so this is diagnosable.
-            if (!courseId || !tutorId) {
+            // builderTask/deployedMaterial both require a NOT NULL courseId. A
+            // live session may have none (ad-hoc, or the course was deleted →
+            // courseId set null). Anchor those rows to a hidden system course so
+            // the completion still persists and reaches the tutor. We only need
+            // a tutorId to own the BuilderTask; without one we truly can't.
+            if (!tutorId) {
               console.warn(
-                '[task:complete] NOT persisting — live session has no courseId/tutor (ad-hoc session). Submissions require a course.',
-                { roomId, taskId, studentId, hasSessionRow: !!sess, courseId, tutorId }
+                '[task:complete] NOT persisting — no tutor for session (cannot own the task).',
+                { roomId, taskId, studentId, hasSessionRow: !!sess }
               )
               return
             }
+            const courseId = sess?.courseId || (await ensureAdhocAnchorCourseId())
 
             // Set createdAt/updatedAt/etc. explicitly throughout. These columns
             // are notNull().defaultNow() in the schema, but the prod DB has

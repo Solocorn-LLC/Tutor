@@ -71,6 +71,7 @@ export const GET = withAuth(
         courseIsPublished: course.isPublished,
         courseSchedule: course.schedule,
         tutorHandle: user.handle,
+        tutorImage: user.image,
         variantCategory: courseVariant.category,
         variantNationality: courseVariant.nationality,
       })
@@ -210,6 +211,7 @@ export const GET = withAuth(
           isPublished: row.courseIsPublished,
           schedule: row.courseSchedule,
           tutorHandle: row.tutorHandle,
+          tutorImage: row.tutorImage,
           variantCategory: row.variantCategory,
           variantNationality: row.variantNationality,
           sessionCount,
