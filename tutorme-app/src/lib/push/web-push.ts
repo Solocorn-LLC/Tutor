@@ -6,10 +6,25 @@
  * (a mailto:/https: URL). If unset, push is silently disabled (no-op) so the
  * rest of notifications keep working.
  */
-import webpush from 'web-push'
+
 import { eq, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { pushSubscription } from '@/lib/db/schema'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let webpush: any = null
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getWebPush(): any {
+  if (webpush !== null) return webpush
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    webpush = require('web-push')
+  } catch {
+    webpush = null
+  }
+  return webpush
+}
 
 let configured: boolean | null = null
 
@@ -22,8 +37,13 @@ function ensureConfigured(): boolean {
     configured = false
     return false
   }
+  const wp = getWebPush()
+  if (!wp) {
+    configured = false
+    return false
+  }
   try {
-    webpush.setVapidDetails(subject, publicKey, privateKey)
+    wp.setVapidDetails(subject, publicKey, privateKey)
     configured = true
   } catch (e) {
     console.error('[web-push] Failed to set VAPID details:', e)
@@ -63,13 +83,16 @@ export async function sendWebPushToUser(userId: string, payload: WebPushPayload)
   }
   if (subs.length === 0) return
 
+  const wp = getWebPush()
+  if (!wp) return
+
   const body = JSON.stringify(payload)
   const dead: string[] = []
 
   await Promise.all(
     subs.map(async sub => {
       try {
-        await webpush.sendNotification(
+        await wp.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           body
         )
