@@ -1144,7 +1144,10 @@ function CourseCard({
           {course.chosenSchedule ? (
             <button
               type="button"
-              onClick={onSchedule}
+              onClick={e => {
+                e.stopPropagation()
+                onSchedule()
+              }}
               className="flex w-full items-center justify-between rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] p-2 text-xs text-slate-300 transition-colors hover:bg-[rgba(255,255,255,0.1)]"
             >
               <span className="font-medium text-slate-100">
