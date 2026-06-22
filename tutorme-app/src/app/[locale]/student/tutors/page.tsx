@@ -392,8 +392,7 @@ export default function StudentTutorDirectoryPage() {
                 ))
               )}
             </div>
-          </div>
-        </CollapsibleCard>
+          </CollapsibleCard>
       </div>
     </div>
   )
