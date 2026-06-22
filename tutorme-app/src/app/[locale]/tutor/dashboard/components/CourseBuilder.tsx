@@ -8003,8 +8003,9 @@ FEEDBACK: [your explanation]`
             >
               <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch">
                 {mainTab !== 'builder' && (
-                  <div className="h-full w-full flex-1">
-                    <Card padding="none" className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+                  <div className="flex h-full w-full flex-1 justify-center">
+                    <div className="w-full max-w-5xl">
+                      <Card padding="none" className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
                       <div
                         className={cn(
                           'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
