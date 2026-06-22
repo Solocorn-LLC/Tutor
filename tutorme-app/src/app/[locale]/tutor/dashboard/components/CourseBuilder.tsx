@@ -7986,12 +7986,13 @@ FEEDBACK: [your explanation]`
                 {mainTab !== 'builder' && (
                   <div className="h-full w-full flex-1">
                     <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-2">
-                        <CardTitle className="mb-1 flex items-center justify-between gap-2 px-1 text-base font-semibold">
-                          <div>
-                            {/* Timer removed — kept in CourseBuilderInsightsRoute header instead */}
-                          </div>
-                        </CardTitle>
+                      <div className={cn('flex h-9 shrink-0 items-center justify-center px-4 text-sm font-semibold text-white', mainTab === 'live' ? 'bg-gradient-to-br from-orange-500 to-orange-600' : 'bg-gradient-to-br from-violet-500 to-purple-600')}>
+                        <div className="flex items-center gap-2">
+                          {mainTab === 'live' ? <MonitorPlay className="h-4 w-4" /> : <TestTube2 className="h-4 w-4" />} 
+                          {mainTab === 'live' ? 'Classroom' : 'Test'}
+                        </div>
+                      </div>
+                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-2 pt-0">
                         <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
                           {/* Main content with tabs */}
                           <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
@@ -8909,7 +8910,13 @@ FEEDBACK: [your explanation]`
                   <div className="h-full w-full flex-1">
                     {/* COMBINED BUILDER: Task & Assessment Tabs */}
                     <Card className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-                      <CardContent className="flex h-full flex-col overflow-hidden p-2">
+                      <div className="flex h-9 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                        <div className="flex items-center gap-2">
+                          <Wrench className="h-4 w-4" />
+                          Build
+                        </div>
+                      </div>
+                      <CardContent className="flex h-full flex-col overflow-hidden p-2 pt-0">
                         <Tabs
                           value={mainBuilderTab}
                           onValueChange={v => setMainBuilderTab(v as 'task' | 'assessment')}

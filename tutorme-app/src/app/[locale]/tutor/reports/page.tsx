@@ -877,7 +877,7 @@ function CoursesAndClassesTab() {
   }
 
   return (
-    <TabsContent value="overview" className="flex h-full flex-col gap-4 overflow-hidden pb-4">
+    <TabsContent value="overview" className="flex h-full flex-col gap-4 pb-4">
       {/* Panel 1 - Shared Courses & Classes / Sessions */}
       <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
         <button

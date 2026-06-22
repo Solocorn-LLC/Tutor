@@ -1,10 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, liveSession } from '@/lib/db/schema'
+import { calendarEvent, liveSession, courseEnrollment, sessionParticipant } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
+import { notifyMany } from '@/lib/notifications/notify'
+
+/**
+ * Notify every student of a rescheduled session (in-app + SSE + web push +
+ * email, via notify.ts). Students come from the course enrollment (the
+ * reliable roster) plus anyone already added as a session participant.
+ * Best-effort: never throws into the reschedule request.
+ */
+async function notifyStudentsOfReschedule(opts: {
+  sessionId: string
+  courseId: string | null
+  title: string | null
+  newStart: Date
+  timezone?: string | null
+}): Promise<void> {
+  try {
+    const { sessionId, courseId, title, newStart, timezone } = opts
+    const ids = new Set<string>()
+    if (courseId) {
+      const enrolled = await drizzleDb
+        .select({ studentId: courseEnrollment.studentId })
+        .from(courseEnrollment)
+        .where(eq(courseEnrollment.courseId, courseId))
+      for (const r of enrolled) if (r.studentId) ids.add(r.studentId)
+    }
+    const participants = await drizzleDb
+      .select({ studentId: sessionParticipant.studentId })
+      .from(sessionParticipant)
+      .where(eq(sessionParticipant.sessionId, sessionId))
+    for (const r of participants) if (r.studentId) ids.add(r.studentId)
+
+    const userIds = Array.from(ids)
+    if (userIds.length === 0) return
+
+    let when: string
+    try {
+      // NB: timeZoneName can't be combined with dateStyle/timeStyle (throws),
+      // so spell out the fields explicitly.
+      when = new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: timezone || 'UTC',
+        timeZoneName: 'short',
+      }).format(newStart)
+    } catch {
+      when = `${newStart.toISOString().replace('T', ' ').slice(0, 16)} UTC`
+    }
+
+    await notifyMany({
+      userIds,
+      type: 'class',
+      title: 'Session rescheduled',
+      message: `"${title || 'Your session'}" has been moved to ${when}.`,
+      data: { sessionId, scheduledAt: newStart.toISOString() },
+      actionUrl: courseId ? `/student/classroom/${courseId}` : '/student/schedule',
+    })
+  } catch (err) {
+    console.warn('[reschedule] student notification failed (non-critical):', err)
+  }
+}
 
 export const GET = withAuth(async () => {
   return NextResponse.json(
@@ -101,6 +164,21 @@ export const PATCH = withCsrf(
           .set({ scheduledAt: newStart, durationMinutes: sessDuration })
           .where(and(eq(liveSession.sessionId, eventId), eq(liveSession.tutorId, tutorId)))
 
+        // Keep any CalendarEvent projection for this session in sync too, so the
+        // student calendar (which prefers CalendarEvent.startTime) never shows a
+        // stale time.
+        await drizzleDb
+          .update(calendarEvent)
+          .set({ startTime: newStart, endTime: sessEnd, updatedAt: new Date() })
+          .where(eq(calendarEvent.externalId, eventId))
+
+        await notifyStudentsOfReschedule({
+          sessionId: eventId,
+          courseId: sess.courseId,
+          title: sess.title,
+          newStart,
+        })
+
         return NextResponse.json({
           success: true,
           eventId,
@@ -167,6 +245,16 @@ export const PATCH = withCsrf(
           .where(
             and(eq(liveSession.sessionId, calEvent.externalId), eq(liveSession.tutorId, tutorId))
           )
+
+        // Notify the session's students (only sessions have a roster; pure
+        // personal calendar events with no externalId have nobody to notify).
+        await notifyStudentsOfReschedule({
+          sessionId: calEvent.externalId,
+          courseId: calEvent.courseId,
+          title: calEvent.title,
+          newStart,
+          timezone: calEvent.timezone,
+        })
       }
 
       return NextResponse.json({
