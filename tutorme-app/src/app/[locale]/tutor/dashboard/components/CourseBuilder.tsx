@@ -9429,65 +9429,6 @@ FEEDBACK: [your explanation]`
                                                 <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
                                                   <Button
                                                     type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
-                                                    onClick={() => {
-                                                      const content = taskBuilder.activeExtensionId
-                                                        ? taskBuilder.extensions.find(
-                                                            e =>
-                                                              e.id === taskBuilder.activeExtensionId
-                                                          )?.content || taskBuilder.taskContent
-                                                        : taskBuilder.taskContent
-
-                                                      setTestPciScores({})
-                                                      setTestPciInputs({
-                                                        classroom: '',
-                                                        student1: '',
-                                                        student2: '',
-                                                      })
-
-                                                      setTestPciContent({
-                                                        classroom: content,
-                                                        student1: content,
-                                                        student2: content,
-                                                      })
-                                                      setTestPciSource('task')
-                                                      if (taskDmiVersions.length > 0) {
-                                                        setTestPciViewMode(
-                                                          `dmi_${taskDmiVersions[0].id}`
-                                                        )
-                                                      } else {
-                                                        const hasDoc = !!(
-                                                          currentTaskDocument ||
-                                                          taskBuilder.sourceDocument
-                                                        )
-                                                        setTestPciViewMode(hasDoc ? 'pdf' : 'text')
-                                                      }
-                                                      setTestPciActiveTab('classroom')
-                                                      setMainTab('test-pci')
-                                                      toast.success(
-                                                        'Test PCI prefilled with task content'
-                                                      )
-                                                    }}
-                                                  >
-                                                    Test
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
-                                                    disabled={!canEdit}
-                                                    onClick={() => {
-                                                      if (!canEdit) return
-                                                      toast.success('Task saved successfully')
-                                                    }}
-                                                  >
-                                                    Save
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
                                                     variant="default"
                                                     size="icon"
                                                     className="h-8 w-8 shrink-0 rounded-full"
@@ -9969,58 +9910,6 @@ FEEDBACK: [your explanation]`
                                                   }}
                                                 />
                                                 <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
-                                                  <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
-                                                    onClick={() => {
-                                                      const content = assessmentBuilder.taskContent
-
-                                                      setTestPciScores({})
-                                                      setTestPciInputs({
-                                                        classroom: '',
-                                                        student1: '',
-                                                        student2: '',
-                                                      })
-
-                                                      setTestPciContent({
-                                                        classroom: content,
-                                                        student1: content,
-                                                        student2: content,
-                                                      })
-                                                      setTestPciSource('assessment')
-                                                      if (assessmentDmiVersions.length > 0) {
-                                                        setTestPciViewMode(
-                                                          `dmi_${assessmentDmiVersions[0].id}`
-                                                        )
-                                                      } else {
-                                                        const hasDoc = !!(assessmentBuilder as any)
-                                                          .sourceDocument
-                                                        setTestPciViewMode(hasDoc ? 'pdf' : 'text')
-                                                      }
-                                                      setTestPciActiveTab('classroom')
-                                                      setMainTab('test-pci')
-                                                      toast.success(
-                                                        'Test PCI prefilled with assessment content'
-                                                      )
-                                                    }}
-                                                  >
-                                                    Test
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 rounded-full bg-white text-xs font-medium text-gray-600 shadow-sm hover:text-gray-900"
-                                                    disabled={!canEdit}
-                                                    onClick={() => {
-                                                      if (!canEdit) return
-                                                      toast.success('Assessment saved successfully')
-                                                    }}
-                                                  >
-                                                    Save
-                                                  </Button>
                                                   <Button
                                                     type="button"
                                                     variant="default"

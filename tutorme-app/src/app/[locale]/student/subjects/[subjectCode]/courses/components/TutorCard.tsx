@@ -59,17 +59,21 @@ export function TutorCard({
 
   const avatarUrl = resolvePublicUrl(tutor.avatar)
 
+  // Check if any category badge would be too long for the card width
+  const maxBadgeChars = compact ? 22 : 28
+  const visibleCategories = categories.filter(cat => cat.length <= maxBadgeChars)
+
   const cardContent = (
     <div
       className={cn(
         'relative flex w-full flex-col overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white shadow-[0_8px_24px_rgba(0,0,0,0.14)]',
-        compact ? 'h-[280px] gap-3 p-4' : 'h-[420px] gap-4 p-5',
+        compact ? 'h-[280px] gap-2 p-4' : 'h-[420px] gap-4 p-5',
         onClick && 'cursor-pointer',
         className
       )}
     >
-      {/* Header Row: Avatar | Info | Pills */}
-      <div className="flex items-start gap-4">
+      {/* Header Row: Avatar | Info | Country Pills */}
+      <div className="flex items-start gap-3">
         {/* Avatar */}
         <div
           className={cn(
@@ -93,10 +97,10 @@ export function TutorCard({
 
         {/* Info Block */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <h3 className={cn('font-bold text-white', compact ? 'text-base' : 'text-xl')}>
+          <h3 className={cn('truncate font-bold text-white', compact ? 'text-base' : 'text-xl')}>
             {tutor.name}
           </h3>
-          <p className={cn('text-white/70', compact ? 'text-xs' : 'text-sm')}>
+          <p className={cn('truncate text-white/70', compact ? 'text-xs' : 'text-sm')}>
             @{tutor.username || tutor.id}
           </p>
           <div className="mt-1 flex items-center gap-1.5">
@@ -112,23 +116,8 @@ export function TutorCard({
           </div>
         </div>
 
-        {/* Pills — Top Right, two rows, right-aligned */}
+        {/* Country Pills — Top Right */}
         <div className="hidden flex-col items-end gap-1.5 sm:flex">
-          {categories.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-1.5">
-              {categories.map(cat => (
-                <span
-                  key={cat}
-                  className={cn(
-                    'rounded-full border border-white/25 bg-white/10 text-white/90 backdrop-blur-sm',
-                    compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-[11px]'
-                  )}
-                >
-                  {cat}
-                </span>
-              ))}
-            </div>
-          )}
           {countries.length > 0 && (
             <div className="flex flex-wrap justify-end gap-1.5">
               {countries.map(country => (
@@ -147,10 +136,27 @@ export function TutorCard({
         </div>
       </div>
 
+      {/* Category Badges Row — below header, above bio */}
+      {visibleCategories.length > 0 && (
+        <div className="hidden flex-wrap gap-1.5 sm:flex">
+          {visibleCategories.map(cat => (
+            <span
+              key={cat}
+              className={cn(
+                'rounded-full border border-white/25 bg-white/10 text-white/90 backdrop-blur-sm',
+                compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-[11px]'
+              )}
+            >
+              {cat}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Mobile pills — shown below header on narrow viewports */}
-      {(categories.length > 0 || countries.length > 0) && (
+      {(visibleCategories.length > 0 || countries.length > 0) && (
         <div className="flex flex-wrap gap-1.5 sm:hidden">
-          {categories.map(cat => (
+          {visibleCategories.map(cat => (
             <span
               key={cat}
               className={cn(
@@ -180,13 +186,13 @@ export function TutorCard({
       <div
         className={cn(
           'flex flex-col overflow-hidden rounded-[14px] border border-white/15 bg-white/5',
-          compact ? 'h-[96px] px-3 py-2' : 'h-[144px] px-4 py-3'
+          compact ? 'h-[108px] px-3 py-2' : 'h-[144px] px-4 py-3'
         )}
       >
         <p
           className={cn(
-            'line-clamp-3 text-white/80',
-            compact ? 'text-xs leading-tight' : 'line-clamp-5 text-sm leading-relaxed'
+            'text-white/80',
+            compact ? 'line-clamp-4 text-xs leading-tight' : 'line-clamp-5 text-sm leading-relaxed'
           )}
         >
           {bioText}
@@ -196,25 +202,24 @@ export function TutorCard({
       {/* Divider */}
       <div className="border-t border-white/10" />
 
-      {/* Stats — text only */}
+      {/* Stats — text only, single line */}
       <div
         className={cn(
-          'flex flex-wrap items-center gap-x-4 gap-y-1 text-white/70',
+          'flex flex-nowrap items-center gap-x-2 text-white/70',
           compact ? 'text-xs' : 'text-sm'
         )}
       >
-        <span>
+        <span className="shrink-0">
           Courses: <span className="font-semibold text-white">{tutor.totalClasses}</span>
         </span>
-        <span className="text-white/30">·</span>
-        <span>
+        <span className="shrink-0 text-white/30">·</span>
+        <span className="shrink-0">
           Enrollments: <span className="font-semibold text-white">{tutor.totalStudents}</span>
         </span>
         {countryLabel !== undefined && countryLabel !== '--' && (
           <>
-            <span className="text-white/30">·</span>
-            <span className="inline-flex items-center gap-1.5">
-              Country:{' '}
+            <span className="shrink-0 text-white/30">·</span>
+            <span className="inline-flex shrink-0 items-center gap-1">
               <CountryFlag
                 countryName={countryLabel}
                 size="xs"

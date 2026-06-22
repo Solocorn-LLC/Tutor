@@ -656,27 +656,12 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <Card className={SECTION_CARD_CLASS}>
-                <button
-                  type="button"
-                  onClick={() => setProfileOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="panel-header-title">Profile & Identity</div>
-                    </div>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                      {profileOpen ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {profileOpen && (
-                  <CardContent className="space-y-6" ref={profileRef}>
+<CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Profile & Identity" defaultOpen>
+                <div className="space-y-6 p-6">
+                  
                     {/* Avatar */}
                     <div className="flex items-center gap-4">
                       <AvatarUploader
@@ -781,35 +766,18 @@ export default function TutorSettings() {
                         )}
                       </Button>
                     </div>
-                  </CardContent>
-                )}
-              </Card>
+                  
+                
+                </div>
+              </CollapsibleCard>
 
               {/* Public Profile Preview */}
-              <Card className={SECTION_CARD_CLASS}>
-                <button
-                  type="button"
-                  onClick={() => setPublicProfileOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="panel-header-title">Public Profile</div>
-                      <div className="panel-header-subtext">
-                        How students see you on your public page
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                      {publicProfileOpen ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {publicProfileOpen && (
-                  <CardContent className="space-y-6" ref={publicProfileRef}>
+<CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Public Profile" description="How students see you on your public page">
+                <div className="space-y-6 p-6">
+                  
                     <div className="flex items-start gap-4">
                       {formData.avatarUrl ? (
                         <img
@@ -860,35 +828,18 @@ export default function TutorSettings() {
                         Edit Public Profile
                       </Button>
                     </div>
-                  </CardContent>
-                )}
-              </Card>
+                  
+                
+                </div>
+              </CollapsibleCard>
 
               {/* Tax Information */}
-              <Card className={SECTION_CARD_CLASS}>
-                <button
-                  type="button"
-                  onClick={() => setTaxOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="panel-header-title">Tax Information</div>
-                      <div className="panel-header-subtext">
-                        Required for payout and tax reporting
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                      {taxOpen ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {taxOpen && (
-                  <CardContent className="space-y-6" ref={taxRef}>
+<CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Tax Information" description="Required for payout and tax reporting">
+                <div className="space-y-6 p-6">
+                  
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Region</Label>
@@ -987,35 +938,18 @@ export default function TutorSettings() {
                         )}
                       </Button>
                     </div>
-                  </CardContent>
-                )}
-              </Card>
+                  
+                
+                </div>
+              </CollapsibleCard>
 
               {/* Tutor Information */}
-              <Card className={SECTION_CARD_CLASS}>
-                <button
-                  type="button"
-                  onClick={() => setTutorInfoOpen(o => !o)}
-                  className="panel-header panel-header-metallic w-full text-left"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="panel-header-title">Tutor Information</div>
-                      <div className="panel-header-subtext">
-                        Your tutoring profile details (set during registration)
-                      </div>
-                    </div>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                      {tutorInfoOpen ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {tutorInfoOpen && (
-                  <CardContent className="space-y-6" ref={tutorInfoRef}>
+<CollapsibleCard
+                flush
+                className={SECTION_CARD_CLASS}
+                title="Tutor Information" description="Your tutoring profile details (set during registration)">
+                <div className="space-y-6 p-6">
+                  
                     {/* Nationality & Country of Residence */}
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
@@ -1131,9 +1065,10 @@ export default function TutorSettings() {
                         </div>
                       </>
                     )}
-                  </CardContent>
-                )}
-              </Card>
+                  
+                
+                </div>
+              </CollapsibleCard>
 
               {/* One-on-One Booking Settings */}
               <OneOnOneSettingsCard />

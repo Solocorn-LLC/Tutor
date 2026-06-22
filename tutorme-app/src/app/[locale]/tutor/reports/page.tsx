@@ -344,7 +344,7 @@ export default function TutorReports() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-4">
       {/* Hero */}
-      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-white">Analytics</h1>
@@ -370,7 +370,7 @@ export default function TutorReports() {
       </section>
 
       {/* Mode selector + tab content */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col pb-0.5 pt-2">
         <SessionCalendarPanel
           value={activeTab}
           onValueChange={setActiveTab}
@@ -879,7 +879,7 @@ function CoursesAndClassesTab() {
   return (
     <TabsContent value="overview" className="flex h-full flex-col gap-4 overflow-hidden pb-4">
       {/* Panel 1 - Shared Courses & Classes / Sessions */}
-      <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
         <button
           type="button"
           onClick={() => setExpandedPanel(prev => (prev === 'courses' ? 'ai' : 'courses'))}
@@ -1031,7 +1031,7 @@ function CoursesAndClassesTab() {
       </div>
 
       {/* Panel 2 - Course Overview / Analytics Strip */}
-      <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <div className="rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
         <div className="flex shrink-0 items-center gap-6 overflow-x-auto">
           {selectedCourse && selectedSession ? (
             <>
@@ -1194,7 +1194,7 @@ function CoursesAndClassesTab() {
       </div>
 
       {/* Panel 3 - Ask AI Component */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
         <button
           type="button"
           onClick={() => setExpandedPanel(prev => (prev === 'ai' ? 'courses' : 'ai'))}
