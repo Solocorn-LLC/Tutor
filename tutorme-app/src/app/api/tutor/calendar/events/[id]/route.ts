@@ -57,7 +57,57 @@ export const PATCH = withCsrf(
         .limit(1)
 
       if (!calEvent) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+        // The calendar merges standalone LiveSessions that have no CalendarEvent
+        // row, surfacing them with id === sessionId. Dragging one sends that id
+        // here, so fall back to rescheduling the session directly.
+        const [sess] = await drizzleDb
+          .select()
+          .from(liveSession)
+          .where(and(eq(liveSession.sessionId, eventId), eq(liveSession.tutorId, tutorId)))
+          .limit(1)
+
+        if (!sess) {
+          return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+        }
+
+        const sessDuration = durationMinutes ?? sess.durationMinutes ?? 60
+        const sessEnd = new Date(newStart.getTime() + sessDuration * 60000)
+
+        const sessConflicts = await findConflicts(tutorId, newStart, sessEnd, {
+          excludeSessionId: eventId,
+        })
+        if (sessConflicts.length > 0) {
+          const alternativeSlots = await findAlternativeSlots(tutorId, newStart, sessDuration, {
+            maxSuggestions: 3,
+            excludeSessionId: eventId,
+          })
+          return NextResponse.json(
+            {
+              error: 'This time slot conflicts with an existing session.',
+              conflicts: sessConflicts.map(c => ({
+                type: c.type,
+                title: c.title,
+                startTime: c.startTime.toISOString(),
+                endTime: c.endTime.toISOString(),
+              })),
+              suggestedTimes: alternativeSlots,
+            },
+            { status: 409 }
+          )
+        }
+
+        await drizzleDb
+          .update(liveSession)
+          .set({ scheduledAt: newStart, durationMinutes: sessDuration })
+          .where(and(eq(liveSession.sessionId, eventId), eq(liveSession.tutorId, tutorId)))
+
+        return NextResponse.json({
+          success: true,
+          eventId,
+          newStartTime: newStart.toISOString(),
+          newEndTime: sessEnd.toISOString(),
+          durationMinutes: sessDuration,
+        })
       }
 
       const actualDuration =

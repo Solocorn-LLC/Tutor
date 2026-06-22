@@ -882,30 +882,67 @@ export function InteractiveCalendar({
   )
 
   const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
+    async (event: DragEndEvent) => {
       const { active, over } = event
+      setActiveDragEvent(null)
 
-      if (over && active.id !== over.id) {
-        const draggedEvent = events.find(e => e.id === active.id)
-        const dropData = over.data.current as { date?: Date; hour?: number } | undefined
+      if (!over || active.id === over.id) return
 
-        if (draggedEvent && dropData?.date) {
-          const newDate = new Date(dropData.date)
-          if (dropData.hour !== undefined) {
-            newDate.setHours(dropData.hour, draggedEvent.date.getMinutes(), 0, 0)
-          } else {
-            newDate.setHours(draggedEvent.date.getHours(), draggedEvent.date.getMinutes(), 0, 0)
-          }
+      const draggedEvent = events.find(e => e.id === active.id)
+      const dropData = over.data.current as { date?: Date; hour?: number } | undefined
+      if (!draggedEvent || !dropData?.date) return
 
-          const updatedEvent = { ...draggedEvent, date: newDate }
-
-          setEvents(prev => prev.map(e => (e.id === draggedEvent.id ? updatedEvent : e)))
-          onEventUpdate?.(updatedEvent)
-          toast.success(`Rescheduled: ${draggedEvent.title} to ${format(newDate, 'MMM d, h:mm a')}`)
-        }
+      const previousDate = draggedEvent.date
+      const newDate = new Date(dropData.date)
+      if (dropData.hour !== undefined) {
+        newDate.setHours(dropData.hour, draggedEvent.date.getMinutes(), 0, 0)
+      } else {
+        newDate.setHours(draggedEvent.date.getHours(), draggedEvent.date.getMinutes(), 0, 0)
       }
 
-      setActiveDragEvent(null)
+      // Optimistically move the event, then persist. Revert on failure so the
+      // calendar never shows a reschedule that didn't actually happen.
+      const updatedEvent = { ...draggedEvent, date: newDate }
+      setEvents(prev => prev.map(e => (e.id === draggedEvent.id ? updatedEvent : e)))
+
+      try {
+        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        const csrfToken = (await csrfRes.json().catch(() => ({})))?.token ?? null
+        const res = await fetch(`/api/tutor/calendar/events/${draggedEvent.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            newStartTime: newDate.toISOString(),
+            durationMinutes: draggedEvent.duration,
+          }),
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          // Revert the optimistic move.
+          setEvents(prev =>
+            prev.map(e => (e.id === draggedEvent.id ? { ...draggedEvent, date: previousDate } : e))
+          )
+          if (res.status === 409) {
+            toast.error(err.error || 'That time conflicts with another session.')
+          } else {
+            toast.error(err.error || 'Failed to reschedule')
+          }
+          return
+        }
+
+        onEventUpdate?.(updatedEvent)
+        toast.success(`Rescheduled: ${draggedEvent.title} to ${format(newDate, 'MMM d, h:mm a')}`)
+      } catch {
+        setEvents(prev =>
+          prev.map(e => (e.id === draggedEvent.id ? { ...draggedEvent, date: previousDate } : e))
+        )
+        toast.error('Failed to reschedule')
+      }
     },
     [events, onEventUpdate]
   )
@@ -1791,14 +1828,27 @@ export function InteractiveCalendar({
                                           onClick={async () => {
                                             setRescheduling(ev.id)
                                             try {
+                                              const csrfRes = await fetch('/api/csrf', {
+                                                credentials: 'include',
+                                              })
+                                              const csrfToken =
+                                                (await csrfRes.json().catch(() => ({})))?.token ??
+                                                null
                                               const res = await fetch(
-                                                `/api/tutor/calendar/events/${ev.id}/reschedule`,
+                                                `/api/tutor/calendar/events/${ev.id}`,
                                                 {
                                                   method: 'PATCH',
-                                                  headers: { 'Content-Type': 'application/json' },
+                                                  headers: {
+                                                    'Content-Type': 'application/json',
+                                                    ...(csrfToken
+                                                      ? { 'X-CSRF-Token': csrfToken }
+                                                      : {}),
+                                                  },
                                                   credentials: 'include',
                                                   body: JSON.stringify({
-                                                    newStartTime: `${rec.date}T${rec.startTime}:00`,
+                                                    newStartTime: new Date(
+                                                      `${rec.date}T${rec.startTime}:00`
+                                                    ).toISOString(),
                                                   }),
                                                 }
                                               )
