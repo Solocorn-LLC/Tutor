@@ -166,16 +166,20 @@ export default function StudentTutorDirectoryPage() {
   const filteredTutorCount = useMemo(() => {
     if (!searchQuery && !selectedRegion && !selectedCountryCode) return tutors.length
     return tutors.filter(t => {
-      const matchesSearch = !searchQuery ||
+      const matchesSearch =
+        !searchQuery ||
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.bio.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
-      const matchesRegion = !selectedRegion || selectedRegion === 'global' ||
+      const matchesRegion =
+        !selectedRegion ||
+        selectedRegion === 'global' ||
         t.tutorNationalities?.some(n => {
           const region = REGIONS.find(r => r.id === selectedRegion)
           return region?.countries.some(c => c.name.toLowerCase() === n.toLowerCase())
         })
-      const matchesCountry = !selectedCountryCode ||
+      const matchesCountry =
+        !selectedCountryCode ||
         t.tutorNationalities?.some(n => {
           const country = availableCountries.find(c => c.code === selectedCountryCode)
           return country?.name.toLowerCase() === n.toLowerCase()
@@ -332,67 +336,65 @@ export default function StudentTutorDirectoryPage() {
           contentClassName="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4"
         >
           <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {loading ? (
-                Array.from({ length: 6 }).map((_, index) => (
-                  <Card
-                    key={`loading-${index}`}
-                    className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
-                  >
-                    <CardHeader className="space-y-2 p-4">
-                      <div className="h-5 w-2/3 rounded bg-white/10" />
-                      <div className="h-3 w-1/2 rounded bg-white/10" />
-                    </CardHeader>
-                    <CardContent className="space-y-2 p-4 pt-0">
-                      <div className="h-3 rounded bg-white/10" />
-                      <div className="h-3 rounded bg-white/10" />
-                    </CardContent>
-                  </Card>
-                ))
-              ) : tutors.length === 0 ? (
-                <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-                  <CardHeader>
-                    <CardTitle className="text-white">
-                      No tutors match your current filters
-                    </CardTitle>
-                    <CardDescription className="text-white/70">
-                      Try broadening search terms or selecting a different region or country.
-                    </CardDescription>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <Card
+                  key={`loading-${index}`}
+                  className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+                >
+                  <CardHeader className="space-y-2 p-4">
+                    <div className="h-5 w-2/3 rounded bg-white/10" />
+                    <div className="h-3 w-1/2 rounded bg-white/10" />
                   </CardHeader>
+                  <CardContent className="space-y-2 p-4 pt-0">
+                    <div className="h-3 rounded bg-white/10" />
+                    <div className="h-3 rounded bg-white/10" />
+                  </CardContent>
                 </Card>
-              ) : (
-                tutors.map(tutor => (
-                  <TutorCard
-                    key={tutor.id}
-                    compact
-                    tutor={{
-                      id: tutor.id,
-                      username: tutor.username,
-                      name: tutor.name,
-                      avatar: tutor.avatarUrl,
-                      bio: tutor.bio,
-                      rating: tutor.averageRating || 0,
-                      reviewCount: tutor.totalReviewCount || 0,
-                      hourlyRate: tutor.hourlyRate,
-                      currency: 'SGD',
-                      nextAvailableSlot: null,
-                      totalStudents: tutor.totalEnrollments,
-                      totalClasses: tutor.courseCount,
-                      specialties: tutor.categories,
-                      countries: tutor.tutorNationalities,
-                    }}
-                    onClick={() => {
-                      showOverlay()
-                      router.push(`/${locale}/u/${tutor.username}`)
-                    }}
-                    followState={following.has(tutor.id) ? 'following' : 'not-following'}
-                    onFollowToggle={() => toggleFollow(tutor.id)}
-                    bookHref={`/${locale}/u/${tutor.username}?book=1`}
-                    countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
-                  />
-                ))
-              )}
-            </div>
-          </CollapsibleCard>
+              ))
+            ) : tutors.length === 0 ? (
+              <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+                <CardHeader>
+                  <CardTitle className="text-white">No tutors match your current filters</CardTitle>
+                  <CardDescription className="text-white/70">
+                    Try broadening search terms or selecting a different region or country.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              tutors.map(tutor => (
+                <TutorCard
+                  key={tutor.id}
+                  compact
+                  tutor={{
+                    id: tutor.id,
+                    username: tutor.username,
+                    name: tutor.name,
+                    avatar: tutor.avatarUrl,
+                    bio: tutor.bio,
+                    rating: tutor.averageRating || 0,
+                    reviewCount: tutor.totalReviewCount || 0,
+                    hourlyRate: tutor.hourlyRate,
+                    currency: 'SGD',
+                    nextAvailableSlot: null,
+                    totalStudents: tutor.totalEnrollments,
+                    totalClasses: tutor.courseCount,
+                    specialties: tutor.categories,
+                    countries: tutor.tutorNationalities,
+                  }}
+                  onClick={() => {
+                    showOverlay()
+                    router.push(`/${locale}/u/${tutor.username}`)
+                  }}
+                  followState={following.has(tutor.id) ? 'following' : 'not-following'}
+                  onFollowToggle={() => toggleFollow(tutor.id)}
+                  bookHref={`/${locale}/u/${tutor.username}?book=1`}
+                  countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
+                />
+              ))
+            )}
+          </div>
+        </CollapsibleCard>
       </div>
     </div>
   )
