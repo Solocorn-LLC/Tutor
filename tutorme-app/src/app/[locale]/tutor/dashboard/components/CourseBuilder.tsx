@@ -114,6 +114,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import {
   DropdownMenu,
@@ -8361,254 +8362,240 @@ FEEDBACK: [your explanation]`
                                       ) : null
                                     ) : (
                                       <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0">
-                                        {(() => {
-                                          if (mainTab === 'live' && tab.id === 'student1') {
-                                            if (monitorSelectedStudents.length > 0) {
-                                              const count = monitorSelectedStudents.length
-                                              const gridCols =
-                                                count === 1
-                                                  ? 'grid-cols-1'
-                                                  : count === 2
-                                                    ? 'grid-cols-1 lg:grid-cols-2'
-                                                    : 'grid-cols-1 md:grid-cols-2'
-                                              return (
-                                                <Dialog
-                                                  open
-                                                  onOpenChange={open => {
-                                                    if (!open) {
-                                                      setMonitorSelectedStudents([])
-                                                      setTestPciActiveTab('student-monitor')
-                                                    }
-                                                  }}
-                                                >
-                                                  <DialogContent className="h-[92vh] w-[94vw] max-w-none overflow-hidden p-4">
-                                                    <div className="flex h-full w-full flex-col overflow-hidden">
-                                                      <div className="mb-2 flex items-center justify-between">
-                                                        <div className="text-sm font-semibold text-slate-800">
-                                                          Viewing {count} student whiteboard
-                                                          {count === 1 ? '' : 's'}
+                                        <PanelErrorBoundary
+                                          label="this view"
+                                          resetKeys={[
+                                            tab.id,
+                                            mainTab,
+                                            testPciViewMode,
+                                            testPciSource,
+                                          ]}
+                                        >
+                                          {(() => {
+                                            if (mainTab === 'live' && tab.id === 'student1') {
+                                              if (monitorSelectedStudents.length > 0) {
+                                                const count = monitorSelectedStudents.length
+                                                const gridCols =
+                                                  count === 1
+                                                    ? 'grid-cols-1'
+                                                    : count === 2
+                                                      ? 'grid-cols-1 lg:grid-cols-2'
+                                                      : 'grid-cols-1 md:grid-cols-2'
+                                                return (
+                                                  <Dialog
+                                                    open
+                                                    onOpenChange={open => {
+                                                      if (!open) {
+                                                        setMonitorSelectedStudents([])
+                                                        setTestPciActiveTab('student-monitor')
+                                                      }
+                                                    }}
+                                                  >
+                                                    <DialogContent className="h-[92vh] w-[94vw] max-w-none overflow-hidden p-4">
+                                                      <div className="flex h-full w-full flex-col overflow-hidden">
+                                                        <div className="mb-2 flex items-center justify-between">
+                                                          <div className="text-sm font-semibold text-slate-800">
+                                                            Viewing {count} student whiteboard
+                                                            {count === 1 ? '' : 's'}
+                                                          </div>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                            onClick={() =>
+                                                              setMonitorSelectedStudents([])
+                                                            }
+                                                          >
+                                                            Close all
+                                                          </Button>
                                                         </div>
-                                                        <Button
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                                          onClick={() =>
-                                                            setMonitorSelectedStudents([])
-                                                          }
+                                                        <div
+                                                          className={cn(
+                                                            'grid min-h-0 flex-1 gap-3 overflow-auto',
+                                                            gridCols
+                                                          )}
                                                         >
-                                                          Close all
-                                                        </Button>
-                                                      </div>
-                                                      <div
-                                                        className={cn(
-                                                          'grid min-h-0 flex-1 gap-3 overflow-auto',
-                                                          gridCols
-                                                        )}
-                                                      >
-                                                        {monitorSelectedStudents.map(s => {
-                                                          const board =
-                                                            insightsProps?.studentBoards?.[s.id]
-                                                          const pages =
-                                                            (board?.pages as WhiteboardPages) ||
-                                                            createDefaultWhiteboardPages()
-                                                          const pageCount = Math.max(
-                                                            pages.length,
-                                                            1
-                                                          )
-                                                          const pageIndex =
-                                                            typeof board?.pageIndex === 'number'
-                                                              ? Math.min(
-                                                                  Math.max(board.pageIndex, 0),
-                                                                  pageCount - 1
-                                                                )
-                                                              : 0
-                                                          return (
-                                                            <div
-                                                              key={s.id}
-                                                              className="flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
-                                                            >
-                                                              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
-                                                                <span className="min-w-0 truncate font-semibold text-slate-700">
-                                                                  {s.name}
-                                                                </span>
-                                                                <div className="flex items-center gap-2">
-                                                                  <span className="text-slate-400">
-                                                                    Page {pageIndex + 1}/{pageCount}
+                                                          {monitorSelectedStudents.map(s => {
+                                                            const board =
+                                                              insightsProps?.studentBoards?.[s.id]
+                                                            const pages =
+                                                              (board?.pages as WhiteboardPages) ||
+                                                              createDefaultWhiteboardPages()
+                                                            const pageCount = Math.max(
+                                                              pages.length,
+                                                              1
+                                                            )
+                                                            const pageIndex =
+                                                              typeof board?.pageIndex === 'number'
+                                                                ? Math.min(
+                                                                    Math.max(board.pageIndex, 0),
+                                                                    pageCount - 1
+                                                                  )
+                                                                : 0
+                                                            return (
+                                                              <div
+                                                                key={s.id}
+                                                                className="flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
+                                                              >
+                                                                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
+                                                                  <span className="min-w-0 truncate font-semibold text-slate-700">
+                                                                    {s.name}
                                                                   </span>
-                                                                  <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-6 w-6 text-slate-500 hover:bg-white hover:text-slate-800"
-                                                                    onClick={() =>
-                                                                      removeMonitorStudent(s.id)
-                                                                    }
-                                                                    title={`Stop viewing ${s.name}`}
-                                                                  >
-                                                                    <X className="h-4 w-4" />
-                                                                  </Button>
+                                                                  <div className="flex items-center gap-2">
+                                                                    <span className="text-slate-400">
+                                                                      Page {pageIndex + 1}/
+                                                                      {pageCount}
+                                                                    </span>
+                                                                    <Button
+                                                                      variant="ghost"
+                                                                      size="icon"
+                                                                      className="h-6 w-6 text-slate-500 hover:bg-white hover:text-slate-800"
+                                                                      onClick={() =>
+                                                                        removeMonitorStudent(s.id)
+                                                                      }
+                                                                      title={`Stop viewing ${s.name}`}
+                                                                    >
+                                                                      <X className="h-4 w-4" />
+                                                                    </Button>
+                                                                  </div>
+                                                                </div>
+                                                                <div className="min-h-0 flex-1">
+                                                                  <EnhancedWhiteboard
+                                                                    videoOverlay={false}
+                                                                    pages={pages}
+                                                                    currentPageIndex={pageIndex}
+                                                                    readOnly
+                                                                  />
                                                                 </div>
                                                               </div>
-                                                              <div className="min-h-0 flex-1">
-                                                                <EnhancedWhiteboard
-                                                                  videoOverlay={false}
-                                                                  pages={pages}
-                                                                  currentPageIndex={pageIndex}
-                                                                  readOnly
-                                                                />
-                                                              </div>
-                                                            </div>
-                                                          )
-                                                        })}
+                                                            )
+                                                          })}
+                                                        </div>
                                                       </div>
-                                                    </div>
-                                                  </DialogContent>
-                                                </Dialog>
-                                              )
-                                            }
+                                                    </DialogContent>
+                                                  </Dialog>
+                                                )
+                                              }
 
-                                            return (
-                                              <div className="flex h-full w-full flex-col">
-                                                <EnhancedWhiteboard
-                                                  videoOverlay={false}
-                                                  pages={tutorBoardPages}
-                                                  currentPageIndex={tutorBoardPageIndex}
-                                                  onPagesChange={setTutorBoardPages}
-                                                  onPageIndexChange={setTutorBoardPageIndex}
-                                                  socket={insightsProps?.socket}
-                                                  roomId={insightsProps?.sessionId ?? undefined}
-                                                  userId={insightsProps?.tutorId ?? undefined}
-                                                  // Tutor board shows only the tutor's own strokes (broadcast to
-                                                  // students); students' boards are scoped separately.
-                                                  filterByUserId={
-                                                    insightsProps?.tutorId ?? undefined
-                                                  }
-                                                  userName={insightsProps?.tutorName || 'Tutor'}
-                                                  userColor={stringToColor(
-                                                    insightsProps?.tutorId || ''
-                                                  )}
-                                                />
-                                              </div>
-                                            )
-                                          }
-
-                                          if (mainTab === 'live' && tab.id === 'student-monitor') {
-                                            if (
-                                              !insightsProps?.socket ||
-                                              !insightsProps?.sessionId
-                                            ) {
                                               return (
-                                                <div className="flex h-full w-full items-center justify-center rounded-md border bg-white p-6 text-sm text-slate-500">
-                                                  Monitor is unavailable without an active session.
+                                                <div className="flex h-full w-full flex-col">
+                                                  <EnhancedWhiteboard
+                                                    videoOverlay={false}
+                                                    pages={tutorBoardPages}
+                                                    currentPageIndex={tutorBoardPageIndex}
+                                                    onPagesChange={setTutorBoardPages}
+                                                    onPageIndexChange={setTutorBoardPageIndex}
+                                                    socket={insightsProps?.socket}
+                                                    roomId={insightsProps?.sessionId ?? undefined}
+                                                    userId={insightsProps?.tutorId ?? undefined}
+                                                    // Tutor board shows only the tutor's own strokes (broadcast to
+                                                    // students); students' boards are scoped separately.
+                                                    filterByUserId={
+                                                      insightsProps?.tutorId ?? undefined
+                                                    }
+                                                    userName={insightsProps?.tutorName || 'Tutor'}
+                                                    userColor={stringToColor(
+                                                      insightsProps?.tutorId || ''
+                                                    )}
+                                                  />
                                                 </div>
                                               )
                                             }
-                                            return (
-                                              <div className="relative h-full w-full">
-                                                <div className="h-full w-full">
-                                                  <MonitoringPanel
-                                                    socket={insightsProps.socket}
-                                                    sessionId={insightsProps.sessionId}
-                                                    tutorId={insightsProps.tutorId}
-                                                    students={insightsProps?.students || []}
-                                                    liveTasks={insightsProps?.liveTasks || []}
-                                                    selectedStudentIds={monitorSelectedStudents.map(
-                                                      s => s.id
-                                                    )}
-                                                    onToggleWhiteboardSelection={(
-                                                      studentId,
-                                                      studentName
-                                                    ) => {
-                                                      toggleMonitorStudent(studentId, studentName)
-                                                    }}
-                                                    onOpenWhiteboards={(studentId, studentName) => {
-                                                      addMonitorStudent(studentId, studentName)
-                                                      setTestPciActiveTab('student1')
-                                                    }}
-                                                  />
+
+                                            if (
+                                              mainTab === 'live' &&
+                                              tab.id === 'student-monitor'
+                                            ) {
+                                              if (
+                                                !insightsProps?.socket ||
+                                                !insightsProps?.sessionId
+                                              ) {
+                                                return (
+                                                  <div className="flex h-full w-full items-center justify-center rounded-md border bg-white p-6 text-sm text-slate-500">
+                                                    Monitor is unavailable without an active
+                                                    session.
+                                                  </div>
+                                                )
+                                              }
+                                              return (
+                                                <div className="relative h-full w-full">
+                                                  <div className="h-full w-full">
+                                                    <MonitoringPanel
+                                                      socket={insightsProps.socket}
+                                                      sessionId={insightsProps.sessionId}
+                                                      tutorId={insightsProps.tutorId}
+                                                      students={insightsProps?.students || []}
+                                                      liveTasks={insightsProps?.liveTasks || []}
+                                                      selectedStudentIds={monitorSelectedStudents.map(
+                                                        s => s.id
+                                                      )}
+                                                      onToggleWhiteboardSelection={(
+                                                        studentId,
+                                                        studentName
+                                                      ) => {
+                                                        toggleMonitorStudent(studentId, studentName)
+                                                      }}
+                                                      onOpenWhiteboards={(
+                                                        studentId,
+                                                        studentName
+                                                      ) => {
+                                                        addMonitorStudent(studentId, studentName)
+                                                        setTestPciActiveTab('student1')
+                                                      }}
+                                                    />
+                                                  </div>
                                                 </div>
-                                              </div>
-                                            )
-                                          }
+                                              )
+                                            }
 
-                                          const liveTask =
-                                            mainTab === 'live' && testPciSource === 'task'
-                                              ? findTaskById(loadedTaskId || '')
+                                            const liveTask =
+                                              mainTab === 'live' && testPciSource === 'task'
+                                                ? findTaskById(loadedTaskId || '')
+                                                : null
+                                            const liveAssessment =
+                                              mainTab === 'live' && testPciSource === 'assessment'
+                                                ? findAssessmentById(loadedAssessmentId || '')
+                                                : null
+
+                                            const doc =
+                                              mainTab === 'live'
+                                                ? testPciSource === 'task'
+                                                  ? liveTask?.sourceDocument
+                                                  : liveAssessment?.sourceDocument
+                                                : testPciSource === 'task'
+                                                  ? currentTaskDocument
+                                                  : currentAssessmentDocument
+                                            const versionId = testPciViewMode.startsWith('dmi_')
+                                              ? testPciViewMode.replace('dmi_', '')
                                               : null
-                                          const liveAssessment =
-                                            mainTab === 'live' && testPciSource === 'assessment'
-                                              ? findAssessmentById(loadedAssessmentId || '')
-                                              : null
+                                            const versions =
+                                              mainTab === 'live'
+                                                ? []
+                                                : testPciSource === 'task'
+                                                  ? taskDmiVersions
+                                                  : assessmentDmiVersions
+                                            const version = versionId
+                                              ? versions.find(v => v.id === versionId)
+                                              : versions[0]
+                                            const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
+                                            const hasDmi = !!version
 
-                                          const doc =
-                                            mainTab === 'live'
-                                              ? testPciSource === 'task'
-                                                ? liveTask?.sourceDocument
-                                                : liveAssessment?.sourceDocument
-                                              : testPciSource === 'task'
-                                                ? currentTaskDocument
-                                                : currentAssessmentDocument
-                                          const versionId = testPciViewMode.startsWith('dmi_')
-                                            ? testPciViewMode.replace('dmi_', '')
-                                            : null
-                                          const versions =
-                                            mainTab === 'live'
-                                              ? []
-                                              : testPciSource === 'task'
-                                                ? taskDmiVersions
-                                                : assessmentDmiVersions
-                                          const version = versionId
-                                            ? versions.find(v => v.id === versionId)
-                                            : versions[0]
-                                          const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
-                                          const hasDmi = !!version
-
-                                          if (!hasDoc && !hasDmi) {
-                                            return (
-                                              <div className="h-full w-full rounded-md border bg-white p-4">
-                                                <p className="text-muted-foreground whitespace-pre-wrap text-sm">
-                                                  {testPciContent[tab.id] ||
-                                                    `${tab.label} view content`}
-                                                </p>
-                                              </div>
-                                            )
-                                          }
-
-                                          // Document-only: render directly without ResizablePanelGroup
-                                          // so the PDF fills the entire tab area.
-                                          if (hasDoc && !hasDmi) {
-                                            return (
-                                              <div className="relative min-h-0 w-full flex-1">
-                                                {doc?.fileUrl ? (
-                                                  <PDFViewer
-                                                    key={doc.fileUrl}
-                                                    fileUrl={doc.fileUrl}
-                                                    className="absolute inset-0 h-full w-full"
-                                                  />
-                                                ) : (
-                                                  <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
-                                                    {mainTab === 'live'
-                                                      ? testPciSource === 'task'
-                                                        ? liveTask?.description
-                                                        : liveAssessment?.description
-                                                      : doc?.extractedText}
+                                            if (!hasDoc && !hasDmi) {
+                                              return (
+                                                <div className="h-full w-full rounded-md border bg-white p-4">
+                                                  <p className="text-muted-foreground whitespace-pre-wrap text-sm">
+                                                    {testPciContent[tab.id] ||
+                                                      `${tab.label} view content`}
                                                   </p>
-                                                )}
-                                              </div>
-                                            )
-                                          }
+                                                </div>
+                                              )
+                                            }
 
-                                          // Document + DMI: use resizable panels side-by-side
-                                          return (
-                                            <ResizablePanelGroup
-                                              orientation="horizontal"
-                                              className="h-full w-full"
-                                            >
-                                              <ResizablePanel
-                                                defaultSize={50}
-                                                minSize={20}
-                                                className="h-full"
-                                              >
-                                                <div className="relative h-full w-full pr-1">
+                                            // Document-only: render directly without ResizablePanelGroup
+                                            // so the PDF fills the entire tab area.
+                                            if (hasDoc && !hasDmi) {
+                                              return (
+                                                <div className="relative min-h-0 w-full flex-1">
                                                   {doc?.fileUrl ? (
                                                     <PDFViewer
                                                       key={doc.fileUrl}
@@ -8625,40 +8612,72 @@ FEEDBACK: [your explanation]`
                                                     </p>
                                                   )}
                                                 </div>
-                                              </ResizablePanel>
-                                              <ResizableHandle withHandle />
-                                              <ResizablePanel
-                                                defaultSize={50}
-                                                minSize={20}
-                                                className="h-full"
+                                              )
+                                            }
+
+                                            // Document + DMI: use resizable panels side-by-side
+                                            return (
+                                              <ResizablePanelGroup
+                                                orientation="horizontal"
+                                                className="h-full w-full"
                                               >
-                                                <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
-                                                  <div className="space-y-4">
-                                                    {version?.items.map(item => (
-                                                      <div
-                                                        key={item.id}
-                                                        className="rounded-lg border bg-gray-50 p-3"
-                                                      >
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                          <span className="mr-1 text-indigo-600">
-                                                            Q{item.questionNumber}:
-                                                          </span>
-                                                          {item.questionText}
-                                                        </p>
-                                                        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
-                                                          <span className="font-medium">
-                                                            Answer:
-                                                          </span>{' '}
-                                                          {item.answer}
-                                                        </p>
-                                                      </div>
-                                                    ))}
+                                                <ResizablePanel
+                                                  defaultSize={50}
+                                                  minSize={20}
+                                                  className="h-full"
+                                                >
+                                                  <div className="relative h-full w-full pr-1">
+                                                    {doc?.fileUrl ? (
+                                                      <PDFViewer
+                                                        key={doc.fileUrl}
+                                                        fileUrl={doc.fileUrl}
+                                                        className="absolute inset-0 h-full w-full"
+                                                      />
+                                                    ) : (
+                                                      <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                        {mainTab === 'live'
+                                                          ? testPciSource === 'task'
+                                                            ? liveTask?.description
+                                                            : liveAssessment?.description
+                                                          : doc?.extractedText}
+                                                      </p>
+                                                    )}
                                                   </div>
-                                                </div>
-                                              </ResizablePanel>
-                                            </ResizablePanelGroup>
-                                          )
-                                        })()}
+                                                </ResizablePanel>
+                                                <ResizableHandle withHandle />
+                                                <ResizablePanel
+                                                  defaultSize={50}
+                                                  minSize={20}
+                                                  className="h-full"
+                                                >
+                                                  <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
+                                                    <div className="space-y-4">
+                                                      {version?.items.map(item => (
+                                                        <div
+                                                          key={item.id}
+                                                          className="rounded-lg border bg-gray-50 p-3"
+                                                        >
+                                                          <p className="text-sm font-medium text-gray-900">
+                                                            <span className="mr-1 text-indigo-600">
+                                                              Q{item.questionNumber}:
+                                                            </span>
+                                                            {item.questionText}
+                                                          </p>
+                                                          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+                                                            <span className="font-medium">
+                                                              Answer:
+                                                            </span>{' '}
+                                                            {item.answer}
+                                                          </p>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                </ResizablePanel>
+                                              </ResizablePanelGroup>
+                                            )
+                                          })()}
+                                        </PanelErrorBoundary>
                                         {/* Show AI scores if any */}
                                         {testPciScores[tab.id]?.length > 0 && (
                                           <div className="mt-3 border-t border-gray-400 pt-3">
