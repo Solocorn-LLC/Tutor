@@ -19,7 +19,8 @@ import { GET as getTutors } from '@/app/api/public/tutors/route'
 const stamp = Date.now()
 const courselessTutorId = crypto.randomUUID()
 const courseTutorId = crypto.randomUUID()
-const allUserIds = [courselessTutorId, courseTutorId]
+const namelessTutorId = crypto.randomUUID() // incomplete signup — must NOT appear
+const allUserIds = [courselessTutorId, courseTutorId, namelessTutorId]
 const courseId = `course_disc_${stamp}`
 
 function req() {
@@ -44,10 +45,19 @@ describe('public tutors discovery', () => {
         createdAt: now,
         updatedAt: now,
       },
+      {
+        userId: namelessTutorId,
+        email: `claude-disc-noname-${stamp}@example.com`,
+        role: 'TUTOR',
+        createdAt: now,
+        updatedAt: now,
+      },
     ])
     await drizzleDb.insert(profile).values([
       { profileId: `prof_nc_${stamp}`, userId: courselessTutorId, name: 'Course-less Tutor' },
       { profileId: `prof_c_${stamp}`, userId: courseTutorId, name: 'Course Tutor' },
+      // Incomplete signup: no name. Should be excluded from the public directory.
+      { profileId: `prof_nn_${stamp}`, userId: namelessTutorId, name: null },
     ])
     // Only the second tutor has a published course.
     await drizzleDb
@@ -76,6 +86,8 @@ describe('public tutors discovery', () => {
     expect(ids).toContain(courselessTutorId)
     // The tutor with a published course is still listed.
     expect(ids).toContain(courseTutorId)
+    // An incomplete signup (no name) must NOT appear on the public directory.
+    expect(ids).not.toContain(namelessTutorId)
 
     // The course-less tutor renders sensibly: zero courses, no crash.
     const courseless = data.tutors.find((t: { id: string }) => t.id === courselessTutorId)

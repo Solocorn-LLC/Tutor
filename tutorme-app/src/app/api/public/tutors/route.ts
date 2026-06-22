@@ -175,6 +175,10 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(user.role, 'TUTOR'),
+          // Don't surface half-finished / test signups on the public directory:
+          // a discoverable tutor must at least have a real name on their profile.
+          // (Publishing a course is NOT required — every named tutor appears.)
+          sql`coalesce(trim(${profile.name}), '') <> ''`,
           searchPattern
             ? or(
                 ilike(profile.name, searchPattern),
