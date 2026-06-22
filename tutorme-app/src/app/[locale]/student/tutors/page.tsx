@@ -173,7 +173,7 @@ export default function StudentTutorDirectoryPage() {
   }, [tutors])
 
   return (
-    <div className="text-foreground flex h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
+    <div className="text-foreground flex h-full flex-col bg-slate-50 px-6 pb-0 pt-2 lg:pt-0">
       {/* Hero */}
       <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
         <div className="relative flex flex-wrap items-center justify-center gap-3">
@@ -211,7 +211,7 @@ export default function StudentTutorDirectoryPage() {
 
       {/* Bottom panel: filters + results */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-        <div className="flex h-full flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_18px_60px_rgba(0,0,0,0.28)] ring-1 ring-black/5">
+        <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
           {/* Filters */}
           <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
             <div className="relative">
