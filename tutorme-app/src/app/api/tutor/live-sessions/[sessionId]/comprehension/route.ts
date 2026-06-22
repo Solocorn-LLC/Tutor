@@ -16,7 +16,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession, builderTask, taskSubmission } from '@/lib/db/schema'
+import { liveSession, builderTask, deployedMaterial, taskSubmission } from '@/lib/db/schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,13 +34,35 @@ export const GET = withAuth(
     if (session.user.role !== 'ADMIN' && sess.tutorId !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    if (!sess.courseId) return NextResponse.json({ comprehension: {} })
 
-    const tasks = await drizzleDb
-      .select({ taskId: builderTask.taskId })
-      .from(builderTask)
-      .where(eq(builderTask.courseId, sess.courseId))
-    const taskIds = tasks.map(t => t.taskId)
+    // Build the task set two ways and union them, so the live Understanding
+    // indicator is immune to the template-vs-published course-id split:
+    //   1. Tasks actually deployed into THIS session (deployedMaterial.itemId) —
+    //      session-scoped and independent of which courseId the BuilderTask row
+    //      happens to live under. This is what the submissions panel uses.
+    //   2. The session course's BuilderTasks (legacy path) — preserves behavior
+    //      for older sessions that predate deployedMaterial rows.
+    // Keying comprehension only off (2) silently dropped submissions whenever a
+    // deployed task's BuilderTask sat under the template course id rather than
+    // the published one the live session references.
+    const deployedRows = await drizzleDb
+      .select({ itemId: deployedMaterial.itemId, type: deployedMaterial.type })
+      .from(deployedMaterial)
+      .where(eq(deployedMaterial.sessionId, sessionId))
+    const courseTasks = sess.courseId
+      ? await drizzleDb
+          .select({ taskId: builderTask.taskId })
+          .from(builderTask)
+          .where(eq(builderTask.courseId, sess.courseId))
+      : []
+    const taskIds = Array.from(
+      new Set([
+        ...deployedRows
+          .filter(d => d.type === 'task' || d.type === 'assessment' || d.type === 'homework')
+          .map(d => d.itemId),
+        ...courseTasks.map(t => t.taskId),
+      ])
+    )
     if (taskIds.length === 0) return NextResponse.json({ comprehension: {} })
 
     const subs = await drizzleDb
