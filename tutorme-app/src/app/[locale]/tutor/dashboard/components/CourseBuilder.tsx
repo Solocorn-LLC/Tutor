@@ -8005,673 +8005,653 @@ FEEDBACK: [your explanation]`
                 {mainTab !== 'builder' && (
                   <div className="flex h-full w-full flex-1 justify-center">
                     <div className="w-full max-w-5xl">
-                      <Card padding="none" className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-                      <div
-                        className={cn(
-                          'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
-                          mainTab === 'live'
-                            ? 'bg-gradient-to-br from-orange-500 to-orange-600'
-                            : 'bg-gradient-to-br from-violet-500 to-purple-600'
-                        )}
+                      <Card
+                        padding="none"
+                        className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
                       >
-                        <div className="flex items-center gap-2">
-                          {mainTab === 'live' ? (
-                            <MonitorPlay className="h-4 w-4" />
-                          ) : (
-                            <TestTube2 className="h-4 w-4" />
+                        <div
+                          className={cn(
+                            'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
+                            mainTab === 'live'
+                              ? 'bg-gradient-to-br from-orange-500 to-orange-600'
+                              : 'bg-gradient-to-br from-violet-500 to-purple-600'
                           )}
-                          {mainTab === 'live' ? 'Classroom' : 'Test'}
+                        >
+                          <div className="flex items-center gap-2">
+                            {mainTab === 'live' ? (
+                              <MonitorPlay className="h-4 w-4" />
+                            ) : (
+                              <TestTube2 className="h-4 w-4" />
+                            )}
+                            {mainTab === 'live' ? 'Classroom' : 'Test'}
+                          </div>
                         </div>
-                      </div>
-                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-0">
-                        <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
-                          {/* Main content with tabs */}
-                          <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
-                            <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden px-0">
-                              <Tabs
-                                value={testPciActiveTab}
-                                onValueChange={value => {
-                                  if (mainTab === 'live' && value === 'student1') {
+                        <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-0">
+                          <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
+                            {/* Main content with tabs */}
+                            <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
+                              <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden px-0">
+                                <Tabs
+                                  value={testPciActiveTab}
+                                  onValueChange={value => {
+                                    if (mainTab === 'live' && value === 'student1') {
+                                      setTestPciActiveTab(value)
+                                      return
+                                    }
                                     setTestPciActiveTab(value)
-                                    return
-                                  }
-                                  setTestPciActiveTab(value)
-                                }}
-                                className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
-                              >
-                                <TabsList
-                                  className={cn(
-                                    'mb-4 grid w-full gap-2 bg-transparent p-0 shadow-none',
-                                    visibleTestPciTabs.length === 3 ? 'grid-cols-3' : 'grid-cols-4'
-                                  )}
+                                  }}
+                                  className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
                                 >
-                                  {visibleTestPciTabs.map(tab => (
-                                    <div key={tab.id} className="relative w-full">
-                                      {editingTabId === tab.id ? (
-                                        <Input
-                                          value={tab.label}
-                                          onChange={(e: any) => {
-                                            setTestPciTabs(prev =>
-                                              prev.map(t =>
-                                                t.id === tab.id
-                                                  ? { ...t, label: e.target.value }
-                                                  : t
-                                              )
-                                            )
-                                          }}
-                                          onBlur={() => setEditingTabId(null)}
-                                          onKeyDown={(e: any) => {
-                                            if (e.key === 'Enter') setEditingTabId(null)
-                                          }}
-                                          className="w-full rounded-xl border border-[#CFE0FF] bg-[#EEF4FF] px-3 py-2.5 text-center text-sm font-medium text-[#2B5FB8] focus:outline-none focus-visible:ring-0"
-                                          autoFocus
-                                        />
-                                      ) : (
-                                        <TabsTrigger
-                                          value={tab.id}
-                                          className="relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50 sm:text-xs"
-                                          onDoubleClick={() => setEditingTabId(tab.id)}
-                                        >
-                                          {tab.label}
-                                        </TabsTrigger>
-                                      )}
-                                    </div>
-                                  ))}
-                                </TabsList>
-                                {visibleTestPciTabs.map(tab => (
-                                  <TabsContent
-                                    key={tab.id}
-                                    value={tab.id}
-                                    padding="none"
-                                    className="mt-2 flex h-full w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
+                                  <TabsList
+                                    className={cn(
+                                      'mb-4 grid w-full gap-2 bg-transparent p-0 shadow-none',
+                                      visibleTestPciTabs.length === 3
+                                        ? 'grid-cols-3'
+                                        : 'grid-cols-4'
+                                    )}
                                   >
-                                    {tab.id === 'insights' ? (
-                                      insightsProps ? (
-                                        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
-                                          {/* Recording status removed from Insights tab */}
-
-                                          <Tabs
-                                            value={insightsTab}
-                                            onValueChange={value =>
-                                              setInsightsTab(
-                                                value as 'analytics' | 'poll' | 'question'
+                                    {visibleTestPciTabs.map(tab => (
+                                      <div key={tab.id} className="relative w-full">
+                                        {editingTabId === tab.id ? (
+                                          <Input
+                                            value={tab.label}
+                                            onChange={(e: any) => {
+                                              setTestPciTabs(prev =>
+                                                prev.map(t =>
+                                                  t.id === tab.id
+                                                    ? { ...t, label: e.target.value }
+                                                    : t
+                                                )
                                               )
-                                            }
-                                            className="flex h-full min-h-0 flex-col"
+                                            }}
+                                            onBlur={() => setEditingTabId(null)}
+                                            onKeyDown={(e: any) => {
+                                              if (e.key === 'Enter') setEditingTabId(null)
+                                            }}
+                                            className="w-full rounded-xl border border-[#CFE0FF] bg-[#EEF4FF] px-3 py-2.5 text-center text-sm font-medium text-[#2B5FB8] focus:outline-none focus-visible:ring-0"
+                                            autoFocus
+                                          />
+                                        ) : (
+                                          <TabsTrigger
+                                            value={tab.id}
+                                            className="relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50 sm:text-xs"
+                                            onDoubleClick={() => setEditingTabId(tab.id)}
                                           >
-                                            <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
-                                              <TabsTrigger
+                                            {tab.label}
+                                          </TabsTrigger>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </TabsList>
+                                  {visibleTestPciTabs.map(tab => (
+                                    <TabsContent
+                                      key={tab.id}
+                                      value={tab.id}
+                                      padding="none"
+                                      className="mt-2 flex h-full w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
+                                    >
+                                      {tab.id === 'insights' ? (
+                                        insightsProps ? (
+                                          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
+                                            {/* Recording status removed from Insights tab */}
+
+                                            <Tabs
+                                              value={insightsTab}
+                                              onValueChange={value =>
+                                                setInsightsTab(
+                                                  value as 'analytics' | 'poll' | 'question'
+                                                )
+                                              }
+                                              className="flex h-full min-h-0 flex-col"
+                                            >
+                                              <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+                                                <TabsTrigger
+                                                  value="analytics"
+                                                  className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                                >
+                                                  Analytics
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                  value="poll"
+                                                  className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                                >
+                                                  Poll
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                  value="question"
+                                                  className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                                >
+                                                  Question
+                                                </TabsTrigger>
+                                              </TabsList>
+
+                                              <TabsContent
                                                 value="analytics"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                                className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
                                               >
-                                                Analytics
-                                              </TabsTrigger>
-                                              <TabsTrigger
-                                                value="poll"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
-                                              >
-                                                Poll
-                                              </TabsTrigger>
-                                              <TabsTrigger
-                                                value="question"
-                                                className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
-                                              >
-                                                Question
-                                              </TabsTrigger>
-                                            </TabsList>
-
-                                            <TabsContent
-                                              value="analytics"
-                                              className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
-                                            >
-                                              <AnalyticsPanel
-                                                students={insightsProps.students}
-                                                metrics={insightsProps.metrics}
-                                                liveTasks={insightsProps.liveTasks}
-                                                classDuration={insightsProps.classDuration}
-                                                isRecording={insightsProps.isRecording}
-                                                recordingDuration={insightsProps.recordingDuration}
-                                                sessionId={insightsProps.sessionId}
-                                              />
-                                            </TabsContent>
-
-                                            <TabsContent
-                                              value="poll"
-                                              className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
-                                            >
-                                              {showAIPoll ? (
-                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
-                                                  <AITeachingAssistant
-                                                    mode="poll"
-                                                    currentTopic={
-                                                      activeInsightsTask?.title ||
-                                                      'General Course Content'
-                                                    }
-                                                    nodes={nodes}
-                                                    onSelectPrompt={text => {
-                                                      setPollPrompt(text)
-                                                      setShowAIPoll(false)
-                                                    }}
-                                                    onClose={() => setShowAIPoll(false)}
-                                                  />
-                                                </div>
-                                              ) : (
-                                                <InsightsReportView
-                                                  type="poll"
-                                                  pollResults={pollResults}
-                                                  onMentionStudent={name =>
-                                                    setPollPrompt(
-                                                      pollPrompt
-                                                        ? `${pollPrompt} @[${name}](student:${name}) `
-                                                        : `@[${name}](student:${name}) `
-                                                    )
+                                                <AnalyticsPanel
+                                                  students={insightsProps.students}
+                                                  metrics={insightsProps.metrics}
+                                                  liveTasks={insightsProps.liveTasks}
+                                                  classDuration={insightsProps.classDuration}
+                                                  isRecording={insightsProps.isRecording}
+                                                  recordingDuration={
+                                                    insightsProps.recordingDuration
                                                   }
+                                                  sessionId={insightsProps.sessionId}
                                                 />
-                                              )}
-                                              <div
-                                                className={cn(
-                                                  'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
-                                                  showAIPoll
-                                                    ? 'h-[30%] min-h-[120px]'
-                                                    : 'h-[40%] min-h-[150px]'
-                                                )}
+                                              </TabsContent>
+
+                                              <TabsContent
+                                                value="poll"
+                                                className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
                                               >
-                                                <div className="flex flex-1 flex-col space-y-0.5 p-1">
-                                                  <div className="flex items-center justify-between">
-                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                                                      Poll question
-                                                    </Label>
-                                                    <span className="text-xs font-medium text-blue-600">
-                                                      {selectedContextLabel ?? 'No item selected'}
-                                                    </span>
-                                                  </div>
-                                                  <div className="relative flex-1">
-                                                    <MentionTextarea
-                                                      mentionItems={mentionItems}
-                                                      className="h-full min-h-[100px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                      placeholder="What should students answer?"
-                                                      disableAutoResize
-                                                      value={pollPrompt}
-                                                      onChange={event =>
-                                                        setPollPrompt(event.target.value)
+                                                {showAIPoll ? (
+                                                  <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
+                                                    <AITeachingAssistant
+                                                      mode="poll"
+                                                      currentTopic={
+                                                        activeInsightsTask?.title ||
+                                                        'General Course Content'
                                                       }
+                                                      nodes={nodes}
+                                                      onSelectPrompt={text => {
+                                                        setPollPrompt(text)
+                                                        setShowAIPoll(false)
+                                                      }}
+                                                      onClose={() => setShowAIPoll(false)}
                                                     />
-                                                    <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                                                      <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className={cn(
-                                                          'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                          showAIPoll
-                                                            ? 'bg-blue-100 text-blue-700'
-                                                            : 'text-blue-600'
-                                                        )}
-                                                        title="Generate with Socratic AI"
-                                                        onClick={() => setShowAIPoll(!showAIPoll)}
-                                                        disabled={!activeInsightsTaskId}
-                                                      >
-                                                        <Sparkles className="h-4 w-4" />
-                                                      </Button>
-                                                      <Button
-                                                        size="icon"
-                                                        className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
-                                                        disabled={
-                                                          !activeInsightsTaskId ||
-                                                          !activeInsightsTask ||
-                                                          !insightsProps.sessionId ||
-                                                          !pollPrompt.trim()
+                                                  </div>
+                                                ) : (
+                                                  <InsightsReportView
+                                                    type="poll"
+                                                    pollResults={pollResults}
+                                                    onMentionStudent={name =>
+                                                      setPollPrompt(
+                                                        pollPrompt
+                                                          ? `${pollPrompt} @[${name}](student:${name}) `
+                                                          : `@[${name}](student:${name}) `
+                                                      )
+                                                    }
+                                                  />
+                                                )}
+                                                <div
+                                                  className={cn(
+                                                    'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
+                                                    showAIPoll
+                                                      ? 'h-[30%] min-h-[120px]'
+                                                      : 'h-[40%] min-h-[150px]'
+                                                  )}
+                                                >
+                                                  <div className="flex flex-1 flex-col space-y-0.5 p-1">
+                                                    <div className="flex items-center justify-between">
+                                                      <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                                                        Poll question
+                                                      </Label>
+                                                      <span className="text-xs font-medium text-blue-600">
+                                                        {selectedContextLabel ?? 'No item selected'}
+                                                      </span>
+                                                    </div>
+                                                    <div className="relative flex-1">
+                                                      <MentionTextarea
+                                                        mentionItems={mentionItems}
+                                                        className="h-full min-h-[100px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                        placeholder="What should students answer?"
+                                                        disableAutoResize
+                                                        value={pollPrompt}
+                                                        onChange={event =>
+                                                          setPollPrompt(event.target.value)
                                                         }
-                                                        onClick={() => {
-                                                          if (
+                                                      />
+                                                      <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                                                        <Button
+                                                          size="icon"
+                                                          variant="ghost"
+                                                          className={cn(
+                                                            'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                            showAIPoll
+                                                              ? 'bg-blue-100 text-blue-700'
+                                                              : 'text-blue-600'
+                                                          )}
+                                                          title="Generate with Socratic AI"
+                                                          onClick={() => setShowAIPoll(!showAIPoll)}
+                                                          disabled={!activeInsightsTaskId}
+                                                        >
+                                                          <Sparkles className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                          size="icon"
+                                                          className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
+                                                          disabled={
                                                             !activeInsightsTaskId ||
                                                             !activeInsightsTask ||
-                                                            !insightsProps.sessionId
-                                                          )
-                                                            return
-                                                          insightsProps.onSendPoll({
-                                                            taskId: currentInsightsId,
-                                                            question: pollPrompt,
-                                                          })
-                                                          setPollPrompt('')
-                                                        }}
-                                                      >
-                                                        <Send className="h-4 w-4" />
-                                                      </Button>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                                <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1">
-                                                  <div className="flex items-center justify-between gap-3">
-                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
-                                                        Scale:
-                                                      </span>
-                                                      <div className="flex gap-1">
-                                                        {[1, 2, 3, 4, 5].map(v => (
-                                                          <span
-                                                            key={v}
-                                                            className="flex h-5 w-5 items-center justify-center rounded-md border border-blue-100 bg-white text-[10px] font-medium text-blue-600 shadow-sm"
-                                                          >
-                                                            {v}
-                                                          </span>
-                                                        ))}
+                                                            !insightsProps.sessionId ||
+                                                            !pollPrompt.trim()
+                                                          }
+                                                          onClick={() => {
+                                                            if (
+                                                              !activeInsightsTaskId ||
+                                                              !activeInsightsTask ||
+                                                              !insightsProps.sessionId
+                                                            )
+                                                              return
+                                                            insightsProps.onSendPoll({
+                                                              taskId: currentInsightsId,
+                                                              question: pollPrompt,
+                                                            })
+                                                            setPollPrompt('')
+                                                          }}
+                                                        >
+                                                          <Send className="h-4 w-4" />
+                                                        </Button>
                                                       </div>
                                                     </div>
-                                                    <p className="max-w-[140px] truncate text-[10px] font-medium text-blue-600">
-                                                      Task:{' '}
-                                                      {activeInsightsTask?.title || 'None Selected'}
-                                                    </p>
                                                   </div>
-                                                </div>
-                                              </div>
-                                            </TabsContent>
-
-                                            <TabsContent
-                                              value="question"
-                                              className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
-                                            >
-                                              {showAIQuestion ? (
-                                                <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
-                                                  <AITeachingAssistant
-                                                    mode="question"
-                                                    currentTopic={
-                                                      activeInsightsTask?.title ||
-                                                      'General Course Content'
-                                                    }
-                                                    nodes={nodes}
-                                                    onSelectPrompt={text => {
-                                                      setQuestionPrompt(text)
-                                                      setShowAIQuestion(false)
-                                                    }}
-                                                    onClose={() => setShowAIQuestion(false)}
-                                                  />
-                                                </div>
-                                              ) : (
-                                                <InsightsReportView
-                                                  type="question"
-                                                  questionAnswers={questionAnswers}
-                                                  onMentionStudent={name =>
-                                                    setQuestionPrompt(
-                                                      questionPrompt
-                                                        ? `${questionPrompt} @[${name}](student:${name}) `
-                                                        : `@[${name}](student:${name}) `
-                                                    )
-                                                  }
-                                                />
-                                              )}
-                                              <div
-                                                className={cn(
-                                                  'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
-                                                  showAIQuestion
-                                                    ? 'h-[30%] min-h-[120px]'
-                                                    : 'h-[40%] min-h-[150px]'
-                                                )}
-                                              >
-                                                <div className="flex flex-1 flex-col space-y-0.5 p-1">
-                                                  <div className="flex items-center justify-between">
-                                                    <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                                                      Question prompt
-                                                    </Label>
-                                                    <span className="text-xs font-medium text-blue-600">
-                                                      {selectedContextLabel ?? 'No item selected'}
-                                                    </span>
-                                                  </div>
-                                                  <div className="relative flex-1">
-                                                    <MentionTextarea
-                                                      mentionItems={mentionItems}
-                                                      className="h-full min-h-[120px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                      placeholder="Ask your AI coach or share a reflection..."
-                                                      disableAutoResize
-                                                      value={questionPrompt}
-                                                      onChange={event =>
-                                                        setQuestionPrompt(event.target.value)
-                                                      }
-                                                    />
-                                                    <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                                                      <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className={cn(
-                                                          'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                          showAIQuestion
-                                                            ? 'bg-blue-100 text-blue-700'
-                                                            : 'text-blue-600'
-                                                        )}
-                                                        title="Generate with Socratic AI"
-                                                        onClick={() =>
-                                                          setShowAIQuestion(!showAIQuestion)
-                                                        }
-                                                        disabled={!activeInsightsTaskId}
-                                                      >
-                                                        <Sparkles className="h-4 w-4" />
-                                                      </Button>
-                                                      <Button
-                                                        size="icon"
-                                                        className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
-                                                        disabled={
-                                                          !activeInsightsTaskId ||
-                                                          !activeInsightsTask ||
-                                                          !insightsProps.sessionId ||
-                                                          !questionPrompt.trim()
-                                                        }
-                                                        onClick={() => {
-                                                          if (
-                                                            !activeInsightsTaskId ||
-                                                            !activeInsightsTask ||
-                                                            !insightsProps.sessionId
-                                                          )
-                                                            return
-                                                          insightsProps.onSendQuestion({
-                                                            taskId: currentInsightsId,
-                                                            prompt: questionPrompt,
-                                                          })
-                                                          setQuestionPrompt('')
-                                                        }}
-                                                      >
-                                                        <Send className="h-4 w-4" />
-                                                      </Button>
+                                                  <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
+                                                          Scale:
+                                                        </span>
+                                                        <div className="flex gap-1">
+                                                          {[1, 2, 3, 4, 5].map(v => (
+                                                            <span
+                                                              key={v}
+                                                              className="flex h-5 w-5 items-center justify-center rounded-md border border-blue-100 bg-white text-[10px] font-medium text-blue-600 shadow-sm"
+                                                            >
+                                                              {v}
+                                                            </span>
+                                                          ))}
+                                                        </div>
+                                                      </div>
+                                                      <p className="max-w-[140px] truncate text-[10px] font-medium text-blue-600">
+                                                        Task:{' '}
+                                                        {activeInsightsTask?.title ||
+                                                          'None Selected'}
+                                                      </p>
                                                     </div>
                                                   </div>
                                                 </div>
-                                                <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1 text-[10px]">
-                                                  <div className="flex items-center justify-between">
-                                                    <p className="font-medium text-blue-600">
-                                                      Topic:{' '}
-                                                      {activeInsightsTask?.title || 'General'}
-                                                    </p>
-                                                    <Badge
-                                                      variant="outline"
-                                                      className="border-blue-200 bg-white/50 text-blue-700"
-                                                    >
-                                                      AI Integrated
-                                                    </Badge>
+                                              </TabsContent>
+
+                                              <TabsContent
+                                                value="question"
+                                                className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                              >
+                                                {showAIQuestion ? (
+                                                  <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
+                                                    <AITeachingAssistant
+                                                      mode="question"
+                                                      currentTopic={
+                                                        activeInsightsTask?.title ||
+                                                        'General Course Content'
+                                                      }
+                                                      nodes={nodes}
+                                                      onSelectPrompt={text => {
+                                                        setQuestionPrompt(text)
+                                                        setShowAIQuestion(false)
+                                                      }}
+                                                      onClose={() => setShowAIQuestion(false)}
+                                                    />
+                                                  </div>
+                                                ) : (
+                                                  <InsightsReportView
+                                                    type="question"
+                                                    questionAnswers={questionAnswers}
+                                                    onMentionStudent={name =>
+                                                      setQuestionPrompt(
+                                                        questionPrompt
+                                                          ? `${questionPrompt} @[${name}](student:${name}) `
+                                                          : `@[${name}](student:${name}) `
+                                                      )
+                                                    }
+                                                  />
+                                                )}
+                                                <div
+                                                  className={cn(
+                                                    'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
+                                                    showAIQuestion
+                                                      ? 'h-[30%] min-h-[120px]'
+                                                      : 'h-[40%] min-h-[150px]'
+                                                  )}
+                                                >
+                                                  <div className="flex flex-1 flex-col space-y-0.5 p-1">
+                                                    <div className="flex items-center justify-between">
+                                                      <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                                                        Question prompt
+                                                      </Label>
+                                                      <span className="text-xs font-medium text-blue-600">
+                                                        {selectedContextLabel ?? 'No item selected'}
+                                                      </span>
+                                                    </div>
+                                                    <div className="relative flex-1">
+                                                      <MentionTextarea
+                                                        mentionItems={mentionItems}
+                                                        className="h-full min-h-[120px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                        placeholder="Ask your AI coach or share a reflection..."
+                                                        disableAutoResize
+                                                        value={questionPrompt}
+                                                        onChange={event =>
+                                                          setQuestionPrompt(event.target.value)
+                                                        }
+                                                      />
+                                                      <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                                                        <Button
+                                                          size="icon"
+                                                          variant="ghost"
+                                                          className={cn(
+                                                            'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                            showAIQuestion
+                                                              ? 'bg-blue-100 text-blue-700'
+                                                              : 'text-blue-600'
+                                                          )}
+                                                          title="Generate with Socratic AI"
+                                                          onClick={() =>
+                                                            setShowAIQuestion(!showAIQuestion)
+                                                          }
+                                                          disabled={!activeInsightsTaskId}
+                                                        >
+                                                          <Sparkles className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                          size="icon"
+                                                          className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
+                                                          disabled={
+                                                            !activeInsightsTaskId ||
+                                                            !activeInsightsTask ||
+                                                            !insightsProps.sessionId ||
+                                                            !questionPrompt.trim()
+                                                          }
+                                                          onClick={() => {
+                                                            if (
+                                                              !activeInsightsTaskId ||
+                                                              !activeInsightsTask ||
+                                                              !insightsProps.sessionId
+                                                            )
+                                                              return
+                                                            insightsProps.onSendQuestion({
+                                                              taskId: currentInsightsId,
+                                                              prompt: questionPrompt,
+                                                            })
+                                                            setQuestionPrompt('')
+                                                          }}
+                                                        >
+                                                          <Send className="h-4 w-4" />
+                                                        </Button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1 text-[10px]">
+                                                    <div className="flex items-center justify-between">
+                                                      <p className="font-medium text-blue-600">
+                                                        Topic:{' '}
+                                                        {activeInsightsTask?.title || 'General'}
+                                                      </p>
+                                                      <Badge
+                                                        variant="outline"
+                                                        className="border-blue-200 bg-white/50 text-blue-700"
+                                                      >
+                                                        AI Integrated
+                                                      </Badge>
+                                                    </div>
                                                   </div>
                                                 </div>
-                                              </div>
-                                            </TabsContent>
-                                          </Tabs>
-                                        </div>
-                                      ) : null
-                                    ) : (
-                                      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0">
-                                        <PanelErrorBoundary
-                                          label="this view"
-                                          resetKeys={[
-                                            tab.id,
-                                            mainTab,
-                                            testPciViewMode,
-                                            testPciSource,
-                                          ]}
-                                        >
-                                          {(() => {
-                                            if (mainTab === 'live' && tab.id === 'student1') {
-                                              if (monitorSelectedStudents.length > 0) {
-                                                const count = monitorSelectedStudents.length
-                                                const gridCols =
-                                                  count === 1
-                                                    ? 'grid-cols-1'
-                                                    : count === 2
-                                                      ? 'grid-cols-1 lg:grid-cols-2'
-                                                      : 'grid-cols-1 md:grid-cols-2'
-                                                return (
-                                                  <Dialog
-                                                    open
-                                                    onOpenChange={open => {
-                                                      if (!open) {
-                                                        setMonitorSelectedStudents([])
-                                                        setTestPciActiveTab('student-monitor')
-                                                      }
-                                                    }}
-                                                  >
-                                                    <DialogContent className="h-[92vh] w-[94vw] max-w-none overflow-hidden p-4">
-                                                      <div className="flex h-full w-full flex-col overflow-hidden">
-                                                        <div className="mb-2 flex items-center justify-between">
-                                                          <div className="text-sm font-semibold text-slate-800">
-                                                            Viewing {count} student whiteboard
-                                                            {count === 1 ? '' : 's'}
+                                              </TabsContent>
+                                            </Tabs>
+                                          </div>
+                                        ) : null
+                                      ) : (
+                                        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0">
+                                          <PanelErrorBoundary
+                                            label="this view"
+                                            resetKeys={[
+                                              tab.id,
+                                              mainTab,
+                                              testPciViewMode,
+                                              testPciSource,
+                                            ]}
+                                          >
+                                            {(() => {
+                                              if (mainTab === 'live' && tab.id === 'student1') {
+                                                if (monitorSelectedStudents.length > 0) {
+                                                  const count = monitorSelectedStudents.length
+                                                  const gridCols =
+                                                    count === 1
+                                                      ? 'grid-cols-1'
+                                                      : count === 2
+                                                        ? 'grid-cols-1 lg:grid-cols-2'
+                                                        : 'grid-cols-1 md:grid-cols-2'
+                                                  return (
+                                                    <Dialog
+                                                      open
+                                                      onOpenChange={open => {
+                                                        if (!open) {
+                                                          setMonitorSelectedStudents([])
+                                                          setTestPciActiveTab('student-monitor')
+                                                        }
+                                                      }}
+                                                    >
+                                                      <DialogContent className="h-[92vh] w-[94vw] max-w-none overflow-hidden p-4">
+                                                        <div className="flex h-full w-full flex-col overflow-hidden">
+                                                          <div className="mb-2 flex items-center justify-between">
+                                                            <div className="text-sm font-semibold text-slate-800">
+                                                              Viewing {count} student whiteboard
+                                                              {count === 1 ? '' : 's'}
+                                                            </div>
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                              onClick={() =>
+                                                                setMonitorSelectedStudents([])
+                                                              }
+                                                            >
+                                                              Close all
+                                                            </Button>
                                                           </div>
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                                            onClick={() =>
-                                                              setMonitorSelectedStudents([])
-                                                            }
+                                                          <div
+                                                            className={cn(
+                                                              'grid min-h-0 flex-1 gap-3 overflow-auto',
+                                                              gridCols
+                                                            )}
                                                           >
-                                                            Close all
-                                                          </Button>
-                                                        </div>
-                                                        <div
-                                                          className={cn(
-                                                            'grid min-h-0 flex-1 gap-3 overflow-auto',
-                                                            gridCols
-                                                          )}
-                                                        >
-                                                          {monitorSelectedStudents.map(s => {
-                                                            const board =
-                                                              insightsProps?.studentBoards?.[s.id]
-                                                            const pages =
-                                                              (board?.pages as WhiteboardPages) ||
-                                                              createDefaultWhiteboardPages()
-                                                            const pageCount = Math.max(
-                                                              pages.length,
-                                                              1
-                                                            )
-                                                            const pageIndex =
-                                                              typeof board?.pageIndex === 'number'
-                                                                ? Math.min(
-                                                                    Math.max(board.pageIndex, 0),
-                                                                    pageCount - 1
-                                                                  )
-                                                                : 0
-                                                            return (
-                                                              <div
-                                                                key={s.id}
-                                                                className="flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
-                                                              >
-                                                                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
-                                                                  <span className="min-w-0 truncate font-semibold text-slate-700">
-                                                                    {s.name}
-                                                                  </span>
-                                                                  <div className="flex items-center gap-2">
-                                                                    <span className="text-slate-400">
-                                                                      Page {pageIndex + 1}/
-                                                                      {pageCount}
+                                                            {monitorSelectedStudents.map(s => {
+                                                              const board =
+                                                                insightsProps?.studentBoards?.[s.id]
+                                                              const pages =
+                                                                (board?.pages as WhiteboardPages) ||
+                                                                createDefaultWhiteboardPages()
+                                                              const pageCount = Math.max(
+                                                                pages.length,
+                                                                1
+                                                              )
+                                                              const pageIndex =
+                                                                typeof board?.pageIndex === 'number'
+                                                                  ? Math.min(
+                                                                      Math.max(board.pageIndex, 0),
+                                                                      pageCount - 1
+                                                                    )
+                                                                  : 0
+                                                              return (
+                                                                <div
+                                                                  key={s.id}
+                                                                  className="flex min-h-[300px] flex-col overflow-hidden rounded-[12px] border border-slate-200 bg-white shadow-sm"
+                                                                >
+                                                                  <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
+                                                                    <span className="min-w-0 truncate font-semibold text-slate-700">
+                                                                      {s.name}
                                                                     </span>
-                                                                    <Button
-                                                                      variant="ghost"
-                                                                      size="icon"
-                                                                      className="h-6 w-6 text-slate-500 hover:bg-white hover:text-slate-800"
-                                                                      onClick={() =>
-                                                                        removeMonitorStudent(s.id)
-                                                                      }
-                                                                      title={`Stop viewing ${s.name}`}
-                                                                    >
-                                                                      <X className="h-4 w-4" />
-                                                                    </Button>
+                                                                    <div className="flex items-center gap-2">
+                                                                      <span className="text-slate-400">
+                                                                        Page {pageIndex + 1}/
+                                                                        {pageCount}
+                                                                      </span>
+                                                                      <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 text-slate-500 hover:bg-white hover:text-slate-800"
+                                                                        onClick={() =>
+                                                                          removeMonitorStudent(s.id)
+                                                                        }
+                                                                        title={`Stop viewing ${s.name}`}
+                                                                      >
+                                                                        <X className="h-4 w-4" />
+                                                                      </Button>
+                                                                    </div>
+                                                                  </div>
+                                                                  <div className="min-h-0 flex-1">
+                                                                    <EnhancedWhiteboard
+                                                                      videoOverlay={false}
+                                                                      pages={pages}
+                                                                      currentPageIndex={pageIndex}
+                                                                      readOnly
+                                                                    />
                                                                   </div>
                                                                 </div>
-                                                                <div className="min-h-0 flex-1">
-                                                                  <EnhancedWhiteboard
-                                                                    videoOverlay={false}
-                                                                    pages={pages}
-                                                                    currentPageIndex={pageIndex}
-                                                                    readOnly
-                                                                  />
-                                                                </div>
-                                                              </div>
-                                                            )
-                                                          })}
+                                                              )
+                                                            })}
+                                                          </div>
                                                         </div>
-                                                      </div>
-                                                    </DialogContent>
-                                                  </Dialog>
-                                                )
-                                              }
+                                                      </DialogContent>
+                                                    </Dialog>
+                                                  )
+                                                }
 
-                                              return (
-                                                <div className="flex h-full w-full flex-col">
-                                                  <EnhancedWhiteboard
-                                                    videoOverlay={false}
-                                                    pages={tutorBoardPages}
-                                                    currentPageIndex={tutorBoardPageIndex}
-                                                    onPagesChange={setTutorBoardPages}
-                                                    onPageIndexChange={setTutorBoardPageIndex}
-                                                    socket={insightsProps?.socket}
-                                                    roomId={insightsProps?.sessionId ?? undefined}
-                                                    userId={insightsProps?.tutorId ?? undefined}
-                                                    // Tutor board shows only the tutor's own strokes (broadcast to
-                                                    // students); students' boards are scoped separately.
-                                                    filterByUserId={
-                                                      insightsProps?.tutorId ?? undefined
-                                                    }
-                                                    userName={insightsProps?.tutorName || 'Tutor'}
-                                                    userColor={stringToColor(
-                                                      insightsProps?.tutorId || ''
-                                                    )}
-                                                  />
-                                                </div>
-                                              )
-                                            }
-
-                                            if (
-                                              mainTab === 'live' &&
-                                              tab.id === 'student-monitor'
-                                            ) {
-                                              if (
-                                                !insightsProps?.socket ||
-                                                !insightsProps?.sessionId
-                                              ) {
                                                 return (
-                                                  <div className="flex h-full w-full items-center justify-center rounded-md border bg-white p-6 text-sm text-slate-500">
-                                                    Monitor is unavailable without an active
-                                                    session.
+                                                  <div className="flex h-full w-full flex-col">
+                                                    <EnhancedWhiteboard
+                                                      videoOverlay={false}
+                                                      pages={tutorBoardPages}
+                                                      currentPageIndex={tutorBoardPageIndex}
+                                                      onPagesChange={setTutorBoardPages}
+                                                      onPageIndexChange={setTutorBoardPageIndex}
+                                                      socket={insightsProps?.socket}
+                                                      roomId={insightsProps?.sessionId ?? undefined}
+                                                      userId={insightsProps?.tutorId ?? undefined}
+                                                      // Tutor board shows only the tutor's own strokes (broadcast to
+                                                      // students); students' boards are scoped separately.
+                                                      filterByUserId={
+                                                        insightsProps?.tutorId ?? undefined
+                                                      }
+                                                      userName={insightsProps?.tutorName || 'Tutor'}
+                                                      userColor={stringToColor(
+                                                        insightsProps?.tutorId || ''
+                                                      )}
+                                                    />
                                                   </div>
                                                 )
                                               }
-                                              return (
-                                                <div className="relative h-full w-full">
-                                                  <div className="h-full w-full">
-                                                    <MonitoringPanel
-                                                      socket={insightsProps.socket}
-                                                      sessionId={insightsProps.sessionId}
-                                                      tutorId={insightsProps.tutorId}
-                                                      students={insightsProps?.students || []}
-                                                      liveTasks={insightsProps?.liveTasks || []}
-                                                      selectedStudentIds={monitorSelectedStudents.map(
-                                                        s => s.id
-                                                      )}
-                                                      onToggleWhiteboardSelection={(
-                                                        studentId,
-                                                        studentName
-                                                      ) => {
-                                                        toggleMonitorStudent(studentId, studentName)
-                                                      }}
-                                                      onOpenWhiteboards={(
-                                                        studentId,
-                                                        studentName
-                                                      ) => {
-                                                        addMonitorStudent(studentId, studentName)
-                                                        setTestPciActiveTab('student1')
-                                                      }}
-                                                    />
+
+                                              if (
+                                                mainTab === 'live' &&
+                                                tab.id === 'student-monitor'
+                                              ) {
+                                                if (
+                                                  !insightsProps?.socket ||
+                                                  !insightsProps?.sessionId
+                                                ) {
+                                                  return (
+                                                    <div className="flex h-full w-full items-center justify-center rounded-md border bg-white p-6 text-sm text-slate-500">
+                                                      Monitor is unavailable without an active
+                                                      session.
+                                                    </div>
+                                                  )
+                                                }
+                                                return (
+                                                  <div className="relative h-full w-full">
+                                                    <div className="h-full w-full">
+                                                      <MonitoringPanel
+                                                        socket={insightsProps.socket}
+                                                        sessionId={insightsProps.sessionId}
+                                                        tutorId={insightsProps.tutorId}
+                                                        students={insightsProps?.students || []}
+                                                        liveTasks={insightsProps?.liveTasks || []}
+                                                        selectedStudentIds={monitorSelectedStudents.map(
+                                                          s => s.id
+                                                        )}
+                                                        onToggleWhiteboardSelection={(
+                                                          studentId,
+                                                          studentName
+                                                        ) => {
+                                                          toggleMonitorStudent(
+                                                            studentId,
+                                                            studentName
+                                                          )
+                                                        }}
+                                                        onOpenWhiteboards={(
+                                                          studentId,
+                                                          studentName
+                                                        ) => {
+                                                          addMonitorStudent(studentId, studentName)
+                                                          setTestPciActiveTab('student1')
+                                                        }}
+                                                      />
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              )
-                                            }
+                                                )
+                                              }
 
-                                            const liveTask =
-                                              mainTab === 'live' && testPciSource === 'task'
-                                                ? findTaskById(loadedTaskId || '')
+                                              const liveTask =
+                                                mainTab === 'live' && testPciSource === 'task'
+                                                  ? findTaskById(loadedTaskId || '')
+                                                  : null
+                                              const liveAssessment =
+                                                mainTab === 'live' && testPciSource === 'assessment'
+                                                  ? findAssessmentById(loadedAssessmentId || '')
+                                                  : null
+
+                                              // In the Classroom, honor the selected extension just
+                                              // like the Build tab: an extension shows its OWN
+                                              // document, not the parent task's. Falls back to the
+                                              // task document when no extension is active.
+                                              const liveTaskExtension =
+                                                liveTask && taskBuilder.activeExtensionId
+                                                  ? liveTask.extensions?.find(
+                                                      e => e.id === taskBuilder.activeExtensionId
+                                                    ) || null
+                                                  : null
+
+                                              const doc =
+                                                mainTab === 'live'
+                                                  ? testPciSource === 'task'
+                                                    ? liveTaskExtension
+                                                      ? liveTaskExtension.sourceDocument
+                                                      : liveTask?.sourceDocument
+                                                    : liveAssessment?.sourceDocument
+                                                  : testPciSource === 'task'
+                                                    ? currentTaskDocument
+                                                    : currentAssessmentDocument
+                                              const versionId = testPciViewMode.startsWith('dmi_')
+                                                ? testPciViewMode.replace('dmi_', '')
                                                 : null
-                                            const liveAssessment =
-                                              mainTab === 'live' && testPciSource === 'assessment'
-                                                ? findAssessmentById(loadedAssessmentId || '')
-                                                : null
+                                              const versions =
+                                                mainTab === 'live'
+                                                  ? []
+                                                  : testPciSource === 'task'
+                                                    ? taskDmiVersions
+                                                    : assessmentDmiVersions
+                                              const version = versionId
+                                                ? versions.find(v => v.id === versionId)
+                                                : versions[0]
+                                              const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
+                                              const hasDmi = !!version
 
-                                            // In the Classroom, honor the selected extension just
-                                            // like the Build tab: an extension shows its OWN
-                                            // document, not the parent task's. Falls back to the
-                                            // task document when no extension is active.
-                                            const liveTaskExtension =
-                                              liveTask && taskBuilder.activeExtensionId
-                                                ? liveTask.extensions?.find(
-                                                    e => e.id === taskBuilder.activeExtensionId
-                                                  ) || null
-                                                : null
-
-                                            const doc =
-                                              mainTab === 'live'
-                                                ? testPciSource === 'task'
-                                                  ? liveTaskExtension
-                                                    ? liveTaskExtension.sourceDocument
-                                                    : liveTask?.sourceDocument
-                                                  : liveAssessment?.sourceDocument
-                                                : testPciSource === 'task'
-                                                  ? currentTaskDocument
-                                                  : currentAssessmentDocument
-                                            const versionId = testPciViewMode.startsWith('dmi_')
-                                              ? testPciViewMode.replace('dmi_', '')
-                                              : null
-                                            const versions =
-                                              mainTab === 'live'
-                                                ? []
-                                                : testPciSource === 'task'
-                                                  ? taskDmiVersions
-                                                  : assessmentDmiVersions
-                                            const version = versionId
-                                              ? versions.find(v => v.id === versionId)
-                                              : versions[0]
-                                            const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
-                                            const hasDmi = !!version
-
-                                            if (!hasDoc && !hasDmi) {
-                                              return (
-                                                <div className="h-full w-full rounded-md border bg-white p-4">
-                                                  <p className="text-muted-foreground whitespace-pre-wrap text-sm">
-                                                    {testPciContent[tab.id] ||
-                                                      `${tab.label} view content`}
-                                                  </p>
-                                                </div>
-                                              )
-                                            }
-
-                                            // Document-only: render directly without ResizablePanelGroup
-                                            // so the PDF fills the entire tab area.
-                                            if (hasDoc && !hasDmi) {
-                                              return (
-                                                <div className="relative min-h-0 w-full flex-1">
-                                                  {doc?.fileUrl ? (
-                                                    <PDFViewer
-                                                      key={doc.fileUrl}
-                                                      fileUrl={doc.fileUrl}
-                                                      className="absolute inset-0 h-full w-full"
-                                                    />
-                                                  ) : (
-                                                    <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
-                                                      {mainTab === 'live'
-                                                        ? testPciSource === 'task'
-                                                          ? liveTask?.description
-                                                          : liveAssessment?.description
-                                                        : doc?.extractedText}
+                                              if (!hasDoc && !hasDmi) {
+                                                return (
+                                                  <div className="h-full w-full rounded-md border bg-white p-4">
+                                                    <p className="text-muted-foreground whitespace-pre-wrap text-sm">
+                                                      {testPciContent[tab.id] ||
+                                                        `${tab.label} view content`}
                                                     </p>
-                                                  )}
-                                                </div>
-                                              )
-                                            }
+                                                  </div>
+                                                )
+                                              }
 
-                                            // Document + DMI: use resizable panels side-by-side
-                                            return (
-                                              <ResizablePanelGroup
-                                                orientation="horizontal"
-                                                className="h-full w-full"
-                                              >
-                                                <ResizablePanel
-                                                  defaultSize={50}
-                                                  minSize={20}
-                                                  className="h-full"
-                                                >
-                                                  <div className="relative h-full w-full pr-1">
+                                              // Document-only: render directly without ResizablePanelGroup
+                                              // so the PDF fills the entire tab area.
+                                              if (hasDoc && !hasDmi) {
+                                                return (
+                                                  <div className="relative min-h-0 w-full flex-1">
                                                     {doc?.fileUrl ? (
                                                       <PDFViewer
                                                         key={doc.fileUrl}
@@ -8688,272 +8668,308 @@ FEEDBACK: [your explanation]`
                                                       </p>
                                                     )}
                                                   </div>
-                                                </ResizablePanel>
-                                                <ResizableHandle withHandle />
-                                                <ResizablePanel
-                                                  defaultSize={50}
-                                                  minSize={20}
-                                                  className="h-full"
-                                                >
-                                                  <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
-                                                    <div className="space-y-4">
-                                                      {version?.items.map(item => (
-                                                        <div
-                                                          key={item.id}
-                                                          className="rounded-lg border bg-gray-50 p-3"
-                                                        >
-                                                          <p className="text-sm font-medium text-gray-900">
-                                                            <span className="mr-1 text-indigo-600">
-                                                              Q{item.questionNumber}:
-                                                            </span>
-                                                            {item.questionText}
-                                                          </p>
-                                                          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
-                                                            <span className="font-medium">
-                                                              Answer:
-                                                            </span>{' '}
-                                                            {item.answer}
-                                                          </p>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                </ResizablePanel>
-                                              </ResizablePanelGroup>
-                                            )
-                                          })()}
-                                        </PanelErrorBoundary>
-                                        {/* Show AI scores if any */}
-                                        {testPciScores[tab.id]?.length > 0 && (
-                                          <div className="mt-3 border-t border-gray-400 pt-3">
-                                            <p className="mb-2 text-xs font-medium text-gray-600">
-                                              AI Feedback:
-                                            </p>
-                                            {testPciScores[tab.id].map((score, idx) => (
-                                              <div
-                                                key={idx}
-                                                className="mb-1 rounded border border-gray-400 bg-white p-1"
-                                              >
-                                                <div className="flex items-center gap-2">
-                                                  <Badge
-                                                    variant={
-                                                      score.score >= 80
-                                                        ? 'default'
-                                                        : score.score >= 50
-                                                          ? 'secondary'
-                                                          : 'destructive'
-                                                    }
-                                                    className="text-[10px]"
-                                                  >
-                                                    {score.score}%
-                                                  </Badge>
-                                                </div>
-                                                <p className="mt-1 text-xs text-gray-600">
-                                                  {score.feedback}
-                                                </p>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </TabsContent>
-                                ))}
-                              </Tabs>
-                              {testPciActiveTab !== 'insights' &&
-                                testPciActiveTab !== 'student-monitor' &&
-                                !(mainTab === 'live' && testPciActiveTab === 'student1') && (
-                                  <div className="mt-1 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
-                                    <div className="relative flex w-full flex-col p-px">
-                                      <div className="flex w-full flex-col">
-                                        <MentionTextarea
-                                          mentionItems={mentionItems}
-                                          className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                          placeholder={
-                                            testPciActiveTab === 'classroom'
-                                              ? 'Enter answer (goes to both students)...'
-                                              : 'Ask your AI coach or share a reflection...'
-                                          }
-                                          value={testPciInputs[testPciActiveTab] || ''}
-                                          onChange={(e: any) =>
-                                            setTestPciInputs(prev => ({
-                                              ...prev,
-                                              [testPciActiveTab]: e.target.value,
-                                            }))
-                                          }
-                                          onKeyDown={(e: any) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                              const currentInput =
-                                                testPciInputs[testPciActiveTab] || ''
-                                              if (currentInput.trim() && !testPciLoading) {
-                                                e.preventDefault()
-                                                handleTestPciSubmit()
+                                                )
                                               }
-                                            }
-                                          }}
-                                        />
-                                        <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
-                                          {testPciActiveTab === 'classroom' && (
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button
-                                                  variant="outline"
-                                                  size="icon"
-                                                  className="h-9 w-9 rounded-xl border-gray-300 shadow-sm hover:bg-gray-100"
-                                                  title="Toggle View Mode"
+
+                                              // Document + DMI: use resizable panels side-by-side
+                                              return (
+                                                <ResizablePanelGroup
+                                                  orientation="horizontal"
+                                                  className="h-full w-full"
                                                 >
-                                                  <Plus className="h-4 w-4" />
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent
-                                                align="end"
-                                                className="max-h-64 w-56 overflow-y-auto"
-                                              >
-                                                {testPciSource === 'task' ? (
-                                                  <>
-                                                    <DropdownMenuItem
-                                                      onClick={() => setTestPciViewMode('pdf')}
-                                                      className="flex items-center gap-2"
-                                                    >
-                                                      <FileText className="h-4 w-4" />
-                                                      PDF Document
-                                                      {testPciViewMode === 'pdf' && (
-                                                        <CheckCircle className="ml-auto h-4 w-4 text-green-500" />
+                                                  <ResizablePanel
+                                                    defaultSize={50}
+                                                    minSize={20}
+                                                    className="h-full"
+                                                  >
+                                                    <div className="relative h-full w-full pr-1">
+                                                      {doc?.fileUrl ? (
+                                                        <PDFViewer
+                                                          key={doc.fileUrl}
+                                                          fileUrl={doc.fileUrl}
+                                                          className="absolute inset-0 h-full w-full"
+                                                        />
+                                                      ) : (
+                                                        <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                          {mainTab === 'live'
+                                                            ? testPciSource === 'task'
+                                                              ? liveTask?.description
+                                                              : liveAssessment?.description
+                                                            : doc?.extractedText}
+                                                        </p>
                                                       )}
-                                                    </DropdownMenuItem>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    {assessmentDmiVersions.length > 0 && (
-                                                      <div className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">
-                                                        DMI Versions
+                                                    </div>
+                                                  </ResizablePanel>
+                                                  <ResizableHandle withHandle />
+                                                  <ResizablePanel
+                                                    defaultSize={50}
+                                                    minSize={20}
+                                                    className="h-full"
+                                                  >
+                                                    <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
+                                                      <div className="space-y-4">
+                                                        {version?.items.map(item => (
+                                                          <div
+                                                            key={item.id}
+                                                            className="rounded-lg border bg-gray-50 p-3"
+                                                          >
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                              <span className="mr-1 text-indigo-600">
+                                                                Q{item.questionNumber}:
+                                                              </span>
+                                                              {item.questionText}
+                                                            </p>
+                                                            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+                                                              <span className="font-medium">
+                                                                Answer:
+                                                              </span>{' '}
+                                                              {item.answer}
+                                                            </p>
+                                                          </div>
+                                                        ))}
                                                       </div>
-                                                    )}
-                                                    {assessmentDmiVersions.map(version => (
+                                                    </div>
+                                                  </ResizablePanel>
+                                                </ResizablePanelGroup>
+                                              )
+                                            })()}
+                                          </PanelErrorBoundary>
+                                          {/* Show AI scores if any */}
+                                          {testPciScores[tab.id]?.length > 0 && (
+                                            <div className="mt-3 border-t border-gray-400 pt-3">
+                                              <p className="mb-2 text-xs font-medium text-gray-600">
+                                                AI Feedback:
+                                              </p>
+                                              {testPciScores[tab.id].map((score, idx) => (
+                                                <div
+                                                  key={idx}
+                                                  className="mb-1 rounded border border-gray-400 bg-white p-1"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <Badge
+                                                      variant={
+                                                        score.score >= 80
+                                                          ? 'default'
+                                                          : score.score >= 50
+                                                            ? 'secondary'
+                                                            : 'destructive'
+                                                      }
+                                                      className="text-[10px]"
+                                                    >
+                                                      {score.score}%
+                                                    </Badge>
+                                                  </div>
+                                                  <p className="mt-1 text-xs text-gray-600">
+                                                    {score.feedback}
+                                                  </p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </TabsContent>
+                                  ))}
+                                </Tabs>
+                                {testPciActiveTab !== 'insights' &&
+                                  testPciActiveTab !== 'student-monitor' &&
+                                  !(mainTab === 'live' && testPciActiveTab === 'student1') && (
+                                    <div className="mt-1 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                      <div className="relative flex w-full flex-col p-px">
+                                        <div className="flex w-full flex-col">
+                                          <MentionTextarea
+                                            mentionItems={mentionItems}
+                                            className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                            placeholder={
+                                              testPciActiveTab === 'classroom'
+                                                ? 'Enter answer (goes to both students)...'
+                                                : 'Ask your AI coach or share a reflection...'
+                                            }
+                                            value={testPciInputs[testPciActiveTab] || ''}
+                                            onChange={(e: any) =>
+                                              setTestPciInputs(prev => ({
+                                                ...prev,
+                                                [testPciActiveTab]: e.target.value,
+                                              }))
+                                            }
+                                            onKeyDown={(e: any) => {
+                                              if (e.key === 'Enter' && !e.shiftKey) {
+                                                const currentInput =
+                                                  testPciInputs[testPciActiveTab] || ''
+                                                if (currentInput.trim() && !testPciLoading) {
+                                                  e.preventDefault()
+                                                  handleTestPciSubmit()
+                                                }
+                                              }
+                                            }}
+                                          />
+                                          <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                            {testPciActiveTab === 'classroom' && (
+                                              <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="h-9 w-9 rounded-xl border-gray-300 shadow-sm hover:bg-gray-100"
+                                                    title="Toggle View Mode"
+                                                  >
+                                                    <Plus className="h-4 w-4" />
+                                                  </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                  align="end"
+                                                  className="max-h-64 w-56 overflow-y-auto"
+                                                >
+                                                  {testPciSource === 'task' ? (
+                                                    <>
                                                       <DropdownMenuItem
-                                                        key={version.id}
-                                                        onClick={() =>
-                                                          setTestPciViewMode(`dmi_${version.id}`)
-                                                        }
+                                                        onClick={() => setTestPciViewMode('pdf')}
                                                         className="flex items-center gap-2"
                                                       >
-                                                        <Wand2 className="h-4 w-4 text-indigo-500" />
-                                                        Version {version.versionNumber}
-                                                        {testPciViewMode ===
-                                                          `dmi_${version.id}` && (
+                                                        <FileText className="h-4 w-4" />
+                                                        PDF Document
+                                                        {testPciViewMode === 'pdf' && (
                                                           <CheckCircle className="ml-auto h-4 w-4 text-green-500" />
                                                         )}
                                                       </DropdownMenuItem>
-                                                    ))}
-                                                  </>
-                                                )}
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          )}
-                                          <Button
-                                            size="icon"
-                                            className="h-9 w-9 rounded-xl bg-slate-400 shadow-sm hover:bg-slate-500 disabled:opacity-30"
-                                            disabled={
-                                              !(testPciInputs[testPciActiveTab] || '').trim() ||
-                                              testPciLoading
-                                            }
-                                            onClick={handleTestPciSubmit}
-                                            title="Send"
-                                          >
-                                            <Send className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            size="icon"
-                                            className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 disabled:opacity-30"
-                                            disabled={testPciLoading || !canEdit}
-                                            onClick={() => {
-                                              if (!canEdit) return
-                                              if (onSave) {
-                                                onSave(
-                                                  nodes.map(n => n.lessons[0] || ({} as any)),
-                                                  { developmentMode: devMode, previewDifficulty }
-                                                )
-                                                toast.success('Course and PCI saved')
-                                              }
-                                            }}
-                                            title="Save Course & PCI"
-                                          >
-                                            <Save className="h-4 w-4" />
-                                          </Button>
-                                          {insightsProps?.onDeployTask && (
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      {assessmentDmiVersions.length > 0 && (
+                                                        <div className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">
+                                                          DMI Versions
+                                                        </div>
+                                                      )}
+                                                      {assessmentDmiVersions.map(version => (
+                                                        <DropdownMenuItem
+                                                          key={version.id}
+                                                          onClick={() =>
+                                                            setTestPciViewMode(`dmi_${version.id}`)
+                                                          }
+                                                          className="flex items-center gap-2"
+                                                        >
+                                                          <Wand2 className="h-4 w-4 text-indigo-500" />
+                                                          Version {version.versionNumber}
+                                                          {testPciViewMode ===
+                                                            `dmi_${version.id}` && (
+                                                            <CheckCircle className="ml-auto h-4 w-4 text-green-500" />
+                                                          )}
+                                                        </DropdownMenuItem>
+                                                      ))}
+                                                    </>
+                                                  )}
+                                                </DropdownMenuContent>
+                                              </DropdownMenu>
+                                            )}
                                             <Button
                                               size="icon"
-                                              className="h-9 w-9 rounded-xl bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 disabled:opacity-30"
+                                              className="h-9 w-9 rounded-xl bg-slate-400 shadow-sm hover:bg-slate-500 disabled:opacity-30"
                                               disabled={
-                                                testPciLoading ||
-                                                (!loadedTaskId && !loadedAssessmentId)
+                                                !(testPciInputs[testPciActiveTab] || '').trim() ||
+                                                testPciLoading
                                               }
+                                              onClick={handleTestPciSubmit}
+                                              title="Send"
+                                            >
+                                              <Send className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              size="icon"
+                                              className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 disabled:opacity-30"
+                                              disabled={testPciLoading || !canEdit}
                                               onClick={() => {
-                                                if (testPciSource === 'task') {
-                                                  const task = findTaskById(loadedTaskId || '')
-                                                  if (task) {
-                                                    insightsProps.onDeployTask?.({
-                                                      id: task.id,
-                                                      title: task.title || 'Task',
-                                                      content: task.description || '',
-                                                      source: 'task',
-                                                      dmiItems:
-                                                        task.dmiItems?.map(item => ({
-                                                          id: item.id,
-                                                          questionNumber: item.questionNumber,
-                                                          questionText: item.questionText,
-                                                        })) || [],
-                                                      deployedAt: Date.now(),
-                                                      polls: [],
-                                                      questions: [],
-                                                      sourceDocument: task.sourceDocument
-                                                        ? {
-                                                            fileName: task.sourceDocument.fileName,
-                                                            fileUrl: task.sourceDocument.fileUrl,
-                                                            fileKey: task.sourceDocument.fileKey,
-                                                            mimeType:
-                                                              task.sourceDocument.mimeType ||
-                                                              'application/pdf',
-                                                          }
-                                                        : undefined,
-                                                    })
-                                                    toast.success(
-                                                      'Task DMI deployed to live session'
-                                                    )
-                                                  }
-                                                } else {
-                                                  handleDeployAssessmentDmi()
+                                                if (!canEdit) return
+                                                if (onSave) {
+                                                  onSave(
+                                                    nodes.map(n => n.lessons[0] || ({} as any)),
+                                                    { developmentMode: devMode, previewDifficulty }
+                                                  )
+                                                  toast.success('Course and PCI saved')
                                                 }
                                               }}
-                                              title="Deploy to Session"
+                                              title="Save Course & PCI"
                                             >
-                                              <Play className="h-4 w-4" />
+                                              <Save className="h-4 w-4" />
                                             </Button>
-                                          )}
+                                            {insightsProps?.onDeployTask && (
+                                              <Button
+                                                size="icon"
+                                                className="h-9 w-9 rounded-xl bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 disabled:opacity-30"
+                                                disabled={
+                                                  testPciLoading ||
+                                                  (!loadedTaskId && !loadedAssessmentId)
+                                                }
+                                                onClick={() => {
+                                                  if (testPciSource === 'task') {
+                                                    const task = findTaskById(loadedTaskId || '')
+                                                    if (task) {
+                                                      insightsProps.onDeployTask?.({
+                                                        id: task.id,
+                                                        title: task.title || 'Task',
+                                                        content: task.description || '',
+                                                        source: 'task',
+                                                        dmiItems:
+                                                          task.dmiItems?.map(item => ({
+                                                            id: item.id,
+                                                            questionNumber: item.questionNumber,
+                                                            questionText: item.questionText,
+                                                          })) || [],
+                                                        deployedAt: Date.now(),
+                                                        polls: [],
+                                                        questions: [],
+                                                        sourceDocument: task.sourceDocument
+                                                          ? {
+                                                              fileName:
+                                                                task.sourceDocument.fileName,
+                                                              fileUrl: task.sourceDocument.fileUrl,
+                                                              fileKey: task.sourceDocument.fileKey,
+                                                              mimeType:
+                                                                task.sourceDocument.mimeType ||
+                                                                'application/pdf',
+                                                            }
+                                                          : undefined,
+                                                      })
+                                                      toast.success(
+                                                        'Task DMI deployed to live session'
+                                                      )
+                                                    }
+                                                  } else {
+                                                    handleDeployAssessmentDmi()
+                                                  }
+                                                }}
+                                                title="Deploy to Session"
+                                              >
+                                                <Play className="h-4 w-4" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="border-border/50 bg-muted/20 border-t px-1 py-1">
+                                          <p className="text-muted-foreground text-[10px]">
+                                            Tip: Start line with &quot;1.&quot;, &quot;-&quot;, or
+                                            &quot;a.&quot; for auto-numbering. Use Tab/Shift+Tab to
+                                            indent.
+                                          </p>
                                         </div>
                                       </div>
-                                      <div className="border-border/50 bg-muted/20 border-t px-1 py-1">
-                                        <p className="text-muted-foreground text-[10px]">
-                                          Tip: Start line with &quot;1.&quot;, &quot;-&quot;, or
-                                          &quot;a.&quot; for auto-numbering. Use Tab/Shift+Tab to
-                                          indent.
-                                        </p>
-                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 )}
 
                 {mainTab === 'builder' && (
                   <div className="h-full w-full flex-1">
                     {/* COMBINED BUILDER: Task & Assessment Tabs */}
-                    <Card padding="none" className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+                    <Card
+                      padding="none"
+                      className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+                    >
                       <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                         <div className="flex items-center gap-2">
                           <Wrench className="h-4 w-4" />
