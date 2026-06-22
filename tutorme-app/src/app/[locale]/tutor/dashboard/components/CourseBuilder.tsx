@@ -8022,7 +8022,7 @@ FEEDBACK: [your explanation]`
                           {mainTab === 'live' ? 'Classroom' : 'Test'}
                         </div>
                       </div>
-                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-2 pt-0">
+                      <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden p-0">
                         <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
                           {/* Main content with tabs */}
                           <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
@@ -8959,7 +8959,7 @@ FEEDBACK: [your explanation]`
                           Build
                         </div>
                       </div>
-                      <CardContent className="flex h-full flex-col overflow-hidden p-2 pt-0">
+                      <CardContent className="flex h-full flex-col overflow-hidden p-0">
                         <Tabs
                           value={mainBuilderTab}
                           onValueChange={v => setMainBuilderTab(v as 'task' | 'assessment')}
