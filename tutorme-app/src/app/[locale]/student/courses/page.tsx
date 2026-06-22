@@ -1044,7 +1044,6 @@ function CourseCard({
   onUnregister?: (c: Course) => void
   unregisteringId?: string | null
 }) {
-  const SubjectIcon = SUBJECT_ICONS[course.subject] || SUBJECT_ICONS.default
   const progress = course.progress
   const progressPercent =
     progress && progress.totalLessons > 0
@@ -1070,86 +1069,73 @@ function CourseCard({
       }}
       onClick={onDetails}
     >
-      <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between">
-          <div className="rounded-lg bg-[rgba(255,255,255,0.1)] p-3">
-            <SubjectIcon className="h-6 w-6 text-slate-100" />
+      <div className="flex flex-1 flex-col p-4">
+        {/* Header: Name + Handle + Category Badge | Heart */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold text-slate-100">{course.name}</h3>
+            {course.tutorHandle && (
+              <p className="text-xs font-medium text-slate-300">@{course.tutorHandle}</p>
+            )}
+            {category && category !== 'general' && (
+              <span className="mt-1 inline-block rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                {category}
+              </span>
+            )}
           </div>
-          <div className="flex items-start gap-2">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-md bg-[rgba(255,255,255,0.08)] text-slate-300"
-              title="Group course"
-            >
-              <Users className="h-4 w-4" />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={e => {
-                e.stopPropagation()
-                onFavorite()
-              }}
-              className="-mr-2 -mt-2 h-8 w-8 text-rose-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-rose-500"
-            >
-              <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
-            </Button>
-          </div>
-        </div>
-        <h3 className="mt-4 text-xl font-semibold text-slate-100">{course.name}</h3>
-        {course.variantName && (
-          <p className="mt-0.5 text-sm font-medium text-blue-300">{course.variantName}</p>
-        )}
-        {course.tutorHandle && (
-          <p className="mt-1 text-sm font-medium text-slate-300">@{course.tutorHandle}</p>
-        )}
-        <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-          {course.description || 'No description available'}
-        </p>
-        <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
-          <Clock className="h-3.5 w-3.5" />
-          <button
-            type="button"
-            className="font-medium text-blue-400 hover:underline"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={e => {
               e.stopPropagation()
-              onSchedule()
+              onFavorite()
             }}
+            className="-mr-1 -mt-1 h-7 w-7 text-rose-400 hover:bg-white/10 hover:text-rose-500"
           >
-            Schedule
-          </button>
-          {course.availability?.summary && (
-            <span className="truncate text-slate-400">({course.availability.summary})</span>
-          )}
+            <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
+          </Button>
         </div>
 
-        <div className="mt-6 flex-1 space-y-4">
-          <div className="flex flex-wrap gap-4 text-sm text-slate-300">
-            <div className="flex items-center gap-1">
-              <Target className="h-4 w-4" />
-              <span>
-                {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
-              </span>
-            </div>
+        {/* Description — white container, clamped to 1 row */}
+        <div className="mt-2 rounded-xl border border-slate-200/10 bg-white px-3 py-2 shadow-sm">
+          <p className="line-clamp-1 text-xs leading-relaxed text-slate-700">
+            {course.description || 'No description available'}
+          </p>
+        </div>
+
+        {/* Sessions count */}
+        <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
+          <div className="flex items-center gap-1 font-medium text-slate-200">
+            <BookOpen className="h-3.5 w-3.5 text-slate-400" />
+            <span>
+              {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
+            </span>
           </div>
+        </div>
 
-          {progress && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-300">Progress</span>
-                <span className="font-medium text-slate-100">{progressPercent}%</span>
-              </div>
-              <Progress
-                value={progressPercent}
-                className="h-2 bg-[rgba(255,255,255,0.1)] [&>div]:bg-blue-500"
-              />
+        {/* Progress */}
+        {progress && (
+          <div className="mt-3 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-300">Progress</span>
+              <span className="font-medium text-slate-100">{progressPercent}%</span>
             </div>
-          )}
+            <Progress
+              value={progressPercent}
+              className="h-1.5 bg-[rgba(255,255,255,0.1)] [&>div]:bg-blue-500"
+            />
+          </div>
+        )}
 
+        {/* Combined: Commenced date + Schedule selector */}
+        <div className="mt-3 space-y-2">
           {course.enrollment?.startDate && (
-            <div className="rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] p-2 text-xs text-slate-300">
-              Commence{isPending ? 's' : 'd'} on:{' '}
-              <span className="font-medium text-slate-100">
-                {new Date(course.enrollment.startDate).toLocaleDateString()}
+            <div className="flex items-center justify-between rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] p-2 text-xs text-slate-300">
+              <span>
+                Commenced:{' '}
+                <span className="font-medium text-slate-100">
+                  {new Date(course.enrollment.startDate).toLocaleDateString()}
+                </span>
               </span>
             </div>
           )}
@@ -1160,11 +1146,8 @@ function CourseCard({
               onClick={onSchedule}
               className="flex w-full items-center justify-between rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] p-2 text-xs text-slate-300 transition-colors hover:bg-[rgba(255,255,255,0.1)]"
             >
-              <span>
-                Schedule:{' '}
-                <span className="font-medium text-slate-100">
-                  {course.chosenSchedule.name || `Schedule ${course.chosenSchedule.scheduleIndex}`}
-                </span>
+              <span className="font-medium text-slate-100">
+                {course.chosenSchedule.name || `Schedule ${course.chosenSchedule.scheduleIndex}`}
               </span>
               <span className="font-medium text-blue-300">Change</span>
             </button>
