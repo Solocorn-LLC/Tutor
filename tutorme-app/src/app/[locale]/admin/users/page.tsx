@@ -2,9 +2,21 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useAdminUsers } from '@/lib/admin/hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -43,6 +55,9 @@ import {
   Shield,
   GraduationCap,
   User,
+  UserPlus,
+  CheckCircle,
+  Loader2,
 } from 'lucide-react'
 
 const roles = [
@@ -67,10 +82,107 @@ export default function UsersPage() {
 
   const users = data?.users || []
   const pagination = data?.pagination
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
 
   const handleSearch = () => {
     setSearch(searchInput)
     setPage(1)
+  }
+
+  // --- Add User ---
+  const [addOpen, setAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState({
+    email: '',
+    name: '',
+    role: 'STUDENT',
+    password: '',
+  })
+  const [adding, setAdding] = useState(false)
+  const handleAddUser = async () => {
+    setAdding(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(addForm),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json?.error || 'Failed to create user')
+        return
+      }
+      toast.success('User created')
+      setAddOpen(false)
+      setAddForm({ email: '', name: '', role: 'STUDENT', password: '' })
+      refresh()
+    } catch {
+      toast.error('Failed to create user')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  // --- Suspend / Activate ---
+  const [busyUserId, setBusyUserId] = useState<string | null>(null)
+  const handleToggleSuspend = async (u: { id: string; status?: string; name?: string }) => {
+    const action = u.status === 'suspended' ? 'activate' : 'suspend'
+    if (
+      action === 'suspend' &&
+      !window.confirm(`Suspend ${u.name || 'this user'}? They will be unable to sign in.`)
+    ) {
+      return
+    }
+    setBusyUserId(u.id)
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json?.error || 'Failed to update user')
+        return
+      }
+      toast.success(action === 'suspend' ? 'User suspended' : 'User reactivated')
+      refresh()
+    } catch {
+      toast.error('Failed to update user')
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  // --- Send Email ---
+  const [emailTarget, setEmailTarget] = useState<{ id: string; name?: string } | null>(null)
+  const [emailForm, setEmailForm] = useState({ subject: '', message: '' })
+  const [sending, setSending] = useState(false)
+  const handleSendEmail = async () => {
+    if (!emailTarget) return
+    setSending(true)
+    try {
+      const res = await fetch(`/api/admin/users/${emailTarget.id}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(emailForm),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json?.error || 'Failed to send message')
+        return
+      }
+      toast.success('Message sent')
+      setEmailTarget(null)
+      setEmailForm({ subject: '', message: '' })
+    } catch {
+      toast.error('Failed to send message')
+    } finally {
+      setSending(false)
+    }
   }
 
   const getRoleIcon = (role: string) => {
@@ -103,8 +215,8 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-slate-900">Users</h1>
           <p className="text-slate-500">Manage user accounts and permissions</p>
         </div>
-        <Button>
-          <UserCog className="mr-2 h-4 w-4" />
+        <Button onClick={() => setAddOpen(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
           Add User
         </Button>
       </div>
@@ -232,12 +344,18 @@ export default function UsersPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={user.isVerified ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {user.isVerified ? 'Verified' : 'Unverified'}
-                        </Badge>
+                        {user.status === 'suspended' ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Suspended
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant={user.isVerified ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {user.isVerified ? 'Verified' : 'Unverified'}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm text-slate-500">
@@ -269,14 +387,43 @@ export default function UsersPage() {
                                 View Details
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setEmailTarget({
+                                  id: user.id as string,
+                                  name: (user.name as string) || (user.email as string),
+                                })
+                              }
+                            >
                               <Mail className="mr-2 h-4 w-4" />
                               Send Email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
-                              <Ban className="mr-2 h-4 w-4" />
-                              Suspend User
+                            <DropdownMenuItem
+                              disabled={busyUserId === user.id}
+                              className={
+                                user.status === 'suspended' ? 'text-emerald-600' : 'text-red-600'
+                              }
+                              onSelect={e => {
+                                e.preventDefault()
+                                handleToggleSuspend({
+                                  id: user.id as string,
+                                  status: user.status as string,
+                                  name: (user.name as string) || (user.email as string),
+                                })
+                              }}
+                            >
+                              {user.status === 'suspended' ? (
+                                <>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Reactivate User
+                                </>
+                              ) : (
+                                <>
+                                  <Ban className="mr-2 h-4 w-4" />
+                                  Suspend User
+                                </>
+                              )}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -316,6 +463,112 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add User dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add user</DialogTitle>
+            <DialogDescription>Create a new student, tutor, or parent account.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="add-email">Email</Label>
+              <Input
+                id="add-email"
+                type="email"
+                value={addForm.email}
+                onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="add-name">Name</Label>
+              <Input
+                id="add-name"
+                value={addForm.name}
+                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Role</Label>
+              <Select
+                value={addForm.role}
+                onValueChange={v => setAddForm(f => ({ ...f, role: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STUDENT">Student</SelectItem>
+                  <SelectItem value="TUTOR">Tutor</SelectItem>
+                  <SelectItem value="PARENT">Parent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="add-password">Temporary password</Label>
+              <Input
+                id="add-password"
+                type="text"
+                value={addForm.password}
+                onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="At least 8 characters"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={adding}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddUser} disabled={adding}>
+              {adding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create user
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Email dialog */}
+      <Dialog open={!!emailTarget} onOpenChange={open => !open && setEmailTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Send message{emailTarget?.name ? ` to ${emailTarget.name}` : ''}
+            </DialogTitle>
+            <DialogDescription>Delivered in-app and by email to the user.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="email-subject">Subject</Label>
+              <Input
+                id="email-subject"
+                value={emailForm.subject}
+                onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="email-message">Message</Label>
+              <Textarea
+                id="email-message"
+                rows={5}
+                value={emailForm.message}
+                onChange={e => setEmailForm(f => ({ ...f, message: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailTarget(null)} disabled={sending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendEmail} disabled={sending}>
+              {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

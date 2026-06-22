@@ -23,6 +23,8 @@ export const user = pgTable(
     password: text('password'),
     handle: text('handle'),
     role: enums.roleEnum('role').notNull(),
+    /** 'active' | 'suspended' — admins can suspend accounts to block sign-in. */
+    status: text('status').notNull().default('active'),
     emailVerified: timestamp('emailVerified', { withTimezone: true }),
     image: text('image'),
     createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),

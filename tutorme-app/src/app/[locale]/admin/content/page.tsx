@@ -1,149 +1,136 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Video, BookOpen, Upload, Filter, MoreHorizontal, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { BookOpen, CheckCircle, FileEdit, Layers } from 'lucide-react'
+
+interface ContentOverview {
+  summary: {
+    totalCourses: number
+    publishedCourses: number
+    draftCourses: number
+    totalLessons: number
+  }
+  recentCourses: Array<{
+    id: string
+    name: string
+    isPublished: boolean
+    createdAt: string
+    creatorName: string | null
+  }>
+}
 
 export default function ContentPage() {
+  const [data, setData] = useState<ContentOverview | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/content/overview', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(json => {
+        if (!cancelled) setData(json)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const s = data?.summary
+  const stats = [
+    {
+      label: 'Total Courses',
+      value: s?.totalCourses,
+      icon: BookOpen,
+      color: 'bg-blue-100 text-blue-600',
+    },
+    {
+      label: 'Published',
+      value: s?.publishedCourses,
+      icon: CheckCircle,
+      color: 'bg-emerald-100 text-emerald-600',
+    },
+    {
+      label: 'Drafts',
+      value: s?.draftCourses,
+      icon: FileEdit,
+      color: 'bg-amber-100 text-amber-600',
+    },
+    {
+      label: 'Lessons',
+      value: s?.totalLessons,
+      icon: Layers,
+      color: 'bg-violet-100 text-violet-600',
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Content Management</h1>
-          <p className="text-slate-500">Manage courses, videos, and learning materials</p>
-        </div>
-        <Button>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Content
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Content Management</h1>
+        <p className="text-slate-500">Courses and learning materials across the platform</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <Video className="h-5 w-5 text-blue-600" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map(stat => (
+          <Card key={stat.label}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.color}`}
+                >
+                  <stat.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">{stat.label}</p>
+                  {loading ? (
+                    <Skeleton className="mt-1 h-7 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{(stat.value ?? 0).toLocaleString()}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">Video Content</p>
-                <p className="text-2xl font-bold">24</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                <BookOpen className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Courses</p>
-                <p className="text-2xl font-bold">12</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-                <FileText className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Documents</p>
-                <p className="text-2xl font-bold">48</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Content List Placeholder */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Content Library</CardTitle>
-              <CardDescription>Manage all platform content</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input placeholder="Search content..." className="w-64 pl-9" />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <CardTitle>Recent courses</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                title: 'Introduction to Algebra',
-                type: 'video',
-                subject: 'Mathematics',
-                status: 'published',
-              },
-              {
-                title: 'Physics: Motion and Forces',
-                type: 'course',
-                subject: 'Physics',
-                status: 'published',
-              },
-              { title: 'Chemistry Basics', type: 'video', subject: 'Chemistry', status: 'draft' },
-              {
-                title: 'Biology: Cell Structure',
-                type: 'document',
-                subject: 'Biology',
-                status: 'published',
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg border p-4 hover:bg-slate-50"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                      item.type === 'video'
-                        ? 'bg-blue-100'
-                        : item.type === 'course'
-                          ? 'bg-green-100'
-                          : 'bg-purple-100'
-                    }`}
-                  >
-                    {item.type === 'video' ? (
-                      <Video className="h-5 w-5 text-blue-600" />
-                    ) : item.type === 'course' ? (
-                      <BookOpen className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <FileText className="h-5 w-5 text-purple-600" />
-                    )}
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : !data?.recentCourses?.length ? (
+            <p className="py-6 text-center text-slate-500">No courses yet</p>
+          ) : (
+            <div className="divide-y">
+              {data.recentCourses.map(c => (
+                <div key={c.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-900">{c.name}</p>
+                    <p className="text-sm text-slate-500">
+                      {c.creatorName || 'Unknown'} · {new Date(c.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <div>
-                    <p className="font-medium">{item.title}</p>
-                    <p className="text-sm text-slate-500">{item.subject}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>
-                    {item.status}
+                  <Badge variant={c.isPublished ? 'default' : 'secondary'} className="text-xs">
+                    {c.isPublished ? 'Published' : 'Draft'}
                   </Badge>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

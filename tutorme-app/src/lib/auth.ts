@@ -47,6 +47,11 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+          // Suspended accounts cannot sign in.
+          if (userRow.status === 'suspended') {
+            throw new Error('ACCOUNT_SUSPENDED')
+          }
+
           // Get profile for onboarding/tos
           const [profileRow] = await drizzleDb
             .select()

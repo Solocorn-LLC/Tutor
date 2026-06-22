@@ -69,6 +69,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
+    if (foundUser.status === 'suspended') {
+      await logFailedLogin(clientIp, email || undefined)
+      return NextResponse.json({ error: 'This account is suspended' }, { status: 403 })
+    }
+
     const passwordCandidates = Array.from(
       new Set(
         [

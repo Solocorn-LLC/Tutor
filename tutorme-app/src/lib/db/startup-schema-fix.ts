@@ -179,6 +179,9 @@ BEGIN
   END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS "PushSubscription_userId_idx" ON "PushSubscription" ("userId");
+
+-- Account status (admins can suspend accounts to block sign-in).
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'active';
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

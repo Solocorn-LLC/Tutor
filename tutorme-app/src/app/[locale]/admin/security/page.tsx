@@ -1,207 +1,167 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Shield, Lock, Key, AlertTriangle, UserX, Eye, History, Plus } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ShieldAlert, Activity, Globe, KeyRound } from 'lucide-react'
+
+interface SecurityOverview {
+  summary: {
+    failedLogins24h: number
+    activeSessions: number
+    whitelistActive: number
+    whitelistEnforced: boolean
+  }
+  whitelist: Array<{
+    id: string
+    ipAddress: string
+    description: string | null
+    isActive: boolean
+    expiresAt: string | null
+  }>
+  recentActions: Array<{
+    id: string
+    action: string
+    adminId: string
+    ipAddress: string | null
+    createdAt: string
+  }>
+}
 
 export default function SecurityPage() {
+  const [data, setData] = useState<SecurityOverview | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/security/overview', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(json => {
+        if (!cancelled) setData(json)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const s = data?.summary
+  const stats = [
+    {
+      label: 'Failed logins (24h)',
+      value: s?.failedLogins24h,
+      icon: ShieldAlert,
+      color: 'bg-red-100 text-red-600',
+    },
+    {
+      label: 'Active admin sessions',
+      value: s?.activeSessions,
+      icon: Activity,
+      color: 'bg-emerald-100 text-emerald-600',
+    },
+    {
+      label: 'Whitelisted IPs',
+      value: s?.whitelistActive,
+      icon: Globe,
+      color: 'bg-blue-100 text-blue-600',
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Security</h1>
-        <p className="text-slate-500">Manage security settings and access controls</p>
+        <p className="text-slate-500">
+          IP whitelist {s?.whitelistEnforced ? 'enforced' : 'not enforced'} · audit logging active
+        </p>
       </div>
 
-      {/* Security Overview */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                <Shield className="h-5 w-5 text-green-600" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        {stats.map(stat => (
+          <Card key={stat.label}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.color}`}
+                >
+                  <stat.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">{stat.label}</p>
+                  {loading ? (
+                    <Skeleton className="mt-1 h-7 w-12" />
+                  ) : (
+                    <p className="text-2xl font-bold">{(stat.value ?? 0).toLocaleString()}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">Security Score</p>
-                <p className="text-2xl font-bold text-green-600">92%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <Lock className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Failed Logins (24h)</p>
-                <p className="text-2xl font-bold">3</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Active Alerts</p>
-                <p className="text-2xl font-bold">1</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-                <Key className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">API Keys</p>
-                <p className="text-2xl font-bold">5</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Security Settings */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Authentication Settings</CardTitle>
-            <CardDescription>Configure login and authentication</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-4 w-4" /> IP whitelist
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Two-Factor Authentication</p>
-                <p className="text-sm text-slate-500">Require 2FA for admin accounts</p>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !data?.whitelist?.length ? (
+              <p className="py-4 text-center text-sm text-slate-500">
+                No IP restrictions — admin access is open to any IP.
+              </p>
+            ) : (
+              <div className="divide-y">
+                {data.whitelist.map(w => (
+                  <div key={w.id} className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="font-mono text-sm text-slate-900">{w.ipAddress}</p>
+                      {w.description && <p className="text-xs text-slate-500">{w.description}</p>}
+                    </div>
+                    <Badge variant={w.isActive ? 'default' : 'secondary'} className="text-xs">
+                      {w.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">IP Whitelist</p>
-                <p className="text-sm text-slate-500">Restrict admin access by IP</p>
-              </div>
-              <Switch />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Session Timeout</p>
-                <p className="text-sm text-slate-500">Auto-logout after 8 hours</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Password Policy</p>
-                <p className="text-sm text-slate-500">Require strong passwords</p>
-              </div>
-              <Switch defaultChecked />
-            </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>IP Whitelist</CardTitle>
-            <CardDescription>Manage allowed IP addresses</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4" /> Recent admin actions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Input placeholder="IP Address (e.g., 192.168.1.1)" />
-                <Button size="icon">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { ip: '192.168.1.0/24', description: 'Office Network', active: true },
-                  { ip: '10.0.0.1', description: 'VPN Gateway', active: true },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <code className="text-sm font-medium">{item.ip}</code>
-                      <p className="text-xs text-slate-500">{item.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={item.active ? 'default' : 'secondary'}>
-                        {item.active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Button variant="ghost" size="icon">
-                        <UserX className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+            {loading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : !data?.recentActions?.length ? (
+              <p className="py-4 text-center text-sm text-slate-500">No admin actions logged yet</p>
+            ) : (
+              <div className="divide-y">
+                {data.recentActions.map(a => (
+                  <div key={a.id} className="flex items-center justify-between py-2">
+                    <span className="font-mono text-xs text-slate-700">{a.action}</span>
+                    <span className="text-xs text-slate-400">
+                      {a.ipAddress || '—'} · {new Date(a.createdAt).toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* API Keys */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>API Keys</CardTitle>
-            <CardDescription>Manage API access keys</CardDescription>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Key
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                name: 'Production API',
-                key: 'tm_live_...',
-                created: '2024-01-15',
-                lastUsed: '2 hours ago',
-              },
-              {
-                name: 'Staging API',
-                key: 'tm_test_...',
-                created: '2024-01-10',
-                lastUsed: '1 day ago',
-              },
-            ].map((key, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="font-medium">{key.name}</p>
-                  <code className="text-xs text-slate-500">{key.key}xxxx</code>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Created: {key.created}</p>
-                    <p className="text-xs text-slate-500">Last used: {key.lastUsed}</p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <History className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
