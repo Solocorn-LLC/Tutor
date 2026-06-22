@@ -132,8 +132,22 @@ export const GET = withAuth(
         })),
     ]
 
+    // Final dedup: one logical session can surface both as a CalendarEvent and a
+    // LiveSession (e.g. when CalendarEvent.externalId wasn't linked). Collapse by
+    // sessionId (CalendarEvent-sourced rows come first, so they win) so the same
+    // session is never emitted twice — which previously made it "conflict" with
+    // its own duplicate in the calendar.
+    const seenKeys = new Set<string>()
+    const dedupedEvents = merged.filter(e => {
+      const key = e.sessionId || e.id
+      if (!key) return true
+      if (seenKeys.has(key)) return false
+      seenKeys.add(key)
+      return true
+    })
+
     // Fetch course names
-    const courseIds = [...new Set(merged.map(e => e.courseId).filter(Boolean))] as string[]
+    const courseIds = [...new Set(dedupedEvents.map(e => e.courseId).filter(Boolean))] as string[]
     const courseRows =
       courseIds.length > 0
         ? await drizzleDb
@@ -163,7 +177,7 @@ export const GET = withAuth(
     )
 
     // Fetch session participant counts
-    const sessionIds = [...new Set(merged.map(e => e.sessionId).filter(Boolean))] as string[]
+    const sessionIds = [...new Set(dedupedEvents.map(e => e.sessionId).filter(Boolean))] as string[]
     const participantRows =
       sessionIds.length > 0
         ? await drizzleDb
@@ -177,7 +191,7 @@ export const GET = withAuth(
         : []
     const participantMap = new Map(participantRows.map(p => [p.sessionId, p.count]))
 
-    const enriched = merged.map(e => {
+    const enriched = dedupedEvents.map(e => {
       const variant = e.courseId ? variantMap.get(e.courseId) : undefined
       return {
         ...e,

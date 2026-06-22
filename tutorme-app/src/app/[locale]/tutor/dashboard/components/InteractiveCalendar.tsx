@@ -668,10 +668,26 @@ export function InteractiveCalendar({
 
   // Check for conflicts
   useEffect(() => {
+    // Only upcoming/active sessions can actually conflict — ignore finished ones.
+    const active = events.filter(e => e.status !== 'completed')
+    // Collapse events that represent the SAME underlying session (a session can
+    // surface as both a CalendarEvent and a LiveSession), so it never conflicts
+    // with its own duplicate — the main source of spurious conflict warnings.
+    const seen = new Set<string>()
+    const unique = active.filter(e => {
+      const key = e.sessionId || e.id
+      if (!key) return true
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
     const conflicts: CalendarEvent[] = []
-    events.forEach((event1, i) => {
-      events.forEach((event2, j) => {
+    unique.forEach((event1, i) => {
+      unique.forEach((event2, j) => {
         if (i >= j) return
+        // Defensive: same session is never a conflict with itself.
+        if (event1.sessionId && event1.sessionId === event2.sessionId) return
         if (event1.date.toDateString() === event2.date.toDateString()) {
           const start1 = event1.date.getTime()
           const end1 = start1 + event1.duration * 60000
@@ -685,10 +701,8 @@ export function InteractiveCalendar({
       })
     })
 
-    const uniqueConflicts = Array.from(new Set(conflicts))
-    if (uniqueConflicts.length > 0) {
-      setShowConflictWarning(uniqueConflicts)
-    }
+    // Always set (including to empty) so a resolved conflict clears the warning.
+    setShowConflictWarning(Array.from(new Set(conflicts)))
   }, [events])
 
   // Upcoming notifications
