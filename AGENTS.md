@@ -1,6 +1,6 @@
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-21
+> **Last updated:** 2026-06-22
 > **Repository root:** `c:\VSCODE\Tutor`
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens), `Classroom/` (tutor documentation)
 
@@ -28,15 +28,15 @@ Solocorn (also marketed as CogniClass / TutorMekimi) is an AI-human hybrid tutor
 - **Main app default port:** `3003`
 - **Landing page default port:** `3000`
 - **ADK service default port:** `8080` (container port); `services/adk/docker-compose.yml` maps host `4310`, so run the container with `PORT=4310` for that mapping to work
-- **API routes:** 228 `route.ts` files under `src/app/api/`
-- **Components:** 30 top-level directories in `tutorme-app/src/components/`
-- **Library modules:** 45 top-level directories in `tutorme-app/src/lib/`
-- **Custom hooks:** 13 in `tutorme-app/src/hooks/`
+- **API routes:** 237 `route.ts` files under `src/app/api/`
+- **Components:** 32 top-level directories in `tutorme-app/src/components/`
+- **Library modules:** 49 top-level directories in `tutorme-app/src/lib/`
+- **Custom hooks:** 14 in `tutorme-app/src/hooks/`
 - **Zustand stores:** 2 in `tutorme-app/src/stores/`
-- **Migrations:** 83 SQL files in `tutorme-app/drizzle/` (61 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
-- **TypeScript/TSX files in `tutorme-app/src/`:** 930
-- **Unit/integration test files:** 66 `.test.ts` files
-- **Playwright E2E specs:** 10 in `tutorme-app/e2e/`
+- **Migrations:** 85 SQL files in `tutorme-app/drizzle/` (63 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
+- **TypeScript/TSX files in `tutorme-app/src/`:** 954
+- **Unit/integration test files:** 69 `.test.ts` files
+- **Playwright E2E specs:** 11 in `tutorme-app/e2e/`
 
 ---
 
@@ -66,13 +66,13 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (top-level domains, 228 route.ts files)
-│   │   ├── components/       # React components (feature-organized, 30 top-level dirs)
-│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (45 top-level dirs)
-│   │   ├── hooks/            # Custom React hooks (13 files)
+│   │   │   └── api/          # REST API endpoints (top-level domains, 237 route.ts files)
+│   │   ├── components/       # React components (feature-organized, 32 top-level dirs)
+│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (49 top-level dirs)
+│   │   ├── hooks/            # Custom React hooks (14 files)
 │   │   └── stores/           # Zustand client stores (2 files)
-│   ├── e2e/                  # Playwright E2E specs (10 test files)
-│   ├── drizzle/              # Drizzle migration files (83 SQL files + meta/ + archive/)
+│   ├── e2e/                  # Playwright E2E specs (11 test files)
+│   ├── drizzle/              # Drizzle migration files (85 SQL files + meta/ + archive/)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (40+ files)
 │   ├── src/scripts/          # TypeScript runtime scripts (seed, verify, etc.)
@@ -182,7 +182,7 @@ c:\VSCODE\Tutor/
 | `services/adk/package.json` | ADK | Express + Google ADK, port controlled by `PORT` env |
 | `services/adk/tsconfig.json` | ADK | `target: ES2022`, `module: NodeNext`, `outDir: dist`, `rootDir: src`, `strict: false` |
 | `services/adk/Dockerfile` | ADK | Multi-stage Node 20 Alpine build, exposes 8080 |
-| `services/adk/docker-compose.yml` | ADK | Maps container port `4310` → host `4310` (set `PORT=4310` in the container for this mapping to work) |
+| `services/adk/docker-compose.yml` | ADK | Maps container port `4310` → host `4310` (set `PORT=4310` in the container for this mapping to work locally) |
 | `.github/workflows/ci.yml` | Root | CI pipeline: typecheck, build, test, lint, format, security |
 | `.github/workflows/deploy-gcp.yml` | Root | GCP Cloud Run production deployment on push to `main` |
 | `.github/workflows/secret-scan.yml` | Root | Runs `gitleaks` on every push/PR |
@@ -453,7 +453,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 228 `route.ts` files across the API tree.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 237 `route.ts` files across the API tree.
 
 **Role-specific layout behaviors:**
 
@@ -464,7 +464,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 
 ### Components (`src/components/`)
 
-Organized by feature domain (30 top-level directories):
+Organized by feature domain (32 top-level directories):
 
 - `ui/` — shadcn/ui primitives (Button, Card, Dialog, etc.) — ~30 components
 - `ai/`, `ai-chat/`, `ai-tutor/` — AI interaction UIs
@@ -478,7 +478,7 @@ Organized by feature domain (30 top-level directories):
 
 ### Library (`src/lib/`)
 
-Domain-organized business logic (45 top-level directories):
+Domain-organized business logic (49 top-level directories):
 
 - `lib/db/` — Drizzle client (`drizzle.ts`), schema (`schema/`), and migrations
 - `lib/ai/` — AI provider integrations (`kimi.ts`, `gemini.ts`), prompts, teaching prompts, types, memory services
@@ -492,11 +492,11 @@ Domain-organized business logic (45 top-level directories):
 - `lib/reports/`, `lib/analytics/` — Reporting & analytics
 - `lib/monitoring/`, `lib/performance/` — Observability helpers
 - `lib/api/middleware.ts` — Standardized API route middleware (auth, RBAC, rate limit, CSRF, error handling)
-- `lib/accessibility/`, `lib/admin/`, `lib/chat/`, `lib/code-runner/`, `lib/commission/`, `lib/compliance/`, `lib/course/`, `lib/courses/`, `lib/data/`, `lib/documents/`, `lib/feedback/`, `lib/financial/`, `lib/geo/`, `lib/math/`, `lib/mentions/`, `lib/messaging/`, `lib/middleware-edge/`, `lib/notifications/`, `lib/openapi/`, `lib/progress/`, `lib/pwa/`, `lib/quiz/`, `lib/registration/`, `lib/schedule/`, `lib/sdk/`, `lib/services/`, `lib/sessions/`, `lib/storage/`, `lib/tutoring/`, `lib/video/`, `lib/whiteboard/` — Additional domain modules
+- `lib/accessibility/`, `lib/admin/`, `lib/chat/`, `lib/code-runner/`, `lib/commission/`, `lib/compliance/`, `lib/course/`, `lib/courses/`, `lib/data/`, `lib/documents/`, `lib/feedback/`, `lib/financial/`, `lib/geo/`, `lib/grading/`, `lib/math/`, `lib/mentions/`, `lib/messaging/`, `lib/middleware-edge/`, `lib/notifications/`, `lib/openapi/`, `lib/progress/`, `lib/pwa/`, `lib/push/`, `lib/quiz/`, `lib/registration/`, `lib/schedule/`, `lib/sdk/`, `lib/services/`, `lib/sessions/`, `lib/storage/`, `lib/tutoring/`, `lib/video/`, `lib/whiteboard/` — Additional domain modules
 
 ### Hooks (`src/hooks/`)
 
-Custom React hooks (13 files):
+Custom React hooks (14 files):
 
 - `use-socket.ts`, `use-simple-socket.ts` — Socket.io client hooks
 - `use-daily-call.ts` — Daily.co video integration
@@ -504,6 +504,7 @@ Custom React hooks (13 files):
 - `useChat.ts` — General chat hook
 - `useParent.ts`, `useParentFinancialCalculations.ts`, `useParentNotifications.ts`, `useParentRealTimeNotifications.ts` — Parent-specific hooks
 - `use-course-assignments.ts` — Course assignment hook
+- `use-auto-scroll-on-expand.ts`, `use-sliding-pill.ts` — UI behavior hooks
 - `index.ts` — Re-exports
 
 ### Stores (`src/stores/`)
@@ -528,7 +529,7 @@ Zustand stores for client state:
   - `compliance.ts` — GDPR / COPPA / FERPA compliance tables
   - `landing.ts` — Landing page inquiry/signup tables
 - ~110 `pgTable` definitions across the schema.
-- Migrations live in `drizzle/` (83 SQL files total: 61 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
+- Migrations live in `drizzle/` (85 SQL files total: 63 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
 - Runtime client: `src/lib/db/drizzle.ts` uses `pg.Pool` with singleton pooling (dev pool cached on `globalThis`).
 - Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; new code should import `drizzleDb` from `./drizzle`.
 
@@ -708,7 +709,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Include:** `src/**/*.test.{ts,tsx}` and `src/**/__tests__/**/*.{test,spec}.{ts,tsx}`
 - **Exclude:** `node_modules`, `.next`, integration, accessibility
 - **No database required.**
-- **Count:** 66 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
+- **Count:** 69 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
 
 ### Integration Tests (Vitest)
 
@@ -730,7 +731,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Workers:** 1 in CI
 - **WebServer (non-CI):** `npm run dev:next`, timeout 120s, reuse existing server
 - **Dependencies:** `@axe-core/playwright`
-- **E2E spec files:** `ai-tutor.spec.ts`, `live-task-policy-toggle.spec.ts`, `payment.spec.ts`, `pdf-tutoring-lock-sync.spec.ts`, `pdf-tutoring.spec.ts`, `registration.spec.ts`, `student-assignment-document.spec.ts`, `tutor-clinic.spec.ts`, `tutor-course-config.spec.ts`, `tutor-registration.spec.ts`
+- **E2E spec files:** `ai-tutor.spec.ts`, `live-task-policy-toggle.spec.ts`, `payment.spec.ts`, `pdf-tutoring-lock-sync.spec.ts`, `pdf-tutoring.spec.ts`, `registration.spec.ts`, `student-assignment-document.spec.ts`, `tutor-clinic.spec.ts`, `tutor-course-config.spec.ts`, `tutor-registration.spec.ts`, plus accessibility tests
 
 ### Load Tests (k6)
 

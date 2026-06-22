@@ -5813,12 +5813,12 @@ FEEDBACK: [your explanation]`
                     <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                       Curriculum
                     </div>
-                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-0 pt-3">
+                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-0 pt-5">
                       {mainTab !== 'live' && mainTab !== 'test-pci' && canEdit && (
                         <Button
                           size="sm"
                           onClick={addCourseBuilderNode}
-                          className="mb-2 h-8 w-full gap-1 text-xs"
+                          className="mb-4 h-8 w-full gap-1 text-xs"
                         >
                           <Plus className="h-3 w-3" />
                           Lesson
@@ -7721,7 +7721,7 @@ FEEDBACK: [your explanation]`
                           <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                             Desk
                           </div>
-                          <div className="px-2 pt-2">
+                          <div className="px-2 pt-4">
                             <Tabs
                               value={liveRightPanelTab}
                               onValueChange={value =>
@@ -7744,7 +7744,7 @@ FEEDBACK: [your explanation]`
                               </TabsList>
                             </Tabs>
                           </div>
-                          <div className="min-h-0 flex-1 overflow-hidden p-2 pt-0">
+                          <div className="min-h-0 flex-1 overflow-hidden p-3 pt-2">
                             {insightsProps ? (
                               <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
                                 <Tabs
@@ -7977,18 +7977,18 @@ FEEDBACK: [your explanation]`
 
             {/* CENTER PANEL - New Three-Section Design */}
             <div
-              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center pl-4"
+              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center"
               style={{
-                paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth + 16 : 16,
+                paddingRight: !isStudentView && !rightPanelHidden ? rightPanelWidth : 0,
               }}
             >
-              <div className="flex h-full min-h-0 w-full max-w-6xl flex-1 grow flex-col items-stretch gap-3">
+              <div className="flex h-full min-h-0 w-full max-w-6xl flex-1 grow flex-col items-stretch">
                 {mainTab !== 'builder' && (
                   <div className="h-full w-full flex-1">
                     <Card className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
                       <div
                         className={cn(
-                          'flex h-9 shrink-0 items-center justify-center px-4 text-sm font-semibold text-white',
+                          'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
                           mainTab === 'live'
                             ? 'bg-gradient-to-br from-orange-500 to-orange-600'
                             : 'bg-gradient-to-br from-violet-500 to-purple-600'
@@ -8920,8 +8920,8 @@ FEEDBACK: [your explanation]`
                 {mainTab === 'builder' && (
                   <div className="h-full w-full flex-1">
                     {/* COMBINED BUILDER: Task & Assessment Tabs */}
-                    <Card className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-                      <div className="flex h-9 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                    <Card className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+                      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                         <div className="flex items-center gap-2">
                           <Wrench className="h-4 w-4" />
                           Build

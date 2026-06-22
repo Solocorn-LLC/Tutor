@@ -100,6 +100,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const isAuthReady = !isLoading && session
+  // Public admin routes (login, forgot-password) must render WITHOUT a session —
+  // otherwise the login page sits behind the auth gate and spins forever, which
+  // is exactly what made post-registration "hang". Only the chrome
+  // (sidebar/header) stays gated on a real session.
+  const showContent = isAuthReady || isPublicAdminRoute
 
   return (
     <AdminContext.Provider value={{ session, logout }}>
@@ -123,7 +128,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           )}
         >
           <div className={cn(isTopologyRoute ? 'h-full w-full bg-slate-950 p-0' : 'p-6')}>
-            {isAuthReady ? (
+            {showContent ? (
               children
             ) : (
               <div className="flex h-[calc(100vh-4rem)] items-center justify-center">

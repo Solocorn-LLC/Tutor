@@ -180,13 +180,25 @@ export async function getAdminSession(req?: NextRequest): Promise<AdminSession |
       .where(eq(adminSessionTable.sessionId, sessionData.sessionId))
 
     // Collect permissions from all roles
-    const roles = sessionData.admin.adminAssignments.map(a => a.role.name)
+    let roles = sessionData.admin.adminAssignments.map(a => a.role.name)
     const permissionsSet = new Set<Permission>()
 
     sessionData.admin.adminAssignments.forEach(assignment => {
       const rolePerms = getRolePermissions(assignment.role.name)
       rolePerms.forEach(p => permissionsSet.add(p))
     })
+
+    // Safety net: a user whose account role is ADMIN but who has no explicit
+    // admin-role assignment (e.g. a freshly bootstrapped admin created before
+    // the admin roles were seeded) would otherwise have zero permissions and be
+    // locked out of every admin endpoint. Grant baseline ADMIN permissions —
+    // consistent with the login route's entitlement check (assignments OR
+    // role === 'ADMIN'). A token is only ever issued to a vetted admin, so this
+    // never widens access to non-admins.
+    if (permissionsSet.size === 0 && sessionData.admin.role === 'ADMIN') {
+      getRolePermissions('ADMIN').forEach(p => permissionsSet.add(p))
+      if (roles.length === 0) roles = ['ADMIN']
+    }
 
     return {
       sessionId: sessionData.sessionId,

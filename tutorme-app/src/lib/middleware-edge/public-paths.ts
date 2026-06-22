@@ -10,7 +10,12 @@ export const PUBLIC_PREFIX_PATHS = [
   '/onboarding',
   '/u/',
   '/admin',
-  '/api/admin/auth',
+  // The admin API has its OWN auth (admin_session cookie + requireAdmin per
+  // route), NOT NextAuth. Letting the NextAuth proxy guard it 307-redirects
+  // every admin data request to /api/auth/signin (admins hold no NextAuth
+  // token), which breaks the whole admin panel. Defer to each route's
+  // requireAdmin instead. (Covers /api/admin/auth too.)
+  '/api/admin',
   '/login',
   '/forgot-password',
   '/register/',
