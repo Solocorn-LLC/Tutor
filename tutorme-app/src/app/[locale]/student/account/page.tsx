@@ -73,6 +73,14 @@ export default function StudentAccount() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    // Scroll to top of content area when tab changes
+    const contentArea = document.querySelector('.h-full.space-y-6.overflow-y-auto')
+    if (contentArea) {
+      contentArea.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
@@ -308,7 +316,7 @@ export default function StudentAccount() {
         <SessionCalendarPanel
           variant="charcoal"
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           tabs={[
             { value: 'profile', label: 'Profile', icon: User },
             { value: 'billing', label: 'Billing', icon: CreditCard },

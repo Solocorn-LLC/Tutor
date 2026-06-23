@@ -273,6 +273,15 @@ export default function TutorSettings() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const searchParams = useSearchParams()
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    // Scroll to top of content area when tab changes
+    const contentArea = document.querySelector('.h-full.space-y-6.overflow-y-auto')
+    if (contentArea) {
+      contentArea.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   const [activeTab, setActiveTab] = useState(() => {
     const tabParam = searchParams.get('tab')
     const validTabs = [
@@ -637,7 +646,7 @@ export default function TutorSettings() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
         <SessionCalendarPanel
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           variant="charcoal"
           tabs={[
             { value: 'profile', label: 'Profile', icon: User },
