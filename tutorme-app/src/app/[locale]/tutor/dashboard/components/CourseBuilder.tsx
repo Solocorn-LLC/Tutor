@@ -7765,7 +7765,7 @@ FEEDBACK: [your explanation]`
                                 Desk
                               </div>
                               <div className="min-h-0 flex-1 overflow-hidden">
-                                <div className="px-2 pt-4">
+                                <div className="px-2 pt-2">
                                   <Tabs
                                     value={liveRightPanelTab}
                                     onValueChange={value => {
