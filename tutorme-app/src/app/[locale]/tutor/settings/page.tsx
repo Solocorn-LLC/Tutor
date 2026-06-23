@@ -68,7 +68,7 @@ const LANGUAGES = [
 ]
 
 const SECTION_CARD_CLASS =
-  'min-h-full overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+  'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
 
 interface PaymentMethod {
   id: string
@@ -642,7 +642,6 @@ export default function TutorSettings() {
           tabs={[
             { value: 'profile', label: 'Profile', icon: User },
             { value: 'billing', label: 'Billing', icon: CreditCard },
-            { value: 'history', label: 'History', icon: FileText },
             { value: 'refunds', label: 'Refunds', icon: DollarSign },
             { value: 'notifications', label: 'Notifications', icon: Bell },
             { value: 'security', label: 'Security', icon: Shield },
@@ -1230,15 +1229,7 @@ export default function TutorSettings() {
                   </div>
                 </div>
               </CollapsibleCard>
-            </div>
-          </TabsContent>
 
-          {/* Billing History */}
-          <TabsContent
-            value="history"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 flush
                 className={SECTION_CARD_CLASS}

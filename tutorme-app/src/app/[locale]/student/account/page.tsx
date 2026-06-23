@@ -280,7 +280,7 @@ export default function StudentAccount() {
   }
 
   const sectionCardClass =
-    'min-h-full overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
+    'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
 
   if (loading) {
     return (
@@ -312,7 +312,6 @@ export default function StudentAccount() {
           tabs={[
             { value: 'profile', label: 'Profile', icon: User },
             { value: 'billing', label: 'Billing', icon: CreditCard },
-            { value: 'history', label: 'History', icon: FileText },
             { value: 'notifications', label: 'Notifications', icon: Bell },
             { value: 'security', label: 'Security', icon: Shield },
             { value: 'controls', label: 'Controls', icon: Power },
@@ -503,15 +502,7 @@ export default function StudentAccount() {
                   </Button>
                 </CardContent>
               </CollapsibleCard>
-            </div>
-          </TabsContent>
 
-          {/* Billing History */}
-          <TabsContent
-            value="history"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <CollapsibleCard
                 title="Billing History"
                 description="View and download your invoices and receipts"

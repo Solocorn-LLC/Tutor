@@ -54,8 +54,10 @@ export function CollapsibleCard({
           open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         )}
       >
-        <div ref={contentRef} className={cn('overflow-hidden', contentClassName)}>
-          {children}
+        <div className="overflow-hidden">
+          <div ref={contentRef} className={contentClassName}>
+            {children}
+          </div>
         </div>
       </div>
     </Card>
