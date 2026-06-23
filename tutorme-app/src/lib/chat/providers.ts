@@ -7,8 +7,13 @@ import { SOLOCORN_SYSTEM_PROMPT } from './system-prompt'
 
 // Configuration
 const KIMI_API_KEY = process.env.KIMI_API_KEY
-const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
-const KIMI_MODEL = 'kimi-k2.5'
+// Endpoint + model are env-configurable so a global (api.moonshot.ai) key works
+// without a code change; defaults preserve the original China endpoint.
+const KIMI_BASE_URL = (process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1').replace(
+  /\/+$/,
+  ''
+)
+const KIMI_MODEL = process.env.KIMI_MODEL || 'kimi-k2.5'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
