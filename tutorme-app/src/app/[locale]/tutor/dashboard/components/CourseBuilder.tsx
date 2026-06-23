@@ -8984,7 +8984,7 @@ FEEDBACK: [your explanation]`
                           Build
                         </div>
                       </div>
-                      <CardContent className="flex h-full flex-col overflow-hidden p-0">
+                      <CardContent className="flex h-full flex-col overflow-hidden px-4 pb-4">
                         <Tabs
                           value={mainBuilderTab}
                           onValueChange={v => setMainBuilderTab(v as 'task' | 'assessment')}
