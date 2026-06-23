@@ -55,9 +55,12 @@ export async function generateWithKimi(
     timeoutMs?: number
     retries?: number
     usageContext?: UsageContext
+    /** Force a specific provider, bypassing the AI_PROVIDER default (used for fallback). */
+    forceProvider?: 'kimi' | 'gemini'
   } = {}
 ): Promise<string> {
-  if (isGeminiActive()) {
+  const useGemini = options.forceProvider ? options.forceProvider === 'gemini' : isGeminiActive()
+  if (useGemini) {
     return generateWithGemini(prompt, options)
   }
 
@@ -127,9 +130,12 @@ export async function chatWithKimi(
     timeoutMs?: number
     retries?: number
     usageContext?: UsageContext
+    /** Force a specific provider, bypassing the AI_PROVIDER default (used for fallback). */
+    forceProvider?: 'kimi' | 'gemini'
   } = {}
 ): Promise<string> {
-  if (isGeminiActive()) {
+  const useGemini = options.forceProvider ? options.forceProvider === 'gemini' : isGeminiActive()
+  if (useGemini) {
     return chatWithGemini(messages, options)
   }
 

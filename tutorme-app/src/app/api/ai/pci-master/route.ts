@@ -11,6 +11,8 @@ import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
+import { generateWithGeminiVision } from '@/lib/ai/gemini'
+import { isGeminiActive } from '@/lib/ai/provider'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
 import {
   guardrailSystemPrompt,
@@ -217,11 +219,38 @@ export async function POST(request: NextRequest) {
         { type: 'text', text: `${activeSystemPrompt}\n\n${userPrompt}` },
         ...pdfPages.map(url => ({ type: 'image_url' as const, image_url: { url } })),
       ]
-      const visionText = await generateWithKimiVision(promptItems, {
-        temperature: activeTemperature,
-        maxTokens: 4096,
-        timeoutMs: 60000,
-      })
+      const visionOpts = { temperature: activeTemperature, maxTokens: 4096, timeoutMs: 60000 }
+      // Provider-aware vision with fallback: try the active provider first, then
+      // the other configured one, so a single provider's quota/outage (e.g. a
+      // Gemini 429) doesn't break document attachments.
+      const visionOrder: Array<'gemini' | 'kimi'> = isGeminiActive()
+        ? ['gemini', 'kimi']
+        : ['kimi', 'gemini']
+      let visionText: string | null = null
+      let lastVisionError: unknown = null
+      for (const p of visionOrder) {
+        const hasKey = p === 'gemini' ? !!process.env.GEMINI_API_KEY : !!process.env.KIMI_API_KEY
+        if (!hasKey) continue
+        try {
+          visionText =
+            p === 'gemini'
+              ? await generateWithGeminiVision(promptItems, visionOpts)
+              : await generateWithKimiVision(promptItems, visionOpts)
+          lastVisionError = null
+          break
+        } catch (err) {
+          lastVisionError = err
+          console.warn(
+            `[pci-master] ${p} vision failed${p !== visionOrder[visionOrder.length - 1] ? ', trying fallback' : ''}:`,
+            err instanceof Error ? err.message : err
+          )
+        }
+      }
+      if (visionText == null) {
+        throw lastVisionError instanceof Error
+          ? lastVisionError
+          : new Error('All vision providers failed')
+      }
       response = toCleanResponse(visionText)
     } else if (adkBaseUrl) {
       try {

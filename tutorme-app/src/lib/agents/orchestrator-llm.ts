@@ -19,6 +19,32 @@ function activeProviderLabel(): AIProvider {
   return isGeminiActive() ? 'gemini' : 'kimi'
 }
 
+/**
+ * Configured providers in fallback order: the active provider first, then the
+ * other one if its key is set. Lets us fall back (e.g. Gemini → Kimi) when the
+ * active provider errors — most importantly on rate-limit/quota (429) or a
+ * transient 503 — instead of failing the whole request.
+ */
+function configuredProviders(): AIProvider[] {
+  const primary: AIProvider = isGeminiActive() ? 'gemini' : 'kimi'
+  const order: AIProvider[] = []
+  for (const p of [primary, primary === 'gemini' ? 'kimi' : 'gemini'] as AIProvider[]) {
+    const hasKey = p === 'gemini' ? !!process.env.GEMINI_API_KEY : !!process.env.KIMI_API_KEY
+    if (hasKey && !order.includes(p)) order.push(p)
+  }
+  return order
+}
+
+function allProvidersFailedError(providers: AIProvider[], lastError: unknown): Error {
+  if (providers.length === 0) {
+    return new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
+  }
+  // Surface the REAL upstream reason (e.g. the 429 quota message) instead of a
+  // misleading "not configured" — so this is diagnosable.
+  const detail = lastError instanceof Error ? lastError.message : String(lastError)
+  return new Error(`All AI providers failed (${providers.join(', ')}). Last error: ${detail}`)
+}
+
 interface AIOptions {
   temperature?: number
   maxTokens?: number
@@ -95,24 +121,24 @@ export async function generateWithFallback(
     }
   }
 
-  // Direct provider (Gemini when active, otherwise Kimi). generateWithKimi delegates
-  // to Gemini internally when GEMINI_API_KEY is configured.
-  if (isGeminiActive() || process.env.KIMI_API_KEY) {
+  // Direct providers with cross-provider fallback (active first, then the other).
+  const providers = configuredProviders()
+  let lastError: unknown = null
+  for (const provider of providers) {
     try {
-      const content = await generateWithKimi(prompt, { ...options })
-
-      const result = {
-        content,
-        provider: activeProviderLabel(),
-        latencyMs: Date.now() - startTime,
-      }
+      const content = await generateWithKimi(prompt, { ...options, forceProvider: provider })
+      const result = { content, provider, latencyMs: Date.now() - startTime }
       if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('Direct provider failed:', error)
+      lastError = error
+      console.warn(
+        `[ai] generate via "${provider}" failed${provider !== providers[providers.length - 1] ? ', trying fallback' : ''}:`,
+        error instanceof Error ? error.message : error
+      )
     }
   }
-  throw new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
+  throw allProvidersFailedError(providers, lastError)
 }
 
 /**
@@ -156,23 +182,24 @@ export async function chatWithFallback(
     }
   }
 
-  // Direct provider (Gemini when active, otherwise Kimi).
-  if (isGeminiActive() || process.env.KIMI_API_KEY) {
+  // Direct providers with cross-provider fallback (active first, then the other).
+  const providers = configuredProviders()
+  let lastError: unknown = null
+  for (const provider of providers) {
     try {
-      const content = await chatWithKimi(messages, { ...options })
-
-      const result = {
-        content,
-        provider: activeProviderLabel(),
-        latencyMs: Date.now() - startTime,
-      }
+      const content = await chatWithKimi(messages, { ...options, forceProvider: provider })
+      const result = { content, provider, latencyMs: Date.now() - startTime }
       if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('Direct provider failed:', error)
+      lastError = error
+      console.warn(
+        `[ai] chat via "${provider}" failed${provider !== providers[providers.length - 1] ? ', trying fallback' : ''}:`,
+        error instanceof Error ? error.message : error
+      )
     }
   }
-  throw new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
+  throw allProvidersFailedError(providers, lastError)
 }
 
 /**
