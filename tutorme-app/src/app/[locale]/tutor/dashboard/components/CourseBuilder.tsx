@@ -7792,7 +7792,7 @@ FEEDBACK: [your explanation]`
                                 </div>
                                 <div className="min-h-0 flex-1 overflow-hidden p-3 pt-2">
                                   {insightsProps ? (
-                                    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
+                                    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-blue-50 p-3 pb-4">
                                       <Tabs
                                         value={insightsTab}
                                         onValueChange={value =>
@@ -7800,22 +7800,22 @@ FEEDBACK: [your explanation]`
                                         }
                                         className="flex h-full min-h-0 flex-col"
                                       >
-                                        <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+                                        <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-blue-100 p-1 shadow-none">
                                           <TabsTrigger
                                             value="analytics"
-                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Analytics
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="poll"
-                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Poll
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="question"
-                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Question
                                           </TabsTrigger>
