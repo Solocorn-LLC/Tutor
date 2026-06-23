@@ -1,6 +1,6 @@
 /**
  * Temporary diagnostic: verify the assessment-generation pipeline (document ->
- * AI -> parsed Q/A) works end-to-end with the active provider (Gemini).
+ * AI -> parsed Q/A) works end-to-end with the active provider (Kimi).
  *
  * Mirrors the generation + parsing in /api/ai/generate-dmi but is reachable without
  * a tutor session, gated behind ALLOW_PUBLIC_TEST_ENDPOINTS=true (404 otherwise).

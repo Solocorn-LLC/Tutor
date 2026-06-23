@@ -5,14 +5,7 @@
  */
 
 import { fetchWithTimeoutAndRetry } from '@/lib/ai/fetch-utils'
-import { isGeminiActive } from '@/lib/ai/provider'
 import { recordLlmUsage, type UsageContext } from '@/lib/ai/usage'
-import {
-  generateWithGemini,
-  chatWithGemini,
-  streamGemini,
-  generateWithGeminiVision,
-} from '@/lib/ai/gemini'
 
 interface KimiMessage {
   role: 'system' | 'user' | 'assistant'
@@ -55,15 +48,8 @@ export async function generateWithKimi(
     timeoutMs?: number
     retries?: number
     usageContext?: UsageContext
-    /** Force a specific provider, bypassing the AI_PROVIDER default (used for fallback). */
-    forceProvider?: 'kimi' | 'gemini'
   } = {}
 ): Promise<string> {
-  const useGemini = options.forceProvider ? options.forceProvider === 'gemini' : isGeminiActive()
-  if (useGemini) {
-    return generateWithGemini(prompt, options)
-  }
-
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -130,15 +116,8 @@ export async function chatWithKimi(
     timeoutMs?: number
     retries?: number
     usageContext?: UsageContext
-    /** Force a specific provider, bypassing the AI_PROVIDER default (used for fallback). */
-    forceProvider?: 'kimi' | 'gemini'
   } = {}
 ): Promise<string> {
-  const useGemini = options.forceProvider ? options.forceProvider === 'gemini' : isGeminiActive()
-  if (useGemini) {
-    return chatWithGemini(messages, options)
-  }
-
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -201,11 +180,6 @@ export async function* streamKimi(
     timeoutMs?: number
   } = {}
 ): AsyncGenerator<string, void, unknown> {
-  if (isGeminiActive()) {
-    yield* streamGemini(messages, options)
-    return
-  }
-
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {
@@ -298,10 +272,6 @@ export async function generateWithKimiVision(
     usageContext?: UsageContext
   } = {}
 ): Promise<string> {
-  if (isGeminiActive()) {
-    return generateWithGeminiVision(promptItems, options)
-  }
-
   const apiKey = process.env.KIMI_API_KEY
 
   if (!apiKey) {

@@ -1,6 +1,6 @@
 /**
- * AI health check — exercises the real provider chain (Gemini/Kimi via the
- * orchestrator) rather than calling a single vendor directly.
+ * AI health check — exercises the real provider (Kimi via the orchestrator)
+ * rather than calling a single vendor directly.
  *
  * GET /api/public/ai-health
  *
