@@ -11,18 +11,21 @@ function isScrollableStyle(el: HTMLElement): boolean {
 
 export function getScrollableAncestor(el: Element): HTMLElement | Window {
   let node: HTMLElement | null = el.parentElement
+  let lastScrollable: HTMLElement | Window = window
+
   while (node) {
     // Radix ScrollArea uses a viewport with `overflow: hidden` but is still the
     // element that scrolls. Detect it by its data attribute first.
     if (node.hasAttribute('data-radix-scroll-area-viewport')) {
-      return node
+      lastScrollable = node
     }
     if (isScrollableStyle(node)) {
-      return node
+      lastScrollable = node
     }
     node = node.parentElement
   }
-  return window
+
+  return lastScrollable
 }
 
 function isStuckAtTop(el: Element, scroller: Element | Window): boolean {
