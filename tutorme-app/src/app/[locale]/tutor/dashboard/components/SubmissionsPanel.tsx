@@ -283,7 +283,7 @@ export function SubmissionsPanel({
   }
 
   return (
-    <div className="relative z-40 flex min-h-0 shrink-0 flex-col" style={{ width }}>
+    <div className="relative z-40 order-3 flex min-h-0 shrink-0 flex-col" style={{ width }}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
           <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
