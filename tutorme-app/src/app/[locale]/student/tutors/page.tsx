@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BookOpen, Search, Users } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { REGIONS } from '@/lib/data/tutor-categories'
@@ -62,6 +62,8 @@ export default function StudentTutorDirectoryPage() {
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate'>('popular')
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 8
 
   const availableCountries = useMemo(() => {
     const region = REGIONS.find(r => r.id === selectedRegion)
@@ -70,6 +72,10 @@ export default function StudentTutorDirectoryPage() {
   const [following, setFollowing] = useState<Set<string>>(new Set())
 
   // Load following from API on mount
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
+
   useEffect(() => {
     const loadFollowing = async () => {
       try {
@@ -161,6 +167,12 @@ export default function StudentTutorDirectoryPage() {
       active = false
     }
   }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(tutors.length / ITEMS_PER_PAGE))
+  const paginatedTutors = tutors.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   const headlineMetrics = useMemo(() => {
     const totalCourses = tutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
@@ -299,68 +311,117 @@ export default function StudentTutorDirectoryPage() {
           </div>
 
           {/* Tutor grid */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3 sm:p-6 sm:pt-4">
-            <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {loading ? (
-                Array.from({ length: 6 }).map((_, index) => (
-                  <Card
-                    key={`loading-${index}`}
-                    className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
-                  >
-                    <CardHeader className="space-y-2 p-4">
-                      <div className="h-5 w-2/3 rounded bg-white/10" />
-                      <div className="h-3 w-1/2 rounded bg-white/10" />
+          <div className="flex flex-1 flex-col p-4 pt-3 sm:p-6 sm:pt-4">
+            <div className="flex flex-1 flex-col justify-around">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, index) => (
+                    <Card
+                      key={`loading-${index}`}
+                      className="animate-pulse overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+                    >
+                      <CardHeader className="space-y-2 p-4">
+                        <div className="h-5 w-2/3 rounded bg-white/10" />
+                        <div className="h-3 w-1/2 rounded bg-white/10" />
+                      </CardHeader>
+                      <CardContent className="space-y-2 p-4 pt-0">
+                        <div className="h-3 rounded bg-white/10" />
+                        <div className="h-3 rounded bg-white/10" />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : tutors.length === 0 ? (
+                  <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+                    <CardHeader>
+                      <CardTitle className="text-white">
+                        No tutors match your current filters
+                      </CardTitle>
+                      <CardDescription className="text-white/70">
+                        Try broadening search terms or selecting a different region or country.
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-2 p-4 pt-0">
-                      <div className="h-3 rounded bg-white/10" />
-                      <div className="h-3 rounded bg-white/10" />
-                    </CardContent>
                   </Card>
-                ))
-              ) : tutors.length === 0 ? (
-                <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-                  <CardHeader>
-                    <CardTitle className="text-white">
-                      No tutors match your current filters
-                    </CardTitle>
-                    <CardDescription className="text-white/70">
-                      Try broadening search terms or selecting a different region or country.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ) : (
-                tutors.map(tutor => (
-                  <TutorCard
-                    key={tutor.id}
-                    compact
-                    tutor={{
-                      id: tutor.id,
-                      username: tutor.username,
-                      name: tutor.name,
-                      avatar: tutor.avatarUrl,
-                      bio: tutor.bio,
-                      rating: tutor.averageRating || 0,
-                      reviewCount: tutor.totalReviewCount || 0,
-                      hourlyRate: tutor.hourlyRate,
-                      currency: 'SGD',
-                      nextAvailableSlot: null,
-                      totalStudents: tutor.totalEnrollments,
-                      totalClasses: tutor.courseCount,
-                      specialties: tutor.categories,
-                      countries: tutor.tutorNationalities,
-                    }}
-                    onClick={() => {
-                      showOverlay()
-                      router.push(`/${locale}/u/${tutor.username}`)
-                    }}
-                    followState={following.has(tutor.id) ? 'following' : 'not-following'}
-                    onFollowToggle={() => toggleFollow(tutor.id)}
-                    bookHref={`/${locale}/u/${tutor.username}?book=1`}
-                    countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
-                  />
-                ))
-              )}
+                ) : (
+                  paginatedTutors.map(tutor => (
+                    <TutorCard
+                      key={tutor.id}
+                      compact
+                      tutor={{
+                        id: tutor.id,
+                        username: tutor.username,
+                        name: tutor.name,
+                        avatar: tutor.avatarUrl,
+                        bio: tutor.bio,
+                        rating: tutor.averageRating || 0,
+                        reviewCount: tutor.totalReviewCount || 0,
+                        hourlyRate: tutor.hourlyRate,
+                        currency: 'SGD',
+                        nextAvailableSlot: null,
+                        totalStudents: tutor.totalEnrollments,
+                        totalClasses: tutor.courseCount,
+                        specialties: tutor.categories,
+                        countries: tutor.tutorNationalities,
+                      }}
+                      onClick={() => {
+                        showOverlay()
+                        router.push(`/${locale}/u/${tutor.username}`)
+                      }}
+                      followState={following.has(tutor.id) ? 'following' : 'not-following'}
+                      onFollowToggle={() => toggleFollow(tutor.id)}
+                      bookHref={`/${locale}/u/${tutor.username}?book=1`}
+                      countryLabel={tutor.tutorNationalities?.[0] ?? '--'}
+                    />
+                  ))
+                )}
+              </div>
             </div>
+
+            {/* Pagination */}
+            {!loading && tutors.length > 0 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors',
+                    currentPage === 1
+                      ? 'cursor-not-allowed text-slate-300'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors',
+                      page === currentPage
+                        ? 'bg-[#2563EB] text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    )}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors',
+                    currentPage === totalPages
+                      ? 'cursor-not-allowed text-slate-300'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
