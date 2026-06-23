@@ -65,9 +65,7 @@ export default function RoleSelectionPage() {
               <Card className="h-full cursor-pointer border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`${role.color} rounded-xl p-3 text-white shadow-lg`}
-                    >
+                    <div className={`${role.color} rounded-xl p-3 text-white shadow-lg`}>
                       <role.icon className="h-7 w-7" />
                     </div>
                     <div className="flex-1">

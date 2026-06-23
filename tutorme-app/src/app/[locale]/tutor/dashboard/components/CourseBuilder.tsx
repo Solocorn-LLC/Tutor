@@ -7773,203 +7773,207 @@ FEEDBACK: [your explanation]`
                                   {insightsProps ? (
                                     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-1 shadow-[0_10px_40px_-20px_rgba(29,78,216,0.45)] ring-1 ring-blue-200/60">
                                       <Tabs
-                                  value={insightsTab}
-                                  onValueChange={value =>
-                                    setInsightsTab(value as 'analytics' | 'poll' | 'question')
-                                  }
-                                  className="flex h-full min-h-0 flex-col"
-                                >
-                                  <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
-                                    <TabsTrigger
-                                      value="analytics"
-                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
-                                    >
-                                      Analytics
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                      value="poll"
-                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
-                                    >
-                                      Poll
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                      value="question"
-                                      className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
-                                    >
-                                      Question
-                                    </TabsTrigger>
-                                  </TabsList>
-                                  <TabsContent
-                                    value="analytics"
-                                    className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
-                                  >
-                                    <AnalyticsPanel
-                                      students={insightsProps.students}
-                                      metrics={insightsProps.metrics}
-                                      liveTasks={insightsProps.liveTasks}
-                                      classDuration={insightsProps.classDuration}
-                                      isRecording={insightsProps.isRecording}
-                                      recordingDuration={insightsProps.recordingDuration}
-                                      sessionId={insightsProps.sessionId}
-                                    />
-                                  </TabsContent>
-                                  <TabsContent
-                                    value="poll"
-                                    className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
-                                  >
-                                    <InsightsReportView
-                                      type="poll"
-                                      pollResults={pollResults}
-                                      onMentionStudent={name =>
-                                        setPollPrompt(
-                                          pollPrompt
-                                            ? `${pollPrompt} @[${name}](student:${name}) `
-                                            : `@[${name}](student:${name}) `
-                                        )
-                                      }
-                                    />
-                                    <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
-                                      <div className="relative">
-                                        <MentionTextarea
-                                          mentionItems={mentionItems}
-                                          className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                          placeholder="What should students answer?"
-                                          disableAutoResize
-                                          value={pollPrompt}
-                                          onChange={event => setPollPrompt(event.target.value)}
-                                        />
-                                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className={cn(
-                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                              showAIPoll
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'text-blue-600'
-                                            )}
-                                            title="Generate with Socratic AI"
-                                            onClick={() => setShowAIPoll(!showAIPoll)}
-                                            disabled={!activeInsightsTaskId}
+                                        value={insightsTab}
+                                        onValueChange={value =>
+                                          setInsightsTab(value as 'analytics' | 'poll' | 'question')
+                                        }
+                                        className="flex h-full min-h-0 flex-col"
+                                      >
+                                        <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+                                          <TabsTrigger
+                                            value="analytics"
+                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
                                           >
-                                            <Sparkles className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            size="icon"
-                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                            disabled={
-                                              !activeInsightsTaskId ||
-                                              !activeInsightsTask ||
-                                              !insightsProps.sessionId ||
-                                              !pollPrompt.trim()
-                                            }
-                                            onClick={() => {
-                                              if (
-                                                !activeInsightsTaskId ||
-                                                !activeInsightsTask ||
-                                                !insightsProps.sessionId
+                                            Analytics
+                                          </TabsTrigger>
+                                          <TabsTrigger
+                                            value="poll"
+                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                          >
+                                            Poll
+                                          </TabsTrigger>
+                                          <TabsTrigger
+                                            value="question"
+                                            className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                          >
+                                            Question
+                                          </TabsTrigger>
+                                        </TabsList>
+                                        <TabsContent
+                                          value="analytics"
+                                          className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
+                                        >
+                                          <AnalyticsPanel
+                                            students={insightsProps.students}
+                                            metrics={insightsProps.metrics}
+                                            liveTasks={insightsProps.liveTasks}
+                                            classDuration={insightsProps.classDuration}
+                                            isRecording={insightsProps.isRecording}
+                                            recordingDuration={insightsProps.recordingDuration}
+                                            sessionId={insightsProps.sessionId}
+                                          />
+                                        </TabsContent>
+                                        <TabsContent
+                                          value="poll"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                        >
+                                          <InsightsReportView
+                                            type="poll"
+                                            pollResults={pollResults}
+                                            onMentionStudent={name =>
+                                              setPollPrompt(
+                                                pollPrompt
+                                                  ? `${pollPrompt} @[${name}](student:${name}) `
+                                                  : `@[${name}](student:${name}) `
                                               )
-                                                return
-                                              insightsProps.onSendPoll({
-                                                taskId: currentInsightsId,
-                                                question: pollPrompt,
-                                              })
-                                              setPollPrompt('')
-                                            }}
-                                          >
-                                            <Send className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </TabsContent>
-                                  <TabsContent
-                                    value="question"
-                                    className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
-                                  >
-                                    <InsightsReportView
-                                      type="question"
-                                      questionAnswers={questionAnswers}
-                                      onMentionStudent={name =>
-                                        setQuestionPrompt(
-                                          questionPrompt
-                                            ? `${questionPrompt} @[${name}](student:${name}) `
-                                            : `@[${name}](student:${name}) `
-                                        )
-                                      }
-                                    />
-                                    <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
-                                      <div className="relative">
-                                        <MentionTextarea
-                                          mentionItems={mentionItems}
-                                          className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                          placeholder="Ask your AI coach or share a reflection..."
-                                          disableAutoResize
-                                          value={questionPrompt}
-                                          onChange={event => setQuestionPrompt(event.target.value)}
-                                        />
-                                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className={cn(
-                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                              showAIQuestion
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'text-blue-600'
-                                            )}
-                                            title="Generate with Socratic AI"
-                                            onClick={() => setShowAIQuestion(!showAIQuestion)}
-                                            disabled={!activeInsightsTaskId}
-                                          >
-                                            <Sparkles className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            size="icon"
-                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                            disabled={
-                                              !activeInsightsTaskId ||
-                                              !activeInsightsTask ||
-                                              !insightsProps.sessionId ||
-                                              !questionPrompt.trim()
                                             }
-                                            onClick={() => {
-                                              if (
-                                                !activeInsightsTaskId ||
-                                                !activeInsightsTask ||
-                                                !insightsProps.sessionId
+                                          />
+                                          <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                            <div className="relative">
+                                              <MentionTextarea
+                                                mentionItems={mentionItems}
+                                                className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder="What should students answer?"
+                                                disableAutoResize
+                                                value={pollPrompt}
+                                                onChange={event =>
+                                                  setPollPrompt(event.target.value)
+                                                }
+                                              />
+                                              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className={cn(
+                                                    'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                    showAIPoll
+                                                      ? 'bg-blue-100 text-blue-700'
+                                                      : 'text-blue-600'
+                                                  )}
+                                                  title="Generate with Socratic AI"
+                                                  onClick={() => setShowAIPoll(!showAIPoll)}
+                                                  disabled={!activeInsightsTaskId}
+                                                >
+                                                  <Sparkles className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  size="icon"
+                                                  className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                  disabled={
+                                                    !activeInsightsTaskId ||
+                                                    !activeInsightsTask ||
+                                                    !insightsProps.sessionId ||
+                                                    !pollPrompt.trim()
+                                                  }
+                                                  onClick={() => {
+                                                    if (
+                                                      !activeInsightsTaskId ||
+                                                      !activeInsightsTask ||
+                                                      !insightsProps.sessionId
+                                                    )
+                                                      return
+                                                    insightsProps.onSendPoll({
+                                                      taskId: currentInsightsId,
+                                                      question: pollPrompt,
+                                                    })
+                                                    setPollPrompt('')
+                                                  }}
+                                                >
+                                                  <Send className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </TabsContent>
+                                        <TabsContent
+                                          value="question"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                        >
+                                          <InsightsReportView
+                                            type="question"
+                                            questionAnswers={questionAnswers}
+                                            onMentionStudent={name =>
+                                              setQuestionPrompt(
+                                                questionPrompt
+                                                  ? `${questionPrompt} @[${name}](student:${name}) `
+                                                  : `@[${name}](student:${name}) `
                                               )
-                                                return
-                                              insightsProps.onSendQuestion({
-                                                taskId: currentInsightsId,
-                                                prompt: questionPrompt,
-                                              })
-                                              setQuestionPrompt('')
-                                            }}
-                                          >
-                                            <Send className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
+                                            }
+                                          />
+                                          <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                            <div className="relative">
+                                              <MentionTextarea
+                                                mentionItems={mentionItems}
+                                                className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder="Ask your AI coach or share a reflection..."
+                                                disableAutoResize
+                                                value={questionPrompt}
+                                                onChange={event =>
+                                                  setQuestionPrompt(event.target.value)
+                                                }
+                                              />
+                                              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className={cn(
+                                                    'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                    showAIQuestion
+                                                      ? 'bg-blue-100 text-blue-700'
+                                                      : 'text-blue-600'
+                                                  )}
+                                                  title="Generate with Socratic AI"
+                                                  onClick={() => setShowAIQuestion(!showAIQuestion)}
+                                                  disabled={!activeInsightsTaskId}
+                                                >
+                                                  <Sparkles className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  size="icon"
+                                                  className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                  disabled={
+                                                    !activeInsightsTaskId ||
+                                                    !activeInsightsTask ||
+                                                    !insightsProps.sessionId ||
+                                                    !questionPrompt.trim()
+                                                  }
+                                                  onClick={() => {
+                                                    if (
+                                                      !activeInsightsTaskId ||
+                                                      !activeInsightsTask ||
+                                                      !insightsProps.sessionId
+                                                    )
+                                                      return
+                                                    insightsProps.onSendQuestion({
+                                                      taskId: currentInsightsId,
+                                                      prompt: questionPrompt,
+                                                    })
+                                                    setQuestionPrompt('')
+                                                  }}
+                                                >
+                                                  <Send className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </TabsContent>
+                                      </Tabs>
                                     </div>
-                                  </TabsContent>
-                                </Tabs>
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center rounded-lg border bg-white p-4 text-sm text-slate-500">
+                                      Insights unavailable without an active session.
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            ) : (
-                              <div className="flex h-full items-center justify-center rounded-lg border bg-white p-4 text-sm text-slate-500">
-                                Insights unavailable without an active session.
-                              </div>
-                            )}
+                            </Card>
                           </div>
                         </div>
-                      </Card>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )
-            ) : (
-              <SubmissionsPanel
+                      )}
+                    </>
+                  )
+                ) : (
+                  <SubmissionsPanel
                     courseId={courseId || ''}
                     width={rightPanelWidth}
                     hidden={rightPanelHidden}
