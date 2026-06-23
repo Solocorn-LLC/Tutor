@@ -1424,7 +1424,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           activeExtensionId,
         })
         setTaskDmiItems(task.dmiItems || [])
-        setTaskDmiVersions(task.dmiVersions || [])
+        // Normalize persisted versions so `items` is always an array — a legacy /
+        // partially-saved version with a missing items array would otherwise crash
+        // the DMI version-list / preview dialogs (rendered at the root, outside the
+        // panel error boundary, so it dark-screens the whole app).
+        setTaskDmiVersions(
+          (task.dmiVersions || []).map(v => ({
+            ...v,
+            items: Array.isArray(v.items) ? v.items : [],
+          }))
+        )
         setTestPciSource('task')
         if (task.activeDmiVersionId) {
           setTestPciViewMode(`dmi_${task.activeDmiVersionId}`)
@@ -1470,7 +1479,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
       })
       setAssessmentDmiItems(assessment.dmiItems || [])
-      setAssessmentDmiVersions(assessment.dmiVersions || [])
+      // Normalize so every version's `items` is an array (see task note above).
+      setAssessmentDmiVersions(
+        (assessment.dmiVersions || []).map(v => ({
+          ...v,
+          items: Array.isArray(v.items) ? v.items : [],
+        }))
+      )
       setTestPciSource('assessment')
       if (assessment.activeDmiVersionId) {
         setTestPciViewMode(`dmi_${assessment.activeDmiVersionId}`)
@@ -2699,9 +2714,9 @@ FEEDBACK: [your explanation]`
     // Load a specific DMI version
     const handleLoadDmiVersion = (version: DMIVersion, type: 'task' | 'assessment') => {
       if (type === 'task') {
-        setTaskDmiItems(version.items)
+        setTaskDmiItems(version.items || [])
       } else {
-        setAssessmentDmiItems(version.items)
+        setAssessmentDmiItems(version.items || [])
       }
       setShowDmiVersionList(false)
 
@@ -8716,7 +8731,7 @@ FEEDBACK: [your explanation]`
                                                   >
                                                     <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
                                                       <div className="space-y-4">
-                                                        {version?.items.map(item => (
+                                                        {(version?.items ?? []).map(item => (
                                                           <div
                                                             key={item.id}
                                                             className="rounded-lg border bg-gray-50 p-3"
@@ -10450,7 +10465,8 @@ FEEDBACK: [your explanation]`
                               </span>
                             </div>
                             <div className="text-muted-foreground text-xs">
-                              {version.items.length} question{version.items.length !== 1 ? 's' : ''}
+                              {version.items?.length ?? 0} question
+                              {(version.items?.length ?? 0) !== 1 ? 's' : ''}
                             </div>
                           </div>
                           <div className="flex gap-1">
@@ -10511,8 +10527,8 @@ FEEDBACK: [your explanation]`
             <DialogHeader>
               <DialogTitle>DMI Preview — Version {previewDmiVersion?.versionNumber}</DialogTitle>
               <DialogDescription>
-                {previewDmiVersion?.items.length} question
-                {previewDmiVersion?.items.length !== 1 ? 's' : ''} ·{' '}
+                {previewDmiVersion?.items?.length ?? 0} question
+                {(previewDmiVersion?.items?.length ?? 0) !== 1 ? 's' : ''} ·{' '}
                 {previewDmiVersion
                   ? new Date(previewDmiVersion.createdAt).toLocaleDateString()
                   : ''}
@@ -10520,13 +10536,13 @@ FEEDBACK: [your explanation]`
             </DialogHeader>
             <div className="pt-4">
               <div className="max-h-[500px] overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-                {!previewDmiVersion || previewDmiVersion.items.length === 0 ? (
+                {!previewDmiVersion || (previewDmiVersion.items?.length ?? 0) === 0 ? (
                   <div className="text-muted-foreground py-6 text-center text-sm">
                     No questions in this version.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {previewDmiVersion.items.map((item, idx) => (
+                    {(previewDmiVersion.items ?? []).map((item, idx) => (
                       <div key={item.id} className="rounded-lg border bg-slate-50 p-4">
                         <div className="mb-2 text-sm font-semibold text-slate-700">
                           Question {item.questionNumber}
