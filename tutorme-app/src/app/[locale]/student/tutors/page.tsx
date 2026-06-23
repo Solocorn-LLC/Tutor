@@ -223,7 +223,7 @@ export default function StudentTutorDirectoryPage() {
 
       {/* Bottom panel: filters + results */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-        <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           {/* Filters */}
           <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
             <div className="relative">

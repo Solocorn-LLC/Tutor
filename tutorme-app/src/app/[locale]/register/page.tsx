@@ -3,53 +3,41 @@
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { GraduationCap, Users, BookOpen, Shield } from 'lucide-react'
+import { GraduationCap, Users, Presentation, Shield } from 'lucide-react'
 import { useParams } from 'next/navigation'
 
 const roles = [
   {
     id: 'student',
     title: 'Student',
-    description: 'Learn with AI tutors and live classes',
-    icon: BookOpen,
+    icon: GraduationCap,
     href: '/register/student',
     color: 'bg-primary',
-    hoverBg: 'hover:bg-primary/90',
-    shadow: 'shadow-primary/20',
-    hoverShadow: 'hover:shadow-primary/30',
+    textColor: 'text-primary',
   },
   {
     id: 'parent',
     title: 'Parent',
-    description: "Monitor and support your child's learning",
     icon: Users,
     href: '/register/parent',
     color: 'bg-success',
-    hoverBg: 'hover:bg-success/90',
-    shadow: 'shadow-success/20',
-    hoverShadow: 'hover:shadow-success/30',
+    textColor: 'text-success',
   },
   {
     id: 'tutor',
     title: 'Tutor',
-    description: 'Teach students and grow your reach',
-    icon: GraduationCap,
+    icon: Presentation,
     href: '/register/tutor',
     color: 'bg-warning',
-    hoverBg: 'hover:bg-warning/90',
-    shadow: 'shadow-warning/20',
-    hoverShadow: 'hover:shadow-warning/30',
+    textColor: 'text-warning',
   },
   {
     id: 'admin',
     title: 'Administrator',
-    description: 'Manage your institution',
     icon: Shield,
     href: '/register/admin',
     color: 'bg-secondary',
-    hoverBg: 'hover:bg-secondary/90',
-    shadow: 'shadow-secondary/20',
-    hoverShadow: 'hover:shadow-secondary/30',
+    textColor: 'text-secondary',
   },
 ]
 
@@ -68,28 +56,24 @@ export default function RoleSelectionPage() {
           >
             Create Your Account
           </h1>
-          <p className="text-muted-foreground">Choose how you want to join Solocorn</p>
         </div>
 
         {/* Role Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {roles.map(role => (
             <Link key={role.id} href={`${localePrefix}${role.href}`}>
-              <Card className="card-translucent duration-250 h-full cursor-pointer border-0 transition-all hover:-translate-y-0.5">
+              <Card className="h-full cursor-pointer border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`${role.color} ${role.hoverBg} rounded-xl p-3 text-white shadow-lg ${role.shadow} transition-all duration-200 hover:shadow-xl ${role.hoverShadow}`}
-                    >
+                    <div className={`${role.color} rounded-xl p-3 text-white shadow-lg`}>
                       <role.icon className="h-7 w-7" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-foreground text-xl font-bold">{role.title}</h2>
-                      <p className="text-muted-foreground text-sm">{role.description}</p>
+                      <h2 className="text-xl font-bold text-white">{role.title}</h2>
                     </div>
                   </div>
                   <Button
-                    className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} ${role.hoverBg} shadow-md transition-all duration-200 hover:shadow-lg active:scale-[0.98]`}
+                    className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} hover:bg-white hover:${role.textColor} shadow-md`}
                   >
                     Register
                   </Button>
