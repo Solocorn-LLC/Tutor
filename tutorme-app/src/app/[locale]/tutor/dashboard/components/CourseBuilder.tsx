@@ -8008,7 +8008,7 @@ FEEDBACK: [your explanation]`
             )}
 
             {/* CENTER PANEL - New Three-Section Design */}
-            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-center">
+            <div className="mr-6 flex min-h-0 w-full min-w-0 flex-1 flex-col items-center">
               <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch">
                 {mainTab !== 'builder' && (
                   <div className="flex h-full w-full flex-1 justify-center">
@@ -8984,7 +8984,7 @@ FEEDBACK: [your explanation]`
                           Build
                         </div>
                       </div>
-                      <CardContent className="flex h-full flex-col overflow-hidden p-0">
+                      <CardContent className="flex h-full flex-col overflow-hidden px-4 pb-4">
                         <Tabs
                           value={mainBuilderTab}
                           onValueChange={v => setMainBuilderTab(v as 'task' | 'assessment')}
