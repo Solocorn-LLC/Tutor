@@ -26,7 +26,7 @@ export function CollapsibleCard({
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const contentRef = useAutoScrollOnExpand(open, { delay: 150, margin: 16 })
+  const contentRef = useAutoScrollOnExpand(open, { delay: 350, margin: 16, block: 'nearest' })
 
   return (
     <Card className={cn('overflow-hidden', className)}>

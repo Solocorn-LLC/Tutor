@@ -119,19 +119,44 @@ export function scrollElementIntoView(el: Element, options: ScrollIntoViewOption
   const panelHeight = rect.height
   const availableHeight = Math.max(0, viewportHeight - stickyOffset - margin * 2)
 
-  // If the panel is taller than the available viewport, scroll its top into view
-  // just below the sticky offset. Otherwise scroll so the full panel is visible.
   let delta = 0
 
-  if (panelHeight > availableHeight) {
+  if (block === 'nearest') {
+    // Minimal scroll to bring the element into view
+    const isAbove = rect.top < stickyOffset + margin
+    const isBelow = rect.bottom > viewportHeight - margin
+
+    if (isAbove && isBelow) {
+      // Element spans the viewport — scroll to show top
+      delta = rect.top - (stickyOffset + margin)
+    } else if (isAbove) {
+      // Element is above the visible area — scroll down to show top
+      delta = rect.top - (stickyOffset + margin)
+    } else if (isBelow) {
+      // Element is below the visible area — scroll up to show bottom
+      delta = rect.bottom - (viewportHeight - margin)
+    }
+    // If neither isAbove nor isBelow, element is fully visible — no scroll needed
+  } else if (block === 'start') {
+    // Scroll so the top of the element is just below the sticky offset
     const desiredTop = stickyOffset + margin
     if (rect.top > desiredTop + 1 || rect.top < desiredTop - 1) {
       delta = rect.top - desiredTop
     }
   } else {
-    const desiredBottom = viewportHeight - margin
-    if (rect.bottom > desiredBottom + 1) {
-      delta = rect.bottom - desiredBottom
+    // block === 'end' (default)
+    // If the panel is taller than the available viewport, scroll its top into view
+    // just below the sticky offset. Otherwise scroll so the full panel is visible.
+    if (panelHeight > availableHeight) {
+      const desiredTop = stickyOffset + margin
+      if (rect.top > desiredTop + 1 || rect.top < desiredTop - 1) {
+        delta = rect.top - desiredTop
+      }
+    } else {
+      const desiredBottom = viewportHeight - margin
+      if (rect.bottom > desiredBottom + 1) {
+        delta = rect.bottom - desiredBottom
+      }
     }
   }
 
