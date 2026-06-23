@@ -46,6 +46,26 @@ function isStuckAtTop(el: Element, scroller: Element | Window): boolean {
   return false
 }
 
+function isTopBlockingElement(el: Element): boolean {
+  const style = window.getComputedStyle(el)
+  const rect = el.getBoundingClientRect()
+
+  // Exclude elements that are clearly sidebars (tall and narrow, positioned at left/right)
+  // A top-blocking element should:
+  // 1. Be relatively wide (span most of the viewport width)
+  // 2. Not be extremely tall relative to its width (not a sidebar)
+  const viewportWidth = window.innerWidth
+  const widthRatio = rect.width / viewportWidth
+
+  // If the element spans less than 40% of the viewport width, it's likely a sidebar
+  if (widthRatio < 0.4) return false
+
+  // If the element is taller than it is wide by a large margin, it's likely a sidebar
+  if (rect.height > rect.width * 2) return false
+
+  return true
+}
+
 export function getStickyTopOffset(scroller: Element | Window): number {
   if (typeof document === 'undefined') return 0
 
@@ -61,6 +81,9 @@ export function getStickyTopOffset(scroller: Element | Window): number {
 
     const rect = el.getBoundingClientRect()
     if (rect.height <= 0) continue
+
+    // Skip sidebars and other non-top-blocking elements
+    if (!isTopBlockingElement(el)) continue
 
     offset += rect.height
     counted.add(el)
@@ -112,8 +135,11 @@ export function scrollElementIntoView(el: Element, options: ScrollIntoViewOption
   const scroller = getScrollableAncestor(el)
   const stickyOffset = getStickyTopOffset(scroller)
 
-  const viewportHeight =
-    scroller === window ? window.innerHeight : (scroller as HTMLElement).clientHeight
+  const isWindowScroller = scroller === window
+  const scrollerEl = isWindowScroller ? null : (scroller as HTMLElement)
+  const scrollerRect = scrollerEl?.getBoundingClientRect()
+  const scrollerTop = scrollerRect ? scrollerRect.top : 0
+  const viewportHeight = isWindowScroller ? window.innerHeight : scrollerEl!.clientHeight
 
   const rect = el.getBoundingClientRect()
   const panelHeight = rect.height
@@ -123,23 +149,23 @@ export function scrollElementIntoView(el: Element, options: ScrollIntoViewOption
 
   if (block === 'nearest') {
     // Minimal scroll to bring the element into view
-    const isAbove = rect.top < stickyOffset + margin
-    const isBelow = rect.bottom > viewportHeight - margin
+    const isAbove = rect.top < scrollerTop + stickyOffset + margin
+    const isBelow = rect.bottom > scrollerTop + viewportHeight - margin
 
     if (isAbove && isBelow) {
       // Element spans the viewport — scroll to show top
-      delta = rect.top - (stickyOffset + margin)
+      delta = rect.top - (scrollerTop + stickyOffset + margin)
     } else if (isAbove) {
       // Element is above the visible area — scroll down to show top
-      delta = rect.top - (stickyOffset + margin)
+      delta = rect.top - (scrollerTop + stickyOffset + margin)
     } else if (isBelow) {
       // Element is below the visible area — scroll up to show bottom
-      delta = rect.bottom - (viewportHeight - margin)
+      delta = rect.bottom - (scrollerTop + viewportHeight - margin)
     }
     // If neither isAbove nor isBelow, element is fully visible — no scroll needed
   } else if (block === 'start') {
     // Scroll so the top of the element is just below the sticky offset
-    const desiredTop = stickyOffset + margin
+    const desiredTop = scrollerTop + stickyOffset + margin
     if (rect.top > desiredTop + 1 || rect.top < desiredTop - 1) {
       delta = rect.top - desiredTop
     }
@@ -148,12 +174,12 @@ export function scrollElementIntoView(el: Element, options: ScrollIntoViewOption
     // If the panel is taller than the available viewport, scroll its top into view
     // just below the sticky offset. Otherwise scroll so the full panel is visible.
     if (panelHeight > availableHeight) {
-      const desiredTop = stickyOffset + margin
+      const desiredTop = scrollerTop + stickyOffset + margin
       if (rect.top > desiredTop + 1 || rect.top < desiredTop - 1) {
         delta = rect.top - desiredTop
       }
     } else {
-      const desiredBottom = viewportHeight - margin
+      const desiredBottom = scrollerTop + viewportHeight - margin
       if (rect.bottom > desiredBottom + 1) {
         delta = rect.bottom - desiredBottom
       }

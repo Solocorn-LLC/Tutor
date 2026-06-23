@@ -501,90 +501,90 @@ function MyCoursesSection() {
           onClick={() => setIsExpanded(prev => !prev)}
           className={cn(charcoalHeaderClass, 'panel-header-hover cursor-pointer justify-between')}
         >
-        <div className="flex items-center gap-3">
-          <BookOpen className="h-5 w-5" />
-          <span className="text-base font-semibold">My Courses</span>
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-5 w-5 text-white/70" />
-        ) : (
-          <ChevronDown className="h-5 w-5 text-white/70" />
-        )}
-      </div>
-      <CardContent spacing="none" className="space-y-4 px-5 pb-5">
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
-          {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`relative px-4 py-2 text-sm font-medium transition ${
-                activeTab === tab ? 'text-[#1D4ED8]' : 'text-[#64748B] hover:text-[#1F2933]'
-              }`}
-            >
-              <span className="capitalize">{tab}</span>
-              <span className="ml-1.5 rounded-full bg-[#F1F5F9] px-2 py-0.5 text-xs text-[#64748B]">
-                {courseCounts[tab]}
-              </span>
-              {activeTab === tab && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1D4ED8]" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Course List - Scrollable Container */}
-        <div
-          ref={coursesPanelRef}
-          className={cn(
-            'pr-2 transition-all duration-300 ease-in-out',
-            isExpanded ? 'overflow-y-auto' : 'h-0 overflow-hidden'
-          )}
-          style={isExpanded ? { height: measuredMaxHeight } : undefined}
-        >
-          {loading ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
-            </div>
-          ) : filteredCourses.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <BookOpen className="h-12 w-12 text-[#CBD5E1]" />
-              <p className="mt-2 text-sm text-[#64748B]">
-                {activeTab === 'active'
-                  ? 'No active courses yet'
-                  : activeTab === 'pending'
-                    ? 'No pending courses'
-                    : activeTab === 'unpublished'
-                      ? 'No unpublished courses'
-                      : 'No catalogued courses'}
-              </p>
-            </div>
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5" />
+            <span className="text-base font-semibold">My Courses</span>
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="h-5 w-5 text-white/70" />
           ) : (
-            <div className="space-y-3">
-              {filteredCourses.slice(0, 10).map(course => renderCourseRow(course, activeTab))}
-            </div>
+            <ChevronDown className="h-5 w-5 text-white/70" />
           )}
         </div>
-
-        {/* Hidden measurement lists to keep panel height stable across tabs */}
-        <div
-          className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0"
-          aria-hidden="true"
-        >
-          <div className="px-5 pb-5">
+        <CardContent spacing="none" className="space-y-4 px-5 pb-5">
+          {/* Tabs */}
+          <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
             {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
-              <div key={tab} ref={measureRefs[tab]} className="space-y-3 pr-2">
-                {categorizeCourses[tab].slice(0, 10).map(course => renderCourseRow(course, tab))}
-              </div>
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative px-4 py-2 text-sm font-medium transition ${
+                  activeTab === tab ? 'text-[#1D4ED8]' : 'text-[#64748B] hover:text-[#1F2933]'
+                }`}
+              >
+                <span className="capitalize">{tab}</span>
+                <span className="ml-1.5 rounded-full bg-[#F1F5F9] px-2 py-0.5 text-xs text-[#64748B]">
+                  {courseCounts[tab]}
+                </span>
+                {activeTab === tab && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1D4ED8]" />
+                )}
+              </button>
             ))}
           </div>
-        </div>
-      </CardContent>
-      <ScheduleViewModal
-        courseId={scheduleCourse?.id ?? null}
-        courseName={scheduleCourse?.name}
-        onClose={() => setScheduleCourse(null)}
-      />
+
+          {/* Course List - Scrollable Container */}
+          <div
+            ref={coursesPanelRef}
+            className={cn(
+              'pr-2 transition-all duration-300 ease-in-out',
+              isExpanded ? 'overflow-y-auto' : 'h-0 overflow-hidden'
+            )}
+            style={isExpanded ? { height: measuredMaxHeight } : undefined}
+          >
+            {loading ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
+              </div>
+            ) : filteredCourses.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <BookOpen className="h-12 w-12 text-[#CBD5E1]" />
+                <p className="mt-2 text-sm text-[#64748B]">
+                  {activeTab === 'active'
+                    ? 'No active courses yet'
+                    : activeTab === 'pending'
+                      ? 'No pending courses'
+                      : activeTab === 'unpublished'
+                        ? 'No unpublished courses'
+                        : 'No catalogued courses'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredCourses.slice(0, 10).map(course => renderCourseRow(course, activeTab))}
+              </div>
+            )}
+          </div>
+
+          {/* Hidden measurement lists to keep panel height stable across tabs */}
+          <div
+            className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0"
+            aria-hidden="true"
+          >
+            <div className="px-5 pb-5">
+              {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
+                <div key={tab} ref={measureRefs[tab]} className="space-y-3 pr-2">
+                  {categorizeCourses[tab].slice(0, 10).map(course => renderCourseRow(course, tab))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+        <ScheduleViewModal
+          courseId={scheduleCourse?.id ?? null}
+          courseName={scheduleCourse?.name}
+          onClose={() => setScheduleCourse(null)}
+        />
       </Card>
     </div>
   )
@@ -652,7 +652,10 @@ export default function TutorMyPage() {
     kakaoTalk: '',
   })
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(true)
-  const profileScrollRef = useAutoScrollOnExpand(profileSettingsOpen, { delay: 350, block: 'nearest' })
+  const profileScrollRef = useAutoScrollOnExpand(profileSettingsOpen, {
+    delay: 350,
+    block: 'nearest',
+  })
 
   // Category selection state (3-level: Region → Country → Category)
   const [selectedRegions, setSelectedRegions] = useState<string[]>([])
@@ -1844,169 +1847,169 @@ export default function TutorMyPage() {
               )}
               onClick={() => setProfileSettingsOpen(prev => !prev)}
             >
-            <div className="flex items-center gap-3">
-              <Settings className="h-5 w-5" />
-              <span className="text-base font-semibold">Profile Settings</span>
+              <div className="flex items-center gap-3">
+                <Settings className="h-5 w-5" />
+                <span className="text-base font-semibold">Profile Settings</span>
+              </div>
+              {profileSettingsOpen ? (
+                <ChevronUp className="h-4 w-4 text-white/70" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-white/70" />
+              )}
             </div>
-            {profileSettingsOpen ? (
-              <ChevronUp className="h-4 w-4 text-white/70" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-white/70" />
-            )}
-          </div>
-          {profileSettingsOpen && (
-            <CardContent spacing="none" className="space-y-4 bg-white px-6 py-4">
-              <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
-                <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
-                  <Label className="text-sm text-[#1F2933]">Bio</Label>
-                  <Textarea
-                    value={bio}
-                    onChange={e => {
-                      const val = e.target.value
-                      if (val.length <= 800) {
-                        setBio(val)
+            {profileSettingsOpen && (
+              <CardContent spacing="none" className="space-y-4 bg-white px-6 py-4">
+                <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+                  <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
+                    <Label className="text-sm text-[#1F2933]">Bio</Label>
+                    <Textarea
+                      value={bio}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val.length <= 800) {
+                          setBio(val)
+                        }
+                      }}
+                      disabled={loading || saving}
+                      placeholder="Short bio for your public page..."
+                      maxLength={800}
+                      className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
+                    />
+                    <span
+                      className={
+                        bio.length > 800
+                          ? 'text-xs font-medium text-red-500'
+                          : 'text-xs text-slate-400'
                       }
-                    }}
-                    disabled={loading || saving}
-                    placeholder="Short bio for your public page..."
-                    maxLength={800}
-                    className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
-                  />
-                  <span
-                    className={
-                      bio.length > 800
-                        ? 'text-xs font-medium text-red-500'
-                        : 'text-xs text-slate-400'
-                    }
-                  >
-                    {bio.length}/800
-                  </span>
-                </div>
+                    >
+                      {bio.length}/800
+                    </span>
+                  </div>
 
-                <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
-                  <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
-                  <div className="grid gap-2.5 md:grid-cols-2">
-                    <div className="flex items-center gap-2">
-                      <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                        <Input
-                          placeholder="username"
-                          value={socialAccounts.tiktok.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              tiktok: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                  <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
+                    <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
+                    <div className="grid gap-2.5 md:grid-cols-2">
+                      <div className="flex items-center gap-2">
+                        <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                          <Input
+                            placeholder="username"
+                            value={socialAccounts.tiktok.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                tiktok: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                        <Input
-                          placeholder="username"
-                          value={socialAccounts.youtube.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              youtube: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                      <div className="flex items-center gap-2">
+                        <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                          <Input
+                            placeholder="username"
+                            value={socialAccounts.youtube.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                youtube: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                        <Input
-                          placeholder="username"
-                          value={socialAccounts.instagram.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              instagram: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                          <Input
+                            placeholder="username"
+                            value={socialAccounts.instagram.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                instagram: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
-                          https://
-                        </span>
-                        <Input
-                          placeholder="username"
-                          value={socialAccounts.facebook.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              facebook: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                      <div className="flex items-center gap-2">
+                        <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
+                            https://
+                          </span>
+                          <Input
+                            placeholder="username"
+                            value={socialAccounts.facebook.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                facebook: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <XBrandIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                        <Input
-                          placeholder="username"
-                          value={socialAccounts.x.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              x: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                      <div className="flex items-center gap-2">
+                        <XBrandIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
+                          <Input
+                            placeholder="username"
+                            value={socialAccounts.x.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                x: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                      <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                        <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
-                          https://
-                        </span>
-                        <Input
-                          value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
-                          onChange={e =>
-                            setSocialAccounts(prev => ({
-                              ...prev,
-                              kakaoTalk: e.target.value.replace(/^@+/, ''),
-                            }))
-                          }
-                          disabled={loading || saving}
-                          className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
+                      <div className="flex items-center gap-2">
+                        <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                          <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
+                            https://
+                          </span>
+                          <Input
+                            value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
+                            onChange={e =>
+                              setSocialAccounts(prev => ({
+                                ...prev,
+                                kakaoTalk: e.target.value.replace(/^@+/, ''),
+                              }))
+                            }
+                            disabled={loading || saving}
+                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          )}
+              </CardContent>
+            )}
           </Card>
         </div>
 

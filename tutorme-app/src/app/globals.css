@@ -643,6 +643,12 @@
     @apply border-border;
   }
 
+  /* Remove default browser focus rings universally */
+  *:focus,
+  *:focus-visible {
+    outline: none;
+  }
+
   html {
     min-width: 320px;
     -webkit-text-size-adjust: 100%;
@@ -1345,12 +1351,4 @@
     padding-left: calc(1.5rem * var(--density-scale));
     padding-right: calc(1.5rem * var(--density-scale));
   }
-}
-
-/* Remove focus rings from input elements site-wide */
-input:focus,
-input:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-  --tw-ring-shadow: none !important;
 }

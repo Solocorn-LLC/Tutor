@@ -1086,8 +1086,17 @@ function CourseCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {course.tutorImage && (
+          <div className="flex items-center gap-3">
+            {/* Session count */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+              <Calendar className="h-3.5 w-3.5 text-slate-400" />
+              <span className="font-medium text-slate-200">
+                {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {/* Avatar */}
+            {course.tutorImage ? (
               <img
                 src={resolvePublicUrl(course.tutorImage) || undefined}
                 alt={course.tutorHandle || 'Tutor'}
@@ -1096,6 +1105,10 @@ function CourseCard({
                   ;(e.target as HTMLImageElement).style.display = 'none'
                 }}
               />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.1)]">
+                <User className="h-4 w-4 text-slate-300" />
+              </div>
             )}
             <Button
               variant="ghost"
@@ -1116,16 +1129,6 @@ function CourseCard({
           <p className="line-clamp-1 text-xs leading-relaxed text-slate-700">
             {course.description || 'No description available'}
           </p>
-        </div>
-
-        {/* Sessions count */}
-        <div className="mt-2 flex items-center gap-2 text-xs text-slate-300">
-          <div className="flex items-center gap-1 font-medium text-slate-200">
-            <BookOpen className="h-3.5 w-3.5 text-slate-400" />
-            <span>
-              {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
-            </span>
-          </div>
         </div>
 
         {/* Progress */}
@@ -1178,7 +1181,7 @@ function CourseCard({
       <div className="flex gap-2 border-t border-[rgba(255,255,255,0.1)] p-4">
         {(isOngoing || isPending) && (
           <Button
-            className="h-9 flex-1 border-0 bg-emerald-600 text-white hover:bg-emerald-500"
+            className="h-8 flex-1 border-0 bg-emerald-600 text-xs text-white hover:bg-white hover:text-emerald-600"
             disabled={enteringClass === course.id}
             onClick={e => {
               e.stopPropagation()
@@ -1194,7 +1197,7 @@ function CourseCard({
         )}
         {progress?.isCompleted && (
           <Link href={`/student/feedback`} className="flex-1" onClick={e => e.stopPropagation()}>
-            <Button className="h-9 w-full border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] text-slate-100 hover:bg-[rgba(255,255,255,0.15)]">
+            <Button className="h-8 w-full border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] text-xs text-slate-100 hover:bg-[rgba(255,255,255,0.15)]">
               <Trophy className="mr-2 h-4 w-4 text-yellow-400" />
               View Results
             </Button>
@@ -1202,7 +1205,7 @@ function CourseCard({
         )}
         <Button
           variant="outline"
-          className="h-9 flex-1 border-[rgba(255,255,255,0.2)] bg-transparent text-slate-100 hover:bg-[rgba(255,255,255,0.1)]"
+          className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white hover:bg-white hover:text-black"
           onClick={e => {
             e.stopPropagation()
             onDetails()
@@ -1213,7 +1216,7 @@ function CourseCard({
         {onUnregister && course.enrollment && (
           <Button
             variant="destructive"
-            className="h-9 flex-1"
+            className="h-8 flex-1 text-xs hover:bg-white hover:text-red-600"
             disabled={unregisteringId === course.id}
             onClick={e => {
               e.stopPropagation()
