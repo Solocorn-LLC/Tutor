@@ -10,39 +10,18 @@ import { generateWithKimi, chatWithKimi } from '@/lib/ai/kimi'
 import type { UsageContext } from '@/lib/ai/usage'
 import { cache } from '@/lib/db'
 import { adkGenerate, adkChat } from '@/lib/adk-client'
-import { isGeminiActive } from '@/lib/ai/provider'
 
-type AIProvider = 'kimi' | 'gemini'
+// Kimi (Moonshot) is the only provider. Gemini was removed.
+type AIProvider = 'kimi'
 
-/** Label results with the provider actually handling generation. */
-function activeProviderLabel(): AIProvider {
-  return isGeminiActive() ? 'gemini' : 'kimi'
-}
-
-/**
- * Configured providers in fallback order: the active provider first, then the
- * other one if its key is set. Lets us fall back (e.g. Gemini → Kimi) when the
- * active provider errors — most importantly on rate-limit/quota (429) or a
- * transient 503 — instead of failing the whole request.
- */
-function configuredProviders(): AIProvider[] {
-  const primary: AIProvider = isGeminiActive() ? 'gemini' : 'kimi'
-  const order: AIProvider[] = []
-  for (const p of [primary, primary === 'gemini' ? 'kimi' : 'gemini'] as AIProvider[]) {
-    const hasKey = p === 'gemini' ? !!process.env.GEMINI_API_KEY : !!process.env.KIMI_API_KEY
-    if (hasKey && !order.includes(p)) order.push(p)
+/** Build the "provider failed" error, surfacing the REAL upstream reason
+ * (e.g. a 429 quota message) rather than a misleading "not configured". */
+function kimiFailedError(lastError: unknown): Error {
+  if (!process.env.KIMI_API_KEY) {
+    return new Error('No AI provider configured. Please set KIMI_API_KEY.')
   }
-  return order
-}
-
-function allProvidersFailedError(providers: AIProvider[], lastError: unknown): Error {
-  if (providers.length === 0) {
-    return new Error('No AI providers configured. Please set GEMINI_API_KEY or KIMI_API_KEY.')
-  }
-  // Surface the REAL upstream reason (e.g. the 429 quota message) instead of a
-  // misleading "not configured" — so this is diagnosable.
   const detail = lastError instanceof Error ? lastError.message : String(lastError)
-  return new Error(`All AI providers failed (${providers.join(', ')}). Last error: ${detail}`)
+  return new Error(`AI provider (kimi) failed. Last error: ${detail}`)
 }
 
 interface AIOptions {
@@ -105,8 +84,8 @@ export async function generateWithFallback(
     }
   }
 
-  // ADK path (skip when Gemini is the active provider — ADK itself only speaks Kimi)
-  if (process.env.ADK_BASE_URL && !isGeminiActive()) {
+  // ADK path (ADK speaks Kimi).
+  if (process.env.ADK_BASE_URL) {
     try {
       const content = await adkGenerate(prompt, { timeoutMs: options.timeoutMs, retries: 1 })
       const result = {
@@ -117,28 +96,20 @@ export async function generateWithFallback(
       if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('ADK generate failed, trying direct providers:', error)
+      console.log('ADK generate failed, trying direct provider:', error)
     }
   }
 
-  // Direct providers with cross-provider fallback (active first, then the other).
-  const providers = configuredProviders()
-  let lastError: unknown = null
-  for (const provider of providers) {
-    try {
-      const content = await generateWithKimi(prompt, { ...options, forceProvider: provider })
-      const result = { content, provider, latencyMs: Date.now() - startTime }
-      if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
-      return result
-    } catch (error) {
-      lastError = error
-      console.warn(
-        `[ai] generate via "${provider}" failed${provider !== providers[providers.length - 1] ? ', trying fallback' : ''}:`,
-        error instanceof Error ? error.message : error
-      )
-    }
+  // Direct provider (Kimi).
+  try {
+    const content = await generateWithKimi(prompt, { ...options })
+    const result = { content, provider: 'kimi' as AIProvider, latencyMs: Date.now() - startTime }
+    if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
+    return result
+  } catch (error) {
+    console.warn('[ai] generate via kimi failed:', error instanceof Error ? error.message : error)
+    throw kimiFailedError(error)
   }
-  throw allProvidersFailedError(providers, lastError)
 }
 
 /**
@@ -166,8 +137,8 @@ export async function chatWithFallback(
     }
   }
 
-  // ADK path (skip when Gemini is the active provider — ADK itself only speaks Kimi)
-  if (process.env.ADK_BASE_URL && !isGeminiActive()) {
+  // ADK path (ADK speaks Kimi).
+  if (process.env.ADK_BASE_URL) {
     try {
       const content = await adkChat(messages, { timeoutMs: options.timeoutMs, retries: 1 })
       const result = {
@@ -178,28 +149,20 @@ export async function chatWithFallback(
       if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
       return result
     } catch (error) {
-      console.log('ADK chat failed, trying direct providers:', error)
+      console.log('ADK chat failed, trying direct provider:', error)
     }
   }
 
-  // Direct providers with cross-provider fallback (active first, then the other).
-  const providers = configuredProviders()
-  let lastError: unknown = null
-  for (const provider of providers) {
-    try {
-      const content = await chatWithKimi(messages, { ...options, forceProvider: provider })
-      const result = { content, provider, latencyMs: Date.now() - startTime }
-      if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
-      return result
-    } catch (error) {
-      lastError = error
-      console.warn(
-        `[ai] chat via "${provider}" failed${provider !== providers[providers.length - 1] ? ', trying fallback' : ''}:`,
-        error instanceof Error ? error.message : error
-      )
-    }
+  // Direct provider (Kimi).
+  try {
+    const content = await chatWithKimi(messages, { ...options })
+    const result = { content, provider: 'kimi' as AIProvider, latencyMs: Date.now() - startTime }
+    if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
+    return result
+  } catch (error) {
+    console.warn('[ai] chat via kimi failed:', error instanceof Error ? error.message : error)
+    throw kimiFailedError(error)
   }
-  throw allProvidersFailedError(providers, lastError)
 }
 
 /**
@@ -237,10 +200,6 @@ export async function getAIProvidersStatus(): Promise<
 > {
   return [
     {
-      name: 'gemini' as AIProvider,
-      available: !!process.env.GEMINI_API_KEY,
-    },
-    {
       name: 'kimi' as AIProvider,
       available: !!process.env.KIMI_API_KEY,
     },
@@ -257,16 +216,12 @@ export async function generateWithProvider(
 ): Promise<GenerationResult> {
   const startTime = Date.now()
 
-  switch (provider) {
-    case 'gemini':
-    case 'kimi':
-      // generateWithKimi delegates to Gemini when GEMINI_API_KEY is active.
-      return {
-        content: await generateWithKimi(prompt, { ...options }),
-        provider: activeProviderLabel(),
-        latencyMs: Date.now() - startTime,
-      }
-    default:
-      throw new Error(`Unknown provider: ${provider}`)
+  if (provider !== 'kimi') {
+    throw new Error(`Unknown provider: ${provider}`)
+  }
+  return {
+    content: await generateWithKimi(prompt, { ...options }),
+    provider: 'kimi',
+    latencyMs: Date.now() - startTime,
   }
 }
