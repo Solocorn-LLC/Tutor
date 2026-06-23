@@ -66,7 +66,7 @@ export function TutorCard({
   const cardContent = (
     <div
       className={cn(
-        'relative flex w-full flex-col overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white shadow-[0_8px_24px_rgba(0,0,0,0.14)]',
+        'relative flex w-full flex-col overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
         compact ? 'h-[280px] gap-2 p-4' : 'h-[420px] gap-4 p-5',
         onClick && 'cursor-pointer',
         className
