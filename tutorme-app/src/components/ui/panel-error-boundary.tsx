@@ -1,7 +1,6 @@
 'use client'
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { getDiag } from '@/lib/insights-diag'
 
 interface PanelErrorBoundaryProps {
   children: ReactNode
@@ -81,18 +80,6 @@ export class PanelErrorBoundary extends Component<
               </summary>
               <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-[10px] leading-tight text-slate-700">
                 {this.state.componentStack}
-              </pre>
-            </details>
-          )}
-          {this.props.showStack && getDiag().length > 0 && (
-            <details className="mt-2 max-w-xl text-left">
-              <summary className="cursor-pointer text-xs font-medium text-slate-600">
-                Diagnostic details (render trace)
-              </summary>
-              <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-[10px] leading-tight text-slate-700">
-                {getDiag()
-                  .map(e => JSON.stringify(e))
-                  .join('\n')}
               </pre>
             </details>
           )}

@@ -50,7 +50,6 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
-import { recordDiag } from '@/lib/insights-diag'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
 import { toast } from 'sonner'
 import type { CourseBuilderInsightsProps } from './course-builder-types'
@@ -659,18 +658,6 @@ function CourseBuilderInsightsRouteInner({
   const isCoursePublished = currentCourse?.isPublished === true
   const isCourseVariant = currentCourse?.isVariant === true
   const originalSchedule = currentCourse?.schedule || []
-
-  // TEMP diagnostic: trace each route render's key state to find the #185 driver.
-  recordDiag({
-    src: 'route',
-    activeMainTab,
-    controlsMode,
-    saveMode,
-    courseId,
-    matched: currentCourse?.id ?? null,
-    sid: insightsProps?.sessionId ?? null,
-    unsynced: hasUnsyncedChanges,
-  })
 
   // Reschedule handlers
   const openRescheduleDialog = useCallback(() => {
