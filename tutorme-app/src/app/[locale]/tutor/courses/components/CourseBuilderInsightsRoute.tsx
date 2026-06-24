@@ -767,7 +767,12 @@ function CourseBuilderInsightsRouteInner({
                   )}
                   {activeMainTab !== 'live' && insightsProps.onCourseChange && (
                     <Select
-                      value={courseId ?? ''}
+                      // Only feed a value that has a matching <SelectItem>. courseId can
+                      // be an id absent from courses/draftCourses (template vs published
+                      // id split), and a controlled Radix Select value with no matching
+                      // item loops its value-sync forever → React #185 ("Maximum update
+                      // depth exceeded"). currentCourse is the in-list match or undefined.
+                      value={currentCourse?.id ?? ''}
                       onValueChange={v => insightsProps.onCourseChange?.(v)}
                       disabled={hasNoCourses}
                     >
