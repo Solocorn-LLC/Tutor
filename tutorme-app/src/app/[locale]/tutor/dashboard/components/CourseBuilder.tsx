@@ -9092,6 +9092,12 @@ FEEDBACK: [your explanation]`
                       padding="none"
                       className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-blue-200 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
                     >
+                      <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                        <div className="flex items-center gap-2">
+                          <Wrench className="h-4 w-4" />
+                          Build
+                        </div>
+                      </div>
                       <CardContent className="flex h-full flex-col overflow-hidden px-4 pb-4 pt-4">
                         <Tabs
                           value={mainBuilderTab}
@@ -9195,14 +9201,14 @@ FEEDBACK: [your explanation]`
                                     <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
                                       <TabsTrigger
                                         value="content"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#D8B4FE] data-[state=active]:bg-[#F3E8FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#7C3AED] data-[state=inactive]:hover:bg-slate-50"
+                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
                                       >
                                         <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
                                         Slide
                                       </TabsTrigger>
                                       <TabsTrigger
                                         value="pci"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#D8B4FE] data-[state=active]:bg-[#F3E8FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#7C3AED] data-[state=inactive]:hover:bg-slate-50"
+                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
                                       >
                                         <Brain className="mr-2 h-4 w-4 shrink-0" />
                                         PCI
