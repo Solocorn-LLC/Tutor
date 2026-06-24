@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { CourseBuilderInsightsRoute } from '../courses/components/CourseBuilderInsightsRoute'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
+import { recordDiag } from '@/lib/insights-diag'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -1220,6 +1221,16 @@ function TutorInsightsPageInner() {
   }
 
   const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
+
+  // TEMP diagnostic: trace each page render to find the #185 driver.
+  recordDiag({
+    src: 'page',
+    courseId,
+    saveMode,
+    sessionId,
+    nCourses: courses.length,
+    nDraft: draftCourses.length,
+  })
 
   return (
     <div className="flex min-h-screen w-full flex-col items-stretch bg-gray-50">
