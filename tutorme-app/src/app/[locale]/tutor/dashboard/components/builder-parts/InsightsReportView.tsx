@@ -32,7 +32,7 @@ export function InsightsReportView({
   const hasData = isPoll ? pollResults.length > 0 : questionAnswers.length > 0
 
   return (
-    <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/60 p-3 shadow-sm backdrop-blur-md">
+    <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/60 p-3 shadow-sm backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between border-b border-blue-100 pb-2">
         <span className="text-sm font-semibold uppercase tracking-wider text-blue-800">
           {isPoll ? 'Poll Results' : 'Question Results'}

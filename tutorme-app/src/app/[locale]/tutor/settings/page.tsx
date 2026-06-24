@@ -664,7 +664,7 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard flush className={SECTION_CARD_CLASS} title="Profile" defaultOpen>
+              <CollapsibleCard className={SECTION_CARD_CLASS} title="Profile" defaultOpen>
                 <div className="space-y-6 p-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">

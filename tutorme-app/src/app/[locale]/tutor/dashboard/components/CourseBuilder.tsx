@@ -7803,26 +7803,26 @@ FEEDBACK: [your explanation]`
                                         <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-blue-100 p-1 shadow-none">
                                           <TabsTrigger
                                             value="analytics"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Analytics
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="poll"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Poll
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="question"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-white transition-all hover:bg-white/20 data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
                                           >
                                             Question
                                           </TabsTrigger>
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="h-full flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <AnalyticsPanel
                                             students={insightsProps.students}
@@ -7836,7 +7836,7 @@ FEEDBACK: [your explanation]`
                                         </TabsContent>
                                         <TabsContent
                                           value="poll"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <InsightsReportView
                                             type="poll"
@@ -7908,7 +7908,7 @@ FEEDBACK: [your explanation]`
                                         </TabsContent>
                                         <TabsContent
                                           value="question"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <InsightsReportView
                                             type="question"
