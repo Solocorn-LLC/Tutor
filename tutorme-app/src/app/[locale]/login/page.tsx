@@ -106,10 +106,10 @@ function LoginForm() {
   }
 
   return (
-    <div className="from-background via-background to-muted flex min-h-screen items-center justify-center bg-gradient-to-br p-4">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4">
       {/* Blue gradient card */}
       <div
-        className="w-full max-w-sm overflow-hidden rounded-none px-6 py-6 shadow-lg"
+        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-lg"
         style={{
           background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
         }}
@@ -153,7 +153,7 @@ function LoginForm() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-10 rounded-none border-0 bg-white px-4 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="h-10 rounded-lg border-0 bg-white px-4 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
 
@@ -178,7 +178,7 @@ function LoginForm() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="h-10 rounded-none border-0 bg-white px-4 pr-12 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-10 rounded-lg border-0 bg-white px-4 pr-12 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <button
                   type="button"
@@ -206,7 +206,7 @@ function LoginForm() {
 
             <Button
               type="submit"
-              className="h-10 w-full rounded-none border border-white bg-[#f97316] text-base font-semibold text-white shadow-none transition-colors duration-200 hover:bg-white hover:text-[#f97316]"
+              className="h-10 w-full rounded-xl bg-[#f97316] text-base font-semibold text-white shadow-none transition-colors duration-200 hover:translate-y-0 hover:bg-white hover:text-[#f97316]"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -248,9 +248,9 @@ function LoginForm() {
 
 function LoginFormFallback() {
   return (
-    <div className="from-background via-background to-muted flex min-h-screen items-center justify-center bg-gradient-to-br p-4">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <div
-        className="w-full max-w-sm overflow-hidden rounded-none px-6 py-6 shadow-lg"
+        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-lg"
         style={{
           background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
         }}

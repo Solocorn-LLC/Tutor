@@ -49,6 +49,7 @@ import {
   ChevronUp,
   History,
   DollarSign,
+  Calendar,
 } from 'lucide-react'
 import { CollapsibleCard } from '@/components/collapsible-card'
 import { REGIONS } from '@/lib/data/tutor-categories'
@@ -151,7 +152,7 @@ function OneOnOneSettingsCard() {
     return (
       <Card className={SECTION_CARD_CLASS}>
         <CardHeader>
-          <CardTitle>One-on-One Booking</CardTitle>
+          <CardTitle>1-on-1 Booking</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -165,14 +166,14 @@ function OneOnOneSettingsCard() {
   return (
     <Card className={SECTION_CARD_CLASS}>
       <CardHeader>
-        <CardTitle>One-on-One Booking</CardTitle>
+        <CardTitle>1-on-1 Booking</CardTitle>
         <CardDescription>Allow students to book private sessions with you</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Enable/Disable Toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
-            <p className="font-medium">Enable One-on-One Booking</p>
+            <p className="font-medium">Enable 1-on-1 Booking</p>
             <p className="text-sm text-gray-500">
               Allow students to request private tutoring sessions
             </p>
@@ -650,6 +651,7 @@ export default function TutorSettings() {
           variant="charcoal"
           tabs={[
             { value: 'profile', label: 'Profile', icon: User },
+            { value: '1-on-1', label: '1-on-1', icon: Calendar },
             { value: 'billing', label: 'Billing', icon: CreditCard },
             { value: 'refunds', label: 'Refunds', icon: DollarSign },
             { value: 'notifications', label: 'Notifications', icon: Bell },
@@ -1070,6 +1072,13 @@ export default function TutorSettings() {
               </CollapsibleCard>
 
               {/* One-on-One Booking Settings */}
+              <OneOnOneSettingsCard />
+            </div>
+          </TabsContent>
+
+          {/* 1-on-1 Booking */}
+          <TabsContent value="1-on-1" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
               <OneOnOneSettingsCard />
             </div>
           </TabsContent>
