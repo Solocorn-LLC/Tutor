@@ -57,7 +57,7 @@ interface SessionCalendarPanelProps {
   value: string
   onValueChange: (value: string) => void
   tabs: SessionCalendarPanelTab[]
-  children: React.ReactNode
+  children?: React.ReactNode
   showCalendarControls?: boolean
   calendarView?: CalendarView
   onCalendarViewChange?: (view: CalendarView) => void

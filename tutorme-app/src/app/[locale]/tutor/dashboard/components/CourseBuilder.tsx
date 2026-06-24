@@ -8241,22 +8241,22 @@ FEEDBACK: [your explanation]`
                                           }
                                           className="flex h-full min-h-0 flex-col"
                                         >
-                                          <TabsList className="mb-1 grid w-full grid-cols-3 gap-1 border-0 bg-transparent shadow-none">
+                                          <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-white p-1 shadow-none">
                                             <TabsTrigger
                                               value="analytics"
-                                              className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                             >
                                               Analytics
                                             </TabsTrigger>
                                             <TabsTrigger
                                               value="poll"
-                                              className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                             >
                                               Poll
                                             </TabsTrigger>
                                             <TabsTrigger
                                               value="question"
-                                              className="w-full rounded-lg border-transparent bg-transparent px-1 text-xs text-[#667085] transition-all hover:bg-white hover:text-[#344054] hover:shadow-sm data-[state=active]:border-blue-200/70 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:shadow-sm"
+                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                             >
                                               Question
                                             </TabsTrigger>
@@ -8264,22 +8264,50 @@ FEEDBACK: [your explanation]`
 
                                           <TabsContent
                                             value="analytics"
-                                            className="mx-[-16px] flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
+                                            className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
-                                            <AnalyticsPanel
-                                              students={insightsProps.students}
-                                              metrics={insightsProps.metrics}
-                                              liveTasks={insightsProps.liveTasks}
-                                              classDuration={insightsProps.classDuration}
-                                              isRecording={insightsProps.isRecording}
-                                              recordingDuration={insightsProps.recordingDuration}
-                                              sessionId={insightsProps.sessionId}
-                                            />
+                                            <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                              <AnalyticsPanel
+                                                students={insightsProps.students}
+                                                metrics={insightsProps.metrics}
+                                                liveTasks={insightsProps.liveTasks}
+                                                classDuration={insightsProps.classDuration}
+                                                isRecording={insightsProps.isRecording}
+                                                recordingDuration={insightsProps.recordingDuration}
+                                                sessionId={insightsProps.sessionId}
+                                              />
+                                            </div>
+                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+                                              <div className="relative">
+                                                <MentionTextarea
+                                                  mentionItems={mentionItems}
+                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                  placeholder="Add a note or reflection..."
+                                                  disableAutoResize
+                                                  value={analyticsNote}
+                                                  onChange={event =>
+                                                    setAnalyticsNote(event.target.value)
+                                                  }
+                                                />
+                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                  <Button
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                    disabled={!analyticsNote.trim()}
+                                                    onClick={() => {
+                                                      setAnalyticsNote('')
+                                                    }}
+                                                  >
+                                                    <Send className="h-4 w-4" />
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            </div>
                                           </TabsContent>
 
                                           <TabsContent
                                             value="poll"
-                                            className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                            className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
                                             {showAIPoll ? (
                                               <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
@@ -8310,99 +8338,59 @@ FEEDBACK: [your explanation]`
                                                 }
                                               />
                                             )}
-                                            <div
-                                              className={cn(
-                                                'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
-                                                showAIPoll
-                                                  ? 'h-[30%] min-h-[120px]'
-                                                  : 'h-[40%] min-h-[150px]'
-                                              )}
-                                            >
-                                              <div className="flex flex-1 flex-col space-y-0.5 p-1">
-                                                <div className="flex items-center justify-between">
-                                                  <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                                                    Poll question
-                                                  </Label>
-                                                  <span className="text-xs font-medium text-blue-600">
-                                                    {selectedContextLabel ?? 'No item selected'}
-                                                  </span>
-                                                </div>
-                                                <div className="relative flex-1">
-                                                  <MentionTextarea
-                                                    mentionItems={mentionItems}
-                                                    className="h-full min-h-[100px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                    placeholder="What should students answer?"
-                                                    disableAutoResize
-                                                    value={pollPrompt}
-                                                    onChange={event =>
-                                                      setPollPrompt(event.target.value)
+                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+                                              <div className="relative">
+                                                <MentionTextarea
+                                                  mentionItems={mentionItems}
+                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                  placeholder="Did you find this task difficult?"
+                                                  disableAutoResize
+                                                  value={pollPrompt}
+                                                  onChange={event =>
+                                                    setPollPrompt(event.target.value)
+                                                  }
+                                                />
+                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                  <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className={cn(
+                                                      'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                      showAIPoll
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'text-blue-600'
+                                                    )}
+                                                    title="Generate with Socratic AI"
+                                                    onClick={() => setShowAIPoll(!showAIPoll)}
+                                                    disabled={!activeInsightsTaskId}
+                                                  >
+                                                    <Sparkles className="h-4 w-4" />
+                                                  </Button>
+                                                  <Button
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                    disabled={
+                                                      !activeInsightsTaskId ||
+                                                      !activeInsightsTask ||
+                                                      !insightsProps.sessionId ||
+                                                      !pollPrompt.trim()
                                                     }
-                                                  />
-                                                  <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                                                    <Button
-                                                      size="icon"
-                                                      variant="ghost"
-                                                      className={cn(
-                                                        'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                        showAIPoll
-                                                          ? 'bg-blue-100 text-blue-700'
-                                                          : 'text-blue-600'
-                                                      )}
-                                                      title="Generate with Socratic AI"
-                                                      onClick={() => setShowAIPoll(!showAIPoll)}
-                                                      disabled={!activeInsightsTaskId}
-                                                    >
-                                                      <Sparkles className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                      size="icon"
-                                                      className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
-                                                      disabled={
+                                                    onClick={() => {
+                                                      if (
                                                         !activeInsightsTaskId ||
                                                         !activeInsightsTask ||
-                                                        !insightsProps.sessionId ||
-                                                        !pollPrompt.trim()
-                                                      }
-                                                      onClick={() => {
-                                                        if (
-                                                          !activeInsightsTaskId ||
-                                                          !activeInsightsTask ||
-                                                          !insightsProps.sessionId
-                                                        )
-                                                          return
-                                                        insightsProps.onSendPoll({
-                                                          taskId: currentInsightsId,
-                                                          question: pollPrompt,
-                                                        })
-                                                        setPollPrompt('')
-                                                      }}
-                                                    >
-                                                      <Send className="h-4 w-4" />
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1">
-                                                <div className="flex items-center justify-between gap-3">
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
-                                                      Scale:
-                                                    </span>
-                                                    <div className="flex gap-1">
-                                                      {[1, 2, 3, 4, 5].map(v => (
-                                                        <span
-                                                          key={v}
-                                                          className="flex h-5 w-5 items-center justify-center rounded-md border border-blue-100 bg-white text-[10px] font-medium text-blue-600 shadow-sm"
-                                                        >
-                                                          {v}
-                                                        </span>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                  <p className="max-w-[140px] truncate text-[10px] font-medium text-blue-600">
-                                                    Task:{' '}
-                                                    {activeInsightsTask?.title || 'None Selected'}
-                                                  </p>
+                                                        !insightsProps.sessionId
+                                                      )
+                                                        return
+                                                      insightsProps.onSendPoll({
+                                                        taskId: currentInsightsId,
+                                                        question: pollPrompt,
+                                                      })
+                                                      setPollPrompt('')
+                                                    }}
+                                                  >
+                                                    <Send className="h-4 w-4" />
+                                                  </Button>
                                                 </div>
                                               </div>
                                             </div>
@@ -8410,7 +8398,7 @@ FEEDBACK: [your explanation]`
 
                                           <TabsContent
                                             value="question"
-                                            className="flex flex-1 flex-col justify-end overflow-hidden pt-2 data-[state=active]:flex data-[state=inactive]:hidden"
+                                            className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
                                             {showAIQuestion ? (
                                               <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
@@ -8441,91 +8429,61 @@ FEEDBACK: [your explanation]`
                                                 }
                                               />
                                             )}
-                                            <div
-                                              className={cn(
-                                                'flex flex-col rounded-2xl border border-blue-100 bg-white/40 p-px shadow-xl backdrop-blur-md transition-all duration-300',
-                                                showAIQuestion
-                                                  ? 'h-[30%] min-h-[120px]'
-                                                  : 'h-[40%] min-h-[150px]'
-                                              )}
-                                            >
-                                              <div className="flex flex-1 flex-col space-y-0.5 p-1">
-                                                <div className="flex items-center justify-between">
-                                                  <Label className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                                                    Question prompt
-                                                  </Label>
-                                                  <span className="text-xs font-medium text-blue-600">
-                                                    {selectedContextLabel ?? 'No item selected'}
-                                                  </span>
-                                                </div>
-                                                <div className="relative flex-1">
-                                                  <MentionTextarea
-                                                    mentionItems={mentionItems}
-                                                    className="h-full min-h-[120px] w-full border-0 bg-transparent py-4 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                    placeholder="Ask your AI coach or share a reflection..."
-                                                    disableAutoResize
-                                                    value={questionPrompt}
-                                                    onChange={event =>
-                                                      setQuestionPrompt(event.target.value)
+                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+                                              <div className="relative">
+                                                <MentionTextarea
+                                                  mentionItems={mentionItems}
+                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                  placeholder="Ask your AI coach or share a reflection..."
+                                                  disableAutoResize
+                                                  value={questionPrompt}
+                                                  onChange={event =>
+                                                    setQuestionPrompt(event.target.value)
+                                                  }
+                                                />
+                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                  <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className={cn(
+                                                      'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                      showAIQuestion
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'text-blue-600'
+                                                    )}
+                                                    title="Generate with Socratic AI"
+                                                    onClick={() =>
+                                                      setShowAIQuestion(!showAIQuestion)
                                                     }
-                                                  />
-                                                  <div className="absolute bottom-3 right-3 flex items-center gap-1">
-                                                    <Button
-                                                      size="icon"
-                                                      variant="ghost"
-                                                      className={cn(
-                                                        'h-9 w-9 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                        showAIQuestion
-                                                          ? 'bg-blue-100 text-blue-700'
-                                                          : 'text-blue-600'
-                                                      )}
-                                                      title="Generate with Socratic AI"
-                                                      onClick={() =>
-                                                        setShowAIQuestion(!showAIQuestion)
-                                                      }
-                                                      disabled={!activeInsightsTaskId}
-                                                    >
-                                                      <Sparkles className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                      size="icon"
-                                                      className="h-9 w-9 rounded-xl bg-blue-600 shadow-lg hover:bg-blue-700 disabled:opacity-30"
-                                                      disabled={
+                                                    disabled={!activeInsightsTaskId}
+                                                  >
+                                                    <Sparkles className="h-4 w-4" />
+                                                  </Button>
+                                                  <Button
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                    disabled={
+                                                      !activeInsightsTaskId ||
+                                                      !activeInsightsTask ||
+                                                      !insightsProps.sessionId ||
+                                                      !questionPrompt.trim()
+                                                    }
+                                                    onClick={() => {
+                                                      if (
                                                         !activeInsightsTaskId ||
                                                         !activeInsightsTask ||
-                                                        !insightsProps.sessionId ||
-                                                        !questionPrompt.trim()
-                                                      }
-                                                      onClick={() => {
-                                                        if (
-                                                          !activeInsightsTaskId ||
-                                                          !activeInsightsTask ||
-                                                          !insightsProps.sessionId
-                                                        )
-                                                          return
-                                                        insightsProps.onSendQuestion({
-                                                          taskId: currentInsightsId,
-                                                          prompt: questionPrompt,
-                                                        })
-                                                        setQuestionPrompt('')
-                                                      }}
-                                                    >
-                                                      <Send className="h-4 w-4" />
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              <div className="border-t border-blue-50/50 bg-blue-50/20 px-1 py-1 text-[10px]">
-                                                <div className="flex items-center justify-between">
-                                                  <p className="font-medium text-blue-600">
-                                                    Topic: {activeInsightsTask?.title || 'General'}
-                                                  </p>
-                                                  <Badge
-                                                    variant="outline"
-                                                    className="border-blue-200 bg-white/50 text-blue-700"
+                                                        !insightsProps.sessionId
+                                                      )
+                                                        return
+                                                      insightsProps.onSendQuestion({
+                                                        taskId: currentInsightsId,
+                                                        prompt: questionPrompt,
+                                                      })
+                                                      setQuestionPrompt('')
+                                                    }}
                                                   >
-                                                    AI Integrated
-                                                  </Badge>
+                                                    <Send className="h-4 w-4" />
+                                                  </Button>
                                                 </div>
                                               </div>
                                             </div>
