@@ -1211,6 +1211,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
+    const [analyticsNoteMap, setAnalyticsNoteMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
 
@@ -1278,6 +1279,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
     const setQuestionPrompt = (val: string) =>
       setQuestionPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    const analyticsNote = analyticsNoteMap[currentInsightsId] ?? ''
+    const setAnalyticsNote = (val: string) =>
+      setAnalyticsNoteMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const mentionItems: MentionItem[] = useMemo(() => {
       const items: MentionItem[] = []
@@ -7854,39 +7859,67 @@ FEEDBACK: [your explanation]`
                                         }
                                         className="flex h-full min-h-0 flex-col"
                                       >
-                                        <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-blue-100 p-1 shadow-none">
+                                        <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-white p-1 shadow-none">
                                           <TabsTrigger
                                             value="analytics"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                           >
                                             Analytics
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="poll"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                           >
                                             Poll
                                           </TabsTrigger>
                                           <TabsTrigger
                                             value="question"
-                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                            className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
                                           >
                                             Question
                                           </TabsTrigger>
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="h-full flex-1 overflow-auto data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
-                                          <AnalyticsPanel
-                                            students={insightsProps.students}
-                                            metrics={insightsProps.metrics}
-                                            liveTasks={insightsProps.liveTasks}
-                                            classDuration={insightsProps.classDuration}
-                                            isRecording={insightsProps.isRecording}
-                                            recordingDuration={insightsProps.recordingDuration}
-                                            sessionId={insightsProps.sessionId}
-                                          />
+                                          <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                            <AnalyticsPanel
+                                              students={insightsProps.students}
+                                              metrics={insightsProps.metrics}
+                                              liveTasks={insightsProps.liveTasks}
+                                              classDuration={insightsProps.classDuration}
+                                              isRecording={insightsProps.isRecording}
+                                              recordingDuration={insightsProps.recordingDuration}
+                                              sessionId={insightsProps.sessionId}
+                                            />
+                                          </div>
+                                          <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+                                            <div className="relative">
+                                              <MentionTextarea
+                                                mentionItems={mentionItems}
+                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder="Add a note or reflection..."
+                                                disableAutoResize
+                                                value={analyticsNote}
+                                                onChange={event =>
+                                                  setAnalyticsNote(event.target.value)
+                                                }
+                                              />
+                                              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                <Button
+                                                  size="icon"
+                                                  className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                  disabled={!analyticsNote.trim()}
+                                                  onClick={() => {
+                                                    setAnalyticsNote('')
+                                                  }}
+                                                >
+                                                  <Send className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
                                         </TabsContent>
                                         <TabsContent
                                           value="poll"
@@ -7903,12 +7936,12 @@ FEEDBACK: [your explanation]`
                                               )
                                             }
                                           />
-                                          <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                          <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                             <div className="relative">
                                               <MentionTextarea
                                                 mentionItems={mentionItems}
-                                                className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                placeholder="What should students answer?"
+                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                placeholder="Did you find this task difficult?"
                                                 disableAutoResize
                                                 value={pollPrompt}
                                                 onChange={event =>
@@ -7975,11 +8008,11 @@ FEEDBACK: [your explanation]`
                                               )
                                             }
                                           />
-                                          <div className="rounded-2xl border border-blue-100 bg-white/40 p-2 shadow-xl backdrop-blur-md">
+                                          <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                             <div className="relative">
                                               <MentionTextarea
                                                 mentionItems={mentionItems}
-                                                className="min-h-[110px] w-full border-0 bg-transparent py-3 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="Ask your AI coach or share a reflection..."
                                                 disableAutoResize
                                                 value={questionPrompt}
