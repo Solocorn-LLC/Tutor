@@ -977,9 +977,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Main builder tab (task vs assessment)
     const [mainBuilderTab, setMainBuilderTab] = useState<'task' | 'assessment'>('task')
 
+    // Notify the parent ONLY of locally-originated tab changes. When the change
+    // came FROM the parent (prop → local via the sync effect below), local
+    // already equals mainTabProp, so we must NOT echo it back up — that echo is
+    // what looped the controlled/uncontrolled tab forever (React #185, seen on
+    // DMI load which drives the tab to 'test-pci' from the parent).
     useEffect(() => {
+      if (mainTabProp !== undefined && mainTab === mainTabProp) return
       onMainTabChange?.(mainTab)
-    }, [mainTab, onMainTabChange])
+    }, [mainTab, mainTabProp, onMainTabChange])
 
     // Reset builder to blank slate whenever the builder tab is clicked
     useEffect(() => {
@@ -1595,7 +1601,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           console.error('Error saving tutor assets:', error)
         }
       },
-      [insightsProps]
+      // No reactive deps: the callback only reads its `assets` argument and the
+      // module-level fetchWithCsrf. A stale `[insightsProps]` here re-created the
+      // callback every render and needlessly re-armed the debounced save timer.
+      []
     )
 
     // Debounced assets save
@@ -1625,33 +1634,55 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (!loadedTaskId) return
 
       const timeoutId = setTimeout(() => {
-        setCourseBuilderNodes(prev =>
-          prev.map(mod => ({
+        // Equality-guarded write: if nothing about the loaded task actually
+        // changed, return `prev` unchanged so `nodes` keeps its identity. A new
+        // identity would trip the live-session edit detector (setHasUnsyncedChanges
+        // -> onUnsyncedChangesChange -> parent re-render -> new insightsProps ->
+        // re-render -> re-arm), which with DMI items present never converges and
+        // throws React #185 (max update depth).
+        setCourseBuilderNodes(prev => {
+          let changed = false
+          const next = prev.map(mod => ({
             ...mod,
             lessons: mod.lessons.map(lesson => ({
               ...lesson,
-              tasks: lesson.tasks.map(task =>
-                task.id === loadedTaskId
-                  ? {
-                      ...task,
-                      title: taskBuilder.title,
-                      shortDescription: taskBuilder.details,
-                      description: taskBuilder.taskContent,
-                      instructions: taskBuilder.taskPci,
-                      extensions: taskBuilder.extensions,
-                      dmiItems: taskDmiItems,
-                      dmiVersions: taskDmiVersions,
-                      activeDmiVersionId:
-                        testPciSource === 'task' && testPciViewMode.startsWith('dmi_')
-                          ? testPciViewMode.replace('dmi_', '')
-                          : task.activeDmiVersionId,
-                      sourceDocument: taskBuilder.sourceDocument,
-                    }
-                  : task
-              ),
+              tasks: lesson.tasks.map(task => {
+                if (task.id !== loadedTaskId) return task
+                const nextActiveDmiVersionId =
+                  testPciSource === 'task' && testPciViewMode.startsWith('dmi_')
+                    ? testPciViewMode.replace('dmi_', '')
+                    : task.activeDmiVersionId
+                if (
+                  task.title === taskBuilder.title &&
+                  task.shortDescription === taskBuilder.details &&
+                  task.description === taskBuilder.taskContent &&
+                  task.instructions === taskBuilder.taskPci &&
+                  task.extensions === taskBuilder.extensions &&
+                  task.dmiItems === taskDmiItems &&
+                  task.dmiVersions === taskDmiVersions &&
+                  task.activeDmiVersionId === nextActiveDmiVersionId &&
+                  task.sourceDocument === taskBuilder.sourceDocument
+                ) {
+                  return task
+                }
+                changed = true
+                return {
+                  ...task,
+                  title: taskBuilder.title,
+                  shortDescription: taskBuilder.details,
+                  description: taskBuilder.taskContent,
+                  instructions: taskBuilder.taskPci,
+                  extensions: taskBuilder.extensions,
+                  dmiItems: taskDmiItems,
+                  dmiVersions: taskDmiVersions,
+                  activeDmiVersionId: nextActiveDmiVersionId,
+                  sourceDocument: taskBuilder.sourceDocument,
+                }
+              }),
             })),
           }))
-        )
+          return changed ? next : prev
+        })
       }, 1000) // Auto-save after 1 second of inactivity
 
       return () => clearTimeout(timeoutId)
@@ -1675,31 +1706,49 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (!loadedAssessmentId) return
 
       const timeoutId = setTimeout(() => {
-        setCourseBuilderNodes(prev =>
-          prev.map(mod => ({
+        // Equality-guarded write — see the task auto-save above. Returning `prev`
+        // when the assessment is unchanged keeps `nodes` identity stable and
+        // prevents the live-session unsynced-changes feedback loop (React #185)
+        // that fires once a loaded DMI has items.
+        setCourseBuilderNodes(prev => {
+          let changed = false
+          const next = prev.map(mod => ({
             ...mod,
             lessons: mod.lessons.map(lesson => ({
               ...lesson,
-              homework: lesson.homework.map(hw =>
-                hw.id === loadedAssessmentId
-                  ? {
-                      ...hw,
-                      title: assessmentBuilder.title,
-                      description: assessmentBuilder.taskContent,
-                      instructions: assessmentBuilder.taskPci,
-                      dmiItems: assessmentDmiItems,
-                      dmiVersions: assessmentDmiVersions,
-                      activeDmiVersionId:
-                        testPciSource === 'assessment' && testPciViewMode.startsWith('dmi_')
-                          ? testPciViewMode.replace('dmi_', '')
-                          : hw.activeDmiVersionId,
-                      sourceDocument: assessmentBuilder.sourceDocument,
-                    }
-                  : hw
-              ),
+              homework: lesson.homework.map(hw => {
+                if (hw.id !== loadedAssessmentId) return hw
+                const nextActiveDmiVersionId =
+                  testPciSource === 'assessment' && testPciViewMode.startsWith('dmi_')
+                    ? testPciViewMode.replace('dmi_', '')
+                    : hw.activeDmiVersionId
+                if (
+                  hw.title === assessmentBuilder.title &&
+                  hw.description === assessmentBuilder.taskContent &&
+                  hw.instructions === assessmentBuilder.taskPci &&
+                  hw.dmiItems === assessmentDmiItems &&
+                  hw.dmiVersions === assessmentDmiVersions &&
+                  hw.activeDmiVersionId === nextActiveDmiVersionId &&
+                  hw.sourceDocument === assessmentBuilder.sourceDocument
+                ) {
+                  return hw
+                }
+                changed = true
+                return {
+                  ...hw,
+                  title: assessmentBuilder.title,
+                  description: assessmentBuilder.taskContent,
+                  instructions: assessmentBuilder.taskPci,
+                  dmiItems: assessmentDmiItems,
+                  dmiVersions: assessmentDmiVersions,
+                  activeDmiVersionId: nextActiveDmiVersionId,
+                  sourceDocument: assessmentBuilder.sourceDocument,
+                }
+              }),
             })),
           }))
-        )
+          return changed ? next : prev
+        })
       }, 1000) // Auto-save after 1 second of inactivity
 
       return () => clearTimeout(timeoutId)
@@ -2732,7 +2781,13 @@ FEEDBACK: [your explanation]`
       setTestPciSource(type)
       setTestPciViewMode(`dmi_${version.id}`)
       setTestPciActiveTab('classroom')
+      // Switch to the Test tab. Notify the parent route in the SAME batch as the
+      // local setMainTab so the controlled `mainTab` prop and local state never
+      // desync — otherwise the local→parent (effect 981) and parent→local
+      // (effect 1867) sync effects run with opposite stale values and swap the
+      // tab back and forth forever (React #185 "Maximum update depth exceeded").
       setMainTab('test-pci')
+      onMainTabChange?.('test-pci')
 
       toast.success(`Loaded DMI version ${version.versionNumber}`)
     }

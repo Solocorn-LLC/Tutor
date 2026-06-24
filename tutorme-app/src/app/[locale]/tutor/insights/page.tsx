@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { CourseBuilderInsightsRoute } from '../courses/components/CourseBuilderInsightsRoute'
+import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
+import { recordDiag } from '@/lib/insights-diag'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -1220,86 +1222,98 @@ function TutorInsightsPageInner() {
 
   const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
 
+  // TEMP diagnostic: trace each page render to find the #185 driver.
+  recordDiag({
+    src: 'page',
+    courseId,
+    saveMode,
+    sessionId,
+    nCourses: courses.length,
+    nDraft: draftCourses.length,
+  })
+
   return (
     <div className="flex min-h-screen w-full flex-col items-stretch bg-gray-50">
-      <CourseBuilderInsightsRoute
-        courseId={courseId}
-        dataMode={dataMode}
-        detachedStorageKey={
-          dataMode === 'detached' ? `insights-course-builder:${courseId}` : undefined
-        }
-        detachedCourseName={dataMode === 'detached' ? detachedCourseName : undefined}
-        insightsProps={{
-          courseId,
-          courses: courses.map(course => ({
-            id: course.id,
-            name: course.name,
-            categories: course.categories,
-            isPublished: course.isPublished,
-            nationality: course.nationality,
-            variantCategory: course.variantCategory,
-          })),
-          onCourseChange: value => {
-            setCourseId(value)
-            const isDraftCourse = draftCourses.some(course => course.id === value)
-            // Only auto-switch to draft mode for draft courses.
-            // Live courses can be edited in either mode, so keep the current mode.
-            if (!sessionId && isDraftCourse) {
-              setSaveMode('draft')
-            }
+      <PanelErrorBoundary label="the insights builder" showStack resetKeys={[courseId, saveMode]}>
+        <CourseBuilderInsightsRoute
+          courseId={courseId}
+          dataMode={dataMode}
+          detachedStorageKey={
+            dataMode === 'detached' ? `insights-course-builder:${courseId}` : undefined
+          }
+          detachedCourseName={dataMode === 'detached' ? detachedCourseName : undefined}
+          insightsProps={{
+            courseId,
+            courses: courses.map(course => ({
+              id: course.id,
+              name: course.name,
+              categories: course.categories,
+              isPublished: course.isPublished,
+              nationality: course.nationality,
+              variantCategory: course.variantCategory,
+            })),
+            onCourseChange: value => {
+              setCourseId(value)
+              const isDraftCourse = draftCourses.some(course => course.id === value)
+              // Only auto-switch to draft mode for draft courses.
+              // Live courses can be edited in either mode, so keep the current mode.
+              if (!sessionId && isDraftCourse) {
+                setSaveMode('draft')
+              }
 
-            const match = [...courses, ...draftCourses].find(course => course.id === value)
-            if (match) {
-              setDetachedCourseName(match.name)
-            }
-          },
-          sessionId,
-          sessions,
-          onSessionChange: setSessionId,
-          liveTasks,
-          liveSubmissions,
-          // Only expose deploy inside a live session — the deploy buttons gate
-          // on this callback, so hiding it prevents "deploying" from the plain
-          // builder (where the emit would be silently dropped, no session/room).
-          onDeployTask: sessionId ? handleDeployTask : undefined,
-          onSendPoll: handleSendPoll,
-          onSendQuestion: handleSendQuestion,
-          students,
-          metrics,
-          classDuration,
-          isRecording,
-          recordingDuration: recordingDurationSeconds,
-          onToggleRecording: handleToggleRecording,
-          socket,
-          studentBoards,
-          tutorId: session?.user?.id,
-          tutorName: session?.user?.name || 'Tutor',
-        }}
-        sessionCategory={sessionCategory}
-        sessionNationality={sessionNationality}
-        sessionVariantName={sessionVariantName}
-        onSaveCourse={handleSave}
-        onSyncToLiveSession={handleSyncToLiveSession}
-        onCreateCourse={() => setIsCreateDialogOpen(true)}
-        onDeleteCourse={() => setIsDeleteDialogOpen(true)}
-        isCreateDialogOpen={isCreateDialogOpen}
-        setIsCreateDialogOpen={setIsCreateDialogOpen}
-        newCourseName={newCourseName}
-        setNewCourseName={setNewCourseName}
-        onCreateNewCourse={handleCreateNewCourse}
-        isDeleteDialogOpen={isDeleteDialogOpen}
-        setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-        onDeleteCourseConfirm={handleDeleteCourse}
-        courses={courses}
-        draftCourses={draftCourses.filter(
-          draft => !courses.some(live => live.name.startsWith(draft.name + ' —'))
-        )}
-        courseName={courseName}
-        onCourseNameChange={handleCourseNameChange}
-        saveMode={saveMode}
-        onSaveModeChange={handleModeChange}
-        modeLocked={false}
-      />
+              const match = [...courses, ...draftCourses].find(course => course.id === value)
+              if (match) {
+                setDetachedCourseName(match.name)
+              }
+            },
+            sessionId,
+            sessions,
+            onSessionChange: setSessionId,
+            liveTasks,
+            liveSubmissions,
+            // Only expose deploy inside a live session — the deploy buttons gate
+            // on this callback, so hiding it prevents "deploying" from the plain
+            // builder (where the emit would be silently dropped, no session/room).
+            onDeployTask: sessionId ? handleDeployTask : undefined,
+            onSendPoll: handleSendPoll,
+            onSendQuestion: handleSendQuestion,
+            students,
+            metrics,
+            classDuration,
+            isRecording,
+            recordingDuration: recordingDurationSeconds,
+            onToggleRecording: handleToggleRecording,
+            socket,
+            studentBoards,
+            tutorId: session?.user?.id,
+            tutorName: session?.user?.name || 'Tutor',
+          }}
+          sessionCategory={sessionCategory}
+          sessionNationality={sessionNationality}
+          sessionVariantName={sessionVariantName}
+          onSaveCourse={handleSave}
+          onSyncToLiveSession={handleSyncToLiveSession}
+          onCreateCourse={() => setIsCreateDialogOpen(true)}
+          onDeleteCourse={() => setIsDeleteDialogOpen(true)}
+          isCreateDialogOpen={isCreateDialogOpen}
+          setIsCreateDialogOpen={setIsCreateDialogOpen}
+          newCourseName={newCourseName}
+          setNewCourseName={setNewCourseName}
+          onCreateNewCourse={handleCreateNewCourse}
+          isDeleteDialogOpen={isDeleteDialogOpen}
+          setIsDeleteDialogOpen={setIsDeleteDialogOpen}
+          onDeleteCourseConfirm={handleDeleteCourse}
+          courses={courses}
+          draftCourses={draftCourses.filter(
+            draft => !courses.some(live => live.name.startsWith(draft.name + ' —'))
+          )}
+          courseName={courseName}
+          onCourseNameChange={handleCourseNameChange}
+          saveMode={saveMode}
+          onSaveModeChange={handleModeChange}
+          modeLocked={false}
+        />
+      </PanelErrorBoundary>
 
       {/* Create New Course Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

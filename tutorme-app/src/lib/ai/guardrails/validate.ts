@@ -53,6 +53,12 @@ export interface TaskValidationContext {
   sourceContent?: string
   /** Whether this turn is meant to finalize the PCI (vs. summarize/confirm). */
   finalizing?: boolean
+  /**
+   * The finalized rubric the assistant produced this turn (the `pci` from the
+   * {reply,pci} envelope), if any. Fabrication checks run against this too — it's
+   * the binding artifact, not just the conversational chat reply.
+   */
+  finalizedPci?: string
 }
 
 /**
@@ -64,7 +70,11 @@ export function validateTaskPciOutput(
   ctx: TaskValidationContext = {}
 ): GuardrailViolation[] {
   const violations: GuardrailViolation[] = []
-  const text = responseText || ''
+  const reply = responseText || ''
+  // Fabrication/certainty checks run over the conversational reply AND the
+  // finalized rubric (the binding artifact lives in `finalizedPci` now, not in
+  // the chat reply), so an invented policy is caught wherever it appears.
+  const text = [reply, ctx.finalizedPci || ''].filter(Boolean).join('\n')
   const source = (ctx.sourceContent || '').toLowerCase()
 
   // TASK-3/11/13: fabricated evaluation policy not grounded in tutor source.
@@ -94,26 +104,25 @@ export function validateTaskPciOutput(
     }
   }
 
-  // TASK-15: when finalizing, the stable sections should be present.
-  if (ctx.finalizing) {
-    const hasSummary = /pci summary/i.test(text)
-    const hasSpec = /final pci specification|pci specification/i.test(text)
-    if (!hasSummary) {
-      violations.push({
-        ruleId: 'TASK-4',
-        severity: 'warning',
-        message:
-          'No "PCI Summary" section detected before finalization (Transparency/Output Structure).',
-      })
-    }
-    if (!hasSpec) {
-      violations.push({
-        ruleId: 'TASK-15',
-        severity: 'warning',
-        message:
-          'No "Final PCI Specification" section detected in a finalizing turn (Output Structure).',
-      })
-    }
+  // TASK-15 (Output Structure): the chat reply must stay conversational — the
+  // machine spec belongs in the `pci` field, never dumped into the chat.
+  if (/```|"task_title"|"final_pci"|^\s*\{\s*"reply"/im.test(reply)) {
+    violations.push({
+      ruleId: 'TASK-15',
+      severity: 'warning',
+      message:
+        'Chat reply contains raw JSON/spec content; it should be conversational only (the finalized rubric belongs in the PCI field).',
+    })
+  }
+
+  // TASK-15: a finalizing turn should actually produce a finalized rubric.
+  if (ctx.finalizing && !(ctx.finalizedPci || '').trim()) {
+    violations.push({
+      ruleId: 'TASK-15',
+      severity: 'warning',
+      message:
+        'Finalizing turn produced no finalized rubric (pci was empty) — confirm whether the tutor intended to finalize.',
+    })
   }
 
   return violations

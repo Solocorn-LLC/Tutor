@@ -30,10 +30,32 @@ describe('task PCI validator (warn-only)', () => {
     expect(v.some(x => x.ruleId === 'TASK-10')).toBe(true)
   })
 
-  it('flags missing PCI Summary / Final PCI Specification on a finalizing turn', () => {
-    const v = validateTaskPciOutput('Here is some guidance.', { finalizing: true })
-    expect(v.some(x => x.ruleId === 'TASK-4')).toBe(true)
+  it('flags a finalizing turn that produced no finalized rubric (empty pci)', () => {
+    const v = validateTaskPciOutput('Okay, finalized!', { finalizing: true, finalizedPci: '' })
     expect(v.some(x => x.ruleId === 'TASK-15')).toBe(true)
+  })
+
+  it('does not flag a finalizing turn that produced a rubric', () => {
+    const v = validateTaskPciOutput('Done — applied your rubric.', {
+      finalizing: true,
+      finalizedPci: 'Correct: identifies all roles. Retry: unspecified.',
+    })
+    expect(v.some(x => x.ruleId === 'TASK-15')).toBe(false)
+  })
+
+  it('flags a chat reply that leaks raw JSON/spec instead of staying conversational', () => {
+    const v = validateTaskPciOutput('{"reply":"hi","pci":"..."}', {})
+    expect(v.some(x => x.ruleId === 'TASK-15')).toBe(true)
+  })
+
+  it('scans the finalized rubric (not just the chat reply) for fabricated policy', () => {
+    const v = validateTaskPciOutput('Sounds good!', {
+      finalizing: true,
+      finalizedPci: 'Students get 3 retries before the answer is revealed.',
+    })
+    // a fabricated retry policy in the rubric is caught even though the chat
+    // reply itself is clean
+    expect(v.length).toBeGreaterThan(0)
   })
 })
 

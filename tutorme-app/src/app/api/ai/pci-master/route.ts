@@ -307,6 +307,7 @@ export async function POST(request: NextRequest) {
       guardrailWarnings = runTaskGuardrails(response.response, {
         sourceContent: context?.content,
         finalizing,
+        finalizedPci: pciDraft,
       }).violations
       if (guardrailWarnings.length > 0) {
         console.warn(
