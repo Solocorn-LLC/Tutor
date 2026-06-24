@@ -977,15 +977,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Main builder tab (task vs assessment)
     const [mainBuilderTab, setMainBuilderTab] = useState<'task' | 'assessment'>('task')
 
-    // Notify the parent ONLY of locally-originated tab changes. When the change
-    // came FROM the parent (prop → local via the sync effect below), local
-    // already equals mainTabProp, so we must NOT echo it back up — that echo is
-    // what looped the controlled/uncontrolled tab forever (React #185, seen on
-    // DMI load which drives the tab to 'test-pci' from the parent).
-    useEffect(() => {
-      if (mainTabProp !== undefined && mainTab === mainTabProp) return
-      onMainTabChange?.(mainTab)
-    }, [mainTab, mainTabProp, onMainTabChange])
+    // NOTE: we deliberately do NOT auto-notify the parent of `mainTab` from an
+    // effect. The parent (route) is the source of truth; it flows `mainTab` down
+    // as a prop and we mirror it locally via the sync effect below. Every genuine
+    // LOCAL change already notifies the parent directly at its action site (the
+    // Tabs onValueChange and the DMI-load handler both call onMainTabChange).
+    // An automatic effect that pushed local→parent raced the parent→local sync
+    // one render apart and ping-ponged the tab forever (React #185 — first
+    // builder↔test-pci, then test-pci↔live). Direct-notify-only breaks the race.
 
     // Reset builder to blank slate whenever the builder tab is clicked
     useEffect(() => {
