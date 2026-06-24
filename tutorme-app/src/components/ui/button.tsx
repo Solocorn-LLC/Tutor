@@ -27,7 +27,7 @@ const buttonVariants = cva(
         default: [
           'bg-primary text-primary-foreground',
           'shadow-elevation-2',
-          'hover:shadow-hover-lift hover:-translate-y-0.5',
+          'hover:shadow-hover-lift',
           'hover:bg-primary/95',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -37,7 +37,7 @@ const buttonVariants = cva(
           'from-primary to-primary-300 bg-gradient-to-r',
           'text-primary-foreground',
           'shadow-elevation-2',
-          'hover:shadow-hover-lift hover:-translate-y-0.5',
+          'hover:shadow-hover-lift',
           'hover:from-primary-400 hover:to-primary-200',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -46,7 +46,7 @@ const buttonVariants = cva(
         secondary: [
           'bg-secondary text-secondary-foreground',
           'shadow-elevation-1',
-          'hover:shadow-elevation-2 hover:-translate-y-0.5',
+          'hover:shadow-elevation-2',
           'hover:bg-secondary/95',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -56,7 +56,7 @@ const buttonVariants = cva(
           'from-secondary to-secondary-300 bg-gradient-to-r',
           'text-secondary-foreground',
           'shadow-elevation-1',
-          'hover:shadow-elevation-2 hover:-translate-y-0.5',
+          'hover:shadow-elevation-2',
           'hover:from-secondary-400 hover:to-secondary-200',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -89,7 +89,7 @@ const buttonVariants = cva(
         accent: [
           'bg-accent text-accent-foreground',
           'shadow-elevation-1',
-          'hover:shadow-elevation-2 hover:-translate-y-0.5',
+          'hover:shadow-elevation-2',
           'hover:bg-accent/90',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -98,7 +98,7 @@ const buttonVariants = cva(
         destructive: [
           'bg-destructive text-destructive-foreground',
           'shadow-elevation-1',
-          'hover:shadow-elevation-2 hover:-translate-y-0.5',
+          'hover:shadow-elevation-2',
           'hover:bg-destructive/90',
           'active:shadow-active-press active:translate-y-0',
         ],
@@ -201,7 +201,7 @@ const buttonVariants = cva(
           'bg-card text-card-foreground',
           'border-border/30 border',
           'shadow-elevation-2',
-          'hover:shadow-hover-lift hover:-translate-y-0.5',
+          'hover:shadow-hover-lift',
           'active:shadow-active-press active:translate-y-0',
         ],
 
