@@ -2775,7 +2775,13 @@ FEEDBACK: [your explanation]`
       setTestPciSource(type)
       setTestPciViewMode(`dmi_${version.id}`)
       setTestPciActiveTab('classroom')
+      // Switch to the Test tab. Notify the parent route in the SAME batch as the
+      // local setMainTab so the controlled `mainTab` prop and local state never
+      // desync — otherwise the local→parent (effect 981) and parent→local
+      // (effect 1867) sync effects run with opposite stale values and swap the
+      // tab back and forth forever (React #185 "Maximum update depth exceeded").
       setMainTab('test-pci')
+      onMainTabChange?.('test-pci')
 
       toast.success(`Loaded DMI version ${version.versionNumber}`)
     }
