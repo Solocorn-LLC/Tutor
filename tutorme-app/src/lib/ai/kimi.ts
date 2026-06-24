@@ -42,6 +42,10 @@ const KIMI_BASE_URL = (process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1'
   ''
 )
 const DEFAULT_MODEL = process.env.KIMI_MODEL || 'kimi-k2.5'
+// Image (vision) calls need a vision-capable model, which Moonshot exposes as
+// separate *-vision-preview models. Configurable so a different platform/region
+// can use its own vision model name; defaults to the standard Moonshot one.
+const VISION_MODEL = process.env.KIMI_VISION_MODEL || 'moonshot-v1-8k-vision-preview'
 
 /**
  * Generate text using Kimi K2.5
@@ -309,7 +313,7 @@ export async function generateWithKimiVision(
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: options.model || 'moonshot-v1-8k-vision-preview',
+          model: options.model || VISION_MODEL,
           messages,
           temperature: options.temperature ?? 0.7,
           max_tokens: options.maxTokens ?? 2048,
