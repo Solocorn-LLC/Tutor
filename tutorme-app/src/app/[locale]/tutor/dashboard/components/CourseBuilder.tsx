@@ -8108,7 +8108,14 @@ FEEDBACK: [your explanation]`
                 {mainTab !== 'builder' && (
                   <Card
                     padding="none"
-                    className="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+                    className={cn(
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
+                      mainTab === 'live'
+                        ? 'border border-orange-200'
+                        : mainTab === 'test-pci'
+                          ? 'border border-purple-200'
+                          : 'border border-[#E5E7EB]'
+                    )}
                   >
                     <div
                       className={cn(
@@ -8856,7 +8863,14 @@ FEEDBACK: [your explanation]`
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
-                                <div className="mt-1 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                <div
+                                  className={cn(
+                                    'mt-1 w-full rounded-2xl bg-white/90 backdrop-blur-md transition-all duration-300',
+                                    mainTab === 'live'
+                                      ? 'border border-orange-300'
+                                      : 'border border-purple-300'
+                                  )}
+                                >
                                   <div className="relative flex w-full flex-col p-px">
                                     <div className="flex w-full flex-col">
                                       <MentionTextarea
@@ -9173,7 +9187,7 @@ FEEDBACK: [your explanation]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm"
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9511,7 +9525,7 @@ FEEDBACK: [your explanation]`
                                       value="pci"
                                       className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="flex h-full min-h-0 flex-col rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+                                      <div className="flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
                                         <div className="flex-1 space-y-4 overflow-y-auto p-1">
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
@@ -9571,7 +9585,7 @@ FEEDBACK: [your explanation]`
                                           <GuardrailWarningsBanner
                                             warnings={taskPciGuardrailWarnings}
                                           />
-                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                          <div className="mt-2 w-full rounded-2xl border border-blue-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
@@ -9668,7 +9682,7 @@ FEEDBACK: [your explanation]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm"
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-purple-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9944,7 +9958,7 @@ FEEDBACK: [your explanation]`
                                       value="pci"
                                       className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-purple-200 bg-white p-4 shadow-sm">
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
@@ -10075,7 +10089,7 @@ FEEDBACK: [your explanation]`
                                               ] || []
                                             }
                                           />
-                                          <div className="mt-2 w-full rounded-2xl border border-cyan-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                          <div className="mt-2 w-full rounded-2xl border border-purple-300 bg-white/90 backdrop-blur-md transition-all duration-300">
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
