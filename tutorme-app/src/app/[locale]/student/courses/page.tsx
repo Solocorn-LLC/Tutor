@@ -51,6 +51,15 @@ import { cn, resolvePublicUrl } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
+function stringToColor(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const c = (hash & 0x00ffffff).toString(16).toUpperCase()
+  return '#' + '00000'.substring(0, 6 - c.length) + c
+}
+
 interface Course {
   id: string
   name: string
@@ -59,6 +68,7 @@ interface Course {
   subject: string
   difficulty: string
   estimatedHours: number
+  tutorName?: string | null
   tutorHandle?: string | null
   tutorImage?: string | null
   tutorAvatar?: string | null
@@ -1103,20 +1113,34 @@ function CourseCard({
                 : course.tutorImage
                   ? resolvePublicUrl(course.tutorImage)
                   : null
-              return tutorImageUrl ? (
-                <img
-                  src={tutorImageUrl}
-                  alt={course.tutorHandle || 'Tutor'}
-                  className="h-16 w-16 rounded-xl border border-[rgba(255,255,255,0.15)] object-cover"
-                  onError={e => {
-                    const img = e.target as HTMLImageElement
-                    img.style.display = 'none'
-                    img.nextElementSibling?.classList.remove('hidden')
-                  }}
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.1)]">
-                  <User className="h-8 w-8 text-slate-300" />
+              const initials = course.tutorHandle
+                ? course.tutorHandle.slice(1, 3).toUpperCase()
+                : course.tutorName
+                  ? course.tutorName.slice(0, 2).toUpperCase()
+                  : 'T'
+              const bgColor = stringToColor(course.tutorHandle || course.tutorName || 'tutor')
+              return (
+                <div className="relative h-16 w-16">
+                  {tutorImageUrl && (
+                    <img
+                      src={tutorImageUrl}
+                      alt={course.tutorHandle || 'Tutor'}
+                      className="absolute inset-0 h-full w-full rounded-xl border border-[rgba(255,255,255,0.15)] object-cover"
+                      onError={e => {
+                        const img = e.target as HTMLImageElement
+                        img.style.display = 'none'
+                      }}
+                    />
+                  )}
+                  <div
+                    className={cn(
+                      'flex h-full w-full items-center justify-center rounded-xl border border-[rgba(255,255,255,0.15)]',
+                      tutorImageUrl ? 'hidden' : 'flex'
+                    )}
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    <span className="text-sm font-bold text-white">{initials}</span>
+                  </div>
                 </div>
               )
             })()}
