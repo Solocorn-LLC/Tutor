@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
+import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
 import { toast } from 'sonner'
 import type { CourseBuilderInsightsProps } from './course-builder-types'
@@ -1016,31 +1017,33 @@ function CourseBuilderInsightsRouteInner({
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
           </div>
         ) : (
-          <CourseBuilder
-            ref={model.courseBuilderRef}
-            courseId={courseId ?? ''}
-            courseName={courseName || model.course?.name}
-            courseDescription={model.course?.description ?? undefined}
-            initialLessons={model.loadedLessons ?? undefined}
-            hideDirectorySearch
-            directoryMenusAlwaysVisible
-            onSave={onSaveCourse}
-            insightsProps={{
-              ...insightsProps,
-              onEndSession: insightsProps.sessionId ? handleEndSession : undefined,
-              onStartSession: handleStartSessionClick,
-              endingSession,
-            }}
-            onMainTabChange={handleMainTabChange}
-            initialMainTab={isClassroomMode ? 'live' : (tabFromUrl ?? 'builder')}
-            mainTab={activeMainTab}
-            leftPanelHidden={leftPanelHidden}
-            onLeftPanelHiddenChange={setLeftPanelHidden}
-            saveMode={saveMode}
-            onSaveModeChange={onSaveModeChange}
-            onSyncToLiveSession={onSyncToLiveSession}
-            onUnsyncedChangesChange={setHasUnsyncedChanges}
-          />
+          <PanelErrorBoundary label="the course builder" resetKeys={[courseId, activeMainTab]}>
+            <CourseBuilder
+              ref={model.courseBuilderRef}
+              courseId={courseId ?? ''}
+              courseName={courseName || model.course?.name}
+              courseDescription={model.course?.description ?? undefined}
+              initialLessons={model.loadedLessons ?? undefined}
+              hideDirectorySearch
+              directoryMenusAlwaysVisible
+              onSave={onSaveCourse}
+              insightsProps={{
+                ...insightsProps,
+                onEndSession: insightsProps.sessionId ? handleEndSession : undefined,
+                onStartSession: handleStartSessionClick,
+                endingSession,
+              }}
+              onMainTabChange={handleMainTabChange}
+              initialMainTab={isClassroomMode ? 'live' : (tabFromUrl ?? 'builder')}
+              mainTab={activeMainTab}
+              leftPanelHidden={leftPanelHidden}
+              onLeftPanelHiddenChange={setLeftPanelHidden}
+              saveMode={saveMode}
+              onSaveModeChange={onSaveModeChange}
+              onSyncToLiveSession={onSyncToLiveSession}
+              onUnsyncedChangesChange={setHasUnsyncedChanges}
+            />
+          </PanelErrorBoundary>
         )}
 
         {!model.loading && courseId && (
