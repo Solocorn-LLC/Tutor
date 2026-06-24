@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Badge } from '@/components/ui/badge'
-import { Users, MessageSquare, Clock, Radio, Smile, CheckCircle2, ListChecks } from 'lucide-react'
+import { Users, MessageSquare, CheckCircle2, Smile, ListChecks } from 'lucide-react'
 import type { LiveTask } from '@/lib/socket/socket-types'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 
@@ -89,54 +89,7 @@ export function AnalyticsPanel({
   }, [liveTasks, totalStudents])
 
   return (
-    <div className="flex flex-col space-y-4 px-1 pb-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        {sessionId && (
-          <Badge variant="outline" className="text-[10px]">
-            Session: {sessionId.slice(0, 8)}…
-          </Badge>
-        )}
-        <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-          <Clock className="h-3 w-3" />
-          {formattedDuration}
-        </Badge>
-        {isRecording && (
-          <Badge variant="destructive" className="flex animate-pulse items-center gap-1 text-xs">
-            <Radio className="h-3 w-3" />
-            REC {formattedRecording}
-          </Badge>
-        )}
-      </div>
-
-      {/* Stat cards — all derived from real session data */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={<Users className="h-4 w-4 text-blue-500" />}
-          label="Students"
-          value={`${activeStudents} / ${totalStudents}`}
-          sub="present"
-        />
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-          label="Task Done"
-          value={`${taskCompletions.completed} / ${taskCompletions.total}`}
-          sub="completed"
-        />
-        <StatCard
-          icon={<Smile className="h-4 w-4 text-violet-500" />}
-          label="Poll Responses"
-          value={String(totalPollResponses)}
-          sub="total"
-        />
-        <StatCard
-          icon={<MessageSquare className="h-4 w-4 text-blue-500" />}
-          label="Question Responses"
-          value={String(totalQuestionResponses)}
-          sub="total"
-        />
-      </div>
-
+    <div className="flex flex-1 flex-col space-y-4 px-1 pb-0">
       {/* Student presence */}
       <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
         <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Student Presence</p>
