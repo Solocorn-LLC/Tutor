@@ -127,9 +127,7 @@ function LoginForm() {
           {/* Reserved message area keeps the card height stable */}
           <div className="mb-3 min-h-[20px]">
             {registered && (
-              <div className="text-sm text-white/90">
-                Registration successful! Please log in.
-              </div>
+              <div className="text-sm text-white/90">Registration successful! Please log in.</div>
             )}
 
             {(error || authError) && (
@@ -155,7 +153,7 @@ function LoginForm() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-10 rounded-none border-0 bg-white px-4 text-base text-gray-800 placeholder:text-gray-400 shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="h-10 rounded-none border-0 bg-white px-4 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
 
@@ -180,7 +178,7 @@ function LoginForm() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="h-10 rounded-none border-0 bg-white px-4 pr-12 text-base text-gray-800 placeholder:text-gray-400 shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-10 rounded-none border-0 bg-white px-4 pr-12 text-base text-gray-800 shadow-sm placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
                 <button
                   type="button"
