@@ -2237,6 +2237,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 questionText: i.questionText,
                 questionType: i.questionType,
                 options: i.options,
+                pairs: i.pairs,
               })) || [],
             deployedAt: Date.now(),
             polls: [],
@@ -2780,6 +2781,7 @@ FEEDBACK: [your explanation]`
           // DMI so the student sees the right control (short/mcq/etc.).
           questionType: q.questionType,
           options: Array.isArray(q.options) ? q.options : undefined,
+          pairs: Array.isArray(q.pairs) ? q.pairs : undefined,
         }))
 
         // Calculate version number

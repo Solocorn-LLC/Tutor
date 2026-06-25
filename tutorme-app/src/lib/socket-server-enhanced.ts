@@ -116,6 +116,8 @@ export interface LiveTaskDmiItem {
   questionType?: import('./assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
   options?: string[]
+  /** Correct left↔right pairs for `matching` (the right values form the bank). */
+  pairs?: import('./assessment/question-types').DmiMatchPair[]
 }
 
 export interface LiveTaskSourceDocument {

@@ -26,6 +26,16 @@ export const DMI_QUESTION_TYPES = [
 
 export type DmiQuestionType = (typeof DMI_QUESTION_TYPES)[number]
 
+/**
+ * A correct left↔right correspondence for a `matching` item. `left` items are
+ * shown to the student as prompts; the `right` values form the (shuffled) bank
+ * the student picks from. The pairing itself is the answer key.
+ */
+export interface DmiMatchPair {
+  left: string
+  right: string
+}
+
 /** The default when an item has no explicit type (back-compat with old DMIs). */
 export const DEFAULT_DMI_QUESTION_TYPE: DmiQuestionType = 'long'
 
@@ -52,14 +62,10 @@ export const CHOICE_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set([
 
 /**
  * Interactive types that don't yet have a dedicated student renderer; they fall
- * back to a labelled free-text input in Phase 1.
+ * back to a labelled free-text input. (matching + ordering are implemented;
+ * hotspot + drag_drop still need richer data + renderers.)
  */
-export const FALLBACK_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set([
-  'matching',
-  'ordering',
-  'hotspot',
-  'drag_drop',
-])
+export const FALLBACK_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set(['hotspot', 'drag_drop'])
 
 export function isDmiQuestionType(value: unknown): value is DmiQuestionType {
   return typeof value === 'string' && (DMI_QUESTION_TYPES as readonly string[]).includes(value)

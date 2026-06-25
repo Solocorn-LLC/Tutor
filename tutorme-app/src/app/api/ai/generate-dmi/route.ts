@@ -54,6 +54,7 @@ KIND: study_material   (notes / material with no explicit questions)
 Then, for each question, output exactly in this format:
 Q[number] [type]: [question text — copied EXACTLY from the source for a question paper]
 OPTIONS[number]: option 1 | option 2 | option 3      (ONLY for mcq / true_false / multiple_response)
+PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching)
 A[number]: [suggested answer or key points]
 
 [type] must be exactly one of:
@@ -73,9 +74,11 @@ Rules:
 - For a question_paper, preserve question wording EXACTLY — do not paraphrase. If the source has
   no explicit questions (study_material), generate 5-10 questions covering the main concepts.
 - The A[number] answers are for tutor verification ONLY and must never be shown to a student.
+- For a matching question, the PAIRS line gives the CORRECT left::right correspondences (the
+  answer key); the student will see the left items and pick from the shuffled right values.
 - Do not invent mark allocations or evaluation criteria. If something is unclear, say so in the A
   line rather than guessing.
-- Output ONLY the KIND line and the Q / OPTIONS / A lines — no other text.`
+- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.`
 
 interface ParsedDmiQuestion {
   questionNumber: number
@@ -83,6 +86,7 @@ interface ParsedDmiQuestion {
   answer: string
   questionType: DmiQuestionType
   options?: string[]
+  pairs?: { left: string; right: string }[]
 }
 
 interface ParsedDmiResponse {
@@ -109,6 +113,7 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
     // Q[n] [type]: text  — the type tag in []/() is optional (back-compat).
     const qMatch = line.match(/^Q\s*(\d+)\s*(?:[[(]\s*([a-z_]+)\s*[\])])?\s*[:.\)]\s*(.+)$/i)
     const optMatch = line.match(/^OPTIONS\s*(\d+)\s*[:.\)]\s*(.+)$/i)
+    const pairsMatch = line.match(/^PAIRS\s*(\d+)\s*[:.\)]\s*(.+)$/i)
     const aMatch = line.match(/^A\s*(\d+)\s*[:.\)]\s*(.+)$/i)
 
     if (qMatch) {
@@ -124,6 +129,14 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
         .split('|')
         .map(o => o.trim())
         .filter(Boolean)
+    } else if (pairsMatch && currentQ) {
+      currentQ.pairs = pairsMatch[2]
+        .split('|')
+        .map(seg => {
+          const [left, right] = seg.split('::').map(s => s.trim())
+          return { left: left ?? '', right: right ?? '' }
+        })
+        .filter(p => p.left && p.right)
     } else if (aMatch && currentQ) {
       currentQ.answer = aMatch[2].trim()
     } else if (currentQ) {

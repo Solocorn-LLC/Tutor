@@ -67,6 +67,8 @@ export interface DMIQuestion {
   questionType?: import('@/lib/assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
   options?: string[]
+  /** Correct left↔right pairs for `matching` (the right values form the bank). */
+  pairs?: import('@/lib/assessment/question-types').DmiMatchPair[]
 }
 
 export interface DMIVersion {

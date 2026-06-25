@@ -407,6 +407,49 @@ function DmiAnswerField({
     )
   }
 
+  // Matching — show each left prompt with a dropdown of the (sorted) right
+  // values. The answer is stored as a JSON map of left -> chosen right.
+  if (type === 'matching' && item.pairs && item.pairs.length > 0) {
+    const pairs = item.pairs
+    const rightBank = Array.from(new Set(pairs.map(p => p.right))).sort((a, b) =>
+      a.localeCompare(b)
+    )
+    let answerMap: Record<string, string> = {}
+    try {
+      const parsed = value ? JSON.parse(value) : {}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) answerMap = parsed
+    } catch {
+      answerMap = {}
+    }
+    const setMatch = (left: string, right: string) => {
+      onInteract()
+      onValueChange(JSON.stringify({ ...answerMap, [left]: right }))
+    }
+    return (
+      <div className="space-y-2">
+        {pairs.map(p => (
+          <div key={p.left} className="flex items-center gap-2 text-sm">
+            <span className="flex-1 text-gray-800">{p.left}</span>
+            <span className="shrink-0 text-gray-300">→</span>
+            <select
+              value={answerMap[p.left] ?? ''}
+              onFocus={onInteract}
+              onChange={e => setMatch(p.left, e.target.value)}
+              className={`w-44 shrink-0 ${baseField}`}
+            >
+              <option value="">Choose…</option>
+              {rightBank.map(r => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   // Ordering / ranking — reorder the provided items with up/down controls.
   // The answer is stored as a JSON array of the items in the chosen order.
   if (type === 'ordering' && options.length > 0) {
@@ -464,8 +507,8 @@ function DmiAnswerField({
     )
   }
 
-  // Long answer + the remaining interactive types (matching / hotspot /
-  // drag_drop) that still need richer data + dedicated renderers → free-text.
+  // Long answer + the remaining interactive types (hotspot / drag_drop, and
+  // matching/ordering when they arrive without their data) → free-text.
   return (
     <textarea
       value={value}
