@@ -202,9 +202,9 @@ function TutorControlsPanel({
             {open && (
               <motion.div
                 key="controls-body"
-                initial={{ height: 0, opacity: 0, y: -20 }}
-                animate={{ height: 'auto', opacity: 1, y: 0 }}
-                exit={{ height: 0, opacity: 0, y: -20 }}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
