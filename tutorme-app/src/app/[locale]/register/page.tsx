@@ -62,7 +62,7 @@ export default function RoleSelectionPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {roles.map(role => (
             <Link key={role.id} href={`${localePrefix}${role.href}`}>
-              <Card className="h-full cursor-pointer border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.25)]">
+              <Card className="h-full cursor-pointer border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl transition-all duration-300 hover:shadow-[0_25px_50px_rgba(0,0,0,0.35)]">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3">
                     <div className={`${role.color} rounded-xl p-3 text-white shadow-lg`}>

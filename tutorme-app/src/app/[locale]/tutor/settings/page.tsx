@@ -150,26 +150,23 @@ function OneOnOneSettingsCard() {
 
   if (loading) {
     return (
-      <Card className={SECTION_CARD_CLASS}>
-        <CardHeader>
-          <CardTitle>1-on-1 Booking</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          </div>
-        </CardContent>
-      </Card>
+      <CollapsibleCard flush className={SECTION_CARD_CLASS} title="1-on-1 Booking" defaultOpen>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      </CollapsibleCard>
     )
   }
 
   return (
-    <Card className={SECTION_CARD_CLASS}>
-      <CardHeader>
-        <CardTitle>1-on-1 Booking</CardTitle>
-        <CardDescription>Allow students to book private sessions with you</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <CollapsibleCard
+      flush
+      className={SECTION_CARD_CLASS}
+      title="1-on-1 Booking"
+      description="Allow students to book private sessions with you"
+      defaultOpen
+    >
+      <div className="space-y-6 p-6">
         {/* Enable/Disable Toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
@@ -264,8 +261,8 @@ function OneOnOneSettingsCard() {
             )}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }
 
