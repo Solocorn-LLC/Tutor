@@ -30,7 +30,7 @@ const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
   content: z.string().max(50000).optional(),
-  pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
+  pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
    * Ignored for a question paper (its questions are mirrored as-is).
@@ -44,19 +44,24 @@ const GenerateDmiRequestSchema = z.object({
 const SYSTEM_PROMPT = `You are an expert educational assessment designer building a DMI (Digital Marking Interface).
 
 A DMI is a set of ANSWER INPUT FIELDS that a student fills in. The student reads the actual
-questions from the deployed document — your job is to produce, for each question, a well-numbered
-answer field of the RIGHT INPUT TYPE. Do not rewrite or invent questions for a question paper;
-mirror its questions one-to-one as typed input fields.
+questions from the deployed document — so for a question paper you do NOT reproduce the question
+text. Instead you produce one numbered input field per answerable part, labelled by its number.
 
 First, classify the source and output it as the very first line:
 KIND: question_paper   (the document already contains questions / exam tasks)
 KIND: study_material   (notes / material with no explicit questions)
 
-Then, for each question, output exactly in this format:
-Q[number] [type]: [question text — copied EXACTLY from the source for a question paper]
+Then output one line per input field in this format:
+Q[number] [type]: [field label]
 OPTIONS[number]: option 1 | option 2 | option 3      (ONLY for mcq / true_false / multiple_response)
 PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching / drag_drop)
 A[number]: [suggested answer or key points]
+
+[number] is a SEQUENTIAL counter (1, 2, 3, …) for the output lines. [field label] is:
+- question_paper: the question's reference EXACTLY as printed — every question AND every
+  sub-question / sub-part as its own field, e.g. "Question 1(a)", "Question 1(b)", "Question 2",
+  "Question 3(a)(i)". Do NOT include the question text — only the reference label.
+- study_material: the full generated question text (there is no paper for the student to read).
 
 [type] must be exactly one of:
   short              one-line factual answer
@@ -73,8 +78,12 @@ Pick the type that best matches how the question expects to be answered. Write t
 as the exact lowercase token above (e.g. [mcq], [true_false]) — not a human-readable label.
 
 Rules:
-- For a question_paper, preserve question wording EXACTLY — do not paraphrase. If the source has
-  no explicit questions (study_material), generate 5-10 questions covering the main concepts.
+- For a question_paper: enumerate EVERY question and EVERY sub-part across ALL pages, in order,
+  exactly once each — do not skip, merge, summarise, or repeat any part, and do not stop early.
+  A question with parts (a),(b),(c) becomes three separate fields. Use the reference label exactly
+  as printed; pick the [type] from how that part is meant to be answered (a multiple-choice item
+  -> mcq with OPTIONS, a short response -> short, an extended/essay response -> long, etc.).
+- For study_material (no explicit questions): generate 5-10 questions covering the main concepts.
 - The A[number] answers are for tutor verification ONLY and must never be shown to a student.
 - For a matching question, the PAIRS line gives the CORRECT left::right correspondences (the
   answer key); the student will see the left items and pick from the shuffled right values.
@@ -286,7 +295,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens: 6000,
         timeoutMs: 60000,
       })
     } else {
@@ -294,7 +303,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens: 6000,
         timeoutMs: 60000,
       })
     }

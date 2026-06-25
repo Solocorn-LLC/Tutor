@@ -2106,8 +2106,11 @@ function StudentFeedbackContent() {
                           >
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <p className="text-sm font-medium text-gray-800">
-                                {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                                {item.questionText}
+                                {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                  ? item.questionText
+                                  : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
                               {qType !== 'long' && (
                                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
