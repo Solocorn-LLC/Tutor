@@ -8515,7 +8515,7 @@ FEEDBACK: [your explanation]`
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0',
                                         mainTab === 'live' &&
-                                          'rounded-md border-2 border-orange-500',
+                                          'rounded-md border border-orange-300',
                                         mainTab === 'test-pci' &&
                                           'rounded-md border border-purple-300'
                                       )}
