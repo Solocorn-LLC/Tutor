@@ -396,6 +396,11 @@ function CoursePageInner() {
             description: e.course?.description || null,
             subject: e.course?.categories?.[0] || 'general',
             tutorHandle: e.course?.tutorHandle || null,
+            tutorName: e.course?.tutorName || null,
+            // The tutor's uploaded profile photo lives in profile.avatarUrl
+            // (returned as tutorAvatar); user.image (tutorImage) is usually null
+            // for credential tutors. Carry both so the card can show the photo.
+            tutorAvatar: e.course?.tutorAvatar || null,
             tutorImage: e.course?.tutorImage || null,
             difficulty: 'All Levels',
             estimatedHours: 0,
