@@ -89,34 +89,36 @@ export function AnalyticsPanel({
   }, [liveTasks, totalStudents])
 
   return (
-    <div className="flex flex-1 flex-col space-y-4 px-1 pb-0">
+    <div className="flex h-full flex-col space-y-4 px-1 pb-0">
       {/* Student presence */}
-      <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
         <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Student Presence</p>
-        {studentStatusData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie
-                data={studentStatusData}
-                cx="50%"
-                cy="50%"
-                innerRadius={40}
-                outerRadius={60}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {studentStatusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex h-[160px] items-center justify-center text-xs text-gray-400">
-            No students have joined yet
-          </div>
-        )}
+        <div className="min-h-0 flex-1">
+          {studentStatusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={studentStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={60}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {studentStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-gray-400">
+              No students have joined yet
+            </div>
+          )}
+        </div>
         <div className="mt-1 flex flex-wrap gap-2">
           {studentStatusData.map(d => (
             <div key={d.name} className="flex items-center gap-1 text-[10px] text-gray-600">
@@ -180,11 +182,11 @@ export function AnalyticsPanel({
 
       {/* Student List — name, real presence, and real task-completion badge */}
       {students && students.length > 0 && (
-        <div className="rounded-xl border bg-white/80 p-3 shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
           <p className="mb-2 text-xs font-semibold uppercase text-gray-500">
             Students ({students.length})
           </p>
-          <div className="max-h-[200px] space-y-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {students.map(s => (
               <div
                 key={s.id}
