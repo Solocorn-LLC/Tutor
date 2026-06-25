@@ -72,7 +72,7 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
-const SECTION_CARD_CLASS = 'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+const SECTION_CARD_CLASS = 'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
 
 interface PaymentMethod {
   id: string
