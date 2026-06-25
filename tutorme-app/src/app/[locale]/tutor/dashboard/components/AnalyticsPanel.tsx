@@ -91,9 +91,9 @@ export function AnalyticsPanel({
   return (
     <div className="flex h-full flex-col space-y-4 px-1 pb-0">
       {/* Student presence */}
-      <div className="flex flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
         <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Student Presence</p>
-        <div className="flex flex-1 flex-col">
+        <div className="min-h-0 flex-1">
           {studentStatusData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -114,7 +114,7 @@ export function AnalyticsPanel({
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex flex-1 items-center justify-center text-xs text-gray-400">
+            <div className="flex h-full items-center justify-center text-xs text-gray-400">
               No students have joined yet
             </div>
           )}
@@ -182,11 +182,11 @@ export function AnalyticsPanel({
 
       {/* Student List — name, real presence, and real task-completion badge */}
       {students && students.length > 0 && (
-        <div className="flex flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-white/80 p-3 shadow-sm">
           <p className="mb-2 text-xs font-semibold uppercase text-gray-500">
             Students ({students.length})
           </p>
-          <div className="flex-1 space-y-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {students.map(s => (
               <div
                 key={s.id}
