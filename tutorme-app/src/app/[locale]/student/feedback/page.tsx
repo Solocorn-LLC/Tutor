@@ -334,6 +334,8 @@ function DmiAnswerField({
         : []
   const baseField =
     'w-full rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none'
+  // Tap-to-place selection for drag_drop (touch fallback for native drag).
+  const [dragSelected, setDragSelected] = useState<string | null>(null)
 
   // Single-select choice (mcq / true_false) — render radios when we have options.
   if ((type === 'mcq' || type === 'true_false') && options.length > 0) {
@@ -404,6 +406,116 @@ function DmiAnswerField({
         placeholder={type === 'fill_blank' ? 'Fill in the blank…' : 'Type your answer…'}
         className={baseField}
       />
+    )
+  }
+
+  // Drag and drop — draggable item chips placed into target bins. Reuses pairs
+  // (left = item, right = correct target). Supports native HTML5 drag AND a
+  // tap-to-place fallback (select an item, then tap a bin) for touch devices.
+  // Answer is stored as a JSON map of item -> chosen target.
+  if (type === 'drag_drop' && item.pairs && item.pairs.length > 0) {
+    const pairs = item.pairs
+    const dndItems = pairs.map(p => p.left)
+    const targets = Array.from(new Set(pairs.map(p => p.right)))
+    let placement: Record<string, string> = {}
+    try {
+      const parsed = value ? JSON.parse(value) : {}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) placement = parsed
+    } catch {
+      placement = {}
+    }
+    const place = (it: string, target: string) => {
+      onInteract()
+      setDragSelected(null)
+      onValueChange(JSON.stringify({ ...placement, [it]: target }))
+    }
+    const unplace = (it: string) => {
+      onInteract()
+      const next = { ...placement }
+      delete next[it]
+      onValueChange(JSON.stringify(next))
+    }
+    const unplaced = dndItems.filter(it => !placement[it])
+    const chip =
+      'rounded-md border px-2 py-1 text-xs transition-colors cursor-grab active:cursor-grabbing'
+    return (
+      <div className="space-y-3">
+        {/* Source tray */}
+        <div
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            const it = e.dataTransfer.getData('text/plain')
+            if (it) unplace(it)
+          }}
+          className="flex min-h-[40px] flex-wrap gap-2 rounded-md border border-dashed border-gray-300 p-2"
+        >
+          {unplaced.length === 0 ? (
+            <span className="text-xs text-gray-400">All items placed</span>
+          ) : (
+            unplaced.map(it => (
+              <button
+                key={it}
+                type="button"
+                draggable
+                onDragStart={e => e.dataTransfer.setData('text/plain', it)}
+                onClick={() => setDragSelected(prev => (prev === it ? null : it))}
+                className={cn(
+                  chip,
+                  dragSelected === it
+                    ? 'border-[#F17623] bg-[#F17623]/10 text-[#9a4a12]'
+                    : 'border-gray-200 bg-gray-50 text-gray-700'
+                )}
+              >
+                {it}
+              </button>
+            ))
+          )}
+        </div>
+        {/* Target bins */}
+        <div className="grid grid-cols-2 gap-2">
+          {targets.map(t => (
+            <div
+              key={t}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                const it = e.dataTransfer.getData('text/plain')
+                if (it) place(it, t)
+              }}
+              onClick={() => {
+                if (dragSelected) place(dragSelected, t)
+              }}
+              className={cn(
+                'min-h-[56px] rounded-md border p-2',
+                dragSelected
+                  ? 'cursor-pointer border-[#F17623]/50 bg-[#F17623]/5'
+                  : 'border-gray-200'
+              )}
+            >
+              <p className="mb-1 text-[11px] font-semibold text-gray-500">{t}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {dndItems
+                  .filter(it => placement[it] === t)
+                  .map(it => (
+                    <button
+                      key={it}
+                      type="button"
+                      draggable
+                      onDragStart={e => e.dataTransfer.setData('text/plain', it)}
+                      onClick={e => {
+                        e.stopPropagation()
+                        unplace(it)
+                      }}
+                      className={cn(chip, 'border-[#F17623]/40 bg-[#F17623]/10 text-[#9a4a12]')}
+                      title="Remove"
+                    >
+                      {it} ✕
+                    </button>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     )
   }
 
@@ -507,8 +619,8 @@ function DmiAnswerField({
     )
   }
 
-  // Long answer + the remaining interactive types (hotspot / drag_drop, and
-  // matching/ordering when they arrive without their data) → free-text.
+  // Long answer + hotspot (still needs image+regions) and any interactive type
+  // that arrives without its data → free-text.
   return (
     <textarea
       value={value}

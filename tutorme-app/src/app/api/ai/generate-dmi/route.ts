@@ -54,7 +54,7 @@ KIND: study_material   (notes / material with no explicit questions)
 Then, for each question, output exactly in this format:
 Q[number] [type]: [question text — copied EXACTLY from the source for a question paper]
 OPTIONS[number]: option 1 | option 2 | option 3      (ONLY for mcq / true_false / multiple_response)
-PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching)
+PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching / drag_drop)
 A[number]: [suggested answer or key points]
 
 [type] must be exactly one of:
@@ -76,6 +76,8 @@ Rules:
 - The A[number] answers are for tutor verification ONLY and must never be shown to a student.
 - For a matching question, the PAIRS line gives the CORRECT left::right correspondences (the
   answer key); the student will see the left items and pick from the shuffled right values.
+- For a drag_drop question, the PAIRS line gives each draggable item and the target it belongs
+  in as item :: target (the answer key); targets may repeat across items.
 - Do not invent mark allocations or evaluation criteria. If something is unclear, say so in the A
   line rather than guessing.
 - Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.`

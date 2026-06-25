@@ -62,10 +62,10 @@ export const CHOICE_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set([
 
 /**
  * Interactive types that don't yet have a dedicated student renderer; they fall
- * back to a labelled free-text input. (matching + ordering are implemented;
- * hotspot + drag_drop still need richer data + renderers.)
+ * back to a labelled free-text input. (Only hotspot remains — it needs an image
+ * + clickable regions; the rest are implemented.)
  */
-export const FALLBACK_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set(['hotspot', 'drag_drop'])
+export const FALLBACK_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set(['hotspot'])
 
 export function isDmiQuestionType(value: unknown): value is DmiQuestionType {
   return typeof value === 'string' && (DMI_QUESTION_TYPES as readonly string[]).includes(value)
