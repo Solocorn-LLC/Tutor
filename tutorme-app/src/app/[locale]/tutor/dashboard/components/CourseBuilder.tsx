@@ -416,9 +416,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     },
     ref
   ) {
-    // Main section tabs (Live, Test PCI vs Builder)
-    const [mainTab, setMainTab] = useState<'live' | 'builder' | 'test-pci'>(
+    // Main section tabs (Live, Test PCI vs Builder). Controllable: when the
+    // parent passes `mainTab`, that prop is the single source of truth and we
+    // never mirror it into local state. Mirroring it (and echoing local changes
+    // back up) is what caused the React #185 render loop — see PRs #262/#264.
+    // Local state is used only when the component is rendered uncontrolled.
+    const isMainTabControlled = mainTabProp !== undefined
+    const [mainTabInternal, setMainTabInternal] = useState<'live' | 'builder' | 'test-pci'>(
       initialMainTab ?? 'builder'
+    )
+    const mainTab = isMainTabControlled
+      ? (mainTabProp as 'live' | 'builder' | 'test-pci')
+      : mainTabInternal
+    const setMainTab = useCallback(
+      (next: 'live' | 'builder' | 'test-pci') => {
+        if (!isMainTabControlled) setMainTabInternal(next)
+        onMainTabChange?.(next)
+      },
+      [isMainTabControlled, onMainTabChange]
     )
 
     // Global styles for hiding Radix modals during drag
@@ -1871,14 +1886,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return cloned
     }, [builderNodes, cloneNodes, setLiveNodes])
 
-    // Allow the parent route to control the active builder tab (e.g. from the
-    // floating Controls panel mode selector).
+    // When the active tab enters "live", refresh the live snapshot from the
+    // current builder content so edits made in Build don't vanish on Live. This
+    // covers parent-driven mode changes (the floating Controls panel) where the
+    // change does not pass through the Tabs onValueChange below. Direct Tab
+    // clicks sync synchronously in onValueChange and bump prevMainTabRef so this
+    // effect skips the redundant second sync. No tab state is mirrored here, so
+    // there is no prop/local desync to loop on.
+    const prevMainTabRef = useRef<'live' | 'builder' | 'test-pci'>(initialMainTab ?? 'builder')
     useEffect(() => {
-      if (mainTabProp && mainTabProp !== mainTab) {
-        if (mainTabProp === 'live') handleSyncToLive()
-        setMainTab(mainTabProp)
+      if (mainTab === 'live' && prevMainTabRef.current !== 'live') {
+        handleSyncToLive()
       }
-    }, [mainTabProp, mainTab, handleSyncToLive])
+      prevMainTabRef.current = mainTab
+    }, [mainTab, handleSyncToLive])
 
     // Trigger full sync: save → sync to live → emit to session.
     // isAuto suppresses the save/sync toasts so background auto-sync is silent.
@@ -2785,13 +2806,9 @@ FEEDBACK: [your explanation]`
       setTestPciSource(type)
       setTestPciViewMode(`dmi_${version.id}`)
       setTestPciActiveTab('classroom')
-      // Switch to the Test tab. Notify the parent route in the SAME batch as the
-      // local setMainTab so the controlled `mainTab` prop and local state never
-      // desync — otherwise the local→parent (effect 981) and parent→local
-      // (effect 1867) sync effects run with opposite stale values and swap the
-      // tab back and forth forever (React #185 "Maximum update depth exceeded").
+      // Switch to the Test tab. setMainTab notifies the parent route; with
+      // `mainTab` fully controlled there is no local mirror to desync.
       setMainTab('test-pci')
-      onMainTabChange?.('test-pci')
 
       toast.success(`Loaded DMI version ${version.versionNumber}`)
     }
@@ -5858,16 +5875,19 @@ FEEDBACK: [your explanation]`
         <Tabs
           value={mainTab}
           onValueChange={v => {
+            const next = v as 'live' | 'builder' | 'test-pci'
             // Switching to Live shows liveNodes, a snapshot separate from the
             // builderNodes the Build tab edits. Sync the latest builder content
             // into it first so edits made in Build don't vanish on the Live tab.
             // This is a local view sync only — it does not deploy to students.
-            if (v === 'live') handleSyncToLive()
-            setMainTab(v as 'live' | 'builder' | 'test-pci')
-            // Add callback to notify parent route
-            if (onMainTabChange) {
-              onMainTabChange(v as 'live' | 'builder' | 'test-pci')
+            // Bump prevMainTabRef so the transition effect skips a redundant sync.
+            if (next === 'live') {
+              handleSyncToLive()
+              prevMainTabRef.current = 'live'
             }
+            // setMainTab notifies the parent route (and updates local state when
+            // the component is used uncontrolled).
+            setMainTab(next)
           }}
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-6 pt-0"
         >
