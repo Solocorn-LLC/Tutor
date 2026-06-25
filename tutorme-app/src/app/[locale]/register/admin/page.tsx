@@ -2,12 +2,10 @@
 
 import { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { BackButton } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -17,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { Shield, Building2, Lock, User, ChevronRight, ChevronLeft, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import {
   adminRegistrationSchema,
   type AdminPermissionGroup,
@@ -49,12 +47,6 @@ const PERMISSION_GROUPS: { id: AdminPermissionGroup; label: string; desc: string
     label: 'Analytics',
     desc: 'Access reports and analytics',
   },
-]
-
-const STEPS = [
-  { number: 1, title: 'Personal Info', icon: User },
-  { number: 2, title: 'Organization', icon: Building2 },
-  { number: 3, title: 'Security & Permissions', icon: Lock },
 ]
 
 function slugify(text: string): string {
@@ -226,400 +218,398 @@ export default function AdminRegistrationPage() {
     }))
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-950/20 to-slate-900 px-4 py-8">
-      <div className="mx-auto max-w-2xl">
-        <BackButton href="/register" className="mb-6" />
+  const steps = [
+    { number: 1, title: 'Account' },
+    { number: 2, title: 'Organization' },
+    { number: 3, title: 'Security' },
+  ]
 
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/20">
-              <Shield className="h-6 w-6 text-orange-400" />
+  const primaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#F97316] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] hover:!translate-y-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+  const secondaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] hover:!translate-y-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+
+  return (
+    <div className="flex min-h-screen flex-col items-center bg-white px-4 pt-[120px] sm:pt-[180px]">
+      <div className="w-full max-w-4xl">
+        <BackButton href="/register" className="mb-4" />
+
+        <div className="mb-6">
+          <div className="relative flex items-center justify-between">
+            {/* Connecting line */}
+            <div className="absolute left-0 right-0 top-[18px] h-[2px]">
+              <div className="h-full w-full bg-gray-200" />
+              <div
+                className="absolute left-0 top-0 h-full bg-red-500 transition-all duration-300"
+                style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
+              />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Administrator Registration</h1>
-              <p className="text-sm text-slate-400">Enterprise-grade admin account setup</p>
-            </div>
+            {steps.map(s => (
+              <div key={s.number} className="relative z-10 flex flex-col items-center">
+                <span
+                  className={`mb-2 text-[11px] font-medium ${step >= s.number ? 'text-red-500' : 'text-gray-400'}`}
+                >
+                  {s.title}
+                </span>
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white transition-all duration-200 ${step >= s.number ? 'bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_16px_rgba(239,68,68,0.45)]' : 'bg-gray-200 text-gray-500'}`}
+                >
+                  {s.number}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Progress */}
-        <div className="mb-8 flex items-center gap-2">
-          {STEPS.map((s, idx) => (
-            <div key={s.number} className="flex flex-1 items-center">
-              <div
-                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${step >= s.number ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-500'} `}
-              >
-                <s.icon className="h-4 w-4" />
-              </div>
-              <span
-                className={`ml-2 hidden text-sm font-medium sm:inline ${
-                  step >= s.number ? 'text-orange-400' : 'text-slate-500'
-                }`}
-              >
-                {s.title}
-              </span>
-              {idx < STEPS.length - 1 && (
-                <div
-                  className={`mx-2 h-0.5 flex-1 rounded ${
-                    step > s.number ? 'bg-orange-500' : 'bg-slate-700'
-                  }`}
-                />
-              )}
+        <div className="overflow-hidden rounded-[20px] bg-gradient-to-br from-red-500 to-red-600 shadow-[0_20px_50px_rgba(0,0,0,0.18),0_8px_20px_rgba(0,0,0,0.12)]">
+          {step >= 2 && (
+            <div className="border-b border-white/10 px-5 pb-3 pt-5">
+              <h2 className="text-lg font-semibold text-white/90">
+                {step === 2 && 'Organization Setup'}
+                {step === 3 && 'Security & Permissions'}
+              </h2>
+              <p className="text-xs text-white/50">
+                {step === 2 && 'Configure your organization and role'}
+                {step === 3 && 'Set password and permission groups'}
+              </p>
             </div>
-          ))}
-        </div>
-
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardContent className="space-y-6 pt-6">
-            {/* Step 1: Personal Info */}
+          )}
+          <div className="space-y-5 px-5 py-5">
             {step === 1 && (
               <>
-                <div>
-                  <CardTitle className="mb-1 text-lg text-white">Personal Information</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Enter your account details
-                  </CardDescription>
-                </div>
+                <form autoComplete="off" onSubmit={e => e.preventDefault()}>
+                  <div className="space-y-5">
+                    {/* Name row */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">First Name *</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                          value={formData.firstName}
+                          onChange={e => updateField('firstName', e.target.value)}
+                          autoComplete="off"
+                        />
+                        {errors.firstName && (
+                          <p className="text-xs text-red-300">{errors.firstName}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Last Name *</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                          value={formData.lastName}
+                          onChange={e => updateField('lastName', e.target.value)}
+                          autoComplete="off"
+                        />
+                        {errors.lastName && (
+                          <p className="text-xs text-red-300">{errors.lastName}</p>
+                        )}
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-slate-300">
-                      First Name *
-                    </Label>
-                    <Input
-                      id="firstName"
-                      value={formData.firstName}
-                      onChange={e => updateField('firstName', e.target.value)}
-                      placeholder="John"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                    />
-                    {errors.firstName && <p className="text-sm text-red-400">{errors.firstName}</p>}
+                    {/* Email row */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Email Address *</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        type="email"
+                        name="admin_registration_email"
+                        autoComplete="off"
+                        value={formData.email}
+                        onChange={e => updateField('email', e.target.value)}
+                      />
+                      {errors.email && <p className="text-xs text-red-300">{errors.email}</p>}
+                    </div>
+
+                    {/* Phone */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Phone Number *</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        value={formData.phoneNumber}
+                        onChange={e => updateField('phoneNumber', e.target.value)}
+                        placeholder="+86 138 0000 0000"
+                        autoComplete="off"
+                      />
+                      {errors.phoneNumber && (
+                        <p className="text-xs text-red-300">{errors.phoneNumber}</p>
+                      )}
+                    </div>
+
+                    {/* Next button */}
+                    <div className="flex gap-3">
+                      <Button className={primaryBtnClass} onClick={handleNext}>
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-slate-300">
-                      Last Name *
-                    </Label>
-                    <Input
-                      id="lastName"
-                      value={formData.lastName}
-                      onChange={e => updateField('lastName', e.target.value)}
-                      placeholder="Doe"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                    />
-                    {errors.lastName && <p className="text-sm text-red-400">{errors.lastName}</p>}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300">
-                    Email Address *
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={e => updateField('email', e.target.value)}
-                    placeholder="admin@organization.com"
-                    className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                  />
-                  {errors.email && <p className="text-sm text-red-400">{errors.email}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber" className="text-slate-300">
-                    Phone Number *
-                  </Label>
-                  <Input
-                    id="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={e => updateField('phoneNumber', e.target.value)}
-                    placeholder="+86 138 0000 0000"
-                    className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                  />
-                  {errors.phoneNumber && (
-                    <p className="text-sm text-red-400">{errors.phoneNumber}</p>
-                  )}
-                </div>
-
-                <Button className="w-full bg-orange-500 hover:bg-orange-600" onClick={handleNext}>
-                  Next: Organization
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
+                </form>
               </>
             )}
 
-            {/* Step 2: Organization */}
             {step === 2 && (
               <>
-                <div>
-                  <CardTitle className="mb-1 text-lg text-white">Organization Setup</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Configure your organization and role
-                  </CardDescription>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="organizationName" className="text-slate-300">
-                    Organization Name *
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-slate-500" />
+                <div className="space-y-5">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Organization Name *</Label>
                     <Input
-                      id="organizationName"
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
                       value={formData.organizationName}
                       onChange={e => updateField('organizationName', e.target.value)}
                       placeholder="Acme Education Inc."
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
+                      autoComplete="off"
                     />
+                    {errors.organizationName && (
+                      <p className="text-xs text-red-300">{errors.organizationName}</p>
+                    )}
                   </div>
-                  {errors.organizationName && (
-                    <p className="text-sm text-red-400">{errors.organizationName}</p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="organizationSlug" className="text-slate-300">
-                    Organization Slug (optional)
-                  </Label>
-                  <Input
-                    id="organizationSlug"
-                    value={formData.organizationSlug}
-                    onChange={e => updateField('organizationSlug', e.target.value)}
-                    placeholder="acme-education"
-                    className="border-slate-700 bg-slate-800 font-mono text-sm text-white placeholder:text-slate-500"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Lowercase letters, numbers, hyphens only. Auto-generated from name if empty.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Admin Level</Label>
-                  <Select
-                    value={formData.adminLevel}
-                    onValueChange={v =>
-                      updateField('adminLevel', v as 'super' | 'standard' | 'limited')
-                    }
-                  >
-                    <SelectTrigger className="border-slate-700 bg-slate-800 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="super">Super Admin</SelectItem>
-                      <SelectItem value="standard">Standard Admin</SelectItem>
-                      <SelectItem value="limited">Limited Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="jobTitle" className="text-slate-300">
-                      Job Title
-                    </Label>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Organization Slug (optional)</Label>
                     <Input
-                      id="jobTitle"
-                      value={formData.jobTitle}
-                      onChange={e => updateField('jobTitle', e.target.value)}
-                      placeholder="Platform Admin"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
+                      className="h-8 border-white/10 bg-white font-mono text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                      value={formData.organizationSlug}
+                      onChange={e => updateField('organizationSlug', e.target.value)}
+                      placeholder="acme-education"
+                      autoComplete="off"
                     />
+                    <p className="text-xs text-white/50">
+                      Lowercase letters, numbers, hyphens only. Auto-generated from name if empty.
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department" className="text-slate-300">
-                      Department
-                    </Label>
-                    <Input
-                      id="department"
-                      value={formData.department}
-                      onChange={e => updateField('department', e.target.value)}
-                      placeholder="Operations"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                    />
+
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Admin Level</Label>
+                    <Select
+                      value={formData.adminLevel}
+                      onValueChange={v =>
+                        updateField('adminLevel', v as 'super' | 'standard' | 'limited')
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                        <SelectItem
+                          value="super"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                        >
+                          Super Admin
+                        </SelectItem>
+                        <SelectItem
+                          value="standard"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                        >
+                          Standard Admin
+                        </SelectItem>
+                        <SelectItem
+                          value="limited"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                        >
+                          Limited Admin
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Job Title</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        value={formData.jobTitle}
+                        onChange={e => updateField('jobTitle', e.target.value)}
+                        placeholder="Platform Admin"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Department</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        value={formData.department}
+                        onChange={e => updateField('department', e.target.value)}
+                        placeholder="Operations"
+                        autoComplete="off"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-slate-700 text-slate-300 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
-                    onClick={handleBack}
-                  >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
+                  <Button className={secondaryBtnClass} onClick={handleBack}>
                     Back
                   </Button>
-                  <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={handleNext}>
-                    Next: Security & Permissions
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                  <Button className={primaryBtnClass} onClick={handleNext}>
+                    Next
                   </Button>
                 </div>
               </>
             )}
 
-            {/* Step 3: Security & Permissions */}
             {step === 3 && (
               <>
-                <div>
-                  <CardTitle className="mb-1 text-lg text-white">Security & Permissions</CardTitle>
-                  <CardDescription className="text-slate-400">
-                    Set password and permission groups
-                  </CardDescription>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-300">
-                    Password *
-                  </Label>
-                  <div className="relative flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-slate-500" />
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={e => updateField('password', e.target.value)}
-                      placeholder="••••••••"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(prev => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Min 8 chars, at least one uppercase, one lowercase, one number.
-                  </p>
-                  {errors.password && <p className="text-sm text-red-400">{errors.password}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-slate-300">
-                    Confirm Password *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={e => updateField('confirmPassword', e.target.value)}
-                      placeholder="••••••••"
-                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(prev => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-red-400">{errors.confirmPassword}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bootstrapKey" className="text-slate-300">
-                    Bootstrap Key (if required)
-                  </Label>
-                  <Input
-                    id="bootstrapKey"
-                    type="password"
-                    value={formData.bootstrapKey}
-                    onChange={e => updateField('bootstrapKey', e.target.value)}
-                    placeholder="Enter bootstrap key if configured"
-                    className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Required only if ADMIN_BOOTSTRAP_KEY environment variable is set on the server.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-slate-300">Permission Groups *</Label>
-                  <p className="text-sm text-slate-500">
-                    Select at least one permission group for your admin role.
-                  </p>
-                  <div className="space-y-3">
-                    {PERMISSION_GROUPS.map(group => (
-                      <div
-                        key={group.id}
-                        className="flex items-start space-x-3 rounded-lg border border-slate-700 bg-slate-800/50 p-3"
-                      >
-                        <Checkbox
-                          id={group.id}
-                          checked={formData.permissions.includes(group.id)}
-                          onCheckedChange={() => togglePermission(group.id)}
-                          className="border-slate-600 data-[state=checked]:border-orange-500 data-[state=checked]:bg-orange-500"
-                        />
-                        <div className="flex-1 space-y-1">
-                          <Label
-                            htmlFor={group.id}
-                            className="cursor-pointer font-medium text-slate-200"
-                          >
-                            {group.label}
-                          </Label>
-                          <p className="text-sm text-slate-500">{group.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {errors.permissions && (
-                    <p className="text-sm text-red-400">{errors.permissions}</p>
-                  )}
-                </div>
-
-                <div className="flex items-start space-x-3 rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-                  <Checkbox
-                    id="mfa"
-                    checked={formData.mfaEnabled}
-                    onCheckedChange={checked => updateField('mfaEnabled', checked === true)}
-                    className="border-slate-600 data-[state=checked]:border-orange-500 data-[state=checked]:bg-orange-500"
-                  />
+                <div className="space-y-5">
+                  {/* Password */}
                   <div className="space-y-1">
-                    <Label htmlFor="mfa" className="cursor-pointer font-medium text-slate-200">
-                      Enable Two-Factor Authentication
-                    </Label>
-                    <p className="text-sm text-slate-500">
-                      Add an extra layer of security to your account
+                    <Label className="text-xs text-white/70">Password *</Label>
+                    <div className="relative">
+                      <Input
+                        className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={e => updateField('password', e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-white/50">
+                      Min 8 chars, at least one uppercase, one lowercase, one number.
+                    </p>
+                    {errors.password && <p className="text-xs text-red-300">{errors.password}</p>}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Confirm Password *</Label>
+                    <div className="relative">
+                      <Input
+                        className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={formData.confirmPassword}
+                        onChange={e => updateField('confirmPassword', e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-xs text-red-300">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+
+                  {/* Bootstrap Key */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-white/70">Bootstrap Key (if required)</Label>
+                    <Input
+                      className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-red-500/40"
+                      type="password"
+                      value={formData.bootstrapKey}
+                      onChange={e => updateField('bootstrapKey', e.target.value)}
+                      placeholder="Enter bootstrap key if configured"
+                      autoComplete="off"
+                    />
+                    <p className="text-xs text-white/50">
+                      Required only if ADMIN_BOOTSTRAP_KEY environment variable is set on the
+                      server.
                     </p>
                   </div>
-                </div>
 
-                <div className="flex items-start space-x-3 rounded-lg border border-slate-700 p-3">
-                  <Checkbox
-                    id="terms"
-                    checked={formData.tosAccepted}
-                    onCheckedChange={checked => updateField('tosAccepted', checked === true)}
-                    className="border-slate-600 data-[state=checked]:border-orange-500 data-[state=checked]:bg-orange-500"
-                  />
-                  <Label htmlFor="terms" className="cursor-pointer text-sm text-slate-300">
-                    I agree to the Terms of Service and Privacy Policy *
-                  </Label>
+                  {/* Permission Groups */}
+                  <div className="space-y-4">
+                    <Label className="text-xs text-white/70">Permission Groups *</Label>
+                    <p className="text-xs text-white/50">
+                      Select at least one permission group for your admin role.
+                    </p>
+                    <div className="space-y-3">
+                      {PERMISSION_GROUPS.map(group => (
+                        <div
+                          key={group.id}
+                          className="flex items-start space-x-3 rounded-lg border border-white/10 bg-white/10 p-3"
+                        >
+                          <Checkbox
+                            id={group.id}
+                            checked={formData.permissions.includes(group.id)}
+                            onCheckedChange={() => togglePermission(group.id)}
+                            className="border-white/40 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-white"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <Label
+                              htmlFor={group.id}
+                              className="cursor-pointer text-sm font-medium text-white"
+                            >
+                              {group.label}
+                            </Label>
+                            <p className="text-xs text-white/60">{group.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {errors.permissions && (
+                      <p className="text-xs text-red-300">{errors.permissions}</p>
+                    )}
+                  </div>
+
+                  {/* MFA */}
+                  <div className="flex items-start space-x-3 rounded-lg border border-white/10 bg-white/10 p-3">
+                    <Checkbox
+                      id="mfa"
+                      checked={formData.mfaEnabled}
+                      onCheckedChange={checked => updateField('mfaEnabled', checked === true)}
+                      className="border-white/40 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-white"
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="mfa"
+                        className="cursor-pointer text-sm font-medium text-white"
+                      >
+                        Enable Two-Factor Authentication
+                      </Label>
+                      <p className="text-xs text-white/60">
+                        Add an extra layer of security to your account
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Terms */}
+                  <div className="flex items-start space-x-3 rounded-lg border border-white/20 bg-white/10 p-4">
+                    <Checkbox
+                      id="terms"
+                      checked={formData.tosAccepted}
+                      onCheckedChange={checked => updateField('tosAccepted', checked === true)}
+                      className="border-white/40 data-[state=checked]:border-red-400 data-[state=checked]:bg-red-400 data-[state=checked]:text-white"
+                    />
+                    <Label
+                      htmlFor="terms"
+                      className="cursor-pointer text-sm font-medium text-white"
+                    >
+                      I agree to the Terms of Service and Privacy Policy *
+                    </Label>
+                  </div>
+                  {errors.tosAccepted && (
+                    <p className="text-xs text-red-300">{errors.tosAccepted}</p>
+                  )}
                 </div>
-                {errors.tosAccepted && <p className="text-sm text-red-400">{errors.tosAccepted}</p>}
 
                 <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-slate-700 text-slate-300 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
-                    onClick={handleBack}
-                    disabled={isLoading}
-                  >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
+                  <Button className={secondaryBtnClass} onClick={handleBack} disabled={isLoading}>
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-orange-500 hover:bg-orange-600"
+                    className={primaryBtnClass}
                     onClick={handleSubmit}
                     disabled={
                       isLoading || !formData.tosAccepted || formData.permissions.length === 0
@@ -630,15 +620,8 @@ export default function AdminRegistrationPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{' '}
-          <Link href="/login" className="text-orange-400 hover:underline">
-            Sign in
-          </Link>
-        </p>
+          </div>
+        </div>
       </div>
     </div>
   )
