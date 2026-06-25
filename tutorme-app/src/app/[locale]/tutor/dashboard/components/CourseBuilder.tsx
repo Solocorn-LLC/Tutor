@@ -8168,9 +8168,9 @@ FEEDBACK: [your explanation]`
                     className={cn(
                       'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
                       mainTab === 'live'
-                        ? 'border border-orange-200'
+                        ? 'border border-orange-500'
                         : mainTab === 'test-pci'
-                          ? 'border border-purple-200'
+                          ? 'border border-orange-500'
                           : 'border border-[#E5E7EB]'
                     )}
                   >
