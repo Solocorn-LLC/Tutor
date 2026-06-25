@@ -214,7 +214,10 @@ function TutorControlsPanel({
                   onValueChange={v => onModeChange(v as ControlsMode)}
                   className="mt-2 w-full"
                 >
-                  <TabsList className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white/10 p-1">
+                  <TabsList
+                    data-testid="builder-mode-tabs"
+                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white/10 p-1"
+                  >
                     <TabsTrigger
                       value="build"
                       className={cn(
