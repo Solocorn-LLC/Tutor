@@ -8513,7 +8513,7 @@ FEEDBACK: [your explanation]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0',
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
                                         mainTab === 'live' && 'rounded-md border border-orange-500',
                                         mainTab === 'test-pci' &&
                                           'rounded-md border border-purple-300'
