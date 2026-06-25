@@ -1,7 +1,4 @@
-const HERO_BLUE_BUTTON =
-  'bg-[#2563EB] text-white border-[#2563EB] hover:bg-white hover:text-[#2563EB] hover:border-[#2563EB] rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200'
-
-;('use client')
+'use client'
 
 import { useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
@@ -62,6 +59,9 @@ import { AvatarUploader } from '@/components/avatar-uploader'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
+
+const HERO_BLUE_BUTTON =
+  'bg-[#2563EB] text-white border-[#2563EB] hover:bg-white hover:text-[#2563EB] hover:border-[#2563EB] rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
