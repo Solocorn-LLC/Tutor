@@ -757,6 +757,80 @@ export default function TutorSettings() {
                     </div>
                   </div>
 
+                  <Separator />
+
+                  {/* Bio Preview */}
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      {formData.avatarUrl ? (
+                        <img
+                          src={formData.avatarUrl}
+                          alt="Profile"
+                          className="h-16 w-16 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-lg font-semibold text-slate-500">
+                          {formData.name.charAt(0).toUpperCase() || '?'}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                        <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                          {formData.bio ||
+                            'No bio added yet. Your bio helps students learn more about you.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(formData.socialLinks)
+                          .filter(([, v]) => v)
+                          .map(([platform, url]) => (
+                            <a
+                              key={platform}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                            >
+                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </a>
+                          ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          window.location.href = '/tutor/my-page'
+                        }}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Edit Public Profile
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Nationality */}
+                  <div className="space-y-2">
+                    <Label className="inline-flex items-center gap-1.5">
+                      <CountryFlag countryName={formData.nationality} size="xs" />
+                      Nationality
+                    </Label>
+                    <Input
+                      value={formData.nationality || 'Not specified'}
+                      disabled
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Your nationality as selected during registration
+                    </p>
+                  </div>
+
                   <div className="flex justify-end">
                     <Button onClick={handleSaveProfile} disabled={saving}>
                       {saving ? (
@@ -770,67 +844,6 @@ export default function TutorSettings() {
                           Save Changes
                         </>
                       )}
-                    </Button>
-                  </div>
-                </div>
-              </CollapsibleCard>
-
-              {/* Public Profile Preview */}
-              <CollapsibleCard
-                flush
-                className={SECTION_CARD_CLASS}
-                title="Public Profile"
-                description="How students see you on your public page"
-              >
-                <div className="space-y-6 p-6">
-                  <div className="flex items-start gap-4">
-                    {formData.avatarUrl ? (
-                      <img
-                        src={formData.avatarUrl}
-                        alt="Profile"
-                        className="h-16 w-16 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-lg font-semibold text-slate-500">
-                        {formData.name.charAt(0).toUpperCase() || '?'}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
-                      <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                        {formData.bio ||
-                          'No bio added yet. Your bio helps students learn more about you.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(formData.socialLinks)
-                        .filter(([, v]) => v)
-                        .map(([platform, url]) => (
-                          <a
-                            key={platform}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                          >
-                            {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                          </a>
-                        ))}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        window.location.href = '/tutor/my-page'
-                      }}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      Edit Public Profile
                     </Button>
                   </div>
                 </div>
@@ -944,135 +957,6 @@ export default function TutorSettings() {
                   </div>
                 </div>
               </CollapsibleCard>
-
-              {/* Tutor Information */}
-              <CollapsibleCard
-                flush
-                className={SECTION_CARD_CLASS}
-                title="Tutor Information"
-                description="Your tutoring profile details (set during registration)"
-              >
-                <div className="space-y-6 p-6">
-                  {/* Nationality & Country of Residence */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="inline-flex items-center gap-1.5">
-                        <CountryFlag countryName={formData.nationality} size="xs" />
-                        Nationality
-                      </Label>
-                      <Input
-                        value={formData.nationality || 'Not specified'}
-                        disabled
-                        className="bg-white"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Your nationality as selected during registration
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="inline-flex items-center gap-1.5">
-                        <CountryFlag countryName={formData.countryOfResidence} size="xs" />
-                        Country of Residence
-                      </Label>
-                      <Input
-                        value={formData.countryOfResidence || 'Not specified'}
-                        disabled
-                        className="bg-white"
-                      />
-                      <p className="text-xs text-gray-500">Your current country of residence</p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Tutoring Categories */}
-                  <div className="space-y-2">
-                    <Label>Tutoring Categories</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.specialties.length > 0 ? (
-                        formData.specialties.map((specialty, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
-                          >
-                            {specialty}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No categories specified</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Subject categories you tutor (set during registration)
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  {/* Tutoring Nationalities */}
-                  <div className="space-y-2">
-                    <Label>Student Nationalities You Tutor</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tutorNationalities.length > 0 ? (
-                        formData.tutorNationalities.map((nationality, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
-                          >
-                            <CountryFlag countryName={nationality} size="xs" />
-                            {nationality}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No nationalities specified</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Student nationalities you specialize in tutoring (set during registration)
-                    </p>
-                  </div>
-
-                  {/* Category-Nationality Combinations */}
-                  {formData.categoryNationalityCombinations.length > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <Label>Search Tags</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {formData.categoryNationalityCombinations.map((combo, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
-                            >
-                              {(() => {
-                                const parts = combo.split(' — ')
-                                const countryPart = parts.length > 1 ? parts.pop() : null
-                                const categoryPart = parts.join(' — ')
-                                return (
-                                  <>
-                                    {countryPart && (
-                                      <CountryFlag countryName={countryPart} size="xs" />
-                                    )}
-                                    {categoryPart}
-                                    {countryPart && ` — ${countryPart}`}
-                                  </>
-                                )
-                              })()}
-                            </span>
-                          ))}
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          These tags help students find you when searching for specific
-                          category-nationality combinations
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CollapsibleCard>
-
-              {/* One-on-One Booking Settings */}
-              <OneOnOneSettingsCard />
             </div>
           </TabsContent>
 
