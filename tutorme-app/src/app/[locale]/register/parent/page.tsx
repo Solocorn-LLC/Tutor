@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { parentRegistrationSchema } from '@/lib/validation/user-registration'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -17,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import { UserPlus, Users, CreditCard, Bell, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
 interface StudentForm {
   name: string
@@ -349,7 +348,7 @@ export default function ParentRegistrationPage() {
         toast.error('Complete all emergency contact fields or remove the entry')
         return false
       }
-      if (!/^\+?[\\d\\s\\-\\(\\)]{10,}$/.test(contact.phone)) {
+      if (!/^\+?[\d\s\-\(\)]{10,}$/.test(contact.phone)) {
         toast.error('Enter a valid emergency contact phone number')
         return false
       }
@@ -366,258 +365,328 @@ export default function ParentRegistrationPage() {
   }
 
   const steps = [
-    { number: 1, title: 'Account', icon: UserPlus },
-    { number: 2, title: 'Children', icon: Users },
-    { number: 3, title: 'Emergency', icon: Bell },
-    { number: 4, title: 'Preferences', icon: CreditCard },
+    { number: 1, title: 'Account' },
+    { number: 2, title: 'Children' },
+    { number: 3, title: 'Emergency' },
+    { number: 4, title: 'Preferences' },
   ]
 
+  const primaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#F97316] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] hover:!translate-y-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+  const secondaryBtnClass =
+    'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#1F2933] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] hover:!translate-y-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
+
   return (
-    <div className="min-h-screen bg-white px-4 py-8">
-      <div className="mx-auto max-w-3xl">
-        {/* Header */}
-        <div className="mb-8">
-          <BackButton href="/register" className="mb-4" />
-          <h1 className="text-3xl font-bold text-[#1F2933]">Parent Registration</h1>
-          <p className="mt-2 text-gray-600">
-            Create an account to manage your children&apos;s learning journey
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col items-center bg-white px-4 pt-[120px] sm:pt-[180px]">
+      <div className="w-full max-w-4xl">
+        <BackButton href="/register" className="mb-4" />
 
-        {/* Progress Steps */}
-        <div className="mb-8 flex items-center justify-between">
-          {steps.map((s, index) => (
-            <div key={s.number} className="flex items-center">
+        <div className="mb-6">
+          <div className="relative flex items-center justify-between">
+            {/* Connecting line */}
+            <div className="absolute left-0 right-0 top-[18px] h-[2px]">
+              <div className="h-full w-full bg-gray-200" />
               <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${step >= s.number ? 'bg-[#1D4ED8] text-white' : 'bg-gray-200 text-gray-500'} `}
-              >
-                <s.icon className="h-5 w-5" />
-              </div>
-              <span
-                className={`ml-2 text-sm font-medium ${step >= s.number ? 'text-[#1D4ED8]' : 'text-gray-500'}`}
-              >
-                {s.title}
-              </span>
-              {index < steps.length - 1 && (
-                <div
-                  className={`mx-4 h-0.5 w-12 ${step > s.number ? 'bg-[#1D4ED8]' : 'bg-gray-200'}`}
-                />
-              )}
+                className="absolute left-0 top-0 h-full bg-emerald-500 transition-all duration-300"
+                style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
+              />
             </div>
-          ))}
+            {steps.map(s => (
+              <div key={s.number} className="relative z-10 flex flex-col items-center">
+                <span
+                  className={`mb-2 text-[11px] font-medium ${step >= s.number ? 'text-emerald-500' : 'text-gray-400'}`}
+                >
+                  {s.title}
+                </span>
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white transition-all duration-200 ${step >= s.number ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-[0_0_16px_rgba(16,185,129,0.45)]' : 'bg-gray-200 text-gray-500'}`}
+                >
+                  {s.number}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Form Steps */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {step === 1 && 'Account Information'}
-              {step === 2 && 'Add Your Children'}
-              {step === 3 && 'Emergency Contacts'}
-              {step === 4 && 'Notification Preferences'}
-            </CardTitle>
-            <CardDescription>
-              {step === 1 && 'Enter your account details and personal information'}
-              {step === 2 && 'Add information about the students you want to manage'}
-              {step === 3 && 'Add emergency contacts for safety purposes'}
-              {step === 4 && 'Choose how you want to receive notifications'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Step 1: Account Information */}
+        <div className="overflow-hidden rounded-[20px] bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-[0_20px_50px_rgba(0,0,0,0.18),0_8px_20px_rgba(0,0,0,0.12)]">
+          {step >= 3 && (
+            <div className="border-b border-white/10 px-5 pb-3 pt-5">
+              <h2 className="text-lg font-semibold text-white/90">
+                {step === 3 && 'Emergency Contacts'}
+                {step === 4 && 'Notification Preferences'}
+              </h2>
+              <p className="text-xs text-white/50">
+                {step === 3 && 'Add emergency contacts for safety purposes'}
+                {step === 4 && 'Choose how you want to receive notifications'}
+              </p>
+            </div>
+          )}
+          <div className="space-y-5 px-5 py-5">
             {step === 1 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      value={formData.firstName}
-                      onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                      placeholder="John"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={formData.lastName}
-                      onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                      placeholder="Doe"
-                    />
-                  </div>
-                </div>
+                <form autoComplete="off" onSubmit={e => e.preventDefault()}>
+                  <div className="space-y-5">
+                    {/* Name row */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">First Name</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                          value={formData.firstName}
+                          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Last Name</Label>
+                        <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                          value={formData.lastName}
+                          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="parent@example.com"
-                  />
-                  {emailStatus.status === 'checking' && (
-                    <p className="text-xs text-gray-500">Checking availability...</p>
-                  )}
-                  {emailStatus.status === 'available' && (
-                    <p className="text-xs text-green-600">{emailStatus.message}</p>
-                  )}
-                  {emailStatus.status === 'taken' && (
-                    <p className="text-xs text-red-600">{emailStatus.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    placeholder="+86 138 0000 0000"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
+                    {/* Email row */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Email</Label>
                       <Input
-                        id="password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={formData.password}
-                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="••••••••"
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                        type="email"
+                        name="parent_registration_email"
+                        autoComplete="off"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(prev => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      {emailStatus.status === 'checking' && (
+                        <p className="text-xs text-white/50">Checking availability...</p>
+                      )}
+                      {emailStatus.status === 'available' && (
+                        <p className="text-xs text-green-300">{emailStatus.message}</p>
+                      )}
+                      {emailStatus.status === 'taken' && (
+                        <p className="text-xs text-red-300">{emailStatus.message}</p>
+                      )}
+                    </div>
+
+                    {/* Password row */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Password</Label>
+                        <div className="relative">
+                          <Input
+                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                            type={showPassword ? 'text' : 'password'}
+                            name="parent_registration_password"
+                            autoComplete="new-password"
+                            value={formData.password}
+                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            placeholder="Create a password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(prev => !prev)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Confirm Password</Label>
+                        <div className="relative">
+                          <Input
+                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            name="parent_registration_confirm_password"
+                            autoComplete="new-password"
+                            value={formData.confirmPassword}
+                            onChange={e =>
+                              setFormData({ ...formData, confirmPassword: e.target.value })
+                            }
+                            placeholder="Confirm your password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(prev => !prev)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                        <p className="min-h-[18px] text-xs text-red-300">
+                          {formData.password.length > 0 &&
+                          formData.confirmPassword.length > 0 &&
+                          formData.password !== formData.confirmPassword
+                            ? 'Passwords do not match.'
+                            : '\u00A0'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Phone Number</Label>
+                      <Input
+                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                        value={formData.phoneNumber}
+                        onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
+                        placeholder="+86 138 0000 0000"
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    {/* Relationship */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/70">Relationship to Student</Label>
+                      <Select
+                        value={formData.relationship}
+                        onValueChange={value => setFormData({ ...formData, relationship: value })}
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
+                        <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                          <SelectItem
+                            value="parent"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          >
+                            Parent
+                          </SelectItem>
+                          <SelectItem
+                            value="guardian"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          >
+                            Guardian
+                          </SelectItem>
+                          <SelectItem
+                            value="step-parent"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          >
+                            Step-Parent
+                          </SelectItem>
+                          <SelectItem
+                            value="grandparent"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          >
+                            Grandparent
+                          </SelectItem>
+                          <SelectItem
+                            value="other"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          >
+                            Other
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Next button */}
+                    <div className="flex gap-3">
+                      <Button
+                        className={primaryBtnClass}
+                        onClick={async () => {
+                          if (await validateStepOne()) setStep(2)
+                        }}
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={formData.confirmPassword}
-                        onChange={e =>
-                          setFormData({ ...formData, confirmPassword: e.target.value })
-                        }
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(prev => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="relationship">Relationship to Student</Label>
-                  <Select
-                    value={formData.relationship}
-                    onValueChange={value => setFormData({ ...formData, relationship: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="guardian">Guardian</SelectItem>
-                      <SelectItem value="step-parent">Step-Parent</SelectItem>
-                      <SelectItem value="grandparent">Grandparent</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                </form>
               </>
             )}
 
-            {/* Step 2: Children */}
             {step === 2 && (
-              <div className="space-y-6">
-                {formData.students.map((student, index) => (
-                  <Card key={index} className="bg-gray-50">
-                    <CardContent className="space-y-4 pt-6">
+              <>
+                <div className="space-y-5">
+                  {formData.students.map((student, index) => (
+                    <div
+                      key={index}
+                      className="space-y-4 rounded-xl border border-white/10 bg-white/10 p-4"
+                    >
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Child {index + 1}</h4>
+                        <h4 className="text-sm font-semibold text-white">Child {index + 1}</h4>
                         {formData.students.length > 1 && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveStudent(index)}
-                            className="text-red-600"
+                            className="text-red-300 hover:bg-white/10 hover:text-red-200"
                           >
                             Remove
                           </Button>
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Child&apos;s Name</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Child&apos;s Name</Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           value={student.name}
                           onChange={e => handleStudentChange(index, 'name', e.target.value)}
                           placeholder="Enter child's name"
+                          autoComplete="off"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Child&apos;s Email (Required - child must register first)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">
+                          Child&apos;s Email (Required - child must register first)
+                        </Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           type="email"
                           value={student.childEmail}
                           onChange={e => handleStudentChange(index, 'childEmail', e.target.value)}
                           placeholder="child@example.com"
+                          autoComplete="off"
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-white/50">
                           Or use Student ID below if child has one
                         </p>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Student Unique ID (Alternative to email)</Label>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">
+                          Student Unique ID (Alternative to email)
+                        </Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           value={student.childUniqueId}
                           onChange={e =>
                             handleStudentChange(index, 'childUniqueId', e.target.value)
                           }
                           placeholder="STU-xxxxxxxxxxxx"
+                          autoComplete="off"
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-white/50">
                           Min 8 characters. Students can copy this from Student Dashboard → Settings
                           → Account Security → Student ID.
                         </p>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Grade Level</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Grade Level</Label>
                         <Select
                           value={student.grade}
                           onValueChange={value => handleStudentChange(index, 'grade', value)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
                             <SelectValue placeholder="Select grade" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
                             {[
                               'Grade 1',
                               'Grade 2',
@@ -633,255 +702,287 @@ export default function ParentRegistrationPage() {
                               'Grade 12',
                               'University',
                             ].map(grade => (
-                              <SelectItem key={grade} value={grade}>
+                              <SelectItem
+                                key={grade}
+                                value={grade}
+                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                              >
                                 {grade}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  ))}
 
-                <Button variant="outline" onClick={handleAddStudent} className="w-full">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Add Another Child
-                </Button>
-              </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddStudent}
+                    className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  >
+                    Add Another Child
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button className={secondaryBtnClass} onClick={() => setStep(1)}>
+                    Back
+                  </Button>
+                  <Button
+                    className={primaryBtnClass}
+                    onClick={() => {
+                      if (validateStepTwo()) setStep(3)
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
             )}
 
-            {/* Step 3: Emergency Contacts */}
             {step === 3 && (
-              <div className="space-y-6">
-                {formData.emergencyContacts.map((contact, index) => (
-                  <Card key={index} className="bg-gray-50">
-                    <CardContent className="space-y-4 pt-6">
+              <>
+                <div className="space-y-5">
+                  {formData.emergencyContacts.map((contact, index) => (
+                    <div
+                      key={index}
+                      className="space-y-4 rounded-xl border border-white/10 bg-white/10 p-4"
+                    >
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Emergency Contact {index + 1}</h4>
+                        <h4 className="text-sm font-semibold text-white">
+                          Emergency Contact {index + 1}
+                        </h4>
                         {formData.emergencyContacts.length > 1 && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveEmergencyContact(index)}
-                            className="text-red-600"
+                            className="text-red-300 hover:bg-white/10 hover:text-red-200"
                           >
                             Remove
                           </Button>
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Name</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Name</Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           value={contact.name}
                           onChange={e =>
                             handleEmergencyContactChange(index, 'name', e.target.value)
                           }
                           placeholder="Contact name"
+                          autoComplete="off"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Relationship</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Relationship</Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           value={contact.relationship}
                           onChange={e =>
                             handleEmergencyContactChange(index, 'relationship', e.target.value)
                           }
                           placeholder="e.g., Spouse, Aunt, Uncle"
+                          autoComplete="off"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Phone Number</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/70">Phone Number</Label>
                         <Input
+                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
                           value={contact.phone}
                           onChange={e =>
                             handleEmergencyContactChange(index, 'phone', e.target.value)
                           }
                           placeholder="+86 138 0000 0000"
+                          autoComplete="off"
                         />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  ))}
 
-                {formData.emergencyContacts.length < 3 && (
-                  <Button variant="outline" onClick={handleAddEmergencyContact} className="w-full">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add Emergency Contact
+                  {formData.emergencyContacts.length < 3 && (
+                    <Button
+                      variant="outline"
+                      onClick={handleAddEmergencyContact}
+                      className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    >
+                      Add Emergency Contact
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button className={secondaryBtnClass} onClick={() => setStep(2)}>
+                    Back
                   </Button>
-                )}
-              </div>
+                  <Button
+                    className={primaryBtnClass}
+                    onClick={() => {
+                      if (validateStepThree()) setStep(4)
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
             )}
 
-            {/* Step 4: Notification Preferences */}
             {step === 4 && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Notification Channels</h4>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        key: 'email',
-                        label: 'Email Notifications',
-                        description: 'Receive updates via email',
-                      },
-                      {
-                        key: 'sms',
-                        label: 'SMS Notifications',
-                        description: 'Receive text message alerts',
-                      },
-                      {
-                        key: 'app',
-                        label: 'In-App Notifications',
-                        description: 'Receive notifications in the app',
-                      },
-                    ].map(({ key, label, description }) => (
-                      <div key={key} className="flex items-start space-x-3">
-                        <Checkbox
-                          id={key}
-                          checked={
-                            formData.notificationPreferences[
-                              key as keyof typeof formData.notificationPreferences
-                            ]
-                          }
-                          onCheckedChange={checked =>
-                            setFormData(prev => ({
-                              ...prev,
-                              notificationPreferences: {
-                                ...prev.notificationPreferences,
-                                [key]: checked,
-                              },
-                            }))
-                          }
-                        />
-                        <div className="space-y-1">
-                          <Label htmlFor={key} className="font-medium">
-                            {label}
-                          </Label>
-                          <p className="text-sm text-gray-500">{description}</p>
+              <>
+                <div className="space-y-5">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-white">Notification Channels</h4>
+                    <div className="space-y-3">
+                      {[
+                        {
+                          key: 'email',
+                          label: 'Email Notifications',
+                          description: 'Receive updates via email',
+                        },
+                        {
+                          key: 'sms',
+                          label: 'SMS Notifications',
+                          description: 'Receive text message alerts',
+                        },
+                        {
+                          key: 'app',
+                          label: 'In-App Notifications',
+                          description: 'Receive notifications in the app',
+                        },
+                      ].map(({ key, label, description }) => (
+                        <div key={key} className="flex items-start space-x-3">
+                          <Checkbox
+                            id={key}
+                            checked={
+                              formData.notificationPreferences[
+                                key as keyof typeof formData.notificationPreferences
+                              ]
+                            }
+                            onCheckedChange={checked =>
+                              setFormData(prev => ({
+                                ...prev,
+                                notificationPreferences: {
+                                  ...prev.notificationPreferences,
+                                  [key]: checked,
+                                },
+                              }))
+                            }
+                            className="border-white/40 data-[state=checked]:border-emerald-400 data-[state=checked]:bg-emerald-400 data-[state=checked]:text-white"
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor={key} className="text-sm font-medium text-white">
+                              {label}
+                            </Label>
+                            <p className="text-xs text-white/60">{description}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-white">Notification Types</h4>
+                    <div className="space-y-3">
+                      {[
+                        {
+                          key: 'weeklyReports',
+                          label: 'Weekly Progress Reports',
+                          description: "Get weekly summaries of your child's progress",
+                        },
+                        {
+                          key: 'paymentNotifications',
+                          label: 'Payment Notifications',
+                          description: 'Receive alerts about payments and invoices',
+                        },
+                        {
+                          key: 'emergencyContacts',
+                          label: 'Emergency Contact Alerts',
+                          description: 'Get notified about important updates',
+                        },
+                        {
+                          key: 'mentions',
+                          label: 'Mentions',
+                          description: 'Get notified when a tutor mentions you',
+                        },
+                      ].map(({ key, label, description }) => (
+                        <div key={key} className="flex items-start space-x-3">
+                          <Checkbox
+                            id={key}
+                            checked={
+                              formData.notificationPreferences[
+                                key as keyof typeof formData.notificationPreferences
+                              ]
+                            }
+                            onCheckedChange={checked =>
+                              setFormData(prev => ({
+                                ...prev,
+                                notificationPreferences: {
+                                  ...prev.notificationPreferences,
+                                  [key]: checked,
+                                },
+                              }))
+                            }
+                            className="border-white/40 data-[state=checked]:border-emerald-400 data-[state=checked]:bg-emerald-400 data-[state=checked]:text-white"
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor={key} className="text-sm font-medium text-white">
+                              {label}
+                            </Label>
+                            <p className="text-xs text-white/60">{description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 rounded-lg border border-white/20 bg-white/10 p-4">
+                    <Checkbox
+                      id="tosAccepted"
+                      checked={formData.tosAccepted}
+                      onCheckedChange={checked =>
+                        setFormData(prev => ({ ...prev, tosAccepted: checked === true }))
+                      }
+                      className="border-white/40 data-[state=checked]:border-emerald-400 data-[state=checked]:bg-emerald-400 data-[state=checked]:text-white"
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="tosAccepted"
+                        className="cursor-pointer text-sm font-medium text-white"
+                      >
+                        I accept the Terms of Service and Privacy Policy
+                      </Label>
+                      <p className="text-xs text-white/60">
+                        You must accept the terms to create an account.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Notification Types</h4>
-                  <div className="space-y-3">
-                    {[
-                      {
-                        key: 'weeklyReports',
-                        label: 'Weekly Progress Reports',
-                        description: "Get weekly summaries of your child's progress",
-                      },
-                      {
-                        key: 'paymentNotifications',
-                        label: 'Payment Notifications',
-                        description: 'Receive alerts about payments and invoices',
-                      },
-                      {
-                        key: 'emergencyContacts',
-                        label: 'Emergency Contact Alerts',
-                        description: 'Get notified about important updates',
-                      },
-                      {
-                        key: 'mentions',
-                        label: 'Mentions',
-                        description: 'Get notified when a tutor mentions you',
-                      },
-                    ].map(({ key, label, description }) => (
-                      <div key={key} className="flex items-start space-x-3">
-                        <Checkbox
-                          id={key}
-                          checked={
-                            formData.notificationPreferences[
-                              key as keyof typeof formData.notificationPreferences
-                            ]
-                          }
-                          onCheckedChange={checked =>
-                            setFormData(prev => ({
-                              ...prev,
-                              notificationPreferences: {
-                                ...prev.notificationPreferences,
-                                [key]: checked,
-                              },
-                            }))
-                          }
-                        />
-                        <div className="space-y-1">
-                          <Label htmlFor={key} className="font-medium">
-                            {label}
-                          </Label>
-                          <p className="text-sm text-gray-500">{description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex gap-3">
+                  <Button className={secondaryBtnClass} onClick={() => setStep(3)}>
+                    Back
+                  </Button>
+                  <Button
+                    className={primaryBtnClass}
+                    onClick={() => {
+                      if (!validateStepFour()) return
+                      void handleSubmit()
+                    }}
+                    disabled={isLoading || !formData.tosAccepted}
+                  >
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                  </Button>
                 </div>
-
-                <div className="flex items-start space-x-3 rounded-lg border p-4">
-                  <Checkbox
-                    id="tosAccepted"
-                    checked={formData.tosAccepted}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({ ...prev, tosAccepted: checked === true }))
-                    }
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="tosAccepted" className="cursor-pointer font-medium">
-                      I accept the Terms of Service and Privacy Policy
-                    </Label>
-                    <p className="text-sm text-gray-500">
-                      You must accept the terms to create an account.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              </>
             )}
-
-            {/* Navigation and Submit */}
-            <div className="flex justify-between pt-6">
-              {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(step - 1)} disabled={isLoading}>
-                  Previous
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              {step < 4 ? (
-                <Button
-                  onClick={async () => {
-                    if (step === 1) {
-                      const ok = await validateStepOne()
-                      if (!ok) return
-                    }
-                    if (step === 2 && !validateStepTwo()) return
-                    if (step === 3 && !validateStepThree()) return
-                    setStep(step + 1)
-                  }}
-                  disabled={isLoading}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => {
-                    if (!validateStepFour()) return
-                    void handleSubmit()
-                  }}
-                  disabled={isLoading}
-                  className="bg-[#1D4ED8] hover:bg-[#1E40AF]"
-                >
-                  {isLoading ? 'Creating Account...' : 'Create Account'}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
