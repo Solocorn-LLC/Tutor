@@ -1,4 +1,7 @@
-'use client'
+const HERO_BLUE_BUTTON =
+  'bg-[#2563EB] text-white border-[#2563EB] hover:bg-white hover:text-[#2563EB] hover:border-[#2563EB] rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200'
+
+;('use client')
 
 import { useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
@@ -247,7 +250,7 @@ function OneOnOneSettingsCard() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button className={HERO_BLUE_BUTTON} onClick={handleSave} disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -663,7 +666,7 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard className={SECTION_CARD_CLASS} title="Profile" defaultOpen>
+              <CollapsibleCard className={SECTION_CARD_CLASS} title="Your Profile" defaultOpen>
                 <div className="space-y-6 p-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -758,25 +761,12 @@ export default function TutorSettings() {
 
                   {/* Bio Preview */}
                   <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      {formData.avatarUrl ? (
-                        <img
-                          src={formData.avatarUrl}
-                          alt="Profile"
-                          className="h-16 w-16 rounded-xl object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-lg font-semibold text-slate-500">
-                          {formData.name.charAt(0).toUpperCase() || '?'}
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
-                        <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                          {formData.bio ||
-                            'No bio added yet. Your bio helps students learn more about you.'}
-                        </p>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                      <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                        {formData.bio ||
+                          'No bio added yet. Your bio helps students learn more about you.'}
+                      </p>
                     </div>
 
                     {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
@@ -799,7 +789,7 @@ export default function TutorSettings() {
 
                     <div className="flex justify-end">
                       <Button
-                        variant="outline"
+                        className={HERO_BLUE_BUTTON}
                         onClick={() => {
                           window.location.href = '/tutor/my-page'
                         }}
@@ -829,7 +819,11 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveProfile} disabled={saving}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                    >
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -936,6 +930,7 @@ export default function TutorSettings() {
                   </div>
                   <div className="flex justify-end">
                     <Button
+                      className={HERO_BLUE_BUTTON}
                       onClick={() => toast.success('Tax information saved')}
                       disabled={saving}
                     >
@@ -1012,7 +1007,7 @@ export default function TutorSettings() {
                     </div>
                   ))}
 
-                  <Button variant="outline" className="w-full">
+                  <Button className={`${HERO_BLUE_BUTTON} w-full`} variant="outline">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Add Payment Method
                   </Button>
@@ -1047,7 +1042,7 @@ export default function TutorSettings() {
                     <div className="space-y-2">
                       <Label>Action</Label>
                       <Button
-                        className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
+                        className={HERO_BLUE_BUTTON}
                         onClick={() => toast.message('Subscription renewal queued')}
                       >
                         Renew
@@ -1069,12 +1064,15 @@ export default function TutorSettings() {
                       Cancel subscription
                     </Button>
                     <Button
-                      variant="outline"
+                      className={HERO_BLUE_BUTTON}
                       onClick={() => toast.message('Payment history loading')}
                     >
                       Payment history
                     </Button>
-                    <Button variant="outline" onClick={() => toast.message('Billing details')}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={() => toast.message('Billing details')}
+                    >
                       Billing
                     </Button>
                   </div>
@@ -1107,13 +1105,13 @@ export default function TutorSettings() {
                       <Label>Download earnings report</Label>
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          variant="outline"
+                          className={HERO_BLUE_BUTTON}
                           onClick={() => toast.message('CSV report generated')}
                         >
                           CSV
                         </Button>
                         <Button
-                          variant="outline"
+                          className={HERO_BLUE_BUTTON}
                           onClick={() => toast.message('PDF report generated')}
                         >
                           PDF
@@ -1288,7 +1286,11 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveNotifications} disabled={saving}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={handleSaveNotifications}
+                      disabled={saving}
+                    >
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1338,7 +1340,7 @@ export default function TutorSettings() {
                         <Input id="confirmPassword" type="password" />
                       </div>
                     </div>
-                    <Button variant="outline">
+                    <Button className={HERO_BLUE_BUTTON}>
                       <Lock className="mr-2 h-4 w-4" />
                       Update Password
                     </Button>
@@ -1406,7 +1408,7 @@ export default function TutorSettings() {
                         </div>
                       ))}
                     </div>
-                    <Button variant="outline" onClick={handleLogoutAllDevices}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={handleLogoutAllDevices}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout from All Devices
                     </Button>
@@ -1473,7 +1475,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={saveMirrorPreferences}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={saveMirrorPreferences}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Preferences
                     </Button>
@@ -1535,7 +1537,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={saveSyncMode}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={saveSyncMode}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Sync Mode
                     </Button>
