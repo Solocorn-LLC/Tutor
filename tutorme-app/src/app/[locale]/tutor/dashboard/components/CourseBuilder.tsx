@@ -111,6 +111,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DMI_QUESTION_TYPES,
+  DMI_QUESTION_TYPE_LABELS,
+  type DmiQuestionType,
+} from '@/lib/assessment/question-types'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -982,6 +987,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [showDmiVersionList, setShowDmiVersionList] = useState(false)
     const [previewDmiVersion, setPreviewDmiVersion] = useState<DMIVersion | null>(null)
     const [dmiGenerating, setDmiGenerating] = useState(false)
+    // When generate-dmi detects study material (no explicit questions), we ask
+    // the tutor which question types + counts to generate before continuing.
+    const [dmiSpecDialog, setDmiSpecDialog] = useState<{ type: 'task' | 'assessment' } | null>(null)
+    const [dmiSpecRows, setDmiSpecRows] = useState<Array<{ type: DmiQuestionType; count: number }>>(
+      []
+    )
 
     // Active tab tracking for Enter button
     const [taskBuilderActiveTab, setTaskBuilderActiveTab] = useState<'content' | 'pci'>('content')
@@ -2681,8 +2692,13 @@ FEEDBACK: [your explanation]`
       }
     }
 
-    // Generate DMI using AI from content or PDF images with versioning
-    const handleGenerateDMI = async (type: 'task' | 'assessment') => {
+    // Generate DMI using AI from content or PDF images with versioning.
+    // `questionSpec` is supplied (via the spec dialog) when the source is study
+    // material and the tutor has chosen which question types/counts to generate.
+    const handleGenerateDMI = async (
+      type: 'task' | 'assessment',
+      questionSpec?: Array<{ type: DmiQuestionType; count: number }>
+    ) => {
       const isTask = type === 'task'
       const builder = isTask ? taskBuilder : assessmentBuilder
       const activeExt =
@@ -2719,6 +2735,7 @@ FEEDBACK: [your explanation]`
             title: builder.title,
             content: !hasPdf && hasContent ? content : undefined,
             pdfPages,
+            questionSpec,
           }),
         })
 
@@ -2728,6 +2745,15 @@ FEEDBACK: [your explanation]`
         }
 
         const data = await response.json()
+
+        // Study material with no explicit questions: ask the tutor which question
+        // types + counts to generate, then re-run with that spec.
+        if (data.needsQuestionSpec && !questionSpec) {
+          setDmiSpecRows([{ type: 'short', count: 3 }])
+          setDmiSpecDialog({ type })
+          return
+        }
+
         const questions = data.questions || []
 
         // Surface warn-only assessment guardrail violations (e.g. a question that
@@ -2789,6 +2815,19 @@ FEEDBACK: [your explanation]`
       } finally {
         setDmiGenerating(false)
       }
+    }
+
+    // Confirm the study-material question spec and re-run generation with it.
+    const handleConfirmDmiSpec = () => {
+      if (!dmiSpecDialog) return
+      const spec = dmiSpecRows.filter(r => r.count > 0)
+      if (spec.length === 0) {
+        toast.error('Add at least one question type with a count above zero.')
+        return
+      }
+      const { type } = dmiSpecDialog
+      setDmiSpecDialog(null)
+      void handleGenerateDMI(type, spec)
     }
 
     // Load a specific DMI version
@@ -10601,6 +10640,100 @@ FEEDBACK: [your explanation]`
             <DialogFooter>
               <Button variant="modal-secondary-dark" onClick={() => setShowDmiVersionList(false)}>
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Study-material question spec dialog — shown when generate-dmi detects
+            the source has no explicit questions. The tutor chooses which question
+            types and how many of each to generate. */}
+        <Dialog
+          open={!!dmiSpecDialog}
+          onOpenChange={open => {
+            if (!open) setDmiSpecDialog(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Choose questions to generate</DialogTitle>
+              <DialogDescription>
+                This document looks like study material rather than a question paper. Pick the
+                question types and how many of each to generate.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2">
+              {dmiSpecRows.map((row, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Select
+                    value={row.type}
+                    onValueChange={value =>
+                      setDmiSpecRows(prev =>
+                        prev.map((r, i) =>
+                          i === idx ? { ...r, type: value as DmiQuestionType } : r
+                        )
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DMI_QUESTION_TYPES.map(t => (
+                        <SelectItem key={t} value={t}>
+                          {DMI_QUESTION_TYPE_LABELS[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={row.count}
+                    onChange={e =>
+                      setDmiSpecRows(prev =>
+                        prev.map((r, i) =>
+                          i === idx
+                            ? {
+                                ...r,
+                                count: Math.max(1, Math.min(50, Number(e.target.value) || 1)),
+                              }
+                            : r
+                        )
+                      )
+                    }
+                    className="h-9 w-20"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-slate-400 hover:text-red-500"
+                    disabled={dmiSpecRows.length <= 1}
+                    onClick={() => setDmiSpecRows(prev => prev.filter((_, i) => i !== idx))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setDmiSpecRows(prev => [...prev, { type: 'short', count: 3 }])}
+              >
+                <Plus className="mr-1 h-4 w-4" /> Add type
+              </Button>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDmiSpecDialog(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmDmiSpec} disabled={dmiGenerating}>
+                Generate
               </Button>
             </DialogFooter>
           </DialogContent>
