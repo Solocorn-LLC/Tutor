@@ -14,6 +14,9 @@ const roles = [
     href: '/register/student',
     color: 'bg-orange-500',
     textColor: 'text-orange-500',
+    tintBg: 'bg-orange-100/50',
+    borderColor: 'border-orange-200',
+    hoverText: 'hover:text-orange-500',
   },
   {
     id: 'parent',
@@ -22,6 +25,9 @@ const roles = [
     href: '/register/parent',
     color: 'bg-emerald-500',
     textColor: 'text-emerald-500',
+    tintBg: 'bg-emerald-100/50',
+    borderColor: 'border-emerald-200',
+    hoverText: 'hover:text-emerald-500',
   },
   {
     id: 'tutor',
@@ -30,6 +36,9 @@ const roles = [
     href: '/register/tutor',
     color: 'bg-blue-600',
     textColor: 'text-blue-600',
+    tintBg: 'bg-blue-100/50',
+    borderColor: 'border-blue-200',
+    hoverText: 'hover:text-blue-600',
   },
   {
     id: 'admin',
@@ -38,6 +47,9 @@ const roles = [
     href: '/register/admin',
     color: 'bg-red-500',
     textColor: 'text-red-500',
+    tintBg: 'bg-red-100/50',
+    borderColor: 'border-red-200',
+    hoverText: 'hover:text-red-500',
   },
 ]
 
@@ -46,7 +58,7 @@ export default function RoleSelectionPage() {
   const localePrefix = params?.locale ? `/${params.locale}` : ''
 
   return (
-    <div className="from-background via-background to-muted flex min-h-screen items-center justify-center bg-gradient-to-br p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-3xl">
         {/* Header */}
         <div className="mb-8 text-center">
@@ -62,18 +74,20 @@ export default function RoleSelectionPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {roles.map(role => (
             <Link key={role.id} href={`${localePrefix}${role.href}`}>
-              <Card className="h-full cursor-pointer border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl transition-all duration-300 hover:shadow-[0_25px_50px_rgba(0,0,0,0.35)]">
+              <Card
+                className={`h-full cursor-pointer border ${role.borderColor} ${role.tintBg} shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+              >
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3">
                     <div className={`${role.color} rounded-xl p-3 text-white shadow-lg`}>
                       <role.icon className="h-7 w-7" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-xl font-bold text-white">{role.title}</h2>
+                      <h2 className="text-xl font-bold text-gray-800">{role.title}</h2>
                     </div>
                   </div>
                   <Button
-                    className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} shadow-md transition-colors duration-200 hover:bg-white hover:text-orange-500`}
+                    className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} shadow-md transition-colors duration-200 hover:bg-white ${role.hoverText}`}
                   >
                     Register
                   </Button>
