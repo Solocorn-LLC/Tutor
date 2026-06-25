@@ -22,11 +22,7 @@ export async function seedE2ETutor(): Promise<void> {
   // Same cost factor used by the app's hashPassword; authorize() compares with bcrypt.
   const hashedPassword = await bcrypt.hash(password, 12)
 
-  const [existingUser] = await drizzleDb
-    .select()
-    .from(user)
-    .where(eq(user.email, email))
-    .limit(1)
+  const [existingUser] = await drizzleDb.select().from(user).where(eq(user.email, email)).limit(1)
 
   let userId = existingUser?.userId
   if (userId) {
