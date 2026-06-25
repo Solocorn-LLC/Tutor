@@ -7982,7 +7982,7 @@ FEEDBACK: [your explanation]`
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AnalyticsPanel
@@ -8595,8 +8595,7 @@ FEEDBACK: [your explanation]`
                                     <div
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white p-0',
-                                        mainTab === 'live' &&
-                                          'rounded-md border border-orange-300',
+                                        mainTab === 'live' && 'rounded-md border border-orange-300',
                                         mainTab === 'test-pci' &&
                                           'rounded-md border border-purple-300'
                                       )}
