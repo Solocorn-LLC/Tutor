@@ -7881,7 +7881,7 @@ FEEDBACK: [your explanation]`
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AnalyticsPanel
@@ -7898,7 +7898,7 @@ FEEDBACK: [your explanation]`
                                             <div className="relative">
                                               <MentionTextarea
                                                 mentionItems={mentionItems}
-                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="Add a note or reflection..."
                                                 disableAutoResize
                                                 value={analyticsNote}
@@ -7923,24 +7923,26 @@ FEEDBACK: [your explanation]`
                                         </TabsContent>
                                         <TabsContent
                                           value="poll"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
-                                          <InsightsReportView
-                                            type="poll"
-                                            pollResults={pollResults}
-                                            onMentionStudent={name =>
-                                              setPollPrompt(
-                                                pollPrompt
-                                                  ? `${pollPrompt} @[${name}](student:${name}) `
-                                                  : `@[${name}](student:${name}) `
-                                              )
-                                            }
-                                          />
+                                          <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                            <InsightsReportView
+                                              type="poll"
+                                              pollResults={pollResults}
+                                              onMentionStudent={name =>
+                                                setPollPrompt(
+                                                  pollPrompt
+                                                    ? `${pollPrompt} @[${name}](student:${name}) `
+                                                    : `@[${name}](student:${name}) `
+                                                )
+                                              }
+                                            />
+                                          </div>
                                           <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                             <div className="relative">
                                               <MentionTextarea
                                                 mentionItems={mentionItems}
-                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="Did you find this task difficult?"
                                                 disableAutoResize
                                                 value={pollPrompt}
@@ -7995,24 +7997,26 @@ FEEDBACK: [your explanation]`
                                         </TabsContent>
                                         <TabsContent
                                           value="question"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
-                                          <InsightsReportView
-                                            type="question"
-                                            questionAnswers={questionAnswers}
-                                            onMentionStudent={name =>
-                                              setQuestionPrompt(
-                                                questionPrompt
-                                                  ? `${questionPrompt} @[${name}](student:${name}) `
-                                                  : `@[${name}](student:${name}) `
-                                              )
-                                            }
-                                          />
+                                          <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                            <InsightsReportView
+                                              type="question"
+                                              questionAnswers={questionAnswers}
+                                              onMentionStudent={name =>
+                                                setQuestionPrompt(
+                                                  questionPrompt
+                                                    ? `${questionPrompt} @[${name}](student:${name}) `
+                                                    : `@[${name}](student:${name}) `
+                                                )
+                                              }
+                                            />
+                                          </div>
                                           <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                             <div className="relative">
                                               <MentionTextarea
                                                 mentionItems={mentionItems}
-                                                className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                 placeholder="Ask your AI coach or share a reflection..."
                                                 disableAutoResize
                                                 value={questionPrompt}
