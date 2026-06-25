@@ -14,6 +14,7 @@ import {
   DMI_QUESTION_TYPES,
   DMI_QUESTION_TYPE_LABELS,
   normalizeDmiQuestionType,
+  isDmiQuestionType,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
 import {
@@ -68,7 +69,8 @@ A[number]: [suggested answer or key points]
   ordering           order or rank items
   hotspot            click a region of an image
   drag_drop          drag items into targets
-Pick the type that best matches how the question expects to be answered.
+Pick the type that best matches how the question expects to be answered. Write the [type] tag
+as the exact lowercase token above (e.g. [mcq], [true_false]) — not a human-readable label.
 
 Rules:
 - For a question_paper, preserve question wording EXACTLY — do not paraphrase. If the source has
@@ -96,27 +98,89 @@ interface ParsedDmiResponse {
   questions: ParsedDmiQuestion[]
 }
 
+// Map a free-form type tag — a snake_case token OR a human label like
+// "Multiple Choice" / "short answer" — to a known type, defaulting to long.
+const TYPE_SYNONYMS: Record<string, DmiQuestionType> = {
+  multiple_choice: 'mcq',
+  mc: 'mcq',
+  choice: 'mcq',
+  single_choice: 'mcq',
+  single_select: 'mcq',
+  truefalse: 'true_false',
+  tf: 'true_false',
+  true_or_false: 'true_false',
+  multi_select: 'multiple_response',
+  multiselect: 'multiple_response',
+  multiple_select: 'multiple_response',
+  select_all: 'multiple_response',
+  short_answer: 'short',
+  shortanswer: 'short',
+  long_answer: 'long',
+  essay: 'long',
+  paragraph: 'long',
+  extended_response: 'long',
+  fill_in_the_blank: 'fill_blank',
+  fill_in_blank: 'fill_blank',
+  fillblank: 'fill_blank',
+  cloze: 'fill_blank',
+  blank: 'fill_blank',
+  rank: 'ordering',
+  ranking: 'ordering',
+  order: 'ordering',
+  sequence: 'ordering',
+  sequencing: 'ordering',
+  match: 'matching',
+  drag_and_drop: 'drag_drop',
+  draganddrop: 'drag_drop',
+  dragdrop: 'drag_drop',
+}
+
+function normalizeTypeToken(raw?: string): DmiQuestionType {
+  if (!raw) return normalizeDmiQuestionType(undefined)
+  const t = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/-]+/g, '_')
+    .replace(/_+/g, '_')
+  if (isDmiQuestionType(t)) return t
+  return TYPE_SYNONYMS[t] ?? normalizeDmiQuestionType(t)
+}
+
+// Strip markdown emphasis / bullets / headings / code ticks so lines like
+// "**Q1**", "- Q1", "### Q1" still parse.
+function cleanLine(s: string): string {
+  return s
+    .replace(/\*\*/g, '')
+    .replace(/`/g, '')
+    .replace(/^#+\s*/, '')
+    .replace(/^[-•*]\s+/, '')
+    .trim()
+}
+
 function parseDmiResponse(text: string): ParsedDmiResponse {
   const questions: ParsedDmiQuestion[] = []
-  const lines = text.split('\n')
   let currentQ: ParsedDmiQuestion | null = null
   let documentKind: ParsedDmiResponse['documentKind'] = null
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
+  for (const rawLine of text.split('\n')) {
+    const line = cleanLine(rawLine)
     if (!line) continue
 
-    const kindMatch = line.match(/^KIND[:.\)]\s*(question_paper|study_material)/i)
+    const kindMatch = line.match(/KIND[:.\)]\s*(question_paper|study_material)/i)
     if (kindMatch && !documentKind) {
       documentKind = kindMatch[1].toLowerCase() as ParsedDmiResponse['documentKind']
       continue
     }
 
-    // Q[n] [type]: text  — the type tag in []/() is optional (back-compat).
-    const qMatch = line.match(/^Q\s*(\d+)\s*(?:[[(]\s*([a-z_]+)\s*[\])])?\s*[:.\)]\s*(.+)$/i)
-    const optMatch = line.match(/^OPTIONS\s*(\d+)\s*[:.\)]\s*(.+)$/i)
-    const pairsMatch = line.match(/^PAIRS\s*(\d+)\s*[:.\)]\s*(.+)$/i)
-    const aMatch = line.match(/^A\s*(\d+)\s*[:.\)]\s*(.+)$/i)
+    // Q[n] [type]: text — accept "Q" or "Question"; the [type]/(type) tag is
+    // optional and may be ANY text (human labels included) so it never breaks
+    // the match; the delimiter may be : . or ).
+    const qMatch = line.match(
+      /^(?:Q|Question)\s*\.?\s*(\d+)\s*(?:[[(]\s*([^\])]*?)\s*[\])])?\s*[:.)]\s*(.+)$/i
+    )
+    const optMatch = line.match(/^OPTIONS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
+    const pairsMatch = line.match(/^PAIRS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
+    const aMatch = line.match(/^A\s*(\d+)?\s*[:.)]\s*(.+)$/i)
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
@@ -124,7 +188,7 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
         questionNumber: parseInt(qMatch[1], 10),
         questionText: qMatch[3].trim(),
         answer: '',
-        questionType: normalizeDmiQuestionType(qMatch[2]?.toLowerCase()),
+        questionType: normalizeTypeToken(qMatch[2]),
       }
     } else if (optMatch && currentQ) {
       currentQ.options = optMatch[2]
@@ -149,6 +213,24 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
   }
 
   if (currentQ) questions.push(currentQ)
+
+  // Fallback: the model ignored the Q[n] format entirely (e.g. a plain numbered
+  // list of questions). Extract numbered lines so we never return an empty DMI
+  // when the model clearly produced question-like content.
+  if (questions.length === 0) {
+    for (const rawLine of text.split('\n')) {
+      const line = cleanLine(rawLine)
+      const m = line.match(/^(\d+)\s*[.)]\s+(.{6,})$/)
+      if (m && !/^(answer|key|note|kind|options|pairs)\b/i.test(m[2])) {
+        questions.push({
+          questionNumber: parseInt(m[1], 10),
+          questionText: m[2].trim(),
+          answer: '',
+          questionType: normalizeDmiQuestionType(undefined),
+        })
+      }
+    }
+  }
 
   return { documentKind, questions }
 }
