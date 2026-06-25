@@ -1439,36 +1439,23 @@ function StudentFeedbackContent() {
                             )
                           })()}
 
+                        {/* The questions + answer inputs live in the right-hand
+                            Assessment tab (single source of truth). Here we just
+                            point the student to it so a question-only task isn't
+                            blank. */}
                         {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                          <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                              Questions
-                            </p>
-                            {activeTask.dmiItems.map(item => (
-                              <div key={item.id} className="rounded-lg border border-gray-200 p-3">
-                                <p className="mb-2 text-sm font-medium text-gray-900">
-                                  {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                                  {item.questionText}
-                                </p>
-                                <textarea
-                                  value={taskAnswers[item.id] ?? ''}
-                                  // Once the student starts working on a task/assessment,
-                                  // stop auto-following the tutor so their navigation can't
-                                  // yank the student away from what they're answering.
-                                  onFocus={() => setFollowTutor(false)}
-                                  onChange={e => {
-                                    setFollowTutor(false)
-                                    setTaskAnswers(prev => ({
-                                      ...prev,
-                                      [item.id]: e.target.value,
-                                    }))
-                                  }}
-                                  placeholder="Type your answer…"
-                                  className="min-h-[64px] w-full resize-y rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none"
-                                />
-                              </div>
-                            ))}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelTab('dmi')}
+                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
+                          >
+                            <span>
+                              {activeTask.dmiItems.length} question
+                              {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
+                              Assessment tab
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0" />
+                          </button>
                         )}
 
                         {!activeTask.content &&
@@ -1723,19 +1710,44 @@ function StudentFeedbackContent() {
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Questions
+                      </p>
                       {activeTask.dmiItems.map(item => (
                         <div
                           key={item.id}
                           className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
                         >
-                          <p className="mb-1.5 text-xs font-bold text-blue-600">
-                            Q{item.questionNumber}
+                          <p className="mb-2 text-sm font-medium text-gray-800">
+                            {item.questionNumber ? `${item.questionNumber}. ` : ''}
+                            {item.questionText}
                           </p>
-                          <p className="text-sm font-medium text-gray-800">{item.questionText}</p>
+                          <textarea
+                            value={taskAnswers[item.id] ?? ''}
+                            // Once the student starts working on a task/assessment,
+                            // stop auto-following the tutor so their navigation can't
+                            // yank the student away from what they're answering.
+                            onFocus={() => setFollowTutor(false)}
+                            onChange={e => {
+                              setFollowTutor(false)
+                              setTaskAnswers(prev => ({
+                                ...prev,
+                                [item.id]: e.target.value,
+                              }))
+                            }}
+                            placeholder="Type your answer…"
+                            className="min-h-[64px] w-full resize-y rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none"
+                          />
                         </div>
                       ))}
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      {activeTask
+                        ? 'This task has no questions to answer.'
+                        : 'Select a task to see its questions.'}
+                    </p>
+                  )}
                 </div>
               ) : rightPanelTab === 'my-board' ? (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
