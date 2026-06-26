@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const searchQuery = searchParams.get('q')?.toLowerCase().trim() || ''
+    const searchQuery = searchParams.get('q')?.toLowerCase().trim().replace(/^@/, '') || ''
     const categoryFilter = searchParams.get('subject')?.toLowerCase().trim() || ''
     const combinationFilter = searchParams.get('combination')?.toLowerCase().trim() || ''
     const nationalityFilter = searchParams.get('nationality')?.toLowerCase().trim() || ''
@@ -182,6 +182,7 @@ export async function GET(request: NextRequest) {
           searchPattern
             ? or(
                 ilike(profile.name, searchPattern),
+                ilike(profile.username, searchPattern),
                 ilike(profile.bio, searchPattern),
                 ilike(course.name, searchPattern),
                 ilike(courseVariant.category, searchPattern),
