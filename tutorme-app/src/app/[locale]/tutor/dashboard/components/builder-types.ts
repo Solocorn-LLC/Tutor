@@ -63,6 +63,16 @@ export interface DMIQuestion {
   questionNumber: number
   questionText: string
   answer: string
+  /** Which answer-input control the student sees (defaults to long answer). */
+  questionType?: import('@/lib/assessment/question-types').DmiQuestionType
+  /** Options for choice types (mcq / true_false / multiple_response). */
+  options?: string[]
+  /** Correct left↔right pairs for `matching` (the right values form the bank). */
+  pairs?: import('@/lib/assessment/question-types').DmiMatchPair[]
+  /** Image the student clicks for a `hotspot` item. */
+  hotspotImageUrl?: string
+  /** Correct clickable regions for `hotspot` (answer key, not shown to student). */
+  regions?: import('@/lib/assessment/question-types').DmiHotspotRegion[]
 }
 
 export interface DMIVersion {

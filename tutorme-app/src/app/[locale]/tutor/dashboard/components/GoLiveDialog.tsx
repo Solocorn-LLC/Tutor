@@ -80,7 +80,7 @@ export function GoLiveDialog({
         if (!isOpen) setTimeout(() => setStep(1), 300)
       }}
     >
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" theme="metallic">
         <DialogHeader>
           <DialogTitle>
             {step === 1

@@ -8,17 +8,10 @@ interface PanelErrorBoundaryProps {
   resetKeys?: unknown[]
   /** Label shown in the fallback, e.g. "this view" (default) or "the Test panel". */
   label?: string
-  /**
-   * When true, render the React component stack inside the fallback (collapsed)
-   * so it can be read/screenshotted without opening the console. Used to
-   * diagnose a hard-to-reproduce crash; the stack still goes to console too.
-   */
-  showStack?: boolean
 }
 
 interface PanelErrorBoundaryState {
   error: Error | null
-  componentStack: string | null
 }
 
 /**
@@ -35,7 +28,7 @@ export class PanelErrorBoundary extends Component<
   PanelErrorBoundaryProps,
   PanelErrorBoundaryState
 > {
-  state: PanelErrorBoundaryState = { error: null, componentStack: null }
+  state: PanelErrorBoundaryState = { error: null }
 
   static getDerivedStateFromError(error: Error): Partial<PanelErrorBoundaryState> {
     return { error }
@@ -43,7 +36,6 @@ export class PanelErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[PanelErrorBoundary] render error contained:', error, info.componentStack)
-    this.setState({ componentStack: info.componentStack ?? null })
   }
 
   componentDidUpdate(prevProps: PanelErrorBoundaryProps) {
@@ -51,11 +43,11 @@ export class PanelErrorBoundary extends Component<
     const prev = prevProps.resetKeys ?? []
     const next = this.props.resetKeys ?? []
     if (prev.length !== next.length || prev.some((v, i) => !Object.is(v, next[i]))) {
-      this.setState({ error: null, componentStack: null })
+      this.setState({ error: null })
     }
   }
 
-  private reset = () => this.setState({ error: null, componentStack: null })
+  private reset = () => this.setState({ error: null })
 
   render() {
     if (this.state.error) {
@@ -73,16 +65,6 @@ export class PanelErrorBoundary extends Component<
           >
             Try again
           </button>
-          {this.props.showStack && this.state.componentStack && (
-            <details className="mt-2 max-w-xl text-left">
-              <summary className="cursor-pointer text-xs font-medium text-slate-600">
-                Diagnostic details (component stack)
-              </summary>
-              <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-[10px] leading-tight text-slate-700">
-                {this.state.componentStack}
-              </pre>
-            </details>
-          )}
         </div>
       )
     }

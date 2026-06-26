@@ -60,6 +60,9 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
 
+const HERO_BLUE_BUTTON =
+  'bg-[#2563EB] text-white border-[#2563EB] hover:bg-white hover:text-[#2563EB] hover:border-[#2563EB] rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200'
+
 const LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'zh', name: '中文 (Chinese)' },
@@ -69,7 +72,7 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
-const SECTION_CARD_CLASS = 'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
+const SECTION_CARD_CLASS = 'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
 
 interface PaymentMethod {
   id: string
@@ -150,26 +153,23 @@ function OneOnOneSettingsCard() {
 
   if (loading) {
     return (
-      <Card className={SECTION_CARD_CLASS}>
-        <CardHeader>
-          <CardTitle>1-on-1 Booking</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          </div>
-        </CardContent>
-      </Card>
+      <CollapsibleCard flush className={SECTION_CARD_CLASS} title="1-on-1 Booking" defaultOpen>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      </CollapsibleCard>
     )
   }
 
   return (
-    <Card className={SECTION_CARD_CLASS}>
-      <CardHeader>
-        <CardTitle>1-on-1 Booking</CardTitle>
-        <CardDescription>Allow students to book private sessions with you</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <CollapsibleCard
+      flush
+      className={SECTION_CARD_CLASS}
+      title="1-on-1 Booking"
+      description="Allow students to book private sessions with you"
+      defaultOpen
+    >
+      <div className="space-y-6 p-6">
         {/* Enable/Disable Toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
@@ -250,7 +250,7 @@ function OneOnOneSettingsCard() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button className={HERO_BLUE_BUTTON} onClick={handleSave} disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -264,8 +264,8 @@ function OneOnOneSettingsCard() {
             )}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }
 
@@ -666,7 +666,7 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard className={SECTION_CARD_CLASS} title="Profile" defaultOpen>
+              <CollapsibleCard className={SECTION_CARD_CLASS} title="Your Profile" defaultOpen>
                 <div className="space-y-6 p-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -757,8 +757,73 @@ export default function TutorSettings() {
                     </div>
                   </div>
 
+                  <Separator />
+
+                  {/* Bio Preview */}
+                  <div className="space-y-4">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
+                      <p className="mt-1 line-clamp-3 text-sm text-slate-500">
+                        {formData.bio ||
+                          'No bio added yet. Your bio helps students learn more about you.'}
+                      </p>
+                    </div>
+
+                    {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(formData.socialLinks)
+                          .filter(([, v]) => v)
+                          .map(([platform, url]) => (
+                            <a
+                              key={platform}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                            >
+                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </a>
+                          ))}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <Button
+                        className={HERO_BLUE_BUTTON}
+                        onClick={() => {
+                          window.location.href = '/tutor/my-page'
+                        }}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Edit Public Profile
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Nationality */}
+                  <div className="space-y-2">
+                    <Label className="inline-flex items-center gap-1.5">
+                      <CountryFlag countryName={formData.nationality} size="xs" />
+                      Nationality
+                    </Label>
+                    <Input
+                      value={formData.nationality || 'Not specified'}
+                      disabled
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Your nationality as selected during registration
+                    </p>
+                  </div>
+
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveProfile} disabled={saving}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                    >
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -770,67 +835,6 @@ export default function TutorSettings() {
                           Save Changes
                         </>
                       )}
-                    </Button>
-                  </div>
-                </div>
-              </CollapsibleCard>
-
-              {/* Public Profile Preview */}
-              <CollapsibleCard
-                flush
-                className={SECTION_CARD_CLASS}
-                title="Public Profile"
-                description="How students see you on your public page"
-              >
-                <div className="space-y-6 p-6">
-                  <div className="flex items-start gap-4">
-                    {formData.avatarUrl ? (
-                      <img
-                        src={formData.avatarUrl}
-                        alt="Profile"
-                        className="h-16 w-16 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-lg font-semibold text-slate-500">
-                        {formData.name.charAt(0).toUpperCase() || '?'}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
-                      <p className="mt-1 line-clamp-3 text-sm text-slate-500">
-                        {formData.bio ||
-                          'No bio added yet. Your bio helps students learn more about you.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {Object.entries(formData.socialLinks).filter(([, v]) => v).length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(formData.socialLinks)
-                        .filter(([, v]) => v)
-                        .map(([platform, url]) => (
-                          <a
-                            key={platform}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200"
-                          >
-                            {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                          </a>
-                        ))}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        window.location.href = '/tutor/my-page'
-                      }}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      Edit Public Profile
                     </Button>
                   </div>
                 </div>
@@ -926,6 +930,7 @@ export default function TutorSettings() {
                   </div>
                   <div className="flex justify-end">
                     <Button
+                      className={HERO_BLUE_BUTTON}
                       onClick={() => toast.success('Tax information saved')}
                       disabled={saving}
                     >
@@ -944,135 +949,6 @@ export default function TutorSettings() {
                   </div>
                 </div>
               </CollapsibleCard>
-
-              {/* Tutor Information */}
-              <CollapsibleCard
-                flush
-                className={SECTION_CARD_CLASS}
-                title="Tutor Information"
-                description="Your tutoring profile details (set during registration)"
-              >
-                <div className="space-y-6 p-6">
-                  {/* Nationality & Country of Residence */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="inline-flex items-center gap-1.5">
-                        <CountryFlag countryName={formData.nationality} size="xs" />
-                        Nationality
-                      </Label>
-                      <Input
-                        value={formData.nationality || 'Not specified'}
-                        disabled
-                        className="bg-white"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Your nationality as selected during registration
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="inline-flex items-center gap-1.5">
-                        <CountryFlag countryName={formData.countryOfResidence} size="xs" />
-                        Country of Residence
-                      </Label>
-                      <Input
-                        value={formData.countryOfResidence || 'Not specified'}
-                        disabled
-                        className="bg-white"
-                      />
-                      <p className="text-xs text-gray-500">Your current country of residence</p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Tutoring Categories */}
-                  <div className="space-y-2">
-                    <Label>Tutoring Categories</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.specialties.length > 0 ? (
-                        formData.specialties.map((specialty, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-700"
-                          >
-                            {specialty}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No categories specified</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Subject categories you tutor (set during registration)
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  {/* Tutoring Nationalities */}
-                  <div className="space-y-2">
-                    <Label>Student Nationalities You Tutor</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tutorNationalities.length > 0 ? (
-                        formData.tutorNationalities.map((nationality, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm text-green-700"
-                          >
-                            <CountryFlag countryName={nationality} size="xs" />
-                            {nationality}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">No nationalities specified</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Student nationalities you specialize in tutoring (set during registration)
-                    </p>
-                  </div>
-
-                  {/* Category-Nationality Combinations */}
-                  {formData.categoryNationalityCombinations.length > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <Label>Search Tags</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {formData.categoryNationalityCombinations.map((combo, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700"
-                            >
-                              {(() => {
-                                const parts = combo.split(' — ')
-                                const countryPart = parts.length > 1 ? parts.pop() : null
-                                const categoryPart = parts.join(' — ')
-                                return (
-                                  <>
-                                    {countryPart && (
-                                      <CountryFlag countryName={countryPart} size="xs" />
-                                    )}
-                                    {categoryPart}
-                                    {countryPart && ` — ${countryPart}`}
-                                  </>
-                                )
-                              })()}
-                            </span>
-                          ))}
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          These tags help students find you when searching for specific
-                          category-nationality combinations
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CollapsibleCard>
-
-              {/* One-on-One Booking Settings */}
-              <OneOnOneSettingsCard />
             </div>
           </TabsContent>
 
@@ -1131,7 +1007,7 @@ export default function TutorSettings() {
                     </div>
                   ))}
 
-                  <Button variant="outline" className="w-full">
+                  <Button className={`${HERO_BLUE_BUTTON} w-full`} variant="outline">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Add Payment Method
                   </Button>
@@ -1166,7 +1042,7 @@ export default function TutorSettings() {
                     <div className="space-y-2">
                       <Label>Action</Label>
                       <Button
-                        className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
+                        className={HERO_BLUE_BUTTON}
                         onClick={() => toast.message('Subscription renewal queued')}
                       >
                         Renew
@@ -1188,12 +1064,15 @@ export default function TutorSettings() {
                       Cancel subscription
                     </Button>
                     <Button
-                      variant="outline"
+                      className={HERO_BLUE_BUTTON}
                       onClick={() => toast.message('Payment history loading')}
                     >
                       Payment history
                     </Button>
-                    <Button variant="outline" onClick={() => toast.message('Billing details')}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={() => toast.message('Billing details')}
+                    >
                       Billing
                     </Button>
                   </div>
@@ -1226,13 +1105,13 @@ export default function TutorSettings() {
                       <Label>Download earnings report</Label>
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          variant="outline"
+                          className={HERO_BLUE_BUTTON}
                           onClick={() => toast.message('CSV report generated')}
                         >
                           CSV
                         </Button>
                         <Button
-                          variant="outline"
+                          className={HERO_BLUE_BUTTON}
                           onClick={() => toast.message('PDF report generated')}
                         >
                           PDF
@@ -1407,7 +1286,11 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveNotifications} disabled={saving}>
+                    <Button
+                      className={HERO_BLUE_BUTTON}
+                      onClick={handleSaveNotifications}
+                      disabled={saving}
+                    >
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1457,7 +1340,7 @@ export default function TutorSettings() {
                         <Input id="confirmPassword" type="password" />
                       </div>
                     </div>
-                    <Button variant="outline">
+                    <Button className={HERO_BLUE_BUTTON}>
                       <Lock className="mr-2 h-4 w-4" />
                       Update Password
                     </Button>
@@ -1525,7 +1408,7 @@ export default function TutorSettings() {
                         </div>
                       ))}
                     </div>
-                    <Button variant="outline" onClick={handleLogoutAllDevices}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={handleLogoutAllDevices}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout from All Devices
                     </Button>
@@ -1592,7 +1475,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={saveMirrorPreferences}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={saveMirrorPreferences}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Preferences
                     </Button>
@@ -1654,7 +1537,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={saveSyncMode}>
+                    <Button className={HERO_BLUE_BUTTON} onClick={saveSyncMode}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Sync Mode
                     </Button>

@@ -396,6 +396,11 @@ function CoursePageInner() {
             description: e.course?.description || null,
             subject: e.course?.categories?.[0] || 'general',
             tutorHandle: e.course?.tutorHandle || null,
+            tutorName: e.course?.tutorName || null,
+            // The tutor's uploaded profile photo lives in profile.avatarUrl
+            // (returned as tutorAvatar); user.image (tutorImage) is usually null
+            // for credential tutors. Carry both so the card can show the photo.
+            tutorAvatar: e.course?.tutorAvatar || null,
             tutorImage: e.course?.tutorImage || null,
             difficulty: 'All Levels',
             estimatedHours: 0,
@@ -1083,9 +1088,22 @@ function CourseCard({
         {/* Header: Name + Handle + Category Badge | Session count | Avatar | Heart */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold text-slate-100">{course.name}</h3>
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="-mt-0.5 truncate text-base font-semibold text-slate-100">
+                {course.name}
+              </h3>
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  onFavorite()
+                }}
+                className="-mt-0.5 shrink-0 text-rose-400 transition-colors hover:text-rose-500"
+              >
+                <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
+              </button>
+            </div>
             {course.tutorHandle && (
-              <p className="text-xs font-medium text-slate-300">@{course.tutorHandle}</p>
+              <p className="-mt-px text-xs font-medium text-slate-300">@{course.tutorHandle}</p>
             )}
             {course.subject && course.subject !== 'general' && (
               <span className="mt-1 inline-block rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -1094,18 +1112,14 @@ function CourseCard({
             )}
           </div>
 
-          {/* Center: Session count */}
-          <div className="flex items-center justify-center">
-            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+          {/* Center: Session count + Avatar */}
+          <div className="flex items-start gap-3">
+            <div className="flex items-center gap-1.5 pt-0.5 text-xs text-slate-300">
               <Calendar className="h-3.5 w-3.5 text-slate-400" />
               <span className="font-medium text-slate-200">
                 {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
               </span>
             </div>
-          </div>
-
-          {/* Right: Avatar + Heart */}
-          <div className="flex items-center gap-2">
             {/* Avatar */}
             {(() => {
               const tutorImageUrl = course.tutorAvatar
@@ -1144,17 +1158,6 @@ function CourseCard({
                 </div>
               )
             })()}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={e => {
-                e.stopPropagation()
-                onFavorite()
-              }}
-              className="-mr-1 -mt-1 h-7 w-7 text-rose-400 hover:bg-white/10 hover:text-rose-500"
-            >
-              <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
-            </Button>
           </div>
         </div>
 
@@ -1215,7 +1218,7 @@ function CourseCard({
       <div className="flex gap-2 border-t border-[rgba(255,255,255,0.1)] p-4">
         {(isOngoing || isPending) && (
           <Button
-            className="h-8 flex-1 border-0 bg-emerald-600 text-xs text-white transition-colors"
+            className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-emerald-600"
             disabled={enteringClass === course.id}
             onClick={e => {
               e.stopPropagation()
@@ -1237,20 +1240,10 @@ function CourseCard({
             </Button>
           </Link>
         )}
-        <Button
-          variant="outline"
-          className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-black"
-          onClick={e => {
-            e.stopPropagation()
-            onDetails()
-          }}
-        >
-          Details
-        </Button>
         {onUnregister && course.enrollment && (
           <Button
-            variant="destructive"
-            className="h-8 flex-1 text-xs transition-colors"
+            variant="outline"
+            className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-red-600"
             disabled={unregisteringId === course.id}
             onClick={e => {
               e.stopPropagation()
