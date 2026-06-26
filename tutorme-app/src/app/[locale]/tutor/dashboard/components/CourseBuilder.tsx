@@ -8025,7 +8025,7 @@ FEEDBACK: [your explanation]`
                                           value="analytics"
                                           className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
-                                          <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                          <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AiAssistantPanel sessionId={insightsProps.sessionId} />
                                           </div>
                                         </TabsContent>
@@ -8373,7 +8373,7 @@ FEEDBACK: [your explanation]`
                                             value="analytics"
                                             className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
-                                            <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                               <AiAssistantPanel
                                                 sessionId={insightsProps.sessionId}
                                               />
