@@ -188,7 +188,7 @@ export type {
   CourseBuilderRef,
 } from './builder-types'
 
-import { AnalyticsPanel } from './AnalyticsPanel'
+import { AiAssistantPanel } from './AiAssistantPanel'
 import { AITeachingAssistant } from '@/components/tutor/AITeachingAssistant'
 import { MentionTextarea } from '@/components/class/mention-textarea'
 import type { MentionItem } from '@/components/class/mention-textarea'
@@ -7985,15 +7985,7 @@ FEEDBACK: [your explanation]`
                                           className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                            <AnalyticsPanel
-                                              students={insightsProps.students}
-                                              metrics={insightsProps.metrics}
-                                              liveTasks={insightsProps.liveTasks}
-                                              classDuration={insightsProps.classDuration}
-                                              isRecording={insightsProps.isRecording}
-                                              recordingDuration={insightsProps.recordingDuration}
-                                              sessionId={insightsProps.sessionId}
-                                            />
+                                            <AiAssistantPanel sessionId={insightsProps.sessionId} />
                                           </div>
                                           <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                             <div className="relative">
@@ -8367,13 +8359,7 @@ FEEDBACK: [your explanation]`
                                             className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
                                             <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                              <AnalyticsPanel
-                                                students={insightsProps.students}
-                                                metrics={insightsProps.metrics}
-                                                liveTasks={insightsProps.liveTasks}
-                                                classDuration={insightsProps.classDuration}
-                                                isRecording={insightsProps.isRecording}
-                                                recordingDuration={insightsProps.recordingDuration}
+                                              <AiAssistantPanel
                                                 sessionId={insightsProps.sessionId}
                                               />
                                             </div>
