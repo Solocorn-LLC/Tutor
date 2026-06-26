@@ -8962,7 +8962,7 @@ FEEDBACK: [your explanation]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl bg-white/90 backdrop-blur-md transition-all duration-300 border border-orange-500',
+                                    'mt-1 w-full rounded-2xl border border-orange-500 bg-white/90 backdrop-blur-md transition-all duration-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">

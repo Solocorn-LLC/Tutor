@@ -1685,10 +1685,10 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch justify-center gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 w-full max-w-4xl flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -2132,9 +2132,7 @@ function StudentFeedbackContent() {
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      {activeTask
-                        ? 'This task has no questions to answer.'
-                        : ''}
+                      {activeTask ? 'This task has no questions to answer.' : ''}
                     </p>
                   )}
                 </div>
