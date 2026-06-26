@@ -338,7 +338,7 @@ export default function TutorSettings() {
             nationality: data.profile.nationality || '',
             countryOfResidence: data.profile.countryOfResidence || '',
             specialties: data.profile.specialties || [],
-            tutoringNationalities: data.profile.tutorNationalities || [],
+            tutorNationalities: data.profile.tutorNationalities || [],
             categoryNationalityCombinations: data.profile.categoryNationalityCombinations || [],
             bio: data.profile.bio || '',
             socialLinks:
@@ -761,7 +761,7 @@ export default function TutorSettings() {
 
                   {/* Bio Preview */}
                   <div className="space-y-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
                       <p className="mt-1 line-clamp-3 text-sm text-slate-500">
                         {formData.bio ||
