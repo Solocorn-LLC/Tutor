@@ -335,7 +335,7 @@ export default function TutorSettings() {
             nationality: data.profile.nationality || '',
             countryOfResidence: data.profile.countryOfResidence || '',
             specialties: data.profile.specialties || [],
-            tutoringNationalities: data.profile.tutorNationalities || [],
+            tutorNationalities: data.profile.tutorNationalities || [],
             categoryNationalityCombinations: data.profile.categoryNationalityCombinations || [],
             bio: data.profile.bio || '',
             socialLinks:
