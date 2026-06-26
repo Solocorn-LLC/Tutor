@@ -1,14 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-  type SVGProps,
-  type PointerEvent,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, type SVGProps } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -33,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { AvatarUploader } from '@/components/avatar-uploader'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
@@ -42,7 +35,6 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  Pencil,
   Share2,
   Globe,
   MapPin,
@@ -601,7 +593,6 @@ const ALL_COUNTRIES = REGIONS.flatMap(region =>
 export default function TutorMyPage() {
   const params = useParams<{ locale?: string }>()
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const { update: updateSession } = useSession()
   const [loading, setLoading] = useState(true)
@@ -610,27 +601,6 @@ export default function TutorMyPage() {
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [cropDialogOpen, setCropDialogOpen] = useState(false)
-  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null)
-  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null)
-  const cropViewportRef = useRef<HTMLDivElement | null>(null)
-  const cropImageRef = useRef<HTMLImageElement | null>(null)
-  const cropDragRef = useRef<{
-    pointerId: number
-    startX: number
-    startY: number
-    startOffsetX: number
-    startOffsetY: number
-  } | null>(null)
-  const [cropImageSize, setCropImageSize] = useState<{ width: number; height: number } | null>(null)
-  const [cropViewportSize, setCropViewportSize] = useState(0)
-  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 })
-  const [cropZoom, setCropZoom] = useState(1)
-  const [cropError, setCropError] = useState<string | null>(null)
-  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null)
-  const [cropping, setCropping] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [creatingCourse, setCreatingCourse] = useState(false)
   const [courseName, setCourseName] = useState('')
@@ -803,221 +773,6 @@ export default function TutorMyPage() {
   )
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!avatarFile) {
-      setAvatarPreview(null)
-      return
-    }
-    const previewUrl = URL.createObjectURL(avatarFile)
-    setAvatarPreview(previewUrl)
-    return () => URL.revokeObjectURL(previewUrl)
-  }, [avatarFile])
-
-  useEffect(() => {
-    if (!cropSourceUrl) {
-      cropImageRef.current = null
-      setCropImageSize(null)
-      setCroppedPreviewUrl(null)
-      return
-    }
-
-    let active = true
-    const img = new Image()
-    img.src = cropSourceUrl
-    img.onload = () => {
-      if (!active) return
-      cropImageRef.current = img
-      setCropImageSize({ width: img.naturalWidth, height: img.naturalHeight })
-    }
-    img.onerror = () => {
-      if (!active) return
-      cropImageRef.current = null
-      setCropImageSize(null)
-      setCroppedPreviewUrl(null)
-      setCropError('Invalid image file')
-    }
-
-    return () => {
-      active = false
-    }
-  }, [cropSourceUrl])
-
-  useEffect(() => {
-    if (!cropDialogOpen) return
-    const el = cropViewportRef.current
-    if (!el) return
-
-    const measure = () => {
-      const rect = el.getBoundingClientRect()
-      if (rect.width > 0) setCropViewportSize(Math.round(rect.width))
-    }
-
-    measure()
-    requestAnimationFrame(measure)
-
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measure)
-      return () => window.removeEventListener('resize', measure)
-    }
-
-    const ro = new ResizeObserver(entries => {
-      const entry = entries[0]
-      if (!entry) return
-      setCropViewportSize(Math.round(entry.contentRect.width))
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [cropDialogOpen])
-
-  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
-
-  const getCropData = () => {
-    if (!cropImageSize) return null
-
-    // Measure on demand if ResizeObserver hasn't fired yet
-    let viewportSize = cropViewportSize
-    if (!viewportSize && cropViewportRef.current) {
-      const rect = cropViewportRef.current.getBoundingClientRect()
-      viewportSize = Math.round(rect.width)
-      if (viewportSize > 0) setCropViewportSize(viewportSize)
-    }
-    if (!viewportSize) return null
-
-    const baseScale = Math.max(
-      viewportSize / cropImageSize.width,
-      viewportSize / cropImageSize.height
-    )
-    const scale = baseScale * cropZoom
-    const displayW = cropImageSize.width * scale
-    const displayH = cropImageSize.height * scale
-    const maxOffsetX = Math.max(0, (displayW - viewportSize) / 2)
-    const maxOffsetY = Math.max(0, (displayH - viewportSize) / 2)
-    const offsetX = clamp(cropOffset.x, -maxOffsetX, maxOffsetX)
-    const offsetY = clamp(cropOffset.y, -maxOffsetY, maxOffsetY)
-
-    const imgLeft = (viewportSize - displayW) / 2 + offsetX
-    const imgTop = (viewportSize - displayH) / 2 + offsetY
-
-    const sx = (0 - imgLeft) / scale
-    const sy = (0 - imgTop) / scale
-    const side = viewportSize / scale
-
-    const x = Math.round(clamp(sx, 0, cropImageSize.width - 1))
-    const y = Math.round(clamp(sy, 0, cropImageSize.height - 1))
-    const maxSide = Math.min(cropImageSize.width - x, cropImageSize.height - y)
-    const size = Math.round(clamp(side, 1, maxSide))
-
-    return {
-      x,
-      y,
-      width: size,
-      height: size,
-      originalWidth: cropImageSize.width,
-      originalHeight: cropImageSize.height,
-    }
-  }
-
-  const maxCropZoom = useMemo(() => {
-    if (!cropImageSize || !cropViewportSize) return 1
-    const baseScale = Math.max(
-      cropViewportSize / cropImageSize.width,
-      cropViewportSize / cropImageSize.height
-    )
-    const maxByMinCrop = cropViewportSize / (baseScale * 256)
-    return Math.max(1, Number.isFinite(maxByMinCrop) ? maxByMinCrop : 1)
-  }, [cropImageSize, cropViewportSize])
-
-  useEffect(() => {
-    setCropZoom(prev => clamp(prev, 1, maxCropZoom))
-  }, [maxCropZoom])
-
-  useEffect(() => {
-    if (!cropImageSize || !cropViewportSize) return
-    const baseScale = Math.max(
-      cropViewportSize / cropImageSize.width,
-      cropViewportSize / cropImageSize.height
-    )
-    const scale = baseScale * cropZoom
-    const displayW = cropImageSize.width * scale
-    const displayH = cropImageSize.height * scale
-    const maxOffsetX = Math.max(0, (displayW - cropViewportSize) / 2)
-    const maxOffsetY = Math.max(0, (displayH - cropViewportSize) / 2)
-    setCropOffset(prev => ({
-      x: clamp(prev.x, -maxOffsetX, maxOffsetX),
-      y: clamp(prev.y, -maxOffsetY, maxOffsetY),
-    }))
-  }, [cropImageSize, cropViewportSize, cropZoom])
-
-  const handleCropPointerDown = useCallback(
-    (e: PointerEvent<HTMLDivElement>) => {
-      if (cropping || uploadingAvatar) return
-      e.currentTarget.setPointerCapture(e.pointerId)
-      cropDragRef.current = {
-        pointerId: e.pointerId,
-        startX: e.clientX,
-        startY: e.clientY,
-        startOffsetX: cropOffset.x,
-        startOffsetY: cropOffset.y,
-      }
-    },
-    [cropping, uploadingAvatar, cropOffset.x, cropOffset.y]
-  )
-
-  const handleCropPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    const drag = cropDragRef.current
-    if (!drag || drag.pointerId !== e.pointerId) return
-    const dx = e.clientX - drag.startX
-    const dy = e.clientY - drag.startY
-    setCropOffset({ x: drag.startOffsetX + dx, y: drag.startOffsetY + dy })
-  }, [])
-
-  const handleCropPointerUp = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    const drag = cropDragRef.current
-    if (!drag || drag.pointerId !== e.pointerId) return
-    cropDragRef.current = null
-  }, [])
-
-  useEffect(() => {
-    if (!cropSourceUrl || !cropDialogOpen) return
-    if (!cropImageSize || !cropViewportSize) return
-
-    let active = true
-    let objectUrlToRevoke: string | null = null
-
-    const generatePreview = async () => {
-      const img = cropImageRef.current
-      if (!img) return
-      const cropData = getCropData()
-      if (!cropData) return
-
-      const canvas = document.createElement('canvas')
-      canvas.width = 256
-      canvas.height = 256
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, 256, 256)
-
-      const blob = await new Promise<Blob | null>(resolve =>
-        canvas.toBlob(resolve, 'image/webp', 0.85)
-      )
-      if (!active || !blob) return
-
-      objectUrlToRevoke = URL.createObjectURL(blob)
-      setCroppedPreviewUrl(objectUrlToRevoke)
-    }
-
-    void generatePreview().catch(() => {
-      if (!active) return
-      setCroppedPreviewUrl(null)
-    })
-
-    return () => {
-      active = false
-      if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke)
-    }
-  }, [cropSourceUrl, cropDialogOpen, cropImageSize, cropViewportSize, cropOffset, cropZoom])
-
   const handleCopyProfile = () => {
     if (!publicUrl) return
     navigator.clipboard.writeText(publicUrl)
@@ -1086,223 +841,6 @@ export default function TutorMyPage() {
       toast.error('Failed to save profile')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const MAX_AVATAR_SIZE_BYTES = 10 * 1024 * 1024
-  const ACCEPTED_AVATAR_MIME = ['image/jpeg', 'image/png', 'image/webp']
-
-  const isAcceptedAvatarFile = (file: File) => {
-    const byMime = ACCEPTED_AVATAR_MIME.includes(file.type)
-    if (byMime) return true
-    const name = file.name.toLowerCase()
-    return (
-      name.endsWith('.jpg') ||
-      name.endsWith('.jpeg') ||
-      name.endsWith('.png') ||
-      name.endsWith('.webp')
-    )
-  }
-
-  const handleAvatarSelect = async (file: File) => {
-    if (!isAcceptedAvatarFile(file)) {
-      toast.error('Accepted formats: JPG, PNG, WEBP only')
-      return
-    }
-    if (file.size > MAX_AVATAR_SIZE_BYTES) {
-      toast.error('Maximum size is 10 MB')
-      return
-    }
-
-    if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl)
-    setCroppedPreviewUrl(null)
-    setCropDialogOpen(false)
-    setCropError(null)
-    setCropOffset({ x: 0, y: 0 })
-    setCropZoom(1)
-    const objectUrl = URL.createObjectURL(file)
-    try {
-      const img = new Image()
-      img.src = objectUrl
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Failed to load image'))
-      })
-
-      if (img.naturalWidth < 512 || img.naturalHeight < 512) {
-        toast.error('Minimum dimensions: 512 × 512 px')
-        URL.revokeObjectURL(objectUrl)
-        return
-      }
-
-      cropImageRef.current = img
-      setCropImageSize({ width: img.naturalWidth, height: img.naturalHeight })
-      setCropSourceUrl(objectUrl)
-      setCropSourceFile(file)
-      setCropDialogOpen(true)
-
-      // Pre-measure viewport as soon as dialog opens so the upload button
-      // is not blocked waiting for the ResizeObserver.
-      requestAnimationFrame(() => {
-        const el = cropViewportRef.current
-        if (el) {
-          const rect = el.getBoundingClientRect()
-          if (rect.width > 0) setCropViewportSize(Math.round(rect.width))
-        }
-      })
-    } catch {
-      toast.error('Invalid image file')
-      URL.revokeObjectURL(objectUrl)
-    }
-  }
-
-  const uploadAvatarFile = async (file: File) => {
-    setAvatarFile(file)
-    setUploadingAvatar(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const formData = new FormData()
-      formData.set('avatar', file)
-
-      const res = await fetch('/api/tutor/public-profile/avatar', {
-        method: 'POST',
-        headers: {
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-        body: formData,
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data?.error || 'Failed to upload photo')
-        return
-      }
-      const newUrl = data?.avatarUrl ?? data?.url ?? null
-      if (!newUrl || typeof newUrl !== 'string') {
-        toast.error('Upload succeeded but no photo URL was returned. Please try again.')
-        return
-      }
-      let fullUrl =
-        newUrl.startsWith('/') && typeof window !== 'undefined'
-          ? `${window.location.origin}${newUrl}`
-          : newUrl
-      // Cache-bust so browsers don't reuse a stale/404 cached image
-      const sep = fullUrl.includes('?') ? '&' : '?'
-      fullUrl = `${fullUrl}${sep}t=${Date.now()}`
-      setAvatarUrl(fullUrl)
-      setAvatarPreview(null)
-      setAvatarFile(null)
-      await updateSession({ image: fullUrl }).catch(() => {
-        // Non-critical: session will refresh on next page load
-      })
-      toast.success('Profile photo updated')
-    } catch {
-      toast.error('Failed to upload photo')
-    } finally {
-      setUploadingAvatar(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
-
-  const closeCropDialog = () => {
-    setCropDialogOpen(false)
-    setCropping(false)
-    setCropError(null)
-    setCropZoom(1)
-    setCropOffset({ x: 0, y: 0 })
-    setCropViewportSize(0)
-    cropImageRef.current = null
-    setCropImageSize(null)
-    setCropSourceUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev)
-      return null
-    })
-    setCropSourceFile(null)
-    setCroppedPreviewUrl(null)
-  }
-
-  const confirmCropAndUpload = async () => {
-    if (!cropSourceUrl || !cropSourceFile) return
-    const cropData = getCropData()
-    if (!cropData) {
-      setCropError('Crop is not ready yet. Please wait a moment and try again.')
-      return
-    }
-    if (cropData.width < 256 || cropData.height < 256) {
-      setCropError('Crop is too small (min 256 × 256)')
-      return
-    }
-
-    setCropping(true)
-    try {
-      // Generate the cropped image from canvas and upload the blob
-      const img = cropImageRef.current
-      if (!img) {
-        setCropError('Image is no longer available. Please select again.')
-        return
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = 512
-      canvas.height = 512
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        setCropError('Failed to process image')
-        return
-      }
-      ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, 512, 512)
-
-      const blob = await new Promise<Blob | null>(resolve =>
-        canvas.toBlob(resolve, 'image/png', 0.95)
-      )
-      if (!blob) {
-        setCropError('Failed to generate cropped image')
-        return
-      }
-      const croppedFile = new File([blob], 'avatar.png', { type: 'image/png' })
-      await uploadAvatarFile(croppedFile)
-      closeCropDialog()
-    } catch {
-      toast.error('Failed to crop/upload photo')
-    } finally {
-      setCropping(false)
-    }
-  }
-
-  const handleDeleteAvatar = async () => {
-    if (!confirm('Are you sure you want to delete your profile photo?')) return
-    setUploadingAvatar(true)
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch('/api/tutor/public-profile/avatar', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        credentials: 'include',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data?.error || 'Failed to delete photo')
-        return
-      }
-      setAvatarUrl(null)
-      await updateSession({ image: null }).catch(() => {
-        // Non-critical: session will refresh on next page load
-      })
-      toast.success('Profile photo deleted')
-    } catch {
-      toast.error('Failed to delete photo')
-    } finally {
-      setUploadingAvatar(false)
     }
   }
 
@@ -1396,49 +934,24 @@ export default function TutorMyPage() {
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-5">
                 <div className="relative">
-                  <Avatar className="h-28 w-28 rounded-2xl border border-white/40 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
-                    <AvatarImage
-                      src={avatarPreview ?? avatarUrl ?? undefined}
-                      alt="Tutor avatar"
-                      onError={() => {
-                        console.error('Avatar failed to load:', avatarUrl)
-                      }}
-                    />
-                    <AvatarFallback className="rounded-2xl bg-white/15 text-lg font-semibold text-white">
-                      {normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                    <Button
-                      size="icon"
-                      className="h-6 w-6 rounded-xl bg-white text-[#1F2933] shadow hover:bg-white/90"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingAvatar}
-                      aria-label="Edit profile photo"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    {avatarUrl && (
-                      <Button
-                        size="icon"
-                        className="h-6 w-6 rounded-xl bg-red-500 text-white shadow hover:bg-red-600"
-                        onClick={() => void handleDeleteAvatar()}
-                        disabled={uploadingAvatar}
-                        aria-label="Delete profile photo"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={e => {
-                      const file = e.target.files?.[0]
-                      if (file) void handleAvatarSelect(file)
+                  <AvatarUploader
+                    avatarUrl={avatarPreview ?? avatarUrl}
+                    uploadUrl="/api/tutor/public-profile/avatar"
+                    deleteUrl="/api/tutor/public-profile/avatar"
+                    size={112}
+                    fallbackText={
+                      normalizedUsername ? normalizedUsername.slice(0, 2).toUpperCase() : 'TU'
+                    }
+                    onUploadSuccess={url => {
+                      setAvatarUrl(url)
+                      setAvatarPreview(null)
+                      updateSession({ image: url }).catch(() => {})
                     }}
-                    className="hidden"
+                    onDeleteSuccess={() => {
+                      setAvatarUrl(null)
+                      setAvatarPreview(null)
+                      updateSession({ image: null }).catch(() => {})
+                    }}
                   />
                 </div>
 
@@ -1738,105 +1251,6 @@ export default function TutorMyPage() {
             </div>
           </div>
         </div>
-
-        {/* Avatar crop/upload dialog (client-side validation + centered square crop) */}
-        <Dialog
-          open={cropDialogOpen}
-          onOpenChange={open => {
-            if (!open) closeCropDialog()
-            setCropDialogOpen(open)
-          }}
-        >
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-white">Crop Profile Photo</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {cropError ? (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {cropError}
-                </div>
-              ) : null}
-
-              {cropSourceUrl ? (
-                <div
-                  ref={cropViewportRef}
-                  className="relative mx-auto w-full max-w-[360px] touch-none select-none overflow-hidden rounded-xl border border-[#E2E8F0] bg-white"
-                  style={{ aspectRatio: '1 / 1' }}
-                  onPointerDown={handleCropPointerDown}
-                  onPointerMove={handleCropPointerMove}
-                  onPointerUp={handleCropPointerUp}
-                  onPointerCancel={handleCropPointerUp}
-                >
-                  <img
-                    src={cropSourceUrl}
-                    alt="Avatar crop"
-                    className="absolute left-1/2 top-1/2 max-w-none select-none"
-                    draggable={false}
-                    style={{
-                      transform: `translate(-50%, -50%) translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${
-                        cropImageSize && cropViewportSize
-                          ? cropZoom *
-                            Math.max(
-                              cropViewportSize / cropImageSize.width,
-                              cropViewportSize / cropImageSize.height
-                            )
-                          : 1
-                      })`,
-                    }}
-                  />
-                  <div className="pointer-events-none absolute inset-0 ring-2 ring-[#1D4ED8]/70" />
-                </div>
-              ) : null}
-
-              {cropSourceUrl ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-white">Zoom</div>
-                  <Slider
-                    min={1}
-                    max={maxCropZoom}
-                    step={0.01}
-                    value={[cropZoom]}
-                    onValueChange={v => setCropZoom(v[0] ?? 1)}
-                    disabled={cropping || uploadingAvatar}
-                  />
-                </div>
-              ) : null}
-
-              {croppedPreviewUrl ? (
-                <div className="flex items-center gap-4">
-                  <div className="text-sm font-medium text-white">Preview (256x256)</div>
-                  <img
-                    src={croppedPreviewUrl}
-                    alt="Cropped avatar preview"
-                    className="h-20 w-20 rounded-lg border border-[#E2E8F0] object-cover"
-                  />
-                </div>
-              ) : null}
-              <p className="text-xs text-white">
-                Drag to position. Crop is locked to 1:1 and will upload exactly as previewed.
-              </p>
-            </div>
-            <DialogFooter className="gap-3">
-              <Button
-                variant="modal-secondary-dark"
-                onClick={closeCropDialog}
-                disabled={cropping || uploadingAvatar}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="modal-primary-dark"
-                onClick={() => void confirmCropAndUpload()}
-                disabled={
-                  cropping || uploadingAvatar || !cropSourceUrl || !cropSourceFile || !cropImageSize
-                }
-              >
-                {cropping ? 'Cropping...' : 'Crop & Upload'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         <div ref={profileScrollRef}>
           <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
