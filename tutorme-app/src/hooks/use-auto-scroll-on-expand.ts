@@ -11,7 +11,7 @@ export interface UseAutoScrollOnExpandOptions {
 }
 
 export function useAutoScrollOnExpand(open: boolean, options: UseAutoScrollOnExpandOptions = {}) {
-  const { disabled = false, delay = 150, margin, block = 'end' } = options
+  const { disabled = false, delay = 150, margin, block = 'nearest' } = options
   const ref = useRef<HTMLDivElement>(null)
   const wasOpenRef = useRef(open)
 
