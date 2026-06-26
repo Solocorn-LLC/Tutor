@@ -60,6 +60,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
+import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -1685,10 +1686,10 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch justify-center gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 w-full max-w-4xl flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -1775,9 +1776,6 @@ function StudentFeedbackContent() {
                               doc.mimeType === 'application/pdf' ||
                               (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
                             const isImage = doc.mimeType?.startsWith('image/')
-                            const pdfSrc = url.includes('#')
-                              ? `${url}&toolbar=0&navpanes=0`
-                              : `${url}#toolbar=0&navpanes=0`
                             return (
                               <div className="mb-4 h-[55vh] w-full">
                                 {!loadable ? (
@@ -1788,11 +1786,11 @@ function StudentFeedbackContent() {
                                     </p>
                                   </div>
                                 ) : isPdf ? (
-                                  <iframe
-                                    src={pdfSrc}
-                                    title="Document"
-                                    className="h-full w-full rounded-lg border"
-                                  />
+                                  // Paginated viewer (Page X of Y + Prev/Next, or
+                                  // scroll for <=20 pages) so students can see EVERY
+                                  // page of a multi-page paper — the bare iframe with
+                                  // toolbar/navpanes hidden gave no page navigation.
+                                  <PDFViewer fileUrl={url} className="h-full w-full" />
                                 ) : isImage ? (
                                   <div className="flex h-full items-center justify-center">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2106,8 +2104,11 @@ function StudentFeedbackContent() {
                           >
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <p className="text-sm font-medium text-gray-800">
-                                {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                                {item.questionText}
+                                {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                  ? item.questionText
+                                  : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
                               {qType !== 'long' && (
                                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
@@ -2132,9 +2133,7 @@ function StudentFeedbackContent() {
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      {activeTask
-                        ? 'This task has no questions to answer.'
-                        : ''}
+                      {activeTask ? 'This task has no questions to answer.' : ''}
                     </p>
                   )}
                 </div>
