@@ -190,7 +190,7 @@ function OneOnOneSettingsCard() {
             {/* Hourly Rate */}
             <div className="space-y-2">
               <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-start gap-2">
                 <span className="text-lg text-gray-500">$</span>
                 <Input
                   id="hourlyRate"
