@@ -1089,19 +1089,21 @@ function CourseCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <h3 className="truncate text-base font-semibold text-slate-100">{course.name}</h3>
+              <h3 className="-mt-0.5 truncate text-base font-semibold text-slate-100">
+                {course.name}
+              </h3>
               <button
                 onClick={e => {
                   e.stopPropagation()
                   onFavorite()
                 }}
-                className="shrink-0 text-rose-400 transition-colors hover:text-rose-500"
+                className="-mt-0.5 shrink-0 text-rose-400 transition-colors hover:text-rose-500"
               >
                 <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
               </button>
             </div>
             {course.tutorHandle && (
-              <p className="text-xs font-medium text-slate-300">@{course.tutorHandle}</p>
+              <p className="-mt-px text-xs font-medium text-slate-300">@{course.tutorHandle}</p>
             )}
             {course.subject && course.subject !== 'general' && (
               <span className="mt-1 inline-block rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -1111,8 +1113,8 @@ function CourseCard({
           </div>
 
           {/* Center: Session count + Avatar */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+          <div className="flex items-start gap-3">
+            <div className="flex items-center gap-1.5 pt-0.5 text-xs text-slate-300">
               <Calendar className="h-3.5 w-3.5 text-slate-400" />
               <span className="font-medium text-slate-200">
                 {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
