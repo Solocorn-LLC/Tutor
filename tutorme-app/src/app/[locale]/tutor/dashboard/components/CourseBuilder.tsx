@@ -6048,7 +6048,7 @@ FEEDBACK: [your explanation]`
                         <Button
                           size="sm"
                           onClick={addCourseBuilderNode}
-                          className="mb-4 h-8 w-full gap-1 text-xs"
+                          className="mb-4 h-8 w-full gap-1 border border-blue-600 bg-white text-xs text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
                         >
                           <Plus className="h-3 w-3" />
                           Lesson
