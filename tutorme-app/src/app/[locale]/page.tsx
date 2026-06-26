@@ -1771,6 +1771,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
   // Course whose full schedule list is open in the ScheduleViewModal.
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  // Remember the previously selected course so we can restore it when schedule closes.
+  const prevSelectedCourseRef = useRef<any | null>(null)
   const [rotation, setRotation] = useState(0)
   const router = useRouter()
 

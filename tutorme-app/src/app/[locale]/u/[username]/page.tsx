@@ -675,6 +675,8 @@ export default function PublicTutorPage() {
   const [detailsCourse, setDetailsCourse] = useState<PublicTutorResponse['courses'][number] | null>(
     null
   )
+  // Remember the previously selected course so we can restore it when schedule closes.
+  const prevDetailsCourseRef = useRef<PublicTutorResponse['courses'][number] | null>(null)
   const [classroomPickerCourse, setClassroomPickerCourse] = useState<
     PublicTutorResponse['courses'][number] | null
   >(null)
@@ -2146,7 +2148,11 @@ export default function PublicTutorPage() {
                 {detailsCourse?.id ? (
                   <button
                     type="button"
-                    onClick={() => setScheduleCourse(detailsCourse)}
+                    onClick={() => {
+                      prevDetailsCourseRef.current = detailsCourse
+                      setDetailsCourse(null)
+                      setScheduleCourse(detailsCourse)
+                    }}
                     className="text-sm font-semibold text-blue-600 hover:underline"
                   >
                     View schedules
@@ -2193,7 +2199,13 @@ export default function PublicTutorPage() {
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
-        onClose={() => setScheduleCourse(null)}
+        onClose={() => {
+          setScheduleCourse(null)
+          if (prevDetailsCourseRef.current) {
+            setDetailsCourse(prevDetailsCourseRef.current)
+            prevDetailsCourseRef.current = null
+          }
+        }}
       />
 
       <Dialog

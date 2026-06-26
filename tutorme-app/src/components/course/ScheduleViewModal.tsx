@@ -190,7 +190,10 @@ export function ScheduleViewModal({
         </div>
 
         <DialogFooter align="end">
-          <Button variant="outline" onClick={onClose}>
+          <Button
+            className="border border-[#1F2933] bg-white text-[#1F2933] hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
+            onClick={onClose}
+          >
             Close
           </Button>
         </DialogFooter>
