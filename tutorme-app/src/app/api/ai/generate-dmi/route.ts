@@ -354,7 +354,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 6000,
+        maxTokens: 4096,
         timeoutMs: 60000,
       })
     } else {
@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 6000,
+        maxTokens: 4096,
         timeoutMs: 60000,
       })
     }
