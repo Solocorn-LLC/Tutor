@@ -6048,7 +6048,7 @@ FEEDBACK: [your explanation]`
                         <Button
                           size="sm"
                           onClick={addCourseBuilderNode}
-                          className="mb-4 h-8 w-full gap-1 text-xs"
+                          className="mb-4 h-8 w-full gap-1 border border-blue-600 bg-white text-xs text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
                         >
                           <Plus className="h-3 w-3" />
                           Lesson
@@ -8023,7 +8023,7 @@ FEEDBACK: [your explanation]`
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AiAssistantPanel sessionId={insightsProps.sessionId} />
@@ -8371,7 +8371,7 @@ FEEDBACK: [your explanation]`
 
                                           <TabsContent
                                             value="analytics"
-                                            className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                            className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
                                             <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                               <AiAssistantPanel
@@ -8570,7 +8570,8 @@ FEEDBACK: [your explanation]`
                                     <div
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
-                                        mainTab === 'live' && 'rounded-md border border-orange-500',
+                                        mainTab === 'live' &&
+                                          'rounded-2xl border border-orange-500',
                                         mainTab === 'test-pci' &&
                                           'rounded-md border border-orange-500'
                                       )}
@@ -8720,7 +8721,7 @@ FEEDBACK: [your explanation]`
                                               !insightsProps?.sessionId
                                             ) {
                                               return (
-                                                <div className="flex h-full w-full items-center justify-center rounded-md border bg-white p-6 text-sm text-slate-500">
+                                                <div className="flex h-full w-full items-center justify-center rounded-2xl border border-orange-500 bg-white p-6 text-sm text-slate-500">
                                                   Monitor is unavailable without an active session.
                                                 </div>
                                               )

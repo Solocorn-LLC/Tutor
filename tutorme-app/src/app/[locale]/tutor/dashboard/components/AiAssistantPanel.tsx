@@ -21,7 +21,7 @@ export function AiAssistantPanel({ sessionId }: AiAssistantPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-1 flex-col gap-3 px-1 pb-0">
+    <div className="flex flex-1 flex-col gap-3 px-1 pb-0">
       {/* Chat display */}
       <div className="flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
         {messages.length === 0 ? (
