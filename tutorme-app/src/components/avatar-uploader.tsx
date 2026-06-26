@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -224,6 +224,22 @@ export function AvatarUploader({
 
     return () => ro.disconnect()
   }, [cropDialogOpen])
+
+  // Compute max zoom so the crop area is never smaller than 256px
+  const maxCropZoom = useMemo(() => {
+    if (!cropImageSize || !cropViewportSize) return 1
+    const baseScale = Math.max(
+      cropViewportSize / cropImageSize.width,
+      cropViewportSize / cropImageSize.height
+    )
+    const maxByMinCrop = cropViewportSize / (baseScale * 256)
+    return Math.max(1, Number.isFinite(maxByMinCrop) ? maxByMinCrop : 1)
+  }, [cropImageSize, cropViewportSize])
+
+  // Clamp zoom when max changes
+  useEffect(() => {
+    setCropZoom(prev => clamp(prev, 1, maxCropZoom))
+  }, [maxCropZoom])
 
   // Compute crop data from current zoom/offset
   const getCropData = useCallback(() => {
@@ -720,16 +736,7 @@ export function AvatarUploader({
                 </div>
                 <Slider
                   min={1}
-                  max={
-                    cropImageSize && cropViewportSize
-                      ? cropViewportSize /
-                        (Math.max(
-                          cropViewportSize / cropImageSize.width,
-                          cropViewportSize / cropImageSize.height
-                        ) *
-                          256)
-                      : 3
-                  }
+                  max={maxCropZoom}
                   step={0.01}
                   value={[cropZoom]}
                   onValueChange={v => setCropZoom(v[0] ?? 1)}
