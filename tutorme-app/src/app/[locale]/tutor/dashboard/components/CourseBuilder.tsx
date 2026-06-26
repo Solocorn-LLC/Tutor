@@ -8033,32 +8033,6 @@ FEEDBACK: [your explanation]`
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AiAssistantPanel sessionId={insightsProps.sessionId} />
                                           </div>
-                                          <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                            <div className="relative">
-                                              <MentionTextarea
-                                                mentionItems={mentionItems}
-                                                className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                placeholder="Add a note or reflection..."
-                                                disableAutoResize
-                                                value={analyticsNote}
-                                                onChange={event =>
-                                                  setAnalyticsNote(event.target.value)
-                                                }
-                                              />
-                                              <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                <Button
-                                                  size="icon"
-                                                  className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                                  disabled={!analyticsNote.trim()}
-                                                  onClick={() => {
-                                                    setAnalyticsNote('')
-                                                  }}
-                                                >
-                                                  <Send className="h-4 w-4" />
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          </div>
                                         </TabsContent>
                                         <TabsContent
                                           value="poll"
@@ -8409,32 +8383,6 @@ FEEDBACK: [your explanation]`
                                                 sessionId={insightsProps.sessionId}
                                               />
                                             </div>
-                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                              <div className="relative">
-                                                <MentionTextarea
-                                                  mentionItems={mentionItems}
-                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  placeholder="Add a note or reflection..."
-                                                  disableAutoResize
-                                                  value={analyticsNote}
-                                                  onChange={event =>
-                                                    setAnalyticsNote(event.target.value)
-                                                  }
-                                                />
-                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                  <Button
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                                    disabled={!analyticsNote.trim()}
-                                                    onClick={() => {
-                                                      setAnalyticsNote('')
-                                                    }}
-                                                  >
-                                                    <Send className="h-4 w-4" />
-                                                  </Button>
-                                                </div>
-                                              </div>
-                                            </div>
                                           </TabsContent>
 
                                           <TabsContent
@@ -8627,9 +8575,9 @@ FEEDBACK: [your explanation]`
                                     <div
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
-                                        mainTab === 'live' && 'rounded-md border border-gray-200',
+                                        mainTab === 'live' && 'rounded-md border border-orange-500',
                                         mainTab === 'test-pci' &&
-                                          'rounded-md border border-gray-200'
+                                          'rounded-md border border-orange-500'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8857,7 +8805,7 @@ FEEDBACK: [your explanation]`
 
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full w-full rounded-md border border-purple-200 bg-white p-4">
+                                              <div className="h-full w-full rounded-md border border-orange-500 bg-white p-4">
                                                 <p className="text-muted-foreground whitespace-pre-wrap text-sm">
                                                   {testPciContent[tab.id] || ''}
                                                 </p>
