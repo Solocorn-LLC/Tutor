@@ -181,7 +181,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
               </div>
               <div className="flex items-center gap-2">
                 <div onClick={e => e.stopPropagation()}>
-                  <NotificationBell viewAllHref="/tutor/notifications" />
+                  <NotificationBell viewAllHref="/tutor/communications" />
                 </div>
               </div>
             </div>

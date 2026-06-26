@@ -1,6 +1,6 @@
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-22
+> **Last updated:** 2026-06-25
 > **Repository root:** `c:\VSCODE\Tutor`
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens), `Classroom/` (tutor documentation)
 
@@ -27,16 +27,16 @@ Solocorn (also marketed as CogniClass / TutorMekimi) is an AI-human hybrid tutor
 - **Supported locales:** `en` (default), `zh-CN`, `es`, `fr`, `de`, `ja`, `ko`, `pt`, `ru`, `ar` (10 locales configured; only `messages/en.json` and `messages/zh-CN.json` currently exist)
 - **Main app default port:** `3003`
 - **Landing page default port:** `3000`
-- **ADK service default port:** `8080` (container port); `services/adk/docker-compose.yml` maps host `4310`, so run the container with `PORT=4310` for that mapping to work
-- **API routes:** 243 `route.ts` files under `src/app/api/`
+- **ADK service default port:** `8080` (container port); `services/adk/docker-compose.yml` maps host `4310`, so run the container with `PORT=4310` for that mapping to work locally
+- **API routes:** 245 `route.ts` files under `src/app/api/`
 - **Components:** 32 top-level directories in `tutorme-app/src/components/`
 - **Library modules:** 49 top-level directories in `tutorme-app/src/lib/`
 - **Custom hooks:** 13 in `tutorme-app/src/hooks/`
 - **Zustand stores:** 2 in `tutorme-app/src/stores/`
 - **Migrations:** 87 SQL files in `tutorme-app/drizzle/` (65 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
-- **TypeScript/TSX files in `tutorme-app/src/`:** 963
-- **Unit/integration test files:** 72 `.test.ts` files
-- **Playwright E2E specs:** 11 in `tutorme-app/e2e/`
+- **TypeScript/TSX files in `tutorme-app/src/`:** 968
+- **Unit/integration test files:** 74 `.test.ts` files (68 unit, 6 integration)
+- **Playwright E2E specs:** 12 in `tutorme-app/e2e/`
 
 ---
 
@@ -66,12 +66,12 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (top-level domains, 243 route.ts files)
+│   │   │   └── api/          # REST API endpoints (top-level domains, 245 route.ts files)
 │   │   ├── components/       # React components (feature-organized, 32 top-level dirs)
 │   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (49 top-level dirs)
 │   │   ├── hooks/            # Custom React hooks (13 files)
 │   │   └── stores/           # Zustand client stores (2 files)
-│   ├── e2e/                  # Playwright E2E specs (11 test files)
+│   ├── e2e/                  # Playwright E2E specs (12 test files)
 │   ├── drizzle/              # Drizzle migration files (87 SQL files + meta/ + archive/)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (37+ files)
@@ -454,7 +454,7 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 243 `route.ts` files across the API tree.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 245 `route.ts` files across the API tree.
 
 **Role-specific layout behaviors:**
 
@@ -710,7 +710,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Include:** `src/**/*.test.{ts,tsx}` and `src/**/__tests__/**/*.{test,spec}.{ts,tsx}`
 - **Exclude:** `node_modules`, `.next`, integration, accessibility
 - **No database required.**
-- **Count:** 72 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
+- **Count:** 68 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
 
 ### Integration Tests (Vitest)
 
@@ -732,7 +732,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Workers:** 1 in CI
 - **WebServer (non-CI):** `npm run dev:next`, timeout 120s, reuse existing server
 - **Dependencies:** `@axe-core/playwright`
-- **E2E spec files:** `ai-tutor.spec.ts`, `live-auto-grading.spec.ts`, `live-task-policy-toggle.spec.ts`, `payment.spec.ts`, `pdf-tutoring-lock-sync.spec.ts`, `pdf-tutoring.spec.ts`, `registration.spec.ts`, `student-assignment-document.spec.ts`, `tutor-clinic.spec.ts`, `tutor-course-config.spec.ts`, `tutor-registration.spec.ts`, plus accessibility tests
+- **E2E spec files:** `ai-tutor.spec.ts`, `insights-tab-loop.spec.ts`, `live-auto-grading.spec.ts`, `live-task-policy-toggle.spec.ts`, `payment.spec.ts`, `pdf-tutoring-lock-sync.spec.ts`, `pdf-tutoring.spec.ts`, `registration.spec.ts`, `student-assignment-document.spec.ts`, `tutor-clinic.spec.ts`, `tutor-course-config.spec.ts`, `tutor-registration.spec.ts`, plus accessibility tests
 
 ### Load Tests (k6)
 

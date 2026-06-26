@@ -188,7 +188,7 @@ export type {
   CourseBuilderRef,
 } from './builder-types'
 
-import { AnalyticsPanel } from './AnalyticsPanel'
+import { AiAssistantPanel } from './AiAssistantPanel'
 import { AITeachingAssistant } from '@/components/tutor/AITeachingAssistant'
 import { MentionTextarea } from '@/components/class/mention-textarea'
 import type { MentionItem } from '@/components/class/mention-textarea'
@@ -2695,6 +2695,44 @@ FEEDBACK: [your explanation]`
       }
     }
 
+    // Extract the selectable text of EVERY page of a PDF. Used in preference to
+    // page-images for digital papers so a long multi-page question paper is fully
+    // captured (image analysis is capped at a few pages). Returns '' if the PDF
+    // has no extractable text (e.g. a scan) so the caller can fall back to images.
+    const extractPdfText = async (pdfUrl: string, maxPages = 30): Promise<string> => {
+      try {
+        const fetchUrl =
+          pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')
+            ? `/api/proxy-file?url=${encodeURIComponent(pdfUrl)}`
+            : pdfUrl
+        const response = await fetch(fetchUrl)
+        if (!response.ok) throw new Error('Failed to fetch PDF')
+        const arrayBuffer = await response.arrayBuffer()
+        const pdfjs = await import('pdfjs-dist')
+        if (typeof window !== 'undefined') {
+          const opts = (pdfjs as { GlobalWorkerOptions?: { workerSrc?: string } })
+            .GlobalWorkerOptions
+          if (opts && !opts.workerSrc) opts.workerSrc = '/pdf.worker.min.mjs'
+        }
+        const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise
+        const parts: string[] = []
+        for (let i = 1; i <= Math.min(maxPages, doc.numPages); i++) {
+          const page = await doc.getPage(i)
+          const tc = await page.getTextContent()
+          const pageText = (tc.items as Array<{ str?: string }>)
+            .map(it => it.str ?? '')
+            .join(' ')
+            .replace(/[ \t]+/g, ' ')
+            .trim()
+          if (pageText) parts.push(`--- Page ${i} ---\n${pageText}`)
+        }
+        return parts.join('\n\n')
+      } catch (error) {
+        console.error('PDF text extraction error:', error)
+        return ''
+      }
+    }
+
     // Generate DMI using AI from content or PDF images with versioning.
     // `questionSpec` is supplied (via the spec dialog) when the source is study
     // material and the tutor has chosen which question types/counts to generate.
@@ -2724,10 +2762,18 @@ FEEDBACK: [your explanation]`
       setDmiGenerating(true)
       try {
         let pdfPages: string[] | undefined
+        let pdfText: string | undefined
         if (hasPdf) {
           toast.info('Analyzing PDF with AI...')
-          // Analyze up to 5 pages (the generate-dmi API cap) instead of silently 3.
-          pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 5)
+          // Prefer full-text extraction so EVERY page of a multi-page paper is
+          // captured (image analysis is capped at a few pages and would miss
+          // later questions). Fall back to page images for scanned PDFs.
+          const extracted = await extractPdfText(sourceDoc.fileUrl, 30)
+          if (extracted.trim().length > 200) {
+            pdfText = extracted.slice(0, 50000)
+          } else {
+            pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8)
+          }
         }
 
         const response = await fetch('/api/ai/generate-dmi', {
@@ -2736,7 +2782,7 @@ FEEDBACK: [your explanation]`
           body: JSON.stringify({
             type,
             title: builder.title,
-            content: !hasPdf && hasContent ? content : undefined,
+            content: pdfText ?? (!hasPdf && hasContent ? content : undefined),
             pdfPages,
             questionSpec,
           }),
@@ -7985,41 +8031,7 @@ FEEDBACK: [your explanation]`
                                           className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                            <AnalyticsPanel
-                                              students={insightsProps.students}
-                                              metrics={insightsProps.metrics}
-                                              liveTasks={insightsProps.liveTasks}
-                                              classDuration={insightsProps.classDuration}
-                                              isRecording={insightsProps.isRecording}
-                                              recordingDuration={insightsProps.recordingDuration}
-                                              sessionId={insightsProps.sessionId}
-                                            />
-                                          </div>
-                                          <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                            <div className="relative">
-                                              <MentionTextarea
-                                                mentionItems={mentionItems}
-                                                className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                placeholder="Add a note or reflection..."
-                                                disableAutoResize
-                                                value={analyticsNote}
-                                                onChange={event =>
-                                                  setAnalyticsNote(event.target.value)
-                                                }
-                                              />
-                                              <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                <Button
-                                                  size="icon"
-                                                  className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                                  disabled={!analyticsNote.trim()}
-                                                  onClick={() => {
-                                                    setAnalyticsNote('')
-                                                  }}
-                                                >
-                                                  <Send className="h-4 w-4" />
-                                                </Button>
-                                              </div>
-                                            </div>
+                                            <AiAssistantPanel sessionId={insightsProps.sessionId} />
                                           </div>
                                         </TabsContent>
                                         <TabsContent
@@ -8367,41 +8379,9 @@ FEEDBACK: [your explanation]`
                                             className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
                                             <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                              <AnalyticsPanel
-                                                students={insightsProps.students}
-                                                metrics={insightsProps.metrics}
-                                                liveTasks={insightsProps.liveTasks}
-                                                classDuration={insightsProps.classDuration}
-                                                isRecording={insightsProps.isRecording}
-                                                recordingDuration={insightsProps.recordingDuration}
+                                              <AiAssistantPanel
                                                 sessionId={insightsProps.sessionId}
                                               />
-                                            </div>
-                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                              <div className="relative">
-                                                <MentionTextarea
-                                                  mentionItems={mentionItems}
-                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  placeholder="Add a note or reflection..."
-                                                  disableAutoResize
-                                                  value={analyticsNote}
-                                                  onChange={event =>
-                                                    setAnalyticsNote(event.target.value)
-                                                  }
-                                                />
-                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                  <Button
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                                    disabled={!analyticsNote.trim()}
-                                                    onClick={() => {
-                                                      setAnalyticsNote('')
-                                                    }}
-                                                  >
-                                                    <Send className="h-4 w-4" />
-                                                  </Button>
-                                                </div>
-                                              </div>
                                             </div>
                                           </TabsContent>
 
@@ -8595,9 +8575,9 @@ FEEDBACK: [your explanation]`
                                     <div
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
-                                        mainTab === 'live' && 'rounded-md border border-orange-300',
+                                        mainTab === 'live' && 'rounded-md border border-orange-500',
                                         mainTab === 'test-pci' &&
-                                          'rounded-md border border-purple-300'
+                                          'rounded-md border border-orange-500'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8825,7 +8805,7 @@ FEEDBACK: [your explanation]`
 
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full w-full rounded-md border border-purple-200 bg-white p-4">
+                                              <div className="h-full w-full rounded-md border border-orange-500 bg-white p-4">
                                                 <p className="text-muted-foreground whitespace-pre-wrap text-sm">
                                                   {testPciContent[tab.id] || ''}
                                                 </p>
@@ -8962,10 +8942,7 @@ FEEDBACK: [your explanation]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl bg-white/90 backdrop-blur-md transition-all duration-300',
-                                    mainTab === 'live'
-                                      ? 'border border-orange-300'
-                                      : 'border border-purple-300'
+                                    'mt-1 w-full rounded-2xl border border-orange-500 bg-white/90 backdrop-blur-md transition-all duration-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">

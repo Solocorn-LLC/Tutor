@@ -60,6 +60,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
+import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -1685,10 +1686,10 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch justify-center gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 w-full max-w-4xl flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -1731,9 +1732,9 @@ function StudentFeedbackContent() {
                 className="flex h-full min-h-0 flex-1 flex-col outline-none"
               >
                 {/* Classroom viewer */}
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                   <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
-                    <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
+                    <span className="rounded-b-md bg-gray-200 px-3 py-0.5 text-[11px] font-medium text-gray-700">
                       Classroom
                     </span>
                   </div>
@@ -1775,9 +1776,6 @@ function StudentFeedbackContent() {
                               doc.mimeType === 'application/pdf' ||
                               (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
                             const isImage = doc.mimeType?.startsWith('image/')
-                            const pdfSrc = url.includes('#')
-                              ? `${url}&toolbar=0&navpanes=0`
-                              : `${url}#toolbar=0&navpanes=0`
                             return (
                               <div className="mb-4 h-[55vh] w-full">
                                 {!loadable ? (
@@ -1788,11 +1786,11 @@ function StudentFeedbackContent() {
                                     </p>
                                   </div>
                                 ) : isPdf ? (
-                                  <iframe
-                                    src={pdfSrc}
-                                    title="Document"
-                                    className="h-full w-full rounded-lg border"
-                                  />
+                                  // Paginated viewer (Page X of Y + Prev/Next, or
+                                  // scroll for <=20 pages) so students can see EVERY
+                                  // page of a multi-page paper — the bare iframe with
+                                  // toolbar/navpanes hidden gave no page navigation.
+                                  <PDFViewer fileUrl={url} className="h-full w-full" />
                                 ) : isImage ? (
                                   <div className="flex h-full items-center justify-center">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1971,23 +1969,21 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
+              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
             }}
           >
             {/* Resize handle */}
-            {!isExpanded && (
-              <div
-                className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
-                onMouseDown={e => {
-                  setRightPanelResizing(true)
-                  rightResizeStartX.current = e.clientX
-                  rightResizeStartW.current = rightPanelWidth
-                }}
-                title="Drag to resize"
-              >
-                <div className="h-8 w-0.5 rounded-full bg-slate-300" />
-              </div>
-            )}
+            <div
+              className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
+              onMouseDown={e => {
+                setRightPanelResizing(true)
+                rightResizeStartX.current = e.clientX
+                rightResizeStartW.current = rightPanelWidth
+              }}
+              title="Drag to resize"
+            >
+              <div className="h-8 w-0.5 rounded-full bg-slate-300" />
+            </div>
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
@@ -2055,7 +2051,7 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div className={cn('flex-1', isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
+            <div className={cn('flex-1', 'overflow-y-auto p-4')}>
               {rightPanelTab === 'lessons' ? (
                 <div className="space-y-2">
                   {tasks.length === 0 && (
@@ -2099,9 +2095,6 @@ function StudentFeedbackContent() {
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Questions
-                      </p>
                       {activeTask.dmiItems.map(item => {
                         const qType = normalizeDmiQuestionType(item.questionType)
                         return (
@@ -2111,8 +2104,11 @@ function StudentFeedbackContent() {
                           >
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <p className="text-sm font-medium text-gray-800">
-                                {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                                {item.questionText}
+                                {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                  ? item.questionText
+                                  : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
                               {qType !== 'long' && (
                                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
@@ -2137,9 +2133,7 @@ function StudentFeedbackContent() {
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      {activeTask
-                        ? 'This task has no questions to answer.'
-                        : 'Select a task to see its questions.'}
+                      {activeTask ? 'This task has no questions to answer.' : ''}
                     </p>
                   )}
                 </div>
@@ -2161,85 +2155,28 @@ function StudentFeedbackContent() {
                   />
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="mb-2 border-b border-gray-100 pb-2">
-                    <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
+                <div className="flex h-full flex-col">
+                  {/* AI Assistant chat display */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <p className="text-sm text-gray-500">AI Assistant coming soon.</p>
                   </div>
-                  {!activeTask && (
-                    <p className="text-sm text-gray-500">Select a task to see feedback prompts.</p>
-                  )}
-                  {activeTask && (
-                    <div className="space-y-6">
-                      {feedbackPolls.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackPolls.map(poll => {
-                            const selectedValue = poll.responses.find(
-                              response => response.studentId === session?.user?.id
-                            )?.value
-                            return (
-                              <div key={poll.id} className="rounded-lg border bg-white p-4">
-                                <p className="text-sm font-medium text-gray-900">{poll.question}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {poll.options.map(option => (
-                                    <Button
-                                      key={`${poll.id}-${option}`}
-                                      variant={selectedValue === option ? 'default' : 'outline'}
-                                      size="sm"
-                                      disabled={poll.status === 'closed'}
-                                      onClick={() => handlePollVote(poll, option)}
-                                    >
-                                      {option}
-                                    </Button>
-                                  ))}
-                                </div>
-                                {poll.status === 'closed' && (
-                                  <p className="mt-2 text-xs text-gray-500">Poll closed</p>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {feedbackQuestions.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackQuestions.map(question => (
-                            <div key={question.id} className="rounded-lg border bg-white p-4">
-                              <p className="text-sm font-medium text-gray-900">{question.prompt}</p>
-                              <div className="mt-3">
-                                <AutoTextarea
-                                  placeholder="Type your answer..."
-                                  className="min-h-[72px]"
-                                  value={questionDrafts[question.id] || ''}
-                                  onChange={event =>
-                                    setQuestionDrafts(prev => ({
-                                      ...prev,
-                                      [question.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <div className="mt-2 flex justify-end">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleQuestionSend(question)}
-                                    disabled={!questionDrafts[question.id]?.trim()}
-                                  >
-                                    Send
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {feedbackPolls.length === 0 && feedbackQuestions.length === 0 && (
-                        <p className="text-sm text-gray-500">
-                          Waiting for tutor insights to appear here.
-                        </p>
-                      )}
+                  {/* AI Assistant input */}
+                  <div className="shrink-0 border-t border-gray-200 p-3">
+                    <div className="relative">
+                      <AutoTextarea
+                        placeholder="Ask the AI Assistant..."
+                        className="min-h-[60px] pr-10"
+                        value=""
+                        onChange={() => {}}
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
