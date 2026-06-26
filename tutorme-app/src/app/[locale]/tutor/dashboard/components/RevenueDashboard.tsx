@@ -81,121 +81,10 @@ interface TimeSlotPopularity {
   revenue: number
 }
 
-// Demo data
-const generateDemoEarnings = (): EarningRecord[] => [
-  {
-    id: '1',
-    date: '2026-02-15',
-    description: 'Advanced Mathematics Session',
-    amount: 150,
-    type: 'class',
-    status: 'completed',
-    studentName: 'Alice Zhang',
-  },
-  {
-    id: '2',
-    date: '2026-02-14',
-    description: 'Physics 101 Course Sale',
-    amount: 299,
-    type: 'course',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    date: '2026-02-13',
-    description: 'English Literature Session',
-    amount: 120,
-    type: 'class',
-    status: 'completed',
-    studentName: 'Bob Li',
-  },
-  {
-    id: '4',
-    date: '2026-02-12',
-    description: 'Refund - Cancelled Session',
-    amount: -150,
-    type: 'refund',
-    status: 'completed',
-    studentName: 'Carol Wang',
-  },
-  {
-    id: '5',
-    date: '2026-02-10',
-    description: 'Monthly Payout',
-    amount: -1200,
-    type: 'payout',
-    status: 'completed',
-  },
-  {
-    id: '6',
-    date: '2026-02-09',
-    description: 'Chemistry Tutoring',
-    amount: 180,
-    type: 'class',
-    status: 'completed',
-    studentName: 'David Chen',
-  },
-  {
-    id: '7',
-    date: '2026-02-08',
-    description: 'Math Course Bundle',
-    amount: 499,
-    type: 'course',
-    status: 'completed',
-  },
-  {
-    id: '8',
-    date: '2026-02-07',
-    description: 'Private Session',
-    amount: 200,
-    type: 'class',
-    status: 'pending',
-    studentName: 'Emma Liu',
-  },
-]
-
-const generateDemoCoursePerformance = (): CoursePerformance[] => [
-  {
-    id: '1',
-    name: 'Advanced Mathematics',
-    enrollments: 45,
-    revenue: 13455,
-    conversionRate: 12.5,
-    rating: 4.8,
-  },
-  {
-    id: '2',
-    name: 'Physics 101',
-    enrollments: 32,
-    revenue: 9568,
-    conversionRate: 8.3,
-    rating: 4.6,
-  },
-  {
-    id: '3',
-    name: 'English Literature',
-    enrollments: 28,
-    revenue: 5544,
-    conversionRate: 6.7,
-    rating: 4.9,
-  },
-  {
-    id: '4',
-    name: 'Chemistry Basics',
-    enrollments: 18,
-    revenue: 5382,
-    conversionRate: 5.2,
-    rating: 4.4,
-  },
-]
-
-const generateDemoTimeSlots = (): TimeSlotPopularity[] => [
-  { slot: 'Mon-Fri 6-8 PM', bookings: 45, revenue: 6750 },
-  { slot: 'Sat-Sun 10-12 AM', bookings: 38, revenue: 5700 },
-  { slot: 'Mon-Fri 4-6 PM', bookings: 32, revenue: 4800 },
-  { slot: 'Sat-Sun 2-4 PM', bookings: 28, revenue: 4200 },
-  { slot: 'Weekday Mornings', bookings: 15, revenue: 2250 },
-]
+// Empty data arrays until real API integration
+const generateDemoEarnings = (): EarningRecord[] => []
+const generateDemoCoursePerformance = (): CoursePerformance[] => []
+const generateDemoTimeSlots = (): TimeSlotPopularity[] => []
 
 // Email Dialog Component
 interface EmailStatementDialogProps {
@@ -335,10 +224,10 @@ export function RevenueDashboard({
     earnings.filter(e => e.type === 'payout').reduce((sum, e) => sum + Math.abs(e.amount), 0)
 
   const thisMonthRevenue = earnings
-    .filter(e => e.date.startsWith('2026-02') && e.type !== 'payout' && e.type !== 'refund')
+    .filter(e => e.type !== 'payout' && e.type !== 'refund')
     .reduce((sum, e) => sum + e.amount, 0)
 
-  const lastMonthRevenue = 8500 // Demo comparison
+  const lastMonthRevenue = 0 // Placeholder until real API integration
   const revenueChange = ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
 
   const totalBookings = earnings.filter(e => e.type === 'class').length
@@ -603,7 +492,13 @@ export function RevenueDashboard({
                       <p className="text-muted-foreground text-xs">Active Courses</p>
                     </div>
                     <div className="border-border bg-card rounded-lg border p-3 text-center">
-                      <p className="text-foreground text-lg font-bold">4.7</p>
+                      <p className="text-foreground text-lg font-bold">
+                        {courses.length > 0
+                          ? (
+                              courses.reduce((sum, c) => sum + c.rating, 0) / courses.length
+                            ).toFixed(1)
+                          : '0.0'}
+                      </p>
                       <p className="text-muted-foreground text-xs">Avg Rating</p>
                     </div>
                   </div>
@@ -741,46 +636,46 @@ export function RevenueDashboard({
                       <div>
                         <div className="mb-1 flex justify-between text-sm">
                           <span className="font-medium text-gray-700">👀 Page Views</span>
-                          <span className="font-bold">1,245</span>
+                          <span className="font-bold">0</span>
                         </div>
                         <div className="h-3 overflow-hidden rounded-full bg-blue-100">
                           <div
                             className="h-full rounded-full bg-blue-500"
-                            style={{ width: '100%' }}
+                            style={{ width: '0%' }}
                           />
                         </div>
                       </div>
 
                       <div className="flex justify-center">
-                        <div className="text-xs text-gray-500">▼ 36.6% conversion</div>
+                        <div className="text-xs text-gray-500">▼ 0% conversion</div>
                       </div>
 
                       <div>
                         <div className="mb-1 flex justify-between text-sm">
                           <span className="font-medium text-gray-700">📚 Course Views</span>
-                          <span className="font-bold">456 (36.6%)</span>
+                          <span className="font-bold">0 (0%)</span>
                         </div>
                         <div className="h-3 overflow-hidden rounded-full bg-purple-100">
                           <div
                             className="h-full rounded-full bg-purple-500"
-                            style={{ width: '36.6%' }}
+                            style={{ width: '0%' }}
                           />
                         </div>
                       </div>
 
                       <div className="flex justify-center">
-                        <div className="text-xs text-gray-500">▼ 27.0% conversion</div>
+                        <div className="text-xs text-gray-500">▼ 0% conversion</div>
                       </div>
 
                       <div>
                         <div className="mb-1 flex justify-between text-sm">
                           <span className="font-medium text-gray-700">✅ Enrollments</span>
-                          <span className="font-bold text-green-600">123 (27.0%)</span>
+                          <span className="font-bold text-green-600">0 (0%)</span>
                         </div>
                         <div className="h-3 overflow-hidden rounded-full bg-green-100">
                           <div
                             className="h-full rounded-full bg-green-500"
-                            style={{ width: '27.0%' }}
+                            style={{ width: '0%' }}
                           />
                         </div>
                       </div>
@@ -824,35 +719,26 @@ export function RevenueDashboard({
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Page Views</span>
-                        <span className="text-foreground font-medium">1,245</span>
+                        <span className="text-foreground font-medium">0</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div
-                          className="h-full rounded-full bg-blue-500"
-                          style={{ width: '100%' }}
-                        />
+                        <div className="h-full rounded-full bg-blue-500" style={{ width: '0%' }} />
                       </div>
 
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Course Views</span>
-                        <span className="text-foreground font-medium">456 (36.6%)</span>
+                        <span className="text-foreground font-medium">0 (0%)</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div
-                          className="h-full rounded-full bg-blue-500"
-                          style={{ width: '36.6%' }}
-                        />
+                        <div className="h-full rounded-full bg-blue-500" style={{ width: '0%' }} />
                       </div>
 
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Enrollments</span>
-                        <span className="text-foreground font-medium">123 (27.0%)</span>
+                        <span className="text-foreground font-medium">0 (0%)</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-green-100">
-                        <div
-                          className="h-full rounded-full bg-green-500"
-                          style={{ width: '27.0%' }}
-                        />
+                        <div className="h-full rounded-full bg-green-500" style={{ width: '0%' }} />
                       </div>
                     </div>
                   </div>
@@ -863,11 +749,11 @@ export function RevenueDashboard({
                       Monthly Revenue Trend
                     </h3>
                     <div className="flex h-24 items-end gap-2">
-                      {[65, 78, 45, 89, 92, 85, 95].map((height, idx) => (
+                      {Array.from({ length: 7 }).map((_, idx) => (
                         <div key={idx} className="flex flex-1 flex-col items-center gap-1">
                           <div
                             className="w-full rounded-t bg-purple-500"
-                            style={{ height: `${height}%` }}
+                            style={{ height: '0%' }}
                           />
                           <span className="text-muted-foreground text-xs">
                             {['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'][idx]}

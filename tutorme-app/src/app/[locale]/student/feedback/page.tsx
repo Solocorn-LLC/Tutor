@@ -27,7 +27,7 @@ import { AutoTextarea } from '@/components/ui/auto-textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, resolvePublicUrl } from '@/lib/utils'
 import {
   MessageSquare,
   Send,
@@ -39,6 +39,7 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Folder,
   Video,
   Plus,
@@ -59,9 +60,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
+import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
-import type { LiveTask, LiveTaskPoll, LiveTaskQuestion, ChatMessage } from '@/lib/socket'
+import type {
+  LiveTask,
+  LiveTaskPoll,
+  LiveTaskQuestion,
+  LiveTaskDmiItem,
+  ChatMessage,
+} from '@/lib/socket'
+import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -297,6 +306,378 @@ function ClassroomControlsPanel({
         </motion.div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Renders the answer input for a single DMI item according to its questionType.
+ * Answers are stored as plain strings in `taskAnswers` (choice/matching/ordering/
+ * drag_drop/hotspot store JSON). hotspot falls back to free-text when its item
+ * has no image; long answer is always free-text.
+ */
+function DmiAnswerField({
+  item,
+  value,
+  onValueChange,
+  onInteract,
+}: {
+  item: LiveTaskDmiItem
+  value: string
+  onValueChange: (next: string) => void
+  onInteract: () => void
+}) {
+  const type = normalizeDmiQuestionType(item.questionType)
+  const options =
+    item.options && item.options.length > 0
+      ? item.options
+      : type === 'true_false'
+        ? ['True', 'False']
+        : []
+  const baseField =
+    'w-full rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none'
+  // Tap-to-place selection for drag_drop (touch fallback for native drag).
+  const [dragSelected, setDragSelected] = useState<string | null>(null)
+
+  // Single-select choice (mcq / true_false) — render radios when we have options.
+  if ((type === 'mcq' || type === 'true_false') && options.length > 0) {
+    return (
+      <div className="space-y-1.5">
+        {options.map(opt => (
+          <label key={opt} className="flex items-center gap-2 text-sm text-gray-800">
+            <input
+              type="radio"
+              name={`dmi-${item.id}`}
+              checked={value === opt}
+              onChange={() => {
+                onInteract()
+                onValueChange(opt)
+              }}
+              className="h-4 w-4 accent-[#F17623]"
+            />
+            <span>{opt}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+
+  // Multi-select choice — checkboxes; answer stored as a JSON array string.
+  if (type === 'multiple_response' && options.length > 0) {
+    let selected: string[] = []
+    try {
+      const parsed = value ? JSON.parse(value) : []
+      if (Array.isArray(parsed)) selected = parsed.filter((v): v is string => typeof v === 'string')
+    } catch {
+      selected = []
+    }
+    const toggle = (opt: string) => {
+      onInteract()
+      const next = selected.includes(opt) ? selected.filter(o => o !== opt) : [...selected, opt]
+      onValueChange(JSON.stringify(next))
+    }
+    return (
+      <div className="space-y-1.5">
+        {options.map(opt => (
+          <label key={opt} className="flex items-center gap-2 text-sm text-gray-800">
+            <input
+              type="checkbox"
+              checked={selected.includes(opt)}
+              onChange={() => toggle(opt)}
+              className="h-4 w-4 accent-[#F17623]"
+            />
+            <span>{opt}</span>
+          </label>
+        ))}
+      </div>
+    )
+  }
+
+  // Short answer & fill-in-the-blank — single-line input. Choice types with no
+  // options provided fall back here so the student is never stuck.
+  if (type === 'short' || type === 'fill_blank' || type === 'mcq' || type === 'multiple_response') {
+    return (
+      <input
+        type="text"
+        value={value}
+        onFocus={onInteract}
+        onChange={e => {
+          onInteract()
+          onValueChange(e.target.value)
+        }}
+        placeholder={type === 'fill_blank' ? 'Fill in the blank…' : 'Type your answer…'}
+        className={baseField}
+      />
+    )
+  }
+
+  // Hotspot — the student clicks a point on an image. The answer is stored as a
+  // JSON point { x, y } in 0–1 image fractions; the correct regions are the
+  // tutor-facing answer key and are never drawn here. Falls back to free-text
+  // when no image is available.
+  if (type === 'hotspot') {
+    const imageUrl = resolvePublicUrl(item.hotspotImageUrl)
+    if (imageUrl) {
+      let point: { x: number; y: number } | null = null
+      try {
+        const parsed = value ? JSON.parse(value) : null
+        if (parsed && typeof parsed.x === 'number' && typeof parsed.y === 'number') point = parsed
+      } catch {
+        point = null
+      }
+      const onPick = (e: React.MouseEvent<HTMLImageElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        if (!rect.width || !rect.height) return
+        const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+        const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height))
+        onInteract()
+        onValueChange(JSON.stringify({ x, y }))
+      }
+      return (
+        <div className="space-y-1">
+          <p className="text-xs text-gray-500">Click the correct spot on the image.</p>
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt="Hotspot"
+              onClick={onPick}
+              className="max-h-[320px] max-w-full cursor-crosshair rounded-md border border-gray-200"
+            />
+            {point && (
+              <span
+                className="pointer-events-none absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#F17623] shadow"
+                style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+              />
+            )}
+          </div>
+        </div>
+      )
+    }
+  }
+
+  // Drag and drop — draggable item chips placed into target bins. Reuses pairs
+  // (left = item, right = correct target). Supports native HTML5 drag AND a
+  // tap-to-place fallback (select an item, then tap a bin) for touch devices.
+  // Answer is stored as a JSON map of item -> chosen target.
+  if (type === 'drag_drop' && item.pairs && item.pairs.length > 0) {
+    const pairs = item.pairs
+    const dndItems = pairs.map(p => p.left)
+    const targets = Array.from(new Set(pairs.map(p => p.right)))
+    let placement: Record<string, string> = {}
+    try {
+      const parsed = value ? JSON.parse(value) : {}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) placement = parsed
+    } catch {
+      placement = {}
+    }
+    const place = (it: string, target: string) => {
+      onInteract()
+      setDragSelected(null)
+      onValueChange(JSON.stringify({ ...placement, [it]: target }))
+    }
+    const unplace = (it: string) => {
+      onInteract()
+      const next = { ...placement }
+      delete next[it]
+      onValueChange(JSON.stringify(next))
+    }
+    const unplaced = dndItems.filter(it => !placement[it])
+    const chip =
+      'rounded-md border px-2 py-1 text-xs transition-colors cursor-grab active:cursor-grabbing'
+    return (
+      <div className="space-y-3">
+        {/* Source tray */}
+        <div
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            const it = e.dataTransfer.getData('text/plain')
+            if (it) unplace(it)
+          }}
+          className="flex min-h-[40px] flex-wrap gap-2 rounded-md border border-dashed border-gray-300 p-2"
+        >
+          {unplaced.length === 0 ? (
+            <span className="text-xs text-gray-400">All items placed</span>
+          ) : (
+            unplaced.map(it => (
+              <button
+                key={it}
+                type="button"
+                draggable
+                onDragStart={e => e.dataTransfer.setData('text/plain', it)}
+                onClick={() => setDragSelected(prev => (prev === it ? null : it))}
+                className={cn(
+                  chip,
+                  dragSelected === it
+                    ? 'border-[#F17623] bg-[#F17623]/10 text-[#9a4a12]'
+                    : 'border-gray-200 bg-gray-50 text-gray-700'
+                )}
+              >
+                {it}
+              </button>
+            ))
+          )}
+        </div>
+        {/* Target bins */}
+        <div className="grid grid-cols-2 gap-2">
+          {targets.map(t => (
+            <div
+              key={t}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                const it = e.dataTransfer.getData('text/plain')
+                if (it) place(it, t)
+              }}
+              onClick={() => {
+                if (dragSelected) place(dragSelected, t)
+              }}
+              className={cn(
+                'min-h-[56px] rounded-md border p-2',
+                dragSelected
+                  ? 'cursor-pointer border-[#F17623]/50 bg-[#F17623]/5'
+                  : 'border-gray-200'
+              )}
+            >
+              <p className="mb-1 text-[11px] font-semibold text-gray-500">{t}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {dndItems
+                  .filter(it => placement[it] === t)
+                  .map(it => (
+                    <button
+                      key={it}
+                      type="button"
+                      draggable
+                      onDragStart={e => e.dataTransfer.setData('text/plain', it)}
+                      onClick={e => {
+                        e.stopPropagation()
+                        unplace(it)
+                      }}
+                      className={cn(chip, 'border-[#F17623]/40 bg-[#F17623]/10 text-[#9a4a12]')}
+                      title="Remove"
+                    >
+                      {it} ✕
+                    </button>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Matching — show each left prompt with a dropdown of the (sorted) right
+  // values. The answer is stored as a JSON map of left -> chosen right.
+  if (type === 'matching' && item.pairs && item.pairs.length > 0) {
+    const pairs = item.pairs
+    const rightBank = Array.from(new Set(pairs.map(p => p.right))).sort((a, b) =>
+      a.localeCompare(b)
+    )
+    let answerMap: Record<string, string> = {}
+    try {
+      const parsed = value ? JSON.parse(value) : {}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) answerMap = parsed
+    } catch {
+      answerMap = {}
+    }
+    const setMatch = (left: string, right: string) => {
+      onInteract()
+      onValueChange(JSON.stringify({ ...answerMap, [left]: right }))
+    }
+    return (
+      <div className="space-y-2">
+        {pairs.map(p => (
+          <div key={p.left} className="flex items-center gap-2 text-sm">
+            <span className="flex-1 text-gray-800">{p.left}</span>
+            <span className="shrink-0 text-gray-300">→</span>
+            <select
+              value={answerMap[p.left] ?? ''}
+              onFocus={onInteract}
+              onChange={e => setMatch(p.left, e.target.value)}
+              className={`w-44 shrink-0 ${baseField}`}
+            >
+              <option value="">Choose…</option>
+              {rightBank.map(r => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Ordering / ranking — reorder the provided items with up/down controls.
+  // The answer is stored as a JSON array of the items in the chosen order.
+  if (type === 'ordering' && options.length > 0) {
+    let saved: string[] = []
+    try {
+      const parsed = value ? JSON.parse(value) : []
+      if (Array.isArray(parsed)) saved = parsed.filter((v): v is string => typeof v === 'string')
+    } catch {
+      saved = []
+    }
+    // Start from any saved order, then append any options not yet placed so the
+    // list always shows every item exactly once even if options changed.
+    const current = saved.filter(o => options.includes(o))
+    for (const o of options) if (!current.includes(o)) current.push(o)
+    const move = (i: number, dir: -1 | 1) => {
+      const j = i + dir
+      if (j < 0 || j >= current.length) return
+      onInteract()
+      const next = [...current]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      onValueChange(JSON.stringify(next))
+    }
+    return (
+      <ol className="space-y-1.5">
+        {current.map((opt, i) => (
+          <li
+            key={opt}
+            className="flex items-center gap-2 rounded-md border border-gray-200 p-2 text-sm text-gray-800"
+          >
+            <span className="w-5 shrink-0 text-center text-xs font-semibold text-gray-400">
+              {i + 1}
+            </span>
+            <span className="flex-1">{opt}</span>
+            <button
+              type="button"
+              aria-label="Move up"
+              onClick={() => move(i, -1)}
+              disabled={i === 0}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Move down"
+              onClick={() => move(i, 1)}
+              disabled={i === current.length - 1}
+              className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  // Long answer + hotspot (still needs image+regions) and any interactive type
+  // that arrives without its data → free-text.
+  return (
+    <textarea
+      value={value}
+      onFocus={onInteract}
+      onChange={e => {
+        onInteract()
+        onValueChange(e.target.value)
+      }}
+      placeholder="Type your answer…"
+      className={`min-h-[64px] resize-y ${baseField}`}
+    />
   )
 }
 
@@ -1305,10 +1686,10 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch justify-center gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 w-full max-w-4xl flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -1351,9 +1732,9 @@ function StudentFeedbackContent() {
                 className="flex h-full min-h-0 flex-1 flex-col outline-none"
               >
                 {/* Classroom viewer */}
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                   <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
-                    <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
+                    <span className="rounded-b-md bg-gray-200 px-3 py-0.5 text-[11px] font-medium text-gray-700">
                       Classroom
                     </span>
                   </div>
@@ -1395,9 +1776,6 @@ function StudentFeedbackContent() {
                               doc.mimeType === 'application/pdf' ||
                               (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
                             const isImage = doc.mimeType?.startsWith('image/')
-                            const pdfSrc = url.includes('#')
-                              ? `${url}&toolbar=0&navpanes=0`
-                              : `${url}#toolbar=0&navpanes=0`
                             return (
                               <div className="mb-4 h-[55vh] w-full">
                                 {!loadable ? (
@@ -1408,11 +1786,11 @@ function StudentFeedbackContent() {
                                     </p>
                                   </div>
                                 ) : isPdf ? (
-                                  <iframe
-                                    src={pdfSrc}
-                                    title="Document"
-                                    className="h-full w-full rounded-lg border"
-                                  />
+                                  // Paginated viewer (Page X of Y + Prev/Next, or
+                                  // scroll for <=20 pages) so students can see EVERY
+                                  // page of a multi-page paper — the bare iframe with
+                                  // toolbar/navpanes hidden gave no page navigation.
+                                  <PDFViewer fileUrl={url} className="h-full w-full" />
                                 ) : isImage ? (
                                   <div className="flex h-full items-center justify-center">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1439,36 +1817,23 @@ function StudentFeedbackContent() {
                             )
                           })()}
 
+                        {/* The questions + answer inputs live in the right-hand
+                            Assessment tab (single source of truth). Here we just
+                            point the student to it so a question-only task isn't
+                            blank. */}
                         {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                          <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                              Questions
-                            </p>
-                            {activeTask.dmiItems.map(item => (
-                              <div key={item.id} className="rounded-lg border border-gray-200 p-3">
-                                <p className="mb-2 text-sm font-medium text-gray-900">
-                                  {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                                  {item.questionText}
-                                </p>
-                                <textarea
-                                  value={taskAnswers[item.id] ?? ''}
-                                  // Once the student starts working on a task/assessment,
-                                  // stop auto-following the tutor so their navigation can't
-                                  // yank the student away from what they're answering.
-                                  onFocus={() => setFollowTutor(false)}
-                                  onChange={e => {
-                                    setFollowTutor(false)
-                                    setTaskAnswers(prev => ({
-                                      ...prev,
-                                      [item.id]: e.target.value,
-                                    }))
-                                  }}
-                                  placeholder="Type your answer…"
-                                  className="min-h-[64px] w-full resize-y rounded-md border border-gray-200 p-2 text-sm focus:border-[#F17623] focus:outline-none"
-                                />
-                              </div>
-                            ))}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelTab('dmi')}
+                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
+                          >
+                            <span>
+                              {activeTask.dmiItems.length} question
+                              {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
+                              Assessment tab
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0" />
+                          </button>
                         )}
 
                         {!activeTask.content &&
@@ -1604,23 +1969,21 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
+              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
             }}
           >
             {/* Resize handle */}
-            {!isExpanded && (
-              <div
-                className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
-                onMouseDown={e => {
-                  setRightPanelResizing(true)
-                  rightResizeStartX.current = e.clientX
-                  rightResizeStartW.current = rightPanelWidth
-                }}
-                title="Drag to resize"
-              >
-                <div className="h-8 w-0.5 rounded-full bg-slate-300" />
-              </div>
-            )}
+            <div
+              className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
+              onMouseDown={e => {
+                setRightPanelResizing(true)
+                rightResizeStartX.current = e.clientX
+                rightResizeStartW.current = rightPanelWidth
+              }}
+              title="Drag to resize"
+            >
+              <div className="h-8 w-0.5 rounded-full bg-slate-300" />
+            </div>
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
@@ -1688,7 +2051,7 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div className={cn('flex-1', isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
+            <div className={cn('flex-1', 'overflow-y-auto p-4')}>
               {rightPanelTab === 'lessons' ? (
                 <div className="space-y-2">
                   {tasks.length === 0 && (
@@ -1699,6 +2062,15 @@ function StudentFeedbackContent() {
                       key={task.id}
                       type="button"
                       onClick={() => handleSelectTask(task.id)}
+                      onDoubleClick={() => {
+                        handleSelectTask(task.id)
+                        // Double-clicking an assessment (or any task that carries
+                        // DMI questions) jumps straight to its answer inputs in
+                        // the Assessment tab.
+                        if (task.source === 'assessment' || (task.dmiItems?.length ?? 0) > 0) {
+                          setRightPanelTab('dmi')
+                        }
+                      }}
                       className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
                         activeTaskId === task.id
                           ? 'border-blue-200 bg-blue-50'
@@ -1723,19 +2095,47 @@ function StudentFeedbackContent() {
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
-                      {activeTask.dmiItems.map(item => (
-                        <div
-                          key={item.id}
-                          className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                        >
-                          <p className="mb-1.5 text-xs font-bold text-blue-600">
-                            Q{item.questionNumber}
-                          </p>
-                          <p className="text-sm font-medium text-gray-800">{item.questionText}</p>
-                        </div>
-                      ))}
+                      {activeTask.dmiItems.map(item => {
+                        const qType = normalizeDmiQuestionType(item.questionType)
+                        return (
+                          <div
+                            key={item.id}
+                            className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                          >
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-800">
+                                {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                  ? item.questionText
+                                  : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
+                              </p>
+                              {qType !== 'long' && (
+                                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                  {DMI_QUESTION_TYPE_LABELS[qType]}
+                                </span>
+                              )}
+                            </div>
+                            <DmiAnswerField
+                              item={item}
+                              value={taskAnswers[item.id] ?? ''}
+                              // Once the student starts working, stop auto-following
+                              // the tutor so their navigation can't yank the student
+                              // away from what they're answering.
+                              onInteract={() => setFollowTutor(false)}
+                              onValueChange={next =>
+                                setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
+                              }
+                            />
+                          </div>
+                        )
+                      })}
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      {activeTask ? 'This task has no questions to answer.' : ''}
+                    </p>
+                  )}
                 </div>
               ) : rightPanelTab === 'my-board' ? (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -1755,85 +2155,28 @@ function StudentFeedbackContent() {
                   />
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="mb-2 border-b border-gray-100 pb-2">
-                    <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
+                <div className="flex h-full flex-col">
+                  {/* AI Assistant chat display */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <p className="text-sm text-gray-500">AI Assistant coming soon.</p>
                   </div>
-                  {!activeTask && (
-                    <p className="text-sm text-gray-500">Select a task to see feedback prompts.</p>
-                  )}
-                  {activeTask && (
-                    <div className="space-y-6">
-                      {feedbackPolls.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackPolls.map(poll => {
-                            const selectedValue = poll.responses.find(
-                              response => response.studentId === session?.user?.id
-                            )?.value
-                            return (
-                              <div key={poll.id} className="rounded-lg border bg-white p-4">
-                                <p className="text-sm font-medium text-gray-900">{poll.question}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {poll.options.map(option => (
-                                    <Button
-                                      key={`${poll.id}-${option}`}
-                                      variant={selectedValue === option ? 'default' : 'outline'}
-                                      size="sm"
-                                      disabled={poll.status === 'closed'}
-                                      onClick={() => handlePollVote(poll, option)}
-                                    >
-                                      {option}
-                                    </Button>
-                                  ))}
-                                </div>
-                                {poll.status === 'closed' && (
-                                  <p className="mt-2 text-xs text-gray-500">Poll closed</p>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {feedbackQuestions.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackQuestions.map(question => (
-                            <div key={question.id} className="rounded-lg border bg-white p-4">
-                              <p className="text-sm font-medium text-gray-900">{question.prompt}</p>
-                              <div className="mt-3">
-                                <AutoTextarea
-                                  placeholder="Type your answer..."
-                                  className="min-h-[72px]"
-                                  value={questionDrafts[question.id] || ''}
-                                  onChange={event =>
-                                    setQuestionDrafts(prev => ({
-                                      ...prev,
-                                      [question.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <div className="mt-2 flex justify-end">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleQuestionSend(question)}
-                                    disabled={!questionDrafts[question.id]?.trim()}
-                                  >
-                                    Send
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {feedbackPolls.length === 0 && feedbackQuestions.length === 0 && (
-                        <p className="text-sm text-gray-500">
-                          Waiting for tutor insights to appear here.
-                        </p>
-                      )}
+                  {/* AI Assistant input */}
+                  <div className="shrink-0 border-t border-gray-200 p-3">
+                    <div className="relative">
+                      <AutoTextarea
+                        placeholder="Ask the AI Assistant..."
+                        className="min-h-[60px] pr-10"
+                        value=""
+                        onChange={() => {}}
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
