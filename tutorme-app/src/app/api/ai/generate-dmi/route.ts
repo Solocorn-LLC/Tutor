@@ -91,7 +91,25 @@ Rules:
   in as item :: target (the answer key); targets may repeat across items.
 - Do not invent mark allocations or evaluation criteria. If something is unclear, say so in the A
   line rather than guessing.
-- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.`
+- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.
+
+EXAMPLE — a question paper whose Question 1 has parts (a), (b)(i), (b)(ii), (c) and Question 2 has
+parts (a), (b). The CORRECT output is one field per sub-part, label only, no question text:
+KIND: question_paper
+Q1 [short]: Question 1(a)
+A1: ...
+Q2 [short]: Question 1(b)(i)
+A2: ...
+Q3 [short]: Question 1(b)(ii)
+A3: ...
+Q4 [long]: Question 1(c)
+A4: ...
+Q5 [short]: Question 2(a)
+A5: ...
+Q6 [long]: Question 2(b)
+A6: ...
+(Every sub-part is its own field; the label is ONLY the reference; the question wording never
+appears in a Q line — the student reads it from the document.)`
 
 interface ParsedDmiQuestion {
   questionNumber: number
@@ -189,7 +207,9 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
     )
     const optMatch = line.match(/^OPTIONS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
     const pairsMatch = line.match(/^PAIRS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
-    const aMatch = line.match(/^A\s*(\d+)?\s*[:.)]\s*(.+)$/i)
+    // Accept "A1:", "A:", "Answer:", "Ans:" — so a model answer is captured as
+    // the (tutor-only) answer and never leaks into the student-visible label.
+    const aMatch = line.match(/^(?:Answer|Ans|A)\s*(\d+)?\s*[:.)]\s*(.+)$/i)
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
@@ -222,6 +242,17 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
   }
 
   if (currentQ) questions.push(currentQ)
+
+  // For a question paper the label must be ONLY the reference (e.g. "Question
+  // 1(a)"). Defensively strip any leaked answer/explanation the model crammed
+  // onto the Q line so question text or model answers never reach the student.
+  if (documentKind === 'question_paper') {
+    for (const q of questions) {
+      q.questionText = q.questionText
+        .replace(/\s*(?:answer|ans|explanation|solution)\s*[:.)].*$/i, '')
+        .trim()
+    }
+  }
 
   // Fallback: the model ignored the Q[n] format entirely (e.g. a plain numbered
   // list of questions). Extract numbered lines so we never return an empty DMI
