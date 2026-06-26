@@ -4632,6 +4632,7 @@ export default function LandingPage() {
   const [theme] = useState<ColorTheme>('emerald')
   const [mode] = useState<ThemeMode>('light')
   const [searchQuery, setSearchQuery] = useState('')
+  const [committedSearchQuery, setCommittedSearchQuery] = useState('')
   const [tutorTotal, setTutorTotal] = useState<number | null>(null)
   const [courseTotal, setCourseTotal] = useState<number | null>(null)
   const [contactModalOpen, setContactModalOpen] = useState(false)
@@ -4924,6 +4925,7 @@ export default function LandingPage() {
                 onSubmit={e => {
                   e.preventDefault()
                   if (!searchQuery.trim()) return
+                  setCommittedSearchQuery(searchQuery.trim())
                   scrollToSearchResults()
                   ;(e.currentTarget.querySelector('input') as HTMLInputElement | null)?.blur()
                 }}
@@ -4934,7 +4936,18 @@ export default function LandingPage() {
                     type="text"
                     placeholder="Search tutors, courses, categories..."
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={e => {
+                      setSearchQuery(e.target.value)
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (searchQuery.trim()) {
+                          setCommittedSearchQuery(searchQuery.trim())
+                          scrollToSearchResults()
+                        }
+                      }
+                    }}
                     className="ml-4 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:outline-none focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                   <button
@@ -5015,7 +5028,13 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <Panel2SearchResults query={searchQuery} onClearAll={() => setSearchQuery('')} />
+        <Panel2SearchResults
+          query={committedSearchQuery}
+          onClearAll={() => {
+            setSearchQuery('')
+            setCommittedSearchQuery('')
+          }}
+        />
 
         <div id="how-it-works" />
 
