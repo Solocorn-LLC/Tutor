@@ -26,7 +26,7 @@ export function CollapsibleCard({
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'end' })
+  const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'nearest' })
 
   return (
     <div ref={cardRef}>
@@ -48,9 +48,9 @@ export function CollapsibleCard({
           )}
         >
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="panel-header-title">{title}</div>
-              {description && <div className="panel-header-subtext">{description}</div>}
+            <div className="flex items-center">
+              <span className="panel-header-title">{title}</span>
+              {description && <span className="panel-header-subtext">{description}</span>}
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
               {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}

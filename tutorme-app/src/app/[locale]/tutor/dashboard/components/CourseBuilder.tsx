@@ -1237,7 +1237,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
-    const [analyticsNoteMap, setAnalyticsNoteMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
 
@@ -1305,10 +1304,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
     const setQuestionPrompt = (val: string) =>
       setQuestionPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
-
-    const analyticsNote = analyticsNoteMap[currentInsightsId] ?? ''
-    const setAnalyticsNote = (val: string) =>
-      setAnalyticsNoteMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const mentionItems: MentionItem[] = useMemo(() => {
       const items: MentionItem[] = []

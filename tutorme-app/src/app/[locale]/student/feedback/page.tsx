@@ -1686,10 +1686,10 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch justify-center gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 w-full max-w-4xl flex-col overflow-hidden',
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -1786,10 +1786,9 @@ function StudentFeedbackContent() {
                                     </p>
                                   </div>
                                 ) : isPdf ? (
-                                  // Paginated viewer (Page X of Y + Prev/Next, or
-                                  // scroll for <=20 pages) so students can see EVERY
-                                  // page of a multi-page paper — the bare iframe with
-                                  // toolbar/navpanes hidden gave no page navigation.
+                                  // Paginated/continuous-scroll viewer so students can
+                                  // see EVERY page of a multi-page paper (the bare iframe
+                                  // with toolbar/navpanes hidden gave no page navigation).
                                   <PDFViewer fileUrl={url} className="h-full w-full" />
                                 ) : isImage ? (
                                   <div className="flex h-full items-center justify-center">
