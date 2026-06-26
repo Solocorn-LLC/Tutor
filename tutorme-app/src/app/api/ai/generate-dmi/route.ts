@@ -30,7 +30,7 @@ const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
   content: z.string().max(50000).optional(),
-  pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
+  pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
    * Ignored for a question paper (its questions are mirrored as-is).
@@ -41,48 +41,46 @@ const GenerateDmiRequestSchema = z.object({
     .optional(),
 })
 
-const SYSTEM_PROMPT = `You are an expert educational assessment designer building a DMI (Digital Marking Interface).
+const SYSTEM_PROMPT = `You build a DMI: a list of ANSWER INPUT FIELDS for a question paper. The student
+reads the real questions from the deployed document, so for a question paper you must NOT reproduce
+the question wording or any answers — you only output a short reference LABEL per answerable part.
 
-A DMI is a set of ANSWER INPUT FIELDS that a student fills in. The student reads the actual
-questions from the deployed document — your job is to produce, for each question, a well-numbered
-answer field of the RIGHT INPUT TYPE. Do not rewrite or invent questions for a question paper;
-mirror its questions one-to-one as typed input fields.
-
-First, classify the source and output it as the very first line:
-KIND: question_paper   (the document already contains questions / exam tasks)
-KIND: study_material   (notes / material with no explicit questions)
-
-Then, for each question, output exactly in this format:
-Q[number] [type]: [question text — copied EXACTLY from the source for a question paper]
-OPTIONS[number]: option 1 | option 2 | option 3      (ONLY for mcq / true_false / multiple_response)
-PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching / drag_drop)
-A[number]: [suggested answer or key points]
-
-[type] must be exactly one of:
-  short              one-line factual answer
-  long               paragraph / essay answer
-  mcq                multiple choice, exactly one correct option
-  true_false         true / false
-  multiple_response  multiple choice, one or more correct options
-  fill_blank         fill in the blank / cloze
-  matching           match items across two columns
-  ordering           order or rank items
-  hotspot            click a region of an image
-  drag_drop          drag items into targets
-Pick the type that best matches how the question expects to be answered. Write the [type] tag
-as the exact lowercase token above (e.g. [mcq], [true_false]) — not a human-readable label.
+Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY this shape:
+{
+  "documentKind": "question_paper" | "study_material",
+  "fields": [
+    { "label": "Question 1(a)", "type": "short" },
+    { "label": "Question 2", "type": "mcq", "options": ["A", "B", "C", "D", "E"] }
+  ]
+}
 
 Rules:
-- For a question_paper, preserve question wording EXACTLY — do not paraphrase. If the source has
-  no explicit questions (study_material), generate 5-10 questions covering the main concepts.
-- The A[number] answers are for tutor verification ONLY and must never be shown to a student.
-- For a matching question, the PAIRS line gives the CORRECT left::right correspondences (the
-  answer key); the student will see the left items and pick from the shuffled right values.
-- For a drag_drop question, the PAIRS line gives each draggable item and the target it belongs
-  in as item :: target (the answer key); targets may repeat across items.
-- Do not invent mark allocations or evaluation criteria. If something is unclear, say so in the A
-  line rather than guessing.
-- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.`
+- documentKind: "question_paper" if the document already contains questions/exam tasks; otherwise
+  "study_material" (notes with no explicit questions).
+- For a question_paper: output ONE field per answerable part — every question AND every sub-part
+  (a),(b),(c) and sub-sub-part (i),(ii). "label" is the part's reference EXACTLY as printed, e.g.
+  "Question 1(a)", "Question 1(b)(i)", "Question 3(a)(ii)". The label MUST be only the reference —
+  never the question wording, instructions, marks, or answers. Enumerate EVERY part across ALL
+  pages, in order, exactly once: do not skip, merge, summarise, repeat, or stop early. A 6-question
+  paper with sub-parts typically yields 15-30 fields.
+- For study_material: generate 5-10 questions; here "label" is the full question text.
+- "type" is exactly one of: short, long, mcq, true_false, multiple_response, fill_blank, matching,
+  ordering, hotspot, drag_drop. Choose by how the part is meant to be answered (multiple-choice
+  item -> "mcq" with "options"; short response -> "short"; extended/essay -> "long"). Default to
+  "short" if unsure.
+- "options" array ONLY for mcq / true_false / multiple_response.
+- "pairs" (array of {"left","right"}) ONLY for matching / drag_drop.
+
+EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
+{"documentKind":"question_paper","fields":[
+{"label":"Question 1(a)","type":"short"},
+{"label":"Question 1(b)(i)","type":"short"},
+{"label":"Question 1(b)(ii)","type":"short"},
+{"label":"Question 1(c)","type":"long"},
+{"label":"Question 2(a)","type":"short"},
+{"label":"Question 2(b)","type":"long"}
+]}
+Output the JSON object and nothing else.`
 
 interface ParsedDmiQuestion {
   questionNumber: number
@@ -96,6 +94,63 @@ interface ParsedDmiQuestion {
 interface ParsedDmiResponse {
   documentKind: 'question_paper' | 'study_material' | null
   questions: ParsedDmiQuestion[]
+}
+
+/**
+ * Primary parser: the model returns a strict JSON object of {label, type} fields.
+ * Because the schema has no slot for question wording or answers, the model
+ * cannot leak them into the student-visible label. Returns null if the response
+ * isn't usable JSON so the caller can fall back to the legacy line parser.
+ */
+function parseDmiJson(raw: string): ParsedDmiResponse | null {
+  try {
+    const text = stripCodeFences(raw).trim()
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start === -1 || end === -1 || end <= start) return null
+    const obj = JSON.parse(text.slice(start, end + 1)) as {
+      documentKind?: unknown
+      fields?: Array<{ label?: unknown; type?: unknown; options?: unknown; pairs?: unknown }>
+    }
+    if (!Array.isArray(obj.fields) || obj.fields.length === 0) return null
+
+    const documentKind =
+      obj.documentKind === 'study_material'
+        ? 'study_material'
+        : obj.documentKind === 'question_paper'
+          ? 'question_paper'
+          : null
+
+    const questions: ParsedDmiQuestion[] = obj.fields
+      .map((f, i) => {
+        const label = String(f.label ?? '').trim()
+        const options = Array.isArray(f.options)
+          ? f.options.map(o => String(o).trim()).filter(Boolean)
+          : undefined
+        const pairs = Array.isArray(f.pairs)
+          ? f.pairs
+              .map((p: { left?: unknown; right?: unknown }) => ({
+                left: String(p?.left ?? '').trim(),
+                right: String(p?.right ?? '').trim(),
+              }))
+              .filter(p => p.left && p.right)
+          : undefined
+        return {
+          questionNumber: i + 1,
+          questionText: label,
+          answer: '',
+          questionType: normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined),
+          options: options && options.length > 0 ? options : undefined,
+          pairs: pairs && pairs.length > 0 ? pairs : undefined,
+        }
+      })
+      .filter(q => q.questionText)
+
+    if (questions.length === 0) return null
+    return { documentKind, questions }
+  } catch {
+    return null
+  }
 }
 
 // Map a free-form type tag — a snake_case token OR a human label like
@@ -180,7 +235,9 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
     )
     const optMatch = line.match(/^OPTIONS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
     const pairsMatch = line.match(/^PAIRS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
-    const aMatch = line.match(/^A\s*(\d+)?\s*[:.)]\s*(.+)$/i)
+    // Accept "A1:", "A:", "Answer:", "Ans:" — so a model answer is captured as
+    // the (tutor-only) answer and never leaks into the student-visible label.
+    const aMatch = line.match(/^(?:Answer|Ans|A)\s*(\d+)?\s*[:.)]\s*(.+)$/i)
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
@@ -213,6 +270,17 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
   }
 
   if (currentQ) questions.push(currentQ)
+
+  // For a question paper the label must be ONLY the reference (e.g. "Question
+  // 1(a)"). Defensively strip any leaked answer/explanation the model crammed
+  // onto the Q line so question text or model answers never reach the student.
+  if (documentKind === 'question_paper') {
+    for (const q of questions) {
+      q.questionText = q.questionText
+        .replace(/\s*(?:answer|ans|explanation|solution)\s*[:.)].*$/i, '')
+        .trim()
+    }
+  }
 
   // Fallback: the model ignored the Q[n] format entirely (e.g. a plain numbered
   // list of questions). Extract numbered lines so we never return an empty DMI
@@ -286,7 +354,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens: 6000,
         timeoutMs: 60000,
       })
     } else {
@@ -294,7 +362,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens: 6000,
         timeoutMs: 60000,
       })
     }
@@ -308,7 +376,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { documentKind, questions } = parseDmiResponse(stripCodeFences(aiResponse))
+    // Prefer the strict-JSON output; fall back to the legacy line parser if the
+    // model didn't return usable JSON.
+    const { documentKind, questions } =
+      parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
 
     // Warn-only assessment guardrails. Checks wording fidelity against the
     // source (ASMT-4) and other structural rules where data is available.

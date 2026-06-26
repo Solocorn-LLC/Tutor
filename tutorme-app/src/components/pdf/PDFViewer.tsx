@@ -15,9 +15,6 @@ interface PDFViewerProps {
   onHidePreview?: () => void
 }
 
-/** Maximum pages to render in scroll-all mode before switching to single-page pagination. */
-const MAX_SCROLL_PAGES = 20
-
 function getProxiedPdfUrl(fileUrl: string): string {
   // Use the proxy for external URLs so the server can refresh expired GCS signatures
   if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
@@ -91,7 +88,8 @@ export function PDFViewer({
     }
   }, [fileUrl, isBlobUrl])
 
-  const isScrollMode = numPages > 0 && numPages <= MAX_SCROLL_PAGES
+  // Always render every page in a continuous scroll view, regardless of length.
+  const isScrollMode = numPages > 0
 
   const onDocumentLoadSuccess = useCallback(({ numPages: total }: { numPages: number }) => {
     setNumPages(total)
@@ -105,13 +103,6 @@ export function PDFViewer({
     setError(err.message || 'Failed to load PDF')
     setLoading(false)
   }, [])
-
-  const changePage = useCallback(
-    (delta: number) => {
-      setPageNumber(prev => Math.max(1, Math.min(numPages, prev + delta)))
-    },
-    [numPages]
-  )
 
   const changeScale = useCallback((delta: number) => {
     setScale(prev => {
@@ -180,25 +171,9 @@ export function PDFViewer({
         <div className="flex h-11 shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-2">
           <div className="flex items-center gap-1.5">
             {!hidePageNavigation && (
-              <>
-                <button
-                  onClick={() => changePage(-1)}
-                  disabled={pageNumber <= 1}
-                  className="rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:text-gray-400"
-                >
-                  ← Prev
-                </button>
-                <span className="min-w-[80px] text-center text-xs text-gray-600">
-                  Page {pageNumber} of {numPages}
-                </span>
-                <button
-                  onClick={() => changePage(1)}
-                  disabled={pageNumber >= numPages}
-                  className="rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:text-gray-400"
-                >
-                  Next →
-                </button>
-              </>
+              <span className="text-xs text-gray-600">
+                {numPages} {numPages === 1 ? 'page' : 'pages'} · scroll to view all
+              </span>
             )}
           </div>
 
@@ -294,13 +269,6 @@ export function PDFViewer({
               </div>
             )}
           </Document>
-
-          {/* Warning for large documents forced into pagination mode */}
-          {!isScrollMode && numPages > MAX_SCROLL_PAGES && (
-            <div className="py-3 text-center text-xs text-amber-700">
-              Large document ({numPages} pages). Use the Prev/Next buttons above to navigate pages.
-            </div>
-          )}
         </div>
       )}
     </div>
