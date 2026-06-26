@@ -1237,7 +1237,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
-    const [analyticsNoteMap, setAnalyticsNoteMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
 
@@ -1305,10 +1304,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
     const setQuestionPrompt = (val: string) =>
       setQuestionPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
-
-    const analyticsNote = analyticsNoteMap[currentInsightsId] ?? ''
-    const setAnalyticsNote = (val: string) =>
-      setAnalyticsNoteMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const mentionItems: MentionItem[] = useMemo(() => {
       const items: MentionItem[] = []
@@ -2695,44 +2690,6 @@ FEEDBACK: [your explanation]`
       }
     }
 
-    // Extract the selectable text of EVERY page of a PDF. Used in preference to
-    // page-images for digital papers so a long multi-page question paper is fully
-    // captured (image analysis is capped at a few pages). Returns '' if the PDF
-    // has no extractable text (e.g. a scan) so the caller can fall back to images.
-    const extractPdfText = async (pdfUrl: string, maxPages = 30): Promise<string> => {
-      try {
-        const fetchUrl =
-          pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')
-            ? `/api/proxy-file?url=${encodeURIComponent(pdfUrl)}`
-            : pdfUrl
-        const response = await fetch(fetchUrl)
-        if (!response.ok) throw new Error('Failed to fetch PDF')
-        const arrayBuffer = await response.arrayBuffer()
-        const pdfjs = await import('pdfjs-dist')
-        if (typeof window !== 'undefined') {
-          const opts = (pdfjs as { GlobalWorkerOptions?: { workerSrc?: string } })
-            .GlobalWorkerOptions
-          if (opts && !opts.workerSrc) opts.workerSrc = '/pdf.worker.min.mjs'
-        }
-        const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise
-        const parts: string[] = []
-        for (let i = 1; i <= Math.min(maxPages, doc.numPages); i++) {
-          const page = await doc.getPage(i)
-          const tc = await page.getTextContent()
-          const pageText = (tc.items as Array<{ str?: string }>)
-            .map(it => it.str ?? '')
-            .join(' ')
-            .replace(/[ \t]+/g, ' ')
-            .trim()
-          if (pageText) parts.push(`--- Page ${i} ---\n${pageText}`)
-        }
-        return parts.join('\n\n')
-      } catch (error) {
-        console.error('PDF text extraction error:', error)
-        return ''
-      }
-    }
-
     // Generate DMI using AI from content or PDF images with versioning.
     // `questionSpec` is supplied (via the spec dialog) when the source is study
     // material and the tutor has chosen which question types/counts to generate.
@@ -2762,18 +2719,10 @@ FEEDBACK: [your explanation]`
       setDmiGenerating(true)
       try {
         let pdfPages: string[] | undefined
-        let pdfText: string | undefined
         if (hasPdf) {
           toast.info('Analyzing PDF with AI...')
-          // Prefer full-text extraction so EVERY page of a multi-page paper is
-          // captured (image analysis is capped at a few pages and would miss
-          // later questions). Fall back to page images for scanned PDFs.
-          const extracted = await extractPdfText(sourceDoc.fileUrl, 30)
-          if (extracted.trim().length > 200) {
-            pdfText = extracted.slice(0, 50000)
-          } else {
-            pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8)
-          }
+          // Analyze up to 5 pages (the generate-dmi API cap) instead of silently 3.
+          pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 5)
         }
 
         const response = await fetch('/api/ai/generate-dmi', {
@@ -2782,7 +2731,7 @@ FEEDBACK: [your explanation]`
           body: JSON.stringify({
             type,
             title: builder.title,
-            content: pdfText ?? (!hasPdf && hasContent ? content : undefined),
+            content: !hasPdf && hasContent ? content : undefined,
             pdfPages,
             questionSpec,
           }),
@@ -8028,7 +7977,7 @@ FEEDBACK: [your explanation]`
                                         </TabsList>
                                         <TabsContent
                                           value="analytics"
-                                          className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                          className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                         >
                                           <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                             <AiAssistantPanel sessionId={insightsProps.sessionId} />

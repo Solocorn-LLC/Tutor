@@ -30,7 +30,7 @@ const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
   content: z.string().max(50000).optional(),
-  pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
+  pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
    * Ignored for a question paper (its questions are mirrored as-is).
@@ -44,24 +44,19 @@ const GenerateDmiRequestSchema = z.object({
 const SYSTEM_PROMPT = `You are an expert educational assessment designer building a DMI (Digital Marking Interface).
 
 A DMI is a set of ANSWER INPUT FIELDS that a student fills in. The student reads the actual
-questions from the deployed document — so for a question paper you do NOT reproduce the question
-text. Instead you produce one numbered input field per answerable part, labelled by its number.
+questions from the deployed document — your job is to produce, for each question, a well-numbered
+answer field of the RIGHT INPUT TYPE. Do not rewrite or invent questions for a question paper;
+mirror its questions one-to-one as typed input fields.
 
 First, classify the source and output it as the very first line:
 KIND: question_paper   (the document already contains questions / exam tasks)
 KIND: study_material   (notes / material with no explicit questions)
 
-Then output one line per input field in this format:
-Q[number] [type]: [field label]
+Then, for each question, output exactly in this format:
+Q[number] [type]: [question text — copied EXACTLY from the source for a question paper]
 OPTIONS[number]: option 1 | option 2 | option 3      (ONLY for mcq / true_false / multiple_response)
 PAIRS[number]: left A :: right 1 | left B :: right 2 | left C :: right 3   (ONLY for matching / drag_drop)
 A[number]: [suggested answer or key points]
-
-[number] is a SEQUENTIAL counter (1, 2, 3, …) for the output lines. [field label] is:
-- question_paper: the question's reference EXACTLY as printed — every question AND every
-  sub-question / sub-part as its own field, e.g. "Question 1(a)", "Question 1(b)", "Question 2",
-  "Question 3(a)(i)". Do NOT include the question text — only the reference label.
-- study_material: the full generated question text (there is no paper for the student to read).
 
 [type] must be exactly one of:
   short              one-line factual answer
@@ -78,12 +73,8 @@ Pick the type that best matches how the question expects to be answered. Write t
 as the exact lowercase token above (e.g. [mcq], [true_false]) — not a human-readable label.
 
 Rules:
-- For a question_paper: enumerate EVERY question and EVERY sub-part across ALL pages, in order,
-  exactly once each — do not skip, merge, summarise, or repeat any part, and do not stop early.
-  A question with parts (a),(b),(c) becomes three separate fields. Use the reference label exactly
-  as printed; pick the [type] from how that part is meant to be answered (a multiple-choice item
-  -> mcq with OPTIONS, a short response -> short, an extended/essay response -> long, etc.).
-- For study_material (no explicit questions): generate 5-10 questions covering the main concepts.
+- For a question_paper, preserve question wording EXACTLY — do not paraphrase. If the source has
+  no explicit questions (study_material), generate 5-10 questions covering the main concepts.
 - The A[number] answers are for tutor verification ONLY and must never be shown to a student.
 - For a matching question, the PAIRS line gives the CORRECT left::right correspondences (the
   answer key); the student will see the left items and pick from the shuffled right values.
@@ -91,25 +82,7 @@ Rules:
   in as item :: target (the answer key); targets may repeat across items.
 - Do not invent mark allocations or evaluation criteria. If something is unclear, say so in the A
   line rather than guessing.
-- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.
-
-EXAMPLE — a question paper whose Question 1 has parts (a), (b)(i), (b)(ii), (c) and Question 2 has
-parts (a), (b). The CORRECT output is one field per sub-part, label only, no question text:
-KIND: question_paper
-Q1 [short]: Question 1(a)
-A1: ...
-Q2 [short]: Question 1(b)(i)
-A2: ...
-Q3 [short]: Question 1(b)(ii)
-A3: ...
-Q4 [long]: Question 1(c)
-A4: ...
-Q5 [short]: Question 2(a)
-A5: ...
-Q6 [long]: Question 2(b)
-A6: ...
-(Every sub-part is its own field; the label is ONLY the reference; the question wording never
-appears in a Q line — the student reads it from the document.)`
+- Output ONLY the KIND line and the Q / OPTIONS / PAIRS / A lines — no other text.`
 
 interface ParsedDmiQuestion {
   questionNumber: number
@@ -207,9 +180,7 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
     )
     const optMatch = line.match(/^OPTIONS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
     const pairsMatch = line.match(/^PAIRS\s*(\d+)?\s*[:.)]\s*(.+)$/i)
-    // Accept "A1:", "A:", "Answer:", "Ans:" — so a model answer is captured as
-    // the (tutor-only) answer and never leaks into the student-visible label.
-    const aMatch = line.match(/^(?:Answer|Ans|A)\s*(\d+)?\s*[:.)]\s*(.+)$/i)
+    const aMatch = line.match(/^A\s*(\d+)?\s*[:.)]\s*(.+)$/i)
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
@@ -242,17 +213,6 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
   }
 
   if (currentQ) questions.push(currentQ)
-
-  // For a question paper the label must be ONLY the reference (e.g. "Question
-  // 1(a)"). Defensively strip any leaked answer/explanation the model crammed
-  // onto the Q line so question text or model answers never reach the student.
-  if (documentKind === 'question_paper') {
-    for (const q of questions) {
-      q.questionText = q.questionText
-        .replace(/\s*(?:answer|ans|explanation|solution)\s*[:.)].*$/i, '')
-        .trim()
-    }
-  }
 
   // Fallback: the model ignored the Q[n] format entirely (e.g. a plain numbered
   // list of questions). Extract numbered lines so we never return an empty DMI
@@ -326,7 +286,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 6000,
+        maxTokens: 4096,
         timeoutMs: 60000,
       })
     } else {
@@ -334,7 +294,7 @@ export async function POST(request: NextRequest) {
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 6000,
+        maxTokens: 4096,
         timeoutMs: 60000,
       })
     }

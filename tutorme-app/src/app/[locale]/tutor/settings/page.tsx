@@ -60,9 +60,6 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
 
-const HERO_BLUE_BUTTON =
-  'bg-[#2563EB] text-white border-[#2563EB] hover:bg-white hover:text-[#2563EB] hover:border-[#2563EB] rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200'
-
 const LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'zh', name: '中文 (Chinese)' },
@@ -193,7 +190,7 @@ function OneOnOneSettingsCard() {
             {/* Hourly Rate */}
             <div className="space-y-2">
               <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-start gap-2">
                 <span className="text-lg text-gray-500">$</span>
                 <Input
                   id="hourlyRate"
@@ -250,7 +247,7 @@ function OneOnOneSettingsCard() {
         )}
 
         <div className="flex justify-end">
-          <Button className={HERO_BLUE_BUTTON} onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -338,7 +335,7 @@ export default function TutorSettings() {
             nationality: data.profile.nationality || '',
             countryOfResidence: data.profile.countryOfResidence || '',
             specialties: data.profile.specialties || [],
-            tutoringNationalities: data.profile.tutorNationalities || [],
+            tutorNationalities: data.profile.tutorNationalities || [],
             categoryNationalityCombinations: data.profile.categoryNationalityCombinations || [],
             bio: data.profile.bio || '',
             socialLinks:
@@ -761,7 +758,7 @@ export default function TutorSettings() {
 
                   {/* Bio Preview */}
                   <div className="space-y-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-slate-900">{formData.name || 'Your Name'}</p>
                       <p className="mt-1 line-clamp-3 text-sm text-slate-500">
                         {formData.bio ||
@@ -789,7 +786,7 @@ export default function TutorSettings() {
 
                     <div className="flex justify-end">
                       <Button
-                        className={HERO_BLUE_BUTTON}
+                        className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
                         onClick={() => {
                           window.location.href = '/tutor/my-page'
                         }}
@@ -819,11 +816,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button
-                      className={HERO_BLUE_BUTTON}
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                    >
+                    <Button onClick={handleSaveProfile} disabled={saving}>
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -930,7 +923,6 @@ export default function TutorSettings() {
                   </div>
                   <div className="flex justify-end">
                     <Button
-                      className={HERO_BLUE_BUTTON}
                       onClick={() => toast.success('Tax information saved')}
                       disabled={saving}
                     >
@@ -1007,7 +999,7 @@ export default function TutorSettings() {
                     </div>
                   ))}
 
-                  <Button className={`${HERO_BLUE_BUTTON} w-full`} variant="outline">
+                  <Button variant="outline" className="w-full">
                     <CreditCard className="mr-2 h-4 w-4" />
                     Add Payment Method
                   </Button>
@@ -1042,7 +1034,7 @@ export default function TutorSettings() {
                     <div className="space-y-2">
                       <Label>Action</Label>
                       <Button
-                        className={HERO_BLUE_BUTTON}
+                        className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
                         onClick={() => toast.message('Subscription renewal queued')}
                       >
                         Renew
@@ -1064,15 +1056,12 @@ export default function TutorSettings() {
                       Cancel subscription
                     </Button>
                     <Button
-                      className={HERO_BLUE_BUTTON}
+                      variant="outline"
                       onClick={() => toast.message('Payment history loading')}
                     >
                       Payment history
                     </Button>
-                    <Button
-                      className={HERO_BLUE_BUTTON}
-                      onClick={() => toast.message('Billing details')}
-                    >
+                    <Button variant="outline" onClick={() => toast.message('Billing details')}>
                       Billing
                     </Button>
                   </div>
@@ -1105,13 +1094,13 @@ export default function TutorSettings() {
                       <Label>Download earnings report</Label>
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          className={HERO_BLUE_BUTTON}
+                          variant="outline"
                           onClick={() => toast.message('CSV report generated')}
                         >
                           CSV
                         </Button>
                         <Button
-                          className={HERO_BLUE_BUTTON}
+                          variant="outline"
                           onClick={() => toast.message('PDF report generated')}
                         >
                           PDF
@@ -1286,11 +1275,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button
-                      className={HERO_BLUE_BUTTON}
-                      onClick={handleSaveNotifications}
-                      disabled={saving}
-                    >
+                    <Button onClick={handleSaveNotifications} disabled={saving}>
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1340,7 +1325,7 @@ export default function TutorSettings() {
                         <Input id="confirmPassword" type="password" />
                       </div>
                     </div>
-                    <Button className={HERO_BLUE_BUTTON}>
+                    <Button variant="outline">
                       <Lock className="mr-2 h-4 w-4" />
                       Update Password
                     </Button>
@@ -1408,7 +1393,7 @@ export default function TutorSettings() {
                         </div>
                       ))}
                     </div>
-                    <Button className={HERO_BLUE_BUTTON} onClick={handleLogoutAllDevices}>
+                    <Button variant="outline" onClick={handleLogoutAllDevices}>
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout from All Devices
                     </Button>
@@ -1475,7 +1460,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button className={HERO_BLUE_BUTTON} onClick={saveMirrorPreferences}>
+                    <Button onClick={saveMirrorPreferences}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Preferences
                     </Button>
@@ -1537,7 +1522,7 @@ export default function TutorSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button className={HERO_BLUE_BUTTON} onClick={saveSyncMode}>
+                    <Button onClick={saveSyncMode}>
                       <Save className="mr-2 h-4 w-4" />
                       Save Sync Mode
                     </Button>
