@@ -7954,7 +7954,7 @@ FEEDBACK: [your explanation]`
                       </div>
                       {!rightPanelHidden && (
                         <div
-                          className="relative z-40 order-3 flex min-h-0 shrink-0 flex-col"
+                          className="relative z-40 order-3 flex h-full min-h-0 shrink-0 flex-col"
                           style={{ width: rightPanelWidth }}
                         >
                           <div className="flex h-full min-h-0 flex-col">
