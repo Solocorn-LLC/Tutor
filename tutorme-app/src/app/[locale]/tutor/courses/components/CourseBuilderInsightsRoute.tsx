@@ -866,26 +866,29 @@ function CourseBuilderInsightsRouteInner({
                     </Button>
                   )}
 
-                  {onCourseNameChange && courseId && courseId !== 'insights-draft' && (
-                    <input
-                      className={cn(
-                        'h-9 min-w-[200px] rounded-md border-none bg-transparent px-2 text-sm font-semibold transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
-                        isCoursePublished ? 'cursor-not-allowed opacity-70' : 'hover:bg-slate-100'
-                      )}
-                      value={courseName || ''}
-                      readOnly={isCoursePublished}
-                      onChange={e => {
-                        onCourseNameChange(e.target.value)
-                      }}
-                      placeholder="Course Name..."
-                      title={
-                        isCoursePublished ? 'Published variant names cannot be edited' : undefined
-                      }
-                    />
-                  )}
+                  {activeMainTab !== 'live' &&
+                    onCourseNameChange &&
+                    courseId &&
+                    courseId !== 'insights-draft' && (
+                      <input
+                        className={cn(
+                          'h-9 min-w-[200px] rounded-md border-none bg-transparent px-2 text-sm font-semibold transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
+                          isCoursePublished ? 'cursor-not-allowed opacity-70' : 'hover:bg-slate-100'
+                        )}
+                        value={courseName || ''}
+                        readOnly={isCoursePublished}
+                        onChange={e => {
+                          onCourseNameChange(e.target.value)
+                        }}
+                        placeholder="Course Name..."
+                        title={
+                          isCoursePublished ? 'Published variant names cannot be edited' : undefined
+                        }
+                      />
+                    )}
 
                   {activeMainTab === 'live' && (
-                    <h1 className="text-foreground flex items-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
                       {model.course?.name && (
                         <span className="text-muted-foreground ml-2 text-xl font-normal">
                           {model.course.name}

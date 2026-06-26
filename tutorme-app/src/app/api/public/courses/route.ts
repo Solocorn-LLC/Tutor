@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const searchQuery = searchParams.get('q')?.toLowerCase().trim() || ''
+    const searchQuery = searchParams.get('q')?.toLowerCase().trim().replace(/^@/, '') || ''
     const countryParam = searchParams.get('country')?.trim() || ''
     const countryName =
       countryParam && countryParam !== 'global'
