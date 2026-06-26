@@ -1771,6 +1771,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
   // Course whose full schedule list is open in the ScheduleViewModal.
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  // Remember the previously selected course so we can restore it when schedule closes.
+  const prevSelectedCourseRef = useRef<any | null>(null)
   const [rotation, setRotation] = useState(0)
   const router = useRouter()
 
@@ -2349,9 +2351,11 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 {selectedCourse?.id ? (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      prevSelectedCourseRef.current = selectedCourse
+                      setSelectedCourse(null)
                       setScheduleCourse({ id: selectedCourse.id, name: selectedCourse.name })
-                    }
+                    }}
                     className="text-sm font-semibold text-blue-600 hover:underline"
                   >
                     View schedules
@@ -2487,7 +2491,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
-        onClose={() => setScheduleCourse(null)}
+        onClose={() => {
+          setScheduleCourse(null)
+          if (prevSelectedCourseRef.current) {
+            setSelectedCourse(prevSelectedCourseRef.current)
+            prevSelectedCourseRef.current = null
+          }
+        }}
       />
     </section>
   )
