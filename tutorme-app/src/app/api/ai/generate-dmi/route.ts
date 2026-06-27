@@ -55,8 +55,10 @@ Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY t
 }
 
 Rules:
-- documentKind: "question_paper" if the document already contains questions/exam tasks; otherwise
-  "study_material" (notes with no explicit questions).
+- documentKind (ALWAYS include it): "question_paper" if the document already contains explicit,
+  numbered questions / exam tasks the student is meant to answer; "study_material" if it is a
+  textbook, lecture notes, article, summary, or any prose WITHOUT explicit exam questions. When in
+  doubt and the document is mostly explanatory prose, choose "study_material".
 - For a question_paper: output ONE field per answerable part — every question AND every sub-part
   (a),(b),(c) and sub-sub-part (i),(ii). "label" is the part's reference EXACTLY as printed, e.g.
   "Question 1(a)", "Question 1(b)(i)", "Question 3(a)(ii)". The label MUST be only the reference —
