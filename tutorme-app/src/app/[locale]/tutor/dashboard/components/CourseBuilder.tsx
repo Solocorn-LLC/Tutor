@@ -2838,42 +2838,29 @@ FEEDBACK: [your explanation]`
           regions: Array.isArray(q.regions) ? q.regions : undefined,
         }))
 
-        // Calculate version number
-        const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
-        const nextVersionNumber = existingVersions.length + 1
-
-        // Create new version
-        const newVersion: DMIVersion = {
-          id: `dmi-version-${Date.now()}`,
-          versionNumber: nextVersionNumber,
-          items: items,
-          createdAt: Date.now(),
-          taskId: isTask ? loadedTaskId || undefined : undefined,
-          assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
-        }
-
-        if (isTask) {
-          setTaskDmiItems(items)
-          setTaskDmiVersions(prev => [...prev, newVersion])
-          setTestPciSource('task')
-          setTestPciViewMode(`dmi_${newVersion.id}`)
-        } else {
-          setAssessmentDmiItems(items)
-          setAssessmentDmiVersions(prev => [...prev, newVersion])
-          setTestPciSource('assessment')
-          setTestPciViewMode(`dmi_${newVersion.id}`)
-        }
-
-        // Study material: the students must see the GENERATED questions in the
-        // Classroom tab, not the original notes. Replace the deployed content with
-        // the numbered questions and drop the source document so only the
-        // questions (Classroom) + the DMI input fields (Assessment) go out.
+        // Study material: students see the GENERATED questions (with options) on
+        // the Classroom side; the DMI on the right keeps ONLY a short "Question N"
+        // label + its input control. A question paper keeps the DMI label as-is
+        // (it already references the deployed paper).
         const isStudyMaterial =
           data.documentKind === 'study_material' || (questionSpec?.length ?? 0) > 0
+
+        let dmiItems = items
         if (isStudyMaterial) {
           const generatedClassroomContent = items
-            .map(q => `${q.questionNumber}. ${q.questionText}`)
+            .map(q => {
+              let block = `${q.questionNumber}. ${q.questionText}`
+              // Choice questions: list options as a) b) c) … under the stem.
+              if (Array.isArray(q.options) && q.options.length > 0) {
+                block +=
+                  '\n' +
+                  q.options.map((o, i) => `   ${String.fromCharCode(97 + i)}) ${o}`).join('\n')
+              }
+              return block
+            })
             .join('\n\n')
+          // The DMI shows only the reference; the full question lives in Classroom.
+          dmiItems = items.map(q => ({ ...q, questionText: `Question ${q.questionNumber}` }))
           if (isTask) {
             setTaskBuilder(prev => ({
               ...prev,
@@ -2894,7 +2881,30 @@ FEEDBACK: [your explanation]`
           )
         }
 
-        toast.success(`DMI form v${nextVersionNumber} created with ${items.length} questions`)
+        const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
+        const nextVersionNumber = existingVersions.length + 1
+        const newVersion: DMIVersion = {
+          id: `dmi-version-${Date.now()}`,
+          versionNumber: nextVersionNumber,
+          items: dmiItems,
+          createdAt: Date.now(),
+          taskId: isTask ? loadedTaskId || undefined : undefined,
+          assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+        }
+
+        if (isTask) {
+          setTaskDmiItems(dmiItems)
+          setTaskDmiVersions(prev => [...prev, newVersion])
+          setTestPciSource('task')
+          setTestPciViewMode(`dmi_${newVersion.id}`)
+        } else {
+          setAssessmentDmiItems(dmiItems)
+          setAssessmentDmiVersions(prev => [...prev, newVersion])
+          setTestPciSource('assessment')
+          setTestPciViewMode(`dmi_${newVersion.id}`)
+        }
+
+        toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to generate DMI'
         toast.error(message)
@@ -2972,6 +2982,13 @@ FEEDBACK: [your explanation]`
           id: item.id,
           questionNumber: item.questionNumber,
           questionText: item.questionText,
+          // Carry the answer-input type + options/pairs so the student gets the
+          // right control (e.g. mcq letter choices), not a plain textarea.
+          questionType: item.questionType,
+          options: item.options,
+          pairs: item.pairs,
+          hotspotImageUrl: item.hotspotImageUrl,
+          regions: item.regions,
         })),
         deployedAt: Date.now(),
         polls: [],
