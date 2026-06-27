@@ -338,8 +338,39 @@ function DmiAnswerField({
   // Tap-to-place selection for drag_drop (touch fallback for native drag).
   const [dragSelected, setDragSelected] = useState<string | null>(null)
 
-  // Single-select choice (mcq / true_false) — render radios when we have options.
-  if ((type === 'mcq' || type === 'true_false') && options.length > 0) {
+  // Multiple choice — clickable LETTER chips (a–e). The full option text is read
+  // on the Classroom side; the student just selects the letter, which is stored.
+  if (type === 'mcq' && options.length > 0) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {options.map((_opt, i) => {
+          const letter = String.fromCharCode(65 + i) // A, B, C, …
+          const selected = value === letter
+          return (
+            <button
+              key={letter}
+              type="button"
+              onClick={() => {
+                onInteract()
+                onValueChange(letter)
+              }}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-colors',
+                selected
+                  ? 'border-[#F17623] bg-[#F17623] text-white'
+                  : 'border-gray-300 text-gray-700 hover:border-[#F17623] hover:text-[#F17623]'
+              )}
+            >
+              {letter}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // True / False — radios.
+  if (type === 'true_false' && options.length > 0) {
     return (
       <div className="space-y-1.5">
         {options.map(opt => (

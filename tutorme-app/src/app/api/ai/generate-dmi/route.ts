@@ -70,7 +70,8 @@ Rules:
   ordering, hotspot, drag_drop. Choose by how the part is meant to be answered (multiple-choice
   item -> "mcq" with "options"; short response -> "short"; extended/essay -> "long"). Default to
   "short" if unsure.
-- "options" array ONLY for mcq / true_false / multiple_response.
+- "options" array ONLY for mcq / true_false / multiple_response. For "mcq", ALWAYS provide
+  EXACTLY 5 options (these become choices a–e); make them plausible and distinct.
 - "pairs" (array of {"left","right"}) ONLY for matching / drag_drop.
 
 EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
