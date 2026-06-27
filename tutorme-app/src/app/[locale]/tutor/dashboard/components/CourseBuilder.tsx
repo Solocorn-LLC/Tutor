@@ -1007,6 +1007,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [deployAnswerReveal, setDeployAnswerReveal] = useState<
       'instant' | 'after_submit' | 'hidden' | 'student_choice'
     >('instant')
+    // When the tutor clicks Deploy, a dialog first asks how/when students see
+    // answers, then runs the actual deploy with the chosen mode.
+    const [deployDialog, setDeployDialog] = useState<{
+      run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
+    } | null>(null)
 
     // Active tab tracking for Enter button
     const [taskBuilderActiveTab, setTaskBuilderActiveTab] = useState<'content' | 'pci'>('content')
@@ -2163,6 +2168,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [nodes]
     )
 
+    // The DMI currently loaded in the live Classroom — preferred from the
+    // builder state, else from the loaded task/assessment. Hoisted to the
+    // component scope so both the Classroom toolbar "View DMI" button and the
+    // modal below can use it.
+    const liveDmiItems: DMIQuestion[] =
+      mainTab === 'live'
+        ? assessmentDmiItems.length > 0
+          ? assessmentDmiItems
+          : taskDmiItems.length > 0
+            ? taskDmiItems
+            : (testPciSource === 'assessment'
+                ? findAssessmentById(loadedAssessmentId || '')?.dmiItems
+                : findTaskById(loadedTaskId || '')?.dmiItems) || []
+        : []
+
     const moveToHomework = useCallback(
       (nodeId: string, lessonId: string, type: 'task' | 'assessment', item: Task | Assessment) => {
         const base = DEFAULT_HOMEWORK(
@@ -3042,7 +3062,9 @@ FEEDBACK: [your explanation]`
       }
     }
 
-    const handleDeployAssessmentDmi = useCallback(() => {
+    const handleDeployAssessmentDmi = useCallback(
+      (revealArg?: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => {
+      const reveal = revealArg ?? deployAnswerReveal
       if (!loadedAssessmentId) {
         toast.error('Select an assessment to deploy')
         return
@@ -3078,7 +3100,7 @@ FEEDBACK: [your explanation]`
           answer: item.answer,
           marks: item.marks,
         })),
-        answerReveal: deployAnswerReveal,
+        answerReveal: reveal,
         deployedAt: Date.now(),
         polls: [],
         questions: [],
@@ -3095,7 +3117,8 @@ FEEDBACK: [your explanation]`
       // Success is confirmed by the server's task:deployed broadcast (handled in
       // insights/page.tsx), not optimistically here.
       insightsProps.onDeployTask?.(task)
-    }, [
+      },
+      [
       assessmentBuilder,
       assessmentDmiItems,
       insightsProps,
@@ -9118,6 +9141,19 @@ FEEDBACK: [your explanation]`
                                         }}
                                       />
                                       <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                        {testPciActiveTab === 'classroom' &&
+                                          liveDmiItems.length > 0 && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-9 gap-1 rounded-xl border-[#F17623] px-3 text-[#F17623] shadow-sm hover:bg-[#FFF4EC]"
+                                              title="View the loaded DMI"
+                                              onClick={() => setShowLiveDmiModal(true)}
+                                            >
+                                              <FileText className="h-4 w-4" />
+                                              View DMI ({liveDmiItems.length})
+                                            </Button>
+                                          )}
                                         {testPciActiveTab === 'classroom' && (
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -9213,6 +9249,10 @@ FEEDBACK: [your explanation]`
                                               (!loadedTaskId && !loadedAssessmentId)
                                             }
                                             onClick={() => {
+                                              // Ask how/when to reveal answers,
+                                              // then deploy with the chosen mode.
+                                              setDeployDialog({
+                                                run: reveal => {
                                               if (testPciSource === 'task') {
                                                 const task = findTaskById(loadedTaskId || '')
                                                 if (task) {
@@ -9245,7 +9285,7 @@ FEEDBACK: [your explanation]`
                                                         answer: item.answer,
                                                         marks: item.marks,
                                                       })) || [],
-                                                    answerReveal: deployAnswerReveal,
+                                                    answerReveal: reveal,
                                                     deployedAt: Date.now(),
                                                     polls: [],
                                                     questions: [],
@@ -9263,8 +9303,10 @@ FEEDBACK: [your explanation]`
                                                   toast.success('Task DMI deployed to live session')
                                                 }
                                               } else {
-                                                handleDeployAssessmentDmi()
+                                                handleDeployAssessmentDmi(reveal)
                                               }
+                                                },
+                                              })
                                             }}
                                             title="Deploy to Session"
                                           >
@@ -9763,7 +9805,7 @@ FEEDBACK: [your explanation]`
                                       className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div className="flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
-                                        <div className="flex-1 space-y-4 overflow-y-auto p-1">
+                                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the
@@ -10271,33 +10313,6 @@ FEEDBACK: [your explanation]`
                                                 >
                                                   Edit marks & answers
                                                 </Button>
-                                                <div className="h-3 w-px bg-gray-300" />
-                                                <select
-                                                  value={deployAnswerReveal}
-                                                  disabled={!canEdit}
-                                                  onChange={e =>
-                                                    setDeployAnswerReveal(
-                                                      e.target.value as
-                                                        | 'instant'
-                                                        | 'after_submit'
-                                                        | 'hidden'
-                                                        | 'student_choice'
-                                                    )
-                                                  }
-                                                  title="When students may see the correct answers"
-                                                  className="h-6 rounded border border-gray-200 bg-white px-1 text-xs font-medium text-gray-600"
-                                                >
-                                                  <option value="instant">
-                                                    Answers: instant feedback
-                                                  </option>
-                                                  <option value="after_submit">
-                                                    Answers: after submit
-                                                  </option>
-                                                  <option value="hidden">Answers: hidden</option>
-                                                  <option value="student_choice">
-                                                    Answers: student chooses (self-study)
-                                                  </option>
-                                                </select>
                                               </>
                                             )}
 
@@ -10324,7 +10339,7 @@ FEEDBACK: [your explanation]`
                                           </div>
                                         </div>
 
-                                        <div className="mt-6 flex-1 space-y-4 overflow-y-auto p-1">
+                                        <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []
                                           ).length === 0 && (
@@ -10892,6 +10907,91 @@ FEEDBACK: [your explanation]`
           </DialogContent>
         </Dialog>
 
+        {/* Deploy → choose how/when students see the answers, then deploy. */}
+        <Dialog
+          open={!!deployDialog}
+          onOpenChange={open => {
+            if (!open) setDeployDialog(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Deploy to students</DialogTitle>
+              <DialogDescription>
+                Choose how and when students see the correct answers.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              {(
+                [
+                  {
+                    v: 'instant',
+                    t: 'Instant feedback',
+                    d: 'Graded live — students see the correct answer as they go.',
+                  },
+                  {
+                    v: 'after_submit',
+                    t: 'After submit',
+                    d: 'Correct answers are revealed only on the results screen.',
+                  },
+                  {
+                    v: 'hidden',
+                    t: 'Hidden',
+                    d: 'Only the score is shown; answers are never revealed.',
+                  },
+                  {
+                    v: 'student_choice',
+                    t: 'Student chooses (self-study)',
+                    d: 'The student picks practice (see answers) or test (hidden).',
+                  },
+                ] as const
+              ).map(o => {
+                const selected = deployAnswerReveal === o.v
+                return (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => setDeployAnswerReveal(o.v)}
+                    className={cn(
+                      'w-full rounded-xl border p-3 text-left transition-colors',
+                      selected
+                        ? 'border-[#F17623] bg-[#FFF4EC]'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        'text-sm font-semibold',
+                        selected ? 'text-[#9a4a12]' : 'text-gray-800'
+                      )}
+                    >
+                      {o.t}
+                    </p>
+                    <p className="text-xs text-gray-600">{o.d}</p>
+                  </button>
+                )
+              })}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="modal-secondary-dark"
+                onClick={() => setDeployDialog(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const run = deployDialog?.run
+                  setDeployDialog(null)
+                  run?.(deployAnswerReveal)
+                }}
+              >
+                Deploy
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit marks & answers — the tutor sets per-question marks and vets the
             AI-drafted answers (study material) before deploying. Edits apply live
             to the loaded DMI and the saved version. */}
@@ -11168,25 +11268,11 @@ FEEDBACK: [your explanation]`
           </DialogContent>
         </Dialog>
 
-        {/* Floating "View DMI" button — lets the tutor open the loaded DMI as a
-            modal anytime from the Classroom (live) view while showing an assessment. */}
+        {/* "View DMI" modal — opened from the Classroom toolbar button (next to
+            the answer input). Uses the hoisted liveDmiItems. */}
         {mainTab === 'live' &&
+          liveDmiItems.length > 0 &&
           (() => {
-            // Prefer the DMI loaded into the builder; otherwise fall back to the
-            // DMI carried by whatever task/assessment is currently loaded in the
-            // live Classroom (a real live session may set loadedTaskId/
-            // loadedAssessmentId without populating the builder DMI state).
-            const loadedDmi =
-              testPciSource === 'assessment'
-                ? findAssessmentById(loadedAssessmentId || '')?.dmiItems
-                : findTaskById(loadedTaskId || '')?.dmiItems
-            const liveDmiItems =
-              assessmentDmiItems.length > 0
-                ? assessmentDmiItems
-                : taskDmiItems.length > 0
-                  ? taskDmiItems
-                  : loadedDmi || []
-            if (liveDmiItems.length === 0) return null
             const totalMarks = liveDmiItems.reduce(
               (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
               0
@@ -11195,15 +11281,6 @@ FEEDBACK: [your explanation]`
             const hasAnswerKey = liveDmiItems.some(it => it.answer || it.rubric)
             return (
               <>
-                <button
-                  type="button"
-                  onClick={() => setShowLiveDmiModal(true)}
-                  className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full bg-[#F17623] px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#d9651a]"
-                  title="View the loaded DMI"
-                >
-                  <FileText className="h-4 w-4" />
-                  View DMI ({liveDmiItems.length})
-                </button>
                 <Dialog open={showLiveDmiModal} onOpenChange={setShowLiveDmiModal}>
                   <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
