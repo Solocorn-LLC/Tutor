@@ -1999,10 +1999,8 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              // Keep the panel a consistent width regardless of which tab is
-              // active — always use the wider (expanded) width that Assessment
-              // and My Board use, so Lessons/Interact don't shrink the panel.
-              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
+              // Narrow width for Lessons/Interact (380px), expanded for Assessment/My Board (680px)
+              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
             }}
           >
             {/* Resize handle */}
