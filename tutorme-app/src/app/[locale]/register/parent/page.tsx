@@ -38,12 +38,6 @@ export default function ParentRegistrationPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [emailStatus, setEmailStatus] = useState<{
-    status: 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
-    message?: string
-  }>({
-    status: 'idle',
-  })
 
   // Form data
   const [formData, setFormData] = useState({
@@ -207,49 +201,7 @@ export default function ParentRegistrationPage() {
     }
   }
 
-  const checkEmailAvailability = async (value: string) => {
-    if (!value.trim()) {
-      setEmailStatus({ status: 'idle' })
-      return false
-    }
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(value)) {
-      setEmailStatus({ status: 'invalid', message: 'Enter a valid email address' })
-      return false
-    }
-    setEmailStatus({ status: 'checking' })
-    try {
-      const res = await fetch(`/api/public/email-availability?email=${encodeURIComponent(value)}`)
-      if (!res.ok) {
-        setEmailStatus({ status: 'idle', message: 'Unable to verify right now' })
-        return true
-      }
-      const data = await res.json()
-      if (data.available) {
-        setEmailStatus({ status: 'available', message: 'Email is available' })
-        return true
-      }
-      setEmailStatus({ status: 'taken', message: 'Email is already registered' })
-      return false
-    } catch {
-      setEmailStatus({ status: 'idle', message: 'Unable to verify right now' })
-      return true
-    }
-  }
-
-  useEffect(() => {
-    const email = formData.email.trim()
-    if (!email) {
-      setEmailStatus({ status: 'idle' })
-      return
-    }
-    const handle = setTimeout(() => {
-      void checkEmailAvailability(email)
-    }, 500)
-    return () => clearTimeout(handle)
-  }, [formData.email])
-
-  const validateStepOne = async () => {
+  const validateStepOne = () => {
     if (!formData.firstName || !formData.lastName) {
       toast.error('First and last name are required')
       return false
@@ -262,28 +214,6 @@ export default function ParentRegistrationPage() {
     if (!emailPattern.test(formData.email)) {
       toast.error('Enter a valid email address')
       return false
-    }
-    if (emailStatus.status === 'invalid') {
-      toast.error('Enter a valid email address')
-      return false
-    }
-    if (emailStatus.status === 'taken') {
-      toast.error('Email already exists')
-      return false
-    }
-    if (emailStatus.status === 'idle') {
-      const ok = await checkEmailAvailability(formData.email)
-      if (!ok) {
-        toast.error('Email already exists')
-        return false
-      }
-    }
-    if (emailStatus.status === 'checking') {
-      const ok = await checkEmailAvailability(formData.email)
-      if (!ok) {
-        toast.error('Email already exists')
-        return false
-      }
     }
     if (!formData.password || !formData.confirmPassword) {
       toast.error('Password and confirmation are required')
@@ -459,15 +389,6 @@ export default function ParentRegistrationPage() {
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                       />
-                      {emailStatus.status === 'checking' && (
-                        <p className="text-xs text-white/50">Checking availability...</p>
-                      )}
-                      {emailStatus.status === 'available' && (
-                        <p className="text-xs text-green-300">{emailStatus.message}</p>
-                      )}
-                      {emailStatus.status === 'taken' && (
-                        <p className="text-xs text-red-300">{emailStatus.message}</p>
-                      )}
                     </div>
 
                     {/* Password row */}
