@@ -228,6 +228,39 @@ function SubmissionRow({
   const [score, setScore] = useState<string>(submission.score?.toString() ?? '')
   const [feedback, setFeedback] = useState<string>(submission.tutorFeedback ?? '')
   const [saving, setSaving] = useState(false)
+  // Tutor-triggered AI grade suggestions, keyed by questionId.
+  const [aiGrades, setAiGrades] = useState<
+    Record<
+      string,
+      { loading?: boolean; percent?: number; marks?: number; feedback?: string; error?: string }
+    >
+  >({})
+
+  const handleAiGrade = async (qid: string) => {
+    setAiGrades(prev => ({ ...prev, [qid]: { loading: true } }))
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+      const res = await fetch(`/api/tutor/submissions/${submission.submissionId}/ai-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
+        credentials: 'include',
+        body: JSON.stringify({ questionId: qid }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setAiGrades(prev => ({ ...prev, [qid]: { error: data?.error ?? 'AI grading failed' } }))
+        return
+      }
+      setAiGrades(prev => ({
+        ...prev,
+        [qid]: { percent: data.suggestedPercent, marks: data.suggestedMarks, feedback: data.feedback },
+      }))
+      if (data.feedback && !feedback.trim()) setFeedback(data.feedback)
+    } catch {
+      setAiGrades(prev => ({ ...prev, [qid]: { error: 'AI grading failed' } }))
+    }
+  }
 
   const handleGrade = async () => {
     const numericScore = Number(score)
@@ -361,6 +394,42 @@ function SubmissionRow({
                           {typeof meta.marks === 'number' ? ` · ${meta.marks} marks` : ''}
                         </p>
                       )}
+                      {meta?.needsReview &&
+                        (() => {
+                          const ai = aiGrades[qid]
+                          return (
+                            <div className="mt-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleAiGrade(qid)}
+                                disabled={ai?.loading}
+                                className="inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-60"
+                              >
+                                {ai?.loading ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : null}
+                                {ai?.percent != null ? 'Re-run AI grade' : 'AI grade'}
+                              </button>
+                              {ai?.error && (
+                                <span className="ml-2 text-[11px] text-red-600">{ai.error}</span>
+                              )}
+                              {ai?.percent != null && (
+                                <div className="mt-1 rounded bg-violet-50 px-2 py-1 text-xs text-violet-800">
+                                  <span className="font-semibold">
+                                    AI suggestion: {ai.percent}%
+                                    {ai.marks != null && typeof meta.marks === 'number'
+                                      ? ` (${ai.marks}/${meta.marks} marks)`
+                                      : ''}
+                                  </span>
+                                  {ai.feedback ? ` — ${ai.feedback}` : ''}
+                                  <span className="mt-0.5 block text-[10px] text-violet-500">
+                                    Suggestion only — set the final score below.
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
                     </li>
                   )
                 })}
