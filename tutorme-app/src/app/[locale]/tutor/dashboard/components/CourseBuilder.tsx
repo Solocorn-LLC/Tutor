@@ -3074,67 +3074,62 @@ FEEDBACK: [your explanation]`
 
     const handleDeployAssessmentDmi = useCallback(
       (revealArg?: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => {
-      const reveal = revealArg ?? deployAnswerReveal
-      if (!loadedAssessmentId) {
-        toast.error('Select an assessment to deploy')
-        return
-      }
-      if (!insightsProps?.sessionId) {
-        toast.error('Select a course session for insights')
-        return
-      }
+        const reveal = revealArg ?? deployAnswerReveal
+        if (!loadedAssessmentId) {
+          toast.error('Select an assessment to deploy')
+          return
+        }
+        if (!insightsProps?.sessionId) {
+          toast.error('Select a course session for insights')
+          return
+        }
 
-      const task: LiveTask = {
-        id: loadedAssessmentId,
-        title: assessmentBuilder.title || 'Assessment',
-        content: assessmentBuilder.taskContent,
-        source: 'assessment',
-        dmiItems: assessmentDmiItems.map(item => ({
-          id: item.id,
-          questionNumber: item.questionNumber,
-          questionText: item.questionText,
-          // Marks are shown to students; the answer key / rubric is NOT deployed.
-          marks: item.marks,
-          // Carry the answer-input type + options/pairs so the student gets the
-          // right control (e.g. mcq letter choices), not a plain textarea.
-          questionType: item.questionType,
-          options: item.options,
-          pairs: item.pairs,
-          hotspotImageUrl: item.hotspotImageUrl,
-          regions: item.regions,
-        })),
-        // Answer key + marks for server-side auto-grading. Sent to the server
-        // only — never broadcast to students.
-        answerKey: assessmentDmiItems.map(item => ({
-          id: item.id,
-          answer: item.answer,
-          marks: item.marks,
-        })),
-        answerReveal: reveal,
-        deployedAt: Date.now(),
-        polls: [],
-        questions: [],
-        sourceDocument: currentAssessmentDocument
-          ? {
-              fileName: currentAssessmentDocument.fileName,
-              fileUrl: currentAssessmentDocument.fileUrl,
-              fileKey: currentAssessmentDocument.fileKey,
-              mimeType: currentAssessmentDocument.mimeType,
-            }
-          : undefined,
-      }
+        const task: LiveTask = {
+          id: loadedAssessmentId,
+          title: assessmentBuilder.title || 'Assessment',
+          content: assessmentBuilder.taskContent,
+          source: 'assessment',
+          dmiItems: assessmentDmiItems.map(item => ({
+            id: item.id,
+            questionNumber: item.questionNumber,
+            questionText: item.questionText,
+            // Marks are shown to students; the answer key / rubric is NOT deployed.
+            marks: item.marks,
+            // Carry the answer-input type + options/pairs so the student gets the
+            // right control (e.g. mcq letter choices), not a plain textarea.
+            questionType: item.questionType,
+            options: item.options,
+            pairs: item.pairs,
+            hotspotImageUrl: item.hotspotImageUrl,
+            regions: item.regions,
+          })),
+          // Answer key + marks for server-side auto-grading. Sent to the server
+          // only — never broadcast to students.
+          answerKey: assessmentDmiItems.map(item => ({
+            id: item.id,
+            answer: item.answer,
+            marks: item.marks,
+          })),
+          answerReveal: reveal,
+          deployedAt: Date.now(),
+          polls: [],
+          questions: [],
+          sourceDocument: currentAssessmentDocument
+            ? {
+                fileName: currentAssessmentDocument.fileName,
+                fileUrl: currentAssessmentDocument.fileUrl,
+                fileKey: currentAssessmentDocument.fileKey,
+                mimeType: currentAssessmentDocument.mimeType,
+              }
+            : undefined,
+        }
 
-      // Success is confirmed by the server's task:deployed broadcast (handled in
-      // insights/page.tsx), not optimistically here.
-      insightsProps.onDeployTask?.(task)
+        // Success is confirmed by the server's task:deployed broadcast (handled in
+        // insights/page.tsx), not optimistically here.
+        insightsProps.onDeployTask?.(task)
       },
-      [
-      assessmentBuilder,
-      assessmentDmiItems,
-      insightsProps,
-      loadedAssessmentId,
-      deployAnswerReveal,
-    ])
+      [assessmentBuilder, assessmentDmiItems, insightsProps, loadedAssessmentId, deployAnswerReveal]
+    )
 
     useEffect(() => {
       return () => {
@@ -7807,26 +7802,23 @@ FEEDBACK: [your explanation]`
                                                                             ) ||
                                                                             (hw.dmiVersions ||
                                                                               [])[0]
-                                                                          deployTaskWithDialog(
-                                                                            {
-                                                                              id: hw.id,
-                                                                              title: hw.title,
-                                                                              content:
-                                                                                hw.description ||
-                                                                                hw.title,
-                                                                              source: 'assessment',
-                                                                              dmiItems:
-                                                                                dmiVersion?.items ||
-                                                                                hw.dmiItems ||
-                                                                                [],
-                                                                              sourceDocument:
-                                                                                hw.sourceDocument,
-                                                                              deployedAt:
-                                                                                Date.now(),
-                                                                              polls: [],
-                                                                              questions: [],
-                                                                            }
-                                                                          )
+                                                                          deployTaskWithDialog({
+                                                                            id: hw.id,
+                                                                            title: hw.title,
+                                                                            content:
+                                                                              hw.description ||
+                                                                              hw.title,
+                                                                            source: 'assessment',
+                                                                            dmiItems:
+                                                                              dmiVersion?.items ||
+                                                                              hw.dmiItems ||
+                                                                              [],
+                                                                            sourceDocument:
+                                                                              hw.sourceDocument,
+                                                                            deployedAt: Date.now(),
+                                                                            polls: [],
+                                                                            questions: [],
+                                                                          })
                                                                         }}
                                                                       >
                                                                         <Send className="mr-2 h-4 w-4" />
@@ -9263,58 +9255,61 @@ FEEDBACK: [your explanation]`
                                               // then deploy with the chosen mode.
                                               setDeployDialog({
                                                 run: reveal => {
-                                              if (testPciSource === 'task') {
-                                                const task = findTaskById(loadedTaskId || '')
-                                                if (task) {
-                                                  insightsProps.onDeployTask?.({
-                                                    id: task.id,
-                                                    title: task.title || 'Task',
-                                                    content: task.description || '',
-                                                    source: 'task',
-                                                    dmiItems:
-                                                      task.dmiItems?.map(item => ({
-                                                        id: item.id,
-                                                        questionNumber: item.questionNumber,
-                                                        questionText: item.questionText,
-                                                        // Marks shown to students; carry the input
-                                                        // type + options so mcq/etc. render the right
-                                                        // control. Answer key / rubric stay server-side.
-                                                        marks: item.marks,
-                                                        questionType: item.questionType,
-                                                        options: item.options,
-                                                        pairs: item.pairs,
-                                                        hotspotImageUrl: item.hotspotImageUrl,
-                                                        regions: item.regions,
-                                                      })) || [],
-                                                    // Answer key + marks for
-                                                    // server-side grading (never
-                                                    // sent to students).
-                                                    answerKey:
-                                                      task.dmiItems?.map(item => ({
-                                                        id: item.id,
-                                                        answer: item.answer,
-                                                        marks: item.marks,
-                                                      })) || [],
-                                                    answerReveal: reveal,
-                                                    deployedAt: Date.now(),
-                                                    polls: [],
-                                                    questions: [],
-                                                    sourceDocument: task.sourceDocument
-                                                      ? {
-                                                          fileName: task.sourceDocument.fileName,
-                                                          fileUrl: task.sourceDocument.fileUrl,
-                                                          fileKey: task.sourceDocument.fileKey,
-                                                          mimeType:
-                                                            task.sourceDocument.mimeType ||
-                                                            'application/pdf',
-                                                        }
-                                                      : undefined,
-                                                  })
-                                                  toast.success('Task DMI deployed to live session')
-                                                }
-                                              } else {
-                                                handleDeployAssessmentDmi(reveal)
-                                              }
+                                                  if (testPciSource === 'task') {
+                                                    const task = findTaskById(loadedTaskId || '')
+                                                    if (task) {
+                                                      insightsProps.onDeployTask?.({
+                                                        id: task.id,
+                                                        title: task.title || 'Task',
+                                                        content: task.description || '',
+                                                        source: 'task',
+                                                        dmiItems:
+                                                          task.dmiItems?.map(item => ({
+                                                            id: item.id,
+                                                            questionNumber: item.questionNumber,
+                                                            questionText: item.questionText,
+                                                            // Marks shown to students; carry the input
+                                                            // type + options so mcq/etc. render the right
+                                                            // control. Answer key / rubric stay server-side.
+                                                            marks: item.marks,
+                                                            questionType: item.questionType,
+                                                            options: item.options,
+                                                            pairs: item.pairs,
+                                                            hotspotImageUrl: item.hotspotImageUrl,
+                                                            regions: item.regions,
+                                                          })) || [],
+                                                        // Answer key + marks for
+                                                        // server-side grading (never
+                                                        // sent to students).
+                                                        answerKey:
+                                                          task.dmiItems?.map(item => ({
+                                                            id: item.id,
+                                                            answer: item.answer,
+                                                            marks: item.marks,
+                                                          })) || [],
+                                                        answerReveal: reveal,
+                                                        deployedAt: Date.now(),
+                                                        polls: [],
+                                                        questions: [],
+                                                        sourceDocument: task.sourceDocument
+                                                          ? {
+                                                              fileName:
+                                                                task.sourceDocument.fileName,
+                                                              fileUrl: task.sourceDocument.fileUrl,
+                                                              fileKey: task.sourceDocument.fileKey,
+                                                              mimeType:
+                                                                task.sourceDocument.mimeType ||
+                                                                'application/pdf',
+                                                            }
+                                                          : undefined,
+                                                      })
+                                                      toast.success(
+                                                        'Task DMI deployed to live session'
+                                                      )
+                                                    }
+                                                  } else {
+                                                    handleDeployAssessmentDmi(reveal)
+                                                  }
                                                 },
                                               })
                                             }}
@@ -9402,14 +9397,14 @@ FEEDBACK: [your explanation]`
                             <TabsList className="grid h-[46px] w-[400px] shrink-0 grid-cols-2 gap-2 bg-transparent p-0 shadow-none">
                               <TabsTrigger
                                 value="task"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=active]:font-semibold data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#2563EB] data-[state=active]:bg-[#2563EB] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
                               >
                                 <Wrench className="h-4 w-4 shrink-0" />
                                 Task Builder
                               </TabsTrigger>
                               <TabsTrigger
                                 value="assessment"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#E2D8FF] data-[state=active]:bg-[#F3EEFF] data-[state=active]:font-semibold data-[state=active]:text-[#6D59D8] data-[state=inactive]:hover:bg-slate-50"
+                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#EC4899] data-[state=active]:bg-[#EC4899] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
                               >
                                 <FileCheck2 className="h-4 w-4 shrink-0" />
                                 Assessment Builder
@@ -10956,10 +10951,7 @@ FEEDBACK: [your explanation]`
               })}
             </div>
             <DialogFooter>
-              <Button
-                variant="modal-secondary-dark"
-                onClick={() => setDeployDialog(null)}
-              >
+              <Button variant="modal-secondary-dark" onClick={() => setDeployDialog(null)}>
                 Cancel
               </Button>
               <Button
@@ -11360,20 +11352,19 @@ FEEDBACK: [your explanation]`
                       {/* Edit marks & answers for the loaded DMI — works for both
                           task and assessment DMIs, the entry point tasks lacked.
                           Only when there's editable builder state to write back. */}
-                      {canEdit &&
-                        (assessmentDmiItems.length > 0 || taskDmiItems.length > 0) && (
-                          <Button
-                            variant="modal-secondary-dark"
-                            onClick={() => {
-                              setShowLiveDmiModal(false)
-                              setDmiEditor({
-                                source: assessmentDmiItems.length > 0 ? 'assessment' : 'task',
-                              })
-                            }}
-                          >
-                            Edit marks &amp; answers
-                          </Button>
-                        )}
+                      {canEdit && (assessmentDmiItems.length > 0 || taskDmiItems.length > 0) && (
+                        <Button
+                          variant="modal-secondary-dark"
+                          onClick={() => {
+                            setShowLiveDmiModal(false)
+                            setDmiEditor({
+                              source: assessmentDmiItems.length > 0 ? 'assessment' : 'task',
+                            })
+                          }}
+                        >
+                          Edit marks &amp; answers
+                        </Button>
+                      )}
                       <Button
                         variant="modal-secondary-dark"
                         onClick={() => setShowLiveDmiModal(false)}

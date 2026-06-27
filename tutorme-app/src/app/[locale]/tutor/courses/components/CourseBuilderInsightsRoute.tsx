@@ -467,7 +467,8 @@ function CourseBuilderInsightsRouteInner({
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const isClassroomMode =
-    (pathname?.startsWith('/tutor/classroom') ?? false) || searchParams.get('view') === 'classroom'
+    (pathname?.startsWith('/tutor/classroom') ?? false) ||
+    (searchParams?.get('view') ?? '') === 'classroom'
   const tabFromUrl = searchParams.get('tab') as 'live' | 'builder' | 'test-pci' | null
   const initialMainTab = isClassroomMode
     ? 'live'
@@ -475,6 +476,7 @@ function CourseBuilderInsightsRouteInner({
   const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(
     initialMainTab
   )
+  const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
@@ -986,9 +988,7 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-              {isClassroomMode && (
-                <WifiSignal connected={!!insightsProps.sessionId} error={false} />
-              )}
+              {showWifiSignal && <WifiSignal connected={!!insightsProps.sessionId} error={false} />}
               {(activeMainTab === 'builder' || activeMainTab === 'live') &&
                 onSaveModeChange &&
                 !modeLocked && (
