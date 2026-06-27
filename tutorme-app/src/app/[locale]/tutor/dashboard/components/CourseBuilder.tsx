@@ -998,6 +998,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [dmiSpecRows, setDmiSpecRows] = useState<Array<{ type: DmiQuestionType; count: number }>>(
       []
     )
+    // "Edit marks & answers" review modal — lets the tutor set per-question marks
+    // and vet/approve the AI-generated answers before deploying.
+    const [dmiEditor, setDmiEditor] = useState<{ source: 'task' | 'assessment' } | null>(null)
 
     // Active tab tracking for Enter button
     const [taskBuilderActiveTab, setTaskBuilderActiveTab] = useState<'content' | 'pci'>('content')
@@ -2249,6 +2252,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 hotspotImageUrl: i.hotspotImageUrl,
                 regions: i.regions,
               })) || [],
+            // Answer key + marks for server-side grading (never sent to students).
+            answerKey:
+              homeworkItem.dmiItems?.map(i => ({
+                id: i.id,
+                answer: i.answer,
+                marks: i.marks,
+              })) || [],
             deployedAt: Date.now(),
             polls: [],
             questions: [],
@@ -2741,6 +2751,34 @@ FEEDBACK: [your explanation]`
       }
     }
 
+    // Apply a per-question edit (marks / answer / rubric) to the loaded DMI.
+    // Updates BOTH the live items state (used by deploy + the View-DMI modal)
+    // and the matching version (persisted with the course on save) so edits
+    // survive a deploy and a reload.
+    const applyDmiEdit = (
+      source: 'task' | 'assessment',
+      itemId: string,
+      patch: Partial<DMIQuestion>
+    ) => {
+      const editItems = (arr: DMIQuestion[]) =>
+        arr.map(q => (q.id === itemId ? { ...q, ...patch } : q))
+      const activeVersionId = testPciViewMode.startsWith('dmi_')
+        ? testPciViewMode.slice('dmi_'.length)
+        : null
+      const editVersions = (vs: DMIVersion[]) => {
+        if (vs.length === 0) return vs
+        const targetId = activeVersionId ?? vs[vs.length - 1].id
+        return vs.map(v => (v.id === targetId ? { ...v, items: editItems(v.items) } : v))
+      }
+      if (source === 'task') {
+        setTaskDmiItems(editItems)
+        setTaskDmiVersions(editVersions)
+      } else {
+        setAssessmentDmiItems(editItems)
+        setAssessmentDmiVersions(editVersions)
+      }
+    }
+
     // Generate DMI using AI from content or PDF images with versioning.
     // `questionSpec` is supplied (via the spec dialog) when the source is study
     // material and the tutor has chosen which question types/counts to generate.
@@ -2913,6 +2951,12 @@ FEEDBACK: [your explanation]`
         }
 
         toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
+
+        // Study material: the AI also drafted answers — open the review modal so
+        // the tutor can set marks and vet/approve the answers before deploying.
+        if (isStudyMaterial) {
+          setDmiEditor({ source: isTask ? 'task' : 'assessment' })
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to generate DMI'
         toast.error(message)
@@ -2999,6 +3043,13 @@ FEEDBACK: [your explanation]`
           pairs: item.pairs,
           hotspotImageUrl: item.hotspotImageUrl,
           regions: item.regions,
+        })),
+        // Answer key + marks for server-side auto-grading. Sent to the server
+        // only — never broadcast to students.
+        answerKey: assessmentDmiItems.map(item => ({
+          id: item.id,
+          answer: item.answer,
+          marks: item.marks,
         })),
         deployedAt: Date.now(),
         polls: [],
@@ -9151,6 +9202,15 @@ FEEDBACK: [your explanation]`
                                                         hotspotImageUrl: item.hotspotImageUrl,
                                                         regions: item.regions,
                                                       })) || [],
+                                                    // Answer key + marks for
+                                                    // server-side grading (never
+                                                    // sent to students).
+                                                    answerKey:
+                                                      task.dmiItems?.map(item => ({
+                                                        id: item.id,
+                                                        answer: item.answer,
+                                                        marks: item.marks,
+                                                      })) || [],
                                                     deployedAt: Date.now(),
                                                     polls: [],
                                                     questions: [],
@@ -10161,6 +10221,24 @@ FEEDBACK: [your explanation]`
                                               From study material
                                             </Button>
 
+                                            {assessmentDmiItems.length > 0 && (
+                                              <>
+                                                <div className="h-3 w-px bg-gray-300" />
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
+                                                  disabled={!canEdit}
+                                                  title="Set marks per question and review the AI answers"
+                                                  onClick={() =>
+                                                    setDmiEditor({ source: 'assessment' })
+                                                  }
+                                                >
+                                                  Edit marks & answers
+                                                </Button>
+                                              </>
+                                            )}
+
                                             <div className="h-3 w-px bg-gray-300" />
 
                                             <Button
@@ -10749,6 +10827,131 @@ FEEDBACK: [your explanation]`
                 Close
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit marks & answers — the tutor sets per-question marks and vets the
+            AI-drafted answers (study material) before deploying. Edits apply live
+            to the loaded DMI and the saved version. */}
+        <Dialog
+          open={!!dmiEditor}
+          onOpenChange={open => {
+            if (!open) setDmiEditor(null)
+          }}
+        >
+          <DialogContent className="sm:max-w-2xl">
+            {dmiEditor &&
+              (() => {
+                const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
+                const totalMarks = editItems.reduce(
+                  (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
+                  0
+                )
+                return (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle>Edit marks &amp; answers</DialogTitle>
+                      <DialogDescription>
+                        Set the marks for each question and review the AI-suggested answers. Total:{' '}
+                        {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                      {editItems.map(item => {
+                        const marksVal =
+                          typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1
+                        const isOpenEnded =
+                          !item.questionType ||
+                          item.questionType === 'short' ||
+                          item.questionType === 'long' ||
+                          item.questionType === 'fill_blank'
+                        return (
+                          <div
+                            key={item.id}
+                            className="rounded-lg border border-gray-200 bg-white p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-medium text-gray-900">
+                                <span className="mr-1 text-indigo-600">
+                                  Q{item.questionNumber}.
+                                </span>
+                                {item.questionText}
+                              </p>
+                              <label className="flex shrink-0 items-center gap-1 text-xs text-gray-600">
+                                Marks
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={marksVal}
+                                  disabled={!canEdit}
+                                  onChange={e => {
+                                    const n = Math.max(1, Math.round(Number(e.target.value) || 1))
+                                    applyDmiEdit(dmiEditor.source, item.id, { marks: n })
+                                  }}
+                                  className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                />
+                              </label>
+                            </div>
+                            {Array.isArray(item.options) && item.options.length > 0 && (
+                              <ul className="mt-1.5 space-y-0.5 pl-1 text-xs text-gray-500">
+                                {item.options.map((o, i) => (
+                                  <li key={i}>
+                                    <span className="mr-1 font-semibold text-gray-400">
+                                      {String.fromCharCode(97 + i)})
+                                    </span>
+                                    {o}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="mt-2">
+                              <label className="mb-1 block text-xs font-medium text-gray-600">
+                                Answer key
+                                {Array.isArray(item.options) && item.options.length > 0
+                                  ? ' (letter, e.g. A)'
+                                  : ''}
+                              </label>
+                              <textarea
+                                value={item.answer || ''}
+                                disabled={!canEdit}
+                                placeholder="Correct answer (vet the AI suggestion)…"
+                                onChange={e =>
+                                  applyDmiEdit(dmiEditor.source, item.id, {
+                                    answer: e.target.value,
+                                  })
+                                }
+                                className="min-h-[44px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm"
+                              />
+                            </div>
+                            {isOpenEnded && (
+                              <div className="mt-2">
+                                <label className="mb-1 block text-xs font-medium text-gray-600">
+                                  Marking guidance (optional)
+                                </label>
+                                <textarea
+                                  value={item.rubric || ''}
+                                  disabled={!canEdit}
+                                  placeholder="How to award the marks…"
+                                  onChange={e =>
+                                    applyDmiEdit(dmiEditor.source, item.id, {
+                                      rubric: e.target.value,
+                                    })
+                                  }
+                                  className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={() => setDmiEditor(null)}>Approve &amp; close</Button>
+                    </DialogFooter>
+                  </>
+                )
+              })()}
           </DialogContent>
         </Dialog>
 
