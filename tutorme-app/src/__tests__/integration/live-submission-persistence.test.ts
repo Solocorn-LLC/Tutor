@@ -31,7 +31,7 @@ import {
 } from '@/lib/db/schema'
 import { GET as getSubmissions } from '@/app/api/tutor/submissions/route'
 
-const stamp = Date.now()
+const stamp = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const tutorEmail = `claude-subm-tutor-${stamp}@example.com`
 const studentEmail = `claude-subm-student-${stamp}@example.com`
 

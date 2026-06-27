@@ -32,7 +32,7 @@ import {
 } from '@/lib/db/schema'
 import { autoGradeDmi } from '@/lib/grading/auto-grade'
 
-const stamp = Date.now()
+const stamp = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const tutorEmail = `claude-grade-tutor-${stamp}@example.com`
 const studentEmail = `claude-grade-student-${stamp}@example.com`
 
