@@ -11277,6 +11277,23 @@ FEEDBACK: [your explanation]`
                       })}
                     </div>
                     <DialogFooter>
+                      {/* Edit marks & answers for the loaded DMI — works for both
+                          task and assessment DMIs, the entry point tasks lacked.
+                          Only when there's editable builder state to write back. */}
+                      {canEdit &&
+                        (assessmentDmiItems.length > 0 || taskDmiItems.length > 0) && (
+                          <Button
+                            variant="modal-secondary-dark"
+                            onClick={() => {
+                              setShowLiveDmiModal(false)
+                              setDmiEditor({
+                                source: assessmentDmiItems.length > 0 ? 'assessment' : 'task',
+                              })
+                            }}
+                          >
+                            Edit marks &amp; answers
+                          </Button>
+                        )}
                       <Button
                         variant="modal-secondary-dark"
                         onClick={() => setShowLiveDmiModal(false)}
