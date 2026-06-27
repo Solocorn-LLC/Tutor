@@ -37,6 +37,16 @@ interface Submission {
   timeSpent: number
   submittedAt: string | null
   gradedAt: string | null
+  questionMeta?: Record<
+    string,
+    {
+      questionText?: string
+      rubric?: string
+      modelAnswer?: string
+      marks?: number
+      needsReview?: boolean
+    }
+  >
 }
 
 type StatusFilter = 'all' | 'submitted' | 'graded'
@@ -257,6 +267,8 @@ function SubmissionRow({
 
   const answers = submission.answers ?? {}
   const answerEntries = Object.entries(answers)
+  const questionMeta = submission.questionMeta ?? {}
+  const reviewCount = Object.values(questionMeta).filter(m => m?.needsReview).length
 
   return (
     <Card className="overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
@@ -301,19 +313,57 @@ function SubmissionRow({
       {expanded && (
         <CardContent ref={contentRef} className="space-y-4 border-t pt-4">
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-gray-700">Answers</h4>
+            <div className="mb-2 flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-gray-700">Answers</h4>
+              {reviewCount > 0 && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                  {reviewCount} need{reviewCount === 1 ? 's' : ''} your review
+                </span>
+              )}
+            </div>
             {answerEntries.length === 0 ? (
               <p className="text-sm text-gray-400">No structured answers recorded.</p>
             ) : (
               <ul className="space-y-2">
-                {answerEntries.map(([qid, ans]) => (
-                  <li key={qid} className="rounded-md bg-gray-50 p-2 text-sm">
-                    <span className="font-medium text-gray-500">Q{qid}: </span>
-                    <span className="text-gray-800">
-                      {typeof ans === 'string' ? ans : JSON.stringify(ans)}
-                    </span>
-                  </li>
-                ))}
+                {answerEntries.map(([qid, ans]) => {
+                  const meta = questionMeta[qid]
+                  return (
+                    <li
+                      key={qid}
+                      className={`rounded-md p-2 text-sm ${
+                        meta?.needsReview
+                          ? 'border border-amber-200 bg-amber-50'
+                          : 'bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-medium text-gray-600">
+                          {meta?.questionText ?? `Q${qid}`}
+                        </span>
+                        {meta?.needsReview && (
+                          <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                            Needs review
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-gray-800">
+                        <span className="text-gray-400">Answer: </span>
+                        {typeof ans === 'string' ? ans : JSON.stringify(ans)}
+                      </p>
+                      {meta?.modelAnswer && (
+                        <p className="mt-1 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                          <span className="font-semibold">Model answer:</span> {meta.modelAnswer}
+                        </p>
+                      )}
+                      {meta?.rubric && (
+                        <p className="mt-1 rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
+                          <span className="font-semibold">Marking:</span> {meta.rubric}
+                          {typeof meta.marks === 'number' ? ` · ${meta.marks} marks` : ''}
+                        </p>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
