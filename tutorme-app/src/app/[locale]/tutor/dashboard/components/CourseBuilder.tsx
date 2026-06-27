@@ -10981,7 +10981,9 @@ FEEDBACK: [your explanation]`
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
                                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                  {typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1}{' '}
+                                  {typeof item.marks === 'number' && item.marks > 0
+                                    ? item.marks
+                                    : 1}{' '}
                                   {(typeof item.marks === 'number' && item.marks > 0
                                     ? item.marks
                                     : 1) === 1
