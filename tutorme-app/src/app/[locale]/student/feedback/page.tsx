@@ -2062,7 +2062,15 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div className={cn('flex-1', isExpanded ? 'overflow-hidden' : 'overflow-y-auto p-4')}>
+            <div
+              className={cn(
+                'flex-1',
+                // Only the whiteboard (My Board) needs a fixed, non-scrolling
+                // canvas; every other tab — including a long DMI/Assessment —
+                // must scroll.
+                rightPanelTab === 'my-board' ? 'overflow-hidden' : 'overflow-y-auto p-4'
+              )}
+            >
               {rightPanelTab === 'lessons' ? (
                 <div className="space-y-2">
                   {tasks.length === 0 && (

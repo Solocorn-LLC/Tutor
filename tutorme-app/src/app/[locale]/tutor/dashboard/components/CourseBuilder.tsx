@@ -986,6 +986,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assessmentDmiVersions, setAssessmentDmiVersions] = useState<DMIVersion[]>([])
     const [showDmiVersionList, setShowDmiVersionList] = useState(false)
     const [previewDmiVersion, setPreviewDmiVersion] = useState<DMIVersion | null>(null)
+    // Floating "view DMI" modal available from the Classroom (live) view.
+    const [showLiveDmiModal, setShowLiveDmiModal] = useState(false)
     const [dmiGenerating, setDmiGenerating] = useState(false)
     // When generate-dmi detects study material (no explicit questions), we ask
     // the tutor which question types + counts to generate before continuing.
@@ -1012,9 +1014,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // one render apart and ping-ponged the tab forever (React #185 — first
     // builder↔test-pci, then test-pci↔live). Direct-notify-only breaks the race.
 
-    // Reset builder to blank slate whenever the builder tab is clicked
+    // Blank-slate the builder only on the FIRST entry into the Build tab — NOT on
+    // every Build click. Re-running it on each visit wiped an in-progress DMI
+    // (version history + items) the moment a tutor switched to Test/Classroom and
+    // back, because the DMI lives in local state and is only auto-saved once a
+    // task is loaded. Resetting once preserves work across tab navigation.
+    const didBlankSlateRef = useRef(false)
     useEffect(() => {
       if (mainTab !== 'builder') return
+      if (didBlankSlateRef.current) return
+      didBlankSlateRef.current = true
       setLoadedTaskId(null)
       setLoadedAssessmentId(null)
       setTaskBuilder({
@@ -10803,6 +10812,69 @@ FEEDBACK: [your explanation]`
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Floating "View DMI" button — lets the tutor open the loaded DMI as a
+            modal anytime from the Classroom (live) view while showing an assessment. */}
+        {mainTab === 'live' &&
+          (() => {
+            const liveDmiItems = assessmentDmiItems.length > 0 ? assessmentDmiItems : taskDmiItems
+            if (liveDmiItems.length === 0) return null
+            return (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowLiveDmiModal(true)}
+                  className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full bg-[#F17623] px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#d9651a]"
+                  title="View the loaded DMI"
+                >
+                  <FileText className="h-4 w-4" />
+                  View DMI ({liveDmiItems.length})
+                </button>
+                <Dialog open={showLiveDmiModal} onOpenChange={setShowLiveDmiModal}>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Loaded DMI</DialogTitle>
+                      <DialogDescription>
+                        {liveDmiItems.length} field{liveDmiItems.length === 1 ? '' : 's'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[500px] space-y-3 overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933]">
+                      {liveDmiItems.map((item, idx) => (
+                        <div key={item.id || idx} className="rounded-lg border bg-slate-50 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-sm font-medium text-slate-800">
+                              {item.questionNumber ? `${item.questionNumber}. ` : ''}
+                              {item.questionText}
+                            </div>
+                            {item.questionType && item.questionType !== 'long' && (
+                              <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                {item.questionType}
+                              </span>
+                            )}
+                          </div>
+                          {Array.isArray(item.options) && item.options.length > 0 && (
+                            <ul className="mt-1.5 list-disc pl-5 text-xs text-slate-600">
+                              {item.options.map((o, i) => (
+                                <li key={i}>{o}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="modal-secondary-dark"
+                        onClick={() => setShowLiveDmiModal(false)}
+                      >
+                        Close
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )
+          })()}
 
         {/* PPT Upload Options Dialog */}
         <Dialog
