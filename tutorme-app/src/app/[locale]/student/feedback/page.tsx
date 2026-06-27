@@ -1729,12 +1729,7 @@ function StudentFeedbackContent() {
               onValueChange={v => setActiveTab(v as 'task' | 'tutor-board')}
               className="flex h-full min-h-0 flex-1 flex-col"
             >
-              <div
-                className={cn(
-                  'flex shrink-0 items-start pt-0',
-                  !isExpanded && 'mx-auto w-full max-w-3xl'
-                )}
-              >
+              <div className="flex shrink-0 items-start pt-0">
                 <TabsList
                   className={cn(
                     'grid h-[52px] w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none transition-opacity',
@@ -1910,12 +1905,7 @@ function StudentFeedbackContent() {
                 </div>
 
                 {/* Input row */}
-                <div
-                  className={cn(
-                    'mt-3 flex items-center gap-3',
-                    !isExpanded && 'mx-auto w-full max-w-3xl'
-                  )}
-                >
+                <div className="mt-3 flex items-center gap-3">
                   <div className="relative flex-1">
                     <Input
                       value={chatInput}
