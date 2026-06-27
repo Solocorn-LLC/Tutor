@@ -2163,11 +2163,18 @@ function StudentFeedbackContent() {
                                   ? item.questionText
                                   : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
-                              {qType !== 'long' && (
-                                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                  {DMI_QUESTION_TYPE_LABELS[qType]}
-                                </span>
-                              )}
+                              <div className="flex shrink-0 items-center gap-1">
+                                {typeof item.marks === 'number' && item.marks > 0 && (
+                                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                    {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                  </span>
+                                )}
+                                {qType !== 'long' && (
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                    {DMI_QUESTION_TYPE_LABELS[qType]}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <DmiAnswerField
                               item={item}

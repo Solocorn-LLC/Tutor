@@ -112,6 +112,8 @@ export interface LiveTaskDmiItem {
   id: string
   questionNumber: number
   questionText: string
+  /** Points this question is worth (shown to students; the answer key is not). */
+  marks?: number
   /** Which answer-input control the student sees (defaults to long answer). */
   questionType?: import('./assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
@@ -1336,6 +1338,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                     id: (d.id as string) || '',
                     questionNumber: (d.questionNumber as number) || 0,
                     questionText: (d.questionText as string) || '',
+                    ...(typeof d.marks === 'number' ? { marks: d.marks } : {}),
                   }))
                 : undefined,
               deployedAt: Date.now(),
@@ -1549,9 +1552,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .limit(1)
               if (dmi?.items) {
                 const graded = autoGradeDmi(
-                  dmi.items as { id: string; answer?: string }[],
+                  dmi.items as { id: string; answer?: string; marks?: number }[],
                   (answers ?? {}) as Record<string, string>
                 )
+                // score is the marks-weighted percentage (0–100); maxScore stays
+                // 100 to preserve the app-wide percentage contract. The raw marks
+                // total is surfaced in the tutor DMI view, not the submission row.
                 autoScore = graded.score
                 autoResults = graded.questionResults
               }

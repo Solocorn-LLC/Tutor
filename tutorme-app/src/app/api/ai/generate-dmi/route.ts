@@ -49,8 +49,8 @@ Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY t
 {
   "documentKind": "question_paper" | "study_material",
   "fields": [
-    { "label": "Question 1(a)", "type": "short" },
-    { "label": "Question 2", "type": "mcq", "options": ["A", "B", "C", "D", "E"] }
+    { "label": "Question 1(a)", "type": "short", "marks": 2 },
+    { "label": "Question 2", "type": "mcq", "options": ["A", "B", "C", "D", "E"], "answer": "C", "marks": 1 }
   ]
 }
 
@@ -73,6 +73,15 @@ Rules:
 - "options" array ONLY for mcq / true_false / multiple_response. For "mcq", ALWAYS provide
   EXACTLY 5 options (these become choices a–e); make them plausible and distinct.
 - "pairs" (array of {"left","right"}) ONLY for matching / drag_drop.
+- "marks": an integer number of points for the part. For a question_paper, use the marks PRINTED
+  on the paper when visible (e.g. "[5]" -> 5); if none is shown, use 1. For study_material, assign
+  sensible marks (1 for an objective item like mcq/true_false/fill_blank; 2-10 for short/long
+  answers by depth).
+- "answer" and "rubric": ONLY for study_material (you wrote the questions, so you know the key).
+  "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
+  for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short
+  sentence of marking guidance for open-ended (short/long) items. For a question_paper you MUST
+  NOT output "answer" or "rubric" — never fabricate answers to the student's real exam.
 
 EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
 {"documentKind":"question_paper","fields":[
@@ -89,6 +98,8 @@ interface ParsedDmiQuestion {
   questionNumber: number
   questionText: string
   answer: string
+  marks?: number
+  rubric?: string
   questionType: DmiQuestionType
   options?: string[]
   pairs?: { left: string; right: string }[]
@@ -113,7 +124,15 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
     if (start === -1 || end === -1 || end <= start) return null
     const obj = JSON.parse(text.slice(start, end + 1)) as {
       documentKind?: unknown
-      fields?: Array<{ label?: unknown; type?: unknown; options?: unknown; pairs?: unknown }>
+      fields?: Array<{
+        label?: unknown
+        type?: unknown
+        options?: unknown
+        pairs?: unknown
+        answer?: unknown
+        marks?: unknown
+        rubric?: unknown
+      }>
     }
     if (!Array.isArray(obj.fields) || obj.fields.length === 0) return null
 
@@ -123,6 +142,11 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         : obj.documentKind === 'question_paper'
           ? 'question_paper'
           : null
+
+    // Answer keys & rubrics are trusted ONLY for study material the model itself
+    // authored. For an extracted question paper we never keep a model-supplied
+    // answer (it would be a fabricated key to the student's real exam).
+    const allowAnswerKey = documentKind === 'study_material'
 
     const questions: ParsedDmiQuestion[] = obj.fields
       .map((f, i) => {
@@ -138,10 +162,15 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
               }))
               .filter(p => p.left && p.right)
           : undefined
+        const marksNum = Number(f.marks)
+        const answerStr = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
         return {
           questionNumber: i + 1,
           questionText: label,
-          answer: '',
+          answer: answerStr,
+          marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
+          rubric: rubricStr || undefined,
           questionType: normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined),
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
