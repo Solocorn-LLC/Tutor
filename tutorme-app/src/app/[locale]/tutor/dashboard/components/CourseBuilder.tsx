@@ -1012,6 +1012,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [deployDialog, setDeployDialog] = useState<{
       run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
     } | null>(null)
+    // Any Deploy action routes through this: it opens the answer-reveal dialog,
+    // then runs the real deploy with the chosen mode applied to the payload.
+    const deployTaskWithDialog = useCallback(
+      (payload: LiveTask) => {
+        setDeployDialog({
+          run: reveal => insightsProps?.onDeployTask?.({ ...payload, answerReveal: reveal }),
+        })
+      },
+      [insightsProps]
+    )
 
     // Active tab tracking for Enter button
     const [taskBuilderActiveTab, setTaskBuilderActiveTab] = useState<'content' | 'pci'>('content')
@@ -2261,7 +2271,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         // Auto-deploy to student homework folder
         if (insightsProps?.onDeployTask) {
-          insightsProps.onDeployTask?.({
+          deployTaskWithDialog({
             id: homeworkItem.id,
             title: homeworkItem.title || 'Homework',
             content: homeworkItem.description || '',
@@ -6677,7 +6687,7 @@ FEEDBACK: [your explanation]`
                                                                             task.activeDmiVersionId
                                                                         ) ||
                                                                         (task.dmiVersions || [])[0]
-                                                                      insightsProps.onDeployTask?.({
+                                                                      deployTaskWithDialog({
                                                                         id: task.id,
                                                                         title: task.title,
                                                                         content:
@@ -7049,7 +7059,7 @@ FEEDBACK: [your explanation]`
                                                                               className="font-medium text-emerald-600 focus:text-emerald-600"
                                                                               onClick={e => {
                                                                                 e.stopPropagation()
-                                                                                insightsProps.onDeployTask?.(
+                                                                                deployTaskWithDialog(
                                                                                   {
                                                                                     id: ext.id,
                                                                                     title: ext.name,
@@ -7472,7 +7482,7 @@ FEEDBACK: [your explanation]`
                                                                           v.id ===
                                                                           hw.activeDmiVersionId
                                                                       ) || (hw.dmiVersions || [])[0]
-                                                                    insightsProps.onDeployTask?.({
+                                                                    deployTaskWithDialog({
                                                                       id: hw.id,
                                                                       title: hw.title,
                                                                       content:
@@ -7797,7 +7807,7 @@ FEEDBACK: [your explanation]`
                                                                             ) ||
                                                                             (hw.dmiVersions ||
                                                                               [])[0]
-                                                                          insightsProps.onDeployTask?.(
+                                                                          deployTaskWithDialog(
                                                                             {
                                                                               id: hw.id,
                                                                               title: hw.title,
