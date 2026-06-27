@@ -254,7 +254,11 @@ function SubmissionRow({
       }
       setAiGrades(prev => ({
         ...prev,
-        [qid]: { percent: data.suggestedPercent, marks: data.suggestedMarks, feedback: data.feedback },
+        [qid]: {
+          percent: data.suggestedPercent,
+          marks: data.suggestedMarks,
+          feedback: data.feedback,
+        },
       }))
       if (data.feedback && !feedback.trim()) setFeedback(data.feedback)
     } catch {
@@ -364,9 +368,7 @@ function SubmissionRow({
                     <li
                       key={qid}
                       className={`rounded-md p-2 text-sm ${
-                        meta?.needsReview
-                          ? 'border border-amber-200 bg-amber-50'
-                          : 'bg-gray-50'
+                        meta?.needsReview ? 'border border-amber-200 bg-amber-50' : 'bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -405,9 +407,7 @@ function SubmissionRow({
                                 disabled={ai?.loading}
                                 className="inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-60"
                               >
-                                {ai?.loading ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : null}
+                                {ai?.loading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                                 {ai?.percent != null ? 'Re-run AI grade' : 'AI grade'}
                               </button>
                               {ai?.error && (

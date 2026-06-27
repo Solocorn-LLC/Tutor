@@ -78,9 +78,7 @@ export async function POST(
       .limit(1)
 
     const items = Array.isArray(dmi?.items) ? (dmi.items as Array<Record<string, unknown>>) : []
-    const item = items.find(
-      it => String(it.id ?? it.questionNumber ?? '') === questionId
-    )
+    const item = items.find(it => String(it.id ?? it.questionNumber ?? '') === questionId)
     if (!item) {
       return NextResponse.json({ error: 'No answer key for this question' }, { status: 404 })
     }
