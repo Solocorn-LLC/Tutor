@@ -6162,7 +6162,7 @@ FEEDBACK: [your explanation]`
           }}
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-6 pt-0"
         >
-          <div className="relative flex h-full w-full min-w-0 flex-1 gap-6 pb-6 pt-0">
+          <div className="relative flex h-full w-full min-w-0 flex-1 justify-center gap-6 pb-6 pt-0">
             {/* LEFT PANEL - Course Structure (resizable, ~75% of original width) */}
             {/* Floating collapsed/expanded pill */}
             <div
@@ -8393,8 +8393,8 @@ FEEDBACK: [your explanation]`
               </>
             )}
 
-            {/* CENTER PANEL - New Three-Section Design */}
-            <div className="order-2 flex min-h-0 w-full min-w-0 flex-1 flex-col items-center">
+            {/* CENTER PANEL - Fixed width, always centered */}
+            <div className="order-2 flex min-h-0 w-[800px] shrink-0 flex-col items-center">
               <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch">
                 {mainTab !== 'builder' && (
                   <Card
