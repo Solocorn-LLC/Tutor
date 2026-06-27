@@ -469,7 +469,6 @@ function CourseBuilderInsightsRouteInner({
   const isClassroomMode =
     (pathname?.startsWith('/tutor/classroom') ?? false) ||
     (searchParams?.get('view') ?? '') === 'classroom'
-  const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const tabFromUrl = searchParams.get('tab') as 'live' | 'builder' | 'test-pci' | null
   const initialMainTab = isClassroomMode
     ? 'live'
@@ -477,6 +476,7 @@ function CourseBuilderInsightsRouteInner({
   const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(
     initialMainTab
   )
+  const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
