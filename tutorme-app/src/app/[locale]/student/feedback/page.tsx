@@ -1698,7 +1698,12 @@ function StudentFeedbackContent() {
               onValueChange={v => setActiveTab(v as 'task' | 'tutor-board')}
               className="flex h-full min-h-0 flex-1 flex-col"
             >
-              <div className="flex shrink-0 items-start pt-0">
+              <div
+                className={cn(
+                  'flex shrink-0 items-start pt-0',
+                  !isExpanded && 'mx-auto w-full max-w-3xl'
+                )}
+              >
                 <TabsList
                   className={cn(
                     'grid h-[52px] w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none transition-opacity',
@@ -1732,12 +1737,7 @@ function StudentFeedbackContent() {
                 className="flex h-full min-h-0 flex-1 flex-col outline-none"
               >
                 {/* Classroom viewer */}
-                <div
-                  className={cn(
-                    'relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]',
-                    isExpanded ? 'w-full' : 'mx-auto w-full max-w-3xl'
-                  )}
-                >
+                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                   <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
                     <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
                       Classroom
@@ -1879,7 +1879,12 @@ function StudentFeedbackContent() {
                 </div>
 
                 {/* Input row */}
-                <div className="mt-3 flex items-center gap-3">
+                <div
+                  className={cn(
+                    'mt-3 flex items-center gap-3',
+                    !isExpanded && 'mx-auto w-full max-w-3xl'
+                  )}
+                >
                   <div className="relative flex-1">
                     <Input
                       value={chatInput}
@@ -1943,12 +1948,7 @@ function StudentFeedbackContent() {
                 className="flex h-full min-h-0 flex-1 flex-col outline-none"
               >
                 {/* Tutor Board viewer */}
-                <div
-                  className={cn(
-                    'relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#2563EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]',
-                    isExpanded ? 'w-full' : 'mx-auto w-full max-w-3xl'
-                  )}
-                >
+                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#2563EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                   <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
                     <span className="rounded-b-md bg-[#2563EB] px-3 py-0.5 text-[11px] font-medium text-white">
                       Tutor Board
