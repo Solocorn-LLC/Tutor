@@ -8327,7 +8327,7 @@ FEEDBACK: [your explanation]`
                                     ) : (
                                       <TabsTrigger
                                         value={tab.id}
-                                        className="relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50 sm:text-xs"
+                                        className="relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=active]:border-orange-200 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=inactive]:hover:bg-slate-50 sm:text-xs"
                                         onDoubleClick={() => setEditingTabId(tab.id)}
                                       >
                                         {tab.label}
@@ -8580,9 +8580,9 @@ FEEDBACK: [your explanation]`
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
                                         mainTab === 'live' &&
-                                          'rounded-2xl border border-orange-500',
+                                          'rounded-2xl border border-orange-400',
                                         mainTab === 'test-pci' &&
-                                          'rounded-md border border-orange-500'
+                                          'rounded-md border border-orange-400'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8947,7 +8947,7 @@ FEEDBACK: [your explanation]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border border-orange-500 bg-white/90 backdrop-blur-md transition-all duration-300'
+                                    'mt-1 w-full rounded-2xl border border-orange-400 bg-white/90 backdrop-blur-md transition-all duration-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
