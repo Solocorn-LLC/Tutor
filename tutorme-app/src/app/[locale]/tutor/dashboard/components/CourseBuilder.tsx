@@ -8600,10 +8600,10 @@ FEEDBACK: [your explanation]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white/90 p-0 backdrop-blur-md',
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
                                         mainTab === 'live'
-                                          ? 'border-orange-400'
-                                          : 'border-violet-400'
+                                          ? 'border-orange-300'
+                                          : 'border-violet-300'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8831,14 +8831,7 @@ FEEDBACK: [your explanation]`
 
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div
-                                                className={cn(
-                                                  'h-full w-full rounded-2xl border bg-white p-4',
-                                                  mainTab === 'live'
-                                                    ? 'border-orange-500'
-                                                    : 'border-violet-500'
-                                                )}
-                                              >
+                                              <div className="h-full w-full p-4">
                                                 <p className="text-muted-foreground whitespace-pre-wrap text-sm">
                                                   {testPciContent[tab.id] || ''}
                                                 </p>
@@ -8905,7 +8898,7 @@ FEEDBACK: [your explanation]`
                                                 minSize={20}
                                                 className="h-full"
                                               >
-                                                <div className="ml-1 h-full w-full overflow-y-auto rounded-md border bg-white p-4">
+                                                <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
                                                   <div className="space-y-4">
                                                     {(version?.items ?? []).map(item => (
                                                       <div
@@ -8975,8 +8968,8 @@ FEEDBACK: [your explanation]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border bg-white/90 backdrop-blur-md transition-all duration-300',
-                                    mainTab === 'live' ? 'border-orange-400' : 'border-violet-400'
+                                    'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
+                                    mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
