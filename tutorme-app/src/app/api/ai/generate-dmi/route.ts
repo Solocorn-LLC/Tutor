@@ -111,6 +111,24 @@ interface ParsedDmiResponse {
 }
 
 /**
+ * Normalize an mcq answer key to a clean option LETTER (A, B, …) — the form the
+ * student submits. Handles a bare letter ("c"), a letter-prefixed option
+ * ("C) Paris", "C."), or the full option text ("Paris", matched against the
+ * options). Falls back to the trimmed input when nothing matches.
+ */
+function normalizeMcqAnswer(answer: string, options: string[] | undefined): string {
+  const t = (answer ?? '').trim()
+  if (!t) return ''
+  const bare = t.match(/^([A-Za-z])$/)
+  if (bare) return bare[1].toUpperCase()
+  const prefixed = t.match(/^([A-Za-z])\s*[).:\-]/)
+  if (prefixed) return prefixed[1].toUpperCase()
+  const idx = (options ?? []).findIndex(o => o.toLowerCase() === t.toLowerCase())
+  if (idx >= 0) return String.fromCharCode(65 + idx)
+  return t
+}
+
+/**
  * Primary parser: the model returns a strict JSON object of {label, type} fields.
  * Because the schema has no slot for question wording or answers, the model
  * cannot leak them into the student-visible label. Returns null if the response
@@ -163,7 +181,11 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
               .filter(p => p.left && p.right)
           : undefined
         const marksNum = Number(f.marks)
-        const answerStr = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
+        const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        // For mcq the student submits an option LETTER (A–E), so store the key as
+        // a clean letter even if the model returned "C) Paris" or the option text.
+        const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
         const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
         return {
           questionNumber: i + 1,
@@ -171,7 +193,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           answer: answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
           rubric: rubricStr || undefined,
-          questionType: normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined),
+          questionType: qType,
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
         }
