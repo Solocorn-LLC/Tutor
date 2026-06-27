@@ -10207,7 +10207,9 @@ FEEDBACK: [your explanation]`
                                                   className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
                                                   disabled={!canEdit}
                                                   title="Set marks per question and review the AI answers"
-                                                  onClick={() => setDmiEditor({ source: 'assessment' })}
+                                                  onClick={() =>
+                                                    setDmiEditor({ source: 'assessment' })
+                                                  }
                                                 >
                                                   Edit marks & answers
                                                 </Button>
@@ -10817,8 +10819,7 @@ FEEDBACK: [your explanation]`
           <DialogContent className="sm:max-w-2xl">
             {dmiEditor &&
               (() => {
-                const editItems =
-                  dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
+                const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
                 const totalMarks = editItems.reduce(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
@@ -11160,7 +11161,9 @@ FEEDBACK: [your explanation]`
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
                                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                  {typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1}{' '}
+                                  {typeof item.marks === 'number' && item.marks > 0
+                                    ? item.marks
+                                    : 1}{' '}
                                   {(typeof item.marks === 'number' && item.marks > 0
                                     ? item.marks
                                     : 1) === 1
