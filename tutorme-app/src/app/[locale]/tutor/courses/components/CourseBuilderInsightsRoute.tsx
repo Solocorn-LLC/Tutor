@@ -988,7 +988,6 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-              {showWifiSignal && <WifiSignal connected={!!insightsProps.sessionId} error={false} />}
               {(activeMainTab === 'builder' || activeMainTab === 'live') &&
                 onSaveModeChange &&
                 !modeLocked && (
@@ -1021,6 +1020,7 @@ function CourseBuilderInsightsRouteInner({
                   Editing
                 </div>
               )}
+              <WifiSignal connected={!!insightsProps.sessionId} error={!insightsProps.sessionId} />
             </div>
           </div>
         </div>
