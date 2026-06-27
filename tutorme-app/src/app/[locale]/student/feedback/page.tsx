@@ -2009,7 +2009,10 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
+              // Keep the panel a consistent width regardless of which tab is
+              // active — always use the wider (expanded) width that Assessment
+              // and My Board use, so Lessons/Interact don't shrink the panel.
+              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
             }}
           >
             {/* Resize handle */}
@@ -2028,7 +2031,7 @@ function StudentFeedbackContent() {
             )}
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="grid w-full grid-cols-4 items-center gap-2 rounded-lg bg-gray-100 p-1">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
                   variant="ghost"
                   size="sm"
