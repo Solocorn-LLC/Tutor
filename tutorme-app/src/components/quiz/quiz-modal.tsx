@@ -26,21 +26,39 @@ export interface QuestionResultItem {
   timeSpentSec?: number
 }
 
+/** What the parent's submit returns so the modal can show the authoritative
+ *  server grade (used by the non-'instant' reveal modes). */
+export interface QuizServerResult {
+  score?: number | null
+  questionResults?: QuestionResultItem[]
+  correctAnswers?: Record<string, string>
+}
+
 interface QuizModalProps {
   questions: Question[]
   onComplete: (results: {
     score: number
     answers: Record<string, any>
     questionResults?: QuestionResultItem[]
-  }) => void
+  }) => void | Promise<QuizServerResult | void>
   onClose: () => void
   studentId?: string // Optional student ID for personalized feedback
+  /** Tutor's answer-reveal policy. 'instant' keeps the legacy client-graded
+   *  results; 'after_submit'/'hidden' use the server's authoritative grade. */
+  answerReveal?: 'instant' | 'after_submit' | 'hidden'
 }
 
-export function QuizModal({ questions, onComplete, onClose, studentId }: QuizModalProps) {
+export function QuizModal({
+  questions,
+  onComplete,
+  onClose,
+  studentId,
+  answerReveal = 'instant',
+}: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [showResults, setShowResults] = useState(false)
+  const [serverScore, setServerScore] = useState<number | null>(null)
   const [gradedAnswers, setGradedAnswers] = useState<
     Record<
       string,
@@ -72,6 +90,35 @@ export function QuizModal({ questions, onComplete, onClose, studentId }: QuizMod
   }
 
   const gradeQuiz = async () => {
+    // Non-'instant' modes: the browser has no answer key, so submit first and
+    // render the server's authoritative grade. Correct answers are revealed only
+    // for 'after_submit'.
+    if (answerReveal !== 'instant') {
+      const server = (await onComplete({ answers, score: 0, questionResults: [] })) || {}
+      const byId: Record<string, QuestionResultItem> = {}
+      ;(server.questionResults || []).forEach(r => {
+        byId[r.questionId] = r
+      })
+      const gradedFromServer: typeof gradedAnswers = {}
+      for (const q of questions) {
+        const r = byId[q.id]
+        const reveal = answerReveal === 'after_submit' ? server.correctAnswers?.[q.id] : undefined
+        gradedFromServer[q.id] = {
+          correct: r?.correct ?? false,
+          score: r?.pointsMax
+            ? Math.round(((r.pointsEarned ?? 0) / r.pointsMax) * 100)
+            : r?.correct
+              ? 100
+              : 0,
+          explanation: reveal ? `Correct answer: ${reveal}` : undefined,
+        }
+      }
+      setServerScore(typeof server.score === 'number' ? server.score : null)
+      setGradedAnswers(gradedFromServer)
+      setShowResults(true)
+      return
+    }
+
     const graded: Record<
       string,
       {
@@ -147,9 +194,12 @@ export function QuizModal({ questions, onComplete, onClose, studentId }: QuizMod
   }
 
   if (showResults) {
-    const score = Math.round(
-      (Object.values(gradedAnswers).filter(g => g.correct).length / questions.length) * 100
-    )
+    const score =
+      serverScore != null
+        ? serverScore
+        : Math.round(
+            (Object.values(gradedAnswers).filter(g => g.correct).length / questions.length) * 100
+          )
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

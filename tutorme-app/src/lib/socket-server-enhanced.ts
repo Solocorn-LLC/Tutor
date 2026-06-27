@@ -145,6 +145,8 @@ export interface LiveTask {
    *  persisted server-side for auto-grading; NEVER copied into the student
    *  broadcast (normalizedTask) or stored in deployedMaterial. */
   answerKey?: Array<{ id: string; answer?: string; marks?: number }>
+  /** Tutor's answer-reveal policy: 'instant' | 'after_submit' | 'hidden' | 'student_choice'. */
+  answerReveal?: 'instant' | 'after_submit' | 'hidden' | 'student_choice'
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]
@@ -1292,6 +1294,34 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   )
                 }
               }
+
+              // Persist the tutor's answer-reveal policy onto the task metadata
+              // so the async assignment GET/submit routes honor it. Merged into
+              // existing metadata so other keys are preserved.
+              const reveal = task.answerReveal
+              if (
+                reveal === 'instant' ||
+                reveal === 'after_submit' ||
+                reveal === 'hidden' ||
+                reveal === 'student_choice'
+              ) {
+                try {
+                  const { sql } = await import('drizzle-orm')
+                  await drizzleDb
+                    .update(builderTask)
+                    .set({
+                      metadata: sql`COALESCE(${builderTask.metadata}, '{}'::jsonb) || ${JSON.stringify(
+                        { answerReveal: reveal }
+                      )}::jsonb`,
+                    })
+                    .where(eq(builderTask.taskId, normalizedTask.id))
+                } catch (revealErr) {
+                  console.warn(
+                    '[task:deploy] answerReveal persist failed (non-critical):',
+                    revealErr
+                  )
+                }
+              }
             }
           } catch (btErr) {
             console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
@@ -1369,13 +1399,30 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 : assessments.includes(item)
                   ? 'assessment'
                   : 'homework',
+              // Carry the FULL student-facing fields (input type + options/pairs/
+              // hotspot + marks) so a course:sync doesn't overwrite a deployed
+              // DMI with bare text fields — that was turning every question into
+              // a plain input after a sync. answer/rubric are deliberately NOT
+              // included (they must never reach students).
               dmiItems: Array.isArray(raw.dmiItems)
-                ? (raw.dmiItems as Array<Record<string, unknown>>).map(d => ({
-                    id: (d.id as string) || '',
-                    questionNumber: (d.questionNumber as number) || 0,
-                    questionText: (d.questionText as string) || '',
-                    ...(typeof d.marks === 'number' ? { marks: d.marks } : {}),
-                  }))
+                ? (raw.dmiItems as Array<Record<string, unknown>>).map(
+                    (d): LiveTaskDmiItem => ({
+                      id: (d.id as string) || '',
+                      questionNumber: (d.questionNumber as number) || 0,
+                      questionText: (d.questionText as string) || '',
+                      marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
+                      questionType: d.questionType as LiveTaskDmiItem['questionType'],
+                      options: Array.isArray(d.options) ? (d.options as string[]) : undefined,
+                      pairs: Array.isArray(d.pairs)
+                        ? (d.pairs as LiveTaskDmiItem['pairs'])
+                        : undefined,
+                      hotspotImageUrl:
+                        typeof d.hotspotImageUrl === 'string' ? d.hotspotImageUrl : undefined,
+                      regions: Array.isArray(d.regions)
+                        ? (d.regions as LiveTaskDmiItem['regions'])
+                        : undefined,
+                    })
+                  )
                 : undefined,
               deployedAt: Date.now(),
               polls: [],

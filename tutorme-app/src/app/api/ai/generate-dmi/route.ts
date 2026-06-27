@@ -29,7 +29,9 @@ export const maxDuration = 60
 const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
-  content: z.string().max(50000).optional(),
+  // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
+  // after front matter is trimmed client-side; still well under the model limit.
+  content: z.string().max(80000).optional(),
   pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
@@ -55,23 +57,42 @@ Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY t
 }
 
 Rules:
-- documentKind (ALWAYS include it): "question_paper" if the document already contains explicit,
-  numbered questions / exam tasks the student is meant to answer; "study_material" if it is a
-  textbook, lecture notes, article, summary, or any prose WITHOUT explicit exam questions. When in
-  doubt and the document is mostly explanatory prose, choose "study_material".
+- documentKind (ALWAYS include it). Decide ONLY by whether the student is being asked to ANSWER
+  questions — NOT by how much prose the document contains:
+  - "question_paper" — the document contains questions/tasks the student must answer. Signals:
+    numbered questions or parts (1, 2, (a), (b), (i), (ii)); multiple-choice items with lettered
+    options (A–E); imperative task verbs aimed at the student (calculate, determine, find, compute,
+    show, prove, explain, justify, describe, state, estimate, sketch, construct, interpret); printed
+    mark allocations like "[5]"; or blank answer spaces. This INCLUDES exam / past papers that wrap
+    each question in heavy context — a scenario paragraph, a data set, a table, a chart, a formula
+    sheet, or a stimulus passage is NORMAL in a question paper and does NOT make it study material
+    (e.g. an AP Statistics free-response paper is a question_paper even though every question has a
+    long scenario).
+  - "study_material" — ONLY when the document is purely explanatory (a textbook section, lecture
+    notes, an article, a summary, revision slides) with NO questions for the student to answer.
+  - If the document has BOTH explanation AND questions to answer (worked examples followed by
+    exercises, or a past paper with scenario context), choose "question_paper".
+  - Tie-breaker: if it contains ANY numbered question, sub-part, or multiple-choice item, it is a
+    "question_paper".
 - For a question_paper: output ONE field per answerable part — every question AND every sub-part
   (a),(b),(c) and sub-sub-part (i),(ii). "label" is the part's reference EXACTLY as printed, e.g.
-  "Question 1(a)", "Question 1(b)(i)", "Question 3(a)(ii)". The label MUST be only the reference —
-  never the question wording, instructions, marks, or answers. Enumerate EVERY part across ALL
-  pages, in order, exactly once: do not skip, merge, summarise, repeat, or stop early. A 6-question
-  paper with sub-parts typically yields 15-30 fields.
+  "Question 1(a)", "Question 1(b)(i)", "Question 3(a)(ii)". For a bare multiple-choice section,
+  label each item by its number ("Question 12"). The label MUST be only the reference — never the
+  question wording, instructions, marks, or answers. Enumerate EVERY part across ALL pages, in
+  order, exactly once: do not skip, merge, summarise, repeat, or stop early. A 6-question paper with
+  sub-parts typically yields 15-30 fields.
 - For study_material: generate 5-10 questions; here "label" is the full question text.
 - "type" is exactly one of: short, long, mcq, true_false, multiple_response, fill_blank, matching,
-  ordering, hotspot, drag_drop. Choose by how the part is meant to be answered (multiple-choice
-  item -> "mcq" with "options"; short response -> "short"; extended/essay -> "long"). Default to
-  "short" if unsure.
-- "options" array ONLY for mcq / true_false / multiple_response. For "mcq", ALWAYS provide
-  EXACTLY 5 options (these become choices a–e); make them plausible and distinct.
+  ordering, hotspot, drag_drop. Choose by how EACH part is answered: a multiple-choice item (lettered
+  options on the paper) -> "mcq"; a numeric / one-line response -> "short"; an extended written
+  response (free-response, essay, "explain"/"justify"/"describe") -> "long"; true/false -> "true_false".
+  A paper may MIX types — e.g. a multiple-choice section followed by free-response questions — so type
+  each part by its OWN format, not the paper as a whole. Default to "short" if unsure.
+- "options" array ONLY for mcq / true_false / multiple_response.
+  - For a question_paper MCQ: set "options" to the lettered choices that appear on the paper (usually
+    ["A","B","C","D","E"]; use the actual number of choices if different). These become the student's
+    clickable letters — do NOT reproduce the option text (the student reads it from the paper).
+  - For a study_material MCQ you author: provide EXACTLY 5 plausible, distinct options (a–e).
 - "pairs" (array of {"left","right"}) ONLY for matching / drag_drop.
 - "marks": an integer number of points for the part. For a question_paper, use the marks PRINTED
   on the paper when visible (e.g. "[5]" -> 5); if none is shown, use 1. For study_material, assign
@@ -92,6 +113,15 @@ EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b).
 {"label":"Question 2(a)","type":"short"},
 {"label":"Question 2(b)","type":"long"}
 ]}
+
+EXAMPLE — a MIXED paper: a multiple-choice section (Q1-Q2, five options each) then a free-response
+question (Q3 with parts (a),(b)). Correct JSON:
+{"documentKind":"question_paper","fields":[
+{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"]},
+{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"]},
+{"label":"Question 3(a)","type":"short"},
+{"label":"Question 3(b)","type":"long"}
+]}
 Output the JSON object and nothing else.`
 
 interface ParsedDmiQuestion {
@@ -108,6 +138,24 @@ interface ParsedDmiQuestion {
 interface ParsedDmiResponse {
   documentKind: 'question_paper' | 'study_material' | null
   questions: ParsedDmiQuestion[]
+}
+
+/**
+ * Normalize an mcq answer key to a clean option LETTER (A, B, …) — the form the
+ * student submits. Handles a bare letter ("c"), a letter-prefixed option
+ * ("C) Paris", "C."), or the full option text ("Paris", matched against the
+ * options). Falls back to the trimmed input when nothing matches.
+ */
+function normalizeMcqAnswer(answer: string, options: string[] | undefined): string {
+  const t = (answer ?? '').trim()
+  if (!t) return ''
+  const bare = t.match(/^([A-Za-z])$/)
+  if (bare) return bare[1].toUpperCase()
+  const prefixed = t.match(/^([A-Za-z])\s*[).:\-]/)
+  if (prefixed) return prefixed[1].toUpperCase()
+  const idx = (options ?? []).findIndex(o => o.toLowerCase() === t.toLowerCase())
+  if (idx >= 0) return String.fromCharCode(65 + idx)
+  return t
 }
 
 /**
@@ -163,7 +211,11 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
               .filter(p => p.left && p.right)
           : undefined
         const marksNum = Number(f.marks)
-        const answerStr = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
+        const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        // For mcq the student submits an option LETTER (A–E), so store the key as
+        // a clean letter even if the model returned "C) Paris" or the option text.
+        const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
         const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
         return {
           questionNumber: i + 1,
@@ -171,7 +223,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           answer: answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
           rubric: rubricStr || undefined,
-          questionType: normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined),
+          questionType: qType,
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
         }

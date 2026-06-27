@@ -117,6 +117,26 @@ export async function GET(
 
     const questions = mapQuestions(dmi?.items, task.metadata)
 
+    // Honor the tutor's answer-reveal policy. Only 'instant' may expose correct
+    // answers to the browser before submitting; otherwise strip them so students
+    // can't peek (the score is computed server-side on submit).
+    const rawReveal = (task.metadata as { answerReveal?: string } | null)?.answerReveal
+    const answerReveal =
+      rawReveal === 'after_submit'
+        ? 'after_submit'
+        : rawReveal === 'hidden'
+          ? 'hidden'
+          : rawReveal === 'student_choice'
+            ? 'student_choice'
+            : 'instant'
+    // correctAnswer is exposed for 'instant' and 'student_choice' (the student
+    // may opt into practice mode); stripped for after_submit/hidden so it can't
+    // be peeked before submitting.
+    const exposeAnswers = answerReveal === 'instant' || answerReveal === 'student_choice'
+    const safeQuestions = exposeAnswers
+      ? questions
+      : questions.map(({ correctAnswer: _c, ...q }) => q)
+
     return NextResponse.json({
       alreadySubmitted: existing != null,
       existingScore: existing?.score ?? null,
@@ -124,7 +144,8 @@ export async function GET(
         id: task.taskId,
         title: task.title,
         type: task.type,
-        questions,
+        answerReveal,
+        questions: safeQuestions,
       },
     })
   } catch (error) {

@@ -7,11 +7,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask, profile, taskSubmission, user } from '@/lib/db/schema'
+import { builderTask, builderTaskDmi, profile, taskSubmission, user } from '@/lib/db/schema'
+
+/** Per-question grading context shown to the tutor (tutor-only — carries the
+ *  answer key / rubric). `needsReview` flags items the auto-grader set aside. */
+interface QuestionMeta {
+  questionText?: string
+  rubric?: string
+  modelAnswer?: string
+  marks?: number
+  needsReview?: boolean
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,12 +68,67 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(taskSubmission.submittedAt))
       .limit(200)
 
+    // Fetch the answer key (rubric / model answer / question text) for the tasks
+    // in this batch so the tutor can grade flagged open-ended items with guidance.
+    // Tutor-only endpoint, so exposing the key here is safe.
+    const taskIds = Array.from(new Set(rows.map(r => r.taskId)))
+    const keyByTask = new Map<string, Map<string, Record<string, unknown>>>()
+    if (taskIds.length > 0) {
+      const dmis = await drizzleDb
+        .select({
+          taskId: builderTaskDmi.taskId,
+          items: builderTaskDmi.items,
+          updatedAt: builderTaskDmi.updatedAt,
+        })
+        .from(builderTaskDmi)
+        .where(inArray(builderTaskDmi.taskId, taskIds))
+        .orderBy(desc(builderTaskDmi.updatedAt))
+      for (const d of dmis) {
+        if (keyByTask.has(d.taskId)) continue // keep the latest (first by desc)
+        const byId = new Map<string, Record<string, unknown>>()
+        if (Array.isArray(d.items)) {
+          for (const raw of d.items as Array<Record<string, unknown>>) {
+            const id = String(raw.id ?? raw.questionNumber ?? '')
+            if (id) byId.set(id, raw)
+          }
+        }
+        keyByTask.set(d.taskId, byId)
+      }
+    }
+
+    const buildQuestionMeta = (
+      taskId: string,
+      questionResults: unknown
+    ): Record<string, QuestionMeta> => {
+      const byId = keyByTask.get(taskId)
+      const flagged = new Set<string>()
+      if (Array.isArray(questionResults)) {
+        for (const qr of questionResults as Array<Record<string, unknown>>) {
+          if (qr?.needsReview) flagged.add(String(qr.questionId))
+        }
+      }
+      const meta: Record<string, QuestionMeta> = {}
+      const ids = new Set<string>([...(byId?.keys() ?? []), ...flagged])
+      for (const id of ids) {
+        const item = byId?.get(id)
+        meta[id] = {
+          questionText: item?.questionText ? String(item.questionText) : undefined,
+          rubric: item?.rubric ? String(item.rubric) : undefined,
+          modelAnswer: item?.answer ? String(item.answer) : undefined,
+          marks: typeof item?.marks === 'number' ? (item.marks as number) : undefined,
+          needsReview: flagged.has(id) || undefined,
+        }
+      }
+      return meta
+    }
+
     return NextResponse.json({
       submissions: rows.map(r => ({
         ...r,
         studentName: r.studentName ?? 'Student',
         submittedAt: r.submittedAt?.toISOString() ?? null,
         gradedAt: r.gradedAt?.toISOString() ?? null,
+        questionMeta: buildQuestionMeta(r.taskId, r.questionResults),
       })),
     })
   } catch (error) {
