@@ -2838,42 +2838,29 @@ FEEDBACK: [your explanation]`
           regions: Array.isArray(q.regions) ? q.regions : undefined,
         }))
 
-        // Calculate version number
-        const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
-        const nextVersionNumber = existingVersions.length + 1
-
-        // Create new version
-        const newVersion: DMIVersion = {
-          id: `dmi-version-${Date.now()}`,
-          versionNumber: nextVersionNumber,
-          items: items,
-          createdAt: Date.now(),
-          taskId: isTask ? loadedTaskId || undefined : undefined,
-          assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
-        }
-
-        if (isTask) {
-          setTaskDmiItems(items)
-          setTaskDmiVersions(prev => [...prev, newVersion])
-          setTestPciSource('task')
-          setTestPciViewMode(`dmi_${newVersion.id}`)
-        } else {
-          setAssessmentDmiItems(items)
-          setAssessmentDmiVersions(prev => [...prev, newVersion])
-          setTestPciSource('assessment')
-          setTestPciViewMode(`dmi_${newVersion.id}`)
-        }
-
-        // Study material: the students must see the GENERATED questions in the
-        // Classroom tab, not the original notes. Replace the deployed content with
-        // the numbered questions and drop the source document so only the
-        // questions (Classroom) + the DMI input fields (Assessment) go out.
+        // Study material: students see the GENERATED questions (with options) on
+        // the Classroom side; the DMI on the right keeps ONLY a short "Question N"
+        // label + its input control. A question paper keeps the DMI label as-is
+        // (it already references the deployed paper).
         const isStudyMaterial =
           data.documentKind === 'study_material' || (questionSpec?.length ?? 0) > 0
+
+        let dmiItems = items
         if (isStudyMaterial) {
           const generatedClassroomContent = items
-            .map(q => `${q.questionNumber}. ${q.questionText}`)
+            .map(q => {
+              let block = `${q.questionNumber}. ${q.questionText}`
+              // Choice questions: list options as a) b) c) … under the stem.
+              if (Array.isArray(q.options) && q.options.length > 0) {
+                block +=
+                  '\n' +
+                  q.options.map((o, i) => `   ${String.fromCharCode(97 + i)}) ${o}`).join('\n')
+              }
+              return block
+            })
             .join('\n\n')
+          // The DMI shows only the reference; the full question lives in Classroom.
+          dmiItems = items.map(q => ({ ...q, questionText: `Question ${q.questionNumber}` }))
           if (isTask) {
             setTaskBuilder(prev => ({
               ...prev,
@@ -2894,7 +2881,30 @@ FEEDBACK: [your explanation]`
           )
         }
 
-        toast.success(`DMI form v${nextVersionNumber} created with ${items.length} questions`)
+        const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
+        const nextVersionNumber = existingVersions.length + 1
+        const newVersion: DMIVersion = {
+          id: `dmi-version-${Date.now()}`,
+          versionNumber: nextVersionNumber,
+          items: dmiItems,
+          createdAt: Date.now(),
+          taskId: isTask ? loadedTaskId || undefined : undefined,
+          assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+        }
+
+        if (isTask) {
+          setTaskDmiItems(dmiItems)
+          setTaskDmiVersions(prev => [...prev, newVersion])
+          setTestPciSource('task')
+          setTestPciViewMode(`dmi_${newVersion.id}`)
+        } else {
+          setAssessmentDmiItems(dmiItems)
+          setAssessmentDmiVersions(prev => [...prev, newVersion])
+          setTestPciSource('assessment')
+          setTestPciViewMode(`dmi_${newVersion.id}`)
+        }
+
+        toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to generate DMI'
         toast.error(message)
@@ -2972,6 +2982,13 @@ FEEDBACK: [your explanation]`
           id: item.id,
           questionNumber: item.questionNumber,
           questionText: item.questionText,
+          // Carry the answer-input type + options/pairs so the student gets the
+          // right control (e.g. mcq letter choices), not a plain textarea.
+          questionType: item.questionType,
+          options: item.options,
+          pairs: item.pairs,
+          hotspotImageUrl: item.hotspotImageUrl,
+          regions: item.regions,
         })),
         deployedAt: Date.now(),
         polls: [],
@@ -8327,7 +8344,12 @@ FEEDBACK: [your explanation]`
                                     ) : (
                                       <TabsTrigger
                                         value={tab.id}
-                                        className="relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=active]:border-orange-200 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=inactive]:hover:bg-slate-50 sm:text-xs"
+                                        className={cn(
+                                          'relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=inactive]:hover:bg-slate-50 sm:text-xs',
+                                          mainTab === 'live'
+                                            ? 'data-[state=active]:border-orange-200 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600'
+                                            : 'data-[state=active]:border-violet-200 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600'
+                                        )}
                                         onDoubleClick={() => setEditingTabId(tab.id)}
                                       >
                                         {tab.label}
@@ -8578,11 +8600,10 @@ FEEDBACK: [your explanation]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white/90 p-0 backdrop-blur-md',
-                                        mainTab === 'live' &&
-                                          'rounded-2xl border border-orange-400',
-                                        mainTab === 'test-pci' &&
-                                          'rounded-md border border-orange-400'
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white/90 p-0 backdrop-blur-md',
+                                        mainTab === 'live'
+                                          ? 'border-orange-400'
+                                          : 'border-violet-400'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8810,7 +8831,14 @@ FEEDBACK: [your explanation]`
 
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full w-full rounded-md border border-orange-500 bg-white p-4">
+                                              <div
+                                                className={cn(
+                                                  'h-full w-full rounded-2xl border bg-white p-4',
+                                                  mainTab === 'live'
+                                                    ? 'border-orange-500'
+                                                    : 'border-violet-500'
+                                                )}
+                                              >
                                                 <p className="text-muted-foreground whitespace-pre-wrap text-sm">
                                                   {testPciContent[tab.id] || ''}
                                                 </p>
@@ -8947,7 +8975,8 @@ FEEDBACK: [your explanation]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border border-orange-400 bg-white/90 backdrop-blur-md transition-all duration-300'
+                                    'mt-1 w-full rounded-2xl border bg-white/90 backdrop-blur-md transition-all duration-300',
+                                    mainTab === 'live' ? 'border-orange-400' : 'border-violet-400'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">

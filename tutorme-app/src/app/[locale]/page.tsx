@@ -832,7 +832,7 @@ const SPECIAL_CODES = ['kim.kon#26', 'stephen#26']
 const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
   Promo: [
     {
-      id: '_U8FwciBJxg',
+      id: 'FMFH3d07Lsw',
       title: 'Promo',
       description: 'Watch the platform promo.',
     },
