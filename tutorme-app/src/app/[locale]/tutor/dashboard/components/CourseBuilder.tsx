@@ -2252,6 +2252,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 hotspotImageUrl: i.hotspotImageUrl,
                 regions: i.regions,
               })) || [],
+            // Answer key + marks for server-side grading (never sent to students).
+            answerKey:
+              homeworkItem.dmiItems?.map(i => ({
+                id: i.id,
+                answer: i.answer,
+                marks: i.marks,
+              })) || [],
             deployedAt: Date.now(),
             polls: [],
             questions: [],
@@ -3036,6 +3043,13 @@ FEEDBACK: [your explanation]`
           pairs: item.pairs,
           hotspotImageUrl: item.hotspotImageUrl,
           regions: item.regions,
+        })),
+        // Answer key + marks for server-side auto-grading. Sent to the server
+        // only — never broadcast to students.
+        answerKey: assessmentDmiItems.map(item => ({
+          id: item.id,
+          answer: item.answer,
+          marks: item.marks,
         })),
         deployedAt: Date.now(),
         polls: [],
@@ -9187,6 +9201,15 @@ FEEDBACK: [your explanation]`
                                                         pairs: item.pairs,
                                                         hotspotImageUrl: item.hotspotImageUrl,
                                                         regions: item.regions,
+                                                      })) || [],
+                                                    // Answer key + marks for
+                                                    // server-side grading (never
+                                                    // sent to students).
+                                                    answerKey:
+                                                      task.dmiItems?.map(item => ({
+                                                        id: item.id,
+                                                        answer: item.answer,
+                                                        marks: item.marks,
                                                       })) || [],
                                                     deployedAt: Date.now(),
                                                     polls: [],

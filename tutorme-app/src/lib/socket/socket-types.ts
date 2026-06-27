@@ -88,6 +88,9 @@ export interface LiveTask {
   instructions?: string
   source: 'task' | 'assessment' | 'homework'
   dmiItems?: LiveTaskDmiItem[]
+  /** Per-question answer key + marks. Sent tutor→server on deploy ONLY for
+   *  server-side auto-grading; NEVER broadcast to students. */
+  answerKey?: Array<{ id: string; answer?: string; marks?: number }>
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]

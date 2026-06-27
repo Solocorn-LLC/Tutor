@@ -141,6 +141,10 @@ export interface LiveTask {
   instructions?: string
   source: 'task' | 'assessment' | 'homework'
   dmiItems?: LiveTaskDmiItem[]
+  /** Per-question answer key + marks. Sent tutor→server on deploy ONLY and
+   *  persisted server-side for auto-grading; NEVER copied into the student
+   *  broadcast (normalizedTask) or stored in deployedMaterial. */
+  answerKey?: Array<{ id: string; answer?: string; marks?: number }>
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]
@@ -1256,6 +1260,38 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   updatedAt: now,
                 })
                 .onConflictDoNothing({ target: builderTask.taskId })
+
+              // Persist the answer key + marks server-side so live submissions
+              // auto-grade against it. Carried on the deploy payload's
+              // `answerKey` (never in the student broadcast). One row per task,
+              // refreshed on each deploy; the grader reads the latest by taskId.
+              const answerKey = Array.isArray(task.answerKey) ? task.answerKey : []
+              const gradableKey = answerKey.filter(
+                k => k && typeof k.id === 'string' && (k.answer ?? '').toString().trim().length > 0
+              )
+              if (gradableKey.length > 0) {
+                try {
+                  await drizzleDb
+                    .insert(builderTaskDmi)
+                    .values({
+                      dmiId: `dmi-${normalizedTask.id}`,
+                      taskId: normalizedTask.id,
+                      type: normalizedTask.source === 'assessment' ? 'assessment' : 'task',
+                      items: gradableKey,
+                      createdAt: now,
+                      updatedAt: now,
+                    })
+                    .onConflictDoUpdate({
+                      target: builderTaskDmi.dmiId,
+                      set: { items: gradableKey, updatedAt: now },
+                    })
+                } catch (dmiErr) {
+                  console.warn(
+                    '[task:deploy] BuilderTaskDmi answer-key persist failed (non-critical):',
+                    dmiErr
+                  )
+                }
+              }
             }
           } catch (btErr) {
             console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
