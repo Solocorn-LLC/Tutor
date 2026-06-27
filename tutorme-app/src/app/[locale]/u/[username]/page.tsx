@@ -1171,7 +1171,7 @@ export default function PublicTutorPage() {
                   <div
                     key={course.id}
                     className={cn(
-                      'group relative flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] text-left transition-all duration-300',
+                      'group relative flex h-full min-h-0 flex-col rounded-[18px] text-left transition-all duration-300',
                       'border border-[rgba(255,255,255,0.08)]',
                       'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
                       'shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)]',
