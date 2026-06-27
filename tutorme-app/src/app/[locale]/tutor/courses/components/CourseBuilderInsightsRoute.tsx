@@ -68,6 +68,55 @@ import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 import { DollarSign, Languages } from 'lucide-react'
 
+function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
+  const color = error ? 'text-red-500' : connected ? 'text-emerald-500' : 'text-amber-400'
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <style jsx>{`
+        @keyframes wifi-bar {
+          0%,
+          100% {
+            opacity: 0.25;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+        .wifi-bar {
+          animation: wifi-bar 1.2s ease-in-out infinite;
+        }
+        .wifi-bar-1 {
+          animation-delay: 0s;
+        }
+        .wifi-bar-2 {
+          animation-delay: 0.3s;
+        }
+        .wifi-bar-3 {
+          animation-delay: 0.6s;
+        }
+        .wifi-dot {
+          animation-delay: 0.9s;
+        }
+      `}</style>
+      <svg
+        className={cn('h-4 w-4', color)}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M1.5 8.5a15 15 0 0 1 21 0" className="wifi-bar wifi-bar-3" />
+        <path d="M5 12.5a11 11 0 0 1 14 0" className="wifi-bar wifi-bar-2" />
+        <path d="M8.5 16.5a7 7 0 0 1 7 0" className="wifi-bar wifi-bar-1" />
+        <path d="M12 20h.01" className="wifi-bar wifi-dot" />
+      </svg>
+    </div>
+  )
+}
+
 type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
   sessionCategory?: string | null
@@ -131,6 +180,8 @@ interface TutorControlsPanelProps {
   hasUnsyncedChanges?: boolean
   onEndSession?: () => void
   endingSession?: boolean
+  isConnected?: boolean
+  connectionError?: boolean
 }
 
 function TutorControlsPanel({
@@ -150,6 +201,8 @@ function TutorControlsPanel({
   hasUnsyncedChanges,
   onEndSession,
   endingSession,
+  isConnected,
+  connectionError,
 }: TutorControlsPanelProps) {
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
@@ -195,7 +248,7 @@ function TutorControlsPanel({
           >
             <span className="w-4 shrink-0" aria-hidden="true" />
             <span className="mx-auto text-xs font-semibold text-white">Controls</span>
-            <span className="w-4 shrink-0" aria-hidden="true" />
+            <WifiSignal connected={isConnected ?? false} error={connectionError ?? false} />
           </button>
 
           <AnimatePresence initial={false}>
@@ -933,6 +986,9 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
+              {isClassroomMode && (
+                <WifiSignal connected={!!insightsProps.sessionId} error={false} />
+              )}
               {(activeMainTab === 'builder' || activeMainTab === 'live') &&
                 onSaveModeChange &&
                 !modeLocked && (
@@ -967,14 +1023,6 @@ function CourseBuilderInsightsRouteInner({
               )}
             </div>
           </div>
-
-          {/* Live classroom banner */}
-          {isClassroomMode && (
-            <div className="flex items-center justify-center bg-red-600 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm">
-              <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-white" />
-              Live Classroom — Students can see your screen
-            </div>
-          )}
         </div>
       </div>
 
@@ -1100,6 +1148,8 @@ function CourseBuilderInsightsRouteInner({
             hasUnsyncedChanges={hasUnsyncedChanges}
             onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
             endingSession={endingSession}
+            isConnected={!!insightsProps.sessionId}
+            connectionError={false}
           />
         )}
       </div>
