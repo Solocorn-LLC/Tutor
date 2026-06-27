@@ -2758,6 +2758,23 @@ FEEDBACK: [your explanation]`
       }
     }
 
+    // Past papers often open with cover pages, a table of contents, and exam
+    // instructions before any questions (e.g. an AP practice exam's questions
+    // start ~page 23 of 110). Drop that leading front matter so the real
+    // questions reach the model instead of being crowded out of the token
+    // budget — and so the classifier isn't biased toward "study material" by
+    // pages of administrative prose. Anchored on the first TRUE multiple-choice
+    // item (a number followed by lettered options); a table-of-contents listing
+    // won't match this, so it's safe.
+    const focusOnQuestions = (raw: string): string => {
+      if (raw.length < 6000) return raw
+      const firstMcq = raw.search(
+        /(?:^|\n)\s*\d{1,3}\.\s[\s\S]{0,600}?\(A\)[\s\S]{0,500}?\(B\)[\s\S]{0,500}?\(C\)/
+      )
+      // Only trim when there's substantial front matter before the questions.
+      return firstMcq > 1500 ? raw.slice(firstMcq) : raw
+    }
+
     // Apply a per-question edit (marks / answer / rubric) to the loaded DMI.
     // Updates BOTH the live items state (used by deploy + the View-DMI modal)
     // and the matching version (persisted with the course on save) so edits
@@ -2820,10 +2837,13 @@ FEEDBACK: [your explanation]`
           toast.info('Analyzing PDF with AI...')
           // Prefer full-text extraction so EVERY page of a multi-page paper is
           // captured (image analysis is capped at a few pages and would miss
-          // later questions). Fall back to page images for scanned PDFs.
-          const extracted = await extractPdfText(sourceDoc.fileUrl, 30)
+          // later questions). Read enough pages to clear any front matter and
+          // reach the questions, then drop the leading cover/instructions so the
+          // budget is spent on the actual questions. Fall back to page images
+          // for scanned PDFs.
+          const extracted = await extractPdfText(sourceDoc.fileUrl, 60)
           if (extracted.trim().length > 200) {
-            pdfText = extracted.slice(0, 50000)
+            pdfText = focusOnQuestions(extracted).slice(0, 70000)
           } else {
             pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8)
           }

@@ -29,7 +29,9 @@ export const maxDuration = 60
 const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
-  content: z.string().max(50000).optional(),
+  // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
+  // after front matter is trimmed client-side; still well under the model limit.
+  content: z.string().max(80000).optional(),
   pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
