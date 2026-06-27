@@ -1702,14 +1702,9 @@ const CountdownTimer = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const STORAGE_KEY = 'solocorn-launch-target'
-    let targetRaw = window.localStorage.getItem(STORAGE_KEY)
-    if (!targetRaw) {
-      const target = Date.now() + 45 * 24 * 60 * 60 * 1000
-      window.localStorage.setItem(STORAGE_KEY, target.toString())
-      targetRaw = target.toString()
-    }
-    const targetDate = parseInt(targetRaw, 10)
+    // Hardcoded launch date: August 1, 2025 at 00:00:00 UTC
+    // All browsers show the same countdown regardless of when they first visit
+    const targetDate = new Date('2025-08-01T00:00:00Z').getTime()
 
     const calculate = () => {
       const diff = targetDate - Date.now()

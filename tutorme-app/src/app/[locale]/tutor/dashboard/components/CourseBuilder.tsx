@@ -9397,14 +9397,14 @@ FEEDBACK: [your explanation]`
                             <TabsList className="grid h-[46px] w-[400px] shrink-0 grid-cols-2 gap-2 bg-transparent p-0 shadow-none">
                               <TabsTrigger
                                 value="task"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=active]:font-semibold data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#2563EB] data-[state=active]:bg-[#2563EB] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
                               >
                                 <Wrench className="h-4 w-4 shrink-0" />
                                 Task Builder
                               </TabsTrigger>
                               <TabsTrigger
                                 value="assessment"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#E2D8FF] data-[state=active]:bg-[#F3EEFF] data-[state=active]:font-semibold data-[state=active]:text-[#6D59D8] data-[state=inactive]:hover:bg-slate-50"
+                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#EC4899] data-[state=active]:bg-[#EC4899] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
                               >
                                 <FileCheck2 className="h-4 w-4 shrink-0" />
                                 Assessment Builder
