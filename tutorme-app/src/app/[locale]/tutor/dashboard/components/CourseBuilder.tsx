@@ -988,6 +988,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [previewDmiVersion, setPreviewDmiVersion] = useState<DMIVersion | null>(null)
     // Floating "view DMI" modal available from the Classroom (live) view.
     const [showLiveDmiModal, setShowLiveDmiModal] = useState(false)
+    // Answer key hidden by default — the tutor's screen is shared with students
+    // during live, so reveal answers/rubrics only on explicit toggle.
+    const [showLiveDmiAnswers, setShowLiveDmiAnswers] = useState(false)
     const [dmiGenerating, setDmiGenerating] = useState(false)
     // When generate-dmi detects study material (no explicit questions), we ask
     // the tutor which question types + counts to generate before continuing.
@@ -2239,6 +2242,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 id: i.id,
                 questionNumber: i.questionNumber,
                 questionText: i.questionText,
+                marks: i.marks,
                 questionType: i.questionType,
                 options: i.options,
                 pairs: i.pairs,
@@ -2829,6 +2833,10 @@ FEEDBACK: [your explanation]`
           questionNumber: q.questionNumber || 1,
           questionText: q.questionText || 'Question',
           answer: q.answer || '',
+          // Per-question marks (auto-total + weighted grading) and the marking
+          // rubric / model answer for open-ended items (tutor-only).
+          marks: typeof q.marks === 'number' && q.marks > 0 ? q.marks : undefined,
+          rubric: typeof q.rubric === 'string' && q.rubric.trim() ? q.rubric.trim() : undefined,
           // Carry the answer-input type + choice options through to the deployed
           // DMI so the student sees the right control (short/mcq/etc.).
           questionType: q.questionType,
@@ -2982,6 +2990,8 @@ FEEDBACK: [your explanation]`
           id: item.id,
           questionNumber: item.questionNumber,
           questionText: item.questionText,
+          // Marks are shown to students; the answer key / rubric is NOT deployed.
+          marks: item.marks,
           // Carry the answer-input type + options/pairs so the student gets the
           // right control (e.g. mcq letter choices), not a plain textarea.
           questionType: item.questionType,
@@ -8831,7 +8841,7 @@ FEEDBACK: [your explanation]`
 
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full w-full p-4">
+                                              <div className="h-full min-h-0 w-full overflow-y-auto p-4">
                                                 <p className="text-muted-foreground whitespace-pre-wrap text-sm">
                                                   {testPciContent[tab.id] || ''}
                                                 </p>
@@ -8851,7 +8861,7 @@ FEEDBACK: [your explanation]`
                                                     className="absolute inset-0 h-full w-full"
                                                   />
                                                 ) : (
-                                                  <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                  <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
                                                     {mainTab === 'live'
                                                       ? testPciSource === 'task'
                                                         ? liveTask?.description
@@ -8882,7 +8892,7 @@ FEEDBACK: [your explanation]`
                                                       className="absolute inset-0 h-full w-full"
                                                     />
                                                   ) : (
-                                                    <p className="text-muted-foreground whitespace-pre-wrap p-2 text-sm">
+                                                    <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
                                                       {mainTab === 'live'
                                                         ? testPciSource === 'task'
                                                           ? liveTask?.description
@@ -8905,18 +8915,40 @@ FEEDBACK: [your explanation]`
                                                         key={item.id}
                                                         className="rounded-lg border bg-gray-50 p-3"
                                                       >
-                                                        <p className="text-sm font-medium text-gray-900">
-                                                          <span className="mr-1 text-indigo-600">
-                                                            Q{item.questionNumber}:
+                                                        <div className="flex items-start justify-between gap-2">
+                                                          <p className="text-sm font-medium text-gray-900">
+                                                            <span className="mr-1 text-indigo-600">
+                                                              Q{item.questionNumber}:
+                                                            </span>
+                                                            {item.questionText}
+                                                          </p>
+                                                          <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                                            {typeof item.marks === 'number' &&
+                                                            item.marks > 0
+                                                              ? item.marks
+                                                              : 1}{' '}
+                                                            {(typeof item.marks === 'number' &&
+                                                            item.marks > 0
+                                                              ? item.marks
+                                                              : 1) === 1
+                                                              ? 'mark'
+                                                              : 'marks'}
                                                           </span>
-                                                          {item.questionText}
-                                                        </p>
+                                                        </div>
                                                         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
                                                           <span className="font-medium">
                                                             Answer:
                                                           </span>{' '}
                                                           {item.answer}
                                                         </p>
+                                                        {item.rubric && (
+                                                          <p className="mt-1 whitespace-pre-wrap rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
+                                                            <span className="font-semibold">
+                                                              Marking:
+                                                            </span>{' '}
+                                                            {item.rubric}
+                                                          </p>
+                                                        )}
                                                       </div>
                                                     ))}
                                                   </div>
@@ -9109,6 +9141,15 @@ FEEDBACK: [your explanation]`
                                                         id: item.id,
                                                         questionNumber: item.questionNumber,
                                                         questionText: item.questionText,
+                                                        // Marks shown to students; carry the input
+                                                        // type + options so mcq/etc. render the right
+                                                        // control. Answer key / rubric stay server-side.
+                                                        marks: item.marks,
+                                                        questionType: item.questionType,
+                                                        options: item.options,
+                                                        pairs: item.pairs,
+                                                        hotspotImageUrl: item.hotspotImageUrl,
+                                                        regions: item.regions,
                                                       })) || [],
                                                     deployedAt: Date.now(),
                                                     polls: [],
@@ -10866,8 +10907,27 @@ FEEDBACK: [your explanation]`
             modal anytime from the Classroom (live) view while showing an assessment. */}
         {mainTab === 'live' &&
           (() => {
-            const liveDmiItems = assessmentDmiItems.length > 0 ? assessmentDmiItems : taskDmiItems
+            // Prefer the DMI loaded into the builder; otherwise fall back to the
+            // DMI carried by whatever task/assessment is currently loaded in the
+            // live Classroom (a real live session may set loadedTaskId/
+            // loadedAssessmentId without populating the builder DMI state).
+            const loadedDmi =
+              testPciSource === 'assessment'
+                ? findAssessmentById(loadedAssessmentId || '')?.dmiItems
+                : findTaskById(loadedTaskId || '')?.dmiItems
+            const liveDmiItems =
+              assessmentDmiItems.length > 0
+                ? assessmentDmiItems
+                : taskDmiItems.length > 0
+                  ? taskDmiItems
+                  : loadedDmi || []
             if (liveDmiItems.length === 0) return null
+            const totalMarks = liveDmiItems.reduce(
+              (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
+              0
+            )
+            // Only offer the reveal toggle when there is actually a key to hide.
+            const hasAnswerKey = liveDmiItems.some(it => it.answer || it.rubric)
             return (
               <>
                 <button
@@ -10884,32 +10944,90 @@ FEEDBACK: [your explanation]`
                     <DialogHeader>
                       <DialogTitle>Loaded DMI</DialogTitle>
                       <DialogDescription>
-                        {liveDmiItems.length} field{liveDmiItems.length === 1 ? '' : 's'}
+                        {liveDmiItems.length} question{liveDmiItems.length === 1 ? '' : 's'} ·{' '}
+                        {totalMarks} mark{totalMarks === 1 ? '' : 's'} total
                       </DialogDescription>
                     </DialogHeader>
+                    {hasAnswerKey && (
+                      <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                        <span className="text-xs text-amber-800">
+                          {showLiveDmiAnswers
+                            ? 'Answer key visible — students share your screen.'
+                            : 'Answer key hidden.'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowLiveDmiAnswers(v => !v)}
+                          className="shrink-0 rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                        >
+                          {showLiveDmiAnswers ? 'Hide answers' : 'Show answers'}
+                        </button>
+                      </div>
+                    )}
                     <div className="max-h-[500px] space-y-3 overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933]">
-                      {liveDmiItems.map((item, idx) => (
-                        <div key={item.id || idx} className="rounded-lg border bg-slate-50 p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="text-sm font-medium text-slate-800">
-                              {item.questionNumber ? `${item.questionNumber}. ` : ''}
-                              {item.questionText}
+                      {liveDmiItems.map((item, idx) => {
+                        // For mcq the answer key is a letter (A–E); map it to the
+                        // option index so we can highlight the correct choice.
+                        const correctIdx =
+                          showLiveDmiAnswers && item.questionType === 'mcq' && item.answer
+                            ? item.answer.trim().toUpperCase().charCodeAt(0) - 65
+                            : -1
+                        return (
+                          <div key={item.id || idx} className="rounded-lg border bg-slate-50 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="text-sm font-medium text-slate-800">
+                                {item.questionNumber ? `${item.questionNumber}. ` : ''}
+                                {item.questionText}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                  {typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1}{' '}
+                                  {(typeof item.marks === 'number' && item.marks > 0
+                                    ? item.marks
+                                    : 1) === 1
+                                    ? 'mark'
+                                    : 'marks'}
+                                </span>
+                                {item.questionType && item.questionType !== 'long' && (
+                                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                    {item.questionType}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {item.questionType && item.questionType !== 'long' && (
-                              <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                                {item.questionType}
-                              </span>
+                            {Array.isArray(item.options) && item.options.length > 0 && (
+                              <ul className="mt-1.5 space-y-0.5 pl-1 text-xs text-slate-600">
+                                {item.options.map((o, i) => (
+                                  <li
+                                    key={i}
+                                    className={
+                                      i === correctIdx
+                                        ? 'rounded bg-emerald-100 px-1 font-semibold text-emerald-800'
+                                        : ''
+                                    }
+                                  >
+                                    <span className="mr-1 font-semibold text-slate-500">
+                                      {String.fromCharCode(97 + i)})
+                                    </span>
+                                    {o}
+                                    {i === correctIdx && ' ✓'}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {showLiveDmiAnswers && item.answer && (
+                              <p className="mt-2 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                                <span className="font-semibold">Answer:</span> {item.answer}
+                              </p>
+                            )}
+                            {showLiveDmiAnswers && item.rubric && (
+                              <p className="mt-1 rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
+                                <span className="font-semibold">Marking:</span> {item.rubric}
+                              </p>
                             )}
                           </div>
-                          {Array.isArray(item.options) && item.options.length > 0 && (
-                            <ul className="mt-1.5 list-disc pl-5 text-xs text-slate-600">
-                              {item.options.map((o, i) => (
-                                <li key={i}>{o}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                     <DialogFooter>
                       <Button

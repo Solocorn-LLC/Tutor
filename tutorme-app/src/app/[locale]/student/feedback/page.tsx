@@ -1999,7 +1999,10 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              width: rightPanelWidth + (isExpanded ? EXPANDED_PANEL_BONUS : 0),
+              // Keep the panel a consistent width regardless of which tab is
+              // active — always use the wider (expanded) width that Assessment
+              // and My Board use, so Lessons/Interact don't shrink the panel.
+              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
             }}
           >
             {/* Resize handle */}
@@ -2018,7 +2021,7 @@ function StudentFeedbackContent() {
             )}
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="grid w-full grid-cols-4 items-center gap-2 rounded-lg bg-gray-100 p-1">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -2150,11 +2153,18 @@ function StudentFeedbackContent() {
                                   ? item.questionText
                                   : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
-                              {qType !== 'long' && (
-                                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                  {DMI_QUESTION_TYPE_LABELS[qType]}
-                                </span>
-                              )}
+                              <div className="flex shrink-0 items-center gap-1">
+                                {typeof item.marks === 'number' && item.marks > 0 && (
+                                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                    {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                  </span>
+                                )}
+                                {qType !== 'long' && (
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                    {DMI_QUESTION_TYPE_LABELS[qType]}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <DmiAnswerField
                               item={item}

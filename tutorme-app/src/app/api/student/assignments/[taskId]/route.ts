@@ -41,7 +41,12 @@ function mapQuestions(dmiItems: unknown, metadata: unknown): AssignmentQuestion[
             : item.correctAnswer != null
               ? String(item.correctAnswer)
               : undefined,
-        points: typeof item.points === 'number' ? item.points : 10,
+        points:
+          typeof item.marks === 'number' && item.marks > 0
+            ? item.marks
+            : typeof item.points === 'number'
+              ? item.points
+              : 10,
       }
     })
   }

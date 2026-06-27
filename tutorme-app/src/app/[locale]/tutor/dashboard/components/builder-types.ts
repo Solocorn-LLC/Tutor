@@ -63,6 +63,12 @@ export interface DMIQuestion {
   questionNumber: number
   questionText: string
   answer: string
+  /** Points this question is worth. Drives the auto-total and weighted grading;
+   *  defaults to 1 when absent. */
+  marks?: number
+  /** Marking guidance / model answer for open-ended items. Tutor-only — never
+   *  sent to students. */
+  rubric?: string
   /** Which answer-input control the student sees (defaults to long answer). */
   questionType?: import('@/lib/assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */

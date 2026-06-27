@@ -45,8 +45,9 @@ describe('autoGradeDmi', () => {
     expect(q1).toMatchObject({
       questionId: 'q1',
       correct: true,
-      pointsEarned: 100,
-      pointsMax: 100,
+      // Default weight is 1 mark per question when no marks are specified.
+      pointsEarned: 1,
+      pointsMax: 1,
       selectedAnswer: 'Paris',
     })
     // The expected answer key must never be embedded (questionResults is
@@ -90,5 +91,32 @@ describe('autoGradeDmi', () => {
     const r = autoGradeDmi(items, { q1: 'Paris', q2: '7', q3: 'photosynthesis' })
     expect(r.score).toBe(67) // 2/3
     expect(r.needsReview).toBe(0)
+  })
+
+  it('weights the score by per-question marks', () => {
+    // q1 worth 5, q2 worth 1. Only q1 correct -> 5 / 6 ≈ 83 (not 50).
+    const weighted = [
+      { id: 'q1', answer: 'Paris', marks: 5 },
+      { id: 'q2', answer: 'Berlin', marks: 1 },
+    ]
+    const r = autoGradeDmi(weighted, { q1: 'Paris', q2: 'London' })
+    expect(r.score).toBe(83)
+    expect(r.pointsEarned).toBe(5)
+    expect(r.pointsPossible).toBe(6)
+    const q1 = r.questionResults?.find(x => x.questionId === 'q1')
+    expect(q1).toMatchObject({ pointsEarned: 5, pointsMax: 5 })
+  })
+
+  it('treats non-positive or missing marks as the default weight of 1', () => {
+    const r = autoGradeDmi(
+      [
+        { id: 'q1', answer: 'Paris', marks: 0 },
+        { id: 'q2', answer: '42' },
+      ],
+      { q1: 'Paris', q2: '42' }
+    )
+    expect(r.pointsPossible).toBe(2)
+    expect(r.pointsEarned).toBe(2)
+    expect(r.score).toBe(100)
   })
 })
