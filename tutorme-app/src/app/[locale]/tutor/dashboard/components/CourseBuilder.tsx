@@ -10281,33 +10281,6 @@ FEEDBACK: [your explanation]`
                                               Generate DMI
                                             </Button>
 
-                                            <div className="h-3 w-px bg-gray-300" />
-
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                              disabled={dmiGenerating || !canEdit}
-                                              title="Document is study material (notes/book): pick question types & counts to generate questions + DMI"
-                                              onClick={() => {
-                                                if (!canEdit) return
-                                                const content = assessmentBuilder.taskContent
-                                                const hasPdf =
-                                                  currentAssessmentDocument?.mimeType ===
-                                                  'application/pdf'
-                                                if (!content.trim() && !hasPdf) {
-                                                  toast.error(
-                                                    'Please add content to the Assessment tab or load a document first'
-                                                  )
-                                                  return
-                                                }
-                                                setDmiSpecRows([{ type: 'short', count: 3 }])
-                                                setDmiSpecDialog({ type: 'assessment' })
-                                              }}
-                                            >
-                                              From study material
-                                            </Button>
-
                                             {assessmentDmiItems.length > 0 && (
                                               <>
                                                 <div className="h-3 w-px bg-gray-300" />
