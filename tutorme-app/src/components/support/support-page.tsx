@@ -41,7 +41,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
   }, [activeTopic])
 
   return (
-    <div className="flex h-full min-h-full flex-col px-6 pb-0 pt-2 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
       {/* Hero */}
       <section
         className={cn(

@@ -928,7 +928,7 @@ export default function TutorMyPage() {
 
   return (
     <div className="min-h-full bg-white text-[#1F2933]">
-      <div className="w-full space-y-6 px-6 pt-2 lg:pt-0">
+      <div className="w-full space-y-6 px-3 pt-2 lg:px-4 lg:pt-0">
         <section className={headerCardClass}>
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
