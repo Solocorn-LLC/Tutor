@@ -3033,23 +3033,37 @@ FEEDBACK: [your explanation]`
           ref: String(it.questionLabel ?? it.questionNumber ?? ''),
           label: it.questionText,
         }))
+        // Pass the badge's board/subject so the model leans on that board's
+        // marking conventions (it still verifies against the scheme itself).
+        const examVersions = source === 'task' ? taskDmiVersions : assessmentDmiVersions
+        const activeExamVerId = testPciViewMode.startsWith('dmi_')
+          ? testPciViewMode.slice('dmi_'.length)
+          : null
+        const activeExamVer =
+          examVersions.find(v => v.id === activeExamVerId) ?? examVersions[examVersions.length - 1]
+        const derivedExam = deriveExamContext(designatedFolder, courseName)
+        const examBody = activeExamVer?.examBody ?? derivedExam.examBody
+        const examSubject = activeExamVer?.subject ?? derivedExam.subject
+        const hint = { examBody, subject: examSubject }
         const content = (await extractMarkingSchemeText(file)).slice(0, 80000).trim()
 
         let body: {
           questions: typeof questions
           content?: string
           pdfPages?: string[]
+          examBody?: string
+          subject?: string
         }
         if (content.length >= 200) {
-          body = { questions, content }
+          body = { questions, content, ...hint }
         } else {
           // Sparse text → try the vision path (scanned / image-based PDF).
           toast.info('Scanned scheme detected — reading the pages…')
           const pdfPages = await renderMarkingSchemePages(file)
           if (pdfPages.length > 0) {
-            body = { questions, pdfPages }
+            body = { questions, pdfPages, ...hint }
           } else if (content.length >= 20) {
-            body = { questions, content }
+            body = { questions, content, ...hint }
           } else {
             toast.error('Could not read the marking scheme. Upload a clearer PDF or a .txt file.')
             return

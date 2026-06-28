@@ -25,6 +25,11 @@ import { z } from 'zod'
 const RequestSchema = z.object({
   content: z.string().max(80000).optional(),
   pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
+  // Optional hint from the tutor's badge: which board / subject this paper is, so
+  // the model leans on that board's conventions (it still verifies against the
+  // actual scheme). Purely advisory.
+  examBody: z.string().max(60).optional(),
+  subject: z.string().max(120).optional(),
   questions: z
     // `ref` is the paper's real question reference (e.g. "1(a)", "3b", "12"),
     // preserved from the source rather than a re-serialized 1..N index, so a
@@ -41,6 +46,27 @@ const RequestSchema = z.object({
 const TASK_PROMPT = `You are given a MARKING SCHEME and a list of QUESTION REFERENCES from an exam/assessment.
 For each reference, extract its answer key from the marking scheme — adapting to whatever marking
 standard the scheme uses.
+
+Marking schemes come from MANY examination boards and you must handle ANY of them — do not assume a
+single house style. FIRST infer the board / standard from the scheme's layout, notation and language,
+THEN apply that board's conventions:
+- Objective items (MCQ / multiple response / true-false): the answer is the option LETTER(s) / value
+  given in the key (e.g. "C", "B and D", "True").
+- UK / Cambridge / Edexcel / AQA / OCR / WJEC (A-Level, AS, IGCSE, GCSE): mark codes M (method), A
+  (accuracy), B (independent), and notations "allow / accept / condone / oe (or equivalent) / ft or
+  ecf (error carried forward) / cao / awrt / ignore / do not accept / SC (special case)". Put every
+  accepted form in "variants" and capture the M/A/B award rules in "rubric".
+- IB: per-part M (method) and A (answer) marks and/or holistic markbands — capture the band
+  descriptors and what earns each mark in "rubric".
+- AP (College Board): scoring guidelines with points per part / holistic bands ("Essentially /
+  Partially / Incorrect") — capture the point criteria in "rubric".
+- Maths / sciences generally: accept values within the stated TOLERANCE and any equivalent form
+  (units optional, equivalent fractions/decimals, alternative valid methods) — list representative
+  accepted values in "variants".
+- Languages / essays / long-form: capture the band/level descriptors and assessment objectives in
+  "rubric"; give a concise model answer or fully-credited exemplar as "answer".
+Treat this list as guidance, not a whitelist: if the scheme is from a board not named here, detect its
+own scheme and apply it faithfully. Never force one board's rules onto another's scheme.
 
 Return ONLY a JSON object (no prose, no markdown, no code fences):
 { "matches": [ {
@@ -159,12 +185,19 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
-    const { content, pdfPages, questions } = parsed.data
+    const { content, pdfPages, questions, examBody, subject } = parsed.data
 
     if (!content?.trim() && (!pdfPages || pdfPages.length === 0)) {
       return NextResponse.json({ error: 'No marking scheme content provided' }, { status: 400 })
     }
 
+    // Advisory board/subject hint from the tutor's badge (the model still verifies
+    // against the actual scheme).
+    const boardHint =
+      examBody || subject
+        ? `The tutor indicates this is a ${[examBody, subject].filter(Boolean).join(' ')} paper — ` +
+          `prefer that board's marking conventions, but trust the scheme itself if it clearly differs.\n\n`
+        : ''
     const questionList = questions.map(q => `#${q.ref}: ${q.label}`).join('\n')
     // Normalized reference → the exact reference string to echo back in matches.
     const validRefs = new Map(questions.map(q => [refKey(q.ref), q.ref]))
@@ -176,7 +209,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nThe marking scheme follows as page images.`,
+          text: `${boardHint}Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nThe marking scheme follows as page images.`,
         },
         ...pdfPages.map(page => ({ type: 'image_url' as const, image_url: { url: page } })),
       ]
@@ -189,7 +222,7 @@ export async function POST(request: NextRequest) {
         timeoutMs: 150000,
       })
     } else {
-      const prompt = `Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nMarking scheme:\n${content}`
+      const prompt = `${boardHint}Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nMarking scheme:\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
