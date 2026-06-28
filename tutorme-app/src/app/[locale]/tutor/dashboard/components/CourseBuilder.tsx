@@ -2905,6 +2905,27 @@ FEEDBACK: [your explanation]`
       }
     }
 
+    // Remove a DMI question (e.g. a row appended from a marking scheme that the
+    // tutor doesn't want) from the live items and the active version.
+    const removeDmiItem = (source: 'task' | 'assessment', itemId: string) => {
+      const dropItem = (arr: DMIQuestion[]) => arr.filter(q => q.id !== itemId)
+      const activeVersionId = testPciViewMode.startsWith('dmi_')
+        ? testPciViewMode.slice('dmi_'.length)
+        : null
+      const dropVersions = (vs: DMIVersion[]) => {
+        if (vs.length === 0) return vs
+        const targetId = activeVersionId ?? vs[vs.length - 1].id
+        return vs.map(v => (v.id === targetId ? { ...v, items: dropItem(v.items) } : v))
+      }
+      if (source === 'task') {
+        setTaskDmiItems(dropItem)
+        setTaskDmiVersions(dropVersions)
+      } else {
+        setAssessmentDmiItems(dropItem)
+        setAssessmentDmiVersions(dropVersions)
+      }
+    }
+
     // Persist the examining-body / subject badge onto the active DMI version (it
     // saves & reloads with the course). Only touches version metadata, never the
     // questions.
@@ -3075,27 +3096,54 @@ FEEDBACK: [your explanation]`
           variants?: string[]
           marks?: number
           rubric?: string
+          extra?: boolean
         }> = Array.isArray(data?.matches) ? data.matches : []
         if (matches.length === 0) {
           toast.error('No answers could be matched from that marking scheme.')
           return
         }
-        // Key the matched answers by normalized question reference.
+        const buildPatch = (m: (typeof matches)[number]): Partial<DMIQuestion> => ({
+          answer: m.answer,
+          answerProvenance: 'answer_sheet_extracted',
+          ...(Array.isArray(m.variants) && m.variants.length > 0
+            ? { acceptableVariants: m.variants }
+            : {}),
+          ...(typeof m.marks === 'number' && m.marks > 0 ? { marks: m.marks } : {}),
+          ...(m.rubric ? { rubric: m.rubric } : {}),
+        })
+        // Split the scheme's answers into patches for EXISTING questions (keyed by
+        // reference) and EXTRA questions the scheme covers but the DMI lacks.
         const validRefs = new Set(items.map(it => refKey(it.questionLabel ?? it.questionNumber)))
         const patchByRef = new Map<string, Partial<DMIQuestion>>()
+        const extraMatches = matches.filter(m => m.extra && !validRefs.has(refKey(m.ref)) && m.ref)
         for (const m of matches) {
+          if (m.extra) continue
           const key = refKey(m.ref)
           if (!key || !validRefs.has(key)) continue
-          patchByRef.set(key, {
-            answer: m.answer,
-            answerProvenance: 'answer_sheet_extracted',
-            ...(Array.isArray(m.variants) && m.variants.length > 0
-              ? { acceptableVariants: m.variants }
-              : {}),
-            ...(typeof m.marks === 'number' && m.marks > 0 ? { marks: m.marks } : {}),
-            ...(m.rubric ? { rubric: m.rubric } : {}),
-          })
+          patchByRef.set(key, buildPatch(m))
         }
+        // New rows for references the scheme covers that aren't in the DMI yet —
+        // sorted naturally (3a before 3b before 10), deduped against existing refs.
+        const seenExtra = new Set<string>()
+        const newRows: DMIQuestion[] = extraMatches
+          .filter(m => {
+            const k = refKey(m.ref)
+            if (seenExtra.has(k)) return false
+            seenExtra.add(k)
+            return true
+          })
+          .sort((a, b) => a.ref.localeCompare(b.ref, undefined, { numeric: true }))
+          .map(
+            (m): DMIQuestion => ({
+              id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+              questionNumber: 0,
+              questionLabel: m.ref,
+              questionText: `Question ${m.ref}`,
+              questionType: 'short' as DmiQuestionType,
+              ...buildPatch(m),
+              answer: m.answer,
+            })
+          )
         // Apply the answers directly onto the questions shown in the modal (the
         // snapshot captured above), keyed by question number — NOT via a functional
         // update against the latest state. The items can be re-sourced (fresh ids,
@@ -3109,9 +3157,12 @@ FEEDBACK: [your explanation]`
             const patch = patchByRef.get(refKey(q.questionLabel ?? q.questionNumber))
             return patch ? { ...q, ...patch } : q
           })
-        const patchedItems = patchOnto(items)
-        const filled = patchedItems.reduce((n, q, i) => (q === items[i] ? n : n + 1), 0)
-        if (filled === 0) {
+        const patchedExisting = patchOnto(items)
+        const filled = patchedExisting.reduce((n, q, i) => (q === items[i] ? n : n + 1), 0)
+        // The marking scheme edits the DMI: existing rows get answers, and any
+        // questions the scheme covers that the DMI was missing are appended.
+        const patchedItems = [...patchedExisting, ...newRows]
+        if (filled === 0 && newRows.length === 0) {
           // Matches came back but none lined up with these questions' numbers.
           toast.error(
             "Couldn't line up the marking scheme with these questions — the question numbers didn't match. Check that the scheme covers the same questions."
@@ -3127,7 +3178,9 @@ FEEDBACK: [your explanation]`
         const patchVersions = (vs: DMIVersion[]) => {
           if (vs.length === 0) return vs
           const targetId = activeVersionId ?? vs[vs.length - 1].id
-          return vs.map(v => (v.id === targetId ? { ...v, items: patchOnto(v.items) } : v))
+          return vs.map(v =>
+            v.id === targetId ? { ...v, items: [...patchOnto(v.items), ...newRows] } : v
+          )
         }
         if (source === 'task') {
           setTaskDmiItems(patchedItems)
@@ -3136,8 +3189,12 @@ FEEDBACK: [your explanation]`
           setAssessmentDmiItems(patchedItems)
           setAssessmentDmiVersions(patchVersions)
         }
+        const addedNote =
+          newRows.length > 0
+            ? `; added ${newRows.length} new question${newRows.length === 1 ? '' : 's'} the scheme covered`
+            : ''
         toast.success(
-          `Filled ${filled} of ${questions.length} answers (with variants & marks) from the marking scheme.`
+          `Filled ${filled} of ${questions.length} answers (with variants & marks)${addedNote} from the marking scheme.`
         )
       } catch (err) {
         console.error('Marking scheme parse failed:', err)
@@ -11385,21 +11442,32 @@ FEEDBACK: [your explanation]`
                                 </span>
                                 {item.questionText}
                               </p>
-                              <label className="flex shrink-0 items-center gap-1 text-xs text-gray-600">
-                                Marks
-                                <input
-                                  type="number"
-                                  min={1}
-                                  step={1}
-                                  value={marksVal}
+                              <div className="flex shrink-0 items-center gap-2">
+                                <label className="flex items-center gap-1 text-xs text-gray-600">
+                                  Marks
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={marksVal}
+                                    disabled={!canEdit}
+                                    onChange={e => {
+                                      const n = Math.max(1, Math.round(Number(e.target.value) || 1))
+                                      applyDmiEdit(dmiEditor.source, item.id, { marks: n })
+                                    }}
+                                    className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                                  />
+                                </label>
+                                <button
+                                  type="button"
                                   disabled={!canEdit}
-                                  onChange={e => {
-                                    const n = Math.max(1, Math.round(Number(e.target.value) || 1))
-                                    applyDmiEdit(dmiEditor.source, item.id, { marks: n })
-                                  }}
-                                  className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
-                                />
-                              </label>
+                                  onClick={() => removeDmiItem(dmiEditor.source, item.id)}
+                                  title="Remove this question"
+                                  className="rounded-md p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
                             {Array.isArray(item.options) && item.options.length > 0 && (
                               <ul className="mt-1.5 space-y-0.5 pl-1 text-xs text-gray-500">
