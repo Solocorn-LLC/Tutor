@@ -944,9 +944,8 @@ function StudentFeedbackContent() {
   const rightResizeStartX = useRef(0)
   const rightResizeStartW = useRef(380)
 
-  // Expanded panels (My Board / Assessment) widen the right panel so the
-  // whiteboard / assessment has more room while the center Classroom shrinks.
-  const isExpanded = rightPanelTab === 'my-board' || rightPanelTab === 'dmi'
+  // The right panel keeps a consistent base width across tabs; students can drag
+  // the resize handle to adjust it for convenience.
   const EXPANDED_PANEL_BONUS = 300
 
   // Assets state
@@ -2162,20 +2161,19 @@ function StudentFeedbackContent() {
               width: rightPanelWidth + EXPANDED_PANEL_BONUS,
             }}
           >
-            {/* Resize handle */}
-            {!isExpanded && (
-              <div
-                className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
-                onMouseDown={e => {
-                  setRightPanelResizing(true)
-                  rightResizeStartX.current = e.clientX
-                  rightResizeStartW.current = rightPanelWidth
-                }}
-                title="Drag to resize"
-              >
-                <div className="h-8 w-0.5 rounded-full bg-slate-300" />
-              </div>
-            )}
+            {/* Resize handle — available on every tab so students can widen or
+                narrow the panel for convenience. */}
+            <div
+              className="absolute bottom-0 left-0 top-0 z-10 flex w-3 cursor-col-resize items-center justify-center bg-slate-100/50 hover:bg-blue-500/30 active:bg-blue-500/50"
+              onMouseDown={e => {
+                setRightPanelResizing(true)
+                rightResizeStartX.current = e.clientX
+                rightResizeStartW.current = rightPanelWidth
+              }}
+              title="Drag to resize"
+            >
+              <div className="h-8 w-0.5 rounded-full bg-slate-300" />
+            </div>
 
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
