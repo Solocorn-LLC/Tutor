@@ -3053,7 +3053,12 @@ FEEDBACK: [your explanation]`
         const derivedExam = deriveExamContext(designatedFolder, courseName)
         const examBody = activeExamVer?.examBody ?? derivedExam.examBody
         const examSubject = activeExamVer?.subject ?? derivedExam.subject
-        const hint = { examBody, subject: examSubject }
+        // The tutor's PCI instructions for this task — steer which accepted forms /
+        // award rules the model favours when extracting answers.
+        const pciText = (
+          source === 'task' ? taskBuilder.taskPci : assessmentBuilder.taskPci
+        )?.trim()
+        const hint = { examBody, subject: examSubject, pci: pciText || undefined }
         const content = (await extractMarkingSchemeText(file)).slice(0, 80000).trim()
 
         let body: {
@@ -3062,6 +3067,7 @@ FEEDBACK: [your explanation]`
           pdfPages?: string[]
           examBody?: string
           subject?: string
+          pci?: string
         }
         if (content.length >= 200) {
           body = { questions, content, ...hint }
