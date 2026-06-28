@@ -58,6 +58,9 @@ export interface LiveTaskQuestion {
 export interface LiveTaskDmiItem {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)"), shown to the student
+   *  instead of the re-serialized questionNumber when present. */
+  questionLabel?: string
   questionText: string
   /** Points this question is worth (shown to students; the answer key is not). */
   marks?: number

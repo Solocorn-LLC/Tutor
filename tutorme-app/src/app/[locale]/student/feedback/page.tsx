@@ -2341,7 +2341,7 @@ function StudentFeedbackContent() {
                                     prepend the counter for older free-text questions. */}
                                 {/^\s*(?:question\b|\d)/i.test(item.questionText)
                                   ? item.questionText
-                                  : `${item.questionNumber ? `${item.questionNumber}. ` : ''}${item.questionText}`}
+                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
                               </p>
                               <div className="flex shrink-0 items-center gap-1">
                                 {typeof item.marks === 'number' && item.marks > 0 && (

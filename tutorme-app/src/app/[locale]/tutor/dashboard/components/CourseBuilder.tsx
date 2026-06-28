@@ -2296,6 +2296,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               homeworkItem.dmiItems?.map(i => ({
                 id: i.id,
                 questionNumber: i.questionNumber,
+                questionLabel: i.questionLabel,
                 questionText: i.questionText,
                 marks: i.marks,
                 questionType: i.questionType,
@@ -2931,11 +2932,17 @@ FEEDBACK: [your explanation]`
       setMarkingSchemeLoading(true)
       try {
         toast.info('Reading the marking scheme…')
-        // Normalize the question number to a real number: after a save/reload it
-        // can come back as a numeric string, which would otherwise be rejected by
-        // the API and break the number-keyed match below.
+        // Match on the paper's REAL question reference (e.g. "1(a)") — not the
+        // re-serialized questionNumber. A scheme keyed to 1(a), 1(b), 2 … never
+        // lines up with a 1, 2, 3 … serial, which left most answers unfilled.
+        // refKey normalizes "1(a)" and "1a" to the same key so minor formatting
+        // differences between the DMI and the scheme still match.
+        const refKey = (v: unknown) =>
+          String(v ?? '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
         const questions = items.map(it => ({
-          number: Number(it.questionNumber),
+          ref: String(it.questionLabel ?? it.questionNumber ?? ''),
           label: it.questionText,
         }))
         const content = (await extractMarkingSchemeText(file)).slice(0, 80000).trim()
@@ -2973,7 +2980,7 @@ FEEDBACK: [your explanation]`
         }
         const data = await res.json()
         const matches: Array<{
-          number: number
+          ref: string
           answer: string
           variants?: string[]
           marks?: number
@@ -2983,13 +2990,13 @@ FEEDBACK: [your explanation]`
           toast.error('No answers could be matched from that marking scheme.')
           return
         }
-        // Key the matched answers by question NUMBER.
-        const validNumbers = new Set(items.map(it => Number(it.questionNumber)))
-        const patchByNumber = new Map<number, Partial<DMIQuestion>>()
+        // Key the matched answers by normalized question reference.
+        const validRefs = new Set(items.map(it => refKey(it.questionLabel ?? it.questionNumber)))
+        const patchByRef = new Map<string, Partial<DMIQuestion>>()
         for (const m of matches) {
-          const num = Number(m.number)
-          if (!validNumbers.has(num)) continue
-          patchByNumber.set(num, {
+          const key = refKey(m.ref)
+          if (!key || !validRefs.has(key)) continue
+          patchByRef.set(key, {
             answer: m.answer,
             answerProvenance: 'answer_sheet_extracted',
             ...(Array.isArray(m.variants) && m.variants.length > 0
@@ -3009,7 +3016,7 @@ FEEDBACK: [your explanation]`
         // count the rows that actually changed, so the toast can't over-report.
         const patchOnto = (arr: DMIQuestion[]) =>
           arr.map(q => {
-            const patch = patchByNumber.get(Number(q.questionNumber))
+            const patch = patchByRef.get(refKey(q.questionLabel ?? q.questionNumber))
             return patch ? { ...q, ...patch } : q
           })
         const patchedItems = patchOnto(items)
@@ -3143,6 +3150,7 @@ FEEDBACK: [your explanation]`
         const items: DMIQuestion[] = questions.map((q: any) => ({
           id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           questionNumber: q.questionNumber || 1,
+          questionLabel: typeof q.questionLabel === 'string' ? q.questionLabel : undefined,
           questionText: q.questionText || 'Question',
           answer: q.answer || '',
           // Per-question marks (auto-total + weighted grading) and the marking
@@ -3169,7 +3177,7 @@ FEEDBACK: [your explanation]`
         if (isStudyMaterial) {
           const generatedClassroomContent = items
             .map(q => {
-              let block = `${q.questionNumber}. ${q.questionText}`
+              let block = `${q.questionLabel ?? q.questionNumber}. ${q.questionText}`
               // Choice questions: list options as a) b) c) … under the stem.
               if (Array.isArray(q.options) && q.options.length > 0) {
                 block +=
@@ -3180,7 +3188,10 @@ FEEDBACK: [your explanation]`
             })
             .join('\n\n')
           // The DMI shows only the reference; the full question lives in Classroom.
-          dmiItems = items.map(q => ({ ...q, questionText: `Question ${q.questionNumber}` }))
+          dmiItems = items.map(q => ({
+            ...q,
+            questionText: `Question ${q.questionLabel ?? q.questionNumber}`,
+          }))
           if (isTask) {
             setTaskBuilder(prev => ({
               ...prev,
@@ -3309,6 +3320,7 @@ FEEDBACK: [your explanation]`
           dmiItems: assessmentDmiItems.map(item => ({
             id: item.id,
             questionNumber: item.questionNumber,
+            questionLabel: item.questionLabel,
             questionText: item.questionText,
             // Marks are shown to students; the answer key / rubric is NOT deployed.
             marks: item.marks,
@@ -9254,7 +9266,10 @@ FEEDBACK: [your explanation]`
                                                         <div className="flex items-start justify-between gap-2">
                                                           <p className="text-sm font-medium text-gray-900">
                                                             <span className="mr-1 text-indigo-600">
-                                                              Q{item.questionNumber}:
+                                                              Q
+                                                              {item.questionLabel ??
+                                                                item.questionNumber}
+                                                              :
                                                             </span>
                                                             {item.questionText}
                                                           </p>
@@ -9493,6 +9508,7 @@ FEEDBACK: [your explanation]`
                                                           task.dmiItems?.map(item => ({
                                                             id: item.id,
                                                             questionNumber: item.questionNumber,
+                                                            questionLabel: item.questionLabel,
                                                             questionText: item.questionText,
                                                             // Marks shown to students; carry the input
                                                             // type + options so mcq/etc. render the right
@@ -11274,7 +11290,7 @@ FEEDBACK: [your explanation]`
                             <div className="flex items-start justify-between gap-3">
                               <p className="text-sm font-medium text-gray-900">
                                 <span className="mr-1 text-indigo-600">
-                                  Q{item.questionNumber}.
+                                  Q{item.questionLabel ?? item.questionNumber}.
                                 </span>
                                 {item.questionText}
                               </p>
@@ -11498,7 +11514,7 @@ FEEDBACK: [your explanation]`
                     {(previewDmiVersion.items ?? []).map((item, idx) => (
                       <div key={item.id} className="rounded-lg border bg-slate-50 p-4">
                         <div className="mb-2 text-sm font-semibold text-slate-700">
-                          Question {item.questionNumber}
+                          Question {item.questionLabel ?? item.questionNumber}
                         </div>
                         <div className="text-sm text-slate-800">{item.questionText}</div>
                       </div>
@@ -11576,7 +11592,9 @@ FEEDBACK: [your explanation]`
                           <div key={item.id || idx} className="rounded-lg border bg-slate-50 p-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="text-sm font-medium text-slate-800">
-                                {item.questionNumber ? `${item.questionNumber}. ` : ''}
+                                {(item.questionLabel ?? item.questionNumber)
+                                  ? `${item.questionLabel ?? item.questionNumber}. `
+                                  : ''}
                                 {item.questionText}
                               </div>
                               <div className="flex shrink-0 items-center gap-1">

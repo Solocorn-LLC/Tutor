@@ -61,6 +61,10 @@ export interface BuilderModalWithNodesProps extends BuilderModalProps {
 export interface DMIQuestion {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)", "3b"), preserved from the
+   *  source. Shown instead of the re-serialized questionNumber when present, and
+   *  used to match an uploaded marking scheme. */
+  questionLabel?: string
   questionText: string
   answer: string
   /** Points this question is worth. Drives the auto-total and weighted grading;
