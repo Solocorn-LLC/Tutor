@@ -111,6 +111,9 @@ export interface LiveTaskQuestion {
 export interface LiveTaskDmiItem {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)"), shown to the student
+   *  instead of the re-serialized questionNumber when present. */
+  questionLabel?: string
   questionText: string
   /** Points this question is worth (shown to students; the answer key is not). */
   marks?: number
@@ -1432,6 +1435,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
                     (d): LiveTaskDmiItem => ({
                       id: (d.id as string) || '',
                       questionNumber: (d.questionNumber as number) || 0,
+                      questionLabel:
+                        typeof d.questionLabel === 'string'
+                          ? (d.questionLabel as string)
+                          : undefined,
                       questionText: (d.questionText as string) || '',
                       marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
                       questionType: d.questionType as LiveTaskDmiItem['questionType'],

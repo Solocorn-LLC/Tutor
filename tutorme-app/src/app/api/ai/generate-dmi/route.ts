@@ -126,6 +126,10 @@ Output the JSON object and nothing else.`
 
 interface ParsedDmiQuestion {
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)", "3b", "12"), preserved
+   *  from the source instead of the re-serialized 1..N index. Absent when the
+   *  label carries no leading reference (the UI falls back to questionNumber). */
+  questionLabel?: string
   questionText: string
   answer: string
   marks?: number
@@ -219,6 +223,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
         return {
           questionNumber: i + 1,
+          questionLabel: extractQuestionRef(label),
           questionText: label,
           answer: answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
@@ -285,6 +290,19 @@ function normalizeTypeToken(raw?: string): DmiQuestionType {
   return TYPE_SYNONYMS[t] ?? normalizeDmiQuestionType(t)
 }
 
+// Pull the paper's real question reference (e.g. "1(a)", "3b", "12") out of a
+// label like "Question 1(a)" / "Q3b" / "1." so the DMI keeps the source's own
+// numbering instead of a re-serialized 1..N index. Returns undefined when there
+// is no leading reference (the caller then falls back to the positional number).
+function extractQuestionRef(label: string): string | undefined {
+  const m = String(label || '')
+    .trim()
+    .match(/^(?:Q(?:uestion)?\s*\.?\s*)?(\d+\s*(?:\([a-z0-9ivx]+\)|[a-z](?![a-z]))*)/i)
+  if (!m) return undefined
+  const ref = m[1].replace(/\s+/g, '')
+  return ref || undefined
+}
+
 // Strip markdown emphasis / bullets / headings / code ticks so lines like
 // "**Q1**", "- Q1", "### Q1" still parse.
 function cleanLine(s: string): string {
@@ -325,8 +343,11 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
+      // Preserve the paper's real reference: "Q1(a)" → "1(a)", "Q2" → "2".
+      const ref = qMatch[2] ? `${qMatch[1]}(${qMatch[2].trim()})` : qMatch[1]
       currentQ = {
         questionNumber: parseInt(qMatch[1], 10),
+        questionLabel: ref,
         questionText: qMatch[3].trim(),
         answer: '',
         questionType: normalizeTypeToken(qMatch[2]),
@@ -376,6 +397,7 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
       if (m && !/^(answer|key|note|kind|options|pairs)\b/i.test(m[2])) {
         questions.push({
           questionNumber: parseInt(m[1], 10),
+          questionLabel: m[1],
           questionText: m[2].trim(),
           answer: '',
           questionType: normalizeDmiQuestionType(undefined),

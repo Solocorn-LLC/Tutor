@@ -26,10 +26,10 @@ const RequestSchema = z.object({
   content: z.string().max(80000).optional(),
   pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
   questions: z
-    // Coerce: the client's questionNumber can arrive as a numeric string after a
-    // round-trip through saved course JSON, and a strict z.number() would reject
-    // the whole request (the upload would silently fail with no answers filled).
-    .array(z.object({ number: z.coerce.number().int(), label: z.string().max(400) }))
+    // `ref` is the paper's real question reference (e.g. "1(a)", "3b", "12"),
+    // preserved from the source rather than a re-serialized 1..N index, so a
+    // scheme keyed to sub-parts (1a, 1b) lines up correctly.
+    .array(z.object({ ref: z.string().min(1).max(40), label: z.string().max(400) }))
     .min(1)
     .max(200),
 })
@@ -44,7 +44,7 @@ standard the scheme uses.
 
 Return ONLY a JSON object (no prose, no markdown, no code fences):
 { "matches": [ {
-  "number": <integer>,
+  "ref": "<the exact reference string you were given>",
   "answer": "<canonical correct answer>",
   "variants": ["<every other accepted answer form>", ...],
   "marks": <total points this question is worth>,
@@ -52,9 +52,10 @@ Return ONLY a JSON object (no prose, no markdown, no code fences):
 } ] }
 
 Rules:
-- Match by question / part number (e.g. "Question 1(a)", "Q3", "12"). Cut through page headers, footers,
+- Match by question / part reference (e.g. "1(a)", "Q3", "12"). Cut through page headers, footers,
   mark totals, watermarks, "GO ON TO THE NEXT PAGE", and formatting noise to find the right answer.
-- "number" is the integer from the reference you were given (the leading #N), NOT a number you invent.
+- "ref" MUST be copied EXACTLY from the reference you were given (the leading #REF), e.g. "1(a)" → "1(a)".
+  Do NOT invent, renumber, or merge references. Each given reference is a separate question to answer.
 - "answer": the canonical correct answer. For a multiple-choice item give the correct OPTION LETTER
   (A, B, C, …). For a short item give the key expected answer. For a worked/extended/holistic item give a
   concise model answer or the description of a fully-credited (e.g. "Essentially correct") response.
@@ -75,14 +76,21 @@ Rules:
 const SYSTEM_PROMPT = `${guardrailSystemPrompt('assessment')}\n\n${TASK_PROMPT}`
 
 interface SchemeMatch {
-  number: number
+  ref: string
   answer: string
   variants?: string[]
   marks?: number
   rubric?: string
 }
 
-function parseMatches(raw: string, validNumbers: Set<number>): SchemeMatch[] {
+// Normalize a reference so "1(a)" and "1a" compare equal.
+function refKey(v: unknown): string {
+  return String(v ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
+
+function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[] {
   try {
     const text = stripCodeFences(raw).trim()
     const start = text.indexOf('{')
@@ -90,6 +98,7 @@ function parseMatches(raw: string, validNumbers: Set<number>): SchemeMatch[] {
     if (start === -1 || end <= start) return []
     const obj = JSON.parse(text.slice(start, end + 1)) as {
       matches?: Array<{
+        ref?: unknown
         number?: unknown
         answer?: unknown
         variants?: unknown
@@ -99,10 +108,14 @@ function parseMatches(raw: string, validNumbers: Set<number>): SchemeMatch[] {
     }
     if (!Array.isArray(obj.matches)) return []
     const out: SchemeMatch[] = []
+    const seen = new Set<string>()
     for (const m of obj.matches) {
-      const n = Number(m?.number)
+      // Accept `ref`; tolerate a model that still emits `number`.
+      const key = refKey(m?.ref ?? m?.number)
+      const canonical = validRefs.get(key)
       const answer = String(m?.answer ?? '').trim()
-      if (!Number.isInteger(n) || !validNumbers.has(n) || !answer) continue
+      if (!canonical || seen.has(key) || !answer) continue
+      seen.add(key)
       const rubric = String(m?.rubric ?? '').trim()
       // De-duplicate variants and drop any that just echo the canonical answer.
       const variants = Array.isArray(m?.variants)
@@ -117,7 +130,7 @@ function parseMatches(raw: string, validNumbers: Set<number>): SchemeMatch[] {
       const marksNum = Number(m?.marks)
       const marks = Number.isFinite(marksNum) && marksNum > 0 ? marksNum : undefined
       out.push({
-        number: n,
+        ref: canonical,
         answer,
         variants: variants.length > 0 ? variants : undefined,
         marks,
@@ -152,7 +165,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No marking scheme content provided' }, { status: 400 })
     }
 
-    const questionList = questions.map(q => `#${q.number}: ${q.label}`).join('\n')
+    const questionList = questions.map(q => `#${q.ref}: ${q.label}`).join('\n')
+    // Normalized reference → the exact reference string to echo back in matches.
+    const validRefs = new Map(questions.map(q => [refKey(q.ref), q.ref]))
 
     let aiResponse: string
     if (pdfPages && pdfPages.length > 0) {
@@ -161,7 +176,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `Question references to match (use the leading #N as "number"):\n${questionList}\n\nThe marking scheme follows as page images.`,
+          text: `Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nThe marking scheme follows as page images.`,
         },
         ...pdfPages.map(page => ({ type: 'image_url' as const, image_url: { url: page } })),
       ]
@@ -172,7 +187,7 @@ export async function POST(request: NextRequest) {
         timeoutMs: 60000,
       })
     } else {
-      const prompt = `Question references to match (use the leading #N as "number"):\n${questionList}\n\nMarking scheme:\n${content}`
+      const prompt = `Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nMarking scheme:\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
@@ -190,17 +205,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validNumbers = new Set(questions.map(q => q.number))
-    const matches = parseMatches(aiResponse, validNumbers)
+    const matches = parseMatches(aiResponse, validRefs)
 
     // Guardrail rule 2: run the assessment guardrails over the extracted answer
     // key (warn-only). Provenance is answer_sheet_extracted (ASMT-5). Not
     // student-facing — this is the tutor-side evaluation layer.
-    const questionByNumber = new Map(questions.map(q => [q.number, q.label]))
+    const questionByRef = new Map(questions.map(q => [refKey(q.ref), q.label]))
     const guardrail = runAssessmentGuardrails({
       questions: matches.map(m => ({
-        questionId: String(m.number),
-        questionText: questionByNumber.get(m.number) ?? '',
+        questionId: m.ref,
+        questionText: questionByRef.get(refKey(m.ref)) ?? '',
         marks: m.marks,
         rubric: m.rubric ? { criteria: [] } : null,
         answerProvenance: 'answer_sheet_extracted' as const,
