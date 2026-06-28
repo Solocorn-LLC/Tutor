@@ -388,15 +388,26 @@ function SubmissionRow({
                         // are present.
                         const raw = typeof ans === 'string' ? ans : JSON.stringify(ans)
                         let text = raw
+                        let converted = ''
                         let drawing = ''
                         if (raw.startsWith('data:image')) {
                           text = ''
                           drawing = raw
                         } else if (raw.startsWith('{')) {
                           try {
-                            const o = JSON.parse(raw) as { text?: string; drawing?: string }
-                            if (o && (typeof o.text === 'string' || typeof o.drawing === 'string')) {
+                            const o = JSON.parse(raw) as {
+                              text?: string
+                              converted?: string
+                              drawing?: string
+                            }
+                            if (
+                              o &&
+                              (typeof o.text === 'string' ||
+                                typeof o.drawing === 'string' ||
+                                typeof o.converted === 'string')
+                            ) {
                               text = String(o.text ?? '')
+                              converted = String(o.converted ?? '')
                               drawing = String(o.drawing ?? '')
                             }
                           } catch {
@@ -407,7 +418,7 @@ function SubmissionRow({
                           <div className="mt-1">
                             {text && (
                               <div className="text-gray-800">
-                                <span className="text-gray-400">Answer: </span>
+                                <span className="text-gray-400">Typed: </span>
                                 {hasMath(text) ? (
                                   <MathText text={text} className="mt-0.5 text-gray-800" />
                                 ) : (
@@ -415,18 +426,24 @@ function SubmissionRow({
                                 )}
                               </div>
                             )}
+                            {converted && (
+                              <div className="mt-1 text-gray-800">
+                                <span className="text-gray-400">Handwriting (converted): </span>
+                                <MathText text={converted} className="mt-0.5 text-gray-800" />
+                              </div>
+                            )}
                             {drawing && (
                               <div className="mt-1">
-                                <span className="text-xs text-gray-400">Drawn:</span>
+                                <span className="text-xs text-gray-400">Handwriting (original):</span>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={drawing}
-                                  alt="Student's drawn answer"
+                                  alt="Student's handwritten answer"
                                   className="mt-1 max-h-72 w-full rounded-md border border-gray-200 bg-white object-contain"
                                 />
                               </div>
                             )}
-                            {!text && !drawing && (
+                            {!text && !converted && !drawing && (
                               <p className="text-gray-400">No answer recorded.</p>
                             )}
                           </div>

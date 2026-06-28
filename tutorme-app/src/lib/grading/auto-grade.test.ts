@@ -93,6 +93,15 @@ describe('autoGradeDmi', () => {
     expect(q1).toMatchObject({ correct: false, needsReview: true })
   })
 
+  it('flags an answer with converted handwriting for review', () => {
+    const r = autoGradeDmi([{ id: 'q1', answer: 'Paris' }], {
+      q1: JSON.stringify({ text: '', converted: '$y=\\frac{4}{x}$', drawing: '' }),
+    })
+    expect(r.needsReview).toBe(1)
+    const q1 = r.questionResults?.find(x => x.questionId === 'q1')
+    expect(q1).toMatchObject({ needsReview: true })
+  })
+
   it('scores short items and excludes open-ended ones from the same task', () => {
     const mixed = [
       { id: 'q1', answer: 'Paris' }, // short, correct

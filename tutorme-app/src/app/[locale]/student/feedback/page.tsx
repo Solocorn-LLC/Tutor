@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DrawingPad } from '@/components/answer/DrawingPad'
+import { MathText } from '@/components/answer/MathText'
 import {
   Select,
   SelectContent,
@@ -317,37 +318,48 @@ function ClassroomControlsPanel({
  * has no image; long answer is always free-text.
  */
 /**
- * Split a stored answer into its typed + drawn parts. Backward compatible:
- * - plain text            -> { text, drawing: '' }
- * - a bare PNG data URL   -> { text: '', drawing }   (legacy drawn-only answer)
- * - {"text","drawing"}    -> mixed answer
+ * Split a stored answer into its three independent parts. Backward compatible:
+ * - plain text                       -> { text, converted: '', drawing: '' }
+ * - a bare PNG data URL              -> { drawing }            (legacy drawn-only)
+ * - {"text","converted","drawing"}   -> typed + converted-handwriting + drawing
  */
-function parseWrittenAnswer(value: string): { text: string; drawing: string } {
-  if (!value) return { text: '', drawing: '' }
-  if (value.startsWith('data:image')) return { text: '', drawing: value }
+function parseWrittenAnswer(value: string): { text: string; converted: string; drawing: string } {
+  if (!value) return { text: '', converted: '', drawing: '' }
+  if (value.startsWith('data:image')) return { text: '', converted: '', drawing: value }
   if (value.startsWith('{')) {
     try {
-      const o = JSON.parse(value) as { text?: unknown; drawing?: unknown }
-      if (o && (typeof o.text === 'string' || typeof o.drawing === 'string')) {
-        return { text: String(o.text ?? ''), drawing: String(o.drawing ?? '') }
+      const o = JSON.parse(value) as { text?: unknown; converted?: unknown; drawing?: unknown }
+      if (
+        o &&
+        (typeof o.text === 'string' ||
+          typeof o.drawing === 'string' ||
+          typeof o.converted === 'string')
+      ) {
+        return {
+          text: String(o.text ?? ''),
+          converted: String(o.converted ?? ''),
+          drawing: String(o.drawing ?? ''),
+        }
       }
     } catch {
       // not JSON — treat as plain text below
     }
   }
-  return { text: value, drawing: '' }
+  return { text: value, converted: '', drawing: '' }
 }
 
-/** Pure text stays a plain string (so it auto-grades); a drawing makes it JSON. */
-function serializeWrittenAnswer(text: string, drawing: string): string {
-  if (drawing) return JSON.stringify({ text, drawing })
+/** Pure typed text stays a plain string (so it auto-grades); anything from the
+ *  handwriting (converted text / drawing) makes it JSON. */
+function serializeWrittenAnswer(text: string, converted: string, drawing: string): string {
+  if (converted || drawing) return JSON.stringify({ text, converted, drawing })
   return text
 }
 
 /**
- * A free-response answer the student can TYPE and/or DRAW (pen/mouse/finger) —
- * crucial where maths/diagrams and writing mix. Both the text box and the
- * drawing pad are expandable, and a single answer can contain both.
+ * A free-response answer. The keyboard box is for TYPED text only. Separately,
+ * the student can hand-write on the drawing pad and press "Convert handwriting →
+ * text": the transcription goes to the PREVIEW (rendered), never the keyboard
+ * box. The two are independent.
  */
 function WrittenAnswer({
   value,
@@ -364,19 +376,17 @@ function WrittenAnswer({
   placeholder: string
   baseField: string
 }) {
-  const { text, drawing } = parseWrittenAnswer(value)
-  const [showDraw, setShowDraw] = useState(!!drawing)
+  const { text, converted, drawing } = parseWrittenAnswer(value)
+  const [showDraw, setShowDraw] = useState(!!drawing || !!converted)
   const [converting, setConverting] = useState(false)
-  // What we've already transcribed from this handwriting, so a re-convert only
-  // adds the NEW strokes and never re-appends (or disturbs) earlier text.
-  const convertedRef = useRef('')
-  const update = (nextText: string, nextDrawing: string) => {
+  const update = (nextText: string, nextConverted: string, nextDrawing: string) => {
     onInteract()
-    onValueChange(serializeWrittenAnswer(nextText, nextDrawing))
+    onValueChange(serializeWrittenAnswer(nextText, nextConverted, nextDrawing))
   }
 
-  // Convert the handwriting to typed text + LaTeX, APPENDED to the answer. The
-  // student's typed text is never modified — only new handwriting is added.
+  // Convert the handwriting → text/LaTeX and put it in the PREVIEW (the
+  // `converted` field). The keyboard text box is never touched. A re-convert
+  // only adds NEW strokes (the model is told what's already converted).
   const convertHandwriting = async () => {
     if (!drawing || converting) return
     setConverting(true)
@@ -385,28 +395,20 @@ function WrittenAnswer({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          image: drawing,
-          // Tell the model what's already been transcribed so it skips it.
-          previousText: convertedRef.current || undefined,
-        }),
+        body: JSON.stringify({ image: drawing, previousText: converted || undefined }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         toast.error(data?.error || 'Could not read the handwriting. Try writing more clearly.')
         return
       }
-      const converted = String(data?.text ?? '').trim()
-      if (!converted) {
+      const newText = String(data?.text ?? '').trim()
+      if (!newText) {
         toast.info('No new handwriting to convert.')
         return
       }
-      // Append only the new transcription to whatever is already in the box.
-      update(text ? `${text}\n${converted}` : converted, drawing)
-      convertedRef.current = convertedRef.current
-        ? `${convertedRef.current}\n${converted}`
-        : converted
-      toast.success('Handwriting converted. Review and edit if needed.')
+      update(text, converted ? `${converted}\n${newText}` : newText, drawing)
+      toast.success('Handwriting converted — see the preview below.')
     } catch {
       toast.error('Failed to convert handwriting')
     } finally {
@@ -416,22 +418,40 @@ function WrittenAnswer({
 
   return (
     <div className="space-y-1.5">
-      {/* Always a multi-line, expandable box (drag the bottom-right corner). */}
+      {/* Keyboard input — TYPED text only. Never receives handwriting. */}
       <textarea
         value={text}
         onFocus={onInteract}
-        onChange={e => update(e.target.value, drawing)}
+        onChange={e => update(e.target.value, converted, drawing)}
         placeholder={placeholder}
         rows={multiline ? 4 : 2}
         className={`${multiline ? 'min-h-[96px]' : 'min-h-[56px]'} resize-y ${baseField}`}
       />
-      {/* The answer box holds plain text only — math is rendered where the
-          answer is displayed (e.g. the tutor's grading view), not in the input. */}
+
+      {/* Preview — the converted handwriting, rendered (math via LaTeX). */}
+      {converted && (
+        <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+              Converted handwriting · preview
+            </span>
+            <button
+              type="button"
+              onClick={() => update(text, '', drawing)}
+              className="text-[11px] font-medium text-gray-500 hover:text-gray-700"
+            >
+              Clear
+            </button>
+          </div>
+          <MathText text={converted} className="text-sm text-gray-900" />
+        </div>
+      )}
+
       {showDraw ? (
         <div className="space-y-1.5">
           <DrawingPad
             value={drawing || undefined}
-            onChange={d => update(text, d)}
+            onChange={d => update(text, converted, d)}
             onInteract={onInteract}
           />
           {drawing && (
