@@ -2390,6 +2390,34 @@ function DayView({
   )
 }
 
+function computeRangesForDay(blocks: AvailabilityBlock[]): { start: string; end: string }[] {
+  const available = blocks
+    .filter(b => b.isAvailable)
+    .sort((a, b) => TIME_SLOTS.indexOf(a.startTime) - TIME_SLOTS.indexOf(b.startTime))
+
+  const ranges: { start: string; end: string }[] = []
+  let current: { start: string; end: string } | null = null
+
+  for (const block of available) {
+    if (!current) {
+      current = { start: block.startTime, end: block.endTime }
+    } else if (current.end === block.startTime) {
+      current.end = block.endTime
+    } else {
+      ranges.push(current)
+      current = { start: block.startTime, end: block.endTime }
+    }
+  }
+  if (current) ranges.push(current)
+  return ranges
+}
+
+function formatRanges(dayName: string, ranges: { start: string; end: string }[]): string {
+  if (ranges.length === 0) return `${dayName}: No slots selected`
+  const rangeStr = ranges.map(r => `${r.start}–${r.end}`).join(', ')
+  return `${dayName}: ${rangeStr}`
+}
+
 function AvailabilityView({ availability, onToggle, onSave }: any) {
   const days = [
     { label: 'Mon', full: 'Monday', index: 1 },
@@ -2401,12 +2429,26 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
     { label: 'Sun', full: 'Sunday', index: 0 },
   ]
   const [activeDay, setActiveDay] = useState(days[0].full)
+  const [showAllDays, setShowAllDays] = useState(false)
 
   const activeDayIndex = days.find(d => d.full === activeDay)?.index ?? 1
   const dayBlocks = availability.filter(
     (block: AvailabilityBlock) => block.dayOfWeek === activeDayIndex
   )
   const selectedCount = dayBlocks.filter((b: AvailabilityBlock) => b.isAvailable).length
+
+  const activeDayRanges = computeRangesForDay(dayBlocks)
+  const activeDaySummary = formatRanges(activeDay, activeDayRanges)
+
+  const allDaysSummary = days
+    .map(day => {
+      const blocks = availability.filter(
+        (block: AvailabilityBlock) => block.dayOfWeek === day.index
+      )
+      const ranges = computeRangesForDay(blocks)
+      return formatRanges(day.full, ranges)
+    })
+    .join('; ')
 
   return (
     <div className="flex h-full flex-col">
