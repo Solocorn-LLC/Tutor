@@ -762,7 +762,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [])
 
-    const centerColWidth = viewportWidth - leftPanelWidth - rightPanelWidth - 48
+    const centerColWidth =
+      viewportWidth -
+      (leftPanelHidden ? 0 : leftPanelWidth) -
+      (rightPanelHidden ? 0 : rightPanelWidth) -
+      96
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
     const [assetsOpen, setAssetsOpen] = useState(true)
