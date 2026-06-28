@@ -395,7 +395,10 @@ function SubmissionRow({
                         } else if (raw.startsWith('{')) {
                           try {
                             const o = JSON.parse(raw) as { text?: string; drawing?: string }
-                            if (o && (typeof o.text === 'string' || typeof o.drawing === 'string')) {
+                            if (
+                              o &&
+                              (typeof o.text === 'string' || typeof o.drawing === 'string')
+                            ) {
                               text = String(o.text ?? '')
                               drawing = String(o.drawing ?? '')
                             }
