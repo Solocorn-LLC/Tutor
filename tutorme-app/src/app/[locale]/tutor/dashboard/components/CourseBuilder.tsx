@@ -11290,7 +11290,7 @@ FEEDBACK: [your explanation]`
                                     const n = Math.max(1, Math.round(Number(e.target.value) || 1))
                                     applyDmiEdit(dmiEditor.source, item.id, { marks: n })
                                   }}
-                                  className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
+                                  className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
                                 />
                               </label>
                             </div>
@@ -11322,7 +11322,7 @@ FEEDBACK: [your explanation]`
                                     answer: e.target.value,
                                   })
                                 }
-                                className="min-h-[44px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm"
+                                className="min-h-[44px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
                               />
                             </div>
                             <div className="mt-2">
@@ -11341,7 +11341,7 @@ FEEDBACK: [your explanation]`
                                       .filter(Boolean),
                                   })
                                 }
-                                className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm"
+                                className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
                               />
                             </div>
                             {isOpenEnded && (
@@ -11358,7 +11358,7 @@ FEEDBACK: [your explanation]`
                                       rubric: e.target.value,
                                     })
                                   }
-                                  className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm"
+                                  className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
                                 />
                               </div>
                             )}
