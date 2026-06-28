@@ -9,14 +9,24 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 interface PDFViewerProps {
   fileUrl: string
+  /** GCS object key. When present, the file is fetched by key (server downloads
+   *  via the service account) — immune to signed-URL expiry, so documents
+   *  uploaded long ago still load even after their signed URL has expired. */
+  fileKey?: string
   className?: string
   defaultScale?: number
   hidePageNavigation?: boolean
   onHidePreview?: () => void
 }
 
-function getProxiedPdfUrl(fileUrl: string): string {
-  // Use the proxy for external URLs so the server can refresh expired GCS signatures
+function getProxiedPdfUrl(fileUrl: string, fileKey?: string): string {
+  // Prefer by-key: the server streams the object using the service account's
+  // read access, so an expired/unsignable URL on an old document no longer
+  // breaks loading. Only known upload prefixes are allowed by the proxy.
+  if (fileKey && /^(documents|assets|resources)\//.test(fileKey)) {
+    return `/api/proxy-file?key=${encodeURIComponent(fileKey)}`
+  }
+  // Otherwise use the proxy for external URLs so the server can refresh expired GCS signatures
   if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
     return `/api/proxy-file?url=${encodeURIComponent(fileUrl)}`
   }
@@ -25,6 +35,7 @@ function getProxiedPdfUrl(fileUrl: string): string {
 
 export function PDFViewer({
   fileUrl,
+  fileKey,
   className = '',
   defaultScale = 1.25,
   hidePageNavigation = false,
@@ -52,7 +63,7 @@ export function PDFViewer({
 
     const fetchPdf = async () => {
       try {
-        const proxiedUrl = getProxiedPdfUrl(fileUrl)
+        const proxiedUrl = getProxiedPdfUrl(fileUrl, fileKey)
         const res = await fetch(proxiedUrl)
         if (!res.ok) {
           let message = `Failed to fetch (${res.status})`
@@ -86,7 +97,7 @@ export function PDFViewer({
     return () => {
       cancelled = true
     }
-  }, [fileUrl, isBlobUrl])
+  }, [fileUrl, fileKey, isBlobUrl])
 
   // Always render every page in a continuous scroll view, regardless of length.
   const isScrollMode = numPages > 0
@@ -114,7 +125,7 @@ export function PDFViewer({
   if (useFallback) {
     return (
       <iframe
-        src={getProxiedPdfUrl(fileUrl)}
+        src={getProxiedPdfUrl(fileUrl, fileKey)}
         title="PDF Document"
         className={`h-full w-full border-0 ${className}`}
       />
