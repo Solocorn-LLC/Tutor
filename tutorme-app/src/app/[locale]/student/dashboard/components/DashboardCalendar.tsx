@@ -165,8 +165,13 @@ export function DashboardCalendar({
         }
       })
       .filter(cls => cls.status !== 'completed')
-    // Chronological: next session first
-    mapped.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    // Live sessions pinned to the top, then chronological (next session first).
+    mapped.sort((a, b) => {
+      const aLive = a.status === 'live' ? 0 : 1
+      const bLive = b.status === 'live' ? 0 : 1
+      if (aLive !== bLive) return aLive - bLive
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    })
     return mapped
   }, [events])
 
@@ -316,10 +321,13 @@ export function DashboardCalendar({
                         className={cn(
                           'text-[10px]',
                           cls.status === 'live'
-                            ? 'bg-emerald-100 text-emerald-700'
+                            ? 'animate-pulse gap-1 bg-emerald-100 text-emerald-700'
                             : 'bg-blue-100 text-blue-700'
                         )}
                       >
+                        {cls.status === 'live' && (
+                          <span className="inline-block h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
+                        )}
                         {cls.status === 'live' ? 'Live' : 'Scheduled'}
                       </Badge>
                     </div>
