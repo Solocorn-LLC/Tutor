@@ -309,6 +309,21 @@ export function DailyVideoFrame({
     return () => window.removeEventListener('tutorme:daily-video-leave', fn)
   }, [handleLeave])
 
+  // Closing the tab / navigating away doesn't hit the Leave button, so stop the
+  // cloud recording on pagehide too — otherwise it runs until the room expires.
+  useEffect(() => {
+    if (!isRecording) return
+    const stop = () => {
+      try {
+        stopRecording()
+      } catch (err) {
+        console.error('Failed to stop recording on page hide', err)
+      }
+    }
+    window.addEventListener('pagehide', stop)
+    return () => window.removeEventListener('pagehide', stop)
+  }, [isRecording, stopRecording])
+
   const canSendVideo = localParticipant?.permissions?.canSendVideo !== false
 
   if (!roomUrl) {
