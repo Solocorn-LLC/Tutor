@@ -6497,7 +6497,7 @@ FEEDBACK: [your explanation]`
           <div
             className="relative grid h-full w-full min-w-0 pb-6 pt-0"
             style={{
-              gridTemplateColumns: `${leftPanelHidden ? '0px' : leftPanelWidth}px minmax(0, ${centerColWidth}px) ${rightPanelHidden ? '0px' : rightPanelWidth}px`,
+              gridTemplateColumns: `${leftPanelHidden ? '0px' : leftPanelWidth}px ${centerColWidth}px ${rightPanelHidden ? '0px' : rightPanelWidth}px`,
               gap: '24px',
             }}
           >
@@ -8386,7 +8386,7 @@ FEEDBACK: [your explanation]`
 
             {!isStudentView && (
               <>
-                {/* Right panel toggle button */}
+                {/* Right panel toggle button - always rendered outside grid flow */}
                 <div
                   className="absolute top-1/2 z-50 flex h-16 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l-full border border-r-0 border-[#E5E7EB] bg-white shadow-[-2px_0_8px_rgba(0,0,0,0.08)] transition-all hover:w-10 hover:bg-slate-50"
                   style={{ right: rightPanelHidden ? 0 : rightPanelWidth - 16 }}
@@ -8400,7 +8400,7 @@ FEEDBACK: [your explanation]`
                   )}
                 </div>
 
-                {/* Right panel content */}
+                {/* Right panel content - grid child with consistent wrapper */}
                 {!rightPanelHidden && (
                   <div
                     className="relative z-40 flex min-h-0 shrink-0 flex-col"
@@ -8639,6 +8639,7 @@ FEEDBACK: [your explanation]`
                     ) : (
                       <SubmissionsPanel
                         courseId={courseId || ''}
+                        width={rightPanelWidth}
                         hidden={rightPanelHidden}
                         onToggleHidden={setRightPanelHidden}
                         liveSubmissions={insightsProps?.liveSubmissions}
@@ -8675,6 +8676,7 @@ FEEDBACK: [your explanation]`
                 )}
               </>
             )}
+
             {/* CENTER PANEL - Fixed width based on 3-panel layout */}
             <div className="flex min-h-0 flex-col items-center">
               <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch">
