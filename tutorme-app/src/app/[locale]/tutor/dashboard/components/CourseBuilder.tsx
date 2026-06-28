@@ -6497,7 +6497,7 @@ FEEDBACK: [your explanation]`
           <div
             className="relative grid h-full w-full min-w-0 pb-6 pt-0"
             style={{
-              gridTemplateColumns: `${leftPanelHidden ? '0px' : leftPanelWidth}px minmax(0, ${centerColWidth}px) ${rightPanelHidden ? '0px' : rightPanelWidth}px`,
+              gridTemplateColumns: `${leftPanelHidden ? '0px' : leftPanelWidth}px ${centerColWidth}px ${rightPanelHidden ? '0px' : rightPanelWidth}px`,
               gap: '24px',
             }}
           >
