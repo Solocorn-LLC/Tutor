@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DrawingPad } from '@/components/answer/DrawingPad'
-import { MathText, hasMath } from '@/components/answer/MathText'
 import {
   Select,
   SelectContent,
@@ -426,15 +425,8 @@ function WrittenAnswer({
         rows={multiline ? 4 : 2}
         className={`${multiline ? 'min-h-[96px]' : 'min-h-[56px]'} resize-y ${baseField}`}
       />
-      {/* Live math preview — render $…$ / $$…$$ LaTeX as the student types. */}
-      {hasMath(text) && (
-        <div className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-          <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-400">
-            Preview
-          </span>
-          <MathText text={text} className="text-sm text-gray-800" />
-        </div>
-      )}
+      {/* The answer box holds plain text only — math is rendered where the
+          answer is displayed (e.g. the tutor's grading view), not in the input. */}
       {showDraw ? (
         <div className="space-y-1.5">
           <DrawingPad
