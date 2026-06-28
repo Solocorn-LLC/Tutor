@@ -101,6 +101,12 @@ export interface DMIVersion {
   createdAt: number
   taskId?: string
   assessmentId?: string
+  /** Examining body (e.g. "AP", "IB") and subject for this assessment. Defaults
+   *  are derived from the course category; the tutor can override them, and a
+   *  later per-paper detector will populate them. Drives marking-scheme handling
+   *  that adapts to each board's standard. */
+  examBody?: string
+  subject?: string
 }
 
 export interface Task extends WithDifficultyVariants {

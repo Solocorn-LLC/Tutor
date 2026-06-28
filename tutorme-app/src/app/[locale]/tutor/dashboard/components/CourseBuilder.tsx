@@ -394,6 +394,72 @@ import { SubmissionsPanel } from './SubmissionsPanel'
 // don't re-render the same document on every chat turn.
 const pdfPageCache = new Map<string, string[]>()
 
+// Examining bodies the marking-scheme badge can show / the tutor can pick from.
+// "Other" lets a tutor label a board we don't list yet. The order matters for
+// detection: more specific labels (IGCSE before GCSE) must come first.
+const EXAM_BOARDS = [
+  'AP',
+  'IB',
+  'A-Level',
+  'AS-Level',
+  'IGCSE',
+  'GCSE',
+  'SAT',
+  'ACT',
+  'Cambridge',
+  'Edexcel',
+  'AQA',
+  'OCR',
+  'WJEC',
+  'Other',
+] as const
+
+// Map a course category label (e.g. "AP Calculus AB", "IB (International
+// Baccalaureate)", "Cambridge AS Mathematics") to a best-effort { examBody,
+// subject }. Used as the badge's default before a per-paper detector exists; the
+// tutor can always override.
+function deriveExamContext(
+  category?: string | null,
+  fallbackSubject?: string | null
+): { examBody?: string; subject?: string } {
+  const raw = String(category ?? '').trim()
+  // Ordered patterns: longest / most specific first.
+  const patterns: Array<[RegExp, string]> = [
+    [/international baccalaureate|\bIB\b/i, 'IB'],
+    [/advanced placement|\bAP\b/i, 'AP'],
+    [/\bIGCSE\b/i, 'IGCSE'],
+    [/\bGCSE\b/i, 'GCSE'],
+    [/\bAS[\s-]?Level/i, 'AS-Level'],
+    [/\bA[\s-]?Level/i, 'A-Level'],
+    [/cambridge/i, 'Cambridge'],
+    [/edexcel/i, 'Edexcel'],
+    [/\bAQA\b/i, 'AQA'],
+    [/\bOCR\b/i, 'OCR'],
+    [/\bWJEC\b/i, 'WJEC'],
+    [/\bSAT\b/i, 'SAT'],
+    [/\bACT\b/i, 'ACT'],
+  ]
+  let examBody: string | undefined
+  for (const [re, board] of patterns) {
+    if (re.test(raw)) {
+      examBody = board
+      break
+    }
+  }
+  // Subject = the category with the board name + parenthetical removed.
+  let subject = raw
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/advanced placement|international baccalaureate/i, ' ')
+    .replace(
+      /\b(AP|IB|IGCSE|GCSE|AS[\s-]?Level|A[\s-]?Level|Cambridge|Edexcel|AQA|OCR|WJEC|SAT|ACT)\b/gi,
+      ' '
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!subject) subject = String(fallbackSubject ?? '').trim()
+  return { examBody, subject: subject || undefined }
+}
+
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
     {
@@ -2850,6 +2916,28 @@ FEEDBACK: [your explanation]`
         setAssessmentDmiVersions(editVersions)
       }
     }
+
+    // Persist the examining-body / subject badge onto the active DMI version (it
+    // saves & reloads with the course). Only touches version metadata, never the
+    // questions.
+    const setExamContext = (
+      source: 'task' | 'assessment',
+      patch: { examBody?: string; subject?: string }
+    ) => {
+      const activeVersionId = testPciViewMode.startsWith('dmi_')
+        ? testPciViewMode.slice('dmi_'.length)
+        : null
+      const editVersions = (vs: DMIVersion[]) => {
+        if (vs.length === 0) return vs
+        const targetId = activeVersionId ?? vs[vs.length - 1].id
+        return vs.map(v => (v.id === targetId ? { ...v, ...patch } : v))
+      }
+      if (source === 'task') setTaskDmiVersions(editVersions)
+      else setAssessmentDmiVersions(editVersions)
+    }
+
+    // Whether the badge's inline board/subject editor is open.
+    const [editingExamContext, setEditingExamContext] = useState(false)
 
     // Read text from an uploaded marking scheme (PDF via pdfjs, or plain text).
     const extractMarkingSchemeText = async (file: File): Promise<string> => {
@@ -11235,6 +11323,20 @@ FEEDBACK: [your explanation]`
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
                 )
+                // Examining body + subject for the badge: the active DMI version's
+                // stored override if set, else a default derived from the course
+                // category. (A later per-paper detector will set the version value.)
+                const examVersions =
+                  dmiEditor.source === 'task' ? taskDmiVersions : assessmentDmiVersions
+                const activeExamVersionId = testPciViewMode.startsWith('dmi_')
+                  ? testPciViewMode.slice('dmi_'.length)
+                  : null
+                const activeExamVersion =
+                  examVersions.find(v => v.id === activeExamVersionId) ??
+                  examVersions[examVersions.length - 1]
+                const derivedExam = deriveExamContext(designatedFolder, courseName)
+                const examBody = activeExamVersion?.examBody ?? derivedExam.examBody ?? ''
+                const examSubject = activeExamVersion?.subject ?? derivedExam.subject ?? ''
                 return (
                   <>
                     <DialogHeader>
@@ -11244,6 +11346,50 @@ FEEDBACK: [your explanation]`
                         {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
                       </DialogDescription>
                     </DialogHeader>
+                    {/* Examining body + subject. Defaults come from the course
+                        category; the tutor can override (a later per-paper detector
+                        will set these). They drive board-specific marking. */}
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-900">
+                        <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
+                        {examBody || 'Set board'}
+                        <span className="text-indigo-300">·</span>
+                        {examSubject || 'Set subject'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingExamContext(v => !v)}
+                        className="ml-auto text-xs font-semibold text-indigo-700 hover:underline"
+                      >
+                        {editingExamContext ? 'Done' : 'Edit'}
+                      </button>
+                      {editingExamContext && (
+                        <div className="flex w-full flex-wrap items-center gap-2 pt-1">
+                          <select
+                            value={examBody}
+                            onChange={e =>
+                              setExamContext(dmiEditor.source, { examBody: e.target.value })
+                            }
+                            className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900"
+                          >
+                            <option value="">Board…</option>
+                            {EXAM_BOARDS.map(b => (
+                              <option key={b} value={b}>
+                                {b}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            value={examSubject}
+                            onChange={e =>
+                              setExamContext(dmiEditor.source, { subject: e.target.value })
+                            }
+                            placeholder="Subject (e.g. Calculus AB)"
+                            className="min-w-[140px] flex-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900"
+                          />
+                        </div>
+                      )}
+                    </div>
                     {/* Upload marking scheme: AI matches each question number to
                         its answer (capturing the scheme's acceptable variations). */}
                     <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
