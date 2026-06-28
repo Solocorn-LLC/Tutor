@@ -187,6 +187,17 @@ export function DrawingPad({ value, onChange, onInteract, className = '' }: Draw
           onPointerUp={handleUp}
           onPointerLeave={handleUp}
         />
+        {/* Faint horizontal ruled lines to guide handwriting. Purely a visual
+            overlay (pointer-events-none, drawn over the canvas) so it never
+            ends up in the exported PNG sent to OCR or shown to the tutor. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(15,23,42,0.08) 27px, rgba(15,23,42,0.08) 28px)',
+          }}
+        />
       </div>
       {/* Drag bar to make the pad taller/shorter. */}
       <div
