@@ -928,7 +928,7 @@ export default function TutorMyPage() {
 
   return (
     <div className="min-h-full bg-white text-[#1F2933]">
-      <div className="w-full space-y-4 px-6 pt-2 lg:pt-0">
+      <div className="w-full space-y-6 px-6 pt-2 lg:pt-0">
         <section className={headerCardClass}>
           <div className={headerInnerClass}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1046,7 +1046,7 @@ export default function TutorMyPage() {
           </div>
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
+        <div className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}>
             <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
               <User className="h-5 w-5" />
