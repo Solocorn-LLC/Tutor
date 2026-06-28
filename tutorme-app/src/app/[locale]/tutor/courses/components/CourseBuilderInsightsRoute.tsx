@@ -1040,7 +1040,13 @@ function CourseBuilderInsightsRouteInner({
                   {endingSession ? 'Ending…' : 'End Session'}
                 </button>
               )}
-              <WifiSignal connected={!!insightsProps.sessionId} error={!insightsProps.sessionId} />
+              {/* Reflect the real socket connection: emerald when connected,
+                  red when a session is live but the socket has dropped, amber
+                  when idle (no active session). */}
+              <WifiSignal
+                connected={!!insightsProps.isConnected}
+                error={!!insightsProps.sessionId && !insightsProps.isConnected}
+              />
             </div>
           </div>
         </div>
@@ -1168,8 +1174,8 @@ function CourseBuilderInsightsRouteInner({
             hasUnsyncedChanges={hasUnsyncedChanges}
             onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
             endingSession={endingSession}
-            isConnected={!!insightsProps.sessionId}
-            connectionError={false}
+            isConnected={!!insightsProps.isConnected}
+            connectionError={!!insightsProps.sessionId && !insightsProps.isConnected}
           />
         )}
       </div>

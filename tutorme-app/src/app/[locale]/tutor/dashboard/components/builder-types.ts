@@ -339,6 +339,9 @@ export interface CourseBuilderInsightsProps {
   onEndSession?: () => void
   endingSession?: boolean
   socket?: any
+  /** Live socket connection state, so the classroom WiFi indicator reflects the
+   *  real connection instead of merely whether a session exists. */
+  isConnected?: boolean
   tutorId?: string
   tutorName?: string
   studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
