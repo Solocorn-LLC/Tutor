@@ -189,6 +189,8 @@ jobs:
             --memory=1Gi
             --min-instances=0
             --max-instances=10
+            --no-cpu-throttling
+            --session-affinity
           # Cloud Run env vars (comma-separated to avoid gcloud multiline parsing issues).
           # VAPID_PUBLIC_KEY is public (served to browsers) so it's a literal here;
           # VAPID_SUBJECT is optional (web-push.ts falls back to a default mailto).

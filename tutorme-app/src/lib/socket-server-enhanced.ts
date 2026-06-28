@@ -569,9 +569,22 @@ export async function initEnhancedSocketServer(server: NetServer) {
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    // Keep connections alive through proxies and cloud load balancers
-    pingInterval: 10000,
-    pingTimeout: 15000,
+    // Keep connections alive through proxies and cloud load balancers.
+    // The old 10s/15s was too aggressive for Cloud Run: when an instance is idle
+    // its CPU is throttled, so the engine.io ping timers stall and a pong can
+    // arrive "late" even though the client is perfectly online — the server then
+    // wrongly declares the socket dead and nothing transmits afterward. A longer
+    // pingTimeout tolerates those throttle stalls (and brief network blips)
+    // without dropping an otherwise-healthy live session.
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    // Recover a briefly-dropped session transparently: on reconnect within the
+    // window the socket keeps its rooms and receives the events it missed during
+    // the gap, instead of coming back as a fresh, empty connection.
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: false,
+    },
     transports: ['websocket', 'polling'],
     // Default is 1MB. Student answers can now carry drawing/handwriting images
     // (base64 PNGs), so a task:complete payload can exceed 1MB — beyond which
