@@ -385,8 +385,10 @@ function WrittenAnswer({
   }
 
   // Convert the handwriting → text/LaTeX and put it in the PREVIEW (the
-  // `converted` field). The keyboard text box is never touched. A re-convert
-  // only adds NEW strokes (the model is told what's already converted).
+  // `converted` field). The keyboard text box is never touched. Convert always
+  // transcribes the WHOLE current drawing and REPLACES the preview, so erasing
+  // part of the handwriting and re-converting shrinks the result instead of
+  // duplicating it (an incremental append could never un-say erased strokes).
   const convertHandwriting = async () => {
     if (!drawing || converting) return
     setConverting(true)
@@ -395,7 +397,7 @@ function WrittenAnswer({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ image: drawing, previousText: converted || undefined }),
+        body: JSON.stringify({ image: drawing }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -404,10 +406,10 @@ function WrittenAnswer({
       }
       const newText = String(data?.text ?? '').trim()
       if (!newText) {
-        toast.info('No new handwriting to convert.')
+        toast.info('No handwriting to convert.')
         return
       }
-      update(text, converted ? `${converted}\n${newText}` : newText, drawing)
+      update(text, newText, drawing)
       toast.success('Handwriting converted — see the preview below.')
     } catch {
       toast.error('Failed to convert handwriting')

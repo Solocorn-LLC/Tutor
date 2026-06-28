@@ -45,17 +45,18 @@ export const GET = withAuth(async (req, session, context) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  if (!sessionRow.courseId) {
-    return NextResponse.json({ error: 'Session is missing courseId' }, { status: 400 })
-  }
+  // A session normally carries a courseId, but ad-hoc sessions (and rooms whose
+  // in-memory courseId drifted from the DB row) may not. Don't hard-fail —
+  // submissions are anchored to the session, so we can still surface them.
+  const courseId = sessionRow.courseId || ''
 
-  const courseId = sessionRow.courseId
-
-  const [courseRow] = await drizzleDb
-    .select({ id: course.courseId, name: course.name })
-    .from(course)
-    .where(eq(course.courseId, courseId))
-    .limit(1)
+  const [courseRow] = courseId
+    ? await drizzleDb
+        .select({ id: course.courseId, name: course.name })
+        .from(course)
+        .where(eq(course.courseId, courseId))
+        .limit(1)
+    : []
 
   const participants = await drizzleDb
     .select({
@@ -66,15 +67,22 @@ export const GET = withAuth(async (req, session, context) => {
     .leftJoin(profile, eq(sessionParticipant.studentId, profile.userId))
     .where(eq(sessionParticipant.sessionId, sessionId))
 
-  const enrolled = await drizzleDb
-    .select({
-      studentId: courseEnrollment.studentId,
-      studentName: profile.name,
-    })
-    .from(courseEnrollment)
-    .leftJoin(profile, eq(courseEnrollment.studentId, profile.userId))
-    .where(eq(courseEnrollment.courseId, courseId))
+  const enrolled = courseId
+    ? await drizzleDb
+        .select({
+          studentId: courseEnrollment.studentId,
+          studentName: profile.name,
+        })
+        .from(courseEnrollment)
+        .leftJoin(profile, eq(courseEnrollment.studentId, profile.userId))
+        .where(eq(courseEnrollment.courseId, courseId))
+    : []
 
+  // Anchor deployed materials to the SESSION only — not also to the session's
+  // courseId. A submission persisted under a slightly different course anchor
+  // (e.g. the live room's in-memory courseId differing from liveSession.courseId)
+  // would otherwise be filtered out here even though it belongs to this session,
+  // making completed work invisible in the submissions panel.
   const deployed = await drizzleDb
     .select({
       id: deployedMaterial.id,
@@ -87,7 +95,7 @@ export const GET = withAuth(async (req, session, context) => {
       deployedAt: deployedMaterial.deployedAt,
     })
     .from(deployedMaterial)
-    .where(and(eq(deployedMaterial.sessionId, sessionId), eq(deployedMaterial.courseId, courseId)))
+    .where(eq(deployedMaterial.sessionId, sessionId))
     .orderBy(asc(deployedMaterial.deployedAt))
 
   const itemIds = Array.from(
