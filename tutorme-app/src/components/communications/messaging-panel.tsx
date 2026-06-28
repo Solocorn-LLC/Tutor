@@ -44,7 +44,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   return (
     <div className="flex h-full w-full overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
       {/* Left menu rail */}
-      <div className="flex w-20 flex-col items-center gap-2 border-r border-gray-200 py-4">
+      <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-4">
         {topItems.map(item => {
           const Icon = item.icon
           const active = activeSection === item.id
@@ -102,14 +102,39 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
       </div>
 
       {/* Detail / chat area */}
-      <div className="scrollbar-hide flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-slate-50/30 p-6 text-center">
-        <Inbox className="mb-3 h-16 w-16 text-slate-300" />
-        <p className="text-lg font-bold text-slate-700">
-          Select a {activeSection === 'settings' ? 'setting' : activeSection.slice(0, -1)}
-        </p>
-        <p className="mt-1 text-sm text-slate-500">
-          Choose an item from the {activeSection} list to view details
-        </p>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/30">
+        {/* Chat header */}
+        <div className="flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+          Chat
+        </div>
+
+        {/* Chat viewport */}
+        <div className="scrollbar-hide flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center">
+          <Inbox className="mb-3 h-16 w-16 text-slate-300" />
+          <p className="text-lg font-bold text-slate-700">
+            Select a {activeSection === 'settings' ? 'setting' : activeSection.slice(0, -1)}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Choose an item from the {activeSection} list to view details
+          </p>
+        </div>
+
+        {/* Message input */}
+        <div className="shrink-0 border-t border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <textarea
+              placeholder="Type a message..."
+              className="min-h-[40px] flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={1}
+            />
+            <button
+              type="button"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Send
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
