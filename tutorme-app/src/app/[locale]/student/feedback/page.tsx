@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { DrawingPad } from '@/components/answer/DrawingPad'
 import {
   Select,
   SelectContent,
@@ -315,6 +316,78 @@ function ClassroomControlsPanel({
  * drag_drop/hotspot store JSON). hotspot falls back to free-text when its item
  * has no image; long answer is always free-text.
  */
+/**
+ * A free-response answer the student can either TYPE or DRAW (pen/mouse/finger) —
+ * crucial for maths and other work that doesn't fit a keyboard. A drawn answer is
+ * stored as a PNG data URL; a typed answer as plain text. The mode is inferred
+ * from the current value so it survives re-renders.
+ */
+function WrittenAnswer({
+  value,
+  onValueChange,
+  onInteract,
+  multiline,
+  placeholder,
+  baseField,
+}: {
+  value: string
+  onValueChange: (next: string) => void
+  onInteract: () => void
+  multiline: boolean
+  placeholder: string
+  baseField: string
+}) {
+  const isDrawn = typeof value === 'string' && value.startsWith('data:image')
+  const [mode, setMode] = useState<'type' | 'draw'>(isDrawn ? 'draw' : 'type')
+  // Don't show a data-URL blob as text when typing; keep typed text out of draw.
+  const textValue = isDrawn ? '' : value
+  const tabBtn = (active: boolean) =>
+    cn(
+      'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+      active ? 'bg-[#F17623] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    )
+  return (
+    <div>
+      <div className="mb-1.5 inline-flex gap-1 rounded-lg bg-gray-50 p-0.5">
+        <button type="button" className={tabBtn(mode === 'type')} onClick={() => setMode('type')}>
+          Type
+        </button>
+        <button type="button" className={tabBtn(mode === 'draw')} onClick={() => setMode('draw')}>
+          Draw
+        </button>
+      </div>
+      {mode === 'type' ? (
+        multiline ? (
+          <textarea
+            value={textValue}
+            onFocus={onInteract}
+            onChange={e => {
+              onInteract()
+              onValueChange(e.target.value)
+            }}
+            placeholder={placeholder}
+            className={`min-h-[64px] resize-y ${baseField}`}
+          />
+        ) : (
+          <input
+            type="text"
+            value={textValue}
+            onFocus={onInteract}
+            onChange={e => {
+              onInteract()
+              onValueChange(e.target.value)
+            }}
+            placeholder={placeholder}
+            className={baseField}
+          />
+        )
+      ) : (
+        <DrawingPad value={isDrawn ? value : undefined} onChange={onValueChange} onInteract={onInteract} />
+      )}
+    </div>
+  )
+}
+
 function DmiAnswerField({
   item,
   value,
@@ -425,7 +498,22 @@ function DmiAnswerField({
 
   // Short answer & fill-in-the-blank — single-line input. Choice types with no
   // options provided fall back here so the student is never stuck.
-  if (type === 'short' || type === 'fill_blank' || type === 'mcq' || type === 'multiple_response') {
+  // Short / fill-in answers — type OR draw (maths working, symbols, diagrams).
+  if (type === 'short' || type === 'fill_blank') {
+    return (
+      <WrittenAnswer
+        value={value}
+        onValueChange={onValueChange}
+        onInteract={onInteract}
+        multiline={false}
+        placeholder={type === 'fill_blank' ? 'Fill in the blank…' : 'Type your answer…'}
+        baseField={baseField}
+      />
+    )
+  }
+
+  // mcq / multiple_response that arrived without options → plain text input.
+  if (type === 'mcq' || type === 'multiple_response') {
     return (
       <input
         type="text"
@@ -435,7 +523,7 @@ function DmiAnswerField({
           onInteract()
           onValueChange(e.target.value)
         }}
-        placeholder={type === 'fill_blank' ? 'Fill in the blank…' : 'Type your answer…'}
+        placeholder="Type your answer…"
         className={baseField}
       />
     )
@@ -697,17 +785,15 @@ function DmiAnswerField({
   }
 
   // Long answer + hotspot (still needs image+regions) and any interactive type
-  // that arrives without its data → free-text.
+  // that arrives without its data → free-response (type OR draw).
   return (
-    <textarea
+    <WrittenAnswer
       value={value}
-      onFocus={onInteract}
-      onChange={e => {
-        onInteract()
-        onValueChange(e.target.value)
-      }}
+      onValueChange={onValueChange}
+      onInteract={onInteract}
+      multiline
       placeholder="Type your answer…"
-      className={`min-h-[64px] resize-y ${baseField}`}
+      baseField={baseField}
     />
   )
 }

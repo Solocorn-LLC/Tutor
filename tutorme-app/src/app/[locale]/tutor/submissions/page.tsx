@@ -381,10 +381,22 @@ function SubmissionRow({
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-gray-800">
-                        <span className="text-gray-400">Answer: </span>
-                        {typeof ans === 'string' ? ans : JSON.stringify(ans)}
-                      </p>
+                      {typeof ans === 'string' && ans.startsWith('data:image') ? (
+                        <div className="mt-1">
+                          <span className="text-xs text-gray-400">Answer (drawn):</span>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={ans}
+                            alt="Student's drawn answer"
+                            className="mt-1 max-h-64 w-full rounded-md border border-gray-200 bg-white object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-gray-800">
+                          <span className="text-gray-400">Answer: </span>
+                          {typeof ans === 'string' ? ans : JSON.stringify(ans)}
+                        </p>
+                      )}
                       {meta?.modelAnswer && (
                         <p className="mt-1 rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
                           <span className="font-semibold">Model answer:</span> {meta.modelAnswer}

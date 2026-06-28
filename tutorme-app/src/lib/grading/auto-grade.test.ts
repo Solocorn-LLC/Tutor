@@ -74,6 +74,16 @@ describe('autoGradeDmi', () => {
     expect(r.needsReview).toBe(0)
   })
 
+  it('flags a drawn (image) answer for review instead of marking it wrong', () => {
+    // A short-key item answered with a drawing (PNG data URL) can't be matched.
+    const r = autoGradeDmi([{ id: 'q1', answer: 'Paris' }], {
+      q1: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==',
+    })
+    expect(r.needsReview).toBe(1)
+    const q1 = r.questionResults?.find(x => x.questionId === 'q1')
+    expect(q1).toMatchObject({ correct: false, pointsMax: 0, needsReview: true })
+  })
+
   it('scores short items and excludes open-ended ones from the same task', () => {
     const mixed = [
       { id: 'q1', answer: 'Paris' }, // short, correct
