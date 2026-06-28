@@ -6499,9 +6499,8 @@ FEEDBACK: [your explanation]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-6 pt-0"
         >
           <div
-            className="relative grid h-full w-full min-w-0 pb-6 pt-0"
+            className="relative flex h-full w-full pb-6 pt-0"
             style={{
-              gridTemplateColumns: `${leftPanelHidden ? '0px' : leftPanelWidth}px ${centerColWidth}px ${rightPanelHidden ? '0px' : rightPanelWidth}px`,
               gap: '24px',
             }}
           >
@@ -6524,7 +6523,7 @@ FEEDBACK: [your explanation]`
               <div
                 className="relative z-40 flex min-h-0 shrink-0 flex-col"
                 ref={leftPanelRef}
-                style={{ width: leftPanelWidth }}
+                style={{ width: leftPanelWidth, flexShrink: 0 }}
               >
                 <div className="flex h-full min-h-0 flex-col">
                   <Card
@@ -8408,7 +8407,7 @@ FEEDBACK: [your explanation]`
                 {!rightPanelHidden && (
                   <div
                     className="relative z-40 flex min-h-0 shrink-0 flex-col"
-                    style={{ width: rightPanelWidth }}
+                    style={{ width: rightPanelWidth, flexShrink: 0 }}
                   >
                     {mainTab === 'live' && liveRightPanelTab === 'insights' ? (
                       <div className="flex h-full min-h-0 flex-col">
