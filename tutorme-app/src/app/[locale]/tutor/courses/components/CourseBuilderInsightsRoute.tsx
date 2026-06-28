@@ -1020,6 +1020,26 @@ function CourseBuilderInsightsRouteInner({
                   Editing
                 </div>
               )}
+              {/* End Session lives in the floating Controls palette too, but that
+                  palette is easy to collapse or drag aside — so surface a always-
+                  visible copy here in the header whenever a session is active, so
+                  the tutor can reliably end the class. */}
+              {insightsProps.sessionId && (
+                <button
+                  type="button"
+                  onClick={handleEndSession}
+                  disabled={endingSession}
+                  className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="End the live session"
+                >
+                  {endingSession ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PhoneOff className="h-4 w-4" />
+                  )}
+                  {endingSession ? 'Ending…' : 'End Session'}
+                </button>
+              )}
               <WifiSignal connected={!!insightsProps.sessionId} error={!insightsProps.sessionId} />
             </div>
           </div>

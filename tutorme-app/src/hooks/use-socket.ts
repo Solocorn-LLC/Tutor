@@ -39,6 +39,7 @@ export function useSocket(options?: UseSocketOptions) {
   useEffect(() => {
     let socket: Socket
     let connectionTimeout: NodeJS.Timeout | null = null
+    let keepAlive: ReturnType<typeof setInterval> | null = null
     let cancelled = false
 
     const connect = async () => {
@@ -93,11 +94,28 @@ export function useSocket(options?: UseSocketOptions) {
             tutorId: options.tutorId,
           })
         }
+
+        // Heartbeat: emit a lightweight activity ping on an interval so a quiet
+        // session keeps generating app-level traffic. This keeps the server's
+        // room from being reaped as "inactive", nudges Cloud Run to keep the
+        // instance's CPU allocated (so engine.io's own ping/pong timers don't
+        // stall), and keeps proxies from idle-closing the connection — the three
+        // ways an idle-but-online live session was silently dropping before.
+        if (keepAlive) clearInterval(keepAlive)
+        if (options?.roomId) {
+          keepAlive = setInterval(() => {
+            if (socket.connected) socket.emit('activity_ping', { roomId: options.roomId })
+          }, 20000)
+        }
       })
 
       socket.on('disconnect', () => {
         console.log('Socket disconnected')
         setIsConnected(false)
+        if (keepAlive) {
+          clearInterval(keepAlive)
+          keepAlive = null
+        }
       })
 
       socket.on('connect_error', err => {
@@ -161,6 +179,7 @@ export function useSocket(options?: UseSocketOptions) {
     return () => {
       cancelled = true
       if (connectionTimeout) clearTimeout(connectionTimeout)
+      if (keepAlive) clearInterval(keepAlive)
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
