@@ -751,22 +751,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [rightPanelHidden, setRightPanelHidden] = useState(false)
     const [rightPanelWidth] = useState(380)
     const [leftPanelWidth, setLeftPanelWidth] = useState(340)
-    const [viewportWidth, setViewportWidth] = useState(1920)
-
-    useEffect(() => {
-      const handleResize = () => setViewportWidth(window.innerWidth)
-      if (typeof window !== 'undefined') {
-        setViewportWidth(window.innerWidth)
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
-      }
-    }, [])
-
-    const centerColWidth =
-      viewportWidth -
-      (leftPanelHidden ? 0 : leftPanelWidth) -
-      (rightPanelHidden ? 0 : rightPanelWidth) -
-      96
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
     const [assetsOpen, setAssetsOpen] = useState(true)
@@ -8642,8 +8626,6 @@ FEEDBACK: [your explanation]`
                     ) : (
                       <SubmissionsPanel
                         courseId={courseId || ''}
-                        width={rightPanelWidth}
-                        hidden={rightPanelHidden}
                         onToggleHidden={setRightPanelHidden}
                         liveSubmissions={insightsProps?.liveSubmissions}
                         headerExtra={
@@ -8681,7 +8663,7 @@ FEEDBACK: [your explanation]`
             )}
 
             {/* CENTER PANEL - Fixed width based on 3-panel layout */}
-            <div className="flex min-h-0 flex-col items-center">
+            <div className="flex min-h-0 flex-1 flex-col items-center">
               <div className="flex h-full min-h-0 w-full flex-1 grow flex-col items-stretch">
                 {mainTab !== 'builder' && (
                   <Card
