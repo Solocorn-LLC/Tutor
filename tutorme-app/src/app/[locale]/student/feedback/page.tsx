@@ -2126,12 +2126,26 @@ function StudentFeedbackContent() {
                         },
                         {} as Record<string, string>
                       )
-                      socket.emit('task:complete', {
-                        roomId: selectedSessionId,
-                        taskId: activeTaskId,
-                        answers,
-                      })
-                      toast.success('Task submitted')
+                      // Wait for the server's acknowledgement so we report a
+                      // TRUE result. If the payload is dropped (e.g. too large
+                      // with drawings) the ack never arrives → show a real error
+                      // instead of a false "submitted".
+                      socket
+                        .timeout(20000)
+                        .emit(
+                          'task:complete',
+                          { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                          (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                            if (err || !resp?.ok) {
+                              toast.error(
+                                resp?.error ||
+                                  'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                              )
+                              return
+                            }
+                            toast.success('Task submitted')
+                          }
+                        )
                     }}
                   >
                     Task Complete

@@ -573,6 +573,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
     pingInterval: 10000,
     pingTimeout: 15000,
     transports: ['websocket', 'polling'],
+    // Default is 1MB. Student answers can now carry drawing/handwriting images
+    // (base64 PNGs), so a task:complete payload can exceed 1MB — beyond which
+    // Socket.io silently drops the message and the submission never reaches the
+    // tutor. Raise the limit so submissions with drawings get through.
+    maxHttpBufferSize: 25 * 1024 * 1024,
   })
 
   ioRef = io
@@ -1465,23 +1470,36 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // Student marks a task as complete
     socket.on(
       'task:complete',
-      (data: { roomId: string; taskId: string; answers?: Record<string, string> }) => {
+      (
+        data: { roomId: string; taskId: string; answers?: Record<string, string> },
+        ack?: (resp: { ok: boolean; error?: string }) => void
+      ) => {
         const { roomId, taskId, answers } = data
-        if (!roomId || !taskId) return
+        if (!roomId || !taskId) {
+          ack?.({ ok: false, error: 'Invalid submission' })
+          return
+        }
         const room = activeRooms.get(roomId)
-        if (!room) return
+        if (!room) {
+          ack?.({ ok: false, error: 'This session is not active. Rejoin and try again.' })
+          return
+        }
         const studentId = socket.data.userId
         if (!studentId || !room.students.has(studentId)) {
+          ack?.({ ok: false, error: 'Not enrolled in this session' })
           socket.emit('task:complete:error', { error: 'Not enrolled in this session' })
           return
         }
         const task = room.tasks.find(t => t.id === taskId)
         if (!task) {
+          ack?.({ ok: false, error: 'Task not found' })
           socket.emit('task:complete:error', { error: 'Task not found' })
           return
         }
         const completed = new Set(task.completedBy || [])
         if (completed.has(studentId)) {
+          // Already submitted is not a delivery failure.
+          ack?.({ ok: true })
           socket.emit('task:complete:error', { error: 'Already marked complete' })
           return
         }
@@ -1505,6 +1523,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
           answers: answers ?? {},
         })
         io.to(roomId).emit('task:updated', { task })
+
+        // The server received and accepted the submission — confirm to the
+        // student. (DB persistence below is best-effort and self-healing.) If
+        // the payload had been dropped — e.g. too large — no ack would arrive
+        // and the client would surface a real error instead of a false success.
+        ack?.({ ok: true })
 
         // Persist the completion durably so it reaches the tutor's grading
         // views. There are THREE tutor readers with DIFFERENT requirements:
