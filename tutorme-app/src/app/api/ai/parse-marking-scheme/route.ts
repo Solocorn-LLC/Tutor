@@ -184,7 +184,9 @@ export async function POST(request: NextRequest) {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
         maxTokens: 4096,
-        timeoutMs: 60000,
+        // Reading several scanned scheme pages with the vision model is slow; the
+        // old 60s cap aborted mid-read on bigger papers. Cloud Run allows 300s.
+        timeoutMs: 150000,
       })
     } else {
       const prompt = `Question references to match (copy the leading #REF exactly into "ref"):\n${questionList}\n\nMarking scheme:\n${content}`
@@ -192,7 +194,7 @@ export async function POST(request: NextRequest) {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
         maxTokens: 4096,
-        timeoutMs: 60000,
+        timeoutMs: 120000,
       })
     }
 
@@ -228,6 +230,19 @@ export async function POST(request: NextRequest) {
       guardrailWarnings: guardrail.violations,
     })
   } catch (error) {
+    // A timeout aborts the AI fetch with an AbortError — surface a clear,
+    // actionable message (the generic "Failed to parse" hid that it timed out).
+    const name = (error as { name?: string } | null)?.name
+    const isTimeout = name === 'AbortError' || name === 'TimeoutError'
+    if (isTimeout) {
+      return NextResponse.json(
+        {
+          error:
+            'The marking scheme took too long to read. Try a smaller or clearer file (e.g. fewer pages, or a text/PDF with selectable text).',
+        },
+        { status: 504 }
+      )
+    }
     return handleApiError(
       error,
       'Failed to parse marking scheme',
