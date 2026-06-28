@@ -96,8 +96,11 @@ Rules:
   marks (M1/A1), per-criterion points, partial-credit rules, "allow / accept / do not accept / condone"
   notes, OR holistic band descriptors (what makes a response Essentially correct vs Partially correct vs
   Incorrect). Keep it concise but do not drop award rules.
-- Only include a reference whose answer you can actually find in the scheme. OMIT the rest. NEVER invent an
-  answer, variant, mark value, or award rule that is not in the marking scheme.`
+- Include EVERY question / part whose answer you can actually find in the scheme: the references listed
+  above AND any ADDITIONAL numbered questions or sub-parts present in the scheme that are NOT in that list
+  (e.g. the list has 3(a),3(b) but the scheme also marks 3(c)). For each, use its OWN reference as "ref".
+  This lets the tutor add the missing questions. NEVER invent an answer, variant, mark value, award rule,
+  or a question that is not actually in the marking scheme.`
 
 const SYSTEM_PROMPT = `${guardrailSystemPrompt('assessment')}\n\n${TASK_PROMPT}`
 
@@ -107,6 +110,9 @@ interface SchemeMatch {
   variants?: string[]
   marks?: number
   rubric?: string
+  /** True when this reference is NOT among the DMI's questions — a candidate new
+   *  row the tutor can add. */
+  extra?: boolean
 }
 
 // Normalize a reference so "1(a)" and "1a" compare equal.
@@ -115,6 +121,16 @@ function refKey(v: unknown): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
 }
+
+// A model-supplied extra ref must look like a real question reference (leading
+// digit, short) — guards against the model emitting prose/noise as a "question".
+function isPlausibleRef(s: string): boolean {
+  return /^\d/.test(s) && s.length <= 12
+}
+
+// Cap how many brand-new questions one scheme can introduce, so a noisy parse
+// can't flood the DMI.
+const MAX_EXTRA_QUESTIONS = 60
 
 function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[] {
   try {
@@ -135,12 +151,21 @@ function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[
     if (!Array.isArray(obj.matches)) return []
     const out: SchemeMatch[] = []
     const seen = new Set<string>()
+    let extraCount = 0
     for (const m of obj.matches) {
       // Accept `ref`; tolerate a model that still emits `number`.
-      const key = refKey(m?.ref ?? m?.number)
-      const canonical = validRefs.get(key)
+      const rawRef = String(m?.ref ?? m?.number ?? '').trim()
+      const key = refKey(rawRef)
       const answer = String(m?.answer ?? '').trim()
-      if (!canonical || seen.has(key) || !answer) continue
+      if (!key || seen.has(key) || !answer) continue
+      // Known reference → echo the DMI's canonical form. Unknown → an extra row,
+      // but only if it looks like a genuine question reference.
+      const canonical = validRefs.get(key)
+      const isExtra = !canonical
+      if (isExtra) {
+        if (!isPlausibleRef(rawRef) || extraCount >= MAX_EXTRA_QUESTIONS) continue
+        extraCount += 1
+      }
       seen.add(key)
       const rubric = String(m?.rubric ?? '').trim()
       // De-duplicate variants and drop any that just echo the canonical answer.
@@ -156,11 +181,12 @@ function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[
       const marksNum = Number(m?.marks)
       const marks = Number.isFinite(marksNum) && marksNum > 0 ? marksNum : undefined
       out.push({
-        ref: canonical,
+        ref: canonical ?? rawRef,
         answer,
         variants: variants.length > 0 ? variants : undefined,
         marks,
         rubric: rubric || undefined,
+        ...(isExtra ? { extra: true } : {}),
       })
     }
     return out
