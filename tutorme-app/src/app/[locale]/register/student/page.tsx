@@ -86,6 +86,8 @@ export default function StudentRegistrationPage() {
     isSixteen: false,
     tosAccepted: false,
     avatarUrl: '',
+    parentEmail: '',
+    confirmParentEmail: '',
   })
 
   const [region, countryCode] = [formData.region, formData.countryCode]
@@ -141,6 +143,18 @@ export default function StudentRegistrationPage() {
         toast.error('Please confirm if you are 16 years of age or older')
         return false
       }
+      if (!formData.parentEmail) {
+        toast.error('Please enter your parent or guardian email')
+        return false
+      }
+      if (!formData.confirmParentEmail) {
+        toast.error('Please confirm your parent or guardian email')
+        return false
+      }
+      if (formData.parentEmail !== formData.confirmParentEmail) {
+        toast.error('Parent or guardian emails do not match')
+        return false
+      }
     }
     if (step === 3) {
       if (!formData.age) {
@@ -186,6 +200,7 @@ export default function StudentRegistrationPage() {
             country: selectedCountryName,
             isSixteen: formData.isSixteen,
             middleName: formData.middleName,
+            parentEmail: formData.parentEmail,
             ...(formData.avatarUrl ? { avatarUrl: formData.avatarUrl } : {}),
           },
         }),
@@ -210,7 +225,7 @@ export default function StudentRegistrationPage() {
     formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword
 
   const inputClassName =
-    'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#F97316]/40'
+    'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0'
 
   const primaryBtnClass =
     'flex-1 bg-white text-sm font-semibold text-[#1F2933] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-all duration-200 hover:bg-[#2563EB] hover:text-white hover:shadow-[0_6px_20px_rgba(0,0,0,0.2)] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 active:scale-[0.98]'
@@ -438,6 +453,36 @@ export default function StudentRegistrationPage() {
                       I am 16 years of age or older
                     </Label>
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="parentEmail" className="text-xs text-white/70">
+                    Parent or Guardian Email
+                  </Label>
+                  <Input
+                    id="parentEmail"
+                    type="email"
+                    autoComplete="off"
+                    value={formData.parentEmail}
+                    onChange={e => setFormData({ ...formData, parentEmail: e.target.value })}
+                    placeholder="parent@example.com"
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="confirmParentEmail" className="text-xs text-white/70">
+                    Confirm Parent or Guardian Email
+                  </Label>
+                  <Input
+                    id="confirmParentEmail"
+                    type="email"
+                    autoComplete="off"
+                    value={formData.confirmParentEmail}
+                    onChange={e => setFormData({ ...formData, confirmParentEmail: e.target.value })}
+                    placeholder="parent@example.com"
+                    className={inputClassName}
+                  />
                 </div>
 
                 <div className="flex gap-3">
