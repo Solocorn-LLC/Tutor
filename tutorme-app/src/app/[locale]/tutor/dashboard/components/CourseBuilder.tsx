@@ -1104,6 +1104,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // answer/rubric by matching question numbers.
     const [markingSchemeLoading, setMarkingSchemeLoading] = useState(false)
     const markingSchemeInputRef = useRef<HTMLInputElement | null>(null)
+    // IDs of rows just appended from a marking scheme, briefly highlighted so the
+    // tutor can spot the new questions among the existing ones.
+    const [recentlyAddedRowIds, setRecentlyAddedRowIds] = useState<Set<string>>(new Set())
+    const dmiRowsRef = useRef<HTMLDivElement | null>(null)
     // Tutor's answer-reveal policy applied to deploys: when students may see the
     // correct answers. Default 'instant' preserves the existing live-feedback
     // behaviour; the tutor can switch to reveal-after-submit or hidden.
@@ -3277,6 +3281,18 @@ FEEDBACK: [one or two short sentences explaining the score]`
         } else {
           setAssessmentDmiItems(patchedItems)
           setAssessmentDmiVersions(patchVersions)
+        }
+        // Highlight + scroll to the freshly-appended rows so they're easy to find.
+        if (newRows.length > 0) {
+          const ids = new Set(newRows.map(r => r.id))
+          setRecentlyAddedRowIds(ids)
+          setTimeout(() => {
+            dmiRowsRef.current?.scrollTo({
+              top: dmiRowsRef.current.scrollHeight,
+              behavior: 'smooth',
+            })
+          }, 120)
+          setTimeout(() => setRecentlyAddedRowIds(new Set()), 6000)
         }
         const addedNote =
           newRows.length > 0
@@ -11537,7 +11553,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                         Re-detect question numbers
                       </button>
                     </div>
-                    <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                    <div ref={dmiRowsRef} className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
                       {editItems.map(item => {
                         const marksVal =
                           typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1
@@ -11549,7 +11565,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                         return (
                           <div
                             key={item.id}
-                            className="rounded-lg border border-gray-200 bg-white p-3"
+                            className={cn(
+                              'rounded-lg border p-3 transition-colors',
+                              recentlyAddedRowIds.has(item.id)
+                                ? 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-300'
+                                : 'border-gray-200 bg-white'
+                            )}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <p className="text-sm font-medium text-gray-900">
