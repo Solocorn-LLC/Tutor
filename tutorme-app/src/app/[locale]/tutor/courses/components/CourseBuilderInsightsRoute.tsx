@@ -974,9 +974,9 @@ function CourseBuilderInsightsRouteInner({
                   )}
                   {activeMainTab === 'test-pci' && (
                     <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
-                      {currentCourse?.name && (
+                      {(model.course?.name || currentCourse?.name) && (
                         <span className="text-muted-foreground ml-2 text-xl font-normal">
-                          {currentCourse.name}
+                          {model.course?.name || currentCourse?.name}
                         </span>
                       )}
                     </h1>
