@@ -6613,7 +6613,7 @@ FEEDBACK: [your explanation]`
             // the component is used uncontrolled).
             setMainTab(next)
           }}
-          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-3 pt-0 sm:px-4"
+          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
             className="relative flex h-full w-full pb-6 pt-0"
@@ -8507,7 +8507,6 @@ FEEDBACK: [your explanation]`
                   <GripHorizontal className="text-muted-foreground group-hover:text-primary h-3 w-3 rotate-90" />
                 </div>
               </div>
-            )}
 
             {/* CENTER PANEL - Fixed width based on 3-panel layout */}
             <div
@@ -10897,8 +10896,7 @@ FEEDBACK: [your explanation]`
                       />
                     )}
                   </div>
-                )}
-              </>
+                </>
             )}
           </div>
         </Tabs>
