@@ -83,19 +83,19 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
           </div>
 
           {/* Content + Assistant */}
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 sm:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-5 sm:flex-row">
             {/* FAQ / Content panel */}
-            <Card className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+            <Card className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5">
               <div className="flex-shrink-0 border-b border-[#E5E7EB] p-4">
                 <h2 className="text-lg font-semibold text-slate-900">{activeTopicData.title}</h2>
                 <p className="text-sm text-slate-500">{activeTopicData.description}</p>
               </div>
               <div
                 ref={contentRef}
-                className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4"
+                className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5"
               >
                 {activeTopicData.items.map((item, idx) => (
-                  <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+                  <div key={idx} className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
                     <h4 className="font-medium text-gray-900">{item.title}</h4>
                     <p className="mt-1 text-sm text-gray-600">{item.description}</p>
                   </div>
@@ -105,7 +105,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
 
             {/* AI Assistant panel */}
             {showAssistant && (
-              <div className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+              <div className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5">
                 <SupportAiAssistant />
               </div>
             )}

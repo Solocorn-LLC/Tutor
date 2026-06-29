@@ -17,7 +17,7 @@ interface AiAssistantPanelProps {
   courseName?: string
   sessions?: SessionInfo[]
   studentsCount?: number
-  liveSubmissions?: Array<{ taskId: string; studentId: string; submittedAt?: string }>
+  liveSubmissions?: Array<{ taskId: string; studentId: string; submittedAt?: string | number }>
 }
 
 export function AiAssistantPanel({
