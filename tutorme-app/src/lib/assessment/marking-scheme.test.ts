@@ -6,6 +6,7 @@ import {
   deriveExamContext,
   EXAM_BOARDS,
   MAX_EXTRA_QUESTIONS,
+  applySchemeMatches,
 } from './marking-scheme'
 
 describe('refKey', () => {
@@ -138,5 +139,54 @@ describe('constants', () => {
   })
   it('caps extra questions', () => {
     expect(MAX_EXTRA_QUESTIONS).toBeGreaterThan(0)
+  })
+})
+
+describe('applySchemeMatches', () => {
+  const items = [
+    { id: 'a', questionNumber: 1, questionLabel: '3(a)', questionText: 'Q3a', answer: '' },
+    { id: 'b', questionNumber: 2, questionLabel: '3(b)', questionText: 'Q3b', answer: '' },
+  ] as any
+  let n = 0
+  const makeId = () => `new-${++n}`
+
+  it('patches existing rows, appends sorted/deduped new rows, counts only filled', () => {
+    n = 0
+    const r = applySchemeMatches(
+      items,
+      [
+        { ref: '3 (a)', answer: 'Paris' }, // existing, format drift
+        { ref: '3(b)', answer: '7' }, // existing
+        { ref: '3(c)', answer: 'Z', extra: true }, // new
+        { ref: '10', answer: 'W', extra: true }, // new
+        { ref: '3(c)', answer: 'dup', extra: true }, // dupe of new
+      ],
+      makeId
+    )
+    expect(r.filled).toBe(2) // only the two existing rows changed
+    expect(r.patchedItems.slice(0, 2).map((q: any) => q.answer)).toEqual(['Paris', '7'])
+    expect(r.newRows.map((q: any) => q.questionLabel)).toEqual(['3(c)', '10']) // numeric-aware
+    expect(r.newRows.map((q: any) => q.answer)).toEqual(['Z', 'W'])
+    expect(r.patchedItems).toHaveLength(4)
+    expect(r.newRows[0].questionText).toBe('Question 3(c)')
+    expect(r.newRows[0].answerProvenance).toBe('answer_sheet_extracted')
+  })
+
+  it('applyToVersionItems patches a different array the same way', () => {
+    n = 0
+    const r = applySchemeMatches(items, [{ ref: '3(a)', answer: 'X' }], makeId)
+    const vs = applySchemeMatches(
+      items,
+      [{ ref: '3(a)', answer: 'X' }],
+      makeId
+    ).applyToVersionItems(items)
+    expect(vs[0].answer).toBe('X')
+    expect(r.filled).toBe(1)
+  })
+
+  it('reports zero filled and no rows when nothing lines up', () => {
+    const r = applySchemeMatches(items, [{ ref: '9(z)', answer: 'X' }], makeId) // not extra, not existing
+    expect(r.filled).toBe(0)
+    expect(r.newRows).toHaveLength(0)
   })
 })

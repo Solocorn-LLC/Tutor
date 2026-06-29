@@ -17,8 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Layers } from 'lucide-react'
+import { Layers, Plus } from 'lucide-react'
 import type { Lesson, CourseBuilderNode } from './builder-types'
+
+/** Sentinel passed to `onConfirm` (as both ids) when the tutor chooses to load
+ *  into a brand-new lesson rather than an existing one. */
+export const NEW_LESSON_VALUE = '__new_lesson__'
 
 export interface LessonSelectorDialogProps {
   isOpen: boolean
@@ -26,6 +30,9 @@ export interface LessonSelectorDialogProps {
   onConfirm: (moduleId: string, lessonId: string) => void
   nodes: CourseBuilderNode[]
   itemType?: string
+  /** When true, offers a "New lesson" option; choosing it calls onConfirm with
+   *  NEW_LESSON_VALUE for both ids so the caller can create the lesson. */
+  allowNewLesson?: boolean
 }
 
 export function LessonSelectorDialog({
@@ -34,6 +41,7 @@ export function LessonSelectorDialog({
   onConfirm,
   nodes,
   itemType = 'item',
+  allowNewLesson = false,
 }: LessonSelectorDialogProps) {
   const [selectedCourseBuilderNodeId, setSelectedCourseBuilderNodeId] = useState<string>('')
   const [selectedLessonId, setSelectedLessonId] = useState<string>('')
@@ -53,7 +61,14 @@ export function LessonSelectorDialog({
     }
   }, [isOpen, nodes, selectedCourseBuilderNodeId])
 
+  const isNewLesson = selectedCourseBuilderNodeId === NEW_LESSON_VALUE
+
   const handleConfirm = () => {
+    if (isNewLesson) {
+      onConfirm(NEW_LESSON_VALUE, NEW_LESSON_VALUE)
+      onClose()
+      return
+    }
     if (selectedCourseBuilderNodeId && selectedLessonId) {
       onConfirm(selectedCourseBuilderNodeId, selectedLessonId)
       onClose()
@@ -91,6 +106,14 @@ export function LessonSelectorDialog({
                   <SelectValue placeholder="Select a lesson" />
                 </SelectTrigger>
                 <SelectContent>
+                  {allowNewLesson && (
+                    <SelectItem value={NEW_LESSON_VALUE}>
+                      <span className="flex items-center gap-1.5 font-medium text-blue-600">
+                        <Plus className="h-3.5 w-3.5" />
+                        New lesson
+                      </span>
+                    </SelectItem>
+                  )}
                   {nodes.map(module => (
                     <SelectItem key={module.id} value={module.id}>
                       {module.title}
@@ -100,7 +123,7 @@ export function LessonSelectorDialog({
               </Select>
             </div>
 
-            {lessons.length > 0 && (
+            {!isNewLesson && lessons.length > 0 && (
               <div className="space-y-2">
                 <Label>Lesson</Label>
                 <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
@@ -126,9 +149,9 @@ export function LessonSelectorDialog({
           <Button
             variant="modal-primary-dark"
             onClick={handleConfirm}
-            disabled={!selectedCourseBuilderNodeId || !selectedLessonId}
+            disabled={isNewLesson ? false : !selectedCourseBuilderNodeId || !selectedLessonId}
           >
-            Save to Selected Lesson
+            {isNewLesson ? 'Load to New Lesson' : 'Save to Selected Lesson'}
           </Button>
         </DialogFooter>
       </DialogContent>
