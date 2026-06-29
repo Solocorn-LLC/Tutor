@@ -757,7 +757,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [])
 
-    const centerColWidth = viewportWidth - 32 - leftPanelWidth - rightPanelWidth - 32
+    const centerColWidth = viewportWidth - 32 - leftPanelWidth - 24 - rightPanelWidth - 24 - 32
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
@@ -6365,15 +6365,20 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
             <div
               className={cn(
-                'relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-500 ease-in-out',
+                'relative z-40 flex min-h-0 shrink-0 flex-col',
                 leftPanelHidden
-                  ? '-translate-x-[calc(100%+1rem)] opacity-0'
-                  : 'translate-x-0 opacity-100'
+                  ? 'bg-transparent shadow-none'
+                  : 'rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
               )}
               ref={leftPanelRef}
               style={{ width: leftPanelWidth, flexShrink: 0 }}
             >
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px]">
+              <div
+                className={cn(
+                  'flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-in-out',
+                  leftPanelHidden ? 'w-0 opacity-0' : 'w-full opacity-100'
+                )}
+              >
                 <Card
                   padding="none"
                   className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
@@ -10302,14 +10307,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 {/* Right panel content - grid child with consistent wrapper */}
                 <div
                   className={cn(
-                    'relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-500 ease-in-out',
+                    'relative z-40 flex min-h-0 shrink-0 flex-col',
                     rightPanelHidden
-                      ? 'translate-x-[calc(100%+1rem)] opacity-0'
-                      : 'translate-x-0 opacity-100'
+                      ? 'bg-transparent shadow-none'
+                      : 'items-end rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                   )}
                   style={{ width: rightPanelWidth, flexShrink: 0 }}
                 >
-                  <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px]">
+                  <div
+                    className={cn(
+                      'flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-in-out',
+                      rightPanelHidden ? 'w-0 opacity-0' : 'w-full opacity-100'
+                    )}
+                  >
                     {mainTab === 'live' && liveRightPanelTab === 'insights' ? (
                       <div className="flex h-full min-h-0 flex-col">
                         <Card
