@@ -87,13 +87,13 @@ export default function TutorSubmissionsPage() {
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero — Analytics-style header */}
       <section className="relative mb-2 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-col items-center justify-center text-center">
             <h1 className="text-xl font-bold text-white">Grading</h1>
             <p className="mt-1 text-sm text-white/60">Review and grade student submissions</p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <div
               className={cn(
                 'flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm',
