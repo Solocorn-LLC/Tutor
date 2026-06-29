@@ -460,6 +460,49 @@ function deriveExamContext(
   return { examBody, subject: subject || undefined }
 }
 
+// Collapsible explainer at the top of a PCI tab. PCI ("how to mark this") is easy
+// to confuse with the question content, so this spells out what it is, the flow,
+// and concrete things worth telling the assistant — to point tutors the right way.
+function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
+  const noun = kind === 'assessment' ? 'assessment' : 'task'
+  return (
+    <details
+      open
+      className="group mb-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs text-blue-900"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 font-semibold">
+        <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
+        What is PCI &amp; what to ask
+        <span className="ml-auto text-blue-400 group-open:hidden">show</span>
+        <span className="ml-auto hidden text-blue-400 group-open:inline">hide</span>
+      </summary>
+      <div className="mt-2 space-y-2">
+        <p>
+          <b>PCI is your marking instruction</b> for this {noun} — <i>how</i> you want answers
+          marked, not the questions themselves. Chat your rules below; the assistant turns them into
+          a finalized <b>rubric</b>. Click <b>Apply to PCI</b> to save it — it then guides the AI
+          grading suggestions and how an uploaded marking scheme is read.
+        </p>
+        <p className="font-semibold">Things worth telling it:</p>
+        <ul className="list-disc space-y-0.5 pl-4">
+          <li>&ldquo;Award method marks even if the final answer is wrong.&rdquo;</li>
+          <li>&ldquo;Accept any value within &plusmn;0.1, and equivalent fractions.&rdquo;</li>
+          <li>&ldquo;Require correct units — deduct 1 mark if missing.&rdquo;</li>
+          <li>
+            &ldquo;Mark to IB markbands / AP scoring guidelines / Cambridge M&amp;A marks.&rdquo;
+          </li>
+          <li>&ldquo;One mark per valid point, maximum 4.&rdquo;</li>
+        </ul>
+        <p className="text-blue-700/80">
+          Flow: chat &rarr; the assistant proposes a rubric &rarr; <b>Apply to PCI</b> &rarr;
+          it&rsquo;s saved and used when grading. The answer key itself comes from the DMI / an
+          uploaded marking scheme — PCI is the <i>policy</i> on top.
+        </p>
+      </div>
+    </details>
+  )
+}
+
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
     {
@@ -10156,6 +10199,7 @@ FEEDBACK: [your explanation]`
                                       className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div className="flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+                                        <PciGuidance kind="task" />
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
@@ -10664,6 +10708,7 @@ FEEDBACK: [your explanation]`
                                           </div>
                                         </div>
 
+                                        <PciGuidance kind="assessment" />
                                         <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []
