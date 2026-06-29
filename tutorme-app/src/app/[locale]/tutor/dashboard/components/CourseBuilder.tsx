@@ -6586,7 +6586,7 @@ FEEDBACK: [your explanation]`
             // the component is used uncontrolled).
             setMainTab(next)
           }}
-          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-6 pt-0"
+          className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-3 pt-0 sm:px-4"
         >
           <div
             className="relative flex h-full w-full pb-6 pt-0"
@@ -9723,7 +9723,12 @@ FEEDBACK: [your explanation]`
                     {/* COMBINED BUILDER: Task & Assessment Tabs */}
                     <Card
                       padding="none"
-                      className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-blue-200 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+                      className={cn(
+                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
+                        mainBuilderTab === 'assessment'
+                          ? 'border border-pink-200'
+                          : 'border border-blue-200'
+                      )}
                     >
                       <div
                         className={cn(
