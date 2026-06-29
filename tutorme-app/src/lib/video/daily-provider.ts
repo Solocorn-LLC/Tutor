@@ -9,6 +9,16 @@ import { VideoProvider, VideoRoom } from './types'
 const DAILY_API_KEY = process.env.DAILY_API_KEY || ''
 const DAILY_API_URL = 'https://api.daily.co/v1'
 
+// Cloud Run (our production runtime) always sets K_SERVICE; locally it is unset.
+// We only allow the unjoinable mock fallback in local dev — in a real deployment a
+// missing key must throw instead of persisting a dead https://mock.daily.co/... URL
+// on the session row (which makes the video fail forever). NODE_ENV can't be used
+// here because `npm run dev` runs with NODE_ENV=production.
+const IS_DEPLOYED = !!process.env.K_SERVICE
+
+const MISSING_KEY_MESSAGE =
+  'Daily.co API key not configured (set DAILY_API_KEY in the deployment environment).'
+
 export class DailyCoProvider implements VideoProvider {
   private apiKey: string
   private apiUrl: string
@@ -52,7 +62,10 @@ export class DailyCoProvider implements VideoProvider {
     }
   ): Promise<VideoRoom> {
     if (!this.apiKey) {
-      console.warn('[VideoProvider] No API key, mocking createRoom')
+      if (IS_DEPLOYED) {
+        throw new Error(MISSING_KEY_MESSAGE)
+      }
+      console.warn('[VideoProvider] No API key, mocking createRoom (local dev only)')
       return {
         id: `mock-room-${sessionId}`,
         url: `https://mock.daily.co/${sessionId}`,
@@ -68,7 +81,9 @@ export class DailyCoProvider implements VideoProvider {
 
     const payload = {
       name: roomName,
-      privacy: 'public',
+      // Token-gated: a valid meeting token is required to join. Tutors and students
+      // are both issued tokens on join, so link-sharing alone can't grant access.
+      privacy: 'private',
       properties: {
         max_participants: options?.maxParticipants || 10,
         enable_screenshare: true,
@@ -110,7 +125,10 @@ export class DailyCoProvider implements VideoProvider {
     }
   ): Promise<string> {
     if (!this.apiKey) {
-      console.warn('[VideoProvider] No API key, mocking createMeetingToken')
+      if (IS_DEPLOYED) {
+        throw new Error(MISSING_KEY_MESSAGE)
+      }
+      console.warn('[VideoProvider] No API key, mocking createMeetingToken (local dev only)')
       return `mock-token-for-${userId}-in-${roomName}`
     }
 

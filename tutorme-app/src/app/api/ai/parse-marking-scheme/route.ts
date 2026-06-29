@@ -73,13 +73,17 @@ Treat this list as guidance, not a whitelist: if the scheme is from a board not 
 own scheme and apply it faithfully. Never force one board's rules onto another's scheme.
 
 Return ONLY a JSON object (no prose, no markdown, no code fences):
-{ "matches": [ {
+{ "examBody": "<the examining board you detect, e.g. AP, IB, A-Level, IGCSE, Edexcel, Cambridge, AQA, OCR, SAT — or \"\" if unsure>",
+  "subject": "<the subject you detect, e.g. Calculus AB, Physics — or \"\">",
+  "matches": [ {
   "ref": "<the exact reference string you were given>",
   "answer": "<canonical correct answer>",
   "variants": ["<every other accepted answer form>", ...],
   "marks": <total points this question is worth>,
   "rubric": "<how the marks are awarded, faithful to the scheme>"
 } ] }
+
+Detect "examBody" and "subject" from the scheme's own header / branding / style. Leave them "" if genuinely unclear — do not guess wildly.
 
 Rules:
 - Match by question / part reference (e.g. "1(a)", "Q3", "12"). Cut through page headers, footers,
@@ -117,6 +121,26 @@ interface SchemeMatch {
   /** True when this reference is NOT among the DMI's questions — a candidate new
    *  row the tutor can add. */
   extra?: boolean
+}
+
+// Best-effort board/subject the model detected from the scheme itself.
+function parseDetection(raw: string): { examBody?: string; subject?: string } {
+  try {
+    const text = stripCodeFences(raw).trim()
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start === -1 || end <= start) return {}
+    const obj = JSON.parse(text.slice(start, end + 1)) as { examBody?: unknown; subject?: unknown }
+    const examBody = String(obj.examBody ?? '')
+      .trim()
+      .slice(0, 60)
+    const subject = String(obj.subject ?? '')
+      .trim()
+      .slice(0, 120)
+    return { examBody: examBody || undefined, subject: subject || undefined }
+  } catch {
+    return {}
+  }
 }
 
 function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[] {
@@ -262,6 +286,7 @@ export async function POST(request: NextRequest) {
     }
 
     const matches = parseMatches(aiResponse, validRefs)
+    const detected = parseDetection(aiResponse)
 
     // Guardrail rule 2: run the assessment guardrails over the extracted answer
     // key (warn-only). Provenance is answer_sheet_extracted (ASMT-5). Not
@@ -281,6 +306,10 @@ export async function POST(request: NextRequest) {
       matches,
       matched: matches.length,
       total: questions.length,
+      // Board/subject detected from the scheme — the client uses these to fill
+      // the badge when the tutor hasn't set it.
+      detectedExamBody: detected.examBody,
+      detectedSubject: detected.subject,
       guardrailWarnings: guardrail.violations,
     })
   } catch (error) {
