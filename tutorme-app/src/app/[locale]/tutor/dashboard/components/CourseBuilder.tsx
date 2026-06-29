@@ -116,6 +116,7 @@ import {
   DMI_QUESTION_TYPE_LABELS,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
+import { deriveExamContext, EXAM_BOARDS, refKey } from '@/lib/assessment/marking-scheme'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -393,72 +394,6 @@ import { SubmissionsPanel } from './SubmissionsPanel'
 // Cache of rendered PDF page images keyed by document URL, so PCI vision messages
 // don't re-render the same document on every chat turn.
 const pdfPageCache = new Map<string, string[]>()
-
-// Examining bodies the marking-scheme badge can show / the tutor can pick from.
-// "Other" lets a tutor label a board we don't list yet. The order matters for
-// detection: more specific labels (IGCSE before GCSE) must come first.
-const EXAM_BOARDS = [
-  'AP',
-  'IB',
-  'A-Level',
-  'AS-Level',
-  'IGCSE',
-  'GCSE',
-  'SAT',
-  'ACT',
-  'Cambridge',
-  'Edexcel',
-  'AQA',
-  'OCR',
-  'WJEC',
-  'Other',
-] as const
-
-// Map a course category label (e.g. "AP Calculus AB", "IB (International
-// Baccalaureate)", "Cambridge AS Mathematics") to a best-effort { examBody,
-// subject }. Used as the badge's default before a per-paper detector exists; the
-// tutor can always override.
-function deriveExamContext(
-  category?: string | null,
-  fallbackSubject?: string | null
-): { examBody?: string; subject?: string } {
-  const raw = String(category ?? '').trim()
-  // Ordered patterns: longest / most specific first.
-  const patterns: Array<[RegExp, string]> = [
-    [/international baccalaureate|\bIB\b/i, 'IB'],
-    [/advanced placement|\bAP\b/i, 'AP'],
-    [/\bIGCSE\b/i, 'IGCSE'],
-    [/\bGCSE\b/i, 'GCSE'],
-    [/\bAS[\s-]?Level/i, 'AS-Level'],
-    [/\bA[\s-]?Level/i, 'A-Level'],
-    [/cambridge/i, 'Cambridge'],
-    [/edexcel/i, 'Edexcel'],
-    [/\bAQA\b/i, 'AQA'],
-    [/\bOCR\b/i, 'OCR'],
-    [/\bWJEC\b/i, 'WJEC'],
-    [/\bSAT\b/i, 'SAT'],
-    [/\bACT\b/i, 'ACT'],
-  ]
-  let examBody: string | undefined
-  for (const [re, board] of patterns) {
-    if (re.test(raw)) {
-      examBody = board
-      break
-    }
-  }
-  // Subject = the category with the board name + parenthetical removed.
-  let subject = raw
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(/advanced placement|international baccalaureate/i, ' ')
-    .replace(
-      /\b(AP|IB|IGCSE|GCSE|AS[\s-]?Level|A[\s-]?Level|Cambridge|Edexcel|AQA|OCR|WJEC|SAT|ACT)\b/gi,
-      ' '
-    )
-    .replace(/\s+/g, ' ')
-    .trim()
-  if (!subject) subject = String(fallbackSubject ?? '').trim()
-  return { examBody, subject: subject || undefined }
-}
 
 // Collapsible explainer at the top of a PCI tab. PCI ("how to mark this") is easy
 // to confuse with the question content, so this spells out what it is, the flow,
@@ -1008,6 +943,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return next
       })
       toast.success('Rubric applied to PCI')
+    }
+
+    // Whether the "Current PCI" box is in edit mode (tutor typing the policy
+    // directly instead of via the assistant chat).
+    const [editingCurrentPci, setEditingCurrentPci] = useState(false)
+    // Directly set the saved PCI (the marking policy used by grading) for the
+    // active context — the active task extension, the base task, or the
+    // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
+    const setCurrentPci = (source: 'task' | 'assessment', text: string) => {
+      if (source === 'task') {
+        setTaskBuilder(prev =>
+          prev.activeExtensionId
+            ? {
+                ...prev,
+                extensions: prev.extensions.map(ext =>
+                  ext.id === prev.activeExtensionId ? { ...ext, pci: text } : ext
+                ),
+              }
+            : { ...prev, taskPci: text }
+        )
+      } else {
+        setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
+      }
     }
     // Warn-only guardrail violations returned by the PCI/DMI endpoints, surfaced
     // to the tutor so they can confirm/correct (e.g. an invented retry policy or
@@ -3102,12 +3060,7 @@ FEEDBACK: [your explanation]`
         // Match on the paper's REAL question reference (e.g. "1(a)") — not the
         // re-serialized questionNumber. A scheme keyed to 1(a), 1(b), 2 … never
         // lines up with a 1, 2, 3 … serial, which left most answers unfilled.
-        // refKey normalizes "1(a)" and "1a" to the same key so minor formatting
-        // differences between the DMI and the scheme still match.
-        const refKey = (v: unknown) =>
-          String(v ?? '')
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '')
+        // refKey (from the shared lib) normalizes "1(a)" and "1a" to the same key.
         const questions = items.map(it => ({
           ref: String(it.questionLabel ?? it.questionNumber ?? ''),
           label: it.questionText,
@@ -6389,6 +6342,56 @@ FEEDBACK: [your explanation]`
     const activeTaskPciMessages = taskBuilder.activeExtensionId
       ? taskExtensionPciMessages[taskBuilder.activeExtensionId] || []
       : taskPciMessages
+    // The saved PCI (marking policy) for the active context — what grading uses.
+    const activeTaskPci = taskBuilder.activeExtensionId
+      ? (taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ?? '')
+      : taskBuilder.taskPci
+    // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
+    const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
+      <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
+          <div className="flex items-center gap-2">
+            {value.trim() && canEdit && (
+              <button
+                type="button"
+                onClick={() => setCurrentPci(source, '')}
+                className="text-slate-400 hover:text-red-600"
+              >
+                Clear
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setEditingCurrentPci(v => !v)}
+                className="font-semibold text-blue-700 hover:underline"
+              >
+                {editingCurrentPci ? 'Done' : 'Edit'}
+              </button>
+            )}
+          </div>
+        </div>
+        {editingCurrentPci ? (
+          <textarea
+            value={value}
+            readOnly={!canEdit}
+            onChange={e => setCurrentPci(source, e.target.value)}
+            placeholder="The marking policy used when grading… (or chat below and Apply to PCI)"
+            className="mt-1.5 min-h-[80px] w-full resize-y rounded-md border border-gray-300 p-2 text-xs text-gray-900"
+          />
+        ) : value.trim() ? (
+          <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-slate-700">
+            {value}
+          </p>
+        ) : (
+          <p className="mt-1 italic text-slate-400">
+            None yet — chat below and click &ldquo;Apply to PCI&rdquo;, or Edit to type one. This is
+            what guides AI grading.
+          </p>
+        )}
+      </div>
+    )
     const activeTaskPciInput = taskBuilder.activeExtensionId
       ? taskExtensionPciInputs[taskBuilder.activeExtensionId] || ''
       : taskPciInputMap[loadedTaskId || ''] || ''
@@ -9894,6 +9897,7 @@ FEEDBACK: [your explanation]`
                                     >
                                       <div className="flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
                                         <PciGuidance kind="task" />
+                                        {renderCurrentPci('task', activeTaskPci)}
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
@@ -10403,6 +10407,7 @@ FEEDBACK: [your explanation]`
                                         </div>
 
                                         <PciGuidance kind="assessment" />
+                                        {renderCurrentPci('assessment', assessmentBuilder.taskPci)}
                                         <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []

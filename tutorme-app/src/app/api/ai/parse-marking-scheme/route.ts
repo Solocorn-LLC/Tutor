@@ -15,6 +15,7 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { generateWithKimi, generateWithKimiVision } from '@/lib/ai/kimi'
 import { stripCodeFences } from '@/lib/ai/llm-response'
+import { refKey, isPlausibleRef, MAX_EXTRA_QUESTIONS } from '@/lib/assessment/marking-scheme'
 import {
   GUARDRAILED_TEMPERATURE,
   guardrailSystemPrompt,
@@ -117,23 +118,6 @@ interface SchemeMatch {
    *  row the tutor can add. */
   extra?: boolean
 }
-
-// Normalize a reference so "1(a)" and "1a" compare equal.
-function refKey(v: unknown): string {
-  return String(v ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-}
-
-// A model-supplied extra ref must look like a real question reference (leading
-// digit, short) — guards against the model emitting prose/noise as a "question".
-function isPlausibleRef(s: string): boolean {
-  return /^\d/.test(s) && s.length <= 12
-}
-
-// Cap how many brand-new questions one scheme can introduce, so a noisy parse
-// can't flood the DMI.
-const MAX_EXTRA_QUESTIONS = 60
 
 function parseMatches(raw: string, validRefs: Map<string, string>): SchemeMatch[] {
   try {
