@@ -951,9 +951,9 @@ function CourseBuilderInsightsRouteInner({
                     )}
 
                   {activeMainTab === 'live' && (
-                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="text-foreground absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
                       {model.course?.name && (
-                        <span className="text-muted-foreground ml-2 text-xl font-normal">
+                        <span className="text-muted-foreground text-xl font-normal">
                           {model.course.name}
                         </span>
                       )}
