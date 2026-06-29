@@ -48,7 +48,7 @@ export function SupportAiAssistant() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-slate-50">
+    <div className="flex h-full min-h-0 flex-col bg-white">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-[#E5E7EB] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4">
         <Bot className="h-5 w-5 text-white" />
         <h3 className="text-sm font-semibold text-white">AI Assistant</h3>

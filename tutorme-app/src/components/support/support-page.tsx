@@ -57,7 +57,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
 
       {/* Lower panel */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
-        <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-[#1F2933] shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           {/* Mode selector cards */}
           <div className="grid flex-shrink-0 grid-cols-2 gap-3 p-5 pb-3 sm:grid-cols-4">
             {topics.map(topic => {
