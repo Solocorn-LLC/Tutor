@@ -143,17 +143,19 @@ export default function StudentRegistrationPage() {
         toast.error('Please confirm if you are 16 years of age or older')
         return false
       }
-      if (!formData.parentEmail) {
-        toast.error('Please enter your parent or guardian email')
-        return false
-      }
-      if (!formData.confirmParentEmail) {
-        toast.error('Please confirm your parent or guardian email')
-        return false
-      }
-      if (formData.parentEmail !== formData.confirmParentEmail) {
-        toast.error('Parent or guardian emails do not match')
-        return false
+      if (!formData.isSixteen) {
+        if (!formData.parentEmail) {
+          toast.error('Please enter your parent or guardian email')
+          return false
+        }
+        if (!formData.confirmParentEmail) {
+          toast.error('Please confirm your parent or guardian email')
+          return false
+        }
+        if (formData.parentEmail !== formData.confirmParentEmail) {
+          toast.error('Parent or guardian emails do not match')
+          return false
+        }
       }
     }
     if (step === 3) {
@@ -439,14 +441,14 @@ export default function StudentRegistrationPage() {
 
             {step === 2 && (
               <>
-                <div className="flex items-start space-x-3">
+                <div className="flex items-center space-x-3">
                   <Checkbox
                     id="isSixteen"
                     checked={formData.isSixteen}
                     onCheckedChange={checked =>
                       setFormData(prev => ({ ...prev, isSixteen: checked === true }))
                     }
-                    className="border-white/40 data-[state=checked]:border-[#F97316] data-[state=checked]:bg-[#F97316] data-[state=checked]:text-white"
+                    className="border-white data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-[#F97316]"
                   />
                   <div className="space-y-1">
                     <Label htmlFor="isSixteen" className="cursor-pointer text-sm text-white/80">
