@@ -1,5 +1,6 @@
 import { MessageSquare, Users, UserPlus, Heart, Settings, Search, Inbox } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 export type CommSection = 'chats' | 'contacts' | 'requests' | 'followers' | 'settings'
 
@@ -40,7 +41,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const ListIcon = list.icon
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
+    <Card className="flex h-full w-full flex-col overflow-hidden">
       {/* Full-width Chat header */}
       <div className="flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
         Chat
@@ -137,6 +138,6 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
