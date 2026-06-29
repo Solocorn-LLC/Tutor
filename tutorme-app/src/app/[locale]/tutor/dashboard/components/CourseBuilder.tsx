@@ -6616,7 +6616,7 @@ FEEDBACK: [your explanation]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
-            className="relative flex h-full w-full pb-6 pt-0"
+            className="relative flex h-full w-full px-3 pb-6 pt-0 sm:px-4"
             style={{
               gap: '24px',
             }}
