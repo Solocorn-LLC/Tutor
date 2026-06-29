@@ -6364,7 +6364,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
             </div>
 
             <div
-              className="relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+              className="relative z-40 -ml-7 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] sm:-ml-8"
               ref={leftPanelRef}
               style={{ width: leftPanelWidth, flexShrink: 0 }}
             >
