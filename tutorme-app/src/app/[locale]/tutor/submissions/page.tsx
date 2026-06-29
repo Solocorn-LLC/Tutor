@@ -237,11 +237,18 @@ function SubmissionRow({
     >
   >({})
 
-  const handleAiGrade = async (qid: string) => {
+  const [gradingAll, setGradingAll] = useState(false)
+
+  // Grade one answer. Accepts a pre-fetched CSRF token so a batch run fetches it
+  // once. Returns true on success.
+  const gradeOne = async (qid: string, csrfToken?: string | null): Promise<boolean> => {
     setAiGrades(prev => ({ ...prev, [qid]: { loading: true } }))
     try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+      let csrf = csrfToken
+      if (csrf === undefined) {
+        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+      }
       const res = await fetch(`/api/tutor/submissions/${submission.submissionId}/ai-grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
@@ -251,7 +258,7 @@ function SubmissionRow({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setAiGrades(prev => ({ ...prev, [qid]: { error: data?.error ?? 'AI grading failed' } }))
-        return
+        return false
       }
       setAiGrades(prev => ({
         ...prev,
@@ -262,8 +269,35 @@ function SubmissionRow({
         },
       }))
       if (data.feedback && !feedback.trim()) setFeedback(data.feedback)
+      return true
     } catch {
       setAiGrades(prev => ({ ...prev, [qid]: { error: 'AI grading failed' } }))
+      return false
+    }
+  }
+
+  const handleAiGrade = (qid: string) => {
+    void gradeOne(qid)
+  }
+
+  // AI-grade every needs-review answer in turn (sequential to stay within AI
+  // rate limits); suggestions land per-question for the tutor to accept/edit.
+  const handleAiGradeAll = async () => {
+    const qids = Object.entries(questionMeta)
+      .filter(([, m]) => m?.needsReview)
+      .map(([qid]) => qid)
+    if (qids.length === 0) return
+    setGradingAll(true)
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+      let ok = 0
+      for (const qid of qids) {
+        if (await gradeOne(qid, csrf)) ok += 1
+      }
+      toast.success(`AI-graded ${ok} of ${qids.length} answers — review and adjust each.`)
+    } finally {
+      setGradingAll(false)
     }
   }
 
@@ -357,6 +391,17 @@ function SubmissionRow({
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                   {reviewCount} need{reviewCount === 1 ? 's' : ''} your review
                 </span>
+              )}
+              {reviewCount > 1 && (
+                <button
+                  type="button"
+                  onClick={handleAiGradeAll}
+                  disabled={gradingAll}
+                  className="ml-auto inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-60"
+                >
+                  {gradingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                  {gradingAll ? 'AI-grading all…' : `AI-grade all (${reviewCount})`}
+                </button>
               )}
             </div>
             {answerEntries.length === 0 ? (
