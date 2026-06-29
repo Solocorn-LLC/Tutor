@@ -3122,6 +3122,21 @@ FEEDBACK: [one or two short sentences explaining the score]`
           return
         }
         const data = await res.json()
+        // Adopt the board/subject the scheme detected — but only for fields the
+        // tutor hasn't already set on this DMI (never override a manual choice).
+        const detectPatch: { examBody?: string; subject?: string } = {}
+        if (!activeExamVer?.examBody && typeof data?.detectedExamBody === 'string') {
+          detectPatch.examBody = data.detectedExamBody
+        }
+        if (!activeExamVer?.subject && typeof data?.detectedSubject === 'string') {
+          detectPatch.subject = data.detectedSubject
+        }
+        if (detectPatch.examBody || detectPatch.subject) {
+          setExamContext(source, detectPatch)
+          toast.info(
+            `Detected ${[detectPatch.examBody, detectPatch.subject].filter(Boolean).join(' · ')} from the scheme`
+          )
+        }
         const matches: Array<{
           ref: string
           answer: string
