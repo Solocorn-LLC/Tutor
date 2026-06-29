@@ -116,7 +116,12 @@ import {
   DMI_QUESTION_TYPE_LABELS,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
-import { deriveExamContext, EXAM_BOARDS, refKey } from '@/lib/assessment/marking-scheme'
+import {
+  deriveExamContext,
+  EXAM_BOARDS,
+  refKey,
+  extractQuestionRef,
+} from '@/lib/assessment/marking-scheme'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -2929,6 +2934,43 @@ FEEDBACK: [one or two short sentences explaining the score]`
         setAssessmentDmiItems(editItems)
         setAssessmentDmiVersions(editVersions)
       }
+    }
+
+    // Backfill questionLabel (the paper's real reference, e.g. "1(a)") from the
+    // question text for DMIs generated before references were preserved — so old
+    // assessments match an uploaded marking scheme. Only fills missing labels;
+    // never overwrites an existing one.
+    const reextractRefs = (source: 'task' | 'assessment') => {
+      const items = source === 'task' ? taskDmiItems : assessmentDmiItems
+      const fixItem = (q: DMIQuestion): DMIQuestion => {
+        if (q.questionLabel) return q
+        const ref = extractQuestionRef(q.questionText)
+        return ref ? { ...q, questionLabel: ref } : q
+      }
+      const fixed = items.map(fixItem)
+      const updated = fixed.reduce((n, q, i) => (q === items[i] ? n : n + 1), 0)
+      if (updated === 0) {
+        toast.info('No question numbers to re-detect — already set, or none found in the text.')
+        return
+      }
+      const activeVersionId = testPciViewMode.startsWith('dmi_')
+        ? testPciViewMode.slice('dmi_'.length)
+        : null
+      const fixVersions = (vs: DMIVersion[]) => {
+        if (vs.length === 0) return vs
+        const targetId = activeVersionId ?? vs[vs.length - 1].id
+        return vs.map(v => (v.id === targetId ? { ...v, items: v.items.map(fixItem) } : v))
+      }
+      if (source === 'task') {
+        setTaskDmiItems(fixed)
+        setTaskDmiVersions(fixVersions)
+      } else {
+        setAssessmentDmiItems(fixed)
+        setAssessmentDmiVersions(fixVersions)
+      }
+      toast.success(
+        `Re-detected ${updated} question number${updated === 1 ? '' : 's'} from the question text.`
+      )
     }
 
     // Remove a DMI question (e.g. a row appended from a marking scheme that the
@@ -11479,6 +11521,20 @@ FEEDBACK: [one or two short sentences explaining the score]`
                       >
                         {markingSchemeLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                         Upload marking scheme
+                      </button>
+                    </div>
+                    {/* Backfill the paper's real question numbers (1a, 1b…) from the
+                        question text — for older DMIs that were re-serialized, so a
+                        marking scheme lines up. */}
+                    <div className="-mt-1 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => reextractRefs(dmiEditor.source)}
+                        title="Backfill question numbers (e.g. 1a, 1b) from the question text — useful for older assessments before a marking scheme upload"
+                        className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline disabled:opacity-50"
+                      >
+                        Re-detect question numbers
                       </button>
                     </div>
                     <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
