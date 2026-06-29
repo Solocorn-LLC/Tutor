@@ -2191,9 +2191,12 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              // Keep the right panel a consistent width across ALL tabs — Lessons
-              // and Interact were shrinking vs Assessment/My Board.
-              width: rightPanelWidth + EXPANDED_PANEL_BONUS,
+              // Narrow width for Lessons/Interact (380px), expanded for Assessment/My Board (680px)
+              width:
+                rightPanelWidth +
+                (rightPanelTab === 'lessons' || rightPanelTab === 'interactions'
+                  ? 0
+                  : EXPANDED_PANEL_BONUS),
             }}
           >
             {/* Resize handle — available on every tab so students can widen or
