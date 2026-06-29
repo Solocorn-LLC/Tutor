@@ -6617,7 +6617,7 @@ FEEDBACK: [your explanation]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
-            className="relative flex h-full w-full px-0 pb-6 pt-0"
+            className="relative flex h-full w-full px-7 pb-6 pt-0 sm:px-8"
             style={{
               gap: '24px',
             }}
@@ -6644,11 +6644,16 @@ FEEDBACK: [your explanation]`
             </div>
 
             <div
-              className="relative z-40 flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-500 ease-in-out"
+              className="relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
               ref={leftPanelRef}
-              style={{ width: leftPanelHidden ? 0 : leftPanelWidth, flexShrink: 0 }}
+              style={{ width: leftPanelWidth, flexShrink: 0 }}
             >
-              <div className="flex h-full min-h-0 flex-col">
+              <div
+                className={cn(
+                  "flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-in-out",
+                  leftPanelHidden ? "w-0 opacity-0" : "w-full opacity-100"
+                )}
+              >
                 <Card
                   padding="none"
                   className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
@@ -10574,17 +10579,23 @@ FEEDBACK: [your explanation]`
 
                 {/* Right panel content - grid child with consistent wrapper */}
                 <div
-                  className="relative z-40 flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-500 ease-in-out"
-                  style={{ width: rightPanelHidden ? 0 : rightPanelWidth, flexShrink: 0 }}
+                  className="relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
+                  style={{ width: rightPanelWidth, flexShrink: 0 }}
                 >
-                  {mainTab === 'live' && liveRightPanelTab === 'insights' ? (
-                    <div className="flex h-full min-h-0 flex-col">
-                      <Card
-                        padding="none"
-                        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
-                      >
-                        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-                          Desk
+                  <div
+                    className={cn(
+                      "flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] transition-all duration-500 ease-in-out",
+                      rightPanelHidden ? "w-0 opacity-0" : "w-full opacity-100"
+                    )}
+                  >
+                    {mainTab === 'live' && liveRightPanelTab === 'insights' ? (
+                      <div className="flex h-full min-h-0 flex-col">
+                        <Card
+                          padding="none"
+                          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
+                        >
+                          <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                            Desk
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                           <div className="shrink-0 px-2 pt-4">
@@ -10839,6 +10850,7 @@ FEEDBACK: [your explanation]`
                       }
                     />
                   )}
+                </div>
                 </div>
               </>
             )}
