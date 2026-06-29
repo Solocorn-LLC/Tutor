@@ -17,6 +17,7 @@ import {
   isDmiQuestionType,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
+import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
 import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
@@ -288,19 +289,6 @@ function normalizeTypeToken(raw?: string): DmiQuestionType {
     .replace(/_+/g, '_')
   if (isDmiQuestionType(t)) return t
   return TYPE_SYNONYMS[t] ?? normalizeDmiQuestionType(t)
-}
-
-// Pull the paper's real question reference (e.g. "1(a)", "3b", "12") out of a
-// label like "Question 1(a)" / "Q3b" / "1." so the DMI keeps the source's own
-// numbering instead of a re-serialized 1..N index. Returns undefined when there
-// is no leading reference (the caller then falls back to the positional number).
-function extractQuestionRef(label: string): string | undefined {
-  const m = String(label || '')
-    .trim()
-    .match(/^(?:Q(?:uestion)?\s*\.?\s*)?(\d+\s*(?:\([a-z0-9ivx]+\)|[a-z](?![a-z]))*)/i)
-  if (!m) return undefined
-  const ref = m[1].replace(/\s+/g, '')
-  return ref || undefined
 }
 
 // Strip markdown emphasis / bullets / headings / code ticks so lines like
