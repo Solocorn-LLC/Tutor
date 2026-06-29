@@ -86,15 +86,11 @@ export interface LiveSubmission {
 
 export function SubmissionsPanel({
   courseId,
-  width,
-  hidden,
   onToggleHidden,
   headerExtra,
   liveSubmissions,
 }: {
   courseId: string
-  width: number
-  hidden: boolean
   onToggleHidden: (value: boolean) => void
   headerExtra?: ReactNode
   /** In-session completions received over the socket — overlaid on the DB rows
@@ -283,118 +279,116 @@ export function SubmissionsPanel({
   }
 
   return (
-    <div className="relative z-40 order-3 flex min-h-0 shrink-0 flex-col" style={{ width }}>
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-          <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-            Desk
-          </div>
-          {headerExtra && <div className="px-2">{headerExtra}</div>}
-
-          <ScrollArea className={cn('min-h-0 flex-1', headerExtra ? 'p-3 pt-0' : 'p-3')}>
-            {loading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading…
-              </div>
-            ) : error ? (
-              <div className="text-sm text-red-600">{error}</div>
-            ) : !data ? null : (
-              <div className="flex flex-col gap-2">
-                <FolderRow
-                  isOpen={!!open.course}
-                  onToggle={() => toggle('course')}
-                  icon={<Folder className="h-4 w-4 text-slate-500" />}
-                  title={data.course?.name || 'Course'}
-                />
-
-                {open.course &&
-                  lessons.map(lesson => (
-                    <div
-                      key={lesson.id}
-                      ref={el => {
-                        itemRefs.current.course = el
-                      }}
-                      className="pl-4"
-                    >
-                      <FolderRow
-                        isOpen={!!open[`lesson_${lesson.id}`]}
-                        onToggle={() => toggle(`lesson_${lesson.id}`)}
-                        icon={<Folder className="h-4 w-4 text-slate-500" />}
-                        title={lesson.title}
-                        subtitle={`Lesson ${lesson.order + 1}`}
-                      />
-
-                      {open[`lesson_${lesson.id}`] &&
-                        (sessionsByLessonId[lesson.id] || []).map((session, idx) => {
-                          const sessionKey = `session_${session.id}`
-                          const lessonKey = `lesson_${lesson.id}`
-                          return (
-                            <div
-                              key={session.id}
-                              ref={el => {
-                                itemRefs.current[lessonKey] = el
-                              }}
-                              className="pl-4"
-                            >
-                              <FolderRow
-                                isOpen={!!open[sessionKey]}
-                                onToggle={() => toggle(sessionKey)}
-                                icon={<Folder className="h-4 w-4 text-slate-500" />}
-                                title={formatSessionTitle(session)}
-                                titleClassName={sessionColorById[session.id]}
-                                subtitle={session.status || `Session ${idx + 1}`}
-                              />
-
-                              {open[sessionKey] && (
-                                <div
-                                  ref={el => {
-                                    itemRefs.current[sessionKey] = el
-                                  }}
-                                  className="pl-4"
-                                >
-                                  <FolderRow
-                                    isOpen={!!open[`${sessionKey}_enrolled`]}
-                                    onToggle={() => toggle(`${sessionKey}_enrolled`)}
-                                    icon={<Folder className="h-4 w-4 text-slate-500" />}
-                                    title="Enrolled"
-                                    subtitle={`${enrolled.length}`}
-                                  />
-
-                                  {open[`${sessionKey}_enrolled`] && (
-                                    <div
-                                      ref={el => {
-                                        itemRefs.current[`${sessionKey}_enrolled`] = el
-                                      }}
-                                      className="pl-4"
-                                    >
-                                      {enrolled.map(st => (
-                                        <StudentNode
-                                          key={`${session.id}_${st.studentId}_e`}
-                                          session={session}
-                                          student={st}
-                                          deployedBySession={deployedBySession}
-                                          submissionMap={submissionMap}
-                                          reportMap={reportMap}
-                                          open={open}
-                                          toggle={toggle}
-                                          onSelect={setSelected}
-                                          itemRefs={itemRefs}
-                                        />
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                    </div>
-                  ))}
-              </div>
-            )}
-          </ScrollArea>
+    <>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
+        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+          Desk
         </div>
+        {headerExtra && <div className="px-2">{headerExtra}</div>}
+
+        <ScrollArea className={cn('min-h-0 flex-1', headerExtra ? 'p-3 pt-0' : 'p-3')}>
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading…
+            </div>
+          ) : error ? (
+            <div className="text-sm text-red-600">{error}</div>
+          ) : !data ? null : (
+            <div className="flex flex-col gap-2">
+              <FolderRow
+                isOpen={!!open.course}
+                onToggle={() => toggle('course')}
+                icon={<Folder className="h-4 w-4 text-slate-500" />}
+                title={data.course?.name || 'Course'}
+              />
+
+              {open.course &&
+                lessons.map(lesson => (
+                  <div
+                    key={lesson.id}
+                    ref={el => {
+                      itemRefs.current.course = el
+                    }}
+                    className="pl-4"
+                  >
+                    <FolderRow
+                      isOpen={!!open[`lesson_${lesson.id}`]}
+                      onToggle={() => toggle(`lesson_${lesson.id}`)}
+                      icon={<Folder className="h-4 w-4 text-slate-500" />}
+                      title={lesson.title}
+                      subtitle={`Lesson ${lesson.order + 1}`}
+                    />
+
+                    {open[`lesson_${lesson.id}`] &&
+                      (sessionsByLessonId[lesson.id] || []).map((session, idx) => {
+                        const sessionKey = `session_${session.id}`
+                        const lessonKey = `lesson_${lesson.id}`
+                        return (
+                          <div
+                            key={session.id}
+                            ref={el => {
+                              itemRefs.current[lessonKey] = el
+                            }}
+                            className="pl-4"
+                          >
+                            <FolderRow
+                              isOpen={!!open[sessionKey]}
+                              onToggle={() => toggle(sessionKey)}
+                              icon={<Folder className="h-4 w-4 text-slate-500" />}
+                              title={formatSessionTitle(session)}
+                              titleClassName={sessionColorById[session.id]}
+                              subtitle={session.status || `Session ${idx + 1}`}
+                            />
+
+                            {open[sessionKey] && (
+                              <div
+                                ref={el => {
+                                  itemRefs.current[sessionKey] = el
+                                }}
+                                className="pl-4"
+                              >
+                                <FolderRow
+                                  isOpen={!!open[`${sessionKey}_enrolled`]}
+                                  onToggle={() => toggle(`${sessionKey}_enrolled`)}
+                                  icon={<Folder className="h-4 w-4 text-slate-500" />}
+                                  title="Enrolled"
+                                  subtitle={`${enrolled.length}`}
+                                />
+
+                                {open[`${sessionKey}_enrolled`] && (
+                                  <div
+                                    ref={el => {
+                                      itemRefs.current[`${sessionKey}_enrolled`] = el
+                                    }}
+                                    className="pl-4"
+                                  >
+                                    {enrolled.map(st => (
+                                      <StudentNode
+                                        key={`${session.id}_${st.studentId}_e`}
+                                        session={session}
+                                        student={st}
+                                        deployedBySession={deployedBySession}
+                                        submissionMap={submissionMap}
+                                        reportMap={reportMap}
+                                        open={open}
+                                        toggle={toggle}
+                                        onSelect={setSelected}
+                                        itemRefs={itemRefs}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                ))}
+            </div>
+          )}
+        </ScrollArea>
       </div>
 
       <Dialog open={!!selected} onOpenChange={o => !o && setSelected(null)}>
@@ -502,7 +496,7 @@ export function SubmissionsPanel({
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
 

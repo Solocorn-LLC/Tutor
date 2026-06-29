@@ -1756,6 +1756,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const q = query.trim()
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
+  const [geoDetected, setGeoDetected] = useState(false)
   const [courses, setCourses] = useState<any[]>([])
   const [tutors, setTutors] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -1771,6 +1772,31 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const prevSelectedCourseRef = useRef<any | null>(null)
   const [rotation, setRotation] = useState(0)
   const router = useRouter()
+
+  // Auto-detect user's country from IP on mount
+  useEffect(() => {
+    if (geoDetected) return
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then((data: { country?: string; country_name?: string }) => {
+        if (!data.country) return
+        const code = data.country.toUpperCase()
+        // Find which region contains this country
+        for (const region of REGIONS) {
+          if (region.id === 'global') continue
+          const found = region.countries.find(c => c.code === code)
+          if (found) {
+            setSelectedRegion(region.id)
+            setSelectedCountryCode(code)
+            setGeoDetected(true)
+            break
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail — user can manually select
+      })
+  }, [geoDetected])
 
   const hasFilters = q !== '' || selectedRegion !== '' || selectedCountryCode !== ''
   const showReset = hasFilters
@@ -3755,10 +3781,35 @@ const CategorySearchModal = ({
   const [categorySearch, setCategorySearch] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
+  const [geoDetected, setGeoDetected] = useState(false)
   const [activeTab, setActiveTab] = useState('global')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [globalContentHeight, setGlobalContentHeight] = useState<number>(480)
   const globalContentRef = useRef<HTMLDivElement>(null)
+
+  // Auto-detect user's country from IP on mount
+  useEffect(() => {
+    if (geoDetected || !isOpen) return
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then((data: { country?: string; country_name?: string }) => {
+        if (!data.country) return
+        const code = data.country.toUpperCase()
+        for (const region of REGIONS) {
+          if (region.id === 'global') continue
+          const found = region.countries.find(c => c.code === code)
+          if (found) {
+            setSelectedRegion(region.id)
+            setSelectedCountries([code])
+            setGeoDetected(true)
+            break
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail
+      })
+  }, [geoDetected, isOpen])
 
   // Badge bar scroll navigation
   const badgeScrollRef = useRef<HTMLDivElement>(null)

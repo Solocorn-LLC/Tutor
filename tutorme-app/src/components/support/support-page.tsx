@@ -41,11 +41,11 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
   }, [activeTopic])
 
   return (
-    <div className="flex h-full min-h-full flex-col px-6 pb-0 pt-2 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
       {/* Hero */}
       <section
         className={cn(
-          'relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 p-5 shadow-[0_12px_40px_rgba(0,0,0,0.14)]',
+          'relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20',
           heroGradient
         )}
       >
@@ -57,7 +57,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
 
       {/* Lower panel */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_12px_40px_rgba(0,0,0,0.14)]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-[#1F2933] shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           {/* Mode selector cards */}
           <div className="grid flex-shrink-0 grid-cols-2 gap-3 p-5 pb-3 sm:grid-cols-4">
             {topics.map(topic => {

@@ -61,14 +61,27 @@ export interface BuilderModalWithNodesProps extends BuilderModalProps {
 export interface DMIQuestion {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)", "3b"), preserved from the
+   *  source. Shown instead of the re-serialized questionNumber when present, and
+   *  used to match an uploaded marking scheme. */
+  questionLabel?: string
   questionText: string
   answer: string
   /** Points this question is worth. Drives the auto-total and weighted grading;
    *  defaults to 1 when absent. */
   marks?: number
-  /** Marking guidance / model answer for open-ended items. Tutor-only — never
-   *  sent to students. */
+  /** All accepted answer forms beyond the canonical `answer` — alternative
+   *  phrasings, equivalent values, units, spellings, or methods that earn full
+   *  credit. Populated from a marking scheme. Tutor-only evaluation layer (a
+   *  recognized stripped key) — never sent to students. */
+  acceptableVariants?: string[]
+  /** Marking guidance / model answer for open-ended items. For adaptive schemes
+   *  this captures the award structure verbatim-faithfully (method marks, or
+   *  holistic E/P/I band descriptors). Tutor-only — never sent to students. */
   rubric?: string
+  /** Where the answer came from (ASMT-5). `answer_sheet_extracted` when filled
+   *  from an uploaded marking scheme. Tutor-only evaluation layer. */
+  answerProvenance?: 'tutor_provided' | 'answer_sheet_extracted' | 'llm_inferred' | 'tutor_edited'
   /** Which answer-input control the student sees (defaults to long answer). */
   questionType?: import('@/lib/assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
@@ -88,6 +101,12 @@ export interface DMIVersion {
   createdAt: number
   taskId?: string
   assessmentId?: string
+  /** Examining body (e.g. "AP", "IB") and subject for this assessment. Defaults
+   *  are derived from the course category; the tutor can override them, and a
+   *  later per-paper detector will populate them. Drives marking-scheme handling
+   *  that adapts to each board's standard. */
+  examBody?: string
+  subject?: string
 }
 
 export interface Task extends WithDifficultyVariants {
@@ -339,6 +358,9 @@ export interface CourseBuilderInsightsProps {
   onEndSession?: () => void
   endingSession?: boolean
   socket?: any
+  /** Live socket connection state, so the classroom WiFi indicator reflects the
+   *  real connection instead of merely whether a session exists. */
+  isConnected?: boolean
   tutorId?: string
   tutorName?: string
   studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>

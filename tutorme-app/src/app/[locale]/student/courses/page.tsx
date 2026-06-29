@@ -569,20 +569,22 @@ function CoursePageInner() {
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-gray-50 p-4">
-                  <p className="text-sm text-gray-600">Subject</p>
+                  <p className="text-sm text-gray-600">Category</p>
                   <p className="font-medium capitalize text-gray-900">{detailCourse?.subject}</p>
                 </div>
                 <div className="rounded-lg bg-gray-50 p-4">
-                  <p className="text-sm text-gray-600">Difficulty</p>
-                  <p className="font-medium text-gray-900">{detailCourse?.difficulty}</p>
+                  <p className="text-sm text-gray-600">Tutor Name</p>
+                  <p className="font-medium text-gray-900">
+                    {detailCourse?.tutorName || detailCourse?.tutorHandle || 'Unknown'}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-gray-50 p-4">
                   <p className="text-sm text-gray-600">Total Lessons</p>
                   <p className="font-medium text-gray-900">{detailCourse?._count?.lessons || 0}</p>
                 </div>
                 <div className="rounded-lg bg-gray-50 p-4">
-                  <p className="text-sm text-gray-600">Estimated Hours</p>
-                  <p className="font-medium text-gray-900">{detailCourse?.estimatedHours || 0}</p>
+                  <p className="text-sm text-gray-600">No. of Sessions</p>
+                  <p className="font-medium text-gray-900">{detailCourse?.sessionCount || 0}</p>
                 </div>
               </div>
 

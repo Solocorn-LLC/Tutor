@@ -795,7 +795,7 @@ function TutorInsightsPageInner() {
     }
   }, [session?.user?.id, session?.user?.name, sessionId])
 
-  const { socket } = useSocket(socketOptions)
+  const { socket, isConnected: socketConnected } = useSocket(socketOptions)
 
   const handleSyncToLiveSession = useCallback(
     (silent = false) => {
@@ -1273,6 +1273,7 @@ function TutorInsightsPageInner() {
             recordingDuration: recordingDurationSeconds,
             onToggleRecording: handleToggleRecording,
             socket,
+            isConnected: socketConnected,
             studentBoards,
             tutorId: session?.user?.id,
             tutorName: session?.user?.name || 'Tutor',

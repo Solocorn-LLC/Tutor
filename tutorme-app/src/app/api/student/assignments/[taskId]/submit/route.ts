@@ -39,6 +39,9 @@ function buildAnswerKey(dmiItems: unknown, metadata: unknown): DmiAnswerItem[] {
       return {
         id: String(item.id ?? item.questionNumber ?? i + 1),
         answer: item.answer != null ? String(item.answer) : undefined,
+        acceptableVariants: Array.isArray(item.acceptableVariants)
+          ? item.acceptableVariants.map(v => String(v)).filter(Boolean)
+          : undefined,
         marks: typeof item.marks === 'number' && item.marks > 0 ? item.marks : undefined,
       }
     })

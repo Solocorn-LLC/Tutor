@@ -106,7 +106,12 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isMyPage ||
     isSupportPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
-    !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
+    !isMyPage &&
+      !isReportsPage &&
+      !isAccountPage &&
+      !isSupportPage &&
+      !isCommunicationsPage &&
+      !isSubmissionsPage
   )
 
   // Use realm session (tutor tab) first; only redirect if we don't have a tutor session and default session is another role
@@ -141,9 +146,21 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
     setDesktopNavOpen(
-      !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
+      !isMyPage &&
+        !isReportsPage &&
+        !isAccountPage &&
+        !isSupportPage &&
+        !isCommunicationsPage &&
+        !isSubmissionsPage
     )
-  }, [isMyPage, isReportsPage, isAccountPage, isSupportPage, isCommunicationsPage])
+  }, [
+    isMyPage,
+    isReportsPage,
+    isAccountPage,
+    isSupportPage,
+    isCommunicationsPage,
+    isSubmissionsPage,
+  ])
   // Periodic peek animation for sidebar toggle
   useEffect(() => {
     const interval = setInterval(() => {

@@ -17,6 +17,7 @@ import {
   isDmiQuestionType,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
+import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
 import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
@@ -126,6 +127,10 @@ Output the JSON object and nothing else.`
 
 interface ParsedDmiQuestion {
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)", "3b", "12"), preserved
+   *  from the source instead of the re-serialized 1..N index. Absent when the
+   *  label carries no leading reference (the UI falls back to questionNumber). */
+  questionLabel?: string
   questionText: string
   answer: string
   marks?: number
@@ -219,6 +224,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
         return {
           questionNumber: i + 1,
+          questionLabel: extractQuestionRef(label),
           questionText: label,
           answer: answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
@@ -325,8 +331,11 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
 
     if (qMatch) {
       if (currentQ) questions.push(currentQ)
+      // Preserve the paper's real reference: "Q1(a)" → "1(a)", "Q2" → "2".
+      const ref = qMatch[2] ? `${qMatch[1]}(${qMatch[2].trim()})` : qMatch[1]
       currentQ = {
         questionNumber: parseInt(qMatch[1], 10),
+        questionLabel: ref,
         questionText: qMatch[3].trim(),
         answer: '',
         questionType: normalizeTypeToken(qMatch[2]),
@@ -376,6 +385,7 @@ function parseDmiResponse(text: string): ParsedDmiResponse {
       if (m && !/^(answer|key|note|kind|options|pairs)\b/i.test(m[2])) {
         questions.push({
           questionNumber: parseInt(m[1], 10),
+          questionLabel: m[1],
           questionText: m[2].trim(),
           answer: '',
           questionType: normalizeDmiQuestionType(undefined),

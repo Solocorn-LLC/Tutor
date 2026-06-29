@@ -29,6 +29,23 @@ describe('autoGradeDmi', () => {
     expect(r.score).toBe(100)
   })
 
+  it('credits a marking-scheme variant as a full-credit match', () => {
+    const withVariants = [
+      { id: 'q1', answer: '0.5', acceptableVariants: ['1/2', 'one half', '50%'] },
+      { id: 'q2', answer: 'colour', acceptableVariants: ['color'] },
+    ]
+    const r = autoGradeDmi(withVariants, { q1: '1/2', q2: 'color' })
+    expect(r.score).toBe(100)
+    expect(r.correct).toBe(2)
+  })
+
+  it('still marks a non-variant answer wrong', () => {
+    const withVariants = [{ id: 'q1', answer: '0.5', acceptableVariants: ['1/2', '50%'] }]
+    const r = autoGradeDmi(withVariants, { q1: '0.7' })
+    expect(r.score).toBe(0)
+    expect(r.correct).toBe(0)
+  })
+
   it('marks wrong/blank answers to short-key items incorrect (conservative)', () => {
     const r = autoGradeDmi(items, { q1: 'London', q2: '', q3: 'respiration' })
     expect(r.score).toBe(0)

@@ -111,6 +111,9 @@ export interface LiveTaskQuestion {
 export interface LiveTaskDmiItem {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)"), shown to the student
+   *  instead of the re-serialized questionNumber when present. */
+  questionLabel?: string
   questionText: string
   /** Points this question is worth (shown to students; the answer key is not). */
   marks?: number
@@ -144,7 +147,12 @@ export interface LiveTask {
   /** Per-question answer key + marks. Sent tutor→server on deploy ONLY and
    *  persisted server-side for auto-grading; NEVER copied into the student
    *  broadcast (normalizedTask) or stored in deployedMaterial. */
-  answerKey?: Array<{ id: string; answer?: string; marks?: number }>
+  answerKey?: Array<{
+    id: string
+    answer?: string
+    acceptableVariants?: string[]
+    marks?: number
+  }>
   /** Tutor's answer-reveal policy: 'instant' | 'after_submit' | 'hidden' | 'student_choice'. */
   answerReveal?: 'instant' | 'after_submit' | 'hidden' | 'student_choice'
   deployedAt: number
@@ -569,9 +577,22 @@ export async function initEnhancedSocketServer(server: NetServer) {
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    // Keep connections alive through proxies and cloud load balancers
-    pingInterval: 10000,
-    pingTimeout: 15000,
+    // Keep connections alive through proxies and cloud load balancers.
+    // The old 10s/15s was too aggressive for Cloud Run: when an instance is idle
+    // its CPU is throttled, so the engine.io ping timers stall and a pong can
+    // arrive "late" even though the client is perfectly online — the server then
+    // wrongly declares the socket dead and nothing transmits afterward. A longer
+    // pingTimeout tolerates those throttle stalls (and brief network blips)
+    // without dropping an otherwise-healthy live session.
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    // Recover a briefly-dropped session transparently: on reconnect within the
+    // window the socket keeps its rooms and receives the events it missed during
+    // the gap, instead of coming back as a fresh, empty connection.
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: false,
+    },
     transports: ['websocket', 'polling'],
     // Default is 1MB. Student answers can now carry drawing/handwriting images
     // (base64 PNGs), so a task:complete payload can exceed 1MB — beyond which
@@ -1414,6 +1435,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
                     (d): LiveTaskDmiItem => ({
                       id: (d.id as string) || '',
                       questionNumber: (d.questionNumber as number) || 0,
+                      questionLabel:
+                        typeof d.questionLabel === 'string'
+                          ? (d.questionLabel as string)
+                          : undefined,
                       questionText: (d.questionText as string) || '',
                       marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
                       questionType: d.questionType as LiveTaskDmiItem['questionType'],

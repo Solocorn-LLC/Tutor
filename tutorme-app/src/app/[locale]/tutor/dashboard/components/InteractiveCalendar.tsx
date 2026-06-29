@@ -2496,6 +2496,24 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
         ))}
       </Tabs>
 
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-gray-700">
+            {showAllDays ? 'All availability:' : `${activeDay} availability:`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllDays(!showAllDays)}
+            className="text-xs text-blue-600 hover:text-blue-800"
+          >
+            {showAllDays ? 'Show active day' : 'View all days'}
+          </button>
+        </div>
+        <div className="mt-2 min-h-[3rem] text-sm text-gray-600">
+          {showAllDays ? allDaysSummary : activeDaySummary}
+        </div>
+      </div>
+
       <div className="mt-4 flex justify-end gap-3 border-t pt-4">
         <Button variant="modal-primary" onClick={onSave}>
           Save Availability

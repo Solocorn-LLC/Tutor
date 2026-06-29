@@ -26,6 +26,9 @@
 export interface DmiAnswerItem {
   id: string
   answer?: string
+  /** Other accepted answer forms (from the marking scheme) that also earn full
+   *  credit — matched in addition to `answer`. Never sent to students. */
+  acceptableVariants?: string[]
   questionText?: string
   /** Points this question is worth. Defaults to DEFAULT_MARKS when absent. */
   marks?: number
@@ -109,7 +112,16 @@ export function autoGradeDmi(
     const rawGiven = given[item.id] ?? ''
     const g = normalize(rawGiven)
     const expected = normalize(item.answer)
-    const matched = g.length > 0 && (g === expected || ` ${g} `.includes(` ${expected} `))
+    // Accept the canonical answer plus any marking-scheme variant. A variant
+    // matches the same way as the canonical answer (exact normalized match, or
+    // the student's answer contains it as a word sequence).
+    const accepted = [
+      expected,
+      ...(Array.isArray(item.acceptableVariants)
+        ? item.acceptableVariants.map(normalize).filter(Boolean)
+        : []),
+    ].filter(Boolean)
+    const matched = g.length > 0 && accepted.some(a => g === a || ` ${g} `.includes(` ${a} `))
     // An answer carrying a drawing (a bare PNG data URL or a {drawing} blob) or
     // converted handwriting can't be reliably auto-matched, so always send it to
     // the tutor for review instead of marking it wrong.

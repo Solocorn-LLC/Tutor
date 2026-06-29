@@ -58,6 +58,9 @@ export interface LiveTaskQuestion {
 export interface LiveTaskDmiItem {
   id: string
   questionNumber: number
+  /** The paper's real question reference (e.g. "1(a)"), shown to the student
+   *  instead of the re-serialized questionNumber when present. */
+  questionLabel?: string
   questionText: string
   /** Points this question is worth (shown to students; the answer key is not). */
   marks?: number
@@ -99,9 +102,15 @@ export interface LiveTask {
   instructions?: string
   source: 'task' | 'assessment' | 'homework'
   dmiItems?: LiveTaskDmiItem[]
-  /** Per-question answer key + marks. Sent tutor→server on deploy ONLY for
-   *  server-side auto-grading; NEVER broadcast to students. */
-  answerKey?: Array<{ id: string; answer?: string; marks?: number }>
+  /** Per-question answer key + accepted variants + marks. Sent tutor→server on
+   *  deploy ONLY for server-side auto-grading; NEVER broadcast to students. */
+  answerKey?: Array<{
+    id: string
+    answer?: string
+    /** Other answer forms that earn full credit (from the marking scheme). */
+    acceptableVariants?: string[]
+    marks?: number
+  }>
   /** Tutor's answer-reveal policy for this deploy (default 'instant'). */
   answerReveal?: AnswerReveal
   deployedAt: number

@@ -1351,3 +1351,34 @@
     padding-right: calc(1.5rem * var(--density-scale));
   }
 }
+/* ============================================
+   EXTENSION SUPPRESSION - Grammarly, etc.
+   ============================================ */
+
+/* Hide Grammarly injected elements */
+grammarly-desktop-integration,
+grammarly-popups,
+grammarly-shadow-root,
+[data-grammarly-part],
+[grammarly-shadow-root] {
+  display: none !important;
+}
+
+/* Suppress any extension-induced focus rings on inputs */
+input[data-gr-ext-installed]:focus,
+input[data-gr-ext-installed]:focus-visible,
+textarea[data-gr-ext-installed]:focus,
+textarea[data-gr-ext-installed]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ============================================
+   RESPONSIVE PADDING
+   ============================================ */
+@media (min-width: 640px) {
+  .course-builder-density .sm\:px-6 {
+    padding-left: calc(1.5rem * var(--density-scale));
+    padding-right: calc(1.5rem * var(--density-scale));
+  }
+}
