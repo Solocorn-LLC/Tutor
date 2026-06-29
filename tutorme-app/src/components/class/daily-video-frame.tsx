@@ -52,6 +52,8 @@ export function DailyVideoFrame({
     startScreenShare,
     stopScreenShare,
     startRecording,
+    stopRecording,
+    isRecording,
     participants,
   } = useDailyCall()
   const joinedRef = useRef(false)
@@ -79,19 +81,32 @@ export function DailyVideoFrame({
     }
   }, [roomUrl, token, join, leave, joinAttempt])
 
+  // Auto-start cloud recording for the tutor. Daily can reject a startRecording()
+  // issued too early (room not fully ready), so retry until Daily confirms via the
+  // recording-started event (isRecording) instead of relying on one fragile timeout.
   useEffect(() => {
-    if (isJoined && autoRecord && !recordingRef.current && call) {
-      recordingRef.current = true
-      // Short delay to ensure room is fully initialized before starting recording
-      setTimeout(() => {
-        try {
-          startRecording()
-        } catch (err) {
-          console.error('Failed to auto-start recording', err)
-        }
-      }, 3000)
+    if (!isJoined || !autoRecord || isRecording || !call) return
+    let cancelled = false
+    let attempts = 0
+    let timer: ReturnType<typeof setTimeout>
+    const attempt = () => {
+      if (cancelled) return
+      attempts += 1
+      try {
+        startRecording()
+      } catch (err) {
+        console.error('Failed to auto-start recording', err)
+      }
+      if (attempts < 5) {
+        timer = setTimeout(attempt, 4000)
+      }
     }
-  }, [isJoined, autoRecord, call, startRecording])
+    timer = setTimeout(attempt, 1500)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [isJoined, autoRecord, isRecording, call, startRecording])
 
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null)
   const [devicesOpen, setDevicesOpen] = useState(false)
@@ -273,17 +288,41 @@ export function DailyVideoFrame({
   }, [floating, frame])
 
   const handleLeave = useCallback(() => {
+    // Stop cloud recording before tearing down so it finalizes promptly instead of
+    // running until the room expires.
+    if (isRecording) {
+      try {
+        stopRecording()
+      } catch (err) {
+        console.error('Failed to stop recording on leave', err)
+      }
+    }
     leave()
     joinedRef.current = false
     recordingRef.current = false
     setActiveSpeakerId(null)
-  }, [leave])
+  }, [leave, isRecording, stopRecording])
 
   useEffect(() => {
     const fn = () => handleLeave()
     window.addEventListener('tutorme:daily-video-leave', fn)
     return () => window.removeEventListener('tutorme:daily-video-leave', fn)
   }, [handleLeave])
+
+  // Closing the tab / navigating away doesn't hit the Leave button, so stop the
+  // cloud recording on pagehide too — otherwise it runs until the room expires.
+  useEffect(() => {
+    if (!isRecording) return
+    const stop = () => {
+      try {
+        stopRecording()
+      } catch (err) {
+        console.error('Failed to stop recording on page hide', err)
+      }
+    }
+    window.addEventListener('pagehide', stop)
+    return () => window.removeEventListener('pagehide', stop)
+  }, [isRecording, stopRecording])
 
   const canSendVideo = localParticipant?.permissions?.canSendVideo !== false
 
