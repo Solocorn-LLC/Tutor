@@ -70,7 +70,7 @@ const LANGUAGES = [
 ]
 
 const SECTION_CARD_CLASS =
-  'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)] border-[rgba(0,0,0,0.05)]'
+  'overflow-hidden bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)] border-0'
 
 interface PaymentMethod {
   id: string
@@ -632,7 +632,7 @@ export default function TutorSettings() {
   }
 
   return (
-    <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col bg-slate-50 px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
       {/* Hero */}
       <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
         <div className="text-center">
@@ -788,12 +788,20 @@ export default function TutorSettings() {
                     <div className="flex justify-end">
                       <Button
                         className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
-                        onClick={() => {
-                          window.location.href = '/tutor/my-page'
-                        }}
+                        onClick={handleSaveProfile}
+                        disabled={saving}
                       >
-                        <User className="mr-2 h-4 w-4" />
-                        Edit Public Profile
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -814,22 +822,6 @@ export default function TutorSettings() {
                     <p className="text-xs text-gray-500">
                       Your nationality as selected during registration
                     </p>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button onClick={handleSaveProfile} disabled={saving}>
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
                   </div>
                 </div>
               </CollapsibleCard>

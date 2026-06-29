@@ -807,107 +807,114 @@ function CourseBuilderInsightsRouteInner({
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
                   {/* Course selector — locked to read-only when a session is active */}
-                  {activeMainTab !== 'live' && insightsProps.sessionId && currentCourse && (
-                    <div className="flex h-9 min-w-[160px] max-w-[320px] items-center px-2 text-sm font-semibold text-slate-700">
-                      {currentCourse.nationality && currentCourse.nationality !== 'Global' ? (
-                        <span className="inline-flex items-center gap-1">
-                          {currentCourse.name} — {currentCourse.variantCategory || ''} —{' '}
-                          <CountryFlag
-                            countryName={currentCourse.nationality}
-                            size="xs"
-                            showLabel
-                          />
-                        </span>
-                      ) : (
-                        currentCourse.name
-                      )}
-                    </div>
-                  )}
-                  {activeMainTab !== 'live' && insightsProps.onCourseChange && (
-                    <Select
-                      // Only feed a value that has a matching <SelectItem>. courseId can
-                      // be an id absent from courses/draftCourses (template vs published
-                      // id split), and a controlled Radix Select value with no matching
-                      // item loops its value-sync forever → React #185 ("Maximum update
-                      // depth exceeded"). currentCourse is the in-list match or undefined.
-                      value={currentCourse?.id ?? ''}
-                      onValueChange={v => insightsProps.onCourseChange?.(v)}
-                      disabled={hasNoCourses}
-                    >
-                      <SelectTrigger
-                        className={cn(
-                          'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
-                          hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
+                  {activeMainTab !== 'live' &&
+                    activeMainTab !== 'test-pci' &&
+                    insightsProps.sessionId &&
+                    currentCourse && (
+                      <div className="flex h-9 min-w-[160px] max-w-[320px] items-center px-2 text-sm font-semibold text-slate-700">
+                        {currentCourse.nationality && currentCourse.nationality !== 'Global' ? (
+                          <span className="inline-flex items-center gap-1">
+                            {currentCourse.name} — {currentCourse.variantCategory || ''} —{' '}
+                            <CountryFlag
+                              countryName={currentCourse.nationality}
+                              size="xs"
+                              showLabel
+                            />
+                          </span>
+                        ) : (
+                          currentCourse.name
                         )}
+                      </div>
+                    )}
+                  {activeMainTab !== 'live' &&
+                    activeMainTab !== 'test-pci' &&
+                    insightsProps.onCourseChange && (
+                      <Select
+                        // Only feed a value that has a matching <SelectItem>. courseId can
+                        // be an id absent from courses/draftCourses (template vs published
+                        // id split), and a controlled Radix Select value with no matching
+                        // item loops its value-sync forever → React #185 ("Maximum update
+                        // depth exceeded"). currentCourse is the in-list match or undefined.
+                        value={currentCourse?.id ?? ''}
+                        onValueChange={v => insightsProps.onCourseChange?.(v)}
+                        disabled={hasNoCourses}
                       >
-                        <SelectValue
-                          placeholder={hasNoCourses ? 'Create your first course.' : 'Select course'}
+                        <SelectTrigger
+                          className={cn(
+                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
+                            hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
+                          )}
                         >
-                          {(() => {
-                            const c = currentCourse
-                            if (!c)
-                              return hasNoCourses ? 'Create your first course.' : 'Select course'
-                            return c.nationality && c.nationality !== 'Global' ? (
-                              <span className="inline-flex items-center gap-1">
-                                {c.name} — {c.variantCategory || ''} —{' '}
-                                <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                              </span>
-                            ) : (
-                              c.name
-                            )
-                          })()}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
-                        {courses && courses.length > 0 && (
-                          <SelectItem
-                            value="__live-header__"
-                            disabled
-                            className="text-muted-foreground text-xs font-semibold"
+                          <SelectValue
+                            placeholder={
+                              hasNoCourses ? 'Create your first course.' : 'Select course'
+                            }
                           >
-                            Live Courses
-                          </SelectItem>
-                        )}
-                        {courses?.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nationality && c.nationality !== 'Global' ? (
-                              <span className="inline-flex items-center gap-1">
-                                {c.name} — {c.variantCategory || ''} —{' '}
-                                <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                              </span>
-                            ) : c.isVariant ? (
-                              `${c.name} — Global`
-                            ) : (
-                              c.name
-                            )}
-                          </SelectItem>
-                        ))}
-                        {draftCourses && draftCourses.length > 0 && (
-                          <SelectItem
-                            value="__draft-header__"
-                            disabled
-                            className="text-muted-foreground text-xs font-semibold"
-                          >
-                            Draft Courses
-                          </SelectItem>
-                        )}
-                        {draftCourses?.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nationality && c.nationality !== 'Global' ? (
-                              <span className="inline-flex items-center gap-1">
-                                {c.name} — {c.variantCategory || ''} —{' '}
-                                <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                              </span>
-                            ) : c.isVariant ? (
-                              `${c.name} — Global`
-                            ) : (
-                              c.name
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                            {(() => {
+                              const c = currentCourse
+                              if (!c)
+                                return hasNoCourses ? 'Create your first course.' : 'Select course'
+                              return c.nationality && c.nationality !== 'Global' ? (
+                                <span className="inline-flex items-center gap-1">
+                                  {c.name} — {c.variantCategory || ''} —{' '}
+                                  <CountryFlag countryName={c.nationality} size="xs" showLabel />
+                                </span>
+                              ) : (
+                                c.name
+                              )
+                            })()}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
+                          {courses && courses.length > 0 && (
+                            <SelectItem
+                              value="__live-header__"
+                              disabled
+                              className="text-muted-foreground text-xs font-semibold"
+                            >
+                              Live Courses
+                            </SelectItem>
+                          )}
+                          {courses?.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nationality && c.nationality !== 'Global' ? (
+                                <span className="inline-flex items-center gap-1">
+                                  {c.name} — {c.variantCategory || ''} —{' '}
+                                  <CountryFlag countryName={c.nationality} size="xs" showLabel />
+                                </span>
+                              ) : c.isVariant ? (
+                                `${c.name} — Global`
+                              ) : (
+                                c.name
+                              )}
+                            </SelectItem>
+                          ))}
+                          {draftCourses && draftCourses.length > 0 && (
+                            <SelectItem
+                              value="__draft-header__"
+                              disabled
+                              className="text-muted-foreground text-xs font-semibold"
+                            >
+                              Draft Courses
+                            </SelectItem>
+                          )}
+                          {draftCourses?.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nationality && c.nationality !== 'Global' ? (
+                                <span className="inline-flex items-center gap-1">
+                                  {c.name} — {c.variantCategory || ''} —{' '}
+                                  <CountryFlag countryName={c.nationality} size="xs" showLabel />
+                                </span>
+                              ) : c.isVariant ? (
+                                `${c.name} — Global`
+                              ) : (
+                                c.name
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
 
                   {activeMainTab === 'builder' && saveMode === 'draft' && onCreateCourse && (
                     <Button
@@ -922,6 +929,7 @@ function CourseBuilderInsightsRouteInner({
                   )}
 
                   {activeMainTab !== 'live' &&
+                    activeMainTab !== 'test-pci' &&
                     onCourseNameChange &&
                     courseId &&
                     courseId !== 'insights-draft' && (
@@ -943,9 +951,9 @@ function CourseBuilderInsightsRouteInner({
                     )}
 
                   {activeMainTab === 'live' && (
-                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="text-foreground absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
                       {model.course?.name && (
-                        <span className="text-muted-foreground ml-2 text-xl font-normal">
+                        <span className="text-muted-foreground text-xl font-normal">
                           {model.course.name}
                         </span>
                       )}
@@ -964,6 +972,15 @@ function CourseBuilderInsightsRouteInner({
                       )}
                     </h1>
                   )}
+                  {activeMainTab === 'test-pci' && (
+                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                      {currentCourse?.name && (
+                        <span className="text-muted-foreground ml-2 text-xl font-normal">
+                          {currentCourse.name}
+                        </span>
+                      )}
+                    </h1>
+                  )}
                   {activeMainTab === 'live' &&
                     (sessionVariantName || sessionCategory || sessionNationality) && (
                       <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
@@ -977,6 +994,7 @@ function CourseBuilderInsightsRouteInner({
                       </span>
                     )}
                   {activeMainTab !== 'live' &&
+                  activeMainTab !== 'test-pci' &&
                   currentCourse &&
                   (currentCourse as any).categories?.length > 0 ? (
                     <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">

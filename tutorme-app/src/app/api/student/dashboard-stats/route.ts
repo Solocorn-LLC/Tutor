@@ -3,9 +3,12 @@
  *
  * Returns aggregate counts for the student dashboard hero:
  *  - coursesEnrolled: number of (non-deleted) course enrollments
- *  - coursesCompleted: enrollments explicitly marked complete (progress flag or completedAt)
- *  - upcomingSessions: remaining (future) course sessions across enrollments
- *  - totalBookings: 1-on-1 bookings the student has placed (PENDING/ACCEPTED/PAID)
+ *  - coursesCompleted: enrollments where the student has finished every lesson
+ *    (progress lessonsCompleted >= totalLessons), or an explicit completion flag
+ *  - upcomingSessions: future MATERIALIZED sessions, deduped the same way the
+ *    student calendar does (so the number matches the calendar, not a projection)
+ *  - totalBookings: 1-on-1 bookings the student has placed (excludes requests that
+ *    were rejected or expired without ever becoming a booking)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -15,7 +18,6 @@ import {
   courseEnrollment,
   courseProgress,
   course,
-  courseSchedule,
   calendarEvent,
   liveSession,
   oneOnOneBookingRequest,
@@ -23,24 +25,15 @@ import {
   type LiveSessionStatus,
 } from '@/lib/db/schema'
 import { eq, and, inArray, isNull, gte } from 'drizzle-orm'
-import {
-  generateUpcomingSessions,
-  mergeSessions,
-  type ScheduleSlot,
-  type RealSession,
-  type VirtualSession,
-} from '@/lib/schedule-sessions'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
-const ACTIVE_BOOKING_STATUSES: BookingRequestStatus[] = ['PENDING', 'ACCEPTED', 'PAID']
+// A booking that was rejected by the tutor or expired never became a booking, so
+// it is excluded from "Total Bookings". Everything else (incl. cancelled) counts
+// as a booking the student actually placed.
+const BOOKED_STATUSES: BookingRequestStatus[] = ['PENDING', 'ACCEPTED', 'PAID', 'CANCELLED']
 const ACTIVE_LIVE_SESSION_STATUSES: LiveSessionStatus[] = LIVE_SESSION_OPEN_STATUSES
 
 export const dynamic = 'force-dynamic'
-
-function isFuture(date: Date | string | null): boolean {
-  if (!date) return false
-  return new Date(date).getTime() > Date.now()
-}
 
 export const GET = withAuth(
   async (_req: NextRequest, session) => {
@@ -48,14 +41,15 @@ export const GET = withAuth(
     const now = new Date()
 
     try {
-      // --- 1. Load enrollments with course and progress ---
+      // --- 1. Load enrollments with course + progress (lessons drive completion) ---
       const enrollmentRows = await drizzleDb
         .select({
           enrollmentId: courseEnrollment.enrollmentId,
           courseId: courseEnrollment.courseId,
-          startDate: courseEnrollment.startDate,
           completedAt: courseEnrollment.completedAt,
           isCompleted: courseProgress.isCompleted,
+          lessonsCompleted: courseProgress.lessonsCompleted,
+          totalLessons: courseProgress.totalLessons,
           courseDeletedAt: course.deletedAt,
         })
         .from(courseEnrollment)
@@ -72,62 +66,45 @@ export const GET = withAuth(
       const activeEnrollments = enrollmentRows.filter(e => !e.courseDeletedAt)
       const courseIds = [...new Set(activeEnrollments.map(e => e.courseId).filter(Boolean))]
 
-      // Load schedules for enrolled courses (a course may have multiple schedules)
-      const scheduleRows =
-        courseIds.length > 0
-          ? await drizzleDb
-              .select({
-                courseId: courseSchedule.courseId,
-                schedule: courseSchedule.schedule,
-                weeksToSchedule: courseSchedule.weeksToSchedule,
-              })
-              .from(courseSchedule)
-              .where(inArray(courseSchedule.courseId, courseIds))
-          : []
+      // --- 2. Counts that don't depend on sessions ---
+      const coursesEnrolled = activeEnrollments.length
+      // Completed = explicit flag (kept as a fallback for when it gets written) OR
+      // the student has finished every lesson per their progress row.
+      const coursesCompleted = activeEnrollments.filter(e => {
+        if (e.isCompleted === true || e.completedAt != null) return true
+        const total = e.totalLessons ?? 0
+        const done = e.lessonsCompleted ?? 0
+        return total > 0 && done >= total
+      }).length
 
-      const schedulesByCourse = new Map<string, typeof scheduleRows>()
-      for (const courseId of courseIds) {
-        schedulesByCourse.set(
-          courseId,
-          scheduleRows.filter(s => s.courseId === courseId)
-        )
-      }
-
-      // Early return if no enrollments and no bookings
-      if (courseIds.length === 0) {
-        const bookingRows = await drizzleDb
-          .select({ requestId: oneOnOneBookingRequest.requestId })
-          .from(oneOnOneBookingRequest)
-          .where(
-            and(
-              eq(oneOnOneBookingRequest.studentId, studentId),
-              inArray(oneOnOneBookingRequest.status, ACTIVE_BOOKING_STATUSES)
-            )
+      // --- 3. Bookings (lifetime, real bookings only) ---
+      const bookingRows = await drizzleDb
+        .select({ requestId: oneOnOneBookingRequest.requestId })
+        .from(oneOnOneBookingRequest)
+        .where(
+          and(
+            eq(oneOnOneBookingRequest.studentId, studentId),
+            inArray(oneOnOneBookingRequest.status, BOOKED_STATUSES)
           )
+        )
+      const totalBookings = bookingRows.length
 
-        const totalBookings = bookingRows.length
-
+      if (courseIds.length === 0) {
         return NextResponse.json({
           success: true,
-          data: {
-            coursesEnrolled: 0,
-            coursesCompleted: 0,
-            upcomingSessions: 0,
-            totalBookings,
-          },
+          data: { coursesEnrolled, coursesCompleted, upcomingSessions: 0, totalBookings },
         })
       }
 
-      // --- 2. Load realized future sessions for enrolled courses ---
+      // --- 4. Upcoming sessions = future MATERIALIZED sessions, deduped like the
+      // student calendar (a LiveSession bridged to a CalendarEvent via externalId
+      // is counted once). No projected/virtual sessions, so this matches what the
+      // student actually sees on their calendar. ---
       const [calendarEvents, liveSessions] = await Promise.all([
         drizzleDb
           .select({
             eventId: calendarEvent.eventId,
-            courseId: calendarEvent.courseId,
-            startTime: calendarEvent.startTime,
-            endTime: calendarEvent.endTime,
-            title: calendarEvent.title,
-            status: calendarEvent.status,
+            externalId: calendarEvent.externalId,
           })
           .from(calendarEvent)
           .where(
@@ -142,13 +119,6 @@ export const GET = withAuth(
         drizzleDb
           .select({
             sessionId: liveSession.sessionId,
-            courseId: liveSession.courseId,
-            scheduledAt: liveSession.scheduledAt,
-            status: liveSession.status,
-            title: liveSession.title,
-            durationMinutes: liveSession.durationMinutes,
-            category: liveSession.category,
-            maxStudents: liveSession.maxStudents,
           })
           .from(liveSession)
           .where(
@@ -160,113 +130,15 @@ export const GET = withAuth(
           ),
       ])
 
-      // Group realized sessions by courseId
-      const calendarEventsByCourse = new Map<string, typeof calendarEvents>()
-      const liveSessionsByCourse = new Map<string, typeof liveSessions>()
-      for (const courseId of courseIds) {
-        calendarEventsByCourse.set(
-          courseId,
-          calendarEvents.filter(e => e.courseId === courseId)
-        )
-        liveSessionsByCourse.set(
-          courseId,
-          liveSessions.filter(s => s.courseId === courseId)
-        )
-      }
-
-      // --- 3. Compute counts ---
-      // Enrolled = every active (non-deleted) enrollment. Completed = those
-      // explicitly marked complete via course progress or enrollment.completedAt.
-      const coursesEnrolled = activeEnrollments.length
-      const coursesCompleted = activeEnrollments.filter(
-        e => e.isCompleted === true || e.completedAt != null
-      ).length
-
-      // Upcoming sessions = total future sessions across enrolled courses.
-      let upcomingSessions = 0
-
-      for (const enrollment of activeEnrollments) {
-        if (!enrollment.courseId) continue
-
-        const courseSchedules = schedulesByCourse.get(enrollment.courseId) ?? []
-        const startDate = enrollment.startDate ? new Date(enrollment.startDate) : now
-        const fromDate = startDate.getTime() > now.getTime() ? startDate : now
-
-        // Virtual sessions from all course schedules
-        const virtualSessions: VirtualSession[] = []
-        for (const schedule of courseSchedules) {
-          const slots = (schedule.schedule as ScheduleSlot[] | null) ?? []
-          const weeksToSchedule = schedule.weeksToSchedule ?? 8
-          if (slots.length > 0) {
-            const sessions = generateUpcomingSessions(slots, '', '', {
-              count: weeksToSchedule * slots.length,
-              fromDate,
-              maxStudents: 50,
-            })
-            virtualSessions.push(...sessions)
-          }
-        }
-
-        // Realized sessions
-        const courseCalEvents = calendarEventsByCourse.get(enrollment.courseId) ?? []
-        const courseLiveSessions = liveSessionsByCourse.get(enrollment.courseId) ?? []
-
-        const realSessions: RealSession[] = [
-          ...courseCalEvents.map(e => ({
-            id: e.eventId,
-            title: e.title || 'Session',
-            status: e.status || 'scheduled',
-            scheduledAt: e.startTime?.toISOString() ?? null,
-            startedAt: null,
-            endedAt: e.endTime?.toISOString() ?? null,
-            durationMinutes:
-              e.startTime && e.endTime
-                ? Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60000)
-                : 60,
-            isVirtual: false,
-            maxStudents: 50,
-            category: 'General',
-          })),
-          ...courseLiveSessions.map(s => ({
-            id: s.sessionId,
-            title: s.title || 'Live Session',
-            status: s.status,
-            scheduledAt: s.scheduledAt?.toISOString() ?? null,
-            startedAt: null,
-            endedAt: null,
-            durationMinutes: s.durationMinutes ?? 60,
-            isVirtual: false,
-            maxStudents: s.maxStudents ?? 50,
-            category: s.category || 'General',
-          })),
-        ]
-
-        const merged = mergeSessions(realSessions, virtualSessions)
-        const futureSessions = merged.filter(s => isFuture(s.scheduledAt))
-        upcomingSessions += futureSessions.length
-      }
-
-      // --- 4. 1-on-1 bookings placed (lifetime; excludes rejected/expired/cancelled) ---
-      const bookingRows = await drizzleDb
-        .select({ requestId: oneOnOneBookingRequest.requestId })
-        .from(oneOnOneBookingRequest)
-        .where(
-          and(
-            eq(oneOnOneBookingRequest.studentId, studentId),
-            inArray(oneOnOneBookingRequest.status, ACTIVE_BOOKING_STATUSES)
-          )
-        )
-
-      const totalBookings = bookingRows.length
+      const coveredSessionIds = new Set(
+        calendarEvents.map(e => e.externalId).filter(Boolean) as string[]
+      )
+      const upcomingSessions =
+        calendarEvents.length + liveSessions.filter(s => !coveredSessionIds.has(s.sessionId)).length
 
       return NextResponse.json({
         success: true,
-        data: {
-          coursesEnrolled,
-          coursesCompleted,
-          upcomingSessions,
-          totalBookings,
-        },
+        data: { coursesEnrolled, coursesCompleted, upcomingSessions, totalBookings },
       })
     } catch (error) {
       return handleApiError(
