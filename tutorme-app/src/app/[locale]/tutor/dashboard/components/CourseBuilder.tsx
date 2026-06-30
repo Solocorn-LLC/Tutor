@@ -731,7 +731,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
     const [rightPanelHidden, setRightPanelHidden] = useState(false)
     const [rightPanelWidth] = useState(380)
-    const [leftPanelWidth, setLeftPanelWidth] = useState(340)
+    const [leftPanelWidth, setLeftPanelWidth] = useState(380)
     const [viewportWidth, setViewportWidth] = useState(1920)
     // Peek animation state for side panel toggles
     const [isLeftPeeking, setIsLeftPeeking] = useState(false)
@@ -8168,18 +8168,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <div>{renderAssetsFolder()}</div>
                   </CardContent>
                 </Card>
-              </div>
-              <div
-                className="hover:bg-primary/20 active:bg-primary/30 group absolute right-0 top-0 flex h-full w-2 cursor-col-resize items-center justify-center transition-colors"
-                onMouseDown={e => {
-                  e.preventDefault()
-                  leftResizeStartX.current = e.clientX
-                  leftResizeStartW.current = leftPanelWidth
-                  setLeftPanelResizing(true)
-                }}
-                title="Drag to resize"
-              >
-                <GripHorizontal className="text-muted-foreground group-hover:text-primary h-3 w-3 rotate-90" />
               </div>
             </div>
 
