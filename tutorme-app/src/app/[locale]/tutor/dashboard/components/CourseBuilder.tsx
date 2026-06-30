@@ -10119,7 +10119,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                     >
                                       <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                         <AiAssistantPanel
-                                          isActive={insightsTab === 'analytics'}
                                           sessionId={insightsProps.sessionId}
                                           courseName={courseName}
                                           sessions={insightsProps.sessions?.map((s: any) => ({
