@@ -6111,7 +6111,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
             <div
               className={cn(
-                'relative z-40 flex min-h-0 shrink-0 flex-col items-end',
+                'relative z-40 flex min-h-0 shrink-0 flex-col',
                 leftPanelHidden
                   ? 'bg-transparent shadow-none'
                   : 'rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
