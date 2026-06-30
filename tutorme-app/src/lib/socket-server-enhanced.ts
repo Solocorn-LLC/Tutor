@@ -127,6 +127,8 @@ export interface LiveTaskDmiItem {
   matchPrompts?: string[]
   /** Sorted option bank for matching & drag_drop — never the correct pairing. */
   matchBank?: string[]
+  /** Paper section heading (delivery-layer — shown to the student). */
+  section?: string
 }
 
 export interface LiveTaskSourceDocument {
@@ -1451,6 +1453,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                         ? (d.matchPrompts as string[])
                         : undefined,
                       matchBank: Array.isArray(d.matchBank) ? (d.matchBank as string[]) : undefined,
+                      section: typeof d.section === 'string' ? d.section : undefined,
                     })
                   )
                 : undefined,
