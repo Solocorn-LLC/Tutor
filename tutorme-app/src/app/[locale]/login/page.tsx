@@ -109,7 +109,7 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-white p-4">
       {/* Blue gradient card */}
       <div
-        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-lg"
+        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
         style={{
           background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
         }}
@@ -250,7 +250,7 @@ function LoginFormFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white p-4">
       <div
-        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-lg"
+        className="w-full max-w-sm overflow-hidden rounded-lg px-6 py-6 shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]"
         style={{
           background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
         }}
