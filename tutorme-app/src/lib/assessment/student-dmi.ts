@@ -26,6 +26,8 @@ export interface DeployableDmiItem {
   hotspotImageUrl?: string
   /** Correct clickable regions for hotspot — answer key. */
   regions?: DmiHotspotRegion[]
+  /** Paper section heading (delivery-layer — safe to show students). */
+  section?: string
 }
 
 /** The student-safe DMI item broadcast to learners — carries no answer key. */
@@ -45,6 +47,8 @@ export interface StudentDmiItem {
    * about the correct pairing. Never includes the correspondence itself.
    */
   matchBank?: string[]
+  /** Paper section heading (delivery-layer — the student sees the structure). */
+  section?: string
 }
 
 /**
@@ -63,6 +67,7 @@ export function toStudentDmiItem(item: DeployableDmiItem): StudentDmiItem {
     questionType: item.questionType,
     options: item.options,
     hotspotImageUrl: item.hotspotImageUrl,
+    section: item.section,
   }
   if (
     (item.questionType === 'matching' || item.questionType === 'drag_drop') &&

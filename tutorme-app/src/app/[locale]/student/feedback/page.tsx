@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   Suspense,
+  Fragment,
   type ComponentProps,
 } from 'react'
 import { useSession } from 'next-auth/react'
@@ -2328,46 +2329,55 @@ function StudentFeedbackContent() {
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
-                      {activeTask.dmiItems.map(item => {
+                      {activeTask.dmiItems.map((item, idx) => {
                         const qType = normalizeDmiQuestionType(item.questionType)
+                        // Section heading (ASMT-4): show it once, before the first
+                        // question of each section.
+                        const prevSection =
+                          idx > 0 ? activeTask.dmiItems?.[idx - 1]?.section : undefined
+                        const showSection = !!item.section && item.section !== prevSection
                         return (
-                          <div
-                            key={item.id}
-                            className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                          >
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium text-gray-800">
-                                {/* The label is usually self-numbered ("Question 1(a)"); only
-                                    prepend the counter for older free-text questions. */}
-                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
-                                  ? item.questionText
-                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
-                              </p>
-                              <div className="flex shrink-0 items-center gap-1">
-                                {typeof item.marks === 'number' && item.marks > 0 && (
-                                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
-                                    {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
-                                  </span>
-                                )}
-                                {qType !== 'long' && (
-                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                    {DMI_QUESTION_TYPE_LABELS[qType]}
-                                  </span>
-                                )}
+                          <Fragment key={item.id}>
+                            {showSection && (
+                              <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                {item.section}
                               </div>
+                            )}
+                            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                              <div className="mb-2 flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium text-gray-800">
+                                  {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                  {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                    ? item.questionText
+                                    : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
+                                </p>
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {typeof item.marks === 'number' && item.marks > 0 && (
+                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                      {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                    </span>
+                                  )}
+                                  {qType !== 'long' && (
+                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                      {DMI_QUESTION_TYPE_LABELS[qType]}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <DmiAnswerField
+                                item={item}
+                                value={taskAnswers[item.id] ?? ''}
+                                // Once the student starts working, stop auto-following
+                                // the tutor so their navigation can't yank the student
+                                // away from what they're answering.
+                                onInteract={() => setFollowTutor(false)}
+                                onValueChange={next =>
+                                  setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
+                                }
+                              />
                             </div>
-                            <DmiAnswerField
-                              item={item}
-                              value={taskAnswers[item.id] ?? ''}
-                              // Once the student starts working, stop auto-following
-                              // the tutor so their navigation can't yank the student
-                              // away from what they're answering.
-                              onInteract={() => setFollowTutor(false)}
-                              onValueChange={next =>
-                                setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
-                              }
-                            />
-                          </div>
+                          </Fragment>
                         )
                       })}
                     </div>

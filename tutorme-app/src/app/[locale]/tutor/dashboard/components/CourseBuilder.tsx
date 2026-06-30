@@ -11019,6 +11019,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   Q{item.questionLabel ?? item.questionNumber}.
                                 </span>
                                 {item.questionText}
+                                {item.section && (
+                                  <span className="ml-2 inline-block rounded-full bg-indigo-50 px-2 py-0.5 align-middle text-[10px] font-medium text-indigo-600">
+                                    {item.section}
+                                  </span>
+                                )}
                               </p>
                               <div className="flex shrink-0 items-center gap-2">
                                 <label className="flex items-center gap-1 text-xs text-gray-600">

@@ -44,3 +44,17 @@ describe('toStudentDmiItem (ASMT-10/13 layer separation)', () => {
     expect(safe.options).toEqual(['a', 'b'])
   })
 })
+
+describe('toStudentDmiItem — section passthrough (ASMT-4)', () => {
+  it('carries the section title (delivery-layer, safe to show)', () => {
+    const safe = toStudentDmiItem({
+      id: 'q1',
+      questionNumber: 1,
+      questionText: 'Q',
+      questionType: 'short',
+      // @ts-expect-error structural item carries section
+      section: 'Section A',
+    })
+    expect(safe.section).toBe('Section A')
+  })
+})

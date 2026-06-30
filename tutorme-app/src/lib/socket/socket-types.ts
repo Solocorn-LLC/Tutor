@@ -74,6 +74,8 @@ export interface LiveTaskDmiItem {
   matchPrompts?: string[]
   /** Sorted option bank for matching & drag_drop — never the correct pairing. */
   matchBank?: string[]
+  /** Paper section heading (delivery-layer — shown to the student). */
+  section?: string
 }
 
 export interface LiveTaskSourceDocument {
