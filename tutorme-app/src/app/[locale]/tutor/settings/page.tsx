@@ -1109,7 +1109,6 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Billing History"
                 description="View and download your invoices and receipts"
-                defaultOpen
               >
                 <div className="space-y-4 p-6">
                   {billingHistory.map(invoice => (
