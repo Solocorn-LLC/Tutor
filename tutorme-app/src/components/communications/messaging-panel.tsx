@@ -41,7 +41,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const ListIcon = list.icon
 
   return (
-    <Card className="flex h-full w-full flex-col overflow-hidden">
+    <Card className="flex h-full w-full flex-col overflow-hidden border-0 bg-white p-0 shadow-none">
       {/* Full-width Chat header */}
       <div className="flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
         Chat
@@ -108,7 +108,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
         </div>
 
         {/* Detail / chat area */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/30">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
           {/* Chat viewport */}
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center">
             <Inbox className="mb-3 h-16 w-16 text-slate-300" />

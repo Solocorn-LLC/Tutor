@@ -36,6 +36,7 @@ import {
   Ban,
   Eye,
   CalendarClock,
+  Pencil,
   Presentation,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -699,11 +700,11 @@ function TutorDashboardContent() {
                       return (
                         <div
                           key={course.id}
-                          className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                         >
                           <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-foreground truncate font-semibold">
+                              <p className="truncate font-semibold text-white">
                                 {course.nationality && course.nationality !== 'Global' ? (
                                   <span className="inline-flex items-center gap-1">
                                     {course.name} —{' '}
@@ -722,27 +723,22 @@ function TutorDashboardContent() {
                                 )}
                               </p>
                             </div>
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                              <span>{(course.categories || [])[0] || 'Untitled'}</span>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
+                              <span className="text-white">
+                                {(course.categories || [])[0] || 'Untitled'}
+                              </span>
                               {course.price ? (
-                                <span>
+                                <span className="text-white/70">
                                   • {course.currency ?? 'USD'} {course.price}
                                 </span>
                               ) : null}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-xs">
                               <Badge
-                                variant={hasActive || isWithin1Hour ? 'default' : 'secondary'}
-                                className={cn(
-                                  'cursor-pointer transition-all duration-200',
-                                  hasActive
-                                    ? 'bg-success text-success-foreground hover:brightness-110'
-                                    : isWithin1Hour
-                                      ? 'bg-warning text-warning-foreground hover:brightness-110'
-                                      : 'border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70'
-                                )}
+                                variant="outline"
+                                className="cursor-pointer border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-[#4a5a65]"
                                 onClick={() => handleOpenSessionsModal(course)}
                               >
                                 {course.sessionCount
@@ -755,8 +751,8 @@ function TutorDashboardContent() {
                                 href={withLocalePath(`/tutor/courses/${course.id}/enrollments`)}
                               >
                                 <Badge
-                                  variant="secondary"
-                                  className="border-border/30 bg-muted/50 text-muted-foreground hover:bg-muted/70 cursor-pointer transition-all duration-200"
+                                  variant="outline"
+                                  className="cursor-pointer border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-[#4a5a65]"
                                 >
                                   {course.enrollmentCount} enrolled
                                 </Badge>
@@ -777,14 +773,14 @@ function TutorDashboardContent() {
                                 )
                                 return live ? (
                                   <Button
-                                    variant="default"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() =>
                                       router.push(
                                         withLocalePath(`/tutor/classroom?sessionId=${live.id}`)
                                       )
                                     }
-                                    className="bg-success text-success-foreground transition-all duration-200 hover:brightness-110"
+                                    className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
                                   >
                                     <Video className="mr-1 h-3 w-3" />
                                     Rejoin live
@@ -801,7 +797,7 @@ function TutorDashboardContent() {
                               onClick={() =>
                                 router.push(withLocalePath(`/tutor/classroom/${course.id}`))
                               }
-                              className="transition-all duration-200"
+                              className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
                             >
                               <Presentation className="mr-1 h-3 w-3" />
                               Classroom
@@ -811,7 +807,7 @@ function TutorDashboardContent() {
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleOpenSessionsModal(course)}
-                                className="transition-all duration-200"
+                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600 hover:outline hover:outline-1 hover:outline-blue-600"
                               >
                                 <Eye className="mr-1 h-3 w-3" />
                                 View Sessions
@@ -824,7 +820,7 @@ function TutorDashboardContent() {
                                 asChild
                                 variant="default"
                                 size="sm"
-                                className="transition-all duration-200"
+                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600 hover:outline hover:outline-1 hover:outline-blue-600"
                               >
                                 <Link
                                   href={withLocalePath(
@@ -840,20 +836,22 @@ function TutorDashboardContent() {
                               asChild
                               variant="outline"
                               size="sm"
-                              className="hover:bg-muted/80 transition-all duration-200"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-red-500 hover:bg-white hover:text-red-500"
                             >
                               <Link
                                 href={withLocalePath(
                                   `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
                                 )}
+                                className="flex items-center"
                               >
+                                <Pencil className="mr-1 h-3 w-3" />
                                 Edit
                               </Link>
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="hover:bg-muted/80 transition-all duration-200"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-purple-500 hover:bg-white hover:text-purple-500"
                               onClick={() =>
                                 setScheduleCourse({ id: course.id, name: course.name })
                               }
@@ -897,7 +895,7 @@ function TutorDashboardContent() {
                         className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
                       >
                         <div className="min-w-0 space-y-1">
-                          <p className="text-foreground truncate font-semibold">
+                          <p className="truncate font-semibold text-white">
                             @{request.student?.handle || 'student'}
                           </p>
                           <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
@@ -1263,7 +1261,7 @@ function TutorDashboardContent() {
             <Separator className="my-4" />
 
             <DialogFooter className="flex items-center justify-between sm:justify-between">
-              <div className="text-muted-foreground flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-xs">
                 <AlertCircle className="h-4 w-4" />
                 <span>Add recurring sessions in the scheduler, or create a one-off session</span>
               </div>

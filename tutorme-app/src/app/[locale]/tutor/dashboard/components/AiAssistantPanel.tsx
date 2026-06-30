@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
 
@@ -18,6 +19,14 @@ interface AiAssistantPanelProps {
   sessions?: SessionInfo[]
   studentsCount?: number
   liveSubmissions?: Array<{ taskId: string; studentId: string; submittedAt?: string | number }>
+  /** Whether the Analytics tab is currently active — triggers the intro animation */
+  isActive?: boolean
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  text: string
+  id: string
 }
 
 export function AiAssistantPanel({
@@ -26,23 +35,22 @@ export function AiAssistantPanel({
   sessions = [],
   studentsCount = 0,
   liveSubmissions = [],
+  isActive = true,
 }: AiAssistantPanelProps) {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
-  const hasLoadedRef = useRef(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isAnimating, setIsAnimating] = useState(false)
+  const hasAnimatedRef = useRef(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Load course data once on mount
-  useEffect(() => {
-    if (hasLoadedRef.current) return
-    hasLoadedRef.current = true
-
-    const lines: string[] = []
+  // Build course info message blocks
+  const buildCourseInfoMessages = useCallback((): string[] => {
+    const blocks: string[] = []
 
     if (courseName) {
-      lines.push(`Course Name: ${courseName}`)
+      blocks.push(`Course Name: ${courseName}`)
     }
 
-    // Commencement Date - first session date
     if (sessions.length > 0) {
       const sorted = [...sessions].sort(
         (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
@@ -50,7 +58,7 @@ export function AiAssistantPanel({
       const firstSession = sorted[0]
       if (firstSession?.scheduledAt) {
         const date = new Date(firstSession.scheduledAt)
-        lines.push(
+        blocks.push(
           `Commencement Date: ${date.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
@@ -62,7 +70,6 @@ export function AiAssistantPanel({
         )
       }
 
-      // Schedule - list all sessions
       const scheduleItems = sorted
         .map(s => {
           const date = new Date(s.scheduledAt)
@@ -75,16 +82,15 @@ export function AiAssistantPanel({
         })
         .join('\n')
       if (scheduleItems) {
-        lines.push(`Schedule:\n${scheduleItems}`)
+        blocks.push(`Schedule:\n${scheduleItems}`)
       }
 
-      // Next Session - upcoming session
       const now = Date.now()
       const upcoming = sorted.filter(s => new Date(s.scheduledAt).getTime() > now)
       if (upcoming.length > 0) {
         const next = upcoming[0]
         const date = new Date(next.scheduledAt)
-        lines.push(
+        blocks.push(
           `Next Session: ${next.title} — ${date.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
@@ -94,57 +100,102 @@ export function AiAssistantPanel({
           })}`
         )
       } else {
-        lines.push('Next Session: No upcoming sessions')
+        blocks.push('Next Session: No upcoming sessions')
       }
     }
 
-    // Students Enrolled
-    lines.push(`Students Enrolled: ${studentsCount}`)
+    blocks.push(`Students Enrolled: ${studentsCount}`)
 
-    // Task Completion Rate
     const totalSubmissions = liveSubmissions.length
     const completedSubmissions = liveSubmissions.filter(s => s.submittedAt).length
     const completionRate =
       totalSubmissions > 0 ? Math.round((completedSubmissions / totalSubmissions) * 100) : 0
-    lines.push(`Task Completion Rate: ${completionRate}%`)
+    blocks.push(`Task Completion Rate: ${completionRate}%`)
 
-    if (lines.length > 0) {
-      setMessages([{ role: 'assistant', text: lines.join('\n\n') }])
-    }
+    return blocks
   }, [courseName, sessions, studentsCount, liveSubmissions])
+
+  // Animate course info messages in one at a time from the bottom
+  useEffect(() => {
+    if (!isActive || hasAnimatedRef.current) return
+
+    const infoBlocks = buildCourseInfoMessages()
+    if (infoBlocks.length === 0) return
+
+    hasAnimatedRef.current = true
+    setIsAnimating(true)
+
+    // Add messages one at a time with staggered delay
+    infoBlocks.forEach((text, index) => {
+      setTimeout(() => {
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', text, id: `info-${index}-${Date.now()}` },
+        ])
+        // Scroll to bottom after each message
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 50)
+
+        // Clear animating flag after last message
+        if (index === infoBlocks.length - 1) {
+          setTimeout(() => setIsAnimating(false), 500)
+        }
+      }, index * 400)
+    })
+  }, [isActive, buildCourseInfoMessages])
 
   const handleSend = () => {
     if (!input.trim()) return
-    setMessages(prev => [...prev, { role: 'user', text: input.trim() }])
+    const userMsg: ChatMessage = { role: 'user', text: input.trim(), id: `user-${Date.now()}` }
+    setMessages(prev => [...prev, userMsg])
     setInput('')
-    // TODO: wire to AI backend
+
+    // TODO: wire to AI backend — for now simulate assistant response
+    setTimeout(() => {
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        text: 'I received your message. AI integration coming soon.',
+        id: `assistant-${Date.now()}`,
+      }
+      setMessages(prev => [...prev, assistantMsg])
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 50)
+    }, 1000)
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3 px-1 pb-0">
-      {/* Chat display */}
-      <div className="flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
-        {messages.length === 0 ? (
+    <div className="flex h-full flex-col gap-3">
+      {/* Chat messages — scrollable area */}
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+        {messages.length === 0 && !isAnimating ? (
           <p className="text-sm text-gray-400">Ask the AI Assistant anything.</p>
         ) : (
           <div className="space-y-3">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`max-w-[90%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
-                  m.role === 'user'
-                    ? 'ml-auto bg-blue-50 text-blue-900'
-                    : 'mr-auto bg-gray-50 text-gray-900'
-                }`}
-              >
-                {m.text}
-              </div>
-            ))}
+            <AnimatePresence initial={false}>
+              {messages.map(m => (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className={`max-w-[90%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
+                    m.role === 'user'
+                      ? 'ml-auto bg-blue-50 text-blue-900'
+                      : 'mr-auto bg-gray-50 text-gray-900'
+                  }`}
+                >
+                  {m.text}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Input */}
+      {/* Input — fixed at bottom */}
       <div className="shrink-0 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
         <div className="relative">
           <AutoTextarea
