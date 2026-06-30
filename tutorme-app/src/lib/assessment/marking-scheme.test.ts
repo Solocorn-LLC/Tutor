@@ -189,4 +189,42 @@ describe('applySchemeMatches', () => {
     expect(r.filled).toBe(0)
     expect(r.newRows).toHaveLength(0)
   })
+
+  it('ASMT-5: does not overwrite a tutor-authored answer, but still adds marks/rubric', () => {
+    const tutorItems = [
+      {
+        id: 'a',
+        questionNumber: 1,
+        questionLabel: '3(a)',
+        questionText: 'Q3a',
+        answer: 'tutor answer',
+        answerProvenance: 'tutor_edited',
+      },
+    ] as any
+    const r = applySchemeMatches(
+      tutorItems,
+      [{ ref: '3(a)', answer: 'scheme answer', marks: 3, rubric: 'award 3' }],
+      makeId
+    )
+    const patched = r.patchedItems[0]
+    expect(patched.answer).toBe('tutor answer') // tutor answer preserved
+    expect(patched.answerProvenance).toBe('tutor_edited') // provenance preserved
+    expect(patched.marks).toBe(3) // non-answer fields still applied
+    expect(patched.rubric).toBe('award 3')
+  })
+
+  it('ASMT-5: still overwrites an llm/scheme answer (no tutor precedence)', () => {
+    const llmItems = [
+      {
+        id: 'a',
+        questionNumber: 1,
+        questionLabel: '3(a)',
+        questionText: 'Q3a',
+        answer: 'old',
+        answerProvenance: 'answer_sheet_extracted',
+      },
+    ] as any
+    const r = applySchemeMatches(llmItems, [{ ref: '3(a)', answer: 'new' }], makeId)
+    expect(r.patchedItems[0].answer).toBe('new')
+  })
 })

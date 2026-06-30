@@ -192,7 +192,15 @@ export function applySchemeMatches(
   const patchOnto = (arr: DMIQuestion[]) =>
     arr.map(q => {
       const patch = patchByRef.get(refKey(q.questionLabel ?? q.questionNumber))
-      return patch ? { ...q, ...patch } : q
+      if (!patch) return q
+      // ASMT-5: a tutor-authored answer takes precedence over an uploaded
+      // scheme. Preserve the tutor's answer / acceptableVariants / provenance;
+      // still let the scheme contribute non-answer fields (marks, rubric).
+      if (q.answerProvenance === 'tutor_provided' || q.answerProvenance === 'tutor_edited') {
+        const { answer: _a, acceptableVariants: _v, answerProvenance: _p, ...rest } = patch
+        return Object.keys(rest).length > 0 ? { ...q, ...rest } : q
+      }
+      return { ...q, ...patch }
     })
 
   const patchedExisting = patchOnto(items)
