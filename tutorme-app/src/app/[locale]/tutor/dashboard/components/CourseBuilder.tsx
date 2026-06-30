@@ -119,7 +119,9 @@ import {
 import { deriveExamContext, EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
-import { parsePciTranscript } from '@/lib/assessment/pci'
+import { usePci } from './hooks/use-pci'
+import { getThread, type PciTarget } from './hooks/pci-reducer'
+import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -904,57 +906,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       activeExtensionId: null,
     })
 
-    const [taskPciMessages, setTaskPciMessages] = useState<
-      { role: 'user' | 'assistant'; content: string }[]
-    >([])
-    const [taskExtensionPciMessages, setTaskExtensionPciMessages] = useState<
-      Record<string, { role: 'user' | 'assistant'; content: string }[]>
-    >({})
-    const [taskExtensionPciInputs, setTaskExtensionPciInputs] = useState<Record<string, string>>({})
-    const [assessmentPciMessagesMap, setAssessmentPciMessagesMap] = useState<
-      Record<string, { role: 'user' | 'assistant'; content: string }[]>
-    >({})
-    const [taskPciInputMap, setTaskPciInputMap] = useState<Record<string, string>>({})
-    const [assessmentPciInputMap, setAssessmentPciInputMap] = useState<Record<string, string>>({})
-    const [taskPciLoading, setTaskPciLoading] = useState(false)
-    const [assessmentPciLoadingMap, setAssessmentPciLoadingMap] = useState<Record<string, boolean>>(
-      {}
-    )
-    const [taskPciErrorHint, setTaskPciErrorHint] = useState('')
-    const [assessmentPciErrorHintMap, setAssessmentPciErrorHintMap] = useState<
-      Record<string, string>
-    >({})
-    // Finalized rubric the PCI assistant produced (after the tutor approves
-    // finalizing). Held as a draft until the tutor clicks "Apply to PCI".
-    const [taskPciDraft, setTaskPciDraft] = useState('')
-    const [assessmentPciDraftMap, setAssessmentPciDraftMap] = useState<Record<string, string>>({})
-    const applyTaskPciDraft = () => {
-      if (!taskPciDraft) return
-      setTaskBuilder(prev => {
-        if (prev.activeExtensionId) {
-          return {
-            ...prev,
-            extensions: prev.extensions.map(ext =>
-              ext.id === prev.activeExtensionId ? { ...ext, pci: taskPciDraft } : ext
-            ),
-          }
-        }
-        return { ...prev, taskPci: taskPciDraft }
-      })
-      setTaskPciDraft('')
-      toast.success('Rubric applied to PCI')
-    }
-    const applyAssessmentPciDraft = (assessmentId: string) => {
-      const draft = assessmentPciDraftMap[assessmentId]
-      if (!draft) return
-      setAssessmentBuilder(prev => ({ ...prev, taskPci: draft }))
-      setAssessmentPciDraftMap(prev => {
-        const next = { ...prev }
-        delete next[assessmentId]
-        return next
-      })
-      toast.success('Rubric applied to PCI')
-    }
+    // The PCI assistant chat state + handlers live in usePci (called further down,
+    // after its deps such as autoCreateTask are defined). The loaders and the
+    // blank-slate reset need its dispatchers before that point, so bridge them
+    // through refs that are pointed at the hook once it's created.
+    const loadPciMessagesRef = useRef<(target: PciTarget, messages: PciMessage[]) => void>(() => {})
+    const resetPciRef = useRef<() => void>(() => {})
 
     // Whether the "Current PCI" box is in edit mode (tutor typing the policy
     // directly instead of via the assistant chat).
@@ -978,13 +935,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
       }
     }
-    // Warn-only guardrail violations returned by the PCI/DMI endpoints, surfaced
-    // to the tutor so they can confirm/correct (e.g. an invented retry policy or
-    // a paraphrased exam question) before relying on the output.
-    const [taskPciGuardrailWarnings, setTaskPciGuardrailWarnings] = useState<GuardrailWarning[]>([])
-    const [assessmentPciGuardrailWarningsMap, setAssessmentPciGuardrailWarningsMap] = useState<
-      Record<string, GuardrailWarning[]>
-    >({})
 
     // AI Assist Agent state - separate for task and assessment
     const [aiAssistOpen, setAiAssistOpen] = useState(false)
@@ -1188,18 +1138,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentDmiVersions([])
       setShowDmiVersionList(false)
       setPreviewDmiVersion(null)
-      setTaskPciMessages([])
-      setTaskExtensionPciMessages({})
-      setTaskExtensionPciInputs({})
-      setTaskPciInputMap({})
-      setAssessmentPciMessagesMap({})
-      setAssessmentPciInputMap({})
-      setTaskPciLoading(false)
-      setAssessmentPciLoadingMap({})
-      setTaskPciErrorHint('')
-      setAssessmentPciErrorHintMap({})
-      setTaskPciGuardrailWarnings([])
-      setAssessmentPciGuardrailWarningsMap({})
+      resetPciRef.current()
       setAiAssistOpen(false)
       setTaskAiMessages([])
       setAssessmentAiMessages([])
@@ -1584,22 +1523,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           setTestPciViewMode('pdf')
         }
-        setTaskPciMessages(parsePciTranscript(task.instructions || ''))
-        setTaskExtensionPciMessages(
-          (task.extensions || []).reduce<
-            Record<string, { role: 'user' | 'assistant'; content: string }[]>
-          >((acc, ext) => {
-            acc[ext.id] = parsePciTranscript(ext.pci || '')
-            return acc
-          }, {})
-        )
-        setTaskExtensionPciInputs(prev => {
-          const next = { ...prev }
-          for (const ext of task.extensions || []) {
-            if (next[ext.id] === undefined) next[ext.id] = ''
-          }
-          return next
-        })
+        loadPciMessagesRef.current({ kind: 'task' }, parsePciTranscript(task.instructions || ''))
+        for (const ext of task.extensions || []) {
+          loadPciMessagesRef.current(
+            { kind: 'taskExtension', id: ext.id },
+            parsePciTranscript(ext.pci || '')
+          )
+        }
         setLoadedTaskId(task.id)
         setTaskUploadedFiles(
           task.sourceDocument ? [{ id: 'source', name: task.sourceDocument.fileName }] : []
@@ -2415,236 +2345,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       tasks: (lesson.tasks || []).map(cloneTask),
       homework: (lesson.homework || []).map(cloneAssessment),
     })
-
-    const handlePciSend = async (type: 'task' | 'assessment', overrideMessage?: string) => {
-      const isTask = type === 'task'
-      let taskId = loadedTaskId
-      let assessmentId = loadedAssessmentId
-      if (isTask && !taskId) {
-        const created = autoCreateTask()
-        taskId = created?.id ?? loadedTaskId
-      }
-      if (!isTask && !assessmentId) {
-        const created = autoCreateAssessment()
-        assessmentId = created?.id ?? loadedAssessmentId
-      }
-
-      const activeTaskInput = taskBuilder.activeExtensionId
-        ? taskExtensionPciInputs[taskBuilder.activeExtensionId] || ''
-        : taskPciInputMap[taskId || ''] || ''
-      const assessmentInput = assessmentPciInputMap[assessmentId || ''] || ''
-      const input = overrideMessage || (isTask ? activeTaskInput : assessmentInput)
-      const assessmentLoading = assessmentPciLoadingMap[assessmentId || ''] || false
-      const loading = isTask ? taskPciLoading : assessmentLoading
-      if (!input.trim() || loading) return
-
-      const userMessage = input.trim()
-
-      // Only clear input map if we didn't use an override
-      if (!overrideMessage) {
-        if (isTask) {
-          if (taskBuilder.activeExtensionId) {
-            setTaskExtensionPciInputs(prev => ({
-              ...prev,
-              [taskBuilder.activeExtensionId as string]: '',
-            }))
-          } else {
-            setTaskPciInputMap(prev => ({ ...prev, [taskId || '']: '' }))
-          }
-        } else {
-          setAssessmentPciInputMap(prev => ({ ...prev, [assessmentId || '']: '' }))
-        }
-      }
-
-      const currentTaskMessages = taskBuilder.activeExtensionId
-        ? taskExtensionPciMessages[taskBuilder.activeExtensionId] || []
-        : taskPciMessages
-      const currentAssessmentMessages = assessmentPciMessagesMap[assessmentId || ''] || []
-      const nextMessages = (isTask ? currentTaskMessages : currentAssessmentMessages).concat({
-        role: 'user',
-        content: userMessage,
-      })
-      if (isTask) {
-        if (taskBuilder.activeExtensionId) {
-          setTaskExtensionPciMessages(prev => ({
-            ...prev,
-            [taskBuilder.activeExtensionId as string]: nextMessages,
-          }))
-        } else {
-          setTaskPciMessages(nextMessages)
-        }
-        // PCI field is written only from a finalized rubric (pciDraft + Apply),
-        // not from the running conversation transcript.
-        setTaskPciLoading(true)
-      } else {
-        setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: nextMessages }))
-        setAssessmentPciLoadingMap(prev => ({ ...prev, [assessmentId || '']: true }))
-      }
-
-      try {
-        // When an extension is active, generate from the EXTENSION's own content
-        // and PCI (empty for a fresh extension), not the parent task's — an
-        // extension is a separate item and must not inherit the task's content.
-        const slideContent = isTask
-          ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.content ||
-              ''
-            : taskBuilder.taskContent
-          : assessmentBuilder.taskContent
-        const pci = isTask
-          ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
-            : taskBuilder.taskPci
-          : assessmentBuilder.taskPci
-        const sessionId = isTask
-          ? taskId
-            ? `pci-task:${taskId}`
-            : undefined
-          : assessmentId
-            ? `pci-assessment:${assessmentId}`
-            : undefined
-        const activeExt =
-          isTask && taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
-            : null
-        const extensionName = activeExt ? activeExt.name : undefined
-
-        const sourceDocData = isTask
-          ? activeExt?.sourceDocument || taskSourceDocument || taskBuilder.sourceDocument
-          : currentAssessmentDocument
-        const sourceDocument = sourceDocData
-          ? {
-              fileName: sourceDocData.fileName,
-              fileUrl: sourceDocData.fileUrl,
-              mimeType: sourceDocData.mimeType,
-            }
-          : undefined
-
-        // If a PDF document is attached, render its pages (cached) so the PCI model can
-        // actually SEE the document instead of guessing from the title.
-        let pdfPages: string[] | undefined
-        if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
-          const cacheKey = sourceDocData.fileUrl
-          const cached = pdfPageCache.get(cacheKey)
-          if (cached) {
-            pdfPages = cached
-          } else {
-            try {
-              const rendered = await renderPdfToImages(sourceDocData.fileUrl, 3)
-              if (rendered.length > 0) {
-                pdfPages = rendered
-                pdfPageCache.set(cacheKey, rendered)
-              }
-            } catch {
-              // Vision is best-effort; fall back to text-only on render failure.
-            }
-          }
-        }
-
-        const response = await fetch('/api/ai/pci-master', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userMessage,
-            sessionId,
-            context: {
-              type,
-              title: isTask ? taskBuilder.title : assessmentBuilder.title,
-              content: slideContent,
-              pci,
-              extensionName,
-              sourceDocument,
-            },
-            pdfPages,
-          }),
-        })
-        if (!response.ok) {
-          let errorMessage = `Failed to get AI response (${response.status})`
-          try {
-            const errorBody = await response.json()
-            if (errorBody?.error) {
-              errorMessage = errorBody.errorId
-                ? `${errorBody.error} (Error ID: ${errorBody.errorId})`
-                : errorBody.error
-            }
-          } catch {
-            // ignore JSON parse failures
-          }
-          throw new Error(errorMessage)
-        }
-        const data = await response.json()
-        const warnings: GuardrailWarning[] = Array.isArray(data.guardrailWarnings)
-          ? data.guardrailWarnings
-          : []
-        // The PCI assistant returns a finalized, clean rubric in `pciDraft` ONLY
-        // after the tutor approves finalizing; until then it's empty. We hold it
-        // as a draft and write it to the PCI field only when the tutor clicks
-        // "Apply to PCI" — the conversation never pollutes the saved PCI.
-        const pciDraft = typeof data.pciDraft === 'string' ? data.pciDraft.trim() : ''
-        const assistantMessage = {
-          role: 'assistant' as const,
-          content: data.response || 'Unable to respond.',
-        }
-        if (isTask) {
-          const updated = nextMessages.concat(assistantMessage)
-          if (taskBuilder.activeExtensionId) {
-            setTaskExtensionPciMessages(prev => ({
-              ...prev,
-              [taskBuilder.activeExtensionId as string]: updated,
-            }))
-          } else {
-            setTaskPciMessages(updated)
-          }
-          if (pciDraft) setTaskPciDraft(pciDraft)
-          setTaskPciErrorHint('')
-          setTaskPciGuardrailWarnings(warnings)
-        } else {
-          const updated = nextMessages.concat(assistantMessage)
-          setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: updated }))
-          if (pciDraft) {
-            setAssessmentPciDraftMap(prev => ({ ...prev, [assessmentId || '']: pciDraft }))
-          }
-          setAssessmentPciErrorHintMap(prev => ({ ...prev, [assessmentId || '']: '' }))
-          setAssessmentPciGuardrailWarningsMap(prev => ({
-            ...prev,
-            [assessmentId || '']: warnings,
-          }))
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error && error.message
-            ? `PCI Assistant error: ${error.message}`
-            : 'PCI Assistant error. Please try again.'
-        toast.error(message)
-        const hint =
-          error instanceof Error && error.message
-            ? error.message
-            : 'Unable to reach the PCI assistant. Please try again.'
-        if (isTask) setTaskPciErrorHint(hint)
-        else setAssessmentPciErrorHintMap(prev => ({ ...prev, [assessmentId || '']: hint }))
-        const errorMessage = {
-          role: 'assistant' as const,
-          content: 'Sorry, there was an error processing your request. Please try again.',
-        }
-        if (isTask) {
-          const updated = nextMessages.concat(errorMessage)
-          if (taskBuilder.activeExtensionId) {
-            setTaskExtensionPciMessages(prev => ({
-              ...prev,
-              [taskBuilder.activeExtensionId as string]: updated,
-            }))
-          } else {
-            setTaskPciMessages(updated)
-          }
-        } else {
-          const updated = nextMessages.concat(errorMessage)
-          setAssessmentPciMessagesMap(prev => ({ ...prev, [assessmentId || '']: updated }))
-        }
-      } finally {
-        if (isTask) setTaskPciLoading(false)
-        else setAssessmentPciLoadingMap(prev => ({ ...prev, [assessmentId || '']: false }))
-      }
-    }
 
     // Handle Test PCI answer submission with AI scoring
     const handleTestPciSubmit = async () => {
@@ -6056,9 +5756,57 @@ FEEDBACK: [one or two short sentences explaining the score]`
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
     const hasAssessmentDocument = !!currentAssessmentDocument
 
-    const activeTaskPciMessages = taskBuilder.activeExtensionId
-      ? taskExtensionPciMessages[taskBuilder.activeExtensionId] || []
-      : taskPciMessages
+    // PCI assistant state + actions, consolidated into a reducer-backed hook.
+    // Called late (all deps below are defined by here); the two early consumers
+    // (task/assessment loaders and the blank-slate reset) reach it via the
+    // stable refs assigned just below.
+    const pciApi = usePci({
+      loadedTaskId,
+      loadedAssessmentId,
+      taskBuilder,
+      assessmentBuilder,
+      setCurrentPci,
+      taskSourceDocument,
+      currentAssessmentDocument,
+      autoCreateTask,
+      autoCreateAssessment,
+      renderPdfToImages,
+      pdfPageCache,
+    })
+    const { pci, handlePciSend, applyTaskPciDraft, applyAssessmentPciDraft, setPciInput } = pciApi
+    loadPciMessagesRef.current = pciApi.loadPciMessages
+    resetPciRef.current = pciApi.resetPci
+
+    // Reconstruct the old per-context views the render reads, from the reducer.
+    const activeTaskTarget: PciTarget = taskBuilder.activeExtensionId
+      ? { kind: 'taskExtension', id: taskBuilder.activeExtensionId }
+      : { kind: 'task' }
+    const activeTaskThread = getThread(pci, activeTaskTarget)
+    const taskPciLoading = activeTaskThread.loading
+    const taskPciErrorHint = activeTaskThread.errorHint
+    const taskPciDraft = activeTaskThread.draft
+    const taskPciGuardrailWarnings = activeTaskThread.guardrailWarnings
+    // Assessment threads keyed by id (render reads these as maps with `|| default`).
+    const assessmentPciMessagesMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.messages])
+    )
+    const assessmentPciInputMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.input])
+    )
+    const assessmentPciLoadingMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.loading])
+    )
+    const assessmentPciErrorHintMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.errorHint])
+    )
+    const assessmentPciDraftMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.draft])
+    )
+    const assessmentPciGuardrailWarningsMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.guardrailWarnings])
+    )
+
+    const activeTaskPciMessages = activeTaskThread.messages
     // The saved PCI (marking policy) for the active context — what grading uses.
     const activeTaskPci = taskBuilder.activeExtensionId
       ? (taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ?? '')
@@ -6109,9 +5857,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
         )}
       </div>
     )
-    const activeTaskPciInput = taskBuilder.activeExtensionId
-      ? taskExtensionPciInputs[taskBuilder.activeExtensionId] || ''
-      : taskPciInputMap[loadedTaskId || ''] || ''
+    const activeTaskPciInput = activeTaskThread.input
     const taskHeaderTitle = activeTaskExtension
       ? `${taskBuilder.title || 'Task'} ${activeTaskExtension.name}`
       : taskBuilder.title || 'Task'
@@ -7053,18 +6799,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                                       content: '',
                                                                       pci: '',
                                                                     }
-                                                                    setTaskExtensionPciMessages(
-                                                                      prev => ({
-                                                                        ...prev,
-                                                                        [newExtension.id]: [],
-                                                                      })
-                                                                    )
-                                                                    setTaskExtensionPciInputs(
-                                                                      prev => ({
-                                                                        ...prev,
-                                                                        [newExtension.id]: '',
-                                                                      })
-                                                                    )
+                                                                    // PCI threads for a
+                                                                    // new extension default
+                                                                    // to empty in the reducer.
                                                                     setTaskBuilder(prev => ({
                                                                       ...prev,
                                                                       extensions: [
@@ -7258,24 +6995,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                                               )
                                                                             )
                                                                               return
-                                                                            setTaskExtensionPciMessages(
-                                                                              prev => {
-                                                                                const next = {
-                                                                                  ...prev,
-                                                                                }
-                                                                                delete next[ext.id]
-                                                                                return next
-                                                                              }
-                                                                            )
-                                                                            setTaskExtensionPciInputs(
-                                                                              prev => {
-                                                                                const next = {
-                                                                                  ...prev,
-                                                                                }
-                                                                                delete next[ext.id]
-                                                                                return next
-                                                                              }
-                                                                            )
+                                                                            // The deleted
+                                                                            // extension's PCI
+                                                                            // thread becomes
+                                                                            // unreachable; no
+                                                                            // explicit prune
+                                                                            // needed.
                                                                             setTaskBuilder(
                                                                               prev => ({
                                                                                 ...prev,
@@ -9707,19 +9432,15 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   value={activeTaskPciInput}
                                                   readOnly={!canEdit}
                                                   onChange={(e: any) => {
-                                                    const value = e.target.value
-                                                    if (taskBuilder.activeExtensionId) {
-                                                      setTaskExtensionPciInputs(prev => ({
-                                                        ...prev,
-                                                        [taskBuilder.activeExtensionId as string]:
-                                                          value,
-                                                      }))
-                                                    } else {
-                                                      setTaskPciInputMap(prev => ({
-                                                        ...prev,
-                                                        [loadedTaskId || '']: value,
-                                                      }))
-                                                    }
+                                                    setPciInput(
+                                                      taskBuilder.activeExtensionId
+                                                        ? {
+                                                            kind: 'taskExtension',
+                                                            id: taskBuilder.activeExtensionId,
+                                                          }
+                                                        : { kind: 'task' },
+                                                      e.target.value
+                                                    )
                                                   }}
                                                   onKeyDown={(e: any) => {
                                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -10236,10 +9957,13 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   }
                                                   readOnly={!canEdit}
                                                   onChange={(e: any) =>
-                                                    setAssessmentPciInputMap(prev => ({
-                                                      ...prev,
-                                                      [loadedAssessmentId || '']: e.target.value,
-                                                    }))
+                                                    setPciInput(
+                                                      {
+                                                        kind: 'assessment',
+                                                        id: loadedAssessmentId || '',
+                                                      },
+                                                      e.target.value
+                                                    )
                                                   }
                                                   onKeyDown={(e: any) => {
                                                     if (e.key === 'Enter' && !e.shiftKey) {

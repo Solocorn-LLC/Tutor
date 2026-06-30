@@ -1,0 +1,240 @@
+'use client'
+
+import { useReducer } from 'react'
+import { toast } from 'sonner'
+import type { PciMessage } from '@/lib/assessment/pci'
+import {
+  pciReducer,
+  initialPciState,
+  getThread,
+  type PciState,
+  type PciTarget,
+  type PciGuardrailWarning,
+} from './pci-reducer'
+
+interface PciSourceDoc {
+  fileName: string
+  fileUrl?: string
+  mimeType?: string
+}
+
+/** What the PCI chat needs from the course builder. The PCI conversation STATE
+ *  (messages/input/loading/draft/…) lives inside this hook's reducer, so only the
+ *  genuinely-external context is passed in. */
+interface UsePciDeps {
+  loadedTaskId: string | null
+  loadedAssessmentId: string | null
+  taskBuilder: {
+    activeExtensionId: string | null
+    extensions: Array<{
+      id: string
+      content: string
+      pci: string
+      name: string
+      sourceDocument?: PciSourceDoc
+    }>
+    taskContent: string
+    taskPci: string
+    title: string
+    sourceDocument?: PciSourceDoc
+  }
+  assessmentBuilder: { taskContent: string; taskPci: string; title: string }
+  /** Writes the finalized rubric to the active task/assessment PCI field. */
+  setCurrentPci: (source: 'task' | 'assessment', text: string) => void
+  taskSourceDocument?: PciSourceDoc
+  currentAssessmentDocument?: PciSourceDoc
+  autoCreateTask: () => { id?: string } | null | undefined
+  autoCreateAssessment: () => { id?: string } | null | undefined
+  renderPdfToImages: (pdfUrl: string, maxPages?: number) => Promise<string[]>
+  pdfPageCache: Map<string, string[]>
+}
+
+export function usePci(deps: UsePciDeps) {
+  const [pci, dispatch] = useReducer(pciReducer, undefined, initialPciState)
+
+  // The thread for the active task context (base task or its active extension).
+  const activeTaskTarget = (): PciTarget =>
+    deps.taskBuilder.activeExtensionId
+      ? { kind: 'taskExtension', id: deps.taskBuilder.activeExtensionId }
+      : { kind: 'task' }
+
+  const setPciInput = (target: PciTarget, input: string) =>
+    dispatch({ type: 'setInput', target, input })
+  const loadPciMessages = (target: PciTarget, messages: PciMessage[]) =>
+    dispatch({ type: 'loadMessages', target, messages })
+  const resetPci = () => dispatch({ type: 'reset' })
+
+  const applyTaskPciDraft = () => {
+    const target = activeTaskTarget()
+    const draft = getThread(pci, target).draft
+    if (!draft) return
+    deps.setCurrentPci('task', draft)
+    dispatch({ type: 'clearDraft', target })
+    toast.success('Rubric applied to PCI')
+  }
+
+  const applyAssessmentPciDraft = (assessmentId: string) => {
+    const target: PciTarget = { kind: 'assessment', id: assessmentId }
+    const draft = getThread(pci, target).draft
+    if (!draft) return
+    deps.setCurrentPci('assessment', draft)
+    dispatch({ type: 'clearDraft', target })
+    toast.success('Rubric applied to PCI')
+  }
+
+  const handlePciSend = async (type: 'task' | 'assessment', overrideMessage?: string) => {
+    const isTask = type === 'task'
+    let taskId = deps.loadedTaskId
+    let assessmentId = deps.loadedAssessmentId
+    if (isTask && !taskId) taskId = deps.autoCreateTask()?.id ?? deps.loadedTaskId
+    if (!isTask && !assessmentId) {
+      assessmentId = deps.autoCreateAssessment()?.id ?? deps.loadedAssessmentId
+    }
+
+    const target: PciTarget = isTask
+      ? activeTaskTarget()
+      : { kind: 'assessment', id: assessmentId || '' }
+    const thread = getThread(pci, target)
+    const input = overrideMessage || thread.input
+    if (!input.trim() || thread.loading) return
+    const userMessage = input.trim()
+
+    // Clear the input box only on a real send (not a quick-action override), then
+    // append the user's message + start loading.
+    if (!overrideMessage) dispatch({ type: 'setInput', target, input: '' })
+    dispatch({ type: 'sendStart', target, userMessage })
+
+    try {
+      const { taskBuilder, assessmentBuilder } = deps
+      // An active extension generates from its OWN content + PCI, not the parent's.
+      const slideContent = isTask
+        ? taskBuilder.activeExtensionId
+          ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.content || ''
+          : taskBuilder.taskContent
+        : assessmentBuilder.taskContent
+      const pciText = isTask
+        ? taskBuilder.activeExtensionId
+          ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
+          : taskBuilder.taskPci
+        : assessmentBuilder.taskPci
+      const sessionId = isTask
+        ? taskId
+          ? `pci-task:${taskId}`
+          : undefined
+        : assessmentId
+          ? `pci-assessment:${assessmentId}`
+          : undefined
+      const activeExt =
+        isTask && taskBuilder.activeExtensionId
+          ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
+          : null
+      const extensionName = activeExt ? activeExt.name : undefined
+
+      const sourceDocData = isTask
+        ? activeExt?.sourceDocument || deps.taskSourceDocument || taskBuilder.sourceDocument
+        : deps.currentAssessmentDocument
+      const sourceDocument = sourceDocData
+        ? {
+            fileName: sourceDocData.fileName,
+            fileUrl: sourceDocData.fileUrl,
+            mimeType: sourceDocData.mimeType,
+          }
+        : undefined
+
+      // Render an attached PDF's pages (cached) so the model can SEE the document.
+      let pdfPages: string[] | undefined
+      if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+        const cacheKey = sourceDocData.fileUrl
+        const cached = deps.pdfPageCache.get(cacheKey)
+        if (cached) {
+          pdfPages = cached
+        } else {
+          try {
+            const rendered = await deps.renderPdfToImages(sourceDocData.fileUrl, 3)
+            if (rendered.length > 0) {
+              pdfPages = rendered
+              deps.pdfPageCache.set(cacheKey, rendered)
+            }
+          } catch {
+            // Vision is best-effort; fall back to text-only on render failure.
+          }
+        }
+      }
+
+      const response = await fetch('/api/ai/pci-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId,
+          context: {
+            type,
+            title: isTask ? taskBuilder.title : assessmentBuilder.title,
+            content: slideContent,
+            pci: pciText,
+            extensionName,
+            sourceDocument,
+          },
+          pdfPages,
+        }),
+      })
+      if (!response.ok) {
+        let errorMessage = `Failed to get AI response (${response.status})`
+        try {
+          const errorBody = await response.json()
+          if (errorBody?.error) {
+            errorMessage = errorBody.errorId
+              ? `${errorBody.error} (Error ID: ${errorBody.errorId})`
+              : errorBody.error
+          }
+        } catch {
+          // ignore JSON parse failures
+        }
+        throw new Error(errorMessage)
+      }
+      const data = await response.json()
+      const warnings: PciGuardrailWarning[] = Array.isArray(data.guardrailWarnings)
+        ? data.guardrailWarnings
+        : []
+      const draft = typeof data.pciDraft === 'string' ? data.pciDraft.trim() : ''
+      dispatch({
+        type: 'sendSuccess',
+        target,
+        assistant: { role: 'assistant', content: data.response || 'Unable to respond.' },
+        draft: draft || undefined,
+        warnings,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? `PCI Assistant error: ${error.message}`
+          : 'PCI Assistant error. Please try again.'
+      toast.error(message)
+      const hint =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Unable to reach the PCI assistant. Please try again.'
+      dispatch({
+        type: 'sendError',
+        target,
+        hint,
+        assistant: {
+          role: 'assistant',
+          content: 'Sorry, there was an error processing your request. Please try again.',
+        },
+      })
+    }
+  }
+
+  return {
+    pci,
+    handlePciSend,
+    applyTaskPciDraft,
+    applyAssessmentPciDraft,
+    setPciInput,
+    loadPciMessages,
+    resetPci,
+  }
+}
+
+export type { PciState }
