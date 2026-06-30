@@ -303,7 +303,16 @@ export async function POST(request: NextRequest) {
     // is the conversational chat text, `pci` is the finalized rubric (non-empty
     // only after the tutor approves finalizing). Extract both so the chat never
     // shows a raw spec and the builder can write a clean PCI to the field.
+    // TASK-5 (Confirmation): the tutor's message must explicitly signal approval
+    // before the engine presents a finalized rubric — the model alone cannot
+    // finalize. Used both to gate the draft and to inform the validator.
+    const tutorSignaledFinalize =
+      /\b(confirm(ed)?|finali[sz]e|approve[d]?|looks good|go ahead|activate|apply it|lock it in|use (that|this)|that'?s (right|correct|good|it)|sounds good|save it|agreed)\b/i.test(
+        safeMessage
+      )
+
     let pciDraft = ''
+    let pciUnconfirmed = false
     if (guardrailDomain) {
       const env = parseLlmJson<{ reply?: string; pci?: string }>(response.response)
       if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
@@ -311,6 +320,13 @@ export async function POST(request: NextRequest) {
           response.response = env.reply.trim()
         }
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
+      }
+      // Suppress a finalized rubric the model emitted without an explicit tutor
+      // approval this turn — no silent finalization (the client Apply button is
+      // the second gate).
+      if (pciDraft && !tutorSignaledFinalize) {
+        pciUnconfirmed = true
+        pciDraft = ''
       }
     }
 
@@ -328,12 +344,9 @@ export async function POST(request: NextRequest) {
     // surface them to the tutor. Flip to blocking later by gating on severity.
     let guardrailWarnings: GuardrailViolation[] = []
     if (guardrailDomain === 'task') {
-      const finalizing = /\b(confirm|finali[sz]e|approve|looks good|go ahead|activate)\b/i.test(
-        safeMessage
-      )
       guardrailWarnings = runTaskGuardrails(response.response, {
         sourceContent: context?.content,
-        finalizing,
+        finalizing: tutorSignaledFinalize,
         finalizedPci: pciDraft,
       }).violations
       if (guardrailWarnings.length > 0) {
@@ -347,6 +360,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: response.response,
       pciDraft,
+      // True when the model proposed a finalized rubric but the tutor hasn't
+      // signalled approval — the UI can prompt them to confirm before applying.
+      pciUnconfirmed,
       conversationId: response.conversationId,
       parsed: response.parsed ?? null,
       guardrailWarnings,

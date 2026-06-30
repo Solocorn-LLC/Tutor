@@ -56,8 +56,15 @@ export function useDmiEditor(deps: DmiEditorDeps) {
     itemId: string,
     patch: Partial<DMIQuestion>
   ) => {
+    // ASMT-5: when the tutor edits the answer/variants, record provenance so a
+    // later uploaded marking scheme won't overwrite the tutor's answer.
+    const touchesAnswer = 'answer' in patch || 'acceptableVariants' in patch
+    const effectivePatch: Partial<DMIQuestion> =
+      touchesAnswer && !('answerProvenance' in patch)
+        ? { ...patch, answerProvenance: 'tutor_edited' }
+        : patch
     const editItems = (arr: DMIQuestion[]) =>
-      arr.map(q => (q.id === itemId ? { ...q, ...patch } : q))
+      arr.map(q => (q.id === itemId ? { ...q, ...effectivePatch } : q))
     setItemsAndVersions(
       source,
       editItems,

@@ -8,6 +8,7 @@ import { getTeachingModes } from '@/lib/ai/teaching-prompts'
 import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { z } from 'zod'
 import { runTutorChat } from '@/lib/agents/tutor-chat-service'
+import { hasActiveAssessment } from '@/lib/assessment/active-assessment'
 import { getServerSession, authOptions } from '@/lib/auth'
 
 type TutorMode = 'socratic' | 'direct' | 'lesson' | 'practice'
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
 
     const teachingMode: TutorMode = mode === 'hint' ? 'socratic' : mode
 
+    // ASMT-15: refuse to solve assessment questions while one is in progress.
+    const assessmentActive = await hasActiveAssessment(session.user.id)
+
     const response = await runTutorChat({
       userId: session.user.id,
       message,
@@ -61,6 +65,7 @@ export async function POST(request: NextRequest) {
       voiceGender,
       voiceAccent,
       chatHistory: [],
+      assessmentActive,
     })
 
     return NextResponse.json({

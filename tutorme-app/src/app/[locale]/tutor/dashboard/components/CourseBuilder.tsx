@@ -117,6 +117,10 @@ import {
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
 import { deriveExamContext, EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
+import { reverifyAssessment } from '@/lib/assessment/assessment-gates'
+import { deriveSections, deriveTotalMarks } from '@/lib/assessment/sections'
+import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
+import { findEvaluationLeaks } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -848,6 +852,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskContent: string
       taskPci: string
       details: string
+      /** Append-only PCI approval audit log (TASK-18). */
+      pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
       sourceDocument?: {
         fileName: string
         fileUrl: string
@@ -919,10 +925,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Directly set the saved PCI (the marking policy used by grading) for the
     // active context — the active task extension, the base task, or the
     // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
-    const setCurrentPci = (source: 'task' | 'assessment', text: string) => {
+    const setCurrentPci = (
+      source: 'task' | 'assessment',
+      text: string,
+      audit?: import('@/lib/assessment/pci').PciAuditRecord
+    ) => {
       if (source === 'task') {
-        setTaskBuilder(prev =>
-          prev.activeExtensionId
+        setTaskBuilder(prev => {
+          const base = prev.activeExtensionId
             ? {
                 ...prev,
                 extensions: prev.extensions.map(ext =>
@@ -930,7 +940,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 ),
               }
             : { ...prev, taskPci: text }
-        )
+          // TASK-18: record the approval (transcript + approved text) on a real
+          // "Apply to PCI" — not on a manual edit/clear (which pass no audit).
+          return audit ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit] } : base
+        })
       } else {
         setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
       }
@@ -1498,6 +1511,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           taskContent: content,
           taskPci: task.instructions || '',
           details: task.shortDescription || '',
+          // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
+          pciHistory: task.pciHistory,
           sourceDocument: task.sourceDocument,
           extensions: (task.extensions || []).map(ext => ({
             ...ext,
@@ -1740,6 +1755,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   shortDescription: taskBuilder.details,
                   description: taskBuilder.taskContent,
                   instructions: taskBuilder.taskPci,
+                  // TASK-18: persist the PCI approval audit log with the task.
+                  pciHistory: taskBuilder.pciHistory,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
                   dmiVersions: taskDmiVersions,
@@ -2283,19 +2300,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             title: homeworkItem.title || 'Homework',
             content: homeworkItem.description || '',
             source: 'homework',
-            dmiItems:
-              homeworkItem.dmiItems?.map(i => ({
-                id: i.id,
-                questionNumber: i.questionNumber,
-                questionLabel: i.questionLabel,
-                questionText: i.questionText,
-                marks: i.marks,
-                questionType: i.questionType,
-                options: i.options,
-                pairs: i.pairs,
-                hotspotImageUrl: i.hotspotImageUrl,
-                regions: i.regions,
-              })) || [],
+            // Student-safe projection (strips answer key incl. matching pairs /
+            // hotspot regions). See toStudentDmiItem.
+            dmiItems: homeworkItem.dmiItems?.map(toStudentDmiItem) || [],
             // Answer key + marks for server-side grading (never sent to students).
             answerKey:
               homeworkItem.dmiItems?.map(i => ({
@@ -2710,6 +2717,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
           notify(`Guardrail ${w.ruleId}: ${w.message}`)
         }
 
+        // ASMT-2: warn the tutor when the document parsed with low/medium
+        // confidence so they verify before proceeding ("pause" on Low).
+        const confidence = data.confidence as
+          | { level: 'High' | 'Medium' | 'Low'; reasons?: string[] }
+          | null
+          | undefined
+        if (confidence && confidence.level !== 'High') {
+          const reason = confidence.reasons?.[0] ? ` ${confidence.reasons[0]}` : ''
+          const msg = `${confidence.level} confidence parsing this document — please verify the extracted questions.${reason}`
+          if (confidence.level === 'Low') toast.error(msg)
+          else toast.warning(msg)
+        }
+
         if (questions.length === 0) {
           toast.warning('No questions could be generated. Try adding more content.')
           return
@@ -2732,6 +2752,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
           pairs: Array.isArray(q.pairs) ? q.pairs : undefined,
           hotspotImageUrl: q.hotspotImageUrl,
           regions: Array.isArray(q.regions) ? q.regions : undefined,
+          // Paper section this part belongs to (ASMT-4), when present.
+          section: typeof q.section === 'string' && q.section.trim() ? q.section.trim() : undefined,
         }))
 
         // Study material: students see the GENERATED questions (with options) on
@@ -2789,6 +2811,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
           createdAt: Date.now(),
           taskId: isTask ? loadedTaskId || undefined : undefined,
           assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+          // ASMT-4: section grouping + total marks derived from the questions.
+          sections: deriveSections(dmiItems),
+          totalMarks: deriveTotalMarks(dmiItems),
         }
 
         if (isTask) {
@@ -2880,26 +2905,41 @@ FEEDBACK: [one or two short sentences explaining the score]`
           return
         }
 
+        // ASMT-12: re-verify the assessment is internally consistent and fully
+        // gradable before generating the final/deployed DMI. Covers ASMT-8
+        // (open-question rubric), numbering integrity, and answer-key mapping;
+        // blocks deploy on any issue.
+        const reverifyIssues = reverifyAssessment(assessmentDmiItems)
+        if (reverifyIssues.length > 0) {
+          const shown = reverifyIssues
+            .slice(0, 3)
+            .map(i => i.message)
+            .join(' ')
+          const more = reverifyIssues.length > 3 ? ` (+${reverifyIssues.length - 3} more)` : ''
+          toast.error(`Cannot deploy — ${shown}${more}`)
+          return
+        }
+
+        // Student-safe DMI: strips the answer key, including matching `pairs`
+        // and hotspot `regions` (which ARE the answer). See toStudentDmiItem.
+        const studentDmiItems = assessmentDmiItems.map(toStudentDmiItem)
+        // ASMT-10/13: deterministic guarantee the student payload carries no
+        // evaluation data — block deploy if anything leaks through.
+        const leaks = findEvaluationLeaks(studentDmiItems)
+        if (leaks.length > 0) {
+          console.error('[assessment] evaluation-layer leak in student payload:', leaks)
+          toast.error(
+            'Internal error: answer data was present in the student view. Deploy blocked.'
+          )
+          return
+        }
+
         const task: LiveTask = {
           id: loadedAssessmentId,
           title: assessmentBuilder.title || 'Assessment',
           content: assessmentBuilder.taskContent,
           source: 'assessment',
-          dmiItems: assessmentDmiItems.map(item => ({
-            id: item.id,
-            questionNumber: item.questionNumber,
-            questionLabel: item.questionLabel,
-            questionText: item.questionText,
-            // Marks are shown to students; the answer key / rubric is NOT deployed.
-            marks: item.marks,
-            // Carry the answer-input type + options/pairs so the student gets the
-            // right control (e.g. mcq letter choices), not a plain textarea.
-            questionType: item.questionType,
-            options: item.options,
-            pairs: item.pairs,
-            hotspotImageUrl: item.hotspotImageUrl,
-            regions: item.regions,
-          })),
+          dmiItems: studentDmiItems,
           // Answer key + marks for server-side auto-grading. Sent to the server
           // only — never broadcast to students.
           answerKey: assessmentDmiItems.map(item => ({
@@ -8788,22 +8828,13 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         title: task.title || 'Task',
                                                         content: task.description || '',
                                                         source: 'task',
+                                                        // Student-safe projection
+                                                        // (strips answer key incl.
+                                                        // matching pairs / hotspot
+                                                        // regions).
                                                         dmiItems:
-                                                          task.dmiItems?.map(item => ({
-                                                            id: item.id,
-                                                            questionNumber: item.questionNumber,
-                                                            questionLabel: item.questionLabel,
-                                                            questionText: item.questionText,
-                                                            // Marks shown to students; carry the input
-                                                            // type + options so mcq/etc. render the right
-                                                            // control. Answer key / rubric stay server-side.
-                                                            marks: item.marks,
-                                                            questionType: item.questionType,
-                                                            options: item.options,
-                                                            pairs: item.pairs,
-                                                            hotspotImageUrl: item.hotspotImageUrl,
-                                                            regions: item.regions,
-                                                          })) || [],
+                                                          task.dmiItems?.map(toStudentDmiItem) ||
+                                                          [],
                                                         // Answer key + marks for
                                                         // server-side grading (never
                                                         // sent to students).
@@ -11001,6 +11032,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   Q{item.questionLabel ?? item.questionNumber}.
                                 </span>
                                 {item.questionText}
+                                {item.section && (
+                                  <span className="ml-2 inline-block rounded-full bg-indigo-50 px-2 py-0.5 align-middle text-[10px] font-medium text-indigo-600">
+                                    {item.section}
+                                  </span>
+                                )}
                               </p>
                               <div className="flex shrink-0 items-center gap-2">
                                 <label className="flex items-center gap-1 text-xs text-gray-600">
@@ -11079,24 +11115,53 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                 className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
                               />
                             </div>
-                            {isOpenEnded && (
-                              <div className="mt-2">
-                                <label className="mb-1 block text-xs font-medium text-gray-600">
-                                  Marking guidance (optional)
-                                </label>
-                                <textarea
-                                  value={item.rubric || ''}
-                                  disabled={!canEdit}
-                                  placeholder="How to award the marks…"
-                                  onChange={e =>
-                                    applyDmiEdit(dmiEditor.source, item.id, {
-                                      rubric: e.target.value,
-                                    })
-                                  }
-                                  className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
-                                />
-                              </div>
-                            )}
+                            {isOpenEnded &&
+                              (() => {
+                                // short/long are gated at deploy (ASMT-8); other
+                                // "open-ish" types keep the rubric optional.
+                                const rubricRequired =
+                                  item.questionType === 'short' || item.questionType === 'long'
+                                return (
+                                  <div className="mt-2">
+                                    <div className="mb-1 flex items-center justify-between gap-2">
+                                      <label className="block text-xs font-medium text-gray-600">
+                                        Marking guidance{' '}
+                                        {rubricRequired ? (
+                                          <span className="font-semibold text-red-600">
+                                            (required)
+                                          </span>
+                                        ) : (
+                                          '(optional)'
+                                        )}
+                                      </label>
+                                      {rubricRequired && canEdit && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            applyDmiEdit(dmiEditor.source, item.id, {
+                                              rubric: 'Manual marking — tutor grades by hand.',
+                                            })
+                                          }
+                                          className="shrink-0 text-xs font-medium text-blue-700 hover:underline"
+                                        >
+                                          Manual marking only
+                                        </button>
+                                      )}
+                                    </div>
+                                    <textarea
+                                      value={item.rubric || ''}
+                                      disabled={!canEdit}
+                                      placeholder="How to award the marks…"
+                                      onChange={e =>
+                                        applyDmiEdit(dmiEditor.source, item.id, {
+                                          rubric: e.target.value,
+                                        })
+                                      }
+                                      className="min-h-[36px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
+                                    />
+                                  </div>
+                                )
+                              })()}
                           </div>
                         )
                       })}

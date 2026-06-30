@@ -68,12 +68,14 @@ export interface LiveTaskDmiItem {
   questionType?: import('../assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
   options?: string[]
-  /** Correct left↔right pairs for `matching` (the right values form the bank). */
-  pairs?: import('../assessment/question-types').DmiMatchPair[]
   /** Image the student clicks for a `hotspot` item. */
   hotspotImageUrl?: string
-  /** Correct clickable regions for `hotspot` (answer key, not shown to student). */
-  regions?: import('../assessment/question-types').DmiHotspotRegion[]
+  /** Prompts (left items / drag items) for matching & drag_drop, in order. */
+  matchPrompts?: string[]
+  /** Sorted option bank for matching & drag_drop — never the correct pairing. */
+  matchBank?: string[]
+  /** Paper section heading (delivery-layer — shown to the student). */
+  section?: string
 }
 
 export interface LiveTaskSourceDocument {

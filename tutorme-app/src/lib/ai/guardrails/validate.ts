@@ -210,7 +210,9 @@ export function validateAssessmentOutput(
       })
     }
 
-    // ASMT-8: open questions need a rubric pathway before confirmation.
+    // ASMT-8: open questions need a rubric pathway before confirmation. This is
+    // a generation-time advisory (the tutor adds rubrics before deploy); the
+    // hard block lives at the deploy gate (findOpenItemsMissingRubric).
     if (isOpen && !q.rubric) {
       violations.push({
         ruleId: 'ASMT-8',
