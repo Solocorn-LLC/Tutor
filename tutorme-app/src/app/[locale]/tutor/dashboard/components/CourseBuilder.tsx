@@ -9349,9 +9349,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div className="flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
-                                        <PciGuidance kind="task" />
-                                        {renderCurrentPci('task', activeTaskPci)}
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
+                                          <PciGuidance kind="task" />
+                                          {renderCurrentPci('task', activeTaskPci)}
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the
@@ -9855,9 +9855,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           </div>
                                         </div>
 
-                                        <PciGuidance kind="assessment" />
-                                        {renderCurrentPci('assessment', assessmentBuilder.taskPci)}
                                         <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
+                                          <PciGuidance kind="assessment" />
+                                          {renderCurrentPci(
+                                            'assessment',
+                                            assessmentBuilder.taskPci
+                                          )}
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []
                                           ).length === 0 && (
