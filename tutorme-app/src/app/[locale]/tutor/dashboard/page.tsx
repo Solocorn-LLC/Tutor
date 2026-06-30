@@ -817,7 +817,7 @@ function TutorDashboardContent() {
                                         withLocalePath(`/tutor/classroom?sessionId=${live.id}`)
                                       )
                                     }
-                                    className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
+                                    className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-emerald-500"
                                   >
                                     <Video className="mr-1 h-3 w-3" />
                                     Rejoin live
@@ -872,7 +872,7 @@ function TutorDashboardContent() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-white hover:text-red-500"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
                               onClick={() =>
                                 router.push(
                                   withLocalePath(
@@ -887,7 +887,7 @@ function TutorDashboardContent() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-white hover:text-purple-500"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-purple-500"
                               onClick={() =>
                                 setScheduleCourse({ id: course.id, name: course.name })
                               }

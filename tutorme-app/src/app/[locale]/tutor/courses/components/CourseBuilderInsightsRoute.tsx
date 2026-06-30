@@ -915,18 +915,6 @@ function CourseBuilderInsightsRouteInner({
                       </Select>
                     )}
 
-                  {activeMainTab === 'builder' && saveMode === 'draft' && onCreateCourse && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
-                      onClick={onCreateCourse}
-                      title={hasNoCourses ? 'Create your first course' : 'New Course'}
-                    >
-                      <Plus className="h-5 w-5" />
-                    </Button>
-                  )}
-
                   {activeMainTab !== 'live' &&
                     activeMainTab !== 'test-pci' &&
                     onCourseNameChange &&
