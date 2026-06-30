@@ -36,6 +36,7 @@ import {
   Ban,
   Eye,
   CalendarClock,
+  Pencil,
   Presentation,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -841,7 +842,9 @@ function TutorDashboardContent() {
                                 href={withLocalePath(
                                   `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
                                 )}
+                                className="flex items-center"
                               >
+                                <Pencil className="mr-1 h-3 w-3" />
                                 Edit
                               </Link>
                             </Button>
