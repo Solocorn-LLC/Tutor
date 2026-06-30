@@ -55,6 +55,39 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
 import { CountryFlag } from '@/components/country-flag'
 
+function SessionCountdown({ scheduledAt }: { scheduledAt: string }) {
+  const [countdown, setCountdown] = useState('')
+
+  useEffect(() => {
+    const target = new Date(scheduledAt).getTime()
+    const tick = () => {
+      const diff = target - Date.now()
+      if (diff <= 0) {
+        setCountdown('Starting now')
+        return
+      }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(
+        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      )
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [scheduledAt])
+
+  if (!countdown) return null
+
+  return (
+    <span className="flex items-center gap-1 text-xs font-medium text-emerald-300">
+      <Clock className="h-3 w-3" />
+      <span className="tabular-nums">{countdown}</span>
+    </span>
+  )
+}
+
 function DashboardSkeleton() {
   return (
     <div className="min-h-screen">
@@ -758,6 +791,10 @@ function TutorDashboardContent() {
                                 </Badge>
                               </Link>
                             </div>
+                            {/* Countdown to next session */}
+                            {nextSession && (
+                              <SessionCountdown scheduledAt={nextSession.scheduledAt} />
+                            )}
                             {hasActive &&
                               (() => {
                                 // A session is live right now — give a one-click
@@ -807,7 +844,7 @@ function TutorDashboardContent() {
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleOpenSessionsModal(course)}
-                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600 hover:outline hover:outline-1 hover:outline-blue-600"
+                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
                               >
                                 <Eye className="mr-1 h-3 w-3" />
                                 View Sessions
@@ -820,7 +857,7 @@ function TutorDashboardContent() {
                                 asChild
                                 variant="default"
                                 size="sm"
-                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600 hover:outline hover:outline-1 hover:outline-blue-600"
+                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
                               >
                                 <Link
                                   href={withLocalePath(
@@ -836,7 +873,7 @@ function TutorDashboardContent() {
                               asChild
                               variant="outline"
                               size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-red-500 hover:bg-white hover:text-red-500"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-white hover:text-red-500"
                             >
                               <Link
                                 href={withLocalePath(
@@ -851,7 +888,7 @@ function TutorDashboardContent() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-purple-500 hover:bg-white hover:text-purple-500"
+                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-white hover:text-purple-500"
                               onClick={() =>
                                 setScheduleCourse({ id: course.id, name: course.name })
                               }
