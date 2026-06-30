@@ -128,7 +128,10 @@ export function AiAssistantPanel({
     // Add messages one at a time with staggered delay
     infoBlocks.forEach((text, index) => {
       setTimeout(() => {
-        setMessages(prev => [...prev, { role: 'assistant', text, id: `info-${index}-${Date.now()}` }])
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', text, id: `info-${index}-${Date.now()}` },
+        ])
         // Scroll to bottom after each message
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -165,13 +168,13 @@ export function AiAssistantPanel({
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Chat messages — scrollable area */}
-      <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
         {messages.length === 0 && !isAnimating ? (
           <p className="text-sm text-gray-400">Ask the AI Assistant anything.</p>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
-              {messages.map((m) => (
+              {messages.map(m => (
                 <motion.div
                   key={m.id}
                   initial={{ opacity: 0, y: 20 }}
