@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   Suspense,
+  Fragment,
   type ComponentProps,
 } from 'react'
 import { useSession } from 'next-auth/react'
@@ -671,10 +672,9 @@ function DmiAnswerField({
   // (left = item, right = correct target). Supports native HTML5 drag AND a
   // tap-to-place fallback (select an item, then tap a bin) for touch devices.
   // Answer is stored as a JSON map of item -> chosen target.
-  if (type === 'drag_drop' && item.pairs && item.pairs.length > 0) {
-    const pairs = item.pairs
-    const dndItems = pairs.map(p => p.left)
-    const targets = Array.from(new Set(pairs.map(p => p.right)))
+  if (type === 'drag_drop' && item.matchPrompts && item.matchPrompts.length > 0) {
+    const dndItems = item.matchPrompts
+    const targets = item.matchBank ?? []
     let placement: Record<string, string> = {}
     try {
       const parsed = value ? JSON.parse(value) : {}
@@ -779,11 +779,9 @@ function DmiAnswerField({
 
   // Matching — show each left prompt with a dropdown of the (sorted) right
   // values. The answer is stored as a JSON map of left -> chosen right.
-  if (type === 'matching' && item.pairs && item.pairs.length > 0) {
-    const pairs = item.pairs
-    const rightBank = Array.from(new Set(pairs.map(p => p.right))).sort((a, b) =>
-      a.localeCompare(b)
-    )
+  if (type === 'matching' && item.matchPrompts && item.matchPrompts.length > 0) {
+    const prompts = item.matchPrompts
+    const rightBank = (item.matchBank ?? []).slice().sort((a, b) => a.localeCompare(b))
     let answerMap: Record<string, string> = {}
     try {
       const parsed = value ? JSON.parse(value) : {}
@@ -797,14 +795,14 @@ function DmiAnswerField({
     }
     return (
       <div className="space-y-2">
-        {pairs.map(p => (
-          <div key={p.left} className="flex items-center gap-2 text-sm">
-            <span className="flex-1 text-gray-800">{p.left}</span>
+        {prompts.map(left => (
+          <div key={left} className="flex items-center gap-2 text-sm">
+            <span className="flex-1 text-gray-800">{left}</span>
             <span className="shrink-0 text-gray-300">→</span>
             <select
-              value={answerMap[p.left] ?? ''}
+              value={answerMap[left] ?? ''}
               onFocus={onInteract}
-              onChange={e => setMatch(p.left, e.target.value)}
+              onChange={e => setMatch(left, e.target.value)}
               className={`w-44 shrink-0 ${baseField}`}
             >
               <option value="">Choose…</option>
@@ -2331,46 +2329,55 @@ function StudentFeedbackContent() {
                 <div className="space-y-4">
                   {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                     <div className="space-y-3">
-                      {activeTask.dmiItems.map(item => {
+                      {activeTask.dmiItems.map((item, idx) => {
                         const qType = normalizeDmiQuestionType(item.questionType)
+                        // Section heading (ASMT-4): show it once, before the first
+                        // question of each section.
+                        const prevSection =
+                          idx > 0 ? activeTask.dmiItems?.[idx - 1]?.section : undefined
+                        const showSection = !!item.section && item.section !== prevSection
                         return (
-                          <div
-                            key={item.id}
-                            className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                          >
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium text-gray-800">
-                                {/* The label is usually self-numbered ("Question 1(a)"); only
-                                    prepend the counter for older free-text questions. */}
-                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
-                                  ? item.questionText
-                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
-                              </p>
-                              <div className="flex shrink-0 items-center gap-1">
-                                {typeof item.marks === 'number' && item.marks > 0 && (
-                                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
-                                    {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
-                                  </span>
-                                )}
-                                {qType !== 'long' && (
-                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                    {DMI_QUESTION_TYPE_LABELS[qType]}
-                                  </span>
-                                )}
+                          <Fragment key={item.id}>
+                            {showSection && (
+                              <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                {item.section}
                               </div>
+                            )}
+                            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                              <div className="mb-2 flex items-start justify-between gap-2">
+                                <p className="text-sm font-medium text-gray-800">
+                                  {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                  {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                    ? item.questionText
+                                    : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
+                                </p>
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {typeof item.marks === 'number' && item.marks > 0 && (
+                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                      {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                    </span>
+                                  )}
+                                  {qType !== 'long' && (
+                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                      {DMI_QUESTION_TYPE_LABELS[qType]}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <DmiAnswerField
+                                item={item}
+                                value={taskAnswers[item.id] ?? ''}
+                                // Once the student starts working, stop auto-following
+                                // the tutor so their navigation can't yank the student
+                                // away from what they're answering.
+                                onInteract={() => setFollowTutor(false)}
+                                onValueChange={next =>
+                                  setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
+                                }
+                              />
                             </div>
-                            <DmiAnswerField
-                              item={item}
-                              value={taskAnswers[item.id] ?? ''}
-                              // Once the student starts working, stop auto-following
-                              // the tutor so their navigation can't yank the student
-                              // away from what they're answering.
-                              onInteract={() => setFollowTutor(false)}
-                              onValueChange={next =>
-                                setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
-                              }
-                            />
-                          </div>
+                          </Fragment>
                         )
                       })}
                     </div>

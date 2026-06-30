@@ -2,7 +2,7 @@
 
 import { useReducer } from 'react'
 import { toast } from 'sonner'
-import type { PciMessage } from '@/lib/assessment/pci'
+import type { PciMessage, PciAuditRecord } from '@/lib/assessment/pci'
 import {
   pciReducer,
   initialPciState,
@@ -40,7 +40,7 @@ interface UsePciDeps {
   }
   assessmentBuilder: { taskContent: string; taskPci: string; title: string }
   /** Writes the finalized rubric to the active task/assessment PCI field. */
-  setCurrentPci: (source: 'task' | 'assessment', text: string) => void
+  setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
   currentAssessmentDocument?: PciSourceDoc
   autoCreateTask: () => { id?: string } | null | undefined
@@ -66,9 +66,17 @@ export function usePci(deps: UsePciDeps) {
 
   const applyTaskPciDraft = () => {
     const target = activeTaskTarget()
-    const draft = getThread(pci, target).draft
+    const thread = getThread(pci, target)
+    const draft = thread.draft
     if (!draft) return
-    deps.setCurrentPci('task', draft)
+    // TASK-18 (Data Capture): record the approval — the transcript (tutor's
+    // words + the LLM's interpretation/summary) and the approved PCI together.
+    const audit: PciAuditRecord = {
+      approvedPci: draft,
+      transcript: thread.messages,
+      approvedAt: Date.now(),
+    }
+    deps.setCurrentPci('task', draft, audit)
     dispatch({ type: 'clearDraft', target })
     toast.success('Rubric applied to PCI')
   }

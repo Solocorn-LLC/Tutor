@@ -109,7 +109,7 @@ describe('/api/ai/pci-master', () => {
     return POST(req as unknown as NextRequest)
   }
 
-  it('task domain: extracts {reply,pci} — chat shows reply, pciDraft holds the finalized rubric', async () => {
+  it('task domain: extracts {reply,pci} — chat shows reply, pciDraft holds the finalized rubric (on tutor approval)', async () => {
     mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: '{"reply":"What counts as a correct answer?","pci":"FINAL RUBRIC TEXT"}',
@@ -117,7 +117,8 @@ describe('/api/ai/pci-master', () => {
       parsed: null,
     })
 
-    const res = await postBody({ message: 'help', context: { type: 'task' } })
+    // The tutor's message signals approval, so the finalized rubric surfaces.
+    const res = await postBody({ message: 'looks good, finalize it', context: { type: 'task' } })
     const data = await res.json()
 
     expect(res.status).toBe(200)
@@ -125,6 +126,22 @@ describe('/api/ai/pci-master', () => {
     expect(data.response).toBe('What counts as a correct answer?')
     expect(data.response).not.toContain('{')
     expect(data.pciDraft).toBe('FINAL RUBRIC TEXT')
+  })
+
+  it('task domain: suppresses a finalized rubric until the tutor signals approval (TASK-5)', async () => {
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.adkPciMasterChat.mockResolvedValue({
+      response: '{"reply":"Here is the finalized rubric.","pci":"FINAL RUBRIC TEXT"}',
+      conversationId: 'c1',
+      parsed: null,
+    })
+
+    // No approval phrase → the engine must NOT surface the draft, and flags it.
+    const res = await postBody({ message: 'what do you think?', context: { type: 'task' } })
+    const data = await res.json()
+
+    expect(data.pciDraft).toBe('')
+    expect(data.pciUnconfirmed).toBe(true)
   })
 
   it('task domain: empty pci until finalized (no draft surfaced)', async () => {

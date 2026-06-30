@@ -92,6 +92,28 @@ export interface DMIQuestion {
   hotspotImageUrl?: string
   /** Correct clickable regions for `hotspot` (answer key, not shown to student). */
   regions?: import('@/lib/assessment/question-types').DmiHotspotRegion[]
+  /** The paper section this question belongs to (e.g. "Section A"), when the
+   *  paper is divided into sections (ASMT-4). Drives section grouping. */
+  section?: string
+  /** The expected response format, distinct from the input control `questionType`
+   *  (e.g. "numeric", "explanation", "diagram"). Reserved (ASMT-4); populated by
+   *  a later pass. */
+  responseType?: string
+  /** Source materials this question depends on — passage/figure/table refs
+   *  (ASMT-4). Reserved; populated by a later pass. */
+  sourceDependencies?: string[]
+}
+
+/** A section of an assessment paper (ASMT-4): a titled group of questions. */
+export interface DMISection {
+  id: string
+  title: string
+  /** Section-level instructions, when present on the paper. */
+  instructions?: string
+  /** Total marks for the section (sum of its questions). */
+  marks?: number
+  /** Ids of the DMIQuestions in this section, in paper order. */
+  questionIds: string[]
 }
 
 export interface DMIVersion {
@@ -107,6 +129,11 @@ export interface DMIVersion {
    *  that adapts to each board's standard. */
   examBody?: string
   subject?: string
+  /** Section grouping derived from the questions' `section` tags (ASMT-4).
+   *  Empty/absent when the paper has no sections. */
+  sections?: DMISection[]
+  /** Total marks across all questions (ASMT-4 metadata). */
+  totalMarks?: number
 }
 
 export interface Task extends WithDifficultyVariants {
@@ -115,6 +142,9 @@ export interface Task extends WithDifficultyVariants {
   shortDescription?: string
   description: string
   instructions: string
+  /** Append-only audit log of PCI approvals (TASK-18). Each "Apply to PCI"
+   *  records the transcript + approved text for auditability/versioning. */
+  pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
   extensions?: Array<{
     id: string
     name: string

@@ -80,6 +80,18 @@ export const CHOICE_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set([
  */
 export const FALLBACK_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set([])
 
+/**
+ * Open-response types whose answers can't be auto-graded and therefore need a
+ * marking rubric/pathway before an assessment can be deployed (ASMT-8). Closed
+ * types (mcq, fill_blank, matching, …) are auto-graded and don't require one.
+ */
+export const OPEN_DMI_TYPES: ReadonlySet<DmiQuestionType> = new Set(['short', 'long'])
+
+/** True when the value is an open-response type that requires a rubric pathway. */
+export function isOpenDmiType(value: unknown): value is DmiQuestionType {
+  return typeof value === 'string' && OPEN_DMI_TYPES.has(value as DmiQuestionType)
+}
+
 export function isDmiQuestionType(value: unknown): value is DmiQuestionType {
   return typeof value === 'string' && (DMI_QUESTION_TYPES as readonly string[]).includes(value)
 }
