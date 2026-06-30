@@ -77,3 +77,21 @@ describe('reverifyAssessment (ASMT-12)', () => {
     ).toEqual([])
   })
 })
+
+describe('reverifyAssessment — section consistency (ASMT-4)', () => {
+  it('flags a partially-sectioned paper', () => {
+    const issues = reverifyAssessment([
+      { id: 'a', questionType: 'mcq', questionLabel: '1', answer: 'A', section: 'Section A' },
+      { id: 'b', questionType: 'mcq', questionLabel: '2', answer: 'B' }, // no section
+    ])
+    expect(issues.some(i => i.kind === 'section')).toBe(true)
+  })
+
+  it('accepts a fully-sectioned paper', () => {
+    const issues = reverifyAssessment([
+      { id: 'a', questionType: 'mcq', questionLabel: '1', answer: 'A', section: 'Section A' },
+      { id: 'b', questionType: 'mcq', questionLabel: '2', answer: 'B', section: 'Section B' },
+    ])
+    expect(issues.some(i => i.kind === 'section')).toBe(false)
+  })
+})

@@ -118,6 +118,7 @@ import {
 } from '@/lib/assessment/question-types'
 import { deriveExamContext, EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
 import { reverifyAssessment } from '@/lib/assessment/assessment-gates'
+import { deriveSections, deriveTotalMarks } from '@/lib/assessment/sections'
 import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
 import { findEvaluationLeaks } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
@@ -2725,6 +2726,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
           pairs: Array.isArray(q.pairs) ? q.pairs : undefined,
           hotspotImageUrl: q.hotspotImageUrl,
           regions: Array.isArray(q.regions) ? q.regions : undefined,
+          // Paper section this part belongs to (ASMT-4), when present.
+          section: typeof q.section === 'string' && q.section.trim() ? q.section.trim() : undefined,
         }))
 
         // Study material: students see the GENERATED questions (with options) on
@@ -2782,6 +2785,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
           createdAt: Date.now(),
           taskId: isTask ? loadedTaskId || undefined : undefined,
           assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+          // ASMT-4: section grouping + total marks derived from the questions.
+          sections: deriveSections(dmiItems),
+          totalMarks: deriveTotalMarks(dmiItems),
         }
 
         if (isTask) {

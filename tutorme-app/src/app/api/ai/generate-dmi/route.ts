@@ -99,6 +99,10 @@ Rules:
   on the paper when visible (e.g. "[5]" -> 5); if none is shown, use 1. For study_material, assign
   sensible marks (1 for an objective item like mcq/true_false/fill_blank; 2-10 for short/long
   answers by depth).
+- "section" (OPTIONAL): the section heading this part falls under, EXACTLY as printed on the paper
+  (e.g. "Section A", "Section B: Data Response", "Part II"). Include it on EVERY field when the paper
+  is divided into sections, using the same string for all parts in one section; OMIT it entirely when
+  the paper has no sections. Never invent a section that isn't on the paper.
 - "answer" and "rubric": ONLY for study_material (you wrote the questions, so you know the key).
   "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
   for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short
@@ -115,13 +119,13 @@ EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b).
 {"label":"Question 2(b)","type":"long"}
 ]}
 
-EXAMPLE — a MIXED paper: a multiple-choice section (Q1-Q2, five options each) then a free-response
-question (Q3 with parts (a),(b)). Correct JSON:
+EXAMPLE — a MIXED paper with sections: "Section A" is multiple-choice (Q1-Q2, five options each),
+"Section B" is a free-response question (Q3 with parts (a),(b)). Correct JSON:
 {"documentKind":"question_paper","fields":[
-{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"]},
-{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"]},
-{"label":"Question 3(a)","type":"short"},
-{"label":"Question 3(b)","type":"long"}
+{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"],"section":"Section A"},
+{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"],"section":"Section A"},
+{"label":"Question 3(a)","type":"short","section":"Section B"},
+{"label":"Question 3(b)","type":"long","section":"Section B"}
 ]}
 Output the JSON object and nothing else.`
 
@@ -138,6 +142,8 @@ interface ParsedDmiQuestion {
   questionType: DmiQuestionType
   options?: string[]
   pairs?: { left: string; right: string }[]
+  /** Section heading this part falls under (ASMT-4), when the paper has sections. */
+  section?: string
 }
 
 interface ParsedDmiResponse {
@@ -184,6 +190,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         pairs?: unknown
         answer?: unknown
         marks?: unknown
+        section?: unknown
         rubric?: unknown
       }>
     }
@@ -216,6 +223,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
               .filter(p => p.left && p.right)
           : undefined
         const marksNum = Number(f.marks)
+        const section = typeof f.section === 'string' ? f.section.trim() : ''
         const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
         const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
         // For mcq the student submits an option LETTER (A–E), so store the key as
@@ -232,6 +240,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           questionType: qType,
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
+          section: section || undefined,
         }
       })
       .filter(q => q.questionText)

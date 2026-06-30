@@ -7,6 +7,7 @@
  */
 
 import { isOpenDmiType } from './question-types'
+import { hasPartialSectioning } from './sections'
 
 export interface RubricGateItem {
   questionType?: string | null
@@ -45,10 +46,12 @@ export interface ReverifyItem extends RubricGateItem {
   acceptableVariants?: string[] | null
   pairs?: unknown[] | null
   regions?: unknown[] | null
+  section?: string | null
+  id?: string
 }
 
 export interface ReverifyIssue {
-  kind: 'numbering' | 'rubric' | 'answer-mapping'
+  kind: 'numbering' | 'rubric' | 'answer-mapping' | 'section'
   label: string
   message: string
 }
@@ -143,6 +146,17 @@ export function reverifyAssessment(items: ReverifyItem[]): ReverifyIssue[] {
         })
       }
     }
+  }
+
+  // ASMT-4: section-structure consistency — a paper should be fully sectioned or
+  // not at all; partial sectioning means a section heading was missed.
+  if (hasPartialSectioning(items.map(it => ({ id: it.id ?? '', section: it.section })))) {
+    issues.push({
+      kind: 'section',
+      label: 'sections',
+      message:
+        'Some questions are assigned to a section and others are not — assign every question to its section, or remove the section headings.',
+    })
   }
 
   return issues
