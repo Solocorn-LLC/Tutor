@@ -26,7 +26,7 @@ export function CollapsibleCard({
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16 })
+  const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'start' })
 
   return (
     <div ref={cardRef}>
