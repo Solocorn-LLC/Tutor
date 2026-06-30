@@ -97,14 +97,14 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
       return patch(state, action.target, { messages: action.messages })
 
     case 'sendStart':
-      // Append the user's message, start loading, clear the input box.
+      // Append the user's message and start loading. The input box is cleared
+      // separately (only on a real send, not a quick-action override).
       return patch(state, action.target, {
         messages: [
           ...getThread(state, action.target).messages,
           { role: 'user', content: action.userMessage },
         ],
         loading: true,
-        input: '',
       })
 
     case 'sendSuccess':

@@ -35,13 +35,13 @@ describe('pciReducer', () => {
     expect(getThread(s, asmt).messages).toEqual([]) // untouched
   })
 
-  it('sendStart appends the user msg, sets loading, clears input', () => {
+  it('sendStart appends the user msg and sets loading (input cleared separately)', () => {
     let s = pciReducer(initialPciState(), { type: 'setInput', target: ext, input: 'draft text' })
     s = pciReducer(s, { type: 'sendStart', target: ext, userMessage: 'mark by method' })
     const t = getThread(s, ext)
     expect(t.messages).toEqual([{ role: 'user', content: 'mark by method' }])
     expect(t.loading).toBe(true)
-    expect(t.input).toBe('')
+    expect(t.input).toBe('draft text') // sendStart does not clear; the caller clears on a real send
   })
 
   it('sendSuccess appends assistant, holds draft, sets warnings, clears error, stops loading', () => {
