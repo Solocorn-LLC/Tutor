@@ -173,6 +173,7 @@ interface TutorControlsPanelProps {
   onGoLive: () => void
   onVideo: () => void
   onSync: () => void
+  onCreateCourse?: () => void
   canDelete: boolean
   canSchedule: boolean
   canGoLive: boolean
@@ -194,6 +195,7 @@ function TutorControlsPanel({
   onGoLive,
   onVideo,
   onSync,
+  onCreateCourse,
   canDelete,
   canSchedule,
   canGoLive,
@@ -379,20 +381,17 @@ function TutorControlsPanel({
 
                     <button
                       type="button"
-                      disabled={panelDisabled || mode !== 'build' || !hasSession}
-                      onClick={onSync}
+                      disabled={panelDisabled}
+                      onClick={onCreateCourse}
                       className={cn(
                         actionButtonBase,
-                        'group bg-white text-amber-500 hover:bg-amber-50 active:bg-amber-100'
+                        'group bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
                       )}
                     >
                       <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
-                        <RefreshCw className="h-4 w-4" />
-                        Sync
+                        <Plus className="h-4 w-4" />
+                        New Course
                       </span>
-                      {hasUnsyncedChanges && (
-                        <span className="ml-auto h-2 w-2 rounded-full bg-amber-400" />
-                      )}
                     </button>
                   </div>
                 </div>
@@ -1175,6 +1174,7 @@ function CourseBuilderInsightsRouteInner({
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
               ref?.triggerSync?.()
             }}
+            onCreateCourse={onCreateCourse}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
             canSchedule={
               !!(
