@@ -671,10 +671,9 @@ function DmiAnswerField({
   // (left = item, right = correct target). Supports native HTML5 drag AND a
   // tap-to-place fallback (select an item, then tap a bin) for touch devices.
   // Answer is stored as a JSON map of item -> chosen target.
-  if (type === 'drag_drop' && item.pairs && item.pairs.length > 0) {
-    const pairs = item.pairs
-    const dndItems = pairs.map(p => p.left)
-    const targets = Array.from(new Set(pairs.map(p => p.right)))
+  if (type === 'drag_drop' && item.matchPrompts && item.matchPrompts.length > 0) {
+    const dndItems = item.matchPrompts
+    const targets = item.matchBank ?? []
     let placement: Record<string, string> = {}
     try {
       const parsed = value ? JSON.parse(value) : {}
@@ -779,11 +778,9 @@ function DmiAnswerField({
 
   // Matching — show each left prompt with a dropdown of the (sorted) right
   // values. The answer is stored as a JSON map of left -> chosen right.
-  if (type === 'matching' && item.pairs && item.pairs.length > 0) {
-    const pairs = item.pairs
-    const rightBank = Array.from(new Set(pairs.map(p => p.right))).sort((a, b) =>
-      a.localeCompare(b)
-    )
+  if (type === 'matching' && item.matchPrompts && item.matchPrompts.length > 0) {
+    const prompts = item.matchPrompts
+    const rightBank = (item.matchBank ?? []).slice().sort((a, b) => a.localeCompare(b))
     let answerMap: Record<string, string> = {}
     try {
       const parsed = value ? JSON.parse(value) : {}
@@ -797,14 +794,14 @@ function DmiAnswerField({
     }
     return (
       <div className="space-y-2">
-        {pairs.map(p => (
-          <div key={p.left} className="flex items-center gap-2 text-sm">
-            <span className="flex-1 text-gray-800">{p.left}</span>
+        {prompts.map(left => (
+          <div key={left} className="flex items-center gap-2 text-sm">
+            <span className="flex-1 text-gray-800">{left}</span>
             <span className="shrink-0 text-gray-300">→</span>
             <select
-              value={answerMap[p.left] ?? ''}
+              value={answerMap[left] ?? ''}
               onFocus={onInteract}
-              onChange={e => setMatch(p.left, e.target.value)}
+              onChange={e => setMatch(left, e.target.value)}
               className={`w-44 shrink-0 ${baseField}`}
             >
               <option value="">Choose…</option>

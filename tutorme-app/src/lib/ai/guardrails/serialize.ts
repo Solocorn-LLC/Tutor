@@ -37,6 +37,10 @@ const EVALUATION_KEYS = new Set([
   'prepopulated_answer',
   'sampleResponse',
   'sample_response',
+  // Interactive answer keys: the correct correspondence (matching/drag_drop) and
+  // the correct clickable areas (hotspot) — never deliver these to students.
+  'pairs',
+  'regions',
 ])
 
 /**

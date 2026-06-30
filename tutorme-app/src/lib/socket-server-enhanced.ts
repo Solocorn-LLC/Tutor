@@ -121,12 +121,12 @@ export interface LiveTaskDmiItem {
   questionType?: import('./assessment/question-types').DmiQuestionType
   /** Options for choice types (mcq / true_false / multiple_response). */
   options?: string[]
-  /** Correct left↔right pairs for `matching` (the right values form the bank). */
-  pairs?: import('./assessment/question-types').DmiMatchPair[]
   /** Image the student clicks for a `hotspot` item. */
   hotspotImageUrl?: string
-  /** Correct clickable regions for `hotspot` (answer key, not shown to student). */
-  regions?: import('./assessment/question-types').DmiHotspotRegion[]
+  /** Prompts (left items / drag items) for matching & drag_drop, in order. */
+  matchPrompts?: string[]
+  /** Sorted option bank for matching & drag_drop — never the correct pairing. */
+  matchBank?: string[]
 }
 
 export interface LiveTaskSourceDocument {
@@ -1443,14 +1443,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
                       marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
                       questionType: d.questionType as LiveTaskDmiItem['questionType'],
                       options: Array.isArray(d.options) ? (d.options as string[]) : undefined,
-                      pairs: Array.isArray(d.pairs)
-                        ? (d.pairs as LiveTaskDmiItem['pairs'])
-                        : undefined,
                       hotspotImageUrl:
                         typeof d.hotspotImageUrl === 'string' ? d.hotspotImageUrl : undefined,
-                      regions: Array.isArray(d.regions)
-                        ? (d.regions as LiveTaskDmiItem['regions'])
+                      // Student-safe matching/drag_drop fields only; pairs/regions
+                      // (the answer key) are never reconstructed onto a broadcast.
+                      matchPrompts: Array.isArray(d.matchPrompts)
+                        ? (d.matchPrompts as string[])
                         : undefined,
+                      matchBank: Array.isArray(d.matchBank) ? (d.matchBank as string[]) : undefined,
                     })
                   )
                 : undefined,
