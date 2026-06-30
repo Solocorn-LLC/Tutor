@@ -951,7 +951,10 @@ function CourseBuilderInsightsRouteInner({
                     )}
 
                   {activeMainTab === 'live' && (
-                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    // Centered across the full header via absolute positioning;
+                    // pointer-events-none so the overlay never blocks the back
+                    // button / header controls underneath it.
+                    <h1 className="text-foreground pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
                       {model.course?.name && (
                         <span className="text-muted-foreground text-xl font-normal">
                           {model.course.name}
