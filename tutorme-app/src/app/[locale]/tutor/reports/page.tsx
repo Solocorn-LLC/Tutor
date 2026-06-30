@@ -388,7 +388,7 @@ export default function TutorReports() {
           ]}
         >
           {/* Revenue Tab */}
-          <TabsContent value="revenue" className="h-full overflow-hidden bg-white">
+          <TabsContent value="revenue" className="h-full overflow-hidden">
             <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
               <button
                 type="button"
