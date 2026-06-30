@@ -101,7 +101,20 @@ describe('usePci', () => {
     })
     act(() => result.current.applyTaskPciDraft())
 
-    expect(setCurrentPci).toHaveBeenCalledWith('task', 'FINAL')
+    // TASK-18: applies the draft AND captures an audit record (approved text +
+    // the transcript of tutor turns + the LLM reply).
+    expect(setCurrentPci).toHaveBeenCalledWith(
+      'task',
+      'FINAL',
+      expect.objectContaining({
+        approvedPci: 'FINAL',
+        transcript: expect.arrayContaining([
+          expect.objectContaining({ role: 'user', content: 'q' }),
+          expect.objectContaining({ role: 'assistant' }),
+        ]),
+        approvedAt: expect.any(Number),
+      })
+    )
     expect(getThread(result.current.pci, taskTarget).draft).toBe('')
   })
 
