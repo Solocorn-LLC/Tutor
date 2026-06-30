@@ -12,6 +12,7 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { z } from 'zod'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { runTutorChat } from '@/lib/agents/tutor-chat-service'
+import { hasActiveAssessment } from '@/lib/assessment/active-assessment'
 
 const AIChatRequestSchema = z.object({
   message: z.string().min(1).max(2000),
@@ -54,11 +55,15 @@ export async function POST(request: NextRequest) {
         ? (_context as any).previousMessages
         : []
 
+    // ASMT-15: refuse to solve assessment questions while one is in progress.
+    const assessmentActive = await hasActiveAssessment(session.user.id)
+
     const response = await runTutorChat({
       userId: session.user.id,
       message: safeMessage,
       subject,
       chatHistory: previousMessages,
+      assessmentActive,
     })
 
     // Validate AI response before returning

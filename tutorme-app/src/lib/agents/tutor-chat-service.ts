@@ -5,6 +5,7 @@ import { buildCompletePrompt, type PromptConfig } from '@/lib/ai/teaching-prompt
 import { findRelevantConcepts } from '@/lib/ai/subjects'
 import { extractWhiteboardItems } from '@/lib/ai/whiteboard-extract'
 import { classifyHintType, extractNextSteps } from '@/lib/agents/tutor'
+import { withAssessmentIntegrity } from '@/lib/assessment/active-assessment'
 
 export interface TutorChatInput {
   userId: string
@@ -16,6 +17,12 @@ export interface TutorChatInput {
   voiceGender?: string
   voiceAccent?: string
   chatHistory?: Array<{ role?: string; content?: string }>
+  /**
+   * When true, the student has an assessment in progress: the prompt is
+   * constrained to procedural-only help (ASMT-15). Callers detect this with
+   * `hasActiveAssessment`.
+   */
+  assessmentActive?: boolean
 }
 
 export interface TutorChatOutput {
@@ -74,7 +81,12 @@ export async function runTutorChat(input: TutorChatInput): Promise<TutorChatOutp
     userMessage: safeMessage,
   }
 
-  const systemPrompt = buildCompletePrompt(promptConfig)
+  // ASMT-15: while the student has a live assessment, constrain the tutor to
+  // procedural-only help so it can't be used to solve in-progress questions.
+  const systemPrompt = withAssessmentIntegrity(
+    buildCompletePrompt(promptConfig),
+    input.assessmentActive === true
+  )
 
   const aiResponse = await generateWithFallback(systemPrompt, {
     temperature: 0.7,
