@@ -117,6 +117,8 @@ import {
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
 import { deriveExamContext, EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
+import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
+import { findEvaluationLeaks } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -2283,19 +2285,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             title: homeworkItem.title || 'Homework',
             content: homeworkItem.description || '',
             source: 'homework',
-            dmiItems:
-              homeworkItem.dmiItems?.map(i => ({
-                id: i.id,
-                questionNumber: i.questionNumber,
-                questionLabel: i.questionLabel,
-                questionText: i.questionText,
-                marks: i.marks,
-                questionType: i.questionType,
-                options: i.options,
-                pairs: i.pairs,
-                hotspotImageUrl: i.hotspotImageUrl,
-                regions: i.regions,
-              })) || [],
+            // Student-safe projection (strips answer key incl. matching pairs /
+            // hotspot regions). See toStudentDmiItem.
+            dmiItems: homeworkItem.dmiItems?.map(toStudentDmiItem) || [],
             // Answer key + marks for server-side grading (never sent to students).
             answerKey:
               homeworkItem.dmiItems?.map(i => ({
@@ -2880,26 +2872,26 @@ FEEDBACK: [one or two short sentences explaining the score]`
           return
         }
 
+        // Student-safe DMI: strips the answer key, including matching `pairs`
+        // and hotspot `regions` (which ARE the answer). See toStudentDmiItem.
+        const studentDmiItems = assessmentDmiItems.map(toStudentDmiItem)
+        // ASMT-10/13: deterministic guarantee the student payload carries no
+        // evaluation data — block deploy if anything leaks through.
+        const leaks = findEvaluationLeaks(studentDmiItems)
+        if (leaks.length > 0) {
+          console.error('[assessment] evaluation-layer leak in student payload:', leaks)
+          toast.error(
+            'Internal error: answer data was present in the student view. Deploy blocked.'
+          )
+          return
+        }
+
         const task: LiveTask = {
           id: loadedAssessmentId,
           title: assessmentBuilder.title || 'Assessment',
           content: assessmentBuilder.taskContent,
           source: 'assessment',
-          dmiItems: assessmentDmiItems.map(item => ({
-            id: item.id,
-            questionNumber: item.questionNumber,
-            questionLabel: item.questionLabel,
-            questionText: item.questionText,
-            // Marks are shown to students; the answer key / rubric is NOT deployed.
-            marks: item.marks,
-            // Carry the answer-input type + options/pairs so the student gets the
-            // right control (e.g. mcq letter choices), not a plain textarea.
-            questionType: item.questionType,
-            options: item.options,
-            pairs: item.pairs,
-            hotspotImageUrl: item.hotspotImageUrl,
-            regions: item.regions,
-          })),
+          dmiItems: studentDmiItems,
           // Answer key + marks for server-side auto-grading. Sent to the server
           // only — never broadcast to students.
           answerKey: assessmentDmiItems.map(item => ({
@@ -8788,22 +8780,13 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         title: task.title || 'Task',
                                                         content: task.description || '',
                                                         source: 'task',
+                                                        // Student-safe projection
+                                                        // (strips answer key incl.
+                                                        // matching pairs / hotspot
+                                                        // regions).
                                                         dmiItems:
-                                                          task.dmiItems?.map(item => ({
-                                                            id: item.id,
-                                                            questionNumber: item.questionNumber,
-                                                            questionLabel: item.questionLabel,
-                                                            questionText: item.questionText,
-                                                            // Marks shown to students; carry the input
-                                                            // type + options so mcq/etc. render the right
-                                                            // control. Answer key / rubric stay server-side.
-                                                            marks: item.marks,
-                                                            questionType: item.questionType,
-                                                            options: item.options,
-                                                            pairs: item.pairs,
-                                                            hotspotImageUrl: item.hotspotImageUrl,
-                                                            regions: item.regions,
-                                                          })) || [],
+                                                          task.dmiItems?.map(toStudentDmiItem) ||
+                                                          [],
                                                         // Answer key + marks for
                                                         // server-side grading (never
                                                         // sent to students).
