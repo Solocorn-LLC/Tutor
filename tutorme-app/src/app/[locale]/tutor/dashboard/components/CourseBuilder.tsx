@@ -6083,7 +6083,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
-            className="relative flex h-full w-full px-4 pb-6 pt-0 sm:px-4"
+            className="relative flex h-full w-full pb-6 pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
             style={{
               gap: '24px',
             }}
