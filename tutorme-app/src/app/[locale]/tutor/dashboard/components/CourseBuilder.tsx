@@ -852,6 +852,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskContent: string
       taskPci: string
       details: string
+      /** Append-only PCI approval audit log (TASK-18). */
+      pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
       sourceDocument?: {
         fileName: string
         fileUrl: string
@@ -923,10 +925,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Directly set the saved PCI (the marking policy used by grading) for the
     // active context — the active task extension, the base task, or the
     // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
-    const setCurrentPci = (source: 'task' | 'assessment', text: string) => {
+    const setCurrentPci = (
+      source: 'task' | 'assessment',
+      text: string,
+      audit?: import('@/lib/assessment/pci').PciAuditRecord
+    ) => {
       if (source === 'task') {
-        setTaskBuilder(prev =>
-          prev.activeExtensionId
+        setTaskBuilder(prev => {
+          const base = prev.activeExtensionId
             ? {
                 ...prev,
                 extensions: prev.extensions.map(ext =>
@@ -934,7 +940,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 ),
               }
             : { ...prev, taskPci: text }
-        )
+          // TASK-18: record the approval (transcript + approved text) on a real
+          // "Apply to PCI" — not on a manual edit/clear (which pass no audit).
+          return audit ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit] } : base
+        })
       } else {
         setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
       }
@@ -1502,6 +1511,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           taskContent: content,
           taskPci: task.instructions || '',
           details: task.shortDescription || '',
+          // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
+          pciHistory: task.pciHistory,
           sourceDocument: task.sourceDocument,
           extensions: (task.extensions || []).map(ext => ({
             ...ext,
@@ -1744,6 +1755,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   shortDescription: taskBuilder.details,
                   description: taskBuilder.taskContent,
                   instructions: taskBuilder.taskPci,
+                  // TASK-18: persist the PCI approval audit log with the task.
+                  pciHistory: taskBuilder.pciHistory,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
                   dmiVersions: taskDmiVersions,
