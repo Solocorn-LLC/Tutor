@@ -731,7 +731,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
     const [rightPanelHidden, setRightPanelHidden] = useState(false)
     const [rightPanelWidth] = useState(380)
-    const [leftPanelWidth, setLeftPanelWidth] = useState(340)
+    const [leftPanelWidth, setLeftPanelWidth] = useState(380)
     const [viewportWidth, setViewportWidth] = useState(1920)
     // Peek animation state for side panel toggles
     const [isLeftPeeking, setIsLeftPeeking] = useState(false)
@@ -757,7 +757,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [])
 
-    const centerColWidth = viewportWidth - 48 - leftPanelWidth - rightPanelWidth - 48
+    const centerColWidth = viewportWidth - 32 - leftPanelWidth - 24 - rightPanelWidth - 24 - 32
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
@@ -6365,7 +6365,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
             <div
               className={cn(
-                'relative z-40 -ml-7 flex min-h-0 shrink-0 flex-col sm:-ml-8',
+                'relative z-40 flex min-h-0 shrink-0 flex-col',
                 leftPanelHidden
                   ? 'bg-transparent shadow-none'
                   : 'rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
@@ -8169,18 +8169,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   </CardContent>
                 </Card>
               </div>
-              <div
-                className="hover:bg-primary/20 active:bg-primary/30 group absolute right-0 top-0 flex h-full w-2 cursor-col-resize items-center justify-center transition-colors"
-                onMouseDown={e => {
-                  e.preventDefault()
-                  leftResizeStartX.current = e.clientX
-                  leftResizeStartW.current = leftPanelWidth
-                  setLeftPanelResizing(true)
-                }}
-                title="Drag to resize"
-              >
-                <GripHorizontal className="text-muted-foreground group-hover:text-primary h-3 w-3 rotate-90" />
-              </div>
             </div>
 
             {/* CENTER PANEL - Fixed width based on 3-panel layout */}
@@ -8321,6 +8309,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                               <AiAssistantPanel
                                                 sessionId={insightsProps.sessionId}
+                                                courseName={courseName}
+                                                sessions={insightsProps.sessions?.map((s: any) => ({
+                                                  id: s.id,
+                                                  title: s.title,
+                                                  scheduledAt: s.scheduledAt,
+                                                  status: s.status,
+                                                }))}
+                                                studentsCount={
+                                                  (insightsProps.students || []).length
+                                                }
+                                                liveSubmissions={
+                                                  insightsProps.liveSubmissions || []
+                                                }
                                               />
                                             </div>
                                           </TabsContent>
@@ -10390,7 +10391,18 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                        <AiAssistantPanel sessionId={insightsProps.sessionId} />
+                                        <AiAssistantPanel
+                                          sessionId={insightsProps.sessionId}
+                                          courseName={courseName}
+                                          sessions={insightsProps.sessions?.map((s: any) => ({
+                                            id: s.id,
+                                            title: s.title,
+                                            scheduledAt: s.scheduledAt,
+                                            status: s.status,
+                                          }))}
+                                          studentsCount={(insightsProps.students || []).length}
+                                          liveSubmissions={insightsProps.liveSubmissions || []}
+                                        />
                                       </div>
                                     </TabsContent>
                                     <TabsContent
