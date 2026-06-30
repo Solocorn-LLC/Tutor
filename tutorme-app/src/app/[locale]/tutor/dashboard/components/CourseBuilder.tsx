@@ -8900,10 +8900,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <Card
                       padding="none"
                       className={cn(
-                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
-                        mainBuilderTab === 'assessment'
-                          ? 'border border-[#EC4899]'
-                          : 'border border-blue-200'
+                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border border-blue-200 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                       )}
                     >
                       <div
@@ -9558,7 +9555,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           <div
                                             className={cn(
                                               'relative flex h-full flex-col bg-[#FBFCFD]',
-                                              assessmentPdfVisible ? 'w-1/2 border-r' : 'w-full'
+                                              assessmentPdfVisible ? 'w-1/2 border-r' : 'w-full',
+                                              mainBuilderTab === 'assessment' &&
+                                                'border border-[#EC4899]'
                                             )}
                                           >
                                             <div className="flex h-11 shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-2">
