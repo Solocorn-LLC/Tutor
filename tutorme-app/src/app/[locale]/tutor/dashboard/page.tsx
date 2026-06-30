@@ -842,7 +842,7 @@ function TutorDashboardContent() {
                                 href={withLocalePath(
                                   `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
                                 )}
-                                className="flex items-center"
+                                className="flex items-center text-white"
                               >
                                 <Pencil className="mr-1 h-3 w-3" />
                                 Edit
