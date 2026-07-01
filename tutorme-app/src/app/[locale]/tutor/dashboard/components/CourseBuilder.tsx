@@ -1527,7 +1527,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             onChange={e => setPollCustomOptions(e.target.value)}
             rows={2}
             placeholder="One option per line — e.g. Agree / Disagree / Unsure"
-            className="mt-1.5 w-full resize-none rounded-lg border border-blue-100 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+            className="mt-1.5 w-full resize-none rounded-lg border border-blue-100 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:border-blue-400"
           />
         )}
       </div>
@@ -5835,7 +5835,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               {/* Folder assignment dropdown */}
                               <select
                                 onClick={e => e.stopPropagation()}
-                                className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus:border-blue-400"
+                                className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus-visible:border-blue-400"
                                 value={asset.folder || ''}
                                 onChange={e => {
                                   const folder = e.target.value || undefined
@@ -6294,7 +6294,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
         >
           <div
             ref={layoutRowRef}
-            className="relative flex h-full w-full pb-6 pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
+            className="relative flex h-full w-full pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
             style={{
               gap: '24px',
             }}
@@ -6362,7 +6362,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                           placeholder="Search course..."
                           value={searchQuery}
                           onChange={e => setSearchQuery(e.target.value)}
-                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus:border-[#B8CCFF] focus:ring-2 focus:ring-[#DCEAFF]"
+                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus-visible:border-[#B8CCFF] focus-visible:ring-2 focus-visible:ring-[#DCEAFF]"
                         />
                       </div>
                     )}
@@ -8140,8 +8140,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden px-4 pb-4">
                       <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
                         {/* Main content with tabs */}
-                        <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
-                          <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 w-full flex-1 flex-col pb-0">
+                          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
                             <Tabs
                               value={testPciActiveTab}
                               onValueChange={value => {
@@ -8151,7 +8151,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                 }
                                 setTestPciActiveTab(value)
                               }}
-                              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
+                              className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
                             >
                               <TabsList
                                 className={cn(
@@ -8200,7 +8200,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   key={tab.id}
                                   value={tab.id}
                                   padding="none"
-                                  className="mt-2 flex h-full w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
+                                  className="mt-2 flex w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
                                 >
                                   {tab.id === 'insights' ? (
                                     insightsProps ? (
@@ -9105,7 +9105,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             <div className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'task' && (
                                 <input
-                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus:border-b focus:border-blue-300"
+                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-blue-300"
                                   placeholder="Select or name a Task"
                                   readOnly={!canEdit}
                                   value={
@@ -9158,7 +9158,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'assessment' && (
                                 <input
-                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus:border-b focus:border-purple-300"
+                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-purple-300"
                                   placeholder="Select or name an Assessment"
                                   readOnly={!canEdit}
                                   value={assessmentBuilder.title || ''}

@@ -649,6 +649,25 @@
     outline: none;
   }
 
+  /* Suppress browser default focus ring on interactive elements */
+  button:focus,
+  button:focus-visible,
+  a:focus,
+  a:focus-visible,
+  input:focus,
+  input:focus-visible,
+  select:focus,
+  select:focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  [role='button']:focus,
+  [role='button']:focus-visible,
+  [tabindex]:focus,
+  [tabindex]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
   html {
     min-width: 320px;
     -webkit-text-size-adjust: 100%;
