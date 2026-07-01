@@ -121,12 +121,38 @@ export async function POST(
     // The tutor's PCI instructions (truncated) steer how this task is marked.
     const pci = basis.pci.slice(0, 2000)
 
+    // Question metadata (ASMT-4): the expected answer format and any source
+    // materials this part depends on. These sharpen how the grader reads the
+    // answer without adding a marking basis the tutor didn't provide.
+    const responseType =
+      typeof item.responseType === 'string' && item.responseType.trim()
+        ? item.responseType.trim().slice(0, 200)
+        : ''
+    const sourceDeps = Array.isArray(item.sourceDependencies)
+      ? (item.sourceDependencies as unknown[])
+          .map(s => String(s).trim())
+          .filter(Boolean)
+          .slice(0, 20)
+      : []
+
     // Only include the parts that exist; no fabricated "(none)" fallbacks that
     // invite the model to invent a basis.
     const pciBlock = pci ? `Tutor's marking instructions (PCI):\n${pci}\n\n` : ''
     const rubricBlock = rubric ? `Marking rubric:\n${rubric}\n\n` : ''
     const modelBlock = modelAnswer ? `Model answer:\n${modelAnswer}\n\n` : ''
-    const prompt = `${pciBlock}Question:\n${questionText || '(not provided)'}\n\n${rubricBlock}${modelBlock}Student answer:\n${studentAnswer}`
+    // Tell the grader the expected answer format so it evaluates the right kind
+    // of response (e.g. a numeric value vs a proof vs a sketch description).
+    const responseTypeBlock = responseType
+      ? `Expected answer format: ${responseType}. Grade the answer as this kind of response.\n\n`
+      : ''
+    // Safe-failure caveat (TASK-10/19): the grader was NOT given the referenced
+    // source material, so it must not penalise the student for details of that
+    // material it cannot see.
+    const sourceDepsBlock =
+      sourceDeps.length > 0
+        ? `This question depends on source material you were NOT given: ${sourceDeps.join(', ')}. Judge the answer on the reasoning and method you can assess; do not penalise the student for details of those materials you cannot see.\n\n`
+        : ''
+    const prompt = `${pciBlock}Question:\n${questionText || '(not provided)'}\n\n${responseTypeBlock}${rubricBlock}${modelBlock}${sourceDepsBlock}Student answer:\n${studentAnswer}`
 
     let aiResponse: string
     try {
