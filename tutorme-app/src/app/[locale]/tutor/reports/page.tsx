@@ -134,7 +134,6 @@ export default function TutorReports() {
   const [globalAllStudents, setGlobalAllStudents] = useState<Student[]>([])
   const [loadingGlobals, setLoadingGlobals] = useState(true)
 
-  const [revenueExpanded, setRevenueExpanded] = useState(true)
   const [rosterExpanded, setRosterExpanded] = useState(true)
   const [reportsExpanded, setReportsExpanded] = useState(true)
 
@@ -389,39 +388,10 @@ export default function TutorReports() {
         >
           {/* Revenue Tab */}
           <TabsContent value="revenue" className="flex h-full flex-col gap-4 pb-4">
-            <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
-              <button
-                type="button"
-                onClick={() => setRevenueExpanded(prev => !prev)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="panel-header-icon">
-                      <DollarSign className="h-5 w-5 text-slate-900" />
-                    </div>
-                    <div>
-                      <div className="panel-header-title">Revenue & Business</div>
-                    </div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {revenueExpanded ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {revenueExpanded && (
-                <div className="min-h-0 flex-1 p-6">
-                  <RevenueDashboard
-                    className="border-0 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]"
-                    themeId="current"
-                  />
-                </div>
-              )}
-            </div>
+            <RevenueDashboard
+              className="flex-1 overflow-hidden rounded-[16px] border-0 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]"
+              themeId="current"
+            />
           </TabsContent>
 
           {/* Students Tab */}
