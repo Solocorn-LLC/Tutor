@@ -136,6 +136,11 @@ BEGIN
   END IF;
 END $$;
 
+-- BuilderTask.pciSpec (structured PCI spec, TASK-6) — persisted at deploy so the
+-- live tutor can apply it. Mirrors drizzle/0064; also applied here so a revision
+-- that skips migrations still has the column before it serves traffic.
+ALTER TABLE "BuilderTask" ADD COLUMN IF NOT EXISTS "pciSpec" jsonb;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN

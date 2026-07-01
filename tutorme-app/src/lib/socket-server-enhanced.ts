@@ -25,6 +25,7 @@ import {
   course,
 } from '@/lib/db/schema'
 import { autoGradeDmi } from '@/lib/grading/auto-grade'
+import { normalizePciSpec } from '@/lib/assessment/pci-spec'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
 import type { PollState } from '@/lib/socket'
@@ -155,6 +156,13 @@ export interface LiveTask {
     acceptableVariants?: string[]
     marks?: number
   }>
+  /** Tutor's task PCI (free-text marking/instruction content) + finalized
+   *  structured spec (TASK-6). Sent tutor→server on deploy ONLY and persisted
+   *  server-side so the live tutor and grader can apply them; NEVER copied into
+   *  the student broadcast (normalizedTask) — this is the hidden evaluation
+   *  layer, same handling as answerKey. */
+  pci?: string
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   /** Tutor's answer-reveal policy: 'instant' | 'after_submit' | 'hidden' | 'student_choice'. */
   answerReveal?: 'instant' | 'after_submit' | 'hidden' | 'student_choice'
   deployedAt: number
@@ -1273,6 +1281,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 })
                 lesson = { lessonId: newLessonId }
               }
+              // Tutor's marking basis, carried on the deploy payload (never in
+              // the student broadcast). Refreshed on each deploy so the live
+              // tutor + grader see the latest PCI; only these columns are
+              // updated on conflict, so a saved task's title/content is kept.
+              const taskPci = typeof task.pci === 'string' ? task.pci.slice(0, 20000) : ''
+              const taskPciSpec = normalizePciSpec(task.pciSpec)
               await drizzleDb
                 .insert(builderTask)
                 .values({
@@ -1282,14 +1296,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   tutorId,
                   title: normalizedTask.title || 'Untitled',
                   content: normalizedTask.content || '',
-                  pci: '',
+                  pci: taskPci,
+                  pciSpec: taskPciSpec,
                   type: normalizedTask.source,
                   status: 'published',
                   publishedAt: now,
                   createdAt: now,
                   updatedAt: now,
                 })
-                .onConflictDoNothing({ target: builderTask.taskId })
+                .onConflictDoUpdate({
+                  target: builderTask.taskId,
+                  set: { pci: taskPci, pciSpec: taskPciSpec, updatedAt: now },
+                })
 
               // Persist the answer key + marks server-side so live submissions
               // auto-grade against it. Carried on the deploy payload's
@@ -1618,6 +1636,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
             }
 
             // 2) builderTask — FK target for taskSubmission; read by the Grading page.
+            //    Carry the tutor's PCI + structured spec (deploy-only; never
+            //    broadcast). Refreshed on conflict without clobbering title/content.
+            const completedPci = typeof task.pci === 'string' ? task.pci.slice(0, 20000) : ''
+            const completedPciSpec = normalizePciSpec(task.pciSpec)
             await drizzleDb
               .insert(builderTask)
               .values({
@@ -1627,14 +1649,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 tutorId,
                 title: task.title || 'Untitled',
                 content: task.content || '',
-                pci: '',
+                pci: completedPci,
+                pciSpec: completedPciSpec,
                 type: task.source,
                 status: 'published',
                 publishedAt: now,
                 createdAt: now,
                 updatedAt: now,
               })
-              .onConflictDoNothing({ target: builderTask.taskId })
+              .onConflictDoUpdate({
+                target: builderTask.taskId,
+                set: { pci: completedPci, pciSpec: completedPciSpec, updatedAt: now },
+              })
 
             // 3) deployedMaterial — without it, the in-session SubmissionsPanel
             //    (/submissions-tree) and live panel filter the submission out.
