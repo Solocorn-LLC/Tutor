@@ -85,7 +85,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
           {/* Content + Assistant */}
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-5 sm:flex-row">
             {/* FAQ / Content panel */}
-            <Card className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5">
+            <Card className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
               <div className="flex-shrink-0 border-b border-[#E5E7EB] p-4">
                 <h2 className="text-lg font-semibold text-slate-900">{activeTopicData.title}</h2>
                 <p className="text-sm text-slate-500">{activeTopicData.description}</p>
@@ -105,7 +105,7 @@ export function SupportPage({ subtitle, heroGradient, topics }: SupportPageProps
 
             {/* AI Assistant panel */}
             {showAssistant && (
-              <div className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5">
+              <div className="shadow-elevation-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
                 <SupportAiAssistant />
               </div>
             )}

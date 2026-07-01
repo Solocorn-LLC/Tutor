@@ -381,7 +381,7 @@ function TutorControlsPanel({
 
                     <button
                       type="button"
-                      disabled={panelDisabled}
+                      disabled={panelDisabled || mode !== 'build'}
                       onClick={onCreateCourse}
                       className={cn(
                         actionButtonBase,
