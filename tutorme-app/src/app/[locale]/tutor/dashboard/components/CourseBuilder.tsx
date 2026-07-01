@@ -126,6 +126,7 @@ import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
 import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
+import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -854,6 +855,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       details: string
       /** Append-only PCI approval audit log (TASK-18). */
       pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+      /** Current approved structured PCI spec (TASK-6). */
+      pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
       sourceDocument?: {
         fileName: string
         fileUrl: string
@@ -942,7 +945,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : { ...prev, taskPci: text }
           // TASK-18: record the approval (transcript + approved text) on a real
           // "Apply to PCI" — not on a manual edit/clear (which pass no audit).
-          return audit ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit] } : base
+          // TASK-6: `pciSpec` holds the current approved structured spec.
+          return audit
+            ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit], pciSpec: audit.spec }
+            : base
         })
       } else {
         setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
@@ -1513,6 +1519,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           details: task.shortDescription || '',
           // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
           pciHistory: task.pciHistory,
+          // TASK-6: carry the current approved structured spec.
+          pciSpec: task.pciSpec,
           sourceDocument: task.sourceDocument,
           extensions: (task.extensions || []).map(ext => ({
             ...ext,
@@ -1757,6 +1765,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   instructions: taskBuilder.taskPci,
                   // TASK-18: persist the PCI approval audit log with the task.
                   pciHistory: taskBuilder.pciHistory,
+                  // TASK-6: persist the current approved structured spec.
+                  pciSpec: taskBuilder.pciSpec,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
                   dmiVersions: taskDmiVersions,
@@ -5894,6 +5904,22 @@ FEEDBACK: [one or two short sentences explaining the score]`
             None yet — chat below and click &ldquo;Apply to PCI&rdquo;, or Edit to type one. This is
             what guides AI grading.
           </p>
+        )}
+        {/* TASK-6: the structured specification mirror, when one was finalized. */}
+        {source === 'task' && taskBuilder.pciSpec && !editingCurrentPci && (
+          <div className="mt-2 border-t border-slate-200 pt-2">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Structured specification
+            </p>
+            <dl className="space-y-1">
+              {PCI_SPEC_FIELDS.filter(f => taskBuilder.pciSpec?.[f.key]).map(f => (
+                <div key={f.key} className="grid grid-cols-[minmax(0,9rem)_1fr] gap-2">
+                  <dt className="text-slate-500">{f.label}</dt>
+                  <dd className="text-slate-700">{taskBuilder.pciSpec?.[f.key]}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         )}
       </div>
     )

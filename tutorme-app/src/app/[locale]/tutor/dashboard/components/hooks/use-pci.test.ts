@@ -124,4 +124,28 @@ describe('usePci', () => {
     act(() => result.current.resetPci())
     expect(getThread(result.current.pci, taskTarget).input).toBe('')
   })
+
+  it('applyTaskPciDraft carries the structured spec into the audit record (TASK-6)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: 'ok',
+        pciDraft: 'FINAL',
+        pciSpec: { evaluationLogic: 'Exact match' },
+        guardrailWarnings: [],
+      }),
+    }) as unknown as typeof fetch
+    const setCurrentPci = vi.fn()
+    const { result } = renderHook(() => usePci(deps({ setCurrentPci })))
+    act(() => result.current.setPciInput(taskTarget, 'q'))
+    await act(async () => {
+      await result.current.handlePciSend('task')
+    })
+    act(() => result.current.applyTaskPciDraft())
+    expect(setCurrentPci).toHaveBeenCalledWith(
+      'task',
+      'FINAL',
+      expect.objectContaining({ spec: { evaluationLogic: 'Exact match' } })
+    )
+  })
 })

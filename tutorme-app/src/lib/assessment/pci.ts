@@ -20,6 +20,9 @@ export interface PciMessage {
 export interface PciAuditRecord {
   /** The approved PCI text applied this time. */
   approvedPci: string
+  /** The structured form of the approved PCI (TASK-6), when the model produced
+   *  one. Undefined when only free text was finalized. */
+  spec?: import('./pci-spec').PciSpec
   /** The chat transcript at approval: tutor turns (user) + LLM interpretation/
    *  summary (assistant). */
   transcript: PciMessage[]

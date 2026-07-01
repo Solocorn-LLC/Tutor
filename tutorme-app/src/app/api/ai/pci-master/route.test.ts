@@ -109,10 +109,11 @@ describe('/api/ai/pci-master', () => {
     return POST(req as unknown as NextRequest)
   }
 
-  it('task domain: extracts {reply,pci} — chat shows reply, pciDraft holds the finalized rubric (on tutor approval)', async () => {
+  it('task domain: extracts {reply,pci,spec} — reply, finalized rubric, and structured spec (on approval)', async () => {
     mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
     mocks.adkPciMasterChat.mockResolvedValue({
-      response: '{"reply":"What counts as a correct answer?","pci":"FINAL RUBRIC TEXT"}',
+      response:
+        '{"reply":"What counts as a correct answer?","pci":"FINAL RUBRIC TEXT","spec":{"evaluationLogic":"Exact match","retryPolicy":"unspecified","instructionalTone":"Encouraging"}}',
       conversationId: 'c1',
       parsed: null,
     })
@@ -126,6 +127,11 @@ describe('/api/ai/pci-master', () => {
     expect(data.response).toBe('What counts as a correct answer?')
     expect(data.response).not.toContain('{')
     expect(data.pciDraft).toBe('FINAL RUBRIC TEXT')
+    // TASK-6: structured spec, with the fabricated "unspecified" field dropped.
+    expect(data.pciSpec).toEqual({
+      evaluationLogic: 'Exact match',
+      instructionalTone: 'Encouraging',
+    })
   })
 
   it('task domain: suppresses a finalized rubric until the tutor signals approval (TASK-5)', async () => {
