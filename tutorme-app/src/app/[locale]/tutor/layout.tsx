@@ -141,7 +141,10 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isCoursePublishPage = pathname?.match(/^\/tutor\/courses\/[^\/]+$/) !== null
 
   // Insights page has its own layout with course builder integrated
-  const isInsightsPage = pathname === '/tutor/insights' || pathname?.startsWith('/tutor/insights/')
+  const isInsightsPage =
+    pathname === `${localePrefix}/tutor/insights` ||
+    pathname?.startsWith(`${localePrefix}/tutor/insights/`) ||
+    /\/tutor\/insights(\/|$)/.test(pathname || '')
 
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
