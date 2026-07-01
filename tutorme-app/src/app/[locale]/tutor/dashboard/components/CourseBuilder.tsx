@@ -9037,7 +9037,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
+                                        className={cn(
+                                          'relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border bg-white shadow-sm',
+                                          mainBuilderTab === 'assessment'
+                                            ? 'border-[#EC4899]'
+                                            : 'border-blue-200'
+                                        )}
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
