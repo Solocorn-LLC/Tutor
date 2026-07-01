@@ -42,6 +42,8 @@ import {
   Download,
   Eye,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Mail,
   Send,
 } from 'lucide-react'
@@ -178,6 +180,7 @@ export function RevenueDashboard({
   const [internalShowEmailDialog, setInternalShowEmailDialog] = useState(false)
   const [emailAddress, setEmailAddress] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   // Theme state with localStorage persistence
   const [themeId, setThemeId] = useState(controlledThemeId ?? 'current')
@@ -397,15 +400,31 @@ export function RevenueDashboard({
         className={cn('border-border bg-card flex h-full flex-col border', className)}
         style={themeStyle}
       >
-        <CardHeader className="text-foreground pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-500" />
-              <CardTitle className="text-foreground text-base font-bold">
-                Revenue & Business
-              </CardTitle>
+        {/* Dark charcoal header bar */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded(prev => !prev)}
+          className="panel-header panel-header-metallic w-full text-left"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="panel-header-icon">
+                <DollarSign className="h-5 w-5 text-slate-900" />
+              </div>
+              <div>
+                <div className="panel-header-title">Revenue & Business</div>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+              {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </div>
+          </div>
+        </button>
+
+        {isExpanded && (
+          <>
+            {/* Action buttons row */}
+            <div className="flex items-center justify-end gap-1 border-b border-[#E5E7EB] px-4 py-2">
               {!controlledThemeId && (
                 <Select value={themeId} onValueChange={setThemeId}>
                   <SelectTrigger className="border-border bg-background text-foreground h-8 w-[140px] text-xs">
@@ -429,344 +448,370 @@ export function RevenueDashboard({
                 Export
               </Button>
             </div>
-          </div>
 
-          {/* Summary Cards */}
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="border-border rounded-xl border bg-green-50 p-3">
-              <p className="mb-1 text-xs text-green-600">Available Balance</p>
-              <p className="text-xl font-bold text-green-800">{formatCurrency(availableBalance)}</p>
-            </div>
-            <div className="border-border rounded-xl border bg-blue-50 p-3">
-              <p className="mb-1 text-xs text-blue-600">This Month</p>
-              <div className="flex items-center gap-2">
-                <p className="text-xl font-bold text-blue-800">
-                  {formatCurrency(thisMonthRevenue)}
+            {/* Summary Cards */}
+            <div className="mt-3 grid grid-cols-2 gap-3 px-4">
+              <div className="border-border rounded-xl border bg-green-50 p-3">
+                <p className="mb-1 text-xs text-green-600">Available Balance</p>
+                <p className="text-xl font-bold text-green-800">
+                  {formatCurrency(availableBalance)}
                 </p>
-                <Badge variant={revenueChange >= 0 ? 'default' : 'destructive'} className="text-xs">
-                  {revenueChange >= 0 ? '+' : ''}
-                  {revenueChange.toFixed(0)}%
-                </Badge>
+              </div>
+              <div className="border-border rounded-xl border bg-blue-50 p-3">
+                <p className="mb-1 text-xs text-blue-600">This Month</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xl font-bold text-blue-800">
+                    {formatCurrency(thisMonthRevenue)}
+                  </p>
+                  <Badge
+                    variant={revenueChange >= 0 ? 'default' : 'destructive'}
+                    className="text-xs"
+                  >
+                    {revenueChange >= 0 ? '+' : ''}
+                    {revenueChange.toFixed(0)}%
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab as any} className="mt-4">
-            <TabsList className="bg-muted grid w-full grid-cols-4">
-              <TabsTrigger value="overview" className="text-xs">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="earnings" className="text-xs">
-                Earnings
-              </TabsTrigger>
-              <TabsTrigger value="courses" className="text-xs">
-                Courses
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="text-xs">
-                Analytics
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </CardHeader>
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab as any} className="mt-4 px-4">
+              <TabsList className="bg-muted grid w-full grid-cols-4">
+                <TabsTrigger value="overview" className="text-xs">
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="earnings" className="text-xs">
+                  Earnings
+                </TabsTrigger>
+                <TabsTrigger value="courses" className="text-xs">
+                  Courses
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="text-xs">
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-        <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-[calc(100%-180px)]">
-            <div className="px-4 pb-4">
-              {activeTab === 'overview' && (
-                <div className="space-y-4">
-                  {/* Key Metrics */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="border-border bg-card rounded-lg border p-3 text-center">
-                      <p className="text-foreground text-lg font-bold">{totalBookings}</p>
-                      <p className="text-muted-foreground text-xs">Total Bookings</p>
-                    </div>
-                    <div className="border-border bg-card rounded-lg border p-3 text-center">
-                      <p className="text-foreground text-lg font-bold">
-                        {formatCurrency(avgBookingValue)}
-                      </p>
-                      <p className="text-muted-foreground text-xs">Avg Booking Value</p>
-                    </div>
-                    <div className="border-border bg-card rounded-lg border p-3 text-center">
-                      <p className="text-foreground text-lg font-bold">{courses.length}</p>
-                      <p className="text-muted-foreground text-xs">Active Courses</p>
-                    </div>
-                    <div className="border-border bg-card rounded-lg border p-3 text-center">
-                      <p className="text-foreground text-lg font-bold">
-                        {courses.length > 0
-                          ? (
-                              courses.reduce((sum, c) => sum + c.rating, 0) / courses.length
-                            ).toFixed(1)
-                          : '0.0'}
-                      </p>
-                      <p className="text-muted-foreground text-xs">Avg Rating</p>
-                    </div>
-                  </div>
+            <CardContent className="flex-1 p-0">
+              <ScrollArea className="h-[calc(100%-180px)]">
+                <div className="px-4 pb-4">
+                  {activeTab === 'overview' && (
+                    <div className="space-y-4">
+                      {/* Key Metrics */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="border-border bg-card rounded-lg border p-3 text-center">
+                          <p className="text-foreground text-lg font-bold">{totalBookings}</p>
+                          <p className="text-muted-foreground text-xs">Total Bookings</p>
+                        </div>
+                        <div className="border-border bg-card rounded-lg border p-3 text-center">
+                          <p className="text-foreground text-lg font-bold">
+                            {formatCurrency(avgBookingValue)}
+                          </p>
+                          <p className="text-muted-foreground text-xs">Avg Booking Value</p>
+                        </div>
+                        <div className="border-border bg-card rounded-lg border p-3 text-center">
+                          <p className="text-foreground text-lg font-bold">{courses.length}</p>
+                          <p className="text-muted-foreground text-xs">Active Courses</p>
+                        </div>
+                        <div className="border-border bg-card rounded-lg border p-3 text-center">
+                          <p className="text-foreground text-lg font-bold">
+                            {courses.length > 0
+                              ? (
+                                  courses.reduce((sum, c) => sum + c.rating, 0) / courses.length
+                                ).toFixed(1)
+                              : '0.0'}
+                          </p>
+                          <p className="text-muted-foreground text-xs">Avg Rating</p>
+                        </div>
+                      </div>
 
-                  {/* Recent Earnings */}
-                  <div>
-                    <h3 className="text-foreground mb-2 text-sm font-medium">
-                      Recent Transactions
-                    </h3>
-                    <div className="space-y-2">
-                      {earnings.slice(0, 5).map(earning => (
+                      {/* Recent Earnings */}
+                      <div>
+                        <h3 className="text-foreground mb-2 text-sm font-medium">
+                          Recent Transactions
+                        </h3>
+                        <div className="space-y-2">
+                          {earnings.slice(0, 5).map(earning => (
+                            <div
+                              key={earning.id}
+                              className="bg-muted flex items-center justify-between rounded p-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                {getTypeIcon(earning.type)}
+                                <div>
+                                  <p className="text-foreground text-sm font-medium">
+                                    {earning.description}
+                                  </p>
+                                  <p className="text-muted-foreground text-xs">
+                                    {formatDate(earning.date)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p
+                                  className={cn(
+                                    'text-sm font-medium',
+                                    earning.amount < 0 ? 'text-red-600' : 'text-green-600'
+                                  )}
+                                >
+                                  {earning.amount < 0 ? '' : '+'}
+                                  {formatCurrency(earning.amount)}
+                                </p>
+                                {getStatusBadge(earning.status)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Payout Button */}
+                      {availableBalance > 0 && (
+                        <Button variant="modal-primary" className="w-full">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          Request Payout ({formatCurrency(availableBalance)})
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'earnings' && (
+                    <div className="space-y-3">
+                      {earnings.map(earning => (
                         <div
                           key={earning.id}
-                          className="bg-muted flex items-center justify-between rounded p-2"
+                          className="border-border bg-card rounded-lg border p-3"
                         >
-                          <div className="flex items-center gap-2">
-                            {getTypeIcon(earning.type)}
-                            <div>
-                              <p className="text-foreground text-sm font-medium">
-                                {earning.description}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
+                                {getTypeIcon(earning.type)}
+                              </div>
+                              <div>
+                                <p className="text-foreground text-sm font-medium">
+                                  {earning.description}
+                                </p>
+                                {earning.studentName && (
+                                  <p className="text-muted-foreground text-xs">
+                                    Student: {earning.studentName}
+                                  </p>
+                                )}
+                                <p className="text-muted-foreground text-xs">{earning.date}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p
+                                className={cn(
+                                  'font-bold',
+                                  earning.amount < 0 ? 'text-red-600' : 'text-green-600'
+                                )}
+                              >
+                                {earning.amount < 0 ? '' : '+'}
+                                {formatCurrency(earning.amount)}
                               </p>
-                              <p className="text-muted-foreground text-xs">
-                                {formatDate(earning.date)}
-                              </p>
+                              {getStatusBadge(earning.status)}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p
-                              className={cn(
-                                'text-sm font-medium',
-                                earning.amount < 0 ? 'text-red-600' : 'text-green-600'
-                              )}
-                            >
-                              {earning.amount < 0 ? '' : '+'}
-                              {formatCurrency(earning.amount)}
-                            </p>
-                            {getStatusBadge(earning.status)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeTab === 'courses' && (
+                    <div className="space-y-3">
+                      {courses.map(course => (
+                        <div
+                          key={course.id}
+                          className="border-border bg-card rounded-lg border p-3"
+                        >
+                          <div className="mb-2 flex items-start justify-between">
+                            <h4 className="text-foreground text-sm font-medium">{course.name}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              ⭐ {course.rating}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-muted rounded p-2">
+                              <p className="text-foreground text-lg font-bold">
+                                {course.enrollments}
+                              </p>
+                              <p className="text-muted-foreground text-xs">Students</p>
+                            </div>
+                            <div className="bg-muted rounded p-2">
+                              <p className="text-foreground text-lg font-bold">
+                                {formatCurrency(course.revenue)}
+                              </p>
+                              <p className="text-muted-foreground text-xs">Revenue</p>
+                            </div>
+                            <div className="bg-muted rounded p-2">
+                              <p className="text-foreground text-lg font-bold">
+                                {course.conversionRate}%
+                              </p>
+                              <p className="text-muted-foreground text-xs">Conversion</p>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Payout Button */}
-                  {availableBalance > 0 && (
-                    <Button variant="modal-primary" className="w-full">
-                      <Wallet className="mr-2 h-4 w-4" />
-                      Request Payout ({formatCurrency(availableBalance)})
-                    </Button>
                   )}
-                </div>
-              )}
 
-              {activeTab === 'earnings' && (
-                <div className="space-y-3">
-                  {earnings.map(earning => (
-                    <div key={earning.id} className="border-border bg-card rounded-lg border p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
-                            {getTypeIcon(earning.type)}
-                          </div>
-                          <div>
-                            <p className="text-foreground text-sm font-medium">
-                              {earning.description}
-                            </p>
-                            {earning.studentName && (
-                              <p className="text-muted-foreground text-xs">
-                                Student: {earning.studentName}
-                              </p>
-                            )}
-                            <p className="text-muted-foreground text-xs">{earning.date}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={cn(
-                              'font-bold',
-                              earning.amount < 0 ? 'text-red-600' : 'text-green-600'
-                            )}
-                          >
-                            {earning.amount < 0 ? '' : '+'}
-                            {formatCurrency(earning.amount)}
-                          </p>
-                          {getStatusBadge(earning.status)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'courses' && (
-                <div className="space-y-3">
-                  {courses.map(course => (
-                    <div key={course.id} className="border-border bg-card rounded-lg border p-3">
-                      <div className="mb-2 flex items-start justify-between">
-                        <h4 className="text-foreground text-sm font-medium">{course.name}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          ⭐ {course.rating}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-muted rounded p-2">
-                          <p className="text-foreground text-lg font-bold">{course.enrollments}</p>
-                          <p className="text-muted-foreground text-xs">Students</p>
-                        </div>
-                        <div className="bg-muted rounded p-2">
-                          <p className="text-foreground text-lg font-bold">
-                            {formatCurrency(course.revenue)}
-                          </p>
-                          <p className="text-muted-foreground text-xs">Revenue</p>
-                        </div>
-                        <div className="bg-muted rounded p-2">
-                          <p className="text-foreground text-lg font-bold">
-                            {course.conversionRate}%
-                          </p>
-                          <p className="text-muted-foreground text-xs">Conversion</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'analytics' && (
-                <div className="space-y-4">
-                  {/* Conversion Funnel - Moved to top for visibility */}
-                  <div className="border-border rounded-lg border bg-gradient-to-br from-blue-50/50 to-purple-50/50 p-4">
-                    <h3 className="text-foreground mb-4 flex items-center gap-2 font-medium">
-                      <TrendingUp className="h-5 w-5" />
-                      Conversion Funnel
-                    </h3>
+                  {activeTab === 'analytics' && (
                     <div className="space-y-4">
+                      {/* Conversion Funnel - Moved to top for visibility */}
+                      <div className="border-border rounded-lg border bg-gradient-to-br from-blue-50/50 to-purple-50/50 p-4">
+                        <h3 className="text-foreground mb-4 flex items-center gap-2 font-medium">
+                          <TrendingUp className="h-5 w-5" />
+                          Conversion Funnel
+                        </h3>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-medium text-gray-700">👀 Page Views</span>
+                              <span className="font-bold">0</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-blue-100">
+                              <div
+                                className="h-full rounded-full bg-blue-500"
+                                style={{ width: '0%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-center">
+                            <div className="text-xs text-gray-500">▼ 0% conversion</div>
+                          </div>
+
+                          <div>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-medium text-gray-700">📚 Course Views</span>
+                              <span className="font-bold">0 (0%)</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-purple-100">
+                              <div
+                                className="h-full rounded-full bg-purple-500"
+                                style={{ width: '0%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-center">
+                            <div className="text-xs text-gray-500">▼ 0% conversion</div>
+                          </div>
+
+                          <div>
+                            <div className="mb-1 flex justify-between text-sm">
+                              <span className="font-medium text-gray-700">✅ Enrollments</span>
+                              <span className="font-bold text-green-600">0 (0%)</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-green-100">
+                              <div
+                                className="h-full rounded-full bg-green-500"
+                                style={{ width: '0%' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded bg-white/70 p-3 text-sm">
+                          <p className="text-gray-700">
+                            <strong>💡 Insight:</strong> Your course pages are converting well!
+                            Consider optimizing the landing page to increase views.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Popular Time Slots */}
                       <div>
-                        <div className="mb-1 flex justify-between text-sm">
-                          <span className="font-medium text-gray-700">👀 Page Views</span>
-                          <span className="font-bold">0</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-blue-100">
-                          <div
-                            className="h-full rounded-full bg-blue-500"
-                            style={{ width: '0%' }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex justify-center">
-                        <div className="text-xs text-gray-500">▼ 0% conversion</div>
-                      </div>
-
-                      <div>
-                        <div className="mb-1 flex justify-between text-sm">
-                          <span className="font-medium text-gray-700">📚 Course Views</span>
-                          <span className="font-bold">0 (0%)</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-purple-100">
-                          <div
-                            className="h-full rounded-full bg-purple-500"
-                            style={{ width: '0%' }}
-                          />
+                        <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-medium">
+                          <Clock className="h-4 w-4" />
+                          Popular Time Slots
+                        </h3>
+                        <div className="space-y-2">
+                          {timeSlots.map((slot, idx) => (
+                            <div key={idx} className="flex items-center gap-3">
+                              <span className="text-foreground w-32 truncate text-xs">
+                                {slot.slot}
+                              </span>
+                              <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                                <div
+                                  className="h-full rounded-full bg-purple-500"
+                                  style={{ width: `${(slot.bookings / 50) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-foreground w-12 text-right text-xs">
+                                {slot.bookings}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="flex justify-center">
-                        <div className="text-xs text-gray-500">▼ 0% conversion</div>
-                      </div>
-
-                      <div>
-                        <div className="mb-1 flex justify-between text-sm">
-                          <span className="font-medium text-gray-700">✅ Enrollments</span>
-                          <span className="font-bold text-green-600">0 (0%)</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-green-100">
-                          <div
-                            className="h-full rounded-full bg-green-500"
-                            style={{ width: '0%' }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded bg-white/70 p-3 text-sm">
-                      <p className="text-gray-700">
-                        <strong>💡 Insight:</strong> Your course pages are converting well! Consider
-                        optimizing the landing page to increase views.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Popular Time Slots */}
-                  <div>
-                    <h3 className="text-foreground mb-3 flex items-center gap-2 text-sm font-medium">
-                      <Clock className="h-4 w-4" />
-                      Popular Time Slots
-                    </h3>
-                    <div className="space-y-2">
-                      {timeSlots.map((slot, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <span className="text-foreground w-32 truncate text-xs">{slot.slot}</span>
-                          <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                      {/* Conversion Funnel */}
+                      <div className="bg-muted rounded-lg p-3">
+                        <h3 className="text-foreground mb-3 text-sm font-medium">
+                          Conversion Funnel
+                        </h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Page Views</span>
+                            <span className="text-foreground font-medium">0</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                             <div
-                              className="h-full rounded-full bg-purple-500"
-                              style={{ width: `${(slot.bookings / 50) * 100}%` }}
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: '0%' }}
                             />
                           </div>
-                          <span className="text-foreground w-12 text-right text-xs">
-                            {slot.bookings}
-                          </span>
+
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Course Views</span>
+                            <span className="text-foreground font-medium">0 (0%)</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: '0%' }}
+                            />
+                          </div>
+
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Enrollments</span>
+                            <span className="text-foreground font-medium">0 (0%)</span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-green-100">
+                            <div
+                              className="h-full rounded-full bg-green-500"
+                              style={{ width: '0%' }}
+                            />
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Conversion Funnel */}
-                  <div className="bg-muted rounded-lg p-3">
-                    <h3 className="text-foreground mb-3 text-sm font-medium">Conversion Funnel</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Page Views</span>
-                        <span className="text-foreground font-medium">0</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div className="h-full rounded-full bg-blue-500" style={{ width: '0%' }} />
                       </div>
 
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Course Views</span>
-                        <span className="text-foreground font-medium">0 (0%)</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div className="h-full rounded-full bg-blue-500" style={{ width: '0%' }} />
-                      </div>
-
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Enrollments</span>
-                        <span className="text-foreground font-medium">0 (0%)</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-green-100">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: '0%' }} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Revenue Trend */}
-                  <div className="bg-muted rounded-lg p-3">
-                    <h3 className="text-foreground mb-3 text-sm font-medium">
-                      Monthly Revenue Trend
-                    </h3>
-                    <div className="flex h-24 items-end gap-2">
-                      {Array.from({ length: 7 }).map((_, idx) => (
-                        <div key={idx} className="flex flex-1 flex-col items-center gap-1">
-                          <div
-                            className="w-full rounded-t bg-purple-500"
-                            style={{ height: '0%' }}
-                          />
-                          <span className="text-muted-foreground text-xs">
-                            {['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'][idx]}
-                          </span>
+                      {/* Revenue Trend */}
+                      <div className="bg-muted rounded-lg p-3">
+                        <h3 className="text-foreground mb-3 text-sm font-medium">
+                          Monthly Revenue Trend
+                        </h3>
+                        <div className="flex h-24 items-end gap-2">
+                          {Array.from({ length: 7 }).map((_, idx) => (
+                            <div key={idx} className="flex flex-1 flex-col items-center gap-1">
+                              <div
+                                className="w-full rounded-t bg-purple-500"
+                                style={{ height: '0%' }}
+                              />
+                              <span className="text-muted-foreground text-xs">
+                                {['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'][idx]}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
+              </ScrollArea>
+            </CardContent>
+          </>
+        )}
       </Card>
       <EmailStatementDialog
         open={showEmailDialog}
