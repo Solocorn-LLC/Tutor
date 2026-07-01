@@ -8117,13 +8117,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <Card
                     padding="none"
                     className={cn(
-                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
-                      mainTab === 'live' ? 'border-orange-200' : 'border-purple-200'
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                     )}
                   >
                     <div
                       className={cn(
-                        'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
+                        'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
                           ? 'bg-gradient-to-br from-orange-500 to-orange-600'
                           : 'bg-gradient-to-br from-violet-500 to-purple-600'
@@ -8453,10 +8452,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
-                                        mainTab === 'live'
-                                          ? 'border-orange-300'
-                                          : 'border-violet-300'
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white p-0'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8848,8 +8844,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
-                                    mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
+                                    'mt-1 w-full rounded-2xl bg-white transition-all duration-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">

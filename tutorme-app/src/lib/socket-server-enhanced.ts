@@ -2222,10 +2222,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           const rawLabels = Array.isArray(data.options)
             ? data.options.map(o => String(o ?? '').trim()).filter(Boolean)
             : []
-          const labels =
-            rawLabels.length >= 2
-              ? rawLabels.slice(0, 8)
-              : ['A', 'B', 'C', 'D', 'E']
+          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 8) : ['A', 'B', 'C', 'D', 'E']
           const poll: LiveTaskPoll = {
             id: `poll-${taskId}-${Date.now()}`,
             taskId,

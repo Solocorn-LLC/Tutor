@@ -139,7 +139,9 @@ export function InsightsReportView({
                       >
                         {a.studentName}
                       </button>
-                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-700">{a.answer}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-700">
+                        {a.answer}
+                      </p>
                     </div>
                   ))}
                 </div>
