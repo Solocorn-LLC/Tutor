@@ -110,6 +110,9 @@ export default function StudentRegistrationPage() {
     avatarUrl: '',
     parentEmail: '',
     confirmParentEmail: '',
+    parentFirstName: '',
+    parentMiddleName: '',
+    parentLastName: '',
   })
 
   const [region, countryCode] = [formData.region, formData.countryCode]
@@ -473,6 +476,44 @@ export default function StudentRegistrationPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="parentFirstName" className="text-xs text-white/70">
+                      Parent First Name
+                    </Label>
+                    <Input
+                      id="parentFirstName"
+                      autoComplete="given-name"
+                      value={formData.parentFirstName || ''}
+                      onChange={e => setFormData({ ...formData, parentFirstName: e.target.value })}
+                      className={inputClassName}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="parentMiddleName" className="text-xs text-white/70">
+                      Parent Middle Name
+                    </Label>
+                    <Input
+                      id="parentMiddleName"
+                      autoComplete="additional-name"
+                      value={formData.parentMiddleName || ''}
+                      onChange={e => setFormData({ ...formData, parentMiddleName: e.target.value })}
+                      className={inputClassName}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="parentLastName" className="text-xs text-white/70">
+                      Parent Last Name
+                    </Label>
+                    <Input
+                      id="parentLastName"
+                      autoComplete="family-name"
+                      value={formData.parentLastName || ''}
+                      onChange={e => setFormData({ ...formData, parentLastName: e.target.value })}
+                      className={inputClassName}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor="parentEmail" className="text-xs text-white/70">
                     Parent or Guardian Email
