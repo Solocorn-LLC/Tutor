@@ -3,19 +3,23 @@
  *
  * Kimi/Moonshot is the primary (and, from asia-southeast1 against a .cn
  * endpoint, a single point of failure). When it's unavailable, an optional
- * OpenAI-compatible secondary provider turns a hard failure into a
- * degraded-but-working response. It's configured entirely via env — when the
- * three vars aren't set, behaviour is unchanged (Kimi-only):
+ * secondary provider turns a hard failure into a degraded-but-working response.
  *
- *   FALLBACK_AI_BASE_URL   e.g. https://api.openai.com/v1  (no trailing /chat)
- *   FALLBACK_AI_API_KEY    the provider key
- *   FALLBACK_AI_MODEL      e.g. gpt-4o-mini
+ * Defaults to OpenAI, so activation only needs the API key:
  *
- * Any OpenAI-compatible chat/completions endpoint works (OpenAI, Together,
- * Groq, DeepSeek, OpenRouter, a Moonshot global endpoint, …).
+ *   FALLBACK_AI_API_KEY    the provider key (or reuses OPENAI_API_KEY)  ← required
+ *   FALLBACK_AI_BASE_URL   default https://api.openai.com/v1            ← optional
+ *   FALLBACK_AI_MODEL      default gpt-4o-mini                          ← optional
+ *
+ * Override base URL + model for any other OpenAI-compatible endpoint (Together,
+ * Groq, DeepSeek, OpenRouter, a Moonshot global endpoint, …). With no key set,
+ * behaviour is unchanged (Kimi-only).
  */
 
 import { fetchWithTimeoutAndRetry } from './fetch-utils'
+
+const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 
 export interface FallbackProviderConfig {
   baseUrl: string
@@ -36,13 +40,16 @@ interface ChatMessage {
   content: string
 }
 
-/** The configured secondary provider, or null when it isn't set up. */
+/**
+ * The configured secondary provider, or null when it isn't set up. Only the API
+ * key is required — base URL and model default to OpenAI.
+ */
 export function getFallbackProviderConfig(): FallbackProviderConfig | null {
-  const baseUrl = process.env.FALLBACK_AI_BASE_URL?.trim()
-  const apiKey = process.env.FALLBACK_AI_API_KEY?.trim()
-  const model = process.env.FALLBACK_AI_MODEL?.trim()
-  if (!baseUrl || !apiKey || !model) return null
-  return { baseUrl: baseUrl.replace(/\/+$/, ''), apiKey, model }
+  const apiKey = (process.env.FALLBACK_AI_API_KEY || process.env.OPENAI_API_KEY)?.trim()
+  if (!apiKey) return null
+  const baseUrl = (process.env.FALLBACK_AI_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '')
+  const model = process.env.FALLBACK_AI_MODEL?.trim() || DEFAULT_MODEL
+  return { baseUrl, apiKey, model }
 }
 
 async function callChatCompletions(

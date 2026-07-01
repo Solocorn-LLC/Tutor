@@ -10,23 +10,35 @@ describe('fallback-provider', () => {
     vi.restoreAllMocks()
   })
 
-  it('getFallbackProviderConfig requires all three vars', () => {
+  it('is null without a key, and defaults to OpenAI when only the key is set', () => {
     delete process.env.FALLBACK_AI_BASE_URL
     delete process.env.FALLBACK_AI_API_KEY
     delete process.env.FALLBACK_AI_MODEL
+    delete process.env.OPENAI_API_KEY
     expect(getFallbackProviderConfig()).toBeNull()
-    process.env.FALLBACK_AI_BASE_URL = 'https://x/v1'
     process.env.FALLBACK_AI_API_KEY = 'k'
-    expect(getFallbackProviderConfig()).toBeNull() // model missing
-    process.env.FALLBACK_AI_MODEL = 'm'
-    expect(getFallbackProviderConfig()).toEqual(CFG)
+    expect(getFallbackProviderConfig()).toEqual({
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'k',
+      model: 'gpt-4o-mini',
+    })
   })
 
-  it('strips a trailing slash from the base url', () => {
-    process.env.FALLBACK_AI_BASE_URL = 'https://x/v1/'
+  it('reuses OPENAI_API_KEY when FALLBACK_AI_API_KEY is unset', () => {
+    delete process.env.FALLBACK_AI_API_KEY
+    process.env.OPENAI_API_KEY = 'sk-openai'
+    expect(getFallbackProviderConfig()?.apiKey).toBe('sk-openai')
+  })
+
+  it('honours base-url/model overrides and strips a trailing slash', () => {
     process.env.FALLBACK_AI_API_KEY = 'k'
+    process.env.FALLBACK_AI_BASE_URL = 'https://x/v1/'
     process.env.FALLBACK_AI_MODEL = 'm'
-    expect(getFallbackProviderConfig()?.baseUrl).toBe('https://x/v1')
+    expect(getFallbackProviderConfig()).toEqual({
+      baseUrl: 'https://x/v1',
+      apiKey: 'k',
+      model: 'm',
+    })
   })
 
   it('posts an OpenAI-compatible chat request and returns the content', async () => {
