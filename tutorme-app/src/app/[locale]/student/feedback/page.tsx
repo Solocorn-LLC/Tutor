@@ -36,6 +36,7 @@ import {
   Send,
   Bell,
   Loader2,
+  NotebookPen,
   Layout,
   ArrowLeft,
   LogOut,
@@ -473,9 +474,11 @@ function WrittenAnswer({
         <button
           type="button"
           onClick={() => setShowDraw(true)}
-          className="inline-flex items-center gap-1 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
         >
-          + Add a drawing
+          {/* Paper-and-pen icon signals this is for handwriting, not just drawing. */}
+          <NotebookPen className="h-3.5 w-3.5" />
+          Write or draw
         </button>
       )}
     </div>

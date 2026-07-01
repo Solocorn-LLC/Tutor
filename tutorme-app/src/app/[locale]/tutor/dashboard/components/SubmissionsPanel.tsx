@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -116,49 +116,82 @@ export function SubmissionsPanel({
     prevOpenRef.current = { ...open }
   }, [open])
 
-  useEffect(() => {
-    if (!courseId) return
-    // Skip fetch for draft/placeholder course IDs
-    if (courseId === 'insights-draft' || courseId === 'builder-draft') {
-      setError(null)
-      setData(null)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    fetch(`/api/tutor/courses/${courseId}/submissions-tree`, { cache: 'no-store' })
-      .then(async res => {
+  const loadTree = useCallback(
+    async (preserveOpen: boolean) => {
+      if (!courseId) return
+      // Skip fetch for draft/placeholder course IDs
+      if (courseId === 'insights-draft' || courseId === 'builder-draft') {
+        setError(null)
+        setData(null)
+        return
+      }
+      // A background refetch (preserveOpen) must not flash the loading spinner or
+      // wipe the tree on a transient failure — keep showing the current data.
+      if (!preserveOpen) {
+        setLoading(true)
+        setError(null)
+      }
+      try {
+        const res = await fetch(`/api/tutor/courses/${courseId}/submissions-tree`, {
+          cache: 'no-store',
+        })
         const contentType = res.headers.get('content-type') || ''
         if (!contentType.includes('application/json')) {
-          if (res.status !== 404) {
+          if (!preserveOpen && res.status !== 404) {
             setError(res.ok ? 'Failed to load submissions' : `Server error (${res.status})`)
           }
-          setData(null)
+          if (!preserveOpen) setData(null)
           return
         }
         const json = await res.json()
         if (!res.ok || json?.error) {
           // Silently ignore 404 — course may not have sessions/submissions yet.
           // Only show errors for actual failures, not empty data.
-          if (res.status !== 404) {
+          if (!preserveOpen && res.status !== 404) {
             setError(json?.error || 'Failed to load submissions')
           }
-          setData(null)
+          if (!preserveOpen) setData(null)
           return
         }
         setData(json)
-        const nextOpen: Record<string, boolean> = { course: true }
-        ;(json?.lessons || []).forEach((l: any) => {
-          nextOpen[`lesson_${l.id}`] = true
-        })
-        setOpen(nextOpen)
-      })
-      .catch(err => {
-        setError(err?.message || 'Failed to load submissions')
-        setData(null)
-      })
-      .finally(() => setLoading(false))
-  }, [courseId])
+        // Only auto-expand on the first load — a refetch must not collapse or
+        // re-expand folders the tutor has toggled.
+        if (!preserveOpen) {
+          const nextOpen: Record<string, boolean> = { course: true }
+          ;(json?.lessons || []).forEach((l: any) => {
+            nextOpen[`lesson_${l.id}`] = true
+          })
+          setOpen(nextOpen)
+        }
+      } catch (err) {
+        if (!preserveOpen) {
+          setError(err instanceof Error ? err.message : 'Failed to load submissions')
+          setData(null)
+        }
+      } finally {
+        if (!preserveOpen) setLoading(false)
+      }
+    },
+    [courseId]
+  )
+
+  useEffect(() => {
+    loadTree(false)
+  }, [loadTree])
+
+  // A live "Task Complete" persists the submission — and self-heals the
+  // deployed-material / participant rows — server-side, asynchronously. The tree
+  // is otherwise built from a single mount-time REST snapshot, so tasks deployed
+  // or submitted after mount never appeared and the Tasks/Assessments counts
+  // stayed at 0. Refetch shortly after each new live submission so both the
+  // deployed items and the persisted rows show up. Debounced so a burst of
+  // completions triggers one refetch; `open` selection is preserved.
+  const liveSubmissionCount = liveSubmissions?.length ?? 0
+  useEffect(() => {
+    if (liveSubmissionCount === 0) return
+    const t = setTimeout(() => loadTree(true), 1500)
+    return () => clearTimeout(t)
+  }, [liveSubmissionCount, loadTree])
 
   const lessons = useMemo(() => {
     const ls = data?.lessons || []
