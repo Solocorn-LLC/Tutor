@@ -8994,7 +8994,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <Card
                       padding="none"
                       className={cn(
-                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                       )}
                     >
                       <div
@@ -9131,12 +9131,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className={cn(
-                                          'relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border bg-white shadow-sm',
-                                          mainBuilderTab === 'assessment'
-                                            ? 'border-[#EC4899]'
-                                            : 'border-blue-200'
-                                        )}
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9630,7 +9625,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl bg-white shadow-sm"
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#EC4899] bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9907,7 +9902,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       value="pci"
                                       className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl bg-white p-4 shadow-sm">
+                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[#EC4899] bg-white p-4 shadow-sm">
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
