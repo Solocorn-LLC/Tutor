@@ -34,6 +34,11 @@ export const builderTask = pgTable(
     title: text('title').notNull(),
     content: text('content').notNull(), // Content tab content
     pci: text('pci').notNull(), // PCI tab content (instructions)
+    // Structured PCI spec (TASK-6): the normalized PciSpec object finalized in
+    // the builder, persisted at deploy so the live tutor can apply it. Nullable
+    // — only present once the tutor finalizes a structured spec. Tutor-only
+    // evaluation layer; never broadcast to students.
+    pciSpec: jsonb('pciSpec'),
     details: text('details'), // Additional details
     type: enums.builderTaskTypeEnum('type').notNull().default('task'),
     status: enums.builderTaskStatusEnum('status').notNull().default('draft'),

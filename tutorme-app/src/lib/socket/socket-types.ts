@@ -115,6 +115,11 @@ export interface LiveTask {
   }>
   /** Tutor's answer-reveal policy for this deploy (default 'instant'). */
   answerReveal?: AnswerReveal
+  /** Tutor's task PCI (free-text) + finalized structured spec (TASK-6). Sent
+   *  tutor→server on deploy ONLY so the live tutor + grader can apply them;
+   *  NEVER broadcast to students — hidden evaluation layer, like answerKey. */
+  pci?: string
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]
