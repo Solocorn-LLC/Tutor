@@ -43,7 +43,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
       {/* Full-width Chat header */}
-      <div className="flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+      <div className="flex h-12 shrink-0 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
         Chat
       </div>
 
