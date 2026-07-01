@@ -8117,13 +8117,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <Card
                     padding="none"
                     className={cn(
-                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
-                      mainTab === 'live' ? 'border-orange-200' : 'border-purple-200'
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                     )}
                   >
                     <div
                       className={cn(
-                        'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
+                        'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
                           ? 'bg-gradient-to-br from-orange-500 to-orange-600'
                           : 'bg-gradient-to-br from-violet-500 to-purple-600'
