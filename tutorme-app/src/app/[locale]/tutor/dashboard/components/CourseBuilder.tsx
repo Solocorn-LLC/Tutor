@@ -764,7 +764,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [])
 
-    const centerColWidth = viewportWidth - leftPanelWidth - 24 - rightPanelWidth - 24 - 32
+    // The builder is rendered inside the inset dashboard area (a fixed sidebar +
+    // margins take ~272px), NOT the full window — so sizing the panels from
+    // window.innerWidth overshot the real container by ~270px and pushed the
+    // right panel off the edge (clipped by the ancestor overflow-hidden). Measure
+    // the actual layout row instead so the three fixed-width panels tile exactly,
+    // in every host (dashboard, live/insights) and nav state.
+    const layoutRowRef = useRef<HTMLDivElement | null>(null)
+    const [layoutRowWidth, setLayoutRowWidth] = useState(0)
+    useEffect(() => {
+      const el = layoutRowRef.current
+      if (!el || typeof ResizeObserver === 'undefined') return
+      const update = () => setLayoutRowWidth(el.clientWidth)
+      update()
+      const ro = new ResizeObserver(update)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }, [])
+
+    // clientWidth includes the row's own horizontal padding (pl-[17px] pr-4 = 33px).
+    // Fall back to the window measure only until the observer takes its first
+    // reading (avoids a 1-frame flash of a negative width during hydration).
+    const availableRowWidth = (layoutRowWidth > 0 ? layoutRowWidth : viewportWidth) - 33
+    const centerColWidth = Math.max(
+      320,
+      availableRowWidth - leftPanelWidth - 24 - rightPanelWidth - 24
+    )
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
@@ -6182,6 +6207,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
+            ref={layoutRowRef}
             className="relative flex h-full w-full pb-6 pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
             style={{
               gap: '24px',
