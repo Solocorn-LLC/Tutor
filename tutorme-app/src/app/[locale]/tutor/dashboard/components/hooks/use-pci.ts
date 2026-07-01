@@ -70,9 +70,11 @@ export function usePci(deps: UsePciDeps) {
     const draft = thread.draft
     if (!draft) return
     // TASK-18 (Data Capture): record the approval — the transcript (tutor's
-    // words + the LLM's interpretation/summary) and the approved PCI together.
+    // words + the LLM's interpretation/summary), the approved PCI, and its
+    // structured form (TASK-6) together.
     const audit: PciAuditRecord = {
       approvedPci: draft,
+      spec: thread.draftSpec,
       transcript: thread.messages,
       approvedAt: Date.now(),
     }
@@ -210,6 +212,8 @@ export function usePci(deps: UsePciDeps) {
         target,
         assistant: { role: 'assistant', content: data.response || 'Unable to respond.' },
         draft: draft || undefined,
+        // TASK-6: the structured spec mirror (present only on finalization).
+        spec: data.pciSpec || undefined,
         warnings,
       })
     } catch (error) {

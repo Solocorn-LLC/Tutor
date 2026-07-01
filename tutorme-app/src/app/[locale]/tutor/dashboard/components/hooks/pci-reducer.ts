@@ -23,6 +23,8 @@ export interface PciThread {
   errorHint: string
   /** Finalized rubric awaiting "Apply to PCI" (empty until the model finalizes). */
   draft: string
+  /** Structured form of the finalized rubric (TASK-6), when the model emitted one. */
+  draftSpec?: import('@/lib/assessment/pci-spec').PciSpec
   guardrailWarnings: PciGuardrailWarning[]
 }
 
@@ -63,6 +65,7 @@ export type PciAction =
       target: PciTarget
       assistant: PciMessage
       draft?: string
+      spec?: import('@/lib/assessment/pci-spec').PciSpec
       warnings: PciGuardrailWarning[]
     }
   | { type: 'sendError'; target: PciTarget; hint: string; assistant: PciMessage }
@@ -108,11 +111,12 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
       })
 
     case 'sendSuccess':
-      // Append the assistant reply, hold any finalized draft, clear the error,
-      // record guardrail warnings, and stop loading.
+      // Append the assistant reply, hold any finalized draft + structured spec,
+      // clear the error, record guardrail warnings, and stop loading.
       return patch(state, action.target, {
         messages: [...getThread(state, action.target).messages, action.assistant],
         ...(action.draft ? { draft: action.draft } : {}),
+        ...(action.spec ? { draftSpec: action.spec } : {}),
         errorHint: '',
         guardrailWarnings: action.warnings,
         loading: false,
@@ -129,7 +133,7 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
       return patch(state, action.target, { loading: false })
 
     case 'clearDraft':
-      return patch(state, action.target, { draft: '' })
+      return patch(state, action.target, { draft: '', draftSpec: undefined })
 
     case 'reset':
       return initialPciState()

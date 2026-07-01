@@ -8,8 +8,10 @@ authority** — the LLM never behaves as though it independently owns the lesson
 
 This document is the canonical, human-readable statement of the rules. The machine-readable
 versions live in [`tutorme-app/src/lib/ai/guardrails/task-pci.ts`](../../tutorme-app/src/lib/ai/guardrails/task-pci.ts)
-(`TASK_PCI_GUARDRAILS`, `TASK_PCI_SYSTEM_PROMPT`) and are enforced (warn-only) by
-`validateTaskPciOutput` in `validate.ts`. Keep all three in sync when the rules change.
+(`TASK_PCI_GUARDRAILS`, `TASK_PCI_SYSTEM_PROMPT`). They are enforced by three layers: the prompt,
+the warn-only `validateTaskPciOutput` validator in `validate.ts`, and code-level gates around the
+LLM (confirmation, data capture, safe-failure, final-authority). Keep all three in sync when the
+rules change.
 
 ## Enforcement model
 
@@ -17,10 +19,20 @@ versions live in [`tutorme-app/src/lib/ai/guardrails/task-pci.ts`](../../tutorme
 | --- | --- | --- |
 | Prompt | `TASK_PCI_SYSTEM_PROMPT` injected into every task-PCI LLM call (`api/ai/pci-master` when `context.type === 'task'`); temperature lowered to `GUARDRAILED_TEMPERATURE` (0.2) for consistency. | **Active** |
 | Validator | `validateTaskPciOutput` runs after generation, returns `guardrailWarnings`, logs violations. | **Active (warn-only)** |
-| Code | Confirmation gating, audit records, safe-failure, final-authority — owned by the builder/runtime around the LLM. | Partially platform-owned |
+| Code — confirmation gate (TASK-5) | `api/ai/pci-master` suppresses a finalized `pci` until the tutor's message signals approval (returns `pciUnconfirmed`); the builder's "Apply to PCI" button is the second, human gate. | **Active (blocking)** |
+| Code — data capture (TASK-18) | On "Apply to PCI" the task records a `PciAuditRecord` `{approvedPci, transcript, approvedAt}` in `task.pciHistory` — an append-only, versioned log distinguishing what was said/interpreted vs approved. | **Active** |
+| Code — safe failure (TASK-10 / 19) | `ai-grade` refuses (`422`, `needsManualGrading`) when there is no marking basis (no PCI, rubric, or model answer) instead of fabricating a score (`resolveMarkingBasis`). | **Active (blocking)** |
+| Code — final authority (TASK-20) | `ai-grade` treats the approved PCI as the binding marking policy, overriding the rubric / model answer where they conflict. | **Active (execution prompt)** |
 
-"Warn-only" means violations are detected, logged, and returned to the client — **not blocked**.
-To make a rule blocking, raise its violation severity to `error` and gate the call site on it.
+"Warn-only" applies to the **validator**: violations are detected, logged, and returned to the
+client, but not blocked (raise a violation's severity to `error` and gate the call site to make it
+blocking). The **code gates** above are separate and do block: the confirmation gate withholds an
+unconfirmed draft, and safe-failure refuses to grade without a basis.
+
+**Known gap:** the **Specification** rule (TASK-6) is not yet structured — the finalized `pci` is
+still a free-text rubric, not the seven-field spec (evaluation logic, retry policy, tone, …) with
+`"unspecified"` for undefined fields. That refactor spans the generation prompt, a schema, storage,
+and execution and is tracked separately.
 
 ## The 20 guardrails
 

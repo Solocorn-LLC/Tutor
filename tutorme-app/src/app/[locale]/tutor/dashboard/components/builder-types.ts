@@ -145,6 +145,8 @@ export interface Task extends WithDifficultyVariants {
   /** Append-only audit log of PCI approvals (TASK-18). Each "Apply to PCI"
    *  records the transcript + approved text for auditability/versioning. */
   pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+  /** Current approved structured PCI spec (TASK-6), when finalized. */
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   extensions?: Array<{
     id: string
     name: string

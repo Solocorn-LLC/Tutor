@@ -12,6 +12,7 @@ import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
+import { normalizePciSpec, type PciSpec } from '@/lib/assessment/pci-spec'
 import {
   guardrailSystemPrompt,
   runTaskGuardrails,
@@ -312,21 +313,25 @@ export async function POST(request: NextRequest) {
       )
 
     let pciDraft = ''
+    let pciSpec: PciSpec | null = null
     let pciUnconfirmed = false
     if (guardrailDomain) {
-      const env = parseLlmJson<{ reply?: string; pci?: string }>(response.response)
+      const env = parseLlmJson<{ reply?: string; pci?: string; spec?: unknown }>(response.response)
       if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
         if (typeof env.reply === 'string' && env.reply.trim()) {
           response.response = env.reply.trim()
         }
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
+        // TASK-6: the structured mirror of the finalized rubric.
+        pciSpec = normalizePciSpec(env.spec)
       }
       // Suppress a finalized rubric the model emitted without an explicit tutor
       // approval this turn — no silent finalization (the client Apply button is
-      // the second gate).
-      if (pciDraft && !tutorSignaledFinalize) {
+      // the second gate). The structured spec is gated the same way.
+      if ((pciDraft || pciSpec) && !tutorSignaledFinalize) {
         pciUnconfirmed = true
         pciDraft = ''
+        pciSpec = null
       }
     }
 
@@ -360,6 +365,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: response.response,
       pciDraft,
+      // TASK-6: the finalized rubric in structured form (null until finalized).
+      pciSpec,
       // True when the model proposed a finalized rubric but the tutor hasn't
       // signalled approval — the UI can prompt them to confirm before applying.
       pciUnconfirmed,

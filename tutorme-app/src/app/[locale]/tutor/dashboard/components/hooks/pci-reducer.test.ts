@@ -122,4 +122,20 @@ describe('pciReducer', () => {
     expect(s0.task.input).toBe('') // original untouched
     expect(s1).not.toBe(s0)
   })
+
+  it('sendSuccess holds a structured spec; clearDraft clears draft and spec (TASK-6)', () => {
+    let s = pciReducer(initialPciState(), { type: 'sendStart', target: task, userMessage: 'q' })
+    s = pciReducer(s, {
+      type: 'sendSuccess',
+      target: task,
+      assistant: { role: 'assistant', content: 'a' },
+      draft: 'RUBRIC',
+      spec: { evaluationLogic: 'Exact match' },
+      warnings: [],
+    })
+    expect(getThread(s, task).draftSpec).toEqual({ evaluationLogic: 'Exact match' })
+    s = pciReducer(s, { type: 'clearDraft', target: task })
+    expect(getThread(s, task).draft).toBe('')
+    expect(getThread(s, task).draftSpec).toBeUndefined()
+  })
 })
