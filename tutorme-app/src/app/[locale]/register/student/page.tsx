@@ -517,12 +517,12 @@ export default function StudentRegistrationPage() {
             {step === 3 && (
               <>
                 {/* Header indicators */}
-                <div className="flex items-center justify-between gap-4 rounded-lg bg-white/10 px-4 py-3">
-                  <div className="text-sm text-white">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
                     <span className="text-white/60">Profile Name:</span>{' '}
                     <span className="font-semibold">{formData.firstName || '—'}</span>
                   </div>
-                  <div className="text-sm text-white">
+                  <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
                     <span className="text-white/60">Country:</span>{' '}
                     <span className="font-semibold">
                       {availableCountries.find(c => c.code === formData.countryCode)?.name ||
@@ -532,31 +532,52 @@ export default function StudentRegistrationPage() {
                   </div>
                 </div>
 
-                {/* Avatar selection */}
-                <div className="space-y-2">
+                {/* Avatar preview + selection */}
+                <div className="space-y-3">
                   <Label className="text-xs text-white/70">Avatar</Label>
-                  <div className="grid grid-cols-5 gap-3">
-                    {AVATARS.map(a => {
-                      const selected = formData.avatarUrl === a.url
-                      return (
-                        <button
-                          key={a.url}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, avatarUrl: a.url }))}
-                          className={`group relative aspect-square overflow-hidden rounded-full border-2 transition-all hover:border-[#F97316] focus:border-[#F97316] focus:outline-none ${
-                            selected ? 'border-[#F97316]' : 'border-white/30'
-                          }`}
-                          aria-label={`Select ${a.name}`}
-                        >
-                          <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
-                          {selected && (
-                            <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                              <Check className="h-5 w-5 text-white" />
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
+
+                  {/* Selected avatar preview */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-white/30 bg-slate-100">
+                      {formData.avatarUrl ? (
+                        <img
+                          src={formData.avatarUrl}
+                          alt="Selected avatar"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-lg font-semibold text-slate-400">
+                          {formData.firstName.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Avatar grid - white container, 2 rows visible, scrollable */}
+                  <div className="rounded-xl bg-white p-4">
+                    <div className="grid max-h-[200px] grid-cols-5 gap-2 overflow-y-auto">
+                      {AVATARS.map(a => {
+                        const selected = formData.avatarUrl === a.url
+                        return (
+                          <button
+                            key={a.url}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, avatarUrl: a.url }))}
+                            className={`group relative aspect-square overflow-hidden rounded-full border-2 transition-all hover:border-[#F97316] focus:border-[#F97316] focus:outline-none ${
+                              selected ? 'border-[#F97316]' : 'border-gray-200'
+                            }`}
+                            aria-label={`Select ${a.name}`}
+                          >
+                            <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+                            {selected && (
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <Check className="h-4 w-4 text-white" />
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
 
