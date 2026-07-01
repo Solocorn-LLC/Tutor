@@ -321,8 +321,8 @@ import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { useCourseBuilderState } from './hooks/useCourseBuilderState'
 import {
   InsightsReportView,
-  type PollResultOption,
-  type QuestionAnswerEntry,
+  type PollResultBlock,
+  type QuestionResultBlock,
 } from './builder-parts/InsightsReportView'
 
 // ============================================
@@ -1383,6 +1383,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, 'analytics' | 'poll' | 'question'>
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
+    // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
+    // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
+    const [pollOptionModeMap, setPollOptionModeMap] = useState<
+      Record<string, 'letters' | 'tf' | 'yn' | 'custom'>
+    >({})
+    const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
@@ -1407,29 +1413,47 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [insightsProps?.liveTasks, currentInsightsId]
     )
 
-    const pollResults = useMemo<PollResultOption[]>(() => {
-      const poll = activeLiveTask?.polls?.[activeLiveTask.polls.length - 1]
-      if (!poll) return []
-      const total = poll.responses.length
-      const optionCount = poll.options?.length ?? 0
-      return Array.from({ length: optionCount }, (_, i) => {
-        const responders = poll.responses.filter(r => r.value === i)
-        return {
-          label: `Option ${String.fromCharCode(65 + i)}`,
-          count: responders.length,
-          percent: total > 0 ? Math.round((responders.length / total) * 100) : 0,
-          students: responders.map(r => studentNameById.get(r.studentId) || 'Student'),
-        }
-      })
+    // ALL polls for the active task (newest first) so sending a new poll no
+    // longer hides the previous ones. Each option's tally is by 0-based index,
+    // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
+    // A/B/C… fallback for legacy polls.
+    const pollResults = useMemo<PollResultBlock[]>(() => {
+      const polls = activeLiveTask?.polls ?? []
+      return polls
+        .map(poll => {
+          const total = poll.responses.length
+          const optionCount = poll.options?.length ?? 0
+          return {
+            id: poll.id,
+            question: poll.question,
+            totalResponses: total,
+            options: Array.from({ length: optionCount }, (_, i) => {
+              const responders = poll.responses.filter(r => r.value === i)
+              return {
+                label: poll.optionLabels?.[i] ?? `Option ${String.fromCharCode(65 + i)}`,
+                count: responders.length,
+                percent: total > 0 ? Math.round((responders.length / total) * 100) : 0,
+                students: responders.map(r => studentNameById.get(r.studentId) || 'Student'),
+              }
+            }),
+          }
+        })
+        .reverse()
     }, [activeLiveTask, studentNameById])
 
-    const questionAnswers = useMemo<QuestionAnswerEntry[]>(() => {
-      const q = activeLiveTask?.questions?.[activeLiveTask.questions.length - 1]
-      if (!q) return []
-      return q.responses.map(r => ({
-        studentName: studentNameById.get(r.studentId) || 'Student',
-        answer: r.answer,
-      }))
+    // ALL questions for the active task (newest first), each with its answers.
+    const questionResults = useMemo<QuestionResultBlock[]>(() => {
+      const questions = activeLiveTask?.questions ?? []
+      return questions
+        .map(q => ({
+          id: q.id,
+          prompt: q.prompt,
+          answers: q.responses.map(r => ({
+            studentName: studentNameById.get(r.studentId) || 'Student',
+            answer: r.answer,
+          })),
+        }))
+        .reverse()
     }, [activeLiveTask, studentNameById])
 
     const setInsightsTab = (val: 'analytics' | 'poll' | 'question') =>
@@ -1446,6 +1470,68 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const pollPrompt = pollPromptMap[currentInsightsId] ?? 'Did you find this task difficult'
     const setPollPrompt = (val: string) =>
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? 'letters'
+    const setPollOptionMode = (val: 'letters' | 'tf' | 'yn' | 'custom') =>
+      setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
+    const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
+    const setPollCustomOptions = (val: string) =>
+      setPollCustomOptionsMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    // Resolve the chosen preset to explicit labels. `letters` returns undefined
+    // so the server applies its A–E default; custom is split on newlines/commas.
+    const resolvePollOptions = (): string[] | undefined => {
+      if (pollOptionMode === 'tf') return ['True', 'False']
+      if (pollOptionMode === 'yn') return ['Yes', 'No']
+      if (pollOptionMode === 'custom') {
+        const opts = pollCustomOptions
+          .split(/[\n,]/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .slice(0, 8)
+        return opts.length >= 2 ? opts : undefined
+      }
+      return undefined
+    }
+
+    // Shared option-set picker rendered above every poll composer. Preset chips
+    // + a custom field (one option per line / comma-separated).
+    const POLL_OPTION_PRESETS: { id: 'letters' | 'tf' | 'yn' | 'custom'; label: string }[] = [
+      { id: 'letters', label: 'A–E' },
+      { id: 'tf', label: 'True/False' },
+      { id: 'yn', label: 'Yes/No' },
+      { id: 'custom', label: 'Custom' },
+    ]
+    const pollOptionPicker = (
+      <div className="mb-2">
+        <div className="flex flex-wrap gap-1.5">
+          {POLL_OPTION_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => setPollOptionMode(preset.id)}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                pollOptionMode === preset.id
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        {pollOptionMode === 'custom' && (
+          <textarea
+            value={pollCustomOptions}
+            onChange={e => setPollCustomOptions(e.target.value)}
+            rows={2}
+            placeholder="One option per line — e.g. Agree / Disagree / Unsure"
+            className="mt-1.5 w-full resize-none rounded-lg border border-blue-100 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+          />
+        )}
+      </div>
+    )
 
     const questionPrompt =
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
@@ -8209,6 +8295,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 }
                                               />
                                             )}
+                                            {pollOptionPicker}
                                             <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                               <div className="relative">
                                                 <MentionTextarea
@@ -8256,6 +8343,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                       insightsProps.onSendPoll({
                                                         taskId: currentInsightsId,
                                                         question: pollPrompt,
+                                                        options: resolvePollOptions(),
                                                       })
                                                       setPollPrompt('')
                                                     }}
@@ -8290,7 +8378,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             ) : (
                                               <InsightsReportView
                                                 type="question"
-                                                questionAnswers={questionAnswers}
+                                                questionResults={questionResults}
                                                 onMentionStudent={name =>
                                                   setQuestionPrompt(
                                                     questionPrompt
@@ -10272,6 +10360,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           }
                                         />
                                       </div>
+                                      {pollOptionPicker}
                                       <div className="mt-2 shrink-0 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                         <div className="relative">
                                           <MentionTextarea
@@ -10317,6 +10406,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 insightsProps.onSendPoll({
                                                   taskId: currentInsightsId,
                                                   question: pollPrompt,
+                                                  options: resolvePollOptions(),
                                                 })
                                                 setPollPrompt('')
                                               }}
@@ -10334,7 +10424,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                         <InsightsReportView
                                           type="question"
-                                          questionAnswers={questionAnswers}
+                                          questionResults={questionResults}
                                           onMentionStudent={name =>
                                             setQuestionPrompt(
                                               questionPrompt

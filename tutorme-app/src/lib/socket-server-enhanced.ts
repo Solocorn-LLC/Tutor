@@ -95,7 +95,11 @@ export interface LiveTaskPoll {
   id: string
   taskId: string
   question: string
+  /** Option indices [0..n-1]; a vote's `value` is the chosen index. */
   options: number[]
+  /** Display labels per option index (['True','False'], ['Yes','No'], custom).
+   *  Absent ⇒ render A/B/C/… by index. */
+  optionLabels?: string[]
   status: 'open' | 'closed'
   responses: LiveTaskPollResponse[]
   createdAt: number
@@ -2144,6 +2148,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
         taskId?: string
         type: 'poll' | 'question' | 'tutor:state_sync'
         prompt?: string
+        /** Poll option labels chosen by the tutor (True/False, Yes/No, custom).
+         *  Omitted ⇒ default A–E. */
+        options?: string[]
         payload?: unknown
       }) => {
         if (socket.data.role !== 'tutor') return
@@ -2210,11 +2217,22 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         if (type === 'poll') {
+          // Tutor-chosen labels (True/False, Yes/No, custom); fall back to A–E.
+          // Sanitized: trimmed, non-empty, deduped-by-position, capped at 8.
+          const rawLabels = Array.isArray(data.options)
+            ? data.options.map(o => String(o ?? '').trim()).filter(Boolean)
+            : []
+          const labels =
+            rawLabels.length >= 2
+              ? rawLabels.slice(0, 8)
+              : ['A', 'B', 'C', 'D', 'E']
           const poll: LiveTaskPoll = {
             id: `poll-${taskId}-${Date.now()}`,
             taskId,
             question: prompt || 'Did you find this task difficult?',
-            options: [1, 2, 3, 4, 5],
+            // Index-based options; a vote's `value` is the chosen 0-based index.
+            options: labels.map((_, i) => i),
+            optionLabels: labels,
             status: 'open',
             responses: [],
             createdAt: Date.now(),

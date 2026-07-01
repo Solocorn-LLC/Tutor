@@ -41,7 +41,12 @@ export interface LiveTaskPoll {
   id: string
   taskId: string
   question: string
+  /** Option indices [0..n-1]; a vote's `value` is the chosen index. Length = the
+   *  number of options. */
   options: number[]
+  /** Display labels per option index (e.g. ['True','False'], ['Yes','No'], or
+   *  custom). Absent ⇒ render A/B/C/… by index (back-compat). */
+  optionLabels?: string[]
   status: 'open' | 'closed'
   responses: LiveTaskPollResponse[]
   createdAt: number

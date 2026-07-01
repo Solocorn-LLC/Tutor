@@ -2427,15 +2427,18 @@ function StudentFeedbackContent() {
                               <div key={poll.id} className="rounded-lg border bg-white p-4">
                                 <p className="text-sm font-medium text-gray-900">{poll.question}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  {poll.options.map(option => (
+                                  {(
+                                    poll.optionLabels ??
+                                    poll.options.map((_, i) => String.fromCharCode(65 + i))
+                                  ).map((label, i) => (
                                     <Button
-                                      key={`${poll.id}-${option}`}
-                                      variant={selectedValue === option ? 'default' : 'outline'}
+                                      key={`${poll.id}-${i}`}
+                                      variant={selectedValue === i ? 'default' : 'outline'}
                                       size="sm"
                                       disabled={poll.status === 'closed'}
-                                      onClick={() => handlePollVote(poll, option)}
+                                      onClick={() => handlePollVote(poll, i)}
                                     >
-                                      {option}
+                                      {label}
                                     </Button>
                                   ))}
                                 </div>
