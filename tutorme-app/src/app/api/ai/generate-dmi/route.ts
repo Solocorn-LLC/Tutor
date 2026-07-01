@@ -104,6 +104,15 @@ Rules:
   (e.g. "Section A", "Section B: Data Response", "Part II"). Include it on EVERY field when the paper
   is divided into sections, using the same string for all parts in one section; OMIT it entirely when
   the paper has no sections. Never invent a section that isn't on the paper.
+- "responseType" (OPTIONAL): a SHORT label for the expected ANSWER FORMAT, distinct from the input
+  control "type". Examples: "numeric", "algebraic expression", "single word", "short explanation",
+  "extended essay", "proof", "diagram/sketch", "graph", "true/false", "single letter", "list". Infer
+  it from the question wording ("calculate" -> numeric; "explain/justify" -> explanation; "sketch/draw"
+  -> diagram). Omit if genuinely unclear — never guess wildly.
+- "sourceDependencies" (OPTIONAL): an ARRAY of the source materials this part depends on, named
+  EXACTLY as labelled on the paper (e.g. ["Figure 2"], ["Passage A", "Table 1"], ["the data in
+  Question 1"]). Include only materials this specific part references; OMIT entirely when the part is
+  self-contained. Never invent a reference that isn't on the paper.
 - "answer" and "rubric": ONLY for study_material (you wrote the questions, so you know the key).
   "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
   for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short
@@ -121,12 +130,12 @@ EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b).
 ]}
 
 EXAMPLE — a MIXED paper with sections: "Section A" is multiple-choice (Q1-Q2, five options each),
-"Section B" is a free-response question (Q3 with parts (a),(b)). Correct JSON:
+"Section B" is a data-response question (Q3 with parts (a),(b)) that refers to a chart. Correct JSON:
 {"documentKind":"question_paper","fields":[
-{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"],"section":"Section A"},
-{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"],"section":"Section A"},
-{"label":"Question 3(a)","type":"short","section":"Section B"},
-{"label":"Question 3(b)","type":"long","section":"Section B"}
+{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"],"section":"Section A","responseType":"single letter"},
+{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"],"section":"Section A","responseType":"single letter"},
+{"label":"Question 3(a)","type":"short","section":"Section B","responseType":"numeric","sourceDependencies":["Figure 1"]},
+{"label":"Question 3(b)","type":"long","section":"Section B","responseType":"short explanation","sourceDependencies":["Figure 1"]}
 ]}
 Output the JSON object and nothing else.`
 
@@ -145,6 +154,10 @@ interface ParsedDmiQuestion {
   pairs?: { left: string; right: string }[]
   /** Section heading this part falls under (ASMT-4), when the paper has sections. */
   section?: string
+  /** Expected answer format, distinct from the input `questionType` (ASMT-4). */
+  responseType?: string
+  /** Source materials this part depends on (figures/passages/tables), ASMT-4. */
+  sourceDependencies?: string[]
 }
 
 interface ParsedDmiResponse {
@@ -192,6 +205,8 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         answer?: unknown
         marks?: unknown
         section?: unknown
+        responseType?: unknown
+        sourceDependencies?: unknown
         rubric?: unknown
       }>
     }
@@ -225,6 +240,10 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           : undefined
         const marksNum = Number(f.marks)
         const section = typeof f.section === 'string' ? f.section.trim() : ''
+        const responseType = typeof f.responseType === 'string' ? f.responseType.trim() : ''
+        const sourceDependencies = Array.isArray(f.sourceDependencies)
+          ? f.sourceDependencies.map(s => String(s).trim()).filter(Boolean)
+          : undefined
         const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
         const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
         // For mcq the student submits an option LETTER (A–E), so store the key as
@@ -242,6 +261,9 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
           section: section || undefined,
+          responseType: responseType || undefined,
+          sourceDependencies:
+            sourceDependencies && sourceDependencies.length > 0 ? sourceDependencies : undefined,
         }
       })
       .filter(q => q.questionText)

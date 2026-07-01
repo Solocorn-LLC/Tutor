@@ -2764,6 +2764,14 @@ FEEDBACK: [one or two short sentences explaining the score]`
           regions: Array.isArray(q.regions) ? q.regions : undefined,
           // Paper section this part belongs to (ASMT-4), when present.
           section: typeof q.section === 'string' && q.section.trim() ? q.section.trim() : undefined,
+          // Expected answer format + source-material dependencies (ASMT-4).
+          responseType:
+            typeof q.responseType === 'string' && q.responseType.trim()
+              ? q.responseType.trim()
+              : undefined,
+          sourceDependencies: Array.isArray(q.sourceDependencies)
+            ? q.sourceDependencies
+            : undefined,
         }))
 
         // Study material: students see the GENERATED questions (with options) on
