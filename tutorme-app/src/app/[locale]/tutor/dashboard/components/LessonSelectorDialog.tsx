@@ -123,9 +123,12 @@ export function LessonSelectorDialog({
               </Select>
             </div>
 
-            {!isNewLesson && lessons.length > 0 && (
+            {/* Each lesson node normally holds a single inner lesson, so the node
+                select above is the only picker needed. Only surface this second
+                select to disambiguate the rare node that has multiple lessons. */}
+            {!isNewLesson && lessons.length > 1 && (
               <div className="space-y-2">
-                <Label>Lesson</Label>
+                <Label>Sub-lesson</Label>
                 <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a lesson" />
