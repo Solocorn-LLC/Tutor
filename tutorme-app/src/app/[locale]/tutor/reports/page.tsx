@@ -388,7 +388,7 @@ export default function TutorReports() {
           ]}
         >
           {/* Revenue Tab */}
-          <TabsContent value="revenue" className="h-full overflow-hidden">
+          <TabsContent value="revenue" className="flex h-full flex-col gap-4 pb-4">
             <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
               <button
                 type="button"
@@ -425,7 +425,7 @@ export default function TutorReports() {
           </TabsContent>
 
           {/* Students Tab */}
-          <TabsContent value="students" className="h-full overflow-y-auto">
+          <TabsContent value="students" className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
             <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
               <button
                 type="button"
@@ -550,7 +550,7 @@ export default function TutorReports() {
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="h-full overflow-y-auto">
+          <TabsContent value="reports" className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
             <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
               <button
                 type="button"
