@@ -119,7 +119,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
       !isAccountPage &&
       !isSupportPage &&
       !isCommunicationsPage &&
-      !isSubmissionsPage
+      !isSubmissionsPage &&
+      !isInsightsPage
   )
 
   // Use realm session (tutor tab) first; only redirect if we don't have a tutor session and default session is another role
@@ -156,7 +157,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
         !isAccountPage &&
         !isSupportPage &&
         !isCommunicationsPage &&
-        !isSubmissionsPage
+        !isSubmissionsPage &&
+        !isInsightsPage
     )
   }, [
     isMyPage,
@@ -165,6 +167,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isSupportPage,
     isCommunicationsPage,
     isSubmissionsPage,
+    isInsightsPage,
   ])
   // Periodic peek animation for sidebar toggle
   useEffect(() => {
