@@ -790,9 +790,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Fall back to the window measure only until the observer takes its first
     // reading (avoids a 1-frame flash of a negative width during hydration).
     const availableRowWidth = (layoutRowWidth > 0 ? layoutRowWidth : viewportWidth) - 33
+    // A hidden side panel collapses to a peek pill and reclaims its width for the
+    // center column. The panel's own outer width below uses the same effective
+    // value so the flex row stays exact; both animate via a width transition.
+    const effLeftPanelWidth = leftPanelHidden ? 0 : leftPanelWidth
+    const effRightPanelWidth = rightPanelHidden ? 0 : rightPanelWidth
     const centerColWidth = Math.max(
       320,
-      availableRowWidth - leftPanelWidth - 24 - rightPanelWidth - 24
+      availableRowWidth - effLeftPanelWidth - 24 - effRightPanelWidth - 24
     )
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
@@ -6333,13 +6338,13 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
             <div
               className={cn(
-                'relative z-40 flex min-h-0 shrink-0 flex-col',
+                'relative z-40 flex min-h-0 shrink-0 flex-col transition-[width] duration-500 ease-in-out',
                 leftPanelHidden
                   ? 'bg-transparent shadow-none'
                   : 'shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
               )}
               ref={leftPanelRef}
-              style={{ width: leftPanelWidth, flexShrink: 0 }}
+              style={{ width: effLeftPanelWidth, flexShrink: 0 }}
             >
               <div
                 className={cn(
@@ -8118,9 +8123,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
               </div>
             </div>
 
-            {/* CENTER PANEL - Fixed width based on 3-panel layout */}
+            {/* CENTER PANEL - width tracks the visible side panels (expands when
+                one is hidden), animated to match the panel collapse. */}
             <div
-              className="flex min-h-0 flex-col items-center"
+              className="flex min-h-0 flex-col items-center transition-[width] duration-500 ease-in-out"
               style={{ width: centerColWidth, flexShrink: 0 }}
             >
               <div className="flex h-full min-h-0 w-full flex-col items-stretch">
@@ -10271,12 +10277,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 {/* Right panel content - grid child with consistent wrapper */}
                 <div
                   className={cn(
-                    'relative z-40 flex min-h-0 shrink-0 flex-col items-end',
+                    'relative z-40 flex min-h-0 shrink-0 flex-col items-end transition-[width] duration-500 ease-in-out',
                     rightPanelHidden
                       ? 'bg-transparent shadow-none'
                       : 'shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                   )}
-                  style={{ width: rightPanelWidth, flexShrink: 0 }}
+                  style={{ width: effRightPanelWidth, flexShrink: 0 }}
                 >
                   <div
                     className={cn(
