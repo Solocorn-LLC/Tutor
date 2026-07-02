@@ -479,7 +479,7 @@ export default function StudentRegistrationPage() {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div className="space-y-1">
                     <Label htmlFor="parentFirstName" className="text-xs text-white/70">
-                      Parent First Name
+                      Parent/Guardian First Name
                     </Label>
                     <Input
                       id="parentFirstName"
@@ -491,7 +491,7 @@ export default function StudentRegistrationPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="parentMiddleName" className="text-xs text-white/70">
-                      Parent Middle Name
+                      Middle Name
                     </Label>
                     <Input
                       id="parentMiddleName"
@@ -503,7 +503,7 @@ export default function StudentRegistrationPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="parentLastName" className="text-xs text-white/70">
-                      Parent Last Name
+                      Last Name
                     </Label>
                     <Input
                       id="parentLastName"
@@ -531,7 +531,7 @@ export default function StudentRegistrationPage() {
 
                 <div className="space-y-1">
                   <Label htmlFor="confirmParentEmail" className="text-xs text-white/70">
-                    Confirm Parent or Guardian Email
+                    Confirm Email
                   </Label>
                   <Input
                     id="confirmParentEmail"
@@ -557,68 +557,63 @@ export default function StudentRegistrationPage() {
 
             {step === 3 && (
               <>
-                {/* Header indicators */}
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
-                    <span className="text-white/60">Profile Name:</span>{' '}
-                    <span className="font-semibold">{formData.firstName || '—'}</span>
+                {/* Header with Avatar + Profile Name + Country */}
+                <div className="flex items-end gap-3">
+                  {/* Avatar circle */}
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/30 bg-slate-100">
+                    {formData.avatarUrl ? (
+                      <img
+                        src={formData.avatarUrl}
+                        alt="Selected avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg font-semibold text-slate-400">
+                        {formData.firstName.charAt(0).toUpperCase() || '?'}
+                      </span>
+                    )}
                   </div>
-                  <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
-                    <span className="text-white/60">Country:</span>{' '}
-                    <span className="font-semibold">
-                      {availableCountries.find(c => c.code === formData.countryCode)?.name ||
-                        formData.countryCode ||
-                        '—'}
-                    </span>
+                  {/* Profile Name and Country badges */}
+                  <div className="flex items-center gap-3 pb-1">
+                    <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
+                      <span className="text-white/60">Profile Name:</span>{' '}
+                      <span className="font-semibold">{formData.firstName || '—'}</span>
+                    </div>
+                    <div className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white">
+                      <span className="text-white/60">Country:</span>{' '}
+                      <span className="font-semibold">
+                        {availableCountries.find(c => c.code === formData.countryCode)?.name ||
+                          formData.countryCode ||
+                          '—'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Avatar preview + selection */}
-                <div className="space-y-3">
-                  <Label className="text-xs text-white/70">Avatar</Label>
-
-                  {/* Selected avatar preview */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-white/30 bg-slate-100">
-                      {formData.avatarUrl ? (
-                        <img
-                          src={formData.avatarUrl}
-                          alt="Selected avatar"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg font-semibold text-slate-400">
-                          {formData.firstName.charAt(0).toUpperCase() || '?'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Avatar grid - white container, 2 rows visible, scrollable */}
-                  <div className="rounded-xl bg-white p-4">
-                    <div className="grid max-h-[200px] grid-cols-5 gap-2 overflow-y-auto">
-                      {AVATARS.map(a => {
-                        const selected = formData.avatarUrl === a.url
-                        return (
-                          <button
-                            key={a.url}
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, avatarUrl: a.url }))}
-                            className={`group relative aspect-square overflow-hidden rounded-full border-2 transition-all hover:border-[#F97316] focus:border-[#F97316] focus:outline-none ${
-                              selected ? 'border-[#F97316]' : 'border-gray-200'
-                            }`}
-                            aria-label={`Select ${a.name}`}
-                          >
-                            <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
-                            {selected && (
-                              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <Check className="h-4 w-4 text-white" />
-                              </span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
+                {/* Avatar selection grid */}
+                <div className="rounded-xl bg-white p-4">
+                  <div className="grid max-h-[160px] grid-cols-5 gap-2 overflow-y-auto">
+                    {AVATARS.map(a => {
+                      const selected = formData.avatarUrl === a.url
+                      return (
+                        <button
+                          key={a.url}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, avatarUrl: a.url }))}
+                          className={`group relative aspect-square overflow-hidden rounded-full border-2 transition-all hover:border-[#F97316] focus:border-[#F97316] focus:outline-none ${
+                            selected ? 'border-[#F97316]' : 'border-gray-200'
+                          }`}
+                          aria-label={`Select ${a.name}`}
+                        >
+                          <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+                          {selected && (
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <Check className="h-4 w-4 text-white" />
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
 
