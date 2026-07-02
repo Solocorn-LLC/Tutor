@@ -6340,7 +6340,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 'relative z-40 flex min-h-0 shrink-0 flex-col transition-[width] duration-500 ease-in-out',
                 leftPanelHidden
                   ? 'bg-transparent shadow-none'
-                  : 'shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                  : 'rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
               )}
               ref={leftPanelRef}
               style={{ width: effLeftPanelWidth, flexShrink: 0 }}
@@ -10282,7 +10282,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     'relative z-40 flex min-h-0 shrink-0 flex-col items-end transition-[width] duration-500 ease-in-out',
                     rightPanelHidden
                       ? 'bg-transparent shadow-none'
-                      : 'shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                      : 'rounded-[20px] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                   )}
                   style={{ width: effRightPanelWidth, flexShrink: 0 }}
                 >
