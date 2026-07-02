@@ -97,6 +97,13 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isSubmissionsPage = pathname?.includes('/tutor/submissions')
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
+
+  // Insights page has its own layout with course builder integrated
+  const isInsightsPage =
+    pathname === `${localePrefix}/tutor/insights` ||
+    pathname?.startsWith(`${localePrefix}/tutor/insights/`) ||
+    /\/tutor\/insights(\/|$)/.test(pathname || '')
+
   const isFloatingPage =
     isDashboardPage ||
     isReportsPage ||
@@ -140,12 +147,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   // Check if we're on the Course Publish page (course detail page) - hide sidebar for focused editing
   // Pattern: /tutor/courses/[id] but not sub-paths like /tasks or /enrollments
   const isCoursePublishPage = pathname?.match(/^\/tutor\/courses\/[^\/]+$/) !== null
-
-  // Insights page has its own layout with course builder integrated
-  const isInsightsPage =
-    pathname === `${localePrefix}/tutor/insights` ||
-    pathname?.startsWith(`${localePrefix}/tutor/insights/`) ||
-    /\/tutor\/insights(\/|$)/.test(pathname || '')
 
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
