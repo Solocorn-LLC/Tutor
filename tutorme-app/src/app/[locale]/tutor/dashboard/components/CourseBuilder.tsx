@@ -8134,7 +8134,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <Card
                     padding="none"
                     className={cn(
-                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
+                      mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
                     )}
                   >
                     <div
@@ -8861,7 +8862,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border border-violet-300 bg-white transition-all duration-300'
+                                    'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
+                                    mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
