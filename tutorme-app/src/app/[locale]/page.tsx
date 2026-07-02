@@ -1702,13 +1702,12 @@ const CountdownTimer = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    // Hardcoded launch date: 39 days from now
-    // All browsers show the same countdown regardless of when they first visit
-    const LAUNCH_DAYS = 39
-    const targetDate = new Date(Date.now() + LAUNCH_DAYS * 24 * 60 * 60 * 1000).getTime()
+    // Fixed launch date: September 1, 2026 at 00:00:00 UTC
+    // This ensures the countdown actually counts down to a real date
+    const LAUNCH_DATE = new Date('2026-09-01T00:00:00Z').getTime()
 
     const calculate = () => {
-      const diff = targetDate - Date.now()
+      const diff = LAUNCH_DATE - Date.now()
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
         return
