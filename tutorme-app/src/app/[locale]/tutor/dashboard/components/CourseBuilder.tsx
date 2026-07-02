@@ -6294,7 +6294,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
         >
           <div
             ref={layoutRowRef}
-            className="relative flex h-full w-full pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
+            className="relative flex h-full w-full pb-6 pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
             style={{
               gap: '24px',
             }}
