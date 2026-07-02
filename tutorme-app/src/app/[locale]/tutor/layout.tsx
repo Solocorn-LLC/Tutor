@@ -98,10 +98,15 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
 
-  // Insights page has its own layout with course builder integrated
+  // Use a robust pathname check for insights page detection that works across
+  // SSR and client-side hydration, handling both prefixed and non-prefixed paths.
+  // With next-intl localePrefix: 'as-needed', the pathname may include the locale
+  // segment during SSR (e.g., /en/tutor/insights) but not on the client.
   const isInsightsPage =
-    pathname === `${localePrefix}/tutor/insights` ||
-    pathname?.startsWith(`${localePrefix}/tutor/insights/`) ||
+    pathname === '/tutor/insights' ||
+    pathname?.startsWith('/tutor/insights/') ||
+    pathname?.endsWith('/tutor/insights') ||
+    pathname?.includes('/tutor/insights/') ||
     /\/tutor\/insights(\/|$)/.test(pathname || '')
 
   const isFloatingPage =
@@ -176,6 +181,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   }, [])
 
   // Force insights pages to have no nav and no wrapper
+  // Use a robust check that handles locale-prefixed paths during SSR
   const isInsightsPageForce = pathname?.includes('/tutor/insights')
 
   if (isCourseBuilder || isCoursePublishPage || isInsightsPage || isInsightsPageForce) {
