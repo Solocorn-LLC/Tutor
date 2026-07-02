@@ -19,6 +19,17 @@ import { builderTask, builderTaskDmi, taskSubmission } from '@/lib/db/schema'
 import { generateWithKimi } from '@/lib/ai/kimi'
 import { runTaskGuardrails } from '@/lib/ai/guardrails'
 import { resolveMarkingBasis } from '@/lib/grading/marking-basis'
+import { normalizePciSpec, pciSpecToText, type PciSpec } from '@/lib/assessment/pci-spec'
+
+// PciSpec fields that bear on GRADING (how a response is judged). The rest of the
+// spec (trigger event, retry policy, tone, no-response/explanation rules) governs
+// live-tutoring behaviour, not marking, so it is deliberately left out here.
+const GRADING_SPEC_KEYS: (keyof PciSpec)[] = [
+  'evaluationLogic',
+  'correctResponseBehavior',
+  'incorrectResponseBehavior',
+  'partialUnderstandingBehavior',
+]
 
 const SYSTEM_PROMPT = `You grade ONE student answer against the tutor's marking basis.
 Return ONLY a JSON object (no prose, no code fences): {"score": <integer 0-100>, "feedback": "<one or two short sentences of constructive feedback>"}.
@@ -62,6 +73,9 @@ export async function POST(
         tutorId: builderTask.tutorId,
         // The tutor's PCI instructions for how this task should be marked.
         pci: builderTask.pci,
+        // The finalized structured PCI spec (TASK-6), persisted at deploy. The
+        // machine-readable mirror of the marking policy; null for most tasks.
+        pciSpec: builderTask.pciSpec,
       })
       .from(taskSubmission)
       .innerJoin(builderTask, eq(taskSubmission.taskId, builderTask.taskId))
@@ -102,10 +116,25 @@ export async function POST(
       modelAnswer: item.answer as string | null | undefined,
     })
 
-    // Safe failure (TASK-10 / TASK-19): with no PCI, no rubric, and no model
-    // answer there is no evaluation basis — refuse to guess a score rather than
-    // fabricate one. The tutor must define a marking basis or grade manually.
-    if (!basis.hasBasis) {
+    // TASK-6: the structured PCI spec's grading-relevant fields, rendered as a
+    // labelled block. This is the machine-readable form of the same marking
+    // policy — a precise supplement to the free-text PCI, and itself a valid
+    // basis when the tutor only finalized a structured spec.
+    const gradingSpec: PciSpec = {}
+    const normalizedSpec = normalizePciSpec(row.pciSpec)
+    if (normalizedSpec) {
+      for (const k of GRADING_SPEC_KEYS) {
+        const v = normalizedSpec[k]
+        if (typeof v === 'string' && v.trim()) gradingSpec[k] = v
+      }
+    }
+    const specText = pciSpecToText(gradingSpec).slice(0, 2000)
+
+    // Safe failure (TASK-10 / TASK-19): with no PCI, no rubric, no model answer,
+    // AND no structured spec there is no evaluation basis — refuse to guess a
+    // score rather than fabricate one. The tutor must define a marking basis or
+    // grade manually.
+    if (!basis.hasBasis && !specText) {
       return NextResponse.json(
         {
           error:
@@ -138,6 +167,10 @@ export async function POST(
     // Only include the parts that exist; no fabricated "(none)" fallbacks that
     // invite the model to invent a basis.
     const pciBlock = pci ? `Tutor's marking instructions (PCI):\n${pci}\n\n` : ''
+    // The tutor's PCI in structured form — grading-relevant fields only. Placed
+    // right after the free-text PCI as a precise supplement; the free-text PCI
+    // remains authoritative on any conflict.
+    const specBlock = specText ? `Structured marking guidance (PCI):\n${specText}\n\n` : ''
     const rubricBlock = rubric ? `Marking rubric:\n${rubric}\n\n` : ''
     const modelBlock = modelAnswer ? `Model answer:\n${modelAnswer}\n\n` : ''
     // Tell the grader the expected answer format so it evaluates the right kind
@@ -152,7 +185,7 @@ export async function POST(
       sourceDeps.length > 0
         ? `This question depends on source material you were NOT given: ${sourceDeps.join(', ')}. Judge the answer on the reasoning and method you can assess; do not penalise the student for details of those materials you cannot see.\n\n`
         : ''
-    const prompt = `${pciBlock}Question:\n${questionText || '(not provided)'}\n\n${responseTypeBlock}${rubricBlock}${modelBlock}${sourceDepsBlock}Student answer:\n${studentAnswer}`
+    const prompt = `${pciBlock}${specBlock}Question:\n${questionText || '(not provided)'}\n\n${responseTypeBlock}${rubricBlock}${modelBlock}${sourceDepsBlock}Student answer:\n${studentAnswer}`
 
     let aiResponse: string
     try {
@@ -199,7 +232,7 @@ export async function POST(
     // Warn-only guardrail scan of the grader's feedback, grounded against the
     // marking basis — flags fabricated policy / false certainty (TASK-10/13).
     const guardrail = runTaskGuardrails(feedback, {
-      sourceContent: [pci, rubric, modelAnswer].filter(Boolean).join('\n'),
+      sourceContent: [pci, specText, rubric, modelAnswer].filter(Boolean).join('\n'),
     })
     if (guardrail.violations.length > 0) {
       console.warn(
