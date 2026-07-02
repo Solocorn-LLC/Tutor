@@ -6308,8 +6308,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
           <div
             ref={layoutRowRef}
             className={cn(
-              'relative flex h-full w-full pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4',
-              mainTab !== 'live' && 'pb-6'
+              'relative flex h-full w-full pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4 pb-6',
             )}
             style={{
               gap: '24px',
@@ -6355,7 +6354,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 <Card
                   padding="none"
                   elevation="none"
-                  className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
+                  className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
                 >
                   <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
                     Curriculum
