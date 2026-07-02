@@ -33,17 +33,11 @@ export const CountdownTimer = () => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
-    const STORAGE_KEY = 'solocorn-launch-target';
-    let targetRaw = window.localStorage.getItem(STORAGE_KEY);
-    if (!targetRaw) {
-      const target = Date.now() + 45 * 24 * 60 * 60 * 1000;
-      window.localStorage.setItem(STORAGE_KEY, target.toString());
-      targetRaw = target.toString();
-    }
-    const targetDate = parseInt(targetRaw, 10);
+    // Fixed launch date: August 8, 2026 at 00:00:00 UTC (37 days from July 2, 2026)
+    const LAUNCH_DATE = new Date('2026-08-08T00:00:00Z').getTime();
 
     const calculate = () => {
-      const diff = targetDate - Date.now();
+      const diff = LAUNCH_DATE - Date.now();
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
