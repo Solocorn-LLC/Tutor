@@ -104,7 +104,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isSubmissionsPage ||
     isAccountPage ||
     isMyPage ||
-    isSupportPage
+    isSupportPage ||
+    isInsightsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage &&
       !isReportsPage &&

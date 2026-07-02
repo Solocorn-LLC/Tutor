@@ -793,7 +793,7 @@ function CourseBuilderInsightsRouteInner({
 
   return (
     <div
-      className="text-foreground flex h-screen w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
+      className="text-foreground flex h-full w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
       data-tutor-route="insights-builder"
       style={model.themeStyle}
     >
