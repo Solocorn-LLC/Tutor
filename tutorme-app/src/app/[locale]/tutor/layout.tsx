@@ -97,6 +97,13 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isSubmissionsPage = pathname?.includes('/tutor/submissions')
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
+
+  // Insights page has its own layout with course builder integrated
+  const isInsightsPage =
+    pathname === `${localePrefix}/tutor/insights` ||
+    pathname?.startsWith(`${localePrefix}/tutor/insights/`) ||
+    /\/tutor\/insights(\/|$)/.test(pathname || '')
+
   const isFloatingPage =
     isDashboardPage ||
     isReportsPage ||
@@ -104,7 +111,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isSubmissionsPage ||
     isAccountPage ||
     isMyPage ||
-    isSupportPage
+    isSupportPage ||
+    isInsightsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage &&
       !isReportsPage &&
@@ -140,9 +148,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   // Pattern: /tutor/courses/[id] but not sub-paths like /tasks or /enrollments
   const isCoursePublishPage = pathname?.match(/^\/tutor\/courses\/[^\/]+$/) !== null
 
-  // Insights page has its own layout with course builder integrated
-  const isInsightsPage = pathname === '/tutor/insights' || pathname?.startsWith('/tutor/insights/')
-
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
     setDesktopNavOpen(
@@ -170,7 +175,10 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     return () => clearInterval(interval)
   }, [])
 
-  if (isCourseBuilder || isCoursePublishPage || isInsightsPage) {
+  // Force insights pages to have no nav and no wrapper
+  const isInsightsPageForce = pathname?.includes('/tutor/insights')
+
+  if (isCourseBuilder || isCoursePublishPage || isInsightsPage || isInsightsPageForce) {
     return <>{children}</>
   }
 

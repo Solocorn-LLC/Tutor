@@ -36,6 +36,7 @@ import {
   Send,
   Bell,
   Loader2,
+  NotebookPen,
   Layout,
   ArrowLeft,
   LogOut,
@@ -474,9 +475,11 @@ function WrittenAnswer({
         <button
           type="button"
           onClick={() => setShowDraw(true)}
-          className="inline-flex items-center gap-1 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
         >
-          + Add a drawing
+          {/* Paper-and-pen icon signals this is for handwriting, not just drawing. */}
+          <NotebookPen className="h-3.5 w-3.5" />
+          Write or draw
         </button>
       )}
     </div>
@@ -2433,15 +2436,18 @@ function StudentFeedbackContent() {
                               <div key={poll.id} className="rounded-lg border bg-white p-4">
                                 <p className="text-sm font-medium text-gray-900">{poll.question}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  {poll.options.map(option => (
+                                  {(
+                                    poll.optionLabels ??
+                                    poll.options.map((_, i) => String.fromCharCode(65 + i))
+                                  ).map((label, i) => (
                                     <Button
-                                      key={`${poll.id}-${option}`}
-                                      variant={selectedValue === option ? 'default' : 'outline'}
+                                      key={`${poll.id}-${i}`}
+                                      variant={selectedValue === i ? 'default' : 'outline'}
                                       size="sm"
                                       disabled={poll.status === 'closed'}
-                                      onClick={() => handlePollVote(poll, option)}
+                                      onClick={() => handlePollVote(poll, i)}
                                     >
-                                      {option}
+                                      {label}
                                     </Button>
                                   ))}
                                 </div>

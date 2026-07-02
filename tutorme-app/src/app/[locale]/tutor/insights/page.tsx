@@ -1112,7 +1112,7 @@ function TutorInsightsPageInner() {
     socket.emit('task:deploy', { roomId: sessionId, task })
   }
 
-  const handleSendPoll = (payload: { taskId: string; question: string }) => {
+  const handleSendPoll = (payload: { taskId: string; question: string; options?: string[] }) => {
     if (!socket || !sessionId) return
     const check = checkSessionActive()
     if (!check.ok) {
@@ -1124,6 +1124,7 @@ function TutorInsightsPageInner() {
       taskId: payload.taskId,
       type: 'poll',
       prompt: payload.question,
+      options: payload.options,
     })
   }
 

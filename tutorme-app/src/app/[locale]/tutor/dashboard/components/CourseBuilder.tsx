@@ -321,8 +321,8 @@ import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { useCourseBuilderState } from './hooks/useCourseBuilderState'
 import {
   InsightsReportView,
-  type PollResultOption,
-  type QuestionAnswerEntry,
+  type PollResultBlock,
+  type QuestionResultBlock,
 } from './builder-parts/InsightsReportView'
 
 // ============================================
@@ -764,7 +764,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [])
 
-    const centerColWidth = viewportWidth - leftPanelWidth - 24 - rightPanelWidth - 24 - 32
+    // The builder is rendered inside the inset dashboard area (a fixed sidebar +
+    // margins take ~272px), NOT the full window — so sizing the panels from
+    // window.innerWidth overshot the real container by ~270px and pushed the
+    // right panel off the edge (clipped by the ancestor overflow-hidden). Measure
+    // the actual layout row instead so the three fixed-width panels tile exactly,
+    // in every host (dashboard, live/insights) and nav state.
+    const layoutRowRef = useRef<HTMLDivElement | null>(null)
+    const [layoutRowWidth, setLayoutRowWidth] = useState(0)
+    useEffect(() => {
+      const el = layoutRowRef.current
+      if (!el || typeof ResizeObserver === 'undefined') return
+      const update = () => setLayoutRowWidth(el.clientWidth)
+      update()
+      const ro = new ResizeObserver(update)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }, [])
+
+    // clientWidth includes the row's own horizontal padding (pl-[17px] pr-4 = 33px).
+    // Fall back to the window measure only until the observer takes its first
+    // reading (avoids a 1-frame flash of a negative width during hydration).
+    const availableRowWidth = (layoutRowWidth > 0 ? layoutRowWidth : viewportWidth) - 33
+    const centerColWidth = Math.max(
+      320,
+      availableRowWidth - leftPanelWidth - 24 - rightPanelWidth - 24
+    )
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
@@ -1358,6 +1383,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, 'analytics' | 'poll' | 'question'>
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
+    // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
+    // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
+    const [pollOptionModeMap, setPollOptionModeMap] = useState<
+      Record<string, 'letters' | 'tf' | 'yn' | 'custom'>
+    >({})
+    const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
@@ -1382,29 +1413,47 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [insightsProps?.liveTasks, currentInsightsId]
     )
 
-    const pollResults = useMemo<PollResultOption[]>(() => {
-      const poll = activeLiveTask?.polls?.[activeLiveTask.polls.length - 1]
-      if (!poll) return []
-      const total = poll.responses.length
-      const optionCount = poll.options?.length ?? 0
-      return Array.from({ length: optionCount }, (_, i) => {
-        const responders = poll.responses.filter(r => r.value === i)
-        return {
-          label: `Option ${String.fromCharCode(65 + i)}`,
-          count: responders.length,
-          percent: total > 0 ? Math.round((responders.length / total) * 100) : 0,
-          students: responders.map(r => studentNameById.get(r.studentId) || 'Student'),
-        }
-      })
+    // ALL polls for the active task (newest first) so sending a new poll no
+    // longer hides the previous ones. Each option's tally is by 0-based index,
+    // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
+    // A/B/C… fallback for legacy polls.
+    const pollResults = useMemo<PollResultBlock[]>(() => {
+      const polls = activeLiveTask?.polls ?? []
+      return polls
+        .map(poll => {
+          const total = poll.responses.length
+          const optionCount = poll.options?.length ?? 0
+          return {
+            id: poll.id,
+            question: poll.question,
+            totalResponses: total,
+            options: Array.from({ length: optionCount }, (_, i) => {
+              const responders = poll.responses.filter(r => r.value === i)
+              return {
+                label: poll.optionLabels?.[i] ?? `Option ${String.fromCharCode(65 + i)}`,
+                count: responders.length,
+                percent: total > 0 ? Math.round((responders.length / total) * 100) : 0,
+                students: responders.map(r => studentNameById.get(r.studentId) || 'Student'),
+              }
+            }),
+          }
+        })
+        .reverse()
     }, [activeLiveTask, studentNameById])
 
-    const questionAnswers = useMemo<QuestionAnswerEntry[]>(() => {
-      const q = activeLiveTask?.questions?.[activeLiveTask.questions.length - 1]
-      if (!q) return []
-      return q.responses.map(r => ({
-        studentName: studentNameById.get(r.studentId) || 'Student',
-        answer: r.answer,
-      }))
+    // ALL questions for the active task (newest first), each with its answers.
+    const questionResults = useMemo<QuestionResultBlock[]>(() => {
+      const questions = activeLiveTask?.questions ?? []
+      return questions
+        .map(q => ({
+          id: q.id,
+          prompt: q.prompt,
+          answers: q.responses.map(r => ({
+            studentName: studentNameById.get(r.studentId) || 'Student',
+            answer: r.answer,
+          })),
+        }))
+        .reverse()
     }, [activeLiveTask, studentNameById])
 
     const setInsightsTab = (val: 'analytics' | 'poll' | 'question') =>
@@ -1421,6 +1470,68 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const pollPrompt = pollPromptMap[currentInsightsId] ?? 'Did you find this task difficult'
     const setPollPrompt = (val: string) =>
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? 'letters'
+    const setPollOptionMode = (val: 'letters' | 'tf' | 'yn' | 'custom') =>
+      setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
+    const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
+    const setPollCustomOptions = (val: string) =>
+      setPollCustomOptionsMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    // Resolve the chosen preset to explicit labels. `letters` returns undefined
+    // so the server applies its A–E default; custom is split on newlines/commas.
+    const resolvePollOptions = (): string[] | undefined => {
+      if (pollOptionMode === 'tf') return ['True', 'False']
+      if (pollOptionMode === 'yn') return ['Yes', 'No']
+      if (pollOptionMode === 'custom') {
+        const opts = pollCustomOptions
+          .split(/[\n,]/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .slice(0, 8)
+        return opts.length >= 2 ? opts : undefined
+      }
+      return undefined
+    }
+
+    // Shared option-set picker rendered above every poll composer. Preset chips
+    // + a custom field (one option per line / comma-separated).
+    const POLL_OPTION_PRESETS: { id: 'letters' | 'tf' | 'yn' | 'custom'; label: string }[] = [
+      { id: 'letters', label: 'A–E' },
+      { id: 'tf', label: 'True/False' },
+      { id: 'yn', label: 'Yes/No' },
+      { id: 'custom', label: 'Custom' },
+    ]
+    const pollOptionPicker = (
+      <div className="mb-2">
+        <div className="flex flex-wrap gap-1.5">
+          {POLL_OPTION_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => setPollOptionMode(preset.id)}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                pollOptionMode === preset.id
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        {pollOptionMode === 'custom' && (
+          <textarea
+            value={pollCustomOptions}
+            onChange={e => setPollCustomOptions(e.target.value)}
+            rows={2}
+            placeholder="One option per line — e.g. Agree / Disagree / Unsure"
+            className="mt-1.5 w-full resize-none rounded-lg border border-blue-100 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:border-blue-400"
+          />
+        )}
+      </div>
+    )
 
     const questionPrompt =
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
@@ -5724,7 +5835,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               {/* Folder assignment dropdown */}
                               <select
                                 onClick={e => e.stopPropagation()}
-                                className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus:border-blue-400"
+                                className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus-visible:border-blue-400"
                                 value={asset.folder || ''}
                                 onChange={e => {
                                   const folder = e.target.value || undefined
@@ -6182,7 +6293,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
-            className="relative flex h-full w-full pb-6 pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4"
+            ref={layoutRowRef}
+            className={cn(
+              'relative flex h-full w-full pl-[17px] pr-4 pt-0 sm:pl-[17px] sm:pr-4',
+              mainTab !== 'live' && 'pb-6'
+            )}
             style={{
               gap: '24px',
             }}
@@ -6250,7 +6365,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                           placeholder="Search course..."
                           value={searchQuery}
                           onChange={e => setSearchQuery(e.target.value)}
-                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus:border-[#B8CCFF] focus:ring-2 focus:ring-[#DCEAFF]"
+                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus-visible:border-[#B8CCFF] focus-visible:ring-2 focus-visible:ring-[#DCEAFF]"
                         />
                       </div>
                     )}
@@ -8005,13 +8120,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <Card
                     padding="none"
                     className={cn(
-                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
-                      mainTab === 'live' ? 'border-orange-200' : 'border-purple-200'
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                     )}
                   >
                     <div
                       className={cn(
-                        'flex h-9 shrink-0 items-center justify-center rounded-t-2xl px-4 text-sm font-semibold text-white',
+                        'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
                           ? 'bg-gradient-to-br from-orange-500 to-orange-600'
                           : 'bg-gradient-to-br from-violet-500 to-purple-600'
@@ -8029,8 +8143,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <CardContent className="flex h-full min-h-0 w-full flex-col overflow-hidden px-4 pb-4">
                       <div className="flex min-h-0 w-full flex-1 flex-col items-stretch gap-0 overflow-hidden">
                         {/* Main content with tabs */}
-                        <div className="flex h-full w-full min-w-0 flex-1 flex-col pb-0">
-                          <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 w-full flex-1 flex-col pb-0">
+                          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
                             <Tabs
                               value={testPciActiveTab}
                               onValueChange={value => {
@@ -8040,7 +8154,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                 }
                                 setTestPciActiveTab(value)
                               }}
-                              className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
+                              className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden"
                             >
                               <TabsList
                                 className={cn(
@@ -8089,7 +8203,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   key={tab.id}
                                   value={tab.id}
                                   padding="none"
-                                  className="mt-2 flex h-full w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
+                                  className="mt-2 flex w-full min-w-0 flex-1 flex-col self-stretch overflow-hidden bg-transparent data-[state=active]:flex data-[state=inactive]:hidden"
                                 >
                                   {tab.id === 'insights' ? (
                                     insightsProps ? (
@@ -8183,6 +8297,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 }
                                               />
                                             )}
+                                            {pollOptionPicker}
                                             <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                               <div className="relative">
                                                 <MentionTextarea
@@ -8230,6 +8345,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                       insightsProps.onSendPoll({
                                                         taskId: currentInsightsId,
                                                         question: pollPrompt,
+                                                        options: resolvePollOptions(),
                                                       })
                                                       setPollPrompt('')
                                                     }}
@@ -8264,7 +8380,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             ) : (
                                               <InsightsReportView
                                                 type="question"
-                                                questionAnswers={questionAnswers}
+                                                questionResults={questionResults}
                                                 onMentionStudent={name =>
                                                   setQuestionPrompt(
                                                     questionPrompt
@@ -8339,10 +8455,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
-                                        mainTab === 'live'
-                                          ? 'border-orange-300'
-                                          : 'border-violet-300'
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white p-0'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -8734,8 +8847,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               !(mainTab === 'live' && testPciActiveTab === 'student1') && (
                                 <div
                                   className={cn(
-                                    'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
-                                    mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
+                                    'mt-1 w-full rounded-2xl bg-white transition-all duration-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
@@ -8968,7 +9080,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                     <Card
                       padding="none"
                       className={cn(
-                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                        'flex h-full w-full flex-shrink-0 flex-col overflow-hidden rounded-[20px] border-0 bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
                       )}
                     >
                       <div
@@ -8996,7 +9108,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             <div className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'task' && (
                                 <input
-                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus:border-b focus:border-blue-300"
+                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-blue-300"
                                   placeholder="Select or name a Task"
                                   readOnly={!canEdit}
                                   value={
@@ -9049,7 +9161,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'assessment' && (
                                 <input
-                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus:border-b focus:border-purple-300"
+                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-purple-300"
                                   placeholder="Select or name an Assessment"
                                   readOnly={!canEdit}
                                   value={assessmentBuilder.title || ''}
@@ -9068,15 +9180,15 @@ FEEDBACK: [one or two short sentences explaining the score]`
                           </div>
 
                           {/* Content area */}
-                          <div className="relative flex-1 rounded-none border-0 bg-transparent p-0 shadow-none">
+                          <div className="relative min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none">
                             {/* Task Builder Tab */}
                             <TabsContent
                               value="task"
                               className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
                             >
-                              <div className="flex flex-1 gap-px overflow-hidden">
+                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
                                 {/* Main content with tabs */}
-                                <div className="flex flex-1 flex-col overflow-hidden">
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                                   <Tabs
                                     value={taskBuilderActiveTab}
                                     onValueChange={v => {
@@ -9105,12 +9217,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className={cn(
-                                          'relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border bg-white shadow-sm',
-                                          mainBuilderTab === 'assessment'
-                                            ? 'border-[#EC4899]'
-                                            : 'border-blue-200'
-                                        )}
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9573,9 +9680,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               value="assessment"
                               className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
                             >
-                              <div className="flex flex-1 gap-px overflow-hidden">
+                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
                                 {/* Main content with tabs */}
-                                <div className="flex flex-1 flex-col overflow-hidden">
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                                   <Tabs
                                     value={assessmentBuilderActiveTab}
                                     onValueChange={v => {
@@ -9604,7 +9711,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl bg-white shadow-sm"
+                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-[#EC4899] bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -9881,7 +9988,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       value="pci"
                                       className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl bg-white p-4 shadow-sm">
+                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[#EC4899] bg-white p-4 shadow-sm">
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
@@ -10251,6 +10358,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           }
                                         />
                                       </div>
+                                      {pollOptionPicker}
                                       <div className="mt-2 shrink-0 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
                                         <div className="relative">
                                           <MentionTextarea
@@ -10296,6 +10404,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 insightsProps.onSendPoll({
                                                   taskId: currentInsightsId,
                                                   question: pollPrompt,
+                                                  options: resolvePollOptions(),
                                                 })
                                                 setPollPrompt('')
                                               }}
@@ -10313,7 +10422,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                         <InsightsReportView
                                           type="question"
-                                          questionAnswers={questionAnswers}
+                                          questionResults={questionResults}
                                           onMentionStudent={name =>
                                             setQuestionPrompt(
                                               questionPrompt

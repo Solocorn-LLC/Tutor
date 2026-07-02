@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 
 export interface CollapsibleCardProps {
   title: string
   description?: string
+  icon?: React.ReactNode
   defaultOpen?: boolean
   className?: string
   contentClassName?: string
@@ -19,6 +19,7 @@ export interface CollapsibleCardProps {
 export function CollapsibleCard({
   title,
   description,
+  icon,
   defaultOpen = false,
   className,
   contentClassName,
@@ -30,12 +31,12 @@ export function CollapsibleCard({
 
   return (
     <div ref={cardRef}>
-      <Card
+      <div
         className={cn(
           'overflow-hidden p-0',
           flush
-            ? 'rounded-b-[16px] border-x border-b border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]'
-            : 'rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]',
+            ? 'rounded-b-[16px] border-x border-b border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
+            : 'rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
           className
         )}
       >
@@ -48,9 +49,12 @@ export function CollapsibleCard({
           )}
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center">
-              <span className="panel-header-title">{title}</span>
-              {description && <span className="panel-header-subtext">{description}</span>}
+            <div className="flex items-center gap-3">
+              {icon && <div className="panel-header-icon">{icon}</div>}
+              <div className="flex items-center">
+                <span className="panel-header-title">{title}</span>
+                {description && <span className="panel-header-subtext">{description}</span>}
+              </div>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
               {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -67,7 +71,7 @@ export function CollapsibleCard({
             <div className={contentClassName}>{children}</div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

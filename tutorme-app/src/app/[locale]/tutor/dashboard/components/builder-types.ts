@@ -379,7 +379,7 @@ export interface CourseBuilderInsightsProps {
   }[]
   /** Present only inside a live session; deploy buttons hide when undefined. */
   onDeployTask?: (task: LiveTask) => void
-  onSendPoll: (payload: { taskId: string; question: string }) => void
+  onSendPoll: (payload: { taskId: string; question: string; options?: string[] }) => void
   onSendQuestion: (payload: { taskId: string; prompt: string }) => void
   students?: LiveStudent[]
   metrics?: EngagementMetrics | null

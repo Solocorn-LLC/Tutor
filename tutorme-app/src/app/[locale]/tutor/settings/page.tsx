@@ -70,7 +70,7 @@ const LANGUAGES = [
 ]
 
 const SECTION_CARD_CLASS =
-  'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)] rounded-[16px]'
+  'overflow-hidden bg-white shadow-[0_14px_45px_rgba(0,0,0,0.16)] rounded-[16px]'
 
 interface PaymentMethod {
   id: string
@@ -151,7 +151,13 @@ function OneOnOneSettingsCard() {
 
   if (loading) {
     return (
-      <CollapsibleCard flush className={SECTION_CARD_CLASS} title="1-on-1 Booking" defaultOpen>
+      <CollapsibleCard
+        flush
+        className={SECTION_CARD_CLASS}
+        title="1-on-1 Booking"
+        icon={<Calendar className="h-5 w-5 text-slate-900" />}
+        defaultOpen
+      >
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
@@ -165,6 +171,7 @@ function OneOnOneSettingsCard() {
       className={SECTION_CARD_CLASS}
       title="1-on-1 Booking"
       description="Allow students to book private sessions with you"
+      icon={<Calendar className="h-5 w-5 text-slate-900" />}
       defaultOpen
     >
       <div className="space-y-6 p-6">
@@ -664,7 +671,12 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard className={SECTION_CARD_CLASS} title="Your Profile" defaultOpen>
+              <CollapsibleCard
+                className={SECTION_CARD_CLASS}
+                title="Your Profile"
+                icon={<User className="h-5 w-5 text-slate-900" />}
+                defaultOpen
+              >
                 <div className="space-y-6 p-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -832,6 +844,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Tax Information"
                 description="Required for payout and tax reporting"
+                icon={<FileText className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   <div className="grid gap-4 md:grid-cols-2">
@@ -955,6 +968,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Payment Methods"
                 description="Manage your payment methods for subscription"
+                icon={<CreditCard className="h-5 w-5 text-slate-900" />}
                 defaultOpen
               >
                 <div className="space-y-6 p-6">
@@ -1004,6 +1018,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Subscription Plan"
                 description="Manage your tutor subscription"
+                icon={<DollarSign className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   <div className="grid gap-4 md:grid-cols-3">
@@ -1066,6 +1081,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Payout Settings"
                 description="Manage your earnings and withdrawals"
+                icon={<DollarSign className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1109,6 +1125,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Billing History"
                 description="View and download your invoices and receipts"
+                icon={<FileText className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-4 p-6">
                   {billingHistory.map(invoice => (
@@ -1164,6 +1181,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Refunds"
                 description="Pending refund requests across all your courses — approve to process via the payment gateway, or decline."
+                icon={<DollarSign className="h-5 w-5 text-slate-900" />}
                 defaultOpen
               >
                 <div className="p-6">
@@ -1184,6 +1202,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Notification Preferences"
                 description="Control how and when we contact you"
+                icon={<Bell className="h-5 w-5 text-slate-900" />}
                 defaultOpen
               >
                 <div className="space-y-6 p-6">
@@ -1297,6 +1316,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Privacy & Security"
                 description="Manage your password and account security"
+                icon={<Shield className="h-5 w-5 text-slate-900" />}
                 defaultOpen
               >
                 <div className="space-y-6 p-6">
@@ -1406,6 +1426,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Live Session Mirroring"
                 description="Control what students see by default during live sessions"
+                icon={<Smartphone className="h-5 w-5 text-slate-900" />}
                 defaultOpen
               >
                 <div className="space-y-6 p-6">
@@ -1466,6 +1487,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Course Sync Mode"
                 description="Control how course edits are shared with students during live sessions"
+                icon={<LayoutPanelTop className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   <div className="space-y-3">
@@ -1528,6 +1550,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Document Import"
                 description="Control how documents are handled when importing into tasks and assessments"
+                icon={<FileText className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   <div className="flex items-center justify-between">
@@ -1561,6 +1584,7 @@ export default function TutorSettings() {
                 className={SECTION_CARD_CLASS}
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
+                icon={<UserCircle className="h-5 w-5 text-slate-900" />}
               >
                 <div className="space-y-6 p-6">
                   {/* Deactivate Account */}
