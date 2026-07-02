@@ -151,7 +151,13 @@ function OneOnOneSettingsCard() {
 
   if (loading) {
     return (
-      <CollapsibleCard flush className={SECTION_CARD_CLASS} title="1-on-1 Booking" icon={<Calendar className="h-5 w-5 text-slate-900" />} defaultOpen>
+      <CollapsibleCard
+        flush
+        className={SECTION_CARD_CLASS}
+        title="1-on-1 Booking"
+        icon={<Calendar className="h-5 w-5 text-slate-900" />}
+        defaultOpen
+      >
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
@@ -665,7 +671,12 @@ export default function TutorSettings() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard className={SECTION_CARD_CLASS} title="Your Profile" icon={<User className="h-5 w-5 text-slate-900" />} defaultOpen>
+              <CollapsibleCard
+                className={SECTION_CARD_CLASS}
+                title="Your Profile"
+                icon={<User className="h-5 w-5 text-slate-900" />}
+                defaultOpen
+              >
                 <div className="space-y-6 p-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
