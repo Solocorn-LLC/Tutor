@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 
@@ -32,8 +31,7 @@ export function CollapsibleCard({
 
   return (
     <div ref={cardRef}>
-      <Card
-        elevation="none"
+      <div
         className={cn(
           'overflow-hidden p-0',
           flush
@@ -73,7 +71,7 @@ export function CollapsibleCard({
             <div className={contentClassName}>{children}</div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }
