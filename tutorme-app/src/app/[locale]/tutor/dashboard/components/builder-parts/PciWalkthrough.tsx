@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Compass, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,9 @@ interface Step {
   body: string
   /** Optional example bullets shown under the body. */
   bullets?: string[]
+  /** data-pci-anchor value of the control this step points at, for the spotlight
+   *  highlight. Resolved within the nearest [data-pci-container]. */
+  anchor?: string
 }
 
 /**
@@ -32,10 +35,12 @@ function buildSteps(kind: 'task' | 'assessment'): Step[] {
     {
       title: 'Skim the quick tip',
       body: 'Open “What is PCI & what to ask” at the top of this tab for examples of the kinds of rules worth setting.',
+      anchor: 'guidance',
     },
     {
       title: 'Chat your marking rules',
       body: 'Use the assistant box at the bottom (“Ask the PCI assistant…”). Tell it, in plain words, how answers should be marked. For example:',
+      anchor: 'chat-input',
       bullets: [
         'Award method marks even if the final answer is wrong.',
         'Accept any value within ±0.1, and equivalent fractions.',
@@ -47,10 +52,12 @@ function buildSteps(kind: 'task' | 'assessment'): Step[] {
     {
       title: 'Review the rubric',
       body: 'The assistant replies with a finalized rubric. Read it, and keep chatting to refine it until it matches how you mark.',
+      anchor: 'chat-input',
     },
     {
       title: 'Save it as your marking policy',
       body: 'In “Current marking policy (PCI)”, click Edit, paste or refine the rubric, then Done. That saved text is exactly what the AI grader uses.',
+      anchor: 'edit-pci',
     },
   ]
 
@@ -69,10 +76,12 @@ function buildSteps(kind: 'task' | 'assessment'): Step[] {
     {
       title: 'Build the answer key (DMI)',
       body: 'Assessments also need an answer key. On the assessment content, click Generate DMI to extract the questions and answers.',
+      anchor: 'generate-dmi',
     },
     {
       title: 'Verify marks & answers',
       body: 'Open “Edit marks & answers” to check each question’s marks and correct answers before it goes live.',
+      anchor: 'edit-marks',
     },
     {
       title: 'Optional: upload a marking scheme',
@@ -91,12 +100,13 @@ function buildSteps(kind: 'task' | 'assessment'): Step[] {
  * remembered (localStorage) so it's available in every lesson without nagging.
  */
 export function PciWalkthrough({ kind }: { kind: 'task' | 'assessment' }) {
-  const steps = buildSteps(kind)
+  const steps = useMemo(() => buildSteps(kind), [kind])
   const storageKey = 'pci-walkthrough:collapsed'
 
   const [collapsed, setCollapsed] = useState(false)
   const [step, setStep] = useState(0)
   const [hydrated, setHydrated] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
 
   // Restore the tutor's collapse preference on mount (default: expanded the
   // first time so they discover it). Avoids an SSR/client mismatch by only
@@ -124,6 +134,41 @@ export function PciWalkthrough({ kind }: { kind: 'task' | 'assessment' }) {
     setStep(s => Math.min(s, steps.length - 1))
   }, [steps.length])
 
+  // Spotlight: outline the control the current step points at (resolved within
+  // this PCI container so task/assessment anchors never cross) and scroll it into
+  // view. Uses outline (not border/ring) so it never shifts layout. Restores the
+  // element's prior inline styles on step change / collapse / unmount.
+  useEffect(() => {
+    if (collapsed) return
+    const anchor = steps[step]?.anchor
+    if (!anchor) return
+    const container = cardRef.current?.closest('[data-pci-container]')
+    const el = container?.querySelector<HTMLElement>(`[data-pci-anchor="${anchor}"]`)
+    if (!el) return
+
+    const prev = {
+      outline: el.style.outline,
+      outlineOffset: el.style.outlineOffset,
+      borderRadius: el.style.borderRadius,
+      boxShadow: el.style.boxShadow,
+      transition: el.style.transition,
+    }
+    el.style.transition = 'box-shadow 200ms ease'
+    el.style.outline = '2px solid #2563eb'
+    el.style.outlineOffset = '3px'
+    if (!el.style.borderRadius) el.style.borderRadius = '10px'
+    el.style.boxShadow = '0 0 0 6px rgba(37, 99, 235, 0.12)'
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+
+    return () => {
+      el.style.outline = prev.outline
+      el.style.outlineOffset = prev.outlineOffset
+      el.style.borderRadius = prev.borderRadius
+      el.style.boxShadow = prev.boxShadow
+      el.style.transition = prev.transition
+    }
+  }, [step, collapsed, steps])
+
   if (!hydrated) return null
 
   if (collapsed) {
@@ -145,7 +190,10 @@ export function PciWalkthrough({ kind }: { kind: 'task' | 'assessment' }) {
   const isLast = step === steps.length - 1
 
   return (
-    <div className="absolute bottom-4 right-4 z-30 w-[300px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
+    <div
+      ref={cardRef}
+      className="absolute bottom-4 right-4 z-30 w-[300px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
+    >
       <div className="flex items-center gap-2 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-3 py-2 text-white">
         <Compass className="h-4 w-4" />
         <span className="text-sm font-semibold">
