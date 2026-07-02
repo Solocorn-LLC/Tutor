@@ -175,7 +175,10 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     return () => clearInterval(interval)
   }, [])
 
-  if (isCourseBuilder || isCoursePublishPage || isInsightsPage) {
+  // Force insights pages to have no nav and no wrapper
+  const isInsightsPageForce = pathname?.includes('/tutor/insights')
+
+  if (isCourseBuilder || isCoursePublishPage || isInsightsPage || isInsightsPageForce) {
     return <>{children}</>
   }
 
