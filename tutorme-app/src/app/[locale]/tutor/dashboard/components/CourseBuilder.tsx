@@ -8470,7 +8470,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   ) : (
                                     <div
                                       className={cn(
-                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-violet-300 bg-white p-0'
+                                        'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
+                                        mainTab === 'live'
+                                          ? 'border-orange-300'
+                                          : 'border-violet-300'
                                       )}
                                     >
                                       <PanelErrorBoundary
