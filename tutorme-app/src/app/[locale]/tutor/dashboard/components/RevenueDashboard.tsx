@@ -396,8 +396,11 @@ export function RevenueDashboard({
 
   return (
     <>
-      <Card
-        className={cn('border-border bg-card flex h-full flex-col border', className)}
+      <div
+        className={cn(
+          'flex h-full flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
+          className
+        )}
         style={themeStyle}
       >
         {/* Dark charcoal header bar */}
@@ -812,7 +815,7 @@ export function RevenueDashboard({
             </CardContent>
           </>
         )}
-      </Card>
+      </div>
       <EmailStatementDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}

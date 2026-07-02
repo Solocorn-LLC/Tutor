@@ -180,7 +180,7 @@ function InsightsLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Main Content */}
       <div className="flex h-full w-full flex-1 overflow-hidden">
         {/* Course Builder */}
