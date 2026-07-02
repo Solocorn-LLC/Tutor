@@ -325,13 +325,13 @@ export async function POST(request: NextRequest) {
         // TASK-6: the structured mirror of the finalized rubric.
         pciSpec = normalizePciSpec(env.spec)
       }
-      // Suppress a finalized rubric the model emitted without an explicit tutor
-      // approval this turn — no silent finalization (the client Apply button is
-      // the second gate). The structured spec is gated the same way.
+      // A rubric the model emitted without the tutor typing an explicit approval
+      // this turn is still OFFERED (so the "Apply to PCI" button reliably appears
+      // whenever there's something to apply) but flagged `pciUnconfirmed`. The
+      // tutor's explicit Apply click is the TASK-5 confirmation — nothing is
+      // applied without it, so this never silently finalizes.
       if ((pciDraft || pciSpec) && !tutorSignaledFinalize) {
         pciUnconfirmed = true
-        pciDraft = ''
-        pciSpec = null
       }
     }
 

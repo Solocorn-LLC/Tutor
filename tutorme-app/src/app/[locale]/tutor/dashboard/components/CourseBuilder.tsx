@@ -9603,7 +9603,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           {taskPciDraft && (
                                             <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                                               <span>
-                                                Finalized rubric ready to apply to the PCI field.
+                                                Rubric ready — click Apply to save it as your
+                                                marking policy.
                                               </span>
                                               <Button
                                                 size="sm"
@@ -10118,7 +10119,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           {assessmentPciDraftMap[loadedAssessmentId || ''] && (
                                             <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                                               <span>
-                                                Finalized rubric ready to apply to the PCI field.
+                                                Rubric ready — click Apply to save it as your
+                                                marking policy.
                                               </span>
                                               <Button
                                                 size="sm"
