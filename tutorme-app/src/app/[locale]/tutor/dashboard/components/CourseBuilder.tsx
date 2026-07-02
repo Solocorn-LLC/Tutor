@@ -414,6 +414,7 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   return (
     <details
       open
+      data-pci-anchor="guidance"
       className="group mb-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs text-blue-900"
     >
       <summary className="flex cursor-pointer list-none items-center gap-1.5 font-semibold">
@@ -6010,7 +6011,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
       : taskBuilder.taskPci
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
-      <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+      <div
+        data-pci-anchor="current-pci"
+        className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+      >
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
           <div className="flex items-center gap-2">
@@ -6026,6 +6030,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
             {canEdit && (
               <button
                 type="button"
+                data-pci-anchor="edit-pci"
                 onClick={() => setEditingCurrentPci(v => !v)}
                 className="font-semibold text-blue-700 hover:underline"
               >
@@ -9559,7 +9564,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       value="pci"
                                       className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+                                      <div
+                                        data-pci-container="task"
+                                        className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm"
+                                      >
                                         <PciWalkthrough kind="task" />
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           <PciGuidance kind="task" />
@@ -9623,7 +9631,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           <GuardrailWarningsBanner
                                             warnings={taskPciGuardrailWarnings}
                                           />
-                                          <div className="mt-2 w-full rounded-2xl border border-blue-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                          <div
+                                            data-pci-anchor="chat-input"
+                                            className="mt-2 w-full rounded-2xl border border-blue-300 bg-white/90 backdrop-blur-md transition-all duration-300"
+                                          >
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
@@ -9659,6 +9670,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                     disabled={
                                                       taskPciLoading || !activeTaskPciInput.trim()
                                                     }
+                                                    data-pci-anchor="send"
                                                     onClick={() => handlePciSend('task')}
                                                     aria-label="Send"
                                                   >
@@ -9993,7 +10005,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                       value="pci"
                                       className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      <div className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[#EC4899] bg-white p-4 shadow-sm">
+                                      <div
+                                        data-pci-container="assessment"
+                                        className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[#EC4899] bg-white p-4 shadow-sm"
+                                      >
                                         <PciWalkthrough kind="assessment" />
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
@@ -10005,6 +10020,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             <Button
                                               variant="ghost"
                                               size="sm"
+                                              data-pci-anchor="generate-dmi"
                                               className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
                                               disabled={dmiGenerating || !canEdit}
                                               onClick={() => {
@@ -10034,6 +10050,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
+                                                  data-pci-anchor="edit-marks"
                                                   className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
                                                   disabled={!canEdit}
                                                   title="Set marks per question and review the AI answers"
@@ -10149,7 +10166,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               ] || []
                                             }
                                           />
-                                          <div className="mt-2 w-full rounded-2xl border border-purple-300 bg-white/90 backdrop-blur-md transition-all duration-300">
+                                          <div
+                                            data-pci-anchor="chat-input"
+                                            className="mt-2 w-full rounded-2xl border border-purple-300 bg-white/90 backdrop-blur-md transition-all duration-300"
+                                          >
                                             <div className="relative flex w-full flex-col p-px">
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
@@ -10195,6 +10215,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         ] || ''
                                                       ).trim()
                                                     }
+                                                    data-pci-anchor="send"
                                                     onClick={() => handlePciSend('assessment')}
                                                     aria-label="Send"
                                                   >
