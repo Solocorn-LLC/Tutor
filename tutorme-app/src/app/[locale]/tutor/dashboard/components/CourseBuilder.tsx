@@ -6341,6 +6341,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
               >
                 <Card
                   padding="none"
+                  elevation="none"
                   className="flex h-full min-h-0 flex-1 flex-col rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
                 >
                   <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
@@ -10260,6 +10261,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                       <div className="flex h-full min-h-0 flex-col">
                         <Card
                           padding="none"
+                          elevation="none"
                           className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
                         >
                           <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
