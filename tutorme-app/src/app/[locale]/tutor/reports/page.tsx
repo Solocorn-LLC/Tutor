@@ -388,7 +388,7 @@ export default function TutorReports() {
         >
           {/* Revenue Tab */}
           <TabsContent value="revenue" className="flex h-full flex-col gap-4 pb-4">
-            <RevenueDashboard className="flex-1 overflow-hidden" themeId="current" />
+            <RevenueDashboard className="flex-1 overflow-hidden" themeId="current" embedded />
           </TabsContent>
 
           {/* Students Tab */}

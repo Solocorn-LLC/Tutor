@@ -191,13 +191,17 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
 
   if (
     isCourseBuilder ||
-    isCoursePublishPage ||
     isInsightsPage ||
     isInsightsPageForce ||
     isClassroomPage ||
     isClassroomView
   ) {
     return <div className="isolate flex h-screen w-full overflow-hidden bg-white">{children}</div>
+  }
+
+  // Course Publish/Details page needs scrollable content, not fixed height
+  if (isCoursePublishPage) {
+    return <div className="isolate min-h-screen w-full bg-white">{children}</div>
   }
 
   return (
