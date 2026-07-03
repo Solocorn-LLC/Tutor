@@ -151,8 +151,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isCourseBuilder = pathname?.includes('/courses/') && pathname?.includes('/builder')
 
   // Check if we're on the Course Publish page (course detail page) - hide sidebar for focused editing
-  // Pattern: /tutor/courses/[id] but not sub-paths like /tasks or /enrollments
-  const isCoursePublishPage = pathname?.match(/^\/tutor\/courses\/[^\/]+$/) !== null
+  // Pattern: /tutor/courses/[id] or /:locale/tutor/courses/[id] but not sub-paths like /tasks or /enrollments
+  const isCoursePublishPage = pathname?.match(/^(\/[^\/]+)?\/tutor\/courses\/[^\/]+$/) !== null
 
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
