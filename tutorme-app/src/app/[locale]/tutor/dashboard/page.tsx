@@ -34,7 +34,6 @@ import {
   Users,
   AlertCircle,
   Ban,
-  Eye,
   CalendarClock,
   Pencil,
   Presentation,
@@ -839,20 +838,12 @@ function TutorDashboardContent() {
                               <Presentation className="mr-1 h-3 w-3" />
                               Classroom
                             </Button>
-                            {hasViewableSessions ? (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleOpenSessionsModal(course)}
-                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
-                              >
-                                <Eye className="mr-1 h-3 w-3" />
-                                View Sessions
-                              </Button>
-                            ) : (
-                              // Sessions come only from the course schedule — send the
-                              // tutor to the scheduler (course details page) to add slots
-                              // and publish, instead of creating an ad-hoc session.
+                            {/* When sessions exist, the "N sessions" count badge above
+                                already opens the sessions modal, so a separate "View
+                                Sessions" button here was redundant and has been removed.
+                                With no sessions yet, send the tutor to the scheduler
+                                (course details page) to add slots and publish. */}
+                            {!hasViewableSessions && (
                               <Button
                                 asChild
                                 variant="default"
@@ -1323,6 +1314,7 @@ function TutorDashboardContent() {
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
+        canCreate
         onClose={() => setScheduleCourse(null)}
       />
     </div>
