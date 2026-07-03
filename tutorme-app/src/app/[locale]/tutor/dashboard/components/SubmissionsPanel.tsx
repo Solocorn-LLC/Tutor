@@ -18,6 +18,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 type SubmissionsTreeResponse = {
   course: { id: string; name: string }
@@ -312,7 +313,7 @@ export function SubmissionsPanel({
   }
 
   return (
-    <>
+    <TooltipProvider>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
         <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
           Desk
@@ -529,7 +530,7 @@ export function SubmissionsPanel({
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   )
 }
 
@@ -560,9 +561,18 @@ function FolderRow({
           {icon}
         </span>
         <div className="min-w-0">
-          <div className={`truncate text-sm font-semibold ${titleClassName || 'text-slate-800'}`}>
-            {title}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`truncate text-sm font-semibold ${titleClassName || 'text-slate-800'}`}
+              >
+                {title}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start" className="max-w-xs">
+              <p className="text-xs">{title}</p>
+            </TooltipContent>
+          </Tooltip>
           {subtitle && <div className="truncate text-xs text-slate-500">{subtitle}</div>}
         </div>
       </div>
