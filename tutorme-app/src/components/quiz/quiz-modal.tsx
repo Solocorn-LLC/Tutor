@@ -225,6 +225,13 @@ export function QuizModal({
                     ? 'Good effort! Keep practicing.'
                     : 'Keep studying! You will improve.'}
               </p>
+              {/* This just-submitted score is the automatic grade. Written answers
+                  are flagged for the tutor, who may review and adjust it — so it's
+                  provisional until the tutor finalizes it. */}
+              <div className="mx-auto mt-3 max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <span className="font-semibold">Provisional score</span> — auto-graded now. Your
+                tutor may review and adjust it (especially written answers).
+              </div>
             </div>
 
             <div className="space-y-4">
