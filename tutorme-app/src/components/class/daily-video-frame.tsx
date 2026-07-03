@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useDailyCall } from '@/hooks/use-daily-call'
 import {
+  AlertTriangle,
   Loader2,
   Mic,
   MicOff,
@@ -13,6 +14,7 @@ import {
   Video,
   VideoOff,
   Wifi,
+  X,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -109,6 +111,13 @@ export function DailyVideoFrame({
   }, [isJoined, autoRecord, isRecording, call, startRecording])
 
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null)
+  // Camera/mic errors after joining (e.g. permission denied when turning the
+  // camera on) land in `joinError` but were only shown on the pre-join screen.
+  // Track a dismissal so we can surface them in-call too, re-showing on a new one.
+  const [errorDismissed, setErrorDismissed] = useState(false)
+  useEffect(() => {
+    if (joinError) setErrorDismissed(false)
+  }, [joinError])
   const [devicesOpen, setDevicesOpen] = useState(false)
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([])
@@ -341,7 +350,16 @@ export function DailyVideoFrame({
       >
         {joinError ? (
           <>
-            <p className="text-sm text-red-400">{joinError}</p>
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <p className="max-w-xs text-center text-sm text-red-400">{joinError}</p>
+            {/^(camera|microphone|permission|not allowed|notallowed|denied|device)/i.test(
+              joinError
+            ) && (
+              <p className="max-w-xs text-center text-xs text-white/60">
+                Allow camera &amp; microphone access from your browser&apos;s address bar, then
+                retry.
+              </p>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -376,6 +394,29 @@ export function DailyVideoFrame({
       <div
         className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-black ${className || ''}`}
       >
+        {/* In-call camera/mic error (e.g. permission denied when enabling the
+            camera) — previously only visible on the pre-join screen. */}
+        {joinError && !errorDismissed && (
+          <div className="absolute inset-x-0 top-0 z-40 flex items-start gap-2 bg-red-600/95 px-3 py-2 text-xs text-white">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">Camera / microphone problem</p>
+              <p className="text-white/90">{joinError}</p>
+              <p className="mt-0.5 text-white/70">
+                Check the camera icon in your browser&apos;s address bar and allow access, then
+                toggle Cam/Mic again.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorDismissed(true)}
+              className="shrink-0 rounded p-0.5 text-white/80 hover:bg-white/20 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {floating && frame && (
           <>
             <div
