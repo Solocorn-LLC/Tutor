@@ -106,6 +106,17 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
         })
       })
 
+      // A virtual-background processor can fail AFTER updateInputSettings resolves
+      // (model can't load, unsupported GPU) — it reports via this event, not the
+      // promise. Surface it so a background silently failing becomes visible.
+      // Cast: 'video-processor-error' isn't in daily-js's typed DailyEvent union
+      // in this version, but the runtime emits it.
+      ;(call as any).on('video-processor-error', (event: any) => {
+        const msg = event?.errorMsg || event?.error || 'Video background failed to apply.'
+        console.warn('[video] video-processor-error:', msg)
+        optionsRef.current.onError?.(new Error(String(msg)))
+      })
+
       call.on('recording-started', () => {
         setIsRecording(true)
         optionsRef.current.onRecordingStarted?.()
@@ -212,11 +223,16 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
       }
 
       try {
+        // Start with camera + mic OFF, but do NOT pass audioSource/videoSource:
+        // false — that tells Daily to acquire NO device, so a later
+        // setLocalVideo(true) has no camera to turn on (video never appears).
+        // startVideoOff/startAudioOff join muted while still acquiring the
+        // devices, so toggling the camera on works.
         await call.join({
           url,
           token,
-          audioSource: false,
-          videoSource: false,
+          startVideoOff: true,
+          startAudioOff: true,
         })
 
         globalJoinedUrl = url
@@ -229,9 +245,38 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
         }))
       } catch (error) {
         console.error('Daily join error:', error)
-        const message = error instanceof Error ? error.message : 'Failed to join video call'
+        // Daily rejects join() with a plain object ({ action, errorMsg, error }),
+        // NOT an Error — so `error.message` was empty and users only ever saw the
+        // generic fallback. Pull out Daily's real reason (e.g. "Meeting token is
+        // invalid", "not allowed", "does not exist") so the actual cause shows.
+        const daily = error as {
+          errorMsg?: string | { errorMsg?: string }
+          error?: { localizedMsg?: string; msg?: string; type?: string }
+        }
+        const stringified = (() => {
+          try {
+            const s = JSON.stringify(error)
+            return s && s !== '{}' && s !== 'null' ? s : ''
+          } catch {
+            return ''
+          }
+        })()
+        const dailyMsg =
+          (typeof daily?.errorMsg === 'string' && daily.errorMsg) ||
+          (typeof daily?.errorMsg === 'object' && daily.errorMsg?.errorMsg) ||
+          daily?.error?.localizedMsg ||
+          daily?.error?.msg ||
+          (error instanceof Error ? error.message : '') ||
+          stringified
+        // Rooms are private, so joining WITHOUT a token (the server failed to mint
+        // one) always fails — that's the single most common cause, so name it
+        // plainly instead of the generic message.
+        const message = !token
+          ? 'No video access token — the server could not create one for this session (check the Daily API key / account).'
+          : dailyMsg || 'Failed to join video call'
         Sentry.captureException(error instanceof Error ? error : new Error(message), {
           tags: { feature: 'live-video', phase: 'join' },
+          extra: { joinedUrl: url, hasToken: !!token },
         })
         // Tear the errored call object down so the next Retry rebuilds a clean
         // instance instead of re-joining a dead one (which always fails).
@@ -275,23 +320,88 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
     }))
   }, [])
 
-  const toggleAudio = useCallback(() => {
+  const toggleAudio = useCallback(async () => {
     const call = callRef.current
     if (!call || !state.isJoined) return
 
     const newState = !state.isAudioEnabled
+    // If the mic device wasn't acquired yet, setLocalAudio(true) can't unmute a
+    // track that doesn't exist — acquire it first via startCamera({ startAudio }).
+    if (newState) {
+      const local = call.participants()?.local as
+        | { tracks?: { audio?: { persistentTrack?: unknown } } }
+        | undefined
+      if (!local?.tracks?.audio?.persistentTrack) {
+        try {
+          await (call as unknown as { startCamera: (o: unknown) => Promise<unknown> }).startCamera({
+            startAudioOff: false,
+            startVideoOff: !state.isVideoEnabled,
+          })
+        } catch {
+          // fall through to setLocalAudio below
+        }
+      }
+    }
     call.setLocalAudio(newState)
     setState(prev => ({ ...prev, isAudioEnabled: newState }))
-  }, [state.isJoined, state.isAudioEnabled])
+  }, [state.isJoined, state.isAudioEnabled, state.isVideoEnabled])
 
-  const toggleVideo = useCallback(() => {
+  const toggleVideo = useCallback(async () => {
     const call = callRef.current
     if (!call || !state.isJoined) return
 
     const newState = !state.isVideoEnabled
+    // Same as audio: with no camera acquired yet, ask Daily to acquire it before
+    // enabling, so the local video track actually appears.
+    if (newState) {
+      const local = call.participants()?.local as
+        | { tracks?: { video?: { persistentTrack?: unknown } } }
+        | undefined
+      if (!local?.tracks?.video?.persistentTrack) {
+        try {
+          await (call as unknown as { startCamera: (o: unknown) => Promise<unknown> }).startCamera({
+            startVideoOff: false,
+            startAudioOff: !state.isAudioEnabled,
+          })
+        } catch {
+          // fall through to setLocalVideo below
+        }
+      }
+    }
     call.setLocalVideo(newState)
     setState(prev => ({ ...prev, isVideoEnabled: newState }))
-  }, [state.isJoined, state.isVideoEnabled])
+  }, [state.isJoined, state.isVideoEnabled, state.isAudioEnabled])
+
+  // Virtual background. Applied via Daily's video input processor (segmentation
+  // runs client-side; desktop only). Accepts:
+  //   'none' | 'blur' | { url } (built-in same-origin image) | { source } (an
+  //   uploaded image as an ArrayBuffer). Rejections are surfaced to the caller.
+  const setBackground = useCallback(
+    async (bg: 'none' | 'blur' | { url: string } | { source: ArrayBuffer }) => {
+      const call = callRef.current
+      if (!call) return
+      let processor
+      if (bg === 'none') {
+        processor = { type: 'none' as const }
+      } else if (bg === 'blur') {
+        processor = { type: 'background-blur' as const, config: { strength: 0.6 } }
+      } else {
+        // Daily reads the image from config.source (a URL/ArrayBuffer). We
+        // previously passed config.url, which it ignored — so images silently
+        // never applied. Built-ins use an absolute same-origin URL; uploads pass
+        // the raw ArrayBuffer.
+        const source =
+          'source' in bg
+            ? bg.source
+            : typeof window !== 'undefined'
+              ? new URL(bg.url, window.location.origin).href
+              : bg.url
+        processor = { type: 'background-image' as const, config: { source } }
+      }
+      await call.updateInputSettings({ video: { processor } })
+    },
+    []
+  )
 
   const startScreenShare = useCallback(() => {
     const call = callRef.current
@@ -333,6 +443,7 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
     leave,
     toggleAudio,
     toggleVideo,
+    setBackground,
     startScreenShare,
     stopScreenShare,
     startRecording,

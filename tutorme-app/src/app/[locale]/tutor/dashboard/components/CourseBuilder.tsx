@@ -1405,6 +1405,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, 'letters' | 'tf' | 'yn' | 'custom'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
+    // Reusable custom option sets, persisted so a tutor can pick a set they used
+    // before instead of retyping it. Loaded once from localStorage.
+    const [savedPollOptionSets, setSavedPollOptionSets] = useState<string[][]>([])
+    useEffect(() => {
+      try {
+        const raw = localStorage.getItem('tutor-poll-option-sets')
+        const parsed = raw ? JSON.parse(raw) : []
+        if (Array.isArray(parsed)) setSavedPollOptionSets(parsed.filter(Array.isArray).slice(0, 8))
+      } catch {
+        /* ignore */
+      }
+    }, [])
+    const rememberPollOptionSet = useCallback((opts: string[]) => {
+      if (opts.length < 2) return
+      setSavedPollOptionSets(prev => {
+        const key = opts.join('')
+        const next = [opts, ...prev.filter(s => s.join('') !== key)].slice(0, 8)
+        try {
+          localStorage.setItem('tutor-poll-option-sets', JSON.stringify(next))
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
+    }, [])
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
@@ -1496,15 +1521,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Resolve the chosen preset to explicit labels. `letters` returns undefined
     // so the server applies its A–E default; custom is split on newlines/commas.
+    // Split custom options on any common separator — newline, comma, slash, pipe
+    // or semicolon — so the tutor can type "Agree / Disagree / Unsure" (as the
+    // placeholder shows), or one per line, or comma-separated, and it all works.
+    // Previously only \n and , were split, so slash-separated input (per the
+    // example) collapsed into ONE option and silently fell back to A–E.
+    const parsePollOptions = (raw: string): string[] =>
+      raw
+        .split(/[\n,/|;]/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 8)
+
+    const customPollValid = parsePollOptions(pollCustomOptions).length >= 2
+
     const resolvePollOptions = (): string[] | undefined => {
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
       if (pollOptionMode === 'custom') {
-        const opts = pollCustomOptions
-          .split(/[\n,]/)
-          .map(s => s.trim())
-          .filter(Boolean)
-          .slice(0, 8)
+        const opts = parsePollOptions(pollCustomOptions)
         return opts.length >= 2 ? opts : undefined
       }
       return undefined
@@ -1538,13 +1573,44 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           ))}
         </div>
         {pollOptionMode === 'custom' && (
-          <textarea
-            value={pollCustomOptions}
-            onChange={e => setPollCustomOptions(e.target.value)}
-            rows={2}
-            placeholder="One option per line — e.g. Agree / Disagree / Unsure"
-            className="mt-1.5 w-full resize-none rounded-lg border border-blue-100 bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:border-blue-400"
-          />
+          <>
+            <textarea
+              value={pollCustomOptions}
+              onChange={e => setPollCustomOptions(e.target.value)}
+              rows={2}
+              placeholder="Options separated by commas, slashes, or new lines — e.g. Agree, Disagree, Unsure"
+              className={cn(
+                'mt-1.5 w-full resize-none rounded-lg border bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none',
+                customPollValid || !pollCustomOptions.trim()
+                  ? 'border-blue-100 focus-visible:border-blue-400'
+                  : 'border-amber-300 focus-visible:border-amber-400'
+              )}
+            />
+            {pollCustomOptions.trim() && !customPollValid && (
+              <p className="mt-1 text-[11px] text-amber-600">Enter at least 2 options.</p>
+            )}
+            {/* Reuse a previously-used custom set. */}
+            {savedPollOptionSets.length > 0 && (
+              <div className="mt-1.5">
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                  Saved sets
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {savedPollOptionSets.map((set, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPollCustomOptions(set.join(', '))}
+                      title={set.join(', ')}
+                      className="max-w-[180px] truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] text-slate-600 hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      {set.join(' · ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     )
@@ -8358,22 +8424,26 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                     className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
-                                                      !activeInsightsTask ||
                                                       !insightsProps.sessionId ||
                                                       !pollPrompt.trim()
                                                     }
                                                     onClick={() => {
                                                       if (
                                                         !activeInsightsTaskId ||
-                                                        !activeInsightsTask ||
                                                         !insightsProps.sessionId
                                                       )
                                                         return
-                                                      insightsProps.onSendPoll({
-                                                        taskId: currentInsightsId,
-                                                        question: pollPrompt,
-                                                        options: resolvePollOptions(),
-                                                      })
+                                                      {
+                                                        const opts = resolvePollOptions()
+                                                        if (pollOptionMode === 'custom' && opts) {
+                                                          rememberPollOptionSet(opts)
+                                                        }
+                                                        insightsProps.onSendPoll({
+                                                          taskId: currentInsightsId,
+                                                          question: pollPrompt,
+                                                          options: opts,
+                                                        })
+                                                      }
                                                       setPollPrompt('')
                                                     }}
                                                   >
@@ -8452,14 +8522,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                     className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
-                                                      !activeInsightsTask ||
                                                       !insightsProps.sessionId ||
                                                       !questionPrompt.trim()
                                                     }
                                                     onClick={() => {
                                                       if (
                                                         !activeInsightsTaskId ||
-                                                        !activeInsightsTask ||
                                                         !insightsProps.sessionId
                                                       )
                                                         return
@@ -10444,22 +10512,26 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
                                               disabled={
                                                 !activeInsightsTaskId ||
-                                                !activeInsightsTask ||
                                                 !insightsProps.sessionId ||
                                                 !pollPrompt.trim()
                                               }
                                               onClick={() => {
                                                 if (
                                                   !activeInsightsTaskId ||
-                                                  !activeInsightsTask ||
                                                   !insightsProps.sessionId
                                                 )
                                                   return
-                                                insightsProps.onSendPoll({
-                                                  taskId: currentInsightsId,
-                                                  question: pollPrompt,
-                                                  options: resolvePollOptions(),
-                                                })
+                                                {
+                                                  const opts = resolvePollOptions()
+                                                  if (pollOptionMode === 'custom' && opts) {
+                                                    rememberPollOptionSet(opts)
+                                                  }
+                                                  insightsProps.onSendPoll({
+                                                    taskId: currentInsightsId,
+                                                    question: pollPrompt,
+                                                    options: opts,
+                                                  })
+                                                }
                                                 setPollPrompt('')
                                               }}
                                             >
@@ -10519,14 +10591,12 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
                                               disabled={
                                                 !activeInsightsTaskId ||
-                                                !activeInsightsTask ||
                                                 !insightsProps.sessionId ||
                                                 !questionPrompt.trim()
                                               }
                                               onClick={() => {
                                                 if (
                                                   !activeInsightsTaskId ||
-                                                  !activeInsightsTask ||
                                                   !insightsProps.sessionId
                                                 )
                                                   return

@@ -138,6 +138,7 @@ export function FloatingVideoOverlay() {
             token={token}
             autoRecord={autoRecord}
             floating={false}
+            isTutor={isTutor}
             className="h-full w-full rounded-none border-0"
           />
         </div>
