@@ -368,7 +368,11 @@ function TutorControlsPanel({
 
                     <button
                       type="button"
-                      disabled={panelDisabled || mode !== 'build' || !hasSession}
+                      // Video joins the live session — it must be usable while
+                      // live (mode === 'classroom'), not only in build mode. It
+                      // was wrongly gated on mode === 'build' (like the adjacent
+                      // build-only actions), so it was disabled during a session.
+                      disabled={panelDisabled || !hasSession}
                       onClick={onVideo}
                       className={cn(
                         actionButtonBase,

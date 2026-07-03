@@ -1299,6 +1299,12 @@ function StudentFeedbackContent() {
           scheduledAt: data?.session?.scheduledAt ?? null,
           endedAt: data?.session?.endedAt ?? null,
         })
+        // The server issues a room URL even when it couldn't mint a video token
+        // (private rooms need one). Surface that reason up front instead of the
+        // cryptic Daily "Failed to join video call" the student hits on click.
+        if (data?.videoError) {
+          toast.error(data.videoError)
+        }
       } catch (err: any) {
         console.error('Join request failed:', err)
         toast.error(err?.message || 'Failed to load live session')

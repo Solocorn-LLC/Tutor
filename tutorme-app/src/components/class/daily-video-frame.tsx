@@ -3,17 +3,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useDailyCall } from '@/hooks/use-daily-call'
 import {
+  AlertTriangle,
+  Image as ImageIcon,
   Loader2,
   Mic,
   MicOff,
   MonitorUp,
   PhoneOff,
   Settings2,
+  Upload,
   Users,
   Video,
   VideoOff,
   Wifi,
+  X,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { VIDEO_BACKGROUNDS } from '@/lib/video/backgrounds'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -29,6 +35,9 @@ interface DailyVideoFrameProps {
   className?: string
   autoRecord?: boolean
   floating?: boolean
+  /** Tutor view: students don't broadcast video, so show them as avatar tiles
+   *  (not video). Student view stays full-bleed video of the broadcaster. */
+  isTutor?: boolean
 }
 
 export function DailyVideoFrame({
@@ -37,6 +46,7 @@ export function DailyVideoFrame({
   className,
   autoRecord,
   floating = false,
+  isTutor = false,
 }: DailyVideoFrameProps) {
   const {
     call,
@@ -46,6 +56,7 @@ export function DailyVideoFrame({
     leave,
     toggleAudio,
     toggleVideo,
+    setBackground,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
@@ -109,6 +120,13 @@ export function DailyVideoFrame({
   }, [isJoined, autoRecord, isRecording, call, startRecording])
 
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null)
+  // Camera/mic errors after joining (e.g. permission denied when turning the
+  // camera on) land in `joinError` but were only shown on the pre-join screen.
+  // Track a dismissal so we can surface them in-call too, re-showing on a new one.
+  const [errorDismissed, setErrorDismissed] = useState(false)
+  useEffect(() => {
+    if (joinError) setErrorDismissed(false)
+  }, [joinError])
   const [devicesOpen, setDevicesOpen] = useState(false)
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([])
@@ -117,6 +135,114 @@ export function DailyVideoFrame({
   const [videoInputId, setVideoInputId] = useState<string>('')
   const [audioOutputId, setAudioOutputId] = useState<string>('')
   const [isRefreshingDevices, setIsRefreshingDevices] = useState(false)
+  // Selected virtual background id: 'none' | 'blur' | a wallpaper url | 'custom'.
+  const [background, setBackgroundId] = useState<string>('none')
+  const [applyingBackground, setApplyingBackground] = useState(false)
+  const [backgroundOpen, setBackgroundOpen] = useState(false)
+  // The tutor's uploaded image, kept as a data URL for the thumbnail + to persist
+  // and re-apply across sessions.
+  const [customBg, setCustomBg] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const reappliedRef = useRef(false)
+
+  // Virtual backgrounds are a desktop-only Daily feature; on touch/mobile the
+  // processor won't apply, so we tell the tutor rather than fail silently.
+  const isMobileDevice =
+    typeof navigator !== 'undefined' &&
+    (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches))
+
+  const applyBackground = async (
+    value: 'none' | 'blur' | { url: string } | { source: ArrayBuffer },
+    id: string,
+    customDataUrl?: string
+  ) => {
+    setApplyingBackground(true)
+    try {
+      await setBackground(value)
+      setBackgroundId(id)
+      // Persist the choice so it survives rejoin (background used to reset on
+      // every join). Custom images are stored as a data URL (passed in, since
+      // customBg state may not have flushed yet on first upload).
+      try {
+        if (id === 'none' || id === 'blur') {
+          localStorage.setItem('tutor-video-bg', JSON.stringify({ type: id }))
+        } else if (id === 'custom' && customDataUrl) {
+          localStorage.setItem(
+            'tutor-video-bg',
+            JSON.stringify({ type: 'custom', dataUrl: customDataUrl })
+          )
+        } else if (id !== 'custom') {
+          localStorage.setItem('tutor-video-bg', JSON.stringify({ type: 'builtin', url: id }))
+        }
+      } catch {
+        /* storage may be unavailable */
+      }
+    } catch (err) {
+      console.warn('[video] background effect failed:', err)
+      toast.error(
+        isMobileDevice
+          ? 'Virtual backgrounds are available on desktop only.'
+          : "Backgrounds aren't supported on this device/browser."
+      )
+    } finally {
+      setApplyingBackground(false)
+    }
+  }
+
+  // Read an uploaded image, apply it, and remember it as the custom background.
+  const handleUploadBackground = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image is too large (max 5 MB).')
+      return
+    }
+    const buf = await file.arrayBuffer()
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result))
+      r.onerror = reject
+      r.readAsDataURL(file)
+    })
+    setCustomBg(dataUrl)
+    await applyBackground({ source: buf }, 'custom', dataUrl)
+  }
+
+  // Re-apply the tutor's saved background once, after joining (so it's active
+  // before they turn their camera on). Desktop only.
+  useEffect(() => {
+    if (!isTutor || isMobileDevice || !isJoined || !call || reappliedRef.current) return
+    reappliedRef.current = true
+    let saved: { type?: string; url?: string; dataUrl?: string } | null = null
+    try {
+      const raw = localStorage.getItem('tutor-video-bg')
+      saved = raw ? JSON.parse(raw) : null
+    } catch {
+      saved = null
+    }
+    if (!saved || saved.type === 'none') return
+    void (async () => {
+      try {
+        if (saved.type === 'blur') {
+          await setBackground('blur')
+          setBackgroundId('blur')
+        } else if (saved.type === 'builtin' && saved.url) {
+          await setBackground({ url: saved.url })
+          setBackgroundId(saved.url)
+        } else if (saved.type === 'custom' && saved.dataUrl) {
+          const buf = await (await fetch(saved.dataUrl)).arrayBuffer()
+          setCustomBg(saved.dataUrl)
+          await setBackground({ source: buf })
+          setBackgroundId('custom')
+        }
+      } catch {
+        /* ignore reapply failures */
+      }
+    })()
+  }, [isTutor, isMobileDevice, isJoined, call, setBackground])
 
   useEffect(() => {
     if (!call) return
@@ -210,7 +336,19 @@ export function DailyVideoFrame({
     return null
   }, [dailyParticipants])
 
-  const mainTile = screenShareParticipant ?? remoteParticipants[0] ?? localParticipant ?? null
+  // The full-bleed tile is whoever is actually broadcasting: a screen share, else
+  // the first remote participant WITH a live camera (e.g. the tutor), else any
+  // remote, else self. Preferring a video-bearing participant keeps a student's
+  // full-screen view on the broadcaster instead of a blank avatar.
+  const remoteWithVideo = useMemo(
+    () => remoteParticipants.find((p: any) => p?.tracks?.video?.state === 'playable'),
+    [remoteParticipants]
+  )
+  const mainTile =
+    screenShareParticipant ?? remoteWithVideo ?? remoteParticipants[0] ?? localParticipant ?? null
+
+  // Self-view: your own camera, shown as a small picture-in-picture (both roles).
+  const selfHasVideo = (localParticipant as any)?.tracks?.video?.state === 'playable'
 
   const [frame, setFrame] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const outerRef = useRef<HTMLDivElement>(null)
@@ -341,7 +479,16 @@ export function DailyVideoFrame({
       >
         {joinError ? (
           <>
-            <p className="text-sm text-red-400">{joinError}</p>
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <p className="max-w-xs text-center text-sm text-red-400">{joinError}</p>
+            {/^(camera|microphone|permission|not allowed|notallowed|denied|device)/i.test(
+              joinError
+            ) && (
+              <p className="max-w-xs text-center text-xs text-white/60">
+                Allow camera &amp; microphone access from your browser&apos;s address bar, then
+                retry.
+              </p>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -366,7 +513,10 @@ export function DailyVideoFrame({
   return (
     <div
       ref={outerRef}
-      className={floating && frame ? 'absolute' : 'relative'}
+      // In overlay mode (floating=false) the frame must FILL its parent so the
+      // full-bleed `absolute inset-0` video has a real height to expand into —
+      // without h-full the container is auto-height and the video collapses.
+      className={floating && frame ? 'absolute' : 'relative h-full w-full'}
       style={
         floating && frame
           ? { left: frame.x, top: frame.y, width: frame.w, height: frame.h }
@@ -376,6 +526,29 @@ export function DailyVideoFrame({
       <div
         className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-black ${className || ''}`}
       >
+        {/* In-call camera/mic error (e.g. permission denied when enabling the
+            camera) — previously only visible on the pre-join screen. */}
+        {joinError && !errorDismissed && (
+          <div className="absolute inset-x-0 top-0 z-40 flex items-start gap-2 bg-red-600/95 px-3 py-2 text-xs text-white">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">Camera / microphone problem</p>
+              <p className="text-white/90">{joinError}</p>
+              <p className="mt-0.5 text-white/70">
+                Check the camera icon in your browser&apos;s address bar and allow access, then
+                toggle Cam/Mic again.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorDismissed(true)}
+              className="shrink-0 rounded p-0.5 text-white/80 hover:bg-white/20 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {floating && frame && (
           <>
             <div
@@ -417,47 +590,67 @@ export function DailyVideoFrame({
           <span>{Math.max(1, dailyParticipants.length)}</span>
         </div>
 
-        <div className="relative min-h-0 flex-1 p-3">
-          <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[1fr_260px]">
-            <div className="relative min-h-0 overflow-hidden rounded-2xl bg-slate-950">
-              {mainTile ? (
-                <ParticipantMediaTile
-                  participant={mainTile}
-                  mode={screenShareParticipant ? 'screen' : 'camera'}
-                  isActiveSpeaker={activeSpeakerId === (mainTile as any)?.session_id}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-white/70">
-                  Waiting for participants...
-                </div>
-              )}
-            </div>
-
-            <div className="min-h-0 overflow-hidden rounded-2xl bg-slate-950/70">
-              <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs font-semibold text-white/80">
-                <span>Participants</span>
-                <span>{Math.max(1, dailyParticipants.length)}</span>
+        {/* MAIN CONTENT — full-bleed. Student: video of the broadcaster fills the
+            area, everything else overlays. Tutor: a grid of STUDENT AVATARS
+            (students don't broadcast video), unless the tutor is screen-sharing. */}
+        <div className="absolute inset-0 bg-slate-950">
+          {isTutor ? (
+            screenShareParticipant ? (
+              <ParticipantMediaTile
+                participant={screenShareParticipant}
+                mode="screen"
+                isActiveSpeaker={false}
+              />
+            ) : remoteParticipants.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-white/60">
+                Waiting for students to join…
               </div>
-              <div className="h-full overflow-auto p-2">
-                <div className="grid grid-cols-1 gap-2">
-                  {localParticipant && (
-                    <ParticipantRow participant={localParticipant} label="You" />
-                  )}
-                  {remoteParticipants.map((p: any) => (
-                    <ParticipantRow key={p.session_id} participant={p} />
-                  ))}
-                </div>
+            ) : (
+              <div className="grid h-full auto-rows-fr grid-cols-2 gap-3 overflow-auto p-3 pb-20 pt-12 sm:grid-cols-3 md:grid-cols-4">
+                {remoteParticipants.map((p: any) => (
+                  <StudentAvatarTile
+                    key={p.session_id}
+                    participant={p}
+                    isActiveSpeaker={activeSpeakerId === p?.session_id}
+                  />
+                ))}
               </div>
+            )
+          ) : mainTile ? (
+            <ParticipantMediaTile
+              participant={mainTile}
+              mode={screenShareParticipant ? 'screen' : 'camera'}
+              isActiveSpeaker={activeSpeakerId === (mainTile as any)?.session_id}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-white/70">
+              Waiting for the tutor…
             </div>
-          </div>
-
-          {remoteParticipants.map((p: any) => (
-            <ParticipantAudio key={`${p.session_id}-audio`} participant={p} />
-          ))}
+          )}
         </div>
 
-        <div className="relative z-10 border-t border-white/10 bg-black/80 px-3 py-2 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        {/* Self-view PiP — your own camera, a small floating corner tile. */}
+        {selfHasVideo && localParticipant && (
+          <div className="absolute right-3 top-14 z-20 h-24 w-32 overflow-hidden rounded-xl border border-white/25 bg-slate-900 shadow-lg">
+            <ParticipantMediaTile
+              participant={localParticipant}
+              mode="camera"
+              isActiveSpeaker={false}
+            />
+            <div className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              You
+            </div>
+          </div>
+        )}
+
+        {/* Remote audio — always mounted regardless of layout. */}
+        {remoteParticipants.map((p: any) => (
+          <ParticipantAudio key={`${p.session_id}-audio`} participant={p} />
+        ))}
+
+        {/* OVERLAY: floating controls pill, centered at the bottom. */}
+        <div className="absolute inset-x-0 bottom-3 z-30 flex justify-center px-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-full bg-black/70 px-3 py-2 shadow-lg backdrop-blur">
             <ControlButton
               onClick={toggleAudio}
               active={isAudioEnabled}
@@ -483,6 +676,137 @@ export function DailyVideoFrame({
               activeLabel="Sharing"
               inactiveLabel="Share"
             />
+
+            {/* Virtual background — a dedicated, discoverable button (tutor only,
+                since students don't broadcast). */}
+            {isTutor && (
+              <Popover open={backgroundOpen} onOpenChange={setBackgroundOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-sm transition-colors ${
+                      background !== 'none'
+                        ? 'bg-white text-slate-900 hover:bg-white/90'
+                        : 'bg-white/10 text-white hover:bg-white/15'
+                    }`}
+                  >
+                    {applyingBackground ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                    Background
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="center"
+                  className="max-h-[70vh] w-[340px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="mb-2 text-sm font-semibold text-slate-900">
+                    Virtual background
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <BackgroundSwatch
+                      label="None"
+                      active={background === 'none'}
+                      onClick={() => applyBackground('none', 'none')}
+                    >
+                      <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-slate-500">
+                        None
+                      </div>
+                    </BackgroundSwatch>
+                    <BackgroundSwatch
+                      label="Blur"
+                      active={background === 'blur'}
+                      onClick={() => applyBackground('blur', 'blur')}
+                    >
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-200 to-slate-400 text-[10px] font-medium text-slate-700 blur-[1px]">
+                        Blur
+                      </div>
+                    </BackgroundSwatch>
+                  </div>
+
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Colors
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {VIDEO_BACKGROUNDS.filter(bg => bg.kind === 'color').map(bg => (
+                      <BackgroundSwatch
+                        key={bg.id}
+                        label={bg.label}
+                        active={background === bg.url}
+                        onClick={() => applyBackground({ url: bg.url }, bg.url)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={bg.url} alt={bg.label} className="h-full w-full object-cover" />
+                      </BackgroundSwatch>
+                    ))}
+                  </div>
+
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Photos
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {VIDEO_BACKGROUNDS.filter(bg => bg.kind === 'photo').map(bg => (
+                      <BackgroundSwatch
+                        key={bg.id}
+                        label={bg.label}
+                        active={background === bg.url}
+                        onClick={() => applyBackground({ url: bg.url }, bg.url)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={bg.url} alt={bg.label} className="h-full w-full object-cover" />
+                      </BackgroundSwatch>
+                    ))}
+                  </div>
+
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Your own
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {customBg && (
+                      <BackgroundSwatch
+                        label="Your image"
+                        active={background === 'custom'}
+                        onClick={async () => {
+                          const buf = await (await fetch(customBg)).arrayBuffer()
+                          await applyBackground({ source: buf }, 'custom', customBg)
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={customBg} alt="Custom" className="h-full w-full object-cover" />
+                      </BackgroundSwatch>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex aspect-video flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed border-slate-300 text-[10px] font-medium text-slate-500 transition-colors hover:border-indigo-400 hover:text-indigo-600"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </button>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) void handleUploadBackground(file)
+                    }}
+                  />
+
+                  <p className="mt-3 text-[10px] text-slate-400">
+                    {isMobileDevice
+                      ? 'Virtual backgrounds are available on desktop only.'
+                      : 'Turn your camera on to preview. Desktop only — not available on some low-power devices.'}
+                  </p>
+                </PopoverContent>
+              </Popover>
+            )}
+
             <button
               type="button"
               onClick={handleLeave}
@@ -579,6 +903,31 @@ export function DailyVideoFrame({
         </div>
       </div>
     </div>
+  )
+}
+
+function BackgroundSwatch({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className={`aspect-video overflow-hidden rounded-md border-2 transition-colors ${
+        active ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -691,25 +1040,38 @@ function ParticipantMediaTile({
   )
 }
 
-function ParticipantRow({ participant, label }: { participant: any; label?: string }) {
-  const name = participant?.user_name || participant?.user_id || 'Participant'
+/** Avatar card for a student on the tutor's side (students don't broadcast
+ *  video, so we show initials + name + mic/hand status rather than a video). */
+function StudentAvatarTile({
+  participant,
+  isActiveSpeaker,
+}: {
+  participant: any
+  isActiveSpeaker: boolean
+}) {
+  const name = participant?.user_name || participant?.user_id || 'Student'
   const isMuted = !participant?.audio
-  const isCamOff = !participant?.video
-  const isSharing = !!participant?.screen
+  const initials = String(name)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x: string) => x[0]?.toUpperCase())
+    .join('')
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-white">
-          {label ? `${label} · ${name}` : name}
-        </div>
-        <div className="mt-0.5 text-xs text-white/60">
-          {isSharing ? 'Sharing screen' : 'In call'}
-        </div>
+    <div
+      className={`relative flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-2xl border bg-slate-900 p-3 transition-colors ${
+        isActiveSpeaker ? 'border-emerald-400 ring-1 ring-emerald-400/60' : 'border-white/10'
+      }`}
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-xl font-semibold text-white">
+        {initials || '?'}
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-white/70">
-        {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        {isCamOff ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+      <div className="max-w-full truncate text-center text-xs font-medium text-white/90">
+        {name}
+      </div>
+      <div className="absolute right-2 top-2 text-white/70">
+        {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-emerald-400" />}
       </div>
     </div>
   )

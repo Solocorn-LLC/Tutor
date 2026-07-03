@@ -22,15 +22,23 @@ export function getCspHeader(): string {
 
   const directives = [
     "default-src 'self'",
-    // In production: remove 'unsafe-eval' once verified Next.js doesn't need it
-    // Next.js 16 with App Router requires 'unsafe-eval' for some dynamic imports
-    isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
-    // 'unsafe-inline' for styles is acceptable and widely used
-    // Removing it would require hashing all inline styles which is impractical
-    "style-src 'self' 'unsafe-inline'",
+    // 'unsafe-eval' is REQUIRED in production too: the Daily.co video SDK loads
+    // its call-machine bundle and evaluates it (EvalError otherwise → video never
+    // joins), and Daily serves that bundle from *.daily.co via a blob. Without
+    // these, live video is fully broken. (Next.js dynamic imports also use eval.)
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.daily.co blob:",
+    // 'unsafe-inline' for styles is widely used; allow Google Fonts stylesheets.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    // https:/wss: already cover Daily's API + signalling websockets.
     "connect-src 'self' https: wss:",
+    // Camera/mic + screen-share tracks and Daily media arrive as blob: and
+    // mediastream:; without media-src they'd fall back to default-src 'self'.
+    "media-src 'self' blob: mediastream: https://*.daily.co",
+    // Daily runs its call machine in blob-backed web workers.
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
     "frame-src 'self' https://*.daily.co https://*.dailyhq.com",
     "frame-ancestors 'self'",
     "base-uri 'self'",
