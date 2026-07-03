@@ -741,8 +741,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [onLeftPanelHiddenChange]
     )
     const [rightPanelHidden, setRightPanelHidden] = useState(false)
-    const [rightPanelWidth] = useState(380)
-    const [leftPanelWidth, setLeftPanelWidth] = useState(380)
+    const [rightPanelWidth] = useState(400)
+    const [leftPanelWidth, setLeftPanelWidth] = useState(400)
     const [viewportWidth, setViewportWidth] = useState(1920)
     // Disable width transition on initial mount to prevent expanding animation
     const [panelsMounted, setPanelsMounted] = useState(false)
