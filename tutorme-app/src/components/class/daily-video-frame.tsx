@@ -607,7 +607,7 @@ export function DailyVideoFrame({
                 </PopoverTrigger>
                 <PopoverContent
                   align="center"
-                  className="w-[320px] rounded-xl border border-slate-200 bg-white p-4"
+                  className="max-h-[70vh] w-[340px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4"
                 >
                   <div className="mb-2 text-sm font-semibold text-slate-900">
                     Virtual background
@@ -631,7 +631,13 @@ export function DailyVideoFrame({
                         Blur
                       </div>
                     </BackgroundSwatch>
-                    {VIDEO_BACKGROUNDS.map(bg => (
+                  </div>
+
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Colors
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {VIDEO_BACKGROUNDS.filter(bg => bg.kind === 'color').map(bg => (
                       <BackgroundSwatch
                         key={bg.id}
                         label={bg.label}
@@ -643,8 +649,27 @@ export function DailyVideoFrame({
                       </BackgroundSwatch>
                     ))}
                   </div>
-                  <p className="mt-2 text-[10px] text-slate-400">
-                    Turn your camera on to preview. Not available on some low-power devices.
+
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Photos
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {VIDEO_BACKGROUNDS.filter(bg => bg.kind === 'photo').map(bg => (
+                      <BackgroundSwatch
+                        key={bg.id}
+                        label={bg.label}
+                        active={background === bg.url}
+                        onClick={() => applyBackground({ url: bg.url }, bg.url)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={bg.url} alt={bg.label} className="h-full w-full object-cover" />
+                      </BackgroundSwatch>
+                    ))}
+                  </div>
+
+                  <p className="mt-3 text-[10px] text-slate-400">
+                    Turn your camera on to preview. Desktop only — not available on some low-power
+                    devices.
                   </p>
                 </PopoverContent>
               </Popover>

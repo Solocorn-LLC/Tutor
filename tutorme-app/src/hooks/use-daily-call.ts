@@ -106,6 +106,17 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
         })
       })
 
+      // A virtual-background processor can fail AFTER updateInputSettings resolves
+      // (model can't load, unsupported GPU) — it reports via this event, not the
+      // promise. Surface it so a background silently failing becomes visible.
+      // Cast: 'video-processor-error' isn't in daily-js's typed DailyEvent union
+      // in this version, but the runtime emits it.
+      ;(call as any).on('video-processor-error', (event: any) => {
+        const msg = event?.errorMsg || event?.error || 'Video background failed to apply.'
+        console.warn('[video] video-processor-error:', msg)
+        optionsRef.current.onError?.(new Error(String(msg)))
+      })
+
       call.on('recording-started', () => {
         setIsRecording(true)
         optionsRef.current.onRecordingStarted?.()
@@ -372,7 +383,18 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
         ? { type: 'none' as const }
         : bg === 'blur'
           ? { type: 'background-blur' as const, config: { strength: 0.6 } }
-          : { type: 'background-image' as const, config: { url: bg.url } }
+          : // Daily reads the image from config.source (a URL/ArrayBuffer). We
+            // previously passed config.url, which it ignored — so images silently
+            // never applied. Send an absolute same-origin URL so Daily can fetch it.
+            {
+              type: 'background-image' as const,
+              config: {
+                source:
+                  typeof window !== 'undefined'
+                    ? new URL(bg.url, window.location.origin).href
+                    : bg.url,
+              },
+            }
     await call.updateInputSettings({ video: { processor } })
   }, [])
 
