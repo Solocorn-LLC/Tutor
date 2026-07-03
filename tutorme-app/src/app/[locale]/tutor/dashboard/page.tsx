@@ -190,7 +190,11 @@ function TutorDashboardContent() {
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  const [scheduleCourse, setScheduleCourse] = useState<{
+    id: string
+    name: string
+    schedulerHref: string
+  } | null>(null)
   // Course context for creating a one-time (non-schedule) session from the sessions modal.
   const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
   // Course name + variant for the sessions modal (from the sessions API).
@@ -880,7 +884,16 @@ function TutorDashboardContent() {
                               size="sm"
                               className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-purple-500"
                               onClick={() =>
-                                setScheduleCourse({ id: course.id, name: course.name })
+                                setScheduleCourse({
+                                  id: course.id,
+                                  name: course.name,
+                                  // "New schedule" in the modal opens the main
+                                  // scheduler on the course-details page (template
+                                  // id, like the "Schedule sessions" link).
+                                  schedulerHref: withLocalePath(
+                                    `/tutor/courses/${course.templateCourseId ?? course.id}#course-schedule`
+                                  ),
+                                })
                               }
                             >
                               <CalendarClock className="mr-1 h-3 w-3" />
@@ -1314,7 +1327,7 @@ function TutorDashboardContent() {
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
-        canCreate
+        createHref={scheduleCourse?.schedulerHref}
         onClose={() => setScheduleCourse(null)}
       />
     </div>
