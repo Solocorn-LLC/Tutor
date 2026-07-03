@@ -650,7 +650,7 @@ export default function TutorSettings() {
 
       {/* Mode selector + tab content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
-        <Card className="flex h-full flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5">
+        <Card className="flex h-full flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-slate-50 p-5 ring-1 ring-black/5">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full flex-col">
             <div className="flex-shrink-0">
               <TabsList className="relative flex w-full gap-1.5 rounded-xl bg-[#1F2933] p-1.5">
