@@ -652,7 +652,7 @@ export default function TutorSettings() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
         <Card className="flex h-full flex-col overflow-hidden rounded-[16px] border-0 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full flex-col">
-            <TabsList className="grid w-full grid-cols-4 gap-1 bg-slate-100 p-1 sm:grid-cols-8">
+            <TabsList className="grid w-full grid-cols-4 gap-1 p-1 sm:grid-cols-8">
               <TabsTrigger value="profile" className="text-xs">
                 Profile
               </TabsTrigger>
