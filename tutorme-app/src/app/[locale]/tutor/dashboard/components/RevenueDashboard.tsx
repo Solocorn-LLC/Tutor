@@ -51,6 +51,7 @@ import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
 
 interface RevenueDashboardProps {
   compact?: boolean
+  embedded?: boolean
   defaultTab?: 'overview' | 'earnings' | 'courses' | 'analytics'
   externalEmailDialogOpen?: boolean
   onExternalEmailDialogChange?: (open: boolean) => void
@@ -166,6 +167,7 @@ function EmailStatementDialog({
 
 export function RevenueDashboard({
   compact = false,
+  embedded = false,
   defaultTab = 'overview',
   externalEmailDialogOpen,
   onExternalEmailDialogChange,
@@ -403,54 +405,64 @@ export function RevenueDashboard({
         )}
         style={themeStyle}
       >
-        {/* Dark charcoal header bar */}
-        <button
-          type="button"
-          onClick={() => setIsExpanded(prev => !prev)}
-          className="panel-header panel-header-metallic w-full text-left"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="panel-header-icon">
-                <DollarSign className="h-5 w-5 text-slate-900" />
+        {!embedded && (
+          <>
+            {/* Dark charcoal header bar */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded(prev => !prev)}
+              className="panel-header panel-header-metallic w-full text-left"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="panel-header-icon">
+                    <DollarSign className="h-5 w-5 text-slate-900" />
+                  </div>
+                  <div>
+                    <div className="panel-header-title">Revenue & Business</div>
+                  </div>
+                </div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                  {isExpanded ? (
+                    <ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                </div>
               </div>
-              <div>
-                <div className="panel-header-title">Revenue & Business</div>
-              </div>
-            </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-              {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            </div>
-          </div>
-        </button>
+            </button>
+          </>
+        )}
 
-        {isExpanded && (
+        {(isExpanded || embedded) && (
           <>
             {/* Action buttons row */}
-            <div className="flex items-center justify-end gap-1 border-b border-[#E5E7EB] px-4 py-2">
-              {!controlledThemeId && (
-                <Select value={themeId} onValueChange={setThemeId}>
-                  <SelectTrigger className="border-border bg-background text-foreground h-8 w-[140px] text-xs">
-                    <SelectValue placeholder="Theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DASHBOARD_THEMES.map(theme => (
-                      <SelectItem key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Button variant="ghost" size="sm" onClick={() => setShowEmailDialog(true)}>
-                <Mail className="mr-1 h-4 w-4" />
-                Email
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Download className="mr-1 h-4 w-4" />
-                Export
-              </Button>
-            </div>
+            {!embedded && (
+              <div className="flex items-center justify-end gap-1 border-b border-[#E5E7EB] px-4 py-2">
+                {!controlledThemeId && (
+                  <Select value={themeId} onValueChange={setThemeId}>
+                    <SelectTrigger className="border-border bg-background text-foreground h-8 w-[140px] text-xs">
+                      <SelectValue placeholder="Theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DASHBOARD_THEMES.map(theme => (
+                        <SelectItem key={theme.id} value={theme.id}>
+                          {theme.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setShowEmailDialog(true)}>
+                  <Mail className="mr-1 h-4 w-4" />
+                  Email
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Download className="mr-1 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            )}
 
             {/* Summary Cards */}
             <div className="mt-3 grid grid-cols-2 gap-3 px-4">
