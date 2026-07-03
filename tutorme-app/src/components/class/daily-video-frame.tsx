@@ -11,6 +11,7 @@ import {
   MonitorUp,
   PhoneOff,
   Settings2,
+  Upload,
   Users,
   Video,
   VideoOff,
@@ -134,22 +135,114 @@ export function DailyVideoFrame({
   const [videoInputId, setVideoInputId] = useState<string>('')
   const [audioOutputId, setAudioOutputId] = useState<string>('')
   const [isRefreshingDevices, setIsRefreshingDevices] = useState(false)
-  // Selected virtual background: 'none' | 'blur' | wallpaper url. Tutor only.
+  // Selected virtual background id: 'none' | 'blur' | a wallpaper url | 'custom'.
   const [background, setBackgroundId] = useState<string>('none')
   const [applyingBackground, setApplyingBackground] = useState(false)
   const [backgroundOpen, setBackgroundOpen] = useState(false)
-  const applyBackground = async (value: 'none' | 'blur' | { url: string }, id: string) => {
+  // The tutor's uploaded image, kept as a data URL for the thumbnail + to persist
+  // and re-apply across sessions.
+  const [customBg, setCustomBg] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const reappliedRef = useRef(false)
+
+  // Virtual backgrounds are a desktop-only Daily feature; on touch/mobile the
+  // processor won't apply, so we tell the tutor rather than fail silently.
+  const isMobileDevice =
+    typeof navigator !== 'undefined' &&
+    (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches))
+
+  const applyBackground = async (
+    value: 'none' | 'blur' | { url: string } | { source: ArrayBuffer },
+    id: string,
+    customDataUrl?: string
+  ) => {
     setApplyingBackground(true)
     try {
       await setBackground(value)
       setBackgroundId(id)
+      // Persist the choice so it survives rejoin (background used to reset on
+      // every join). Custom images are stored as a data URL (passed in, since
+      // customBg state may not have flushed yet on first upload).
+      try {
+        if (id === 'none' || id === 'blur') {
+          localStorage.setItem('tutor-video-bg', JSON.stringify({ type: id }))
+        } else if (id === 'custom' && customDataUrl) {
+          localStorage.setItem(
+            'tutor-video-bg',
+            JSON.stringify({ type: 'custom', dataUrl: customDataUrl })
+          )
+        } else if (id !== 'custom') {
+          localStorage.setItem('tutor-video-bg', JSON.stringify({ type: 'builtin', url: id }))
+        }
+      } catch {
+        /* storage may be unavailable */
+      }
     } catch (err) {
       console.warn('[video] background effect failed:', err)
-      toast.error("Backgrounds aren't supported on this device/browser.")
+      toast.error(
+        isMobileDevice
+          ? 'Virtual backgrounds are available on desktop only.'
+          : "Backgrounds aren't supported on this device/browser."
+      )
     } finally {
       setApplyingBackground(false)
     }
   }
+
+  // Read an uploaded image, apply it, and remember it as the custom background.
+  const handleUploadBackground = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image is too large (max 5 MB).')
+      return
+    }
+    const buf = await file.arrayBuffer()
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result))
+      r.onerror = reject
+      r.readAsDataURL(file)
+    })
+    setCustomBg(dataUrl)
+    await applyBackground({ source: buf }, 'custom', dataUrl)
+  }
+
+  // Re-apply the tutor's saved background once, after joining (so it's active
+  // before they turn their camera on). Desktop only.
+  useEffect(() => {
+    if (!isTutor || isMobileDevice || !isJoined || !call || reappliedRef.current) return
+    reappliedRef.current = true
+    let saved: { type?: string; url?: string; dataUrl?: string } | null = null
+    try {
+      const raw = localStorage.getItem('tutor-video-bg')
+      saved = raw ? JSON.parse(raw) : null
+    } catch {
+      saved = null
+    }
+    if (!saved || saved.type === 'none') return
+    void (async () => {
+      try {
+        if (saved.type === 'blur') {
+          await setBackground('blur')
+          setBackgroundId('blur')
+        } else if (saved.type === 'builtin' && saved.url) {
+          await setBackground({ url: saved.url })
+          setBackgroundId(saved.url)
+        } else if (saved.type === 'custom' && saved.dataUrl) {
+          const buf = await (await fetch(saved.dataUrl)).arrayBuffer()
+          setCustomBg(saved.dataUrl)
+          await setBackground({ source: buf })
+          setBackgroundId('custom')
+        }
+      } catch {
+        /* ignore reapply failures */
+      }
+    })()
+  }, [isTutor, isMobileDevice, isJoined, call, setBackground])
 
   useEffect(() => {
     if (!call) return
@@ -667,9 +760,48 @@ export function DailyVideoFrame({
                     ))}
                   </div>
 
+                  <div className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Your own
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {customBg && (
+                      <BackgroundSwatch
+                        label="Your image"
+                        active={background === 'custom'}
+                        onClick={async () => {
+                          const buf = await (await fetch(customBg)).arrayBuffer()
+                          await applyBackground({ source: buf }, 'custom', customBg)
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={customBg} alt="Custom" className="h-full w-full object-cover" />
+                      </BackgroundSwatch>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex aspect-video flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed border-slate-300 text-[10px] font-medium text-slate-500 transition-colors hover:border-indigo-400 hover:text-indigo-600"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </button>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) void handleUploadBackground(file)
+                    }}
+                  />
+
                   <p className="mt-3 text-[10px] text-slate-400">
-                    Turn your camera on to preview. Desktop only — not available on some low-power
-                    devices.
+                    {isMobileDevice
+                      ? 'Virtual backgrounds are available on desktop only.'
+                      : 'Turn your camera on to preview. Desktop only — not available on some low-power devices.'}
                   </p>
                 </PopoverContent>
               </Popover>

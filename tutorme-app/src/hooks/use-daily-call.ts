@@ -372,31 +372,36 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
     setState(prev => ({ ...prev, isVideoEnabled: newState }))
   }, [state.isJoined, state.isVideoEnabled, state.isAudioEnabled])
 
-  // Virtual background: 'none' | 'blur' | a wallpaper image URL. Applied via
-  // Daily's video input processor (segmentation runs client-side). Rejections
-  // (unsupported browser/GPU) are surfaced to the caller.
-  const setBackground = useCallback(async (bg: 'none' | 'blur' | { url: string }) => {
-    const call = callRef.current
-    if (!call) return
-    const processor =
-      bg === 'none'
-        ? { type: 'none' as const }
-        : bg === 'blur'
-          ? { type: 'background-blur' as const, config: { strength: 0.6 } }
-          : // Daily reads the image from config.source (a URL/ArrayBuffer). We
-            // previously passed config.url, which it ignored — so images silently
-            // never applied. Send an absolute same-origin URL so Daily can fetch it.
-            {
-              type: 'background-image' as const,
-              config: {
-                source:
-                  typeof window !== 'undefined'
-                    ? new URL(bg.url, window.location.origin).href
-                    : bg.url,
-              },
-            }
-    await call.updateInputSettings({ video: { processor } })
-  }, [])
+  // Virtual background. Applied via Daily's video input processor (segmentation
+  // runs client-side; desktop only). Accepts:
+  //   'none' | 'blur' | { url } (built-in same-origin image) | { source } (an
+  //   uploaded image as an ArrayBuffer). Rejections are surfaced to the caller.
+  const setBackground = useCallback(
+    async (bg: 'none' | 'blur' | { url: string } | { source: ArrayBuffer }) => {
+      const call = callRef.current
+      if (!call) return
+      let processor
+      if (bg === 'none') {
+        processor = { type: 'none' as const }
+      } else if (bg === 'blur') {
+        processor = { type: 'background-blur' as const, config: { strength: 0.6 } }
+      } else {
+        // Daily reads the image from config.source (a URL/ArrayBuffer). We
+        // previously passed config.url, which it ignored — so images silently
+        // never applied. Built-ins use an absolute same-origin URL; uploads pass
+        // the raw ArrayBuffer.
+        const source =
+          'source' in bg
+            ? bg.source
+            : typeof window !== 'undefined'
+              ? new URL(bg.url, window.location.origin).href
+              : bg.url
+        processor = { type: 'background-image' as const, config: { source } }
+      }
+      await call.updateInputSettings({ video: { processor } })
+    },
+    []
+  )
 
   const startScreenShare = useCallback(() => {
     const call = callRef.current
