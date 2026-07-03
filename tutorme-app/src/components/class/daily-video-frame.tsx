@@ -31,6 +31,9 @@ interface DailyVideoFrameProps {
   className?: string
   autoRecord?: boolean
   floating?: boolean
+  /** Tutor view: students don't broadcast video, so show them as avatar tiles
+   *  (not video). Student view stays full-bleed video of the broadcaster. */
+  isTutor?: boolean
 }
 
 export function DailyVideoFrame({
@@ -39,6 +42,7 @@ export function DailyVideoFrame({
   className,
   autoRecord,
   floating = false,
+  isTutor = false,
 }: DailyVideoFrameProps) {
   const {
     call,
@@ -219,7 +223,19 @@ export function DailyVideoFrame({
     return null
   }, [dailyParticipants])
 
-  const mainTile = screenShareParticipant ?? remoteParticipants[0] ?? localParticipant ?? null
+  // The full-bleed tile is whoever is actually broadcasting: a screen share, else
+  // the first remote participant WITH a live camera (e.g. the tutor), else any
+  // remote, else self. Preferring a video-bearing participant keeps a student's
+  // full-screen view on the broadcaster instead of a blank avatar.
+  const remoteWithVideo = useMemo(
+    () => remoteParticipants.find((p: any) => p?.tracks?.video?.state === 'playable'),
+    [remoteParticipants]
+  )
+  const mainTile =
+    screenShareParticipant ?? remoteWithVideo ?? remoteParticipants[0] ?? localParticipant ?? null
+
+  // Self-view: your own camera, shown as a small picture-in-picture (both roles).
+  const selfHasVideo = (localParticipant as any)?.tracks?.video?.state === 'playable'
 
   const [frame, setFrame] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const outerRef = useRef<HTMLDivElement>(null)
@@ -458,47 +474,67 @@ export function DailyVideoFrame({
           <span>{Math.max(1, dailyParticipants.length)}</span>
         </div>
 
-        <div className="relative min-h-0 flex-1 p-3">
-          <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[1fr_260px]">
-            <div className="relative min-h-0 overflow-hidden rounded-2xl bg-slate-950">
-              {mainTile ? (
-                <ParticipantMediaTile
-                  participant={mainTile}
-                  mode={screenShareParticipant ? 'screen' : 'camera'}
-                  isActiveSpeaker={activeSpeakerId === (mainTile as any)?.session_id}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-white/70">
-                  Waiting for participants...
-                </div>
-              )}
-            </div>
-
-            <div className="min-h-0 overflow-hidden rounded-2xl bg-slate-950/70">
-              <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs font-semibold text-white/80">
-                <span>Participants</span>
-                <span>{Math.max(1, dailyParticipants.length)}</span>
+        {/* MAIN CONTENT — full-bleed. Student: video of the broadcaster fills the
+            area, everything else overlays. Tutor: a grid of STUDENT AVATARS
+            (students don't broadcast video), unless the tutor is screen-sharing. */}
+        <div className="absolute inset-0 bg-slate-950">
+          {isTutor ? (
+            screenShareParticipant ? (
+              <ParticipantMediaTile
+                participant={screenShareParticipant}
+                mode="screen"
+                isActiveSpeaker={false}
+              />
+            ) : remoteParticipants.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-white/60">
+                Waiting for students to join…
               </div>
-              <div className="h-full overflow-auto p-2">
-                <div className="grid grid-cols-1 gap-2">
-                  {localParticipant && (
-                    <ParticipantRow participant={localParticipant} label="You" />
-                  )}
-                  {remoteParticipants.map((p: any) => (
-                    <ParticipantRow key={p.session_id} participant={p} />
-                  ))}
-                </div>
+            ) : (
+              <div className="grid h-full auto-rows-fr grid-cols-2 gap-3 overflow-auto p-3 pb-20 pt-12 sm:grid-cols-3 md:grid-cols-4">
+                {remoteParticipants.map((p: any) => (
+                  <StudentAvatarTile
+                    key={p.session_id}
+                    participant={p}
+                    isActiveSpeaker={activeSpeakerId === p?.session_id}
+                  />
+                ))}
               </div>
+            )
+          ) : mainTile ? (
+            <ParticipantMediaTile
+              participant={mainTile}
+              mode={screenShareParticipant ? 'screen' : 'camera'}
+              isActiveSpeaker={activeSpeakerId === (mainTile as any)?.session_id}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-white/70">
+              Waiting for the tutor…
             </div>
-          </div>
-
-          {remoteParticipants.map((p: any) => (
-            <ParticipantAudio key={`${p.session_id}-audio`} participant={p} />
-          ))}
+          )}
         </div>
 
-        <div className="relative z-10 border-t border-white/10 bg-black/80 px-3 py-2 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        {/* Self-view PiP — your own camera, a small floating corner tile. */}
+        {selfHasVideo && localParticipant && (
+          <div className="absolute right-3 top-14 z-20 h-24 w-32 overflow-hidden rounded-xl border border-white/25 bg-slate-900 shadow-lg">
+            <ParticipantMediaTile
+              participant={localParticipant}
+              mode="camera"
+              isActiveSpeaker={false}
+            />
+            <div className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              You
+            </div>
+          </div>
+        )}
+
+        {/* Remote audio — always mounted regardless of layout. */}
+        {remoteParticipants.map((p: any) => (
+          <ParticipantAudio key={`${p.session_id}-audio`} participant={p} />
+        ))}
+
+        {/* OVERLAY: floating controls pill, centered at the bottom. */}
+        <div className="absolute inset-x-0 bottom-3 z-30 flex justify-center px-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-full bg-black/70 px-3 py-2 shadow-lg backdrop-blur">
             <ControlButton
               onClick={toggleAudio}
               active={isAudioEnabled}
@@ -732,25 +768,38 @@ function ParticipantMediaTile({
   )
 }
 
-function ParticipantRow({ participant, label }: { participant: any; label?: string }) {
-  const name = participant?.user_name || participant?.user_id || 'Participant'
+/** Avatar card for a student on the tutor's side (students don't broadcast
+ *  video, so we show initials + name + mic/hand status rather than a video). */
+function StudentAvatarTile({
+  participant,
+  isActiveSpeaker,
+}: {
+  participant: any
+  isActiveSpeaker: boolean
+}) {
+  const name = participant?.user_name || participant?.user_id || 'Student'
   const isMuted = !participant?.audio
-  const isCamOff = !participant?.video
-  const isSharing = !!participant?.screen
+  const initials = String(name)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x: string) => x[0]?.toUpperCase())
+    .join('')
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-white">
-          {label ? `${label} · ${name}` : name}
-        </div>
-        <div className="mt-0.5 text-xs text-white/60">
-          {isSharing ? 'Sharing screen' : 'In call'}
-        </div>
+    <div
+      className={`relative flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-2xl border bg-slate-900 p-3 transition-colors ${
+        isActiveSpeaker ? 'border-emerald-400 ring-1 ring-emerald-400/60' : 'border-white/10'
+      }`}
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-xl font-semibold text-white">
+        {initials || '?'}
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-white/70">
-        {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        {isCamOff ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+      <div className="max-w-full truncate text-center text-xs font-medium text-white/90">
+        {name}
+      </div>
+      <div className="absolute right-2 top-2 text-white/70">
+        {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4 text-emerald-400" />}
       </div>
     </div>
   )
