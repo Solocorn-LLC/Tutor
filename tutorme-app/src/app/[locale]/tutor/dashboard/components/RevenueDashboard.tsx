@@ -479,7 +479,7 @@ export function RevenueDashboard({
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab as any} className="mt-4 px-4">
-              <TabsList className="bg-muted grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-4 bg-white">
                 <TabsTrigger value="overview" className="text-xs">
                   Overview
                 </TabsTrigger>
@@ -496,8 +496,8 @@ export function RevenueDashboard({
             </Tabs>
 
             <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[calc(100%-180px)]">
-                <div className="px-4 pb-4">
+              <ScrollArea className="h-full">
+                <div className="px-4 pb-4 pt-4">
                   {activeTab === 'overview' && (
                     <div className="space-y-4">
                       {/* Key Metrics */}
