@@ -102,7 +102,12 @@ export async function GET(
 
     // Existing submission (if any) for this student
     const [existing] = await drizzleDb
-      .select({ score: taskSubmission.score, status: taskSubmission.status })
+      .select({
+        score: taskSubmission.score,
+        status: taskSubmission.status,
+        tutorApproved: taskSubmission.tutorApproved,
+        tutorFeedback: taskSubmission.tutorFeedback,
+      })
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
       .limit(1)
@@ -140,6 +145,10 @@ export async function GET(
     return NextResponse.json({
       alreadySubmitted: existing != null,
       existingScore: existing?.score ?? null,
+      // Whether the tutor has finalized the grade (vs the automatic provisional
+      // score). Lets the student see "graded by your tutor" + any feedback.
+      existingGraded: existing?.status === 'graded' || existing?.tutorApproved === true,
+      existingFeedback: existing?.tutorFeedback ?? null,
       task: {
         id: task.taskId,
         title: task.title,

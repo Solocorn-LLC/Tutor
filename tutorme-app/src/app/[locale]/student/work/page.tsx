@@ -132,7 +132,12 @@ function AssignmentsTab() {
       }
       const data = await res.json()
       if (data.alreadySubmitted) {
-        toast.info(`Already submitted. Score: ${data.existingScore ?? 'N/A'}%`)
+        const scoreTxt = data.existingScore != null ? `${Math.round(data.existingScore)}%` : 'N/A'
+        toast.info(
+          data.existingGraded
+            ? `Graded by your tutor: ${scoreTxt}${data.existingFeedback ? ` — ${data.existingFeedback}` : ''}`
+            : `Submitted — provisional score ${scoreTxt} (auto-graded; awaiting your tutor).`
+        )
         return
       }
       setActiveTask({
