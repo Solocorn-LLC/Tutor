@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 import { scrollElementIntoView } from '@/lib/scroll-into-view'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
@@ -28,6 +29,20 @@ export function PWAInstallPrompt() {
 
     // Register service worker
     if ('serviceWorker' in navigator) {
+      // Show a one-time "new version" prompt when a fresh SW installs while an
+      // older one already controls the page (i.e. a deploy happened). Without it,
+      // an open tab keeps running the OLD cached JS until a manual reload — which
+      // is exactly why fixes looked "not deployed" after a release. We never
+      // auto-reload (a live session / unsaved work must not be interrupted) — the
+      // user chooses when to refresh.
+      const promptUpdate = () => {
+        toast('A new version is available.', {
+          description: 'Refresh to get the latest updates.',
+          duration: Infinity,
+          action: { label: 'Refresh', onClick: () => window.location.reload() },
+        })
+      }
+
       navigator.serviceWorker
         .register('/sw.js', { scope: '/', updateViaCache: 'none' })
         .then(registration => {
@@ -35,10 +50,30 @@ export function PWAInstallPrompt() {
             // Service worker update check failed - non-critical
           })
           registration.waiting?.postMessage({ type: 'SKIP-WAITING' })
+          // A new worker is installing — prompt once it's installed, but only if
+          // a controller already exists (an update, not the first-ever install).
+          registration.addEventListener('updatefound', () => {
+            const installing = registration.installing
+            if (!installing) return
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                promptUpdate()
+              }
+            })
+          })
         })
         .catch(() => {
           // Service worker registration failed - PWA features unavailable
         })
+
+      // Re-check for a new SW when the tab regains focus, so a long-lived tab
+      // picks up a deploy without waiting for the next navigation.
+      const checkForUpdate = () => {
+        if (document.visibilityState === 'visible') {
+          navigator.serviceWorker.getRegistration().then(reg => reg?.update().catch(() => {}))
+        }
+      }
+      document.addEventListener('visibilitychange', checkForUpdate)
     }
 
     // Trigger offline sync when coming back online
