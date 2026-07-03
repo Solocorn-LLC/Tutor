@@ -229,9 +229,24 @@ export function useDailyCall(options: UseDailyCallOptions = {}) {
         }))
       } catch (error) {
         console.error('Daily join error:', error)
-        const message = error instanceof Error ? error.message : 'Failed to join video call'
+        // Daily rejects join() with a plain object ({ action, errorMsg, error }),
+        // NOT an Error — so `error.message` was empty and users only ever saw the
+        // generic fallback. Pull out Daily's real reason (e.g. "Meeting token is
+        // invalid", "not allowed", "does not exist") so the actual cause shows.
+        const daily = error as {
+          errorMsg?: string | { errorMsg?: string }
+          error?: { localizedMsg?: string; msg?: string; type?: string }
+        }
+        const dailyMsg =
+          (typeof daily?.errorMsg === 'string' && daily.errorMsg) ||
+          (typeof daily?.errorMsg === 'object' && daily.errorMsg?.errorMsg) ||
+          daily?.error?.localizedMsg ||
+          daily?.error?.msg ||
+          (error instanceof Error ? error.message : '')
+        const message = dailyMsg || 'Failed to join video call'
         Sentry.captureException(error instanceof Error ? error : new Error(message), {
           tags: { feature: 'live-video', phase: 'join' },
+          extra: { joinedUrl: url, hasToken: !!token },
         })
         // Tear the errored call object down so the next Retry rebuilds a clean
         // instance instead of re-joining a dead one (which always fails).
