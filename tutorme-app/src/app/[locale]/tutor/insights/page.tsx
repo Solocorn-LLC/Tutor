@@ -1159,6 +1159,14 @@ function TutorInsightsPageInner() {
   }
 
   if (!courseId) {
+    // If a sessionId is in the URL, we're still resolving the linked course — show spinner
+    if (searchParams.get('sessionId')) {
+      return (
+        <div className="flex h-full w-full flex-1 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="p-6">
