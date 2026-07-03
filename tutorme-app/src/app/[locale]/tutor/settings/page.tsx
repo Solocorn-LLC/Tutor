@@ -70,7 +70,7 @@ const LANGUAGES = [
 ]
 
 const SECTION_CARD_CLASS =
-  'overflow-hidden bg-white rounded-[16px] border border-slate-200 shadow-sm'
+  'overflow-hidden bg-white rounded-[16px] shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
 
 interface PaymentMethod {
   id: string
@@ -650,7 +650,7 @@ export default function TutorSettings() {
 
       {/* Mode selector + tab content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
-        <Card className="flex h-full flex-col overflow-hidden rounded-[16px] border-0 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+        <Card className="flex h-full flex-col overflow-hidden rounded-[16px] border-0 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full flex-col">
             <div className="flex-shrink-0 p-4">
               <TabsList className="relative flex w-full gap-1.5 rounded-xl bg-[#1F2933] p-1.5">
