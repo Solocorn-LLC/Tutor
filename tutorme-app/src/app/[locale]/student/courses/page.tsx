@@ -114,6 +114,8 @@ interface SessionItem {
   status: 'scheduled' | 'active' | 'ended' | 'upcoming' | 'opening_soon'
   durationMinutes?: number
   tutorName?: string
+  lessonTitle?: string | null
+  lessonNumber?: number | null
 }
 
 function getSessionStatus(scheduledAt: string, existingStatus?: string): SessionItem['status'] {
@@ -194,7 +196,7 @@ function SessionList({
             className="flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center"
           >
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h4 className="truncate font-semibold text-gray-900">{session.title}</h4>
                 <span
                   className={cn(
@@ -204,6 +206,13 @@ function SessionList({
                 >
                   {status.replace('_', ' ')}
                 </span>
+                {session.lessonTitle && (
+                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                    {session.lessonNumber
+                      ? `Lesson ${session.lessonNumber}: ${session.lessonTitle}`
+                      : session.lessonTitle}
+                  </span>
+                )}
               </div>
               {session.scheduledAt && (
                 <div className="flex items-center text-sm text-gray-500">

@@ -476,6 +476,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       isStudentView = false,
       onSyncToLiveSession,
       onUnsyncedChangesChange,
+      focusLessonId,
     },
     ref
   ) {
@@ -578,6 +579,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [expandedCourseBuilderNodes, setExpandedCourseBuilderNodes] = useState<Set<string>>(
       new Set()
     )
+
+    // When a live session is opened with an assigned lesson, expand + scroll to
+    // that lesson exactly once (the existing expand→scroll effect handles the
+    // scroll). Guarded by a ref so a tutor's later manual collapse isn't undone.
+    const didFocusLessonRef = useRef(false)
+    useEffect(() => {
+      if (didFocusLessonRef.current) return
+      if (!focusLessonId || mainTab !== 'live' || nodes.length === 0) return
+      const target = nodes.find(
+        n => n.id === focusLessonId || n.lessons.some(l => l.id === focusLessonId)
+      )
+      if (!target) return
+      didFocusLessonRef.current = true
+      setExpandedCourseBuilderNodes(prev => new Set(prev).add(target.id))
+    }, [focusLessonId, mainTab, nodes])
+
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedItem, setSelectedItem] = useState<{ type: string; id: string } | null>(null)
     const [outlineModalOpen, setOutlineModalOpen] = useState(false)

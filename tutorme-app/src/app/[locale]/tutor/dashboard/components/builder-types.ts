@@ -430,6 +430,11 @@ export interface CourseBuilderProps {
   isStudentView?: boolean
   onSyncToLiveSession?: (silent?: boolean) => void
   onUnsyncedChangesChange?: (hasUnsynced: boolean) => void
+  /**
+   * When a live session is opened with an assigned lesson, expand and scroll to
+   * that lesson once on mount. Value is the lesson id (courseLesson.lessonId).
+   */
+  focusLessonId?: string | null
 }
 
 export interface CourseBuilderRef {

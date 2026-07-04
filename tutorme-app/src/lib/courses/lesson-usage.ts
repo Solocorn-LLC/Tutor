@@ -53,6 +53,60 @@ async function resolveCourseFamily(courseId: string): Promise<string[]> {
  * Count deployed material for each of the given lessons, following the
  * template→published `order` correlation described above.
  */
+/**
+ * Pure core of the usage computation: given the target lesson ids, every lesson
+ * in the course family (with its `order`), and the lesson ids referenced by
+ * deployed material, compute per-target deployment counts using the
+ * `order`-based template↔published correlation.
+ *
+ * Kept DB-free so it can be unit-tested without a database.
+ */
+export function computeLessonUsage(
+  targetLessonIds: string[],
+  familyLessons: Array<{ lessonId: string; order: number }>,
+  deployedLessonIds: Array<string | null | undefined>
+): Record<string, LessonUsage> {
+  const uniqueIds = Array.from(new Set(targetLessonIds.filter(Boolean)))
+  if (uniqueIds.length === 0) return {}
+
+  const orderByLessonId = new Map(familyLessons.map(l => [l.lessonId, l.order]))
+  const lessonIdsByOrder = new Map<number, string[]>()
+  for (const l of familyLessons) {
+    const list = lessonIdsByOrder.get(l.order) ?? []
+    list.push(l.lessonId)
+    lessonIdsByOrder.set(l.order, list)
+  }
+
+  // For each target lesson, the correlated id set = every family lesson at the
+  // same order, plus the target id itself (covers a not-yet-persisted lesson).
+  const correlatedByTarget = new Map<string, string[]>()
+  for (const id of uniqueIds) {
+    const order = orderByLessonId.get(id)
+    const correlated = new Set<string>([id])
+    if (order !== undefined) {
+      for (const cid of lessonIdsByOrder.get(order) ?? []) correlated.add(cid)
+    }
+    correlatedByTarget.set(id, Array.from(correlated))
+  }
+
+  const deployCountByLessonId = new Map<string, number>()
+  for (const lessonId of deployedLessonIds) {
+    if (!lessonId) continue
+    deployCountByLessonId.set(lessonId, (deployCountByLessonId.get(lessonId) ?? 0) + 1)
+  }
+
+  const result: Record<string, LessonUsage> = {}
+  for (const id of uniqueIds) {
+    const correlated = correlatedByTarget.get(id) ?? [id]
+    const deployedCount = correlated.reduce(
+      (sum, cid) => sum + (deployCountByLessonId.get(cid) ?? 0),
+      0
+    )
+    result[id] = { lessonId: id, deployedCount, hasDeployments: deployedCount > 0 }
+  }
+  return result
+}
+
 export async function getLessonUsage(
   courseId: string,
   lessonIds: string[]
@@ -72,26 +126,23 @@ export async function getLessonUsage(
     .from(courseLesson)
     .where(and(inArray(courseLesson.courseId, familyIds), isNull(courseLesson.deletedAt)))
 
-  const orderByLessonId = new Map(familyLessons.map(l => [l.lessonId, l.order]))
-  const lessonIdsByOrder = new Map<number, string[]>()
-  for (const l of familyLessons) {
-    const list = lessonIdsByOrder.get(l.order) ?? []
-    list.push(l.lessonId)
-    lessonIdsByOrder.set(l.order, list)
-  }
-
-  // For each target lesson, the correlated id set = every family lesson at the
-  // same order, plus the target id itself (covers a not-yet-persisted lesson).
-  const correlatedByTarget = new Map<string, string[]>()
+  // Every id that could be referenced by deployed material.
   const allCorrelated = new Set<string>()
-  for (const id of uniqueIds) {
-    const order = orderByLessonId.get(id)
-    const correlated = new Set<string>([id])
-    if (order !== undefined) {
-      for (const cid of lessonIdsByOrder.get(order) ?? []) correlated.add(cid)
+  {
+    const orderByLessonId = new Map(familyLessons.map(l => [l.lessonId, l.order]))
+    const lessonIdsByOrder = new Map<number, string[]>()
+    for (const l of familyLessons) {
+      const list = lessonIdsByOrder.get(l.order) ?? []
+      list.push(l.lessonId)
+      lessonIdsByOrder.set(l.order, list)
     }
-    correlatedByTarget.set(id, Array.from(correlated))
-    correlated.forEach(cid => allCorrelated.add(cid))
+    for (const id of uniqueIds) {
+      allCorrelated.add(id)
+      const order = orderByLessonId.get(id)
+      if (order !== undefined) {
+        for (const cid of lessonIdsByOrder.get(order) ?? []) allCorrelated.add(cid)
+      }
+    }
   }
 
   // One query for every potentially-referenced lesson id.
@@ -103,20 +154,9 @@ export async function getLessonUsage(
           .from(deployedMaterial)
           .where(inArray(deployedMaterial.lessonId, Array.from(allCorrelated)))
 
-  const deployCountByLessonId = new Map<string, number>()
-  for (const row of deployRows) {
-    if (!row.lessonId) continue
-    deployCountByLessonId.set(row.lessonId, (deployCountByLessonId.get(row.lessonId) ?? 0) + 1)
-  }
-
-  const result: Record<string, LessonUsage> = {}
-  for (const id of uniqueIds) {
-    const correlated = correlatedByTarget.get(id) ?? [id]
-    const deployedCount = correlated.reduce(
-      (sum, cid) => sum + (deployCountByLessonId.get(cid) ?? 0),
-      0
-    )
-    result[id] = { lessonId: id, deployedCount, hasDeployments: deployedCount > 0 }
-  }
-  return result
+  return computeLessonUsage(
+    uniqueIds,
+    familyLessons,
+    deployRows.map(r => r.lessonId)
+  )
 }

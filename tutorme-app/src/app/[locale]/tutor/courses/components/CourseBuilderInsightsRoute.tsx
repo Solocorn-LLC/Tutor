@@ -1119,6 +1119,9 @@ function CourseBuilderInsightsRouteInner({
               onSaveModeChange={onSaveModeChange}
               onSyncToLiveSession={onSyncToLiveSession}
               onUnsyncedChangesChange={setHasUnsyncedChanges}
+              focusLessonId={
+                isClassroomMode ? (searchParams.get('lessonId') ?? undefined) : undefined
+              }
             />
           </PanelErrorBoundary>
         )}
