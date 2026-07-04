@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
-import { CourseBuilderService } from '@/lib/services/course-builder.service'
+import { CourseBuilderService, LESSON_DEPLOYED_ERROR } from '@/lib/services/course-builder.service'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseVariant } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
@@ -105,10 +105,13 @@ export const PUT = withCsrf(
 
             for (const sibling of siblingVariants) {
               if (sibling.publishedCourseId === courseId) continue
+              // Propagation wholesale re-syncs the sibling's lessons; it isn't a
+              // user deletion, so it keeps its existing behavior (guard skipped).
               await CourseBuilderService.updateCourseBuilderData(
                 sibling.publishedCourseId,
                 userId,
-                lessons
+                lessons,
+                { guardDeletions: false }
               )
             }
           }
@@ -123,6 +126,12 @@ export const PUT = withCsrf(
         }
         if (error.message.includes('Invalid payload')) {
           return NextResponse.json({ error: '`lessons` must be an array' }, { status: 400 })
+        }
+        if (error.message.includes(LESSON_DEPLOYED_ERROR)) {
+          return NextResponse.json(
+            { error: error.message.replace(`${LESSON_DEPLOYED_ERROR}: `, '') },
+            { status: 409 }
+          )
         }
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
       }

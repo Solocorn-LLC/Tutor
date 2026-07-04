@@ -4,6 +4,10 @@ import { eq, and, inArray, asc } from 'drizzle-orm'
 import crypto from 'crypto'
 import { removeFile } from '@/lib/storage/service'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
+import { getLessonUsage } from '@/lib/courses/lesson-usage'
+
+/** Thrown when a save would hard-delete a lesson that has deployed material. */
+export const LESSON_DEPLOYED_ERROR = 'LESSON_HAS_DEPLOYMENTS'
 
 export interface BuilderLessonMedia {
   videos: unknown[]
@@ -206,8 +210,17 @@ export class CourseBuilderService {
   static async updateCourseBuilderData(
     courseId: string,
     userId: string,
-    lessons: unknown
+    lessons: unknown,
+    options?: {
+      /**
+       * Reject the save if it would hard-delete a lesson that has deployed
+       * material. Defaults to true. Set false for variant-propagation, which
+       * wholesale re-syncs a sibling's lessons and is not a user deletion.
+       */
+      guardDeletions?: boolean
+    }
   ): Promise<void> {
+    const guardDeletions = options?.guardDeletions ?? true
     // Verify ownership
     const [courseRow] = await drizzleDb
       .select({ courseId: course.courseId })
@@ -255,6 +268,20 @@ export class CourseBuilderService {
       const idsToDelete = [...existingLessonIds].filter(id => !incomingLessonIds.has(id))
 
       if (idsToDelete.length > 0) {
+        // Server-side enforcement of the delete guard (the builder blocks this
+        // client-side, but a direct save must not slip a deployed lesson
+        // through). DeployedMaterial.lessonId has no FK cascade, so hard-
+        // deleting a deployed lesson would leave dangling references.
+        if (guardDeletions) {
+          const usage = await getLessonUsage(courseId, idsToDelete)
+          const blocked = idsToDelete.filter(id => usage[id]?.hasDeployments)
+          if (blocked.length > 0) {
+            throw new Error(
+              `${LESSON_DEPLOYED_ERROR}: cannot delete ${blocked.length} lesson(s) with material ` +
+                `deployed from them in a class. Remove or reassign the deployed tasks/assessments first.`
+            )
+          }
+        }
         await tx.delete(courseLesson).where(inArray(courseLesson.lessonId, idsToDelete))
       }
 
