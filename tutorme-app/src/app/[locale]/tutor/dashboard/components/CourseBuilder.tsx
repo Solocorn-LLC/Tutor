@@ -1387,7 +1387,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setExtractedTextFontSize = (val: number) => {
       if (activeItemId) setExtractedTextFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
     }
-    const activeInsightsTaskId = mainBuilderTab === 'assessment' ? loadedAssessmentId : loadedTaskId
+    // In the LIVE view the poll/question composer targets this task. When no
+    // task is loaded in the builder (the common case — the tutor is just running
+    // the live session), fall back to the most-recently-deployed live task so the
+    // composer has a real target and the Send button isn't permanently disabled.
+    const loadedInsightsTaskId = mainBuilderTab === 'assessment' ? loadedAssessmentId : loadedTaskId
+    const activeInsightsTaskId =
+      loadedInsightsTaskId ??
+      (mainTab === 'live'
+        ? (insightsProps?.liveTasks?.[insightsProps.liveTasks.length - 1]?.id ?? null)
+        : null)
     const activeInsightsTask = activeInsightsTaskId
       ? (nodes
           .flatMap(n => n.lessons.flatMap(l => [...l.tasks, ...(l.homework || [])]))
