@@ -161,6 +161,15 @@ type CourseSession = {
   /** Display name of the linked schedule, e.g. "Schedule 1" (null for one-time). */
   scheduleName?: string | null
   durationMinutes?: number
+  /** The lesson this session covers (auto-assigned on publish, tutor-editable). */
+  lessonId?: string | null
+  lessonTitle?: string | null
+}
+
+type CourseLessonOption = {
+  id: string
+  title: string
+  order: number
 }
 
 type OneOnOneRequest = {
@@ -232,6 +241,8 @@ function TutorDashboardContent() {
     null
   )
   const [courseSessions, setCourseSessions] = useState<CourseSession[]>([])
+  const [courseLessonOptions, setCourseLessonOptions] = useState<CourseLessonOption[]>([])
+  const [savingLessonSessionId, setSavingLessonSessionId] = useState<string | null>(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const loadingSessionsRef = useRef(false)
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null)
@@ -472,6 +483,7 @@ function TutorDashboardContent() {
     setSelectedCourseForCancel(course)
     setCancelModalOpen(true)
     setCourseSessions([])
+    setCourseLessonOptions([])
     setSessionLoadError(null)
     setLoadingSessions(true)
 
@@ -482,6 +494,7 @@ function TutorDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setCourseSessions(data.sessions || [])
+        setCourseLessonOptions(data.lessons || [])
         setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
       } else {
         const errData = await res.json().catch(() => ({}))
@@ -571,6 +584,56 @@ function TutorDashboardContent() {
       setCancellingSessionId(null)
     }
   }, [])
+
+  const handleAssignLesson = useCallback(
+    async (sessionId: string, lessonId: string) => {
+      const nextLessonId = lessonId || null
+      // Optimistic update so the picker feels instant.
+      const prevSessions = courseSessions
+      setSavingLessonSessionId(sessionId)
+      setCourseSessions(prev =>
+        prev.map(s =>
+          s.id === sessionId
+            ? {
+                ...s,
+                lessonId: nextLessonId,
+                lessonTitle: courseLessonOptions.find(l => l.id === nextLessonId)?.title ?? null,
+              }
+            : s
+        )
+      )
+
+      try {
+        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        const csrfData = await csrfRes.json().catch(() => ({}))
+        const csrfToken = csrfData?.token ?? null
+
+        const res = await fetch(`/api/tutor/sessions/${sessionId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'set-lesson', lessonId: nextLessonId }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setCourseSessions(prevSessions) // roll back
+          toast.error(data.error || 'Failed to update lesson')
+          return
+        }
+        toast.success(nextLessonId ? 'Lesson updated' : 'Lesson cleared')
+      } catch {
+        setCourseSessions(prevSessions) // roll back
+        toast.error('Failed to update lesson')
+      } finally {
+        setSavingLessonSessionId(null)
+      }
+    },
+    [courseSessions, courseLessonOptions]
+  )
 
   const withLocalePath = useCallback(
     (path: string) => {
@@ -1204,6 +1267,31 @@ function TutorDashboardContent() {
                               <p className="text-muted-foreground truncate text-xs">
                                 {session.description}
                               </p>
+                            )}
+                            {!isVirtual && courseLessonOptions.length > 0 && (
+                              <div className="flex items-center gap-2 pt-0.5">
+                                <BookOpen className="text-muted-foreground h-3 w-3 shrink-0" />
+                                <label className="sr-only" htmlFor={`lesson-${session.id}`}>
+                                  Lesson this session covers
+                                </label>
+                                <select
+                                  id={`lesson-${session.id}`}
+                                  value={session.lessonId ?? ''}
+                                  disabled={savingLessonSessionId === session.id}
+                                  onChange={e => handleAssignLesson(session.id, e.target.value)}
+                                  className="border-border/40 bg-background max-w-[220px] truncate rounded-md border px-2 py-1 text-xs text-gray-900 disabled:opacity-60"
+                                >
+                                  <option value="">No lesson assigned</option>
+                                  {courseLessonOptions.map((l, i) => (
+                                    <option key={l.id} value={l.id}>
+                                      {`Lesson ${i + 1}: ${l.title}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                {savingLessonSessionId === session.id && (
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                )}
+                              </div>
                             )}
                           </div>
                           <div className="ml-4 flex items-center gap-2">

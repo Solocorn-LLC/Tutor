@@ -7,11 +7,12 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
-import { eq, and, asc, inArray } from 'drizzle-orm'
+import { eq, and, asc, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession as liveSessionTable,
   course,
+  courseLesson,
   courseSchedule,
   courseVariant,
 } from '@/lib/db/schema'
@@ -70,6 +71,19 @@ export const GET = withAuth(
       )
       const variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
 
+      // The course's lessons, so the client can render a per-session lesson
+      // picker and label each session with the lesson it covers.
+      const lessonRows = await drizzleDb
+        .select({
+          id: courseLesson.lessonId,
+          title: courseLesson.title,
+          order: courseLesson.order,
+        })
+        .from(courseLesson)
+        .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
+        .orderBy(asc(courseLesson.order))
+      const lessonTitleById = new Map(lessonRows.map(l => [l.id, l.title]))
+
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
         eq(liveSessionTable.courseId, courseId),
@@ -109,6 +123,9 @@ export const GET = withAuth(
         scheduleId: s.scheduleId ?? null,
         scheduleName: s.scheduleId ? (scheduleNameById.get(s.scheduleId) ?? null) : null,
         durationMinutes: s.durationMinutes ?? 120,
+        // The lesson this session covers (auto-assigned on publish, tutor-editable).
+        lessonId: s.lessonId ?? null,
+        lessonTitle: s.lessonId ? (lessonTitleById.get(s.lessonId) ?? null) : null,
       }))
 
       // Generate virtual sessions from the schedule that publish actually
@@ -127,6 +144,7 @@ export const GET = withAuth(
 
       return NextResponse.json({
         sessions: merged,
+        lessons: lessonRows,
         course: { name: courseRow?.name ?? null, variantName },
       })
     } catch (err) {
