@@ -4104,8 +4104,38 @@ FEEDBACK: [one or two short sentences explaining the score]`
       )
     }
 
+    // Block deleting a lesson that has had material deployed from it in a live
+    // class. Returns true when deletion is allowed (or the check can't run).
+    const ensureLessonsDeletable = async (lessonIds: string[]): Promise<boolean> => {
+      const ids = lessonIds.filter(Boolean)
+      if (!courseId || ids.length === 0) return true
+      try {
+        const res = await fetch(`/api/tutor/courses/${courseId}/lessons/usage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ lessonIds: ids }),
+        })
+        if (!res.ok) return true // never block on a failed check
+        const data = await res.json().catch(() => ({}))
+        const usage = (data?.usage ?? {}) as Record<string, { deployedCount?: number }>
+        const blocked = ids.some(id => (usage[id]?.deployedCount ?? 0) > 0)
+        if (blocked) {
+          toast.error(
+            'This lesson has material deployed from it in a class and can’t be deleted. Remove or reassign its deployed tasks/assessments first.'
+          )
+          return false
+        }
+        return true
+      } catch {
+        return true
+      }
+    }
+
     const deleteCourseBuilderNode = async (nodeId: string) => {
       const nodeToDelete = nodes.find(m => m.id === nodeId)
+      const lessonIds = nodeToDelete?.lessons.map(l => l.id) ?? []
+      if (!(await ensureLessonsDeletable(lessonIds))) return
       if (nodeToDelete) {
         const keys = nodeToDelete.lessons.flatMap(l => collectLessonFileKeys(l))
         if (keys.length > 0) await cleanupGcsFiles(keys)
@@ -4117,6 +4147,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
     }
 
     const deleteLesson = async (nodeId: string, lessonId: string) => {
+      if (!(await ensureLessonsDeletable([lessonId]))) return
       const lessonToDelete = nodes.find(m => m.id === nodeId)?.lessons.find(l => l.id === lessonId)
       if (lessonToDelete) {
         const keys = collectLessonFileKeys(lessonToDelete)
