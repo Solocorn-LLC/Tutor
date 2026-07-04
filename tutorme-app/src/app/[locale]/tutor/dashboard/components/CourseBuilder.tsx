@@ -127,6 +127,7 @@ import { usePci } from './hooks/use-pci'
 import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
+import { PciQuestionnaire } from './PciQuestionnaire'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -987,6 +988,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Whether the "Current PCI" box is in edit mode (tutor typing the policy
     // directly instead of via the assistant chat).
     const [editingCurrentPci, setEditingCurrentPci] = useState(false)
+    // Which source's guided PCI questionnaire is open ('task' | 'assessment' | null).
+    const [pciFormSource, setPciFormSource] = useState<'task' | 'assessment' | null>(null)
     // Directly set the saved PCI (the marking policy used by grading) for the
     // active context — the active task extension, the base task, or the
     // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
@@ -6225,6 +6228,15 @@ FEEDBACK: [one or two short sentences explaining the score]`
             {canEdit && (
               <button
                 type="button"
+                onClick={() => setPciFormSource(prev => (prev === source ? null : source))}
+                className="font-semibold text-indigo-700 hover:underline"
+              >
+                {pciFormSource === source ? 'Hide form' : 'Guided form'}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
                 data-pci-anchor="edit-pci"
                 onClick={() => setEditingCurrentPci(v => !v)}
                 className="font-semibold text-blue-700 hover:underline"
@@ -6234,6 +6246,26 @@ FEEDBACK: [one or two short sentences explaining the score]`
             )}
           </div>
         </div>
+        {pciFormSource === source && (
+          <PciQuestionnaire
+            source={source}
+            title={source === 'task' ? taskBuilder.title : assessmentBuilder.title}
+            content={source === 'task' ? taskBuilder.taskContent : assessmentBuilder.taskContent}
+            currentPci={value}
+            canEdit={canEdit}
+            onSave={(specText, spec) => {
+              setCurrentPci(source, specText, {
+                approvedPci: specText,
+                spec,
+                transcript: [],
+                approvedAt: Date.now(),
+              })
+              setPciFormSource(null)
+              toast.success('Marking policy saved to PCI')
+            }}
+            onClose={() => setPciFormSource(null)}
+          />
+        )}
         {editingCurrentPci ? (
           <>
             <textarea
