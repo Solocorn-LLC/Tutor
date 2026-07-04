@@ -85,7 +85,7 @@ export function FloatingZoomPill({
     <div
       ref={pillRef}
       className={cn(
-        'absolute z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-lg backdrop-blur-md transition-shadow',
+        'absolute z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/20 bg-[#1F2933]/90 p-3 shadow-lg backdrop-blur-md transition-shadow',
         isDragging ? 'cursor-grabbing shadow-xl' : 'cursor-default',
         className
       )}
@@ -104,14 +104,14 @@ export function FloatingZoomPill({
       >
         <div className="grid grid-cols-2 gap-0.5">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-1 w-1 rounded-full bg-white/60" />
+            <div key={i} className="h-1 w-1 rounded-full bg-white/80" />
           ))}
         </div>
       </div>
 
       {/* Vertical zoom slider */}
       <div className="flex flex-col items-center gap-1">
-        <span className="text-[10px] font-medium text-white/80">{Math.round(scale * 100)}%</span>
+        <span className="text-[10px] font-medium text-white">{Math.round(scale * 100)}%</span>
         <div className="relative h-24 w-6">
           <input
             type="range"
@@ -120,7 +120,7 @@ export function FloatingZoomPill({
             step="1"
             value={sliderPercent}
             onChange={handleSliderChange}
-            className="absolute inset-0 h-24 w-6 cursor-pointer appearance-none rounded-full bg-white/20 outline-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+            className="absolute inset-0 h-24 w-6 cursor-pointer appearance-none rounded-full bg-white/30 outline-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
             style={{
               writingMode: 'vertical-lr',
               direction: 'rtl',
@@ -128,29 +128,6 @@ export function FloatingZoomPill({
           />
         </div>
       </div>
-
-      {/* Hide Preview arrow */}
-      {onHidePreview && (
-        <button
-          onClick={onHidePreview}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/20 hover:text-white"
-          title="Hide Preview"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
-      )}
     </div>
   )
 }
