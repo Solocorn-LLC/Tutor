@@ -10,6 +10,7 @@ interface FloatingZoomPillProps {
   maxScale?: number
   onHidePreview?: () => void
   className?: string
+  containerRef?: React.RefObject<HTMLElement | null>
 }
 
 export function FloatingZoomPill({
@@ -19,6 +20,7 @@ export function FloatingZoomPill({
   maxScale = 1.5,
   onHidePreview,
   className,
+  containerRef,
 }: FloatingZoomPillProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -54,13 +56,22 @@ export function FloatingZoomPill({
       const pillWidth = pillRef.current?.offsetWidth ?? 56
       const pillHeight = pillRef.current?.offsetHeight ?? 200
       const margin = 8
-      const maxX = window.innerWidth - pillWidth - margin
-      const maxY = window.innerHeight - pillHeight - margin
+      const container = containerRef?.current
+      let maxX: number
+      let maxY: number
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        maxX = rect.width - pillWidth - margin
+        maxY = rect.height - pillHeight - margin
+      } else {
+        maxX = window.innerWidth - pillWidth - margin
+        maxY = window.innerHeight - pillHeight - margin
+      }
       const newX = Math.max(margin, Math.min(maxX, e.clientX - dragStartRef.current.x))
       const newY = Math.max(margin, Math.min(maxY, e.clientY - dragStartRef.current.y))
       setPosition({ x: newX, y: newY })
     },
-    [isDragging]
+    [isDragging, containerRef]
   )
 
   const handleMouseUp = useCallback(() => {
@@ -89,7 +100,7 @@ export function FloatingZoomPill({
     <div
       ref={pillRef}
       className={cn(
-        'fixed z-50 flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-2.5 shadow-lg backdrop-blur-md transition-shadow',
+        'absolute z-50 flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-2.5 shadow-lg backdrop-blur-md transition-shadow',
         isDragging ? 'cursor-grabbing shadow-xl' : 'cursor-default',
         className
       )}

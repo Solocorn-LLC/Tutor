@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
@@ -47,6 +47,7 @@ export function PDFViewer({
   const [loading, setLoading] = useState<boolean>(true)
   const [useFallback, setUseFallback] = useState<boolean>(false)
   const [pdfData, setPdfData] = useState<string | ArrayBuffer | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Detect blob URLs immediately — they are client-side only and break after refresh
   const isBlobUrl = typeof fileUrl === 'string' && fileUrl.startsWith('blob:')
@@ -181,7 +182,10 @@ export function PDFViewer({
 
       {/* Document pages */}
       {!error && !isBlobUrl && pdfData && (
-        <div className={`relative flex-1 overflow-y-auto ${loading ? 'hidden' : 'block'}`}>
+        <div
+          ref={scrollContainerRef}
+          className={`relative flex-1 overflow-y-auto ${loading ? 'hidden' : 'block'}`}
+        >
           {/* Floating zoom pill */}
           {!loading && !error && numPages > 0 && (
             <FloatingZoomPill
@@ -190,6 +194,7 @@ export function PDFViewer({
               minScale={0.5}
               maxScale={1.5}
               onHidePreview={onHidePreview}
+              containerRef={scrollContainerRef}
             />
           )}
           <Document
