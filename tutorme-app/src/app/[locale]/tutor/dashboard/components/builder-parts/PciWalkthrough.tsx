@@ -176,7 +176,7 @@ export function PciWalkthrough({ kind }: { kind: 'task' | 'assessment' }) {
       <button
         type="button"
         onClick={() => persistCollapsed(false)}
-        className="absolute bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-lg transition-colors hover:bg-blue-50"
+        className="absolute bottom-4 left-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-lg transition-colors hover:bg-blue-50"
         title="Open the PCI walkthrough"
       >
         <Compass className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ export function PciWalkthrough({ kind }: { kind: 'task' | 'assessment' }) {
   return (
     <div
       ref={cardRef}
-      className="absolute bottom-4 right-4 z-30 w-[300px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
+      className="absolute bottom-4 left-4 z-30 w-[300px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)]"
     >
       <div className="flex items-center gap-2 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-3 py-2 text-white">
         <Compass className="h-4 w-4" />

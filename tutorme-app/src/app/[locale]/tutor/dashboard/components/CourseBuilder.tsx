@@ -6306,7 +6306,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 onClick={() => setPciFormSource(prev => (prev === source ? null : source))}
                 className="font-semibold text-indigo-700 hover:underline"
               >
-                {pciFormSource === source ? 'Hide form' : 'Guided form'}
+                {pciFormSource === source ? 'Hide PCI form' : 'Guided PCI form'}
               </button>
             )}
             {canEdit && (
