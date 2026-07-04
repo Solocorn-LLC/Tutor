@@ -368,10 +368,7 @@ function MyCoursesSection() {
     return (
       <div
         key={course.id}
-        className="rounded-xl border border-[#E2E8F0] p-2.5 hover:border-slate-500"
-        style={{
-          background: 'linear-gradient(135deg, #1E2832 0%, #2D3B4A 50%, #1A2530 100%)',
-        }}
+        className="rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
       >
         {(() => {
           return (
@@ -529,7 +526,7 @@ function MyCoursesSection() {
           <div
             ref={coursesPanelRef}
             className={cn(
-              'pr-2 transition-all duration-300 ease-in-out',
+              'mt-4 pr-2 transition-all duration-300 ease-in-out',
               isExpanded ? 'overflow-y-auto' : 'h-0 overflow-hidden'
             )}
             style={isExpanded ? { height: measuredMaxHeight } : undefined}

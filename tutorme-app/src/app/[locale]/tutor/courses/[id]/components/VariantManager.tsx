@@ -880,7 +880,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                           }}
                         >
                           <Plus className="mr-1 h-4 w-4" />
-                          Add another schedule
+                          Add Schedule
                         </Button>
                       </div>
                     </div>
