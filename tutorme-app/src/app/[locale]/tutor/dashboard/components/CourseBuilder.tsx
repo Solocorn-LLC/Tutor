@@ -6264,6 +6264,18 @@ FEEDBACK: [one or two short sentences explaining the score]`
             title={source === 'task' ? taskBuilder.title : assessmentBuilder.title}
             content={source === 'task' ? taskBuilder.taskContent : assessmentBuilder.taskContent}
             currentPci={value}
+            // The official marking scheme (DMI) loaded in "Edit marks & answers",
+            // distilled to its policy-bearing bits (no answers) so the AI can
+            // infer award conventions from it.
+            markingScheme={(source === 'task' ? taskDmiItems : assessmentDmiItems)
+              .map(q => ({
+                label: q.questionLabel,
+                marks: typeof q.marks === 'number' ? q.marks : undefined,
+                rubric: q.rubric?.trim() || undefined,
+                responseType: q.responseType?.trim() || undefined,
+                hasVariants: (q.acceptableVariants?.length ?? 0) > 0,
+              }))
+              .filter(q => q.rubric || typeof q.marks === 'number' || q.hasVariants)}
             canEdit={canEdit}
             onSave={(specText, spec) => {
               setCurrentPci(source, specText, {

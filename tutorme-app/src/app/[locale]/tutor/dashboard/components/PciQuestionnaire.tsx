@@ -28,11 +28,23 @@ const FIELD_HINTS: Partial<Record<keyof PciSpec, string>> = {
   instructionalTone: 'Tone to use',
 }
 
+/** A per-question digest of the official marking scheme (DMI) — the policy-
+ *  bearing bits only (no answers), used to inform the AI prefill. */
+export interface MarkingSchemeDigestRow {
+  label?: string
+  marks?: number
+  rubric?: string
+  responseType?: string
+  hasVariants?: boolean
+}
+
 interface PciQuestionnaireProps {
   source: 'task' | 'assessment'
   title?: string
   content?: string
   currentPci?: string
+  /** Distilled marking scheme from the "Edit marks & answers" modal, if any. */
+  markingScheme?: MarkingSchemeDigestRow[]
   canEdit: boolean
   onSave: (specText: string, spec: PciSpec) => void
   onClose: () => void
@@ -43,6 +55,7 @@ export function PciQuestionnaire({
   title,
   content,
   currentPci,
+  markingScheme,
   canEdit,
   onSave,
   onClose,
@@ -65,7 +78,13 @@ export function PciQuestionnaire({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ type: source, title, content, pci: currentPci }),
+        body: JSON.stringify({
+          type: source,
+          title,
+          content,
+          pci: currentPci,
+          markingScheme: markingScheme?.length ? markingScheme : undefined,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -115,7 +134,7 @@ export function PciQuestionnaire({
               ) : (
                 <Sparkles className="h-3 w-3" />
               )}
-              Prefill from paper
+              {markingScheme?.length ? 'Prefill from marking scheme' : 'Prefill from paper'}
             </button>
           )}
           <button
@@ -132,6 +151,13 @@ export function PciQuestionnaire({
         Policy only — keep answers, marks, and per-question rubric in the{' '}
         {source === 'assessment' ? 'marking scheme' : 'rubric'}. Leave anything you don&rsquo;t want
         to specify blank.
+        {markingScheme?.length ? (
+          <>
+            {' '}
+            Prefill reads your loaded marking scheme ({markingScheme.length} question
+            {markingScheme.length === 1 ? '' : 's'}) and distils its award conventions into policy.
+          </>
+        ) : null}
       </p>
 
       <div className="space-y-2">
