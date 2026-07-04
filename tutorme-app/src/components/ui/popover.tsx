@@ -22,7 +22,7 @@ const PopoverContent = React.forwardRef<
   PopoverContentProps
 >(({ className, align = 'center', sideOffset = 4, variant = 'metallic', ...props }, ref) => {
   const metallicClasses =
-    'bg-[linear-gradient(135deg,rgba(32,28,24,0.92),rgba(82,82,82,0.82))] backdrop-blur-[18px] saturate-[140%] text-white border-white/[0.12] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.16)]'
+    'bg-[linear-gradient(135deg,rgba(32,28,24,0.50),rgba(82,82,82,0.50))] backdrop-blur-[18px] saturate-[140%] text-white border-white/[0.12] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.16)]'
 
   const panelClasses = 'bg-popover text-popover-foreground border rounded-md shadow-md'
 

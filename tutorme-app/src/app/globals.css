@@ -721,14 +721,6 @@
     z-index: 1000;
   }
 
-  /* Suppress Radix UI default focus/highlight background on Select and Dropdown items */
-  [data-radix-select-viewport] [data-highlighted],
-  [data-radix-dropdown-menu-content] [data-highlighted],
-  [role='option'][data-highlighted],
-  [role='menuitem'][data-highlighted] {
-    background-color: transparent !important;
-  }
-
   /* Typography Hierarchy - Fira Code for headings */
   h1,
   h2,

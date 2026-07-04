@@ -32,7 +32,7 @@ const SolocornPopupContent = React.forwardRef<
       sideOffset={sideOffset}
       className={cn(
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-popover min-w-[10rem] overflow-hidden rounded-xl border border-white/[0.12] py-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.16)] outline-none',
-        'bg-[linear-gradient(135deg,rgba(32,28,24,0.92),rgba(82,82,82,0.82))] text-white saturate-[140%] backdrop-blur-[18px]',
+        'bg-[linear-gradient(135deg,rgba(32,28,24,0.50),rgba(82,82,82,0.50))] text-white saturate-[140%] backdrop-blur-[18px]',
         className
       )}
       {...props}
