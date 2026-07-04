@@ -32,6 +32,7 @@ type SubmissionsTreeResponse = {
     itemId: string
     title: string
     sessionSequence: number
+    lessonId?: string | null
     deployedAt: string | Date | null
   }[]
   sessionParticipants: { sessionId: string; studentId: string; studentName: string | null }[]
@@ -202,17 +203,38 @@ export function SubmissionsPanel({
 
   const sessions = useMemo(() => (data?.sessions || []).filter(s => !!s.id), [data])
 
+  // Which lesson each session belongs to, derived from the REAL lesson its
+  // deployed material came from (deployedMaterial.lessonId) — not the old
+  // by-array-index guess that dumped everything under "Lesson 1". A session with
+  // material from several lessons is placed under whichever lesson it deployed
+  // most from. Sessions with no lesson-tagged material fall back to the index
+  // mapping so pre-existing data doesn't disappear.
+  const lessonIdBySessionId = useMemo(() => {
+    const validLesson = new Set(lessons.map(l => l.id))
+    const counts: Record<string, Record<string, number>> = {}
+    for (const d of data?.deployed || []) {
+      if (!d.lessonId || !validLesson.has(d.lessonId)) continue
+      counts[d.sessionId] = counts[d.sessionId] || {}
+      counts[d.sessionId][d.lessonId] = (counts[d.sessionId][d.lessonId] || 0) + 1
+    }
+    const out: Record<string, string> = {}
+    for (const [sid, byLesson] of Object.entries(counts)) {
+      out[sid] = Object.entries(byLesson).sort((a, b) => b[1] - a[1])[0][0]
+    }
+    return out
+  }, [data, lessons])
+
   const sessionsByLessonId = useMemo(() => {
     const map: Record<string, SubmissionsTreeResponse['sessions']> = {}
     if (sessions.length === 0) return map
     sessions.forEach((s, idx) => {
       const lessonIdx = Math.min(idx, Math.max(0, lessons.length - 1))
-      const lessonId = lessons[lessonIdx]?.id || 'lesson_unknown'
+      const lessonId = lessonIdBySessionId[s.id] || lessons[lessonIdx]?.id || 'lesson_unknown'
       if (!map[lessonId]) map[lessonId] = []
       map[lessonId].push({ ...s } as any)
     })
     return map
-  }, [sessions, lessons])
+  }, [sessions, lessons, lessonIdBySessionId])
 
   // Color-code sessions by lifecycle/chronology so the tutor can see status at a
   // glance: green = active now, yellow = the next-upcoming session (the one right

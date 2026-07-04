@@ -99,6 +99,7 @@ export const GET = withAuth(async (request, session, context) => {
             itemId: deployedMaterial.itemId,
             title: deployedMaterial.title,
             sessionSequence: deployedMaterial.sessionSequence,
+            lessonId: deployedMaterial.lessonId,
             deployedAt: deployedMaterial.deployedAt,
           })
           .from(deployedMaterial)

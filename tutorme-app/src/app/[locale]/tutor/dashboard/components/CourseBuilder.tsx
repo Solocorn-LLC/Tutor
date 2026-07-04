@@ -556,8 +556,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return JSON.parse(JSON.stringify(value)) as CourseBuilderNode[]
     }, [])
 
+    // Live shows the synced snapshot (liveNodes). But a session opened directly
+    // in 'live' mode may never run the switch-triggered sync, leaving liveNodes
+    // empty and the lessons "missing" — fall back to builderNodes (the loaded
+    // course lessons) whenever the snapshot is empty.
     const nodes = useMemo(
-      () => (mainTab === 'live' ? liveNodes : builderNodes),
+      () => (mainTab === 'live' ? (liveNodes.length > 0 ? liveNodes : builderNodes) : builderNodes),
       [mainTab, liveNodes, builderNodes]
     )
 
