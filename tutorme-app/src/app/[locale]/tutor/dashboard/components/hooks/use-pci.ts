@@ -85,9 +85,18 @@ export function usePci(deps: UsePciDeps) {
 
   const applyAssessmentPciDraft = (assessmentId: string) => {
     const target: PciTarget = { kind: 'assessment', id: assessmentId }
-    const draft = getThread(pci, target).draft
+    const thread = getThread(pci, target)
+    const draft = thread.draft
     if (!draft) return
-    deps.setCurrentPci('assessment', draft)
+    // Persist the structured spec + audit too (parity with tasks), so the
+    // finalized assessment PCI carries its machine-readable form to the grader.
+    const audit: PciAuditRecord = {
+      approvedPci: draft,
+      spec: thread.draftSpec,
+      transcript: thread.messages,
+      approvedAt: Date.now(),
+    }
+    deps.setCurrentPci('assessment', draft, audit)
     dispatch({ type: 'clearDraft', target })
     toast.success('Rubric applied to PCI')
   }

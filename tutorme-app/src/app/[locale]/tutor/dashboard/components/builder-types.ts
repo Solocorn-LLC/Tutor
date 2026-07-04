@@ -181,6 +181,10 @@ export interface Assessment extends WithDifficultyVariants {
   title: string
   description: string
   instructions: string
+  /** Current approved structured PCI spec (TASK-6), when finalized. Persisted at
+   *  deploy to BuilderTask.pciSpec so the grader can use the same structured
+   *  marking policy tasks already get. */
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
   activeDmiVersionId?: string

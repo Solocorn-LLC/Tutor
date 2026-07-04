@@ -951,6 +951,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       title: string
       taskContent: string
       taskPci: string
+      // Current approved structured PCI spec (TASK-6) — persisted at deploy to
+      // BuilderTask.pciSpec, mirroring tasks, so the grader gets it too.
+      pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
       details: string
       sourceDocument?: {
         fileName: string
@@ -1016,7 +1019,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : base
         })
       } else {
-        setAssessmentBuilder(prev => ({ ...prev, taskPci: text }))
+        // TASK-6: persist the structured spec on a real "Apply to PCI" (audit
+        // present); a manual edit/clear passes no audit and leaves it as-is.
+        setAssessmentBuilder(prev =>
+          audit ? { ...prev, taskPci: text, pciSpec: audit.spec } : { ...prev, taskPci: text }
+        )
       }
     }
 
@@ -1830,6 +1837,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         title: assessment.title || '',
         taskContent: content,
         taskPci: assessment.instructions || '',
+        pciSpec: assessment.pciSpec,
         details: '',
         sourceDocument: assessment.sourceDocument,
         extensions: [],
@@ -2081,6 +2089,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.title === assessmentBuilder.title &&
                   hw.description === assessmentBuilder.taskContent &&
                   hw.instructions === assessmentBuilder.taskPci &&
+                  hw.pciSpec === assessmentBuilder.pciSpec &&
                   hw.dmiItems === assessmentDmiItems &&
                   hw.dmiVersions === assessmentDmiVersions &&
                   hw.activeDmiVersionId === nextActiveDmiVersionId &&
@@ -2094,6 +2103,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   title: assessmentBuilder.title,
                   description: assessmentBuilder.taskContent,
                   instructions: assessmentBuilder.taskPci,
+                  pciSpec: assessmentBuilder.pciSpec,
                   dmiItems: assessmentDmiItems,
                   dmiVersions: assessmentDmiVersions,
                   activeDmiVersionId: nextActiveDmiVersionId,
@@ -2111,6 +2121,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
       assessmentBuilder.taskPci,
+      assessmentBuilder.pciSpec,
       assessmentBuilder.sourceDocument,
       assessmentDmiItems,
       assessmentDmiVersions,
@@ -3247,10 +3258,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
             marks: item.marks,
           })),
           answerReveal: reveal,
-          // Tutor's PCI (free-text) for server-side use by the live tutor +
-          // grader. Deploy-only; never broadcast to students. (Assessments have
-          // no structured pciSpec — that's a task-builder concept.)
+          // Tutor's PCI (free-text + structured spec) for server-side use by the
+          // live tutor + grader. Deploy-only; never broadcast to students. The
+          // server persists pciSpec to BuilderTask.pciSpec, mirroring tasks.
           pci: assessmentBuilder.taskPci || undefined,
+          pciSpec: assessmentBuilder.pciSpec,
           // The lesson this assessment was deployed from (real lesson, not
           // "Lesson 1").
           lessonId: findLessonIdForItem(loadedAssessmentId),
@@ -6296,21 +6308,25 @@ FEEDBACK: [one or two short sentences explaining the score]`
           </p>
         )}
         {/* TASK-6: the structured specification mirror, when one was finalized. */}
-        {source === 'task' && taskBuilder.pciSpec && !editingCurrentPci && (
-          <div className="mt-2 border-t border-slate-200 pt-2">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Structured specification
-            </p>
-            <dl className="space-y-1">
-              {PCI_SPEC_FIELDS.filter(f => taskBuilder.pciSpec?.[f.key]).map(f => (
-                <div key={f.key} className="grid grid-cols-[minmax(0,9rem)_1fr] gap-2">
-                  <dt className="text-slate-500">{f.label}</dt>
-                  <dd className="text-slate-700">{taskBuilder.pciSpec?.[f.key]}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
+        {(() => {
+          const activeSpec = source === 'task' ? taskBuilder.pciSpec : assessmentBuilder.pciSpec
+          if (!activeSpec || editingCurrentPci) return null
+          return (
+            <div className="mt-2 border-t border-slate-200 pt-2">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Structured specification
+              </p>
+              <dl className="space-y-1">
+                {PCI_SPEC_FIELDS.filter(f => activeSpec[f.key]).map(f => (
+                  <div key={f.key} className="grid grid-cols-[minmax(0,9rem)_1fr] gap-2">
+                    <dt className="text-slate-500">{f.label}</dt>
+                    <dd className="text-slate-700">{activeSpec[f.key]}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )
+        })()}
       </div>
     )
     const activeTaskPciInput = activeTaskThread.input
