@@ -16,7 +16,6 @@ interface PDFViewerProps {
   fileKey?: string
   className?: string
   defaultScale?: number
-  hidePageNavigation?: boolean
   onHidePreview?: () => void
 }
 
@@ -39,7 +38,6 @@ export function PDFViewer({
   fileKey,
   className = '',
   defaultScale = 1.25,
-  hidePageNavigation = false,
   onHidePreview,
 }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
@@ -177,60 +175,6 @@ export function PDFViewer({
             >
               Open in Fallback Viewer
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Toolbar — zoom + page navigation */}
-      {!loading && !error && numPages > 0 && (
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-2">
-          <div className="flex items-center gap-1.5">
-            {!hidePageNavigation && (
-              <span className="text-xs text-gray-600">
-                {numPages} {numPages === 1 ? 'page' : 'pages'} · scroll to view all
-              </span>
-            )}
-          </div>
-
-          <div className="flex w-full items-center justify-end">
-            <button
-              onClick={() => changeScale(-0.25)}
-              disabled={scale <= 0.5}
-              className="rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:text-gray-400"
-            >
-              −
-            </button>
-            <span className="min-w-[48px] text-center text-xs text-gray-600">
-              {Math.round(scale * 100)}%
-            </span>
-            <button
-              onClick={() => changeScale(0.25)}
-              disabled={scale >= 3.0}
-              className="rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:text-gray-400"
-            >
-              +
-            </button>
-            {onHidePreview && (
-              <button
-                onClick={onHidePreview}
-                className="ml-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-gray-100 hover:text-slate-700"
-                title="Hide Preview"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-            )}
           </div>
         </div>
       )}

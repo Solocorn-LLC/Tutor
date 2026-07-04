@@ -2315,7 +2315,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
 
       {/* Course Detail Dialog — opens when a course card is clicked on the landing page */}
       <Dialog open={!!selectedCourse} onOpenChange={open => !open && setSelectedCourse(null)}>
-        <DialogContent className="flex h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden border-white/10 bg-[rgba(31,41,51,0.60)]">
+        <DialogContent className="flex h-[80vh] w-[80vw] max-w-4xl flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-lg">{selectedCourse?.name}</DialogTitle>
           </DialogHeader>

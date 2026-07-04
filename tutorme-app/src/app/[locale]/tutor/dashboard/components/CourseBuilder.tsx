@@ -9806,7 +9806,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   fileKey={currentTaskDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   defaultScale={0.75}
-                                                  hidePageNavigation
                                                   onHidePreview={() => {
                                                     if (!taskTextVisible) setTaskTextVisible(true)
                                                     setTaskPdfVisible(false)
@@ -10242,7 +10241,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   fileKey={currentAssessmentDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   defaultScale={0.75}
-                                                  hidePageNavigation
                                                   onHidePreview={() => {
                                                     if (!assessmentTextVisible)
                                                       setAssessmentTextVisible(true)
