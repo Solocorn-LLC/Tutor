@@ -177,6 +177,13 @@ export function usePci(deps: UsePciDeps) {
         body: JSON.stringify({
           message: userMessage,
           sessionId,
+          // Prior turns so the model can hold a real conversation (the local /
+          // vision provider paths have no server-side memory; ADK keys on
+          // sessionId). Capped and lightly truncated to bound the payload.
+          history: thread.messages.slice(-10).map(m => ({
+            role: m.role,
+            content: m.content.slice(0, 4000),
+          })),
           context: {
             type,
             title: isTask ? taskBuilder.title : assessmentBuilder.title,

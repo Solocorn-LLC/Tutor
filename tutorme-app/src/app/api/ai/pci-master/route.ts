@@ -42,6 +42,17 @@ function toCleanResponse(content: string): {
 const PciMasterRequestSchema = z.object({
   message: z.string().min(1).max(4000),
   sessionId: z.string().max(160).optional(),
+  // Prior conversation turns, so the local/vision provider paths (which have no
+  // server-side memory) can respond in context instead of restarting each turn.
+  history: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().max(4000),
+      })
+    )
+    .max(20)
+    .optional(),
   context: z
     .object({
       type: z.enum(['task', 'assessment']).optional(),
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { message, sessionId, context, pdfPages } = parsed.data
+    const { message, sessionId, context, pdfPages, history } = parsed.data
 
     // Guardrail wiring: when the builder identifies a PCI domain (task or
     // assessment), swap in the canonical guardrail system prompt and lower the
@@ -175,9 +186,25 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join('\n\n')
 
-    const userPrompt = contextBlock
-      ? `Context:\n${contextBlock}\n\nUser: ${safeMessage}`
-      : `User: ${safeMessage}`
+    // Prior turns as a readable transcript so the model continues the
+    // conversation instead of treating each message as a cold start (ADK keeps
+    // its own memory by sessionId, so this only matters for the local/vision
+    // paths; harmless there since it's the same history). The current message is
+    // appended by the caller's thread, so `history` excludes it.
+    const historyBlock =
+      history && history.length > 0
+        ? history
+            .map(h => `${h.role === 'assistant' ? 'Assistant' : 'Tutor'}: ${h.content}`)
+            .join('\n')
+        : ''
+
+    const userPrompt = [
+      contextBlock && `Context:\n${contextBlock}`,
+      historyBlock && `Conversation so far:\n${historyBlock}`,
+      `User: ${safeMessage}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
 
     const adkBaseUrl = process.env.ADK_BASE_URL?.trim()
     const hasLocalProvider = !!process.env.KIMI_API_KEY || process.env.MOCK_AI === 'true'

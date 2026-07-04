@@ -233,7 +233,14 @@ function SubmissionRow({
   const [aiGrades, setAiGrades] = useState<
     Record<
       string,
-      { loading?: boolean; percent?: number; marks?: number; feedback?: string; error?: string }
+      {
+        loading?: boolean
+        percent?: number
+        marks?: number
+        feedback?: string
+        pciNote?: string
+        error?: string
+      }
     >
   >({})
 
@@ -266,6 +273,7 @@ function SubmissionRow({
           percent: data.suggestedPercent,
           marks: data.suggestedMarks,
           feedback: data.feedback,
+          pciNote: typeof data.pciNote === 'string' ? data.pciNote : undefined,
         },
       }))
       if (data.feedback && !feedback.trim()) setFeedback(data.feedback)
@@ -533,6 +541,11 @@ function SubmissionRow({
                                       : ''}
                                   </span>
                                   {ai.feedback ? ` — ${ai.feedback}` : ''}
+                                  {ai.pciNote && (
+                                    <span className="mt-1 block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                                      PCI override: {ai.pciNote}
+                                    </span>
+                                  )}
                                   <span className="mt-0.5 block text-[10px] text-violet-500">
                                     Suggestion only — set the final score below.
                                   </span>

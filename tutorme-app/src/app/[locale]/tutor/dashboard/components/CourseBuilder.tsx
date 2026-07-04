@@ -6235,13 +6235,24 @@ FEEDBACK: [one or two short sentences explaining the score]`
           </div>
         </div>
         {editingCurrentPci ? (
-          <textarea
-            value={value}
-            readOnly={!canEdit}
-            onChange={e => setCurrentPci(source, e.target.value)}
-            placeholder="The marking policy used when grading… (chat below to draft one, then paste/refine it here)"
-            className="mt-1.5 min-h-[80px] w-full resize-y rounded-md border border-gray-300 p-2 text-xs text-gray-900"
-          />
+          <>
+            <textarea
+              value={value}
+              readOnly={!canEdit}
+              onChange={e => setCurrentPci(source, e.target.value)}
+              placeholder="The marking policy used when grading… (chat below to draft one, then paste/refine it here)"
+              className="mt-1.5 min-h-[80px] w-full resize-y rounded-md border border-gray-300 p-2 text-xs text-gray-900"
+            />
+            <p className="mt-1 text-[11px] leading-snug text-slate-500">
+              <span className="font-semibold">Tip:</span> put scoring specifics — correct answers,
+              acceptable variants, marks, per-question rubric — in the{' '}
+              {source === 'assessment' ? 'marking scheme (DMI)' : 'question rubric'}. Use the PCI
+              for cross-cutting <span className="font-semibold">policy</span>: method marks,
+              accepted equivalents, unit penalties, tone, and retries. The PCI{' '}
+              <span className="font-semibold">overrides</span> the rubric where they conflict, so
+              avoid restating the same rules in both.
+            </p>
+          </>
         ) : value.trim() ? (
           <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-slate-700">
             {value}
