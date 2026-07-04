@@ -404,7 +404,7 @@ export default function StudentRegistrationPage() {
                               <SelectItem
                                 key={regionItem.id}
                                 value={regionItem.id}
-                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                               >
                                 {regionItem.name}
                               </SelectItem>
@@ -438,7 +438,7 @@ export default function StudentRegistrationPage() {
                                 <SelectItem
                                   key={country.code}
                                   value={country.code}
-                                  className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                  className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                                 >
                                   {country.name}
                                 </SelectItem>

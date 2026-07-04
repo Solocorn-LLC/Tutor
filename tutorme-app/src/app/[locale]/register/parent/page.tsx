@@ -481,31 +481,31 @@ export default function ParentRegistrationPage() {
                         <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
                           <SelectItem
                             value="parent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Parent
                           </SelectItem>
                           <SelectItem
                             value="guardian"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Guardian
                           </SelectItem>
                           <SelectItem
                             value="step-parent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Step-Parent
                           </SelectItem>
                           <SelectItem
                             value="grandparent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Grandparent
                           </SelectItem>
                           <SelectItem
                             value="other"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Other
                           </SelectItem>
@@ -626,7 +626,7 @@ export default function ParentRegistrationPage() {
                               <SelectItem
                                 key={grade}
                                 value={grade}
-                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                               >
                                 {grade}
                               </SelectItem>

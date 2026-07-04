@@ -2012,7 +2012,7 @@ export default function PublicTutorPage() {
                       <SelectItem
                         key={cat}
                         value={cat}
-                        className="mx-1.5 rounded-md text-white hover:bg-white/10 focus:bg-white/10 focus:text-white focus:outline-none"
+                        className="mx-1.5 rounded-md text-white hover:bg-white/10"
                       >
                         {cat}
                       </SelectItem>

@@ -392,19 +392,19 @@ export default function AdminRegistrationPage() {
                       <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
                         <SelectItem
                           value="super"
-                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                         >
                           Super Admin
                         </SelectItem>
                         <SelectItem
                           value="standard"
-                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                         >
                           Standard Admin
                         </SelectItem>
                         <SelectItem
                           value="limited"
-                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                          className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                         >
                           Limited Admin
                         </SelectItem>
