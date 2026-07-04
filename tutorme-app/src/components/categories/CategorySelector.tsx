@@ -169,7 +169,11 @@ export function CategorySelector({
                 </SelectTrigger>
                 <SelectContent>
                   {REGIONS.map(region => (
-                    <SelectItem key={region.id} value={region.id}>
+                    <SelectItem
+                      key={region.id}
+                      value={region.id}
+                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:bg-transparent focus:text-white/[0.94] focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[highlighted]:bg-white data-[highlighted]:text-[#1F2933] data-[disabled]:opacity-50"
+                    >
                       {region.name}
                     </SelectItem>
                   ))}
@@ -195,7 +199,11 @@ export function CategorySelector({
                 </SelectTrigger>
                 <SelectContent>
                   {availableCountries.map(country => (
-                    <SelectItem key={country.code} value={country.code}>
+                    <SelectItem
+                      key={country.code}
+                      value={country.code}
+                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:bg-transparent focus:text-white/[0.94] focus:outline-none focus-visible:outline-none focus-visible:ring-0 data-[highlighted]:bg-white data-[highlighted]:text-[#1F2933] data-[disabled]:opacity-50"
+                    >
                       {country.name}
                     </SelectItem>
                   ))}

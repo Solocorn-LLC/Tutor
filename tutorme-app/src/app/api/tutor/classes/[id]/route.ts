@@ -19,6 +19,7 @@ import {
   courseVariant,
   sessionReplayArtifact,
   calendarEvent,
+  deployedMaterial,
 } from '@/lib/db/schema'
 import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
@@ -163,6 +164,20 @@ export const GET = withAuth(
       0,
       Math.floor((Date.now() - new Date(classStart).getTime()) / 60000)
     )
+
+    const deployedMaterials = await drizzleDb
+      .select({
+        type: deployedMaterial.type,
+        itemId: deployedMaterial.itemId,
+        title: deployedMaterial.title,
+      })
+      .from(deployedMaterial)
+      .where(eq(deployedMaterial.sessionId, classId))
+
+    const homeworkCount = deployedMaterials.filter(
+      m => m.type === 'task' || m.type === 'assessment'
+    ).length
+    const assetCount = deployedMaterials.filter(m => m.type === 'asset').length
 
     const tutorCourses = await drizzleDb
       .select({ id: course.courseId, name: course.name, updatedAt: course.updatedAt })
@@ -320,8 +335,15 @@ export const GET = withAuth(
         passive: students.filter(s => s.engagementScore >= 30 && s.engagementScore < 60).length,
         disengaged: students.filter(s => s.engagementScore < 30).length,
         engagementTrend: 'stable',
+        homeworkAssigned: homeworkCount,
+        assetsDeployed: assetCount,
       },
       alerts: [],
+      deployedMaterials: deployedMaterials.map(m => ({
+        type: m.type,
+        itemId: m.itemId,
+        title: m.title,
+      })),
     })
   },
   { role: 'TUTOR' }
