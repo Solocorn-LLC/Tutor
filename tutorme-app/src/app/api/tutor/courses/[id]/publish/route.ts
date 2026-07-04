@@ -544,11 +544,30 @@ export const POST = withCsrf(
               }
             }
 
+            // Published lessons in course order — each schedule's sessions are
+            // auto-assigned a lesson sequentially (session 1 → Lesson 1, session 2
+            // → Lesson 2, …) so a schedule no longer collapses everything into
+            // Lesson 1. Sessions beyond the last lesson are left unassigned (null)
+            // for the tutor to fill in via the per-session lesson picker.
+            const publishedLessons = await tx
+              .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+              .from(courseLesson)
+              .where(
+                and(eq(courseLesson.courseId, publishedCourseId), isNull(courseLesson.deletedAt))
+              )
+              .orderBy(courseLesson.order)
+
             // Generate live sessions from all schedules
             for (const s of schedules) {
               const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
               if (scheduleItems.length === 0) continue
               const sessionDates = generateSessionDates(scheduleItems, s.weeksToSchedule || 8)
+
+              // Each schedule is an independent offering that walks the whole
+              // course, so the lesson cursor restarts at Lesson 1 per schedule.
+              // It only advances when a session is actually materialized, so
+              // skipped (conflicting/out-of-availability) slots don't burn a lesson.
+              let lessonCursor = 0
 
               const scheduledAts = sessionDates.map(s => s.scheduledAt).filter(Boolean)
               const minScheduledAt =
@@ -578,6 +597,7 @@ export const POST = withCsrf(
                           durationMinutes: liveSession.durationMinutes,
                           courseId: liveSession.courseId,
                           roomUrl: liveSession.roomUrl,
+                          lessonId: liveSession.lessonId,
                         })
                         .from(liveSession)
                         .where(
@@ -843,6 +863,22 @@ export const POST = withCsrf(
                         externalId: conflictingLs.sessionId,
                       })
                     }
+                    // Backfill the lesson on a session created before lesson
+                    // linkage existed (or a re-publish), keeping the sequence
+                    // aligned. Only set it when currently empty so a tutor's
+                    // manual re-assignment is never overwritten.
+                    const backfillLessonId =
+                      lessonCursor < publishedLessons.length
+                        ? publishedLessons[lessonCursor].lessonId
+                        : null
+                    if (!conflictingLs.lessonId && backfillLessonId) {
+                      await tx
+                        .update(liveSession)
+                        .set({ lessonId: backfillLessonId })
+                        .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+                    }
+                    // Existing same-course session occupies this slot → advance.
+                    lessonCursor++
                     continue
                   } else {
                     // Conflict with a different course — skip and recommend
@@ -862,6 +898,11 @@ export const POST = withCsrf(
                   }
                 }
 
+                const assignedLessonId =
+                  lessonCursor < publishedLessons.length
+                    ? publishedLessons[lessonCursor].lessonId
+                    : undefined
+
                 try {
                   await createSession(
                     {
@@ -873,6 +914,7 @@ export const POST = withCsrf(
                       type: 'COURSE',
                       courseId: publishedCourseId,
                       scheduleId: scheduleIdByPayload.get(s) ?? undefined,
+                      lessonId: assignedLessonId,
                       description: templateCourse.description ?? undefined,
                       status: 'scheduled',
                       maxStudents: s.maxStudents ?? 50,
@@ -880,6 +922,8 @@ export const POST = withCsrf(
                     },
                     tx
                   )
+                  // Session materialized → advance to the next lesson.
+                  lessonCursor++
                 } catch (insertError: any) {
                   const pgError = insertError?.cause || insertError
                   const msg = insertError?.message || String(insertError)

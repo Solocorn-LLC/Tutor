@@ -556,8 +556,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return JSON.parse(JSON.stringify(value)) as CourseBuilderNode[]
     }, [])
 
+    // Live shows the synced snapshot (liveNodes). But a session opened directly
+    // in 'live' mode may never run the switch-triggered sync, leaving liveNodes
+    // empty and the lessons "missing" — fall back to builderNodes (the loaded
+    // course lessons) whenever the snapshot is empty.
     const nodes = useMemo(
-      () => (mainTab === 'live' ? liveNodes : builderNodes),
+      () => (mainTab === 'live' ? (liveNodes.length > 0 ? liveNodes : builderNodes) : builderNodes),
       [mainTab, liveNodes, builderNodes]
     )
 
@@ -1138,21 +1142,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // up from the source task when the caller didn't supply it. Deploy-only —
         // the server never broadcasts it to students.
         let src: Task | undefined
+        let srcLessonId: string | undefined
         for (const mod of nodes) {
           for (const lesson of mod.lessons) {
             const found = lesson.tasks?.find(t => t.id === payload.id)
             if (found) {
               src = found
+              srcLessonId = lesson.id
+              break
+            }
+            // Also match assessments/homework so their deploys carry the lesson.
+            if (
+              lesson.assessments?.some(a => a.id === payload.id) ||
+              lesson.homework?.some(h => h.id === payload.id)
+            ) {
+              srcLessonId = lesson.id
               break
             }
           }
-          if (src) break
+          if (srcLessonId) break
         }
         const enriched: LiveTask = {
           ...payload,
           pci:
             payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined),
           pciSpec: payload.pciSpec ?? src?.pciSpec,
+          // The lesson this material was deployed from, so the server tags it with
+          // the real lesson (not "Lesson 1").
+          lessonId: payload.lessonId ?? srcLessonId,
         }
         setDeployDialog({
           run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
@@ -2422,6 +2439,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [nodes]
     )
 
+    // The lesson id that contains a given task/assessment/homework item, so a
+    // deploy can be tagged with the real lesson (not "Lesson 1").
+    const findLessonIdForItem = useCallback(
+      (id: string): string | undefined => {
+        for (const mod of nodes) {
+          for (const lesson of mod.lessons) {
+            if (
+              lesson.tasks?.some(t => t.id === id) ||
+              lesson.assessments?.some(a => a.id === id) ||
+              lesson.homework?.some(h => h.id === id)
+            ) {
+              return lesson.id
+            }
+          }
+        }
+        return undefined
+      },
+      [nodes]
+    )
+
     const findAssessmentById = useCallback(
       (id: string): Assessment | null => {
         for (const mod of nodes) {
@@ -3194,6 +3231,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
           // grader. Deploy-only; never broadcast to students. (Assessments have
           // no structured pciSpec — that's a task-builder concept.)
           pci: assessmentBuilder.taskPci || undefined,
+          // The lesson this assessment was deployed from (real lesson, not
+          // "Lesson 1").
+          lessonId: findLessonIdForItem(loadedAssessmentId),
           deployedAt: Date.now(),
           polls: [],
           questions: [],
@@ -3319,13 +3359,27 @@ FEEDBACK: [one or two short sentences explaining the score]`
     }
 
     // Add handlers
+    // Next lesson number = one past the HIGHEST existing "Lesson N" — not the
+    // count. So after deleting Lesson 3 (leaving 1, 2, 4) a new lesson is "Lesson
+    // 5", never colliding with 4 or silently refilling the gap. The gap at 3 only
+    // fills when a tutor manually renames a lesson to "Lesson 3".
+    const nextLessonNumber = (mods: CourseBuilderNode[]): number => {
+      let max = 0
+      for (const mod of mods) {
+        const m = /^Lesson\s+(\d+)/i.exec(mod.title || '')
+        if (m) max = Math.max(max, parseInt(m[1], 10))
+      }
+      return max + 1
+    }
+
     const addCourseBuilderNode = () => {
       // Create a new lesson directly without opening modal
       const newOrder = nodes.length
       const newCourseBuilderNode = DEFAULT_NODE(newOrder)
-      // Ensure the title follows "Lesson N" format
-      newCourseBuilderNode.title = `Lesson ${newOrder + 1}`
-      newCourseBuilderNode.lessons[0].title = `Lesson ${newOrder + 1}`
+      // Number by the next available (highest+1), preserving any gaps.
+      const num = nextLessonNumber(nodes)
+      newCourseBuilderNode.title = `Lesson ${num}`
+      newCourseBuilderNode.lessons[0].title = `Lesson ${num}`
 
       setCourseBuilderNodes([...nodes, newCourseBuilderNode])
       setExpandedCourseBuilderNodes(
@@ -3453,8 +3507,14 @@ FEEDBACK: [one or two short sentences explaining the score]`
     const createNewLessonTarget = useCallback((): { nodeId: string; lessonId: string } => {
       const newOrder = nodes.length
       const newNode = DEFAULT_NODE(newOrder)
-      newNode.title = `Lesson ${newOrder + 1}`
-      newNode.lessons[0].title = `Lesson ${newOrder + 1}`
+      // Next available number (highest+1), preserving gaps — see nextLessonNumber.
+      let maxNum = 0
+      for (const mod of nodes) {
+        const m = /^Lesson\s+(\d+)/i.exec(mod.title || '')
+        if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10))
+      }
+      newNode.title = `Lesson ${maxNum + 1}`
+      newNode.lessons[0].title = `Lesson ${maxNum + 1}`
       setCourseBuilderNodes([...nodes, newNode])
       setExpandedCourseBuilderNodes(new Set([...expandedCourseBuilderNodes, newNode.id]))
       return { nodeId: newNode.id, lessonId: newNode.lessons[0].id }
@@ -3552,12 +3612,13 @@ FEEDBACK: [one or two short sentences explaining the score]`
       setActiveDragId(event.active.id as string)
     }
 
-    // Helper function to renumber lesson titles after reordering
+    // Update lesson positions after reordering WITHOUT renaming. Lesson numbers
+    // are the tutor's to set — they must stay stable (and any gaps persist) until
+    // a tutor manually renames, so reordering only changes `order`, not the title.
     const renumberCourseBuilderNodes = (mods: CourseBuilderNode[]): CourseBuilderNode[] => {
       return mods.map((mod, idx) => ({
         ...mod,
         order: idx,
-        title: mod.title.replace(/^Lesson \d+/, `Lesson ${idx + 1}`),
       }))
     }
 
@@ -3775,11 +3836,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
             activeLessonIndex,
             overLessonIndex
           )
-          // Renumber lessons after reordering
+          // Reposition only — keep each lesson's title stable (no auto-renumber).
           newCourseBuilderNodes[nIdx].lessons = movedLessons.map((lesson, idx) => ({
             ...lesson,
             order: idx,
-            title: lesson.title.replace(/^Lesson \d+/, `Lesson ${idx + 1}`),
           }))
           setCourseBuilderNodes(newCourseBuilderNodes)
           return
@@ -4044,8 +4104,38 @@ FEEDBACK: [one or two short sentences explaining the score]`
       )
     }
 
+    // Block deleting a lesson that has had material deployed from it in a live
+    // class. Returns true when deletion is allowed (or the check can't run).
+    const ensureLessonsDeletable = async (lessonIds: string[]): Promise<boolean> => {
+      const ids = lessonIds.filter(Boolean)
+      if (!courseId || ids.length === 0) return true
+      try {
+        const res = await fetch(`/api/tutor/courses/${courseId}/lessons/usage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ lessonIds: ids }),
+        })
+        if (!res.ok) return true // never block on a failed check
+        const data = await res.json().catch(() => ({}))
+        const usage = (data?.usage ?? {}) as Record<string, { deployedCount?: number }>
+        const blocked = ids.some(id => (usage[id]?.deployedCount ?? 0) > 0)
+        if (blocked) {
+          toast.error(
+            'This lesson has material deployed from it in a class and can’t be deleted. Remove or reassign its deployed tasks/assessments first.'
+          )
+          return false
+        }
+        return true
+      } catch {
+        return true
+      }
+    }
+
     const deleteCourseBuilderNode = async (nodeId: string) => {
       const nodeToDelete = nodes.find(m => m.id === nodeId)
+      const lessonIds = nodeToDelete?.lessons.map(l => l.id) ?? []
+      if (!(await ensureLessonsDeletable(lessonIds))) return
       if (nodeToDelete) {
         const keys = nodeToDelete.lessons.flatMap(l => collectLessonFileKeys(l))
         if (keys.length > 0) await cleanupGcsFiles(keys)
@@ -4057,6 +4147,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
     }
 
     const deleteLesson = async (nodeId: string, lessonId: string) => {
+      if (!(await ensureLessonsDeletable([lessonId]))) return
       const lessonToDelete = nodes.find(m => m.id === nodeId)?.lessons.find(l => l.id === lessonId)
       if (lessonToDelete) {
         const keys = collectLessonFileKeys(lessonToDelete)
@@ -9107,6 +9198,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         title: task.title || 'Task',
                                                         content: task.description || '',
                                                         source: 'task',
+                                                        // Real source lesson (not
+                                                        // "Lesson 1").
+                                                        lessonId: findLessonIdForItem(task.id),
                                                         // Student-safe projection
                                                         // (strips answer key incl.
                                                         // matching pairs / hotspot
