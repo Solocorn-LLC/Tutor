@@ -117,6 +117,7 @@ import {
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
 import { deriveExamContext, EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
+import { getAllCourseCategoryOptions } from '@/lib/data/all-categories'
 import { reverifyAssessment } from '@/lib/assessment/assessment-gates'
 import { deriveSections, deriveTotalMarks } from '@/lib/assessment/sections'
 import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
@@ -710,6 +711,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     useEffect(() => {
       setAssetViewFolder(designatedFolder !== 'Uncategorized' ? designatedFolder : 'All')
     }, [courseId, designatedFolder])
+
+    // Board & Subject for the PCI Guided form (Model A: the course category is
+    // the shared source of truth). `courseCategoryOverride` reflects a change the
+    // tutor makes here immediately, before the `courses` prop refetches; the
+    // change is also persisted back to the course so Course details picks it up.
+    const liveCourseCategories = useMemo(() => {
+      const lc = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
+      return Array.isArray(lc?.categories) ? (lc.categories as string[]) : []
+    }, [(insightsProps as any)?.courses, courseId])
+    const [courseCategoryOverride, setCourseCategoryOverride] = useState<string | null>(null)
+    const [pciBoardOverride, setPciBoardOverride] = useState<string | null>(null)
+    const pciCategory =
+      courseCategoryOverride ?? (designatedFolder !== 'Uncategorized' ? designatedFolder : '')
+    const pciBoard =
+      pciBoardOverride ?? deriveExamContext(pciCategory || null, courseName).examBody ?? ''
+    const pciCategoryOptions = useMemo(() => getAllCourseCategoryOptions(), [])
 
     const [assetFoldersList, setAssetFoldersList] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
@@ -2932,6 +2949,52 @@ FEEDBACK: [one or two short sentences explaining the score]`
       courseName,
       setExamContext,
     })
+
+    // Persist the Guided-form Subject back to the course's categories so it
+    // reflects on the Course details page (Model A, item 5). Replaces the
+    // primary category, preserving any additional ones. Best-effort — the local
+    // override already reflects it in the form. The PATCH route is auth-only.
+    const persistCourseCategory = useCallback(
+      async (cat: string) => {
+        if (!courseId || !cat) return
+        const next =
+          liveCourseCategories.length > 0
+            ? [cat, ...liveCourseCategories.slice(1).filter(c => c !== cat)]
+            : [cat]
+        try {
+          await fetch(`/api/tutor/courses/${courseId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ categories: next }),
+          })
+        } catch {
+          // best-effort — the form already reflects it via the local override
+        }
+      },
+      [courseId, liveCourseCategories]
+    )
+
+    // Board/Subject changes from the PCI Guided form. Subject (a course category)
+    // drives the DMI exam context AND writes back to the course; Board overrides
+    // the derived examBody on the DMI.
+    const handlePciExamContextChange = useCallback(
+      (source: 'task' | 'assessment', patch: { category?: string; board?: string }) => {
+        if (patch.category !== undefined) {
+          const cat = patch.category
+          const derived = deriveExamContext(cat || null, courseName)
+          setCourseCategoryOverride(cat)
+          setPciBoardOverride(null) // re-derive the board from the new subject
+          setExamContext(source, { examBody: derived.examBody, subject: derived.subject ?? cat })
+          void persistCourseCategory(cat)
+        }
+        if (patch.board !== undefined) {
+          setPciBoardOverride(patch.board)
+          setExamContext(source, { examBody: patch.board })
+        }
+      },
+      [courseName, setExamContext, persistCourseCategory]
+    )
 
     // Generate DMI using AI from content or PDF images with versioning.
     // `questionSpec` is supplied (via the spec dialog) when the source is study
@@ -6281,6 +6344,10 @@ FEEDBACK: [one or two short sentences explaining the score]`
             // then the form auto-prefills the PCI from it.
             onUploadMarkingScheme={file => handleMarkingSchemeFile(file, source)}
             markingSchemeLoading={markingSchemeLoading}
+            board={pciBoard}
+            subject={pciCategory}
+            categoryOptions={pciCategoryOptions}
+            onExamContextChange={patch => handlePciExamContextChange(source, patch)}
             canEdit={canEdit}
             onSave={(specText, spec) => {
               setCurrentPci(source, specText, {

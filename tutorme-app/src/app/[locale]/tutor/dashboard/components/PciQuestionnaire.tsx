@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Sparkles, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { PCI_SPEC_FIELDS, pciSpecToText, type PciSpec } from '@/lib/assessment/pci-spec'
+import { EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
 
 // Short helper hints per field so tutors know what belongs where.
 const FIELD_HINTS: Partial<Record<keyof PciSpec, string>> = {
@@ -50,6 +51,13 @@ interface PciQuestionnaireProps {
    *  shows an upload control and auto-prefills the PCI once the DMI is filled. */
   onUploadMarkingScheme?: (file: File) => Promise<void>
   markingSchemeLoading?: boolean
+  /** Board & Subject (Model A: category is the source of truth, shared with
+   *  Course details). Subject is a course category from the catalog; Board is
+   *  the examBody, auto-derived from the subject but overridable. */
+  board?: string
+  subject?: string
+  categoryOptions?: string[]
+  onExamContextChange?: (patch: { category?: string; board?: string }) => void
   canEdit: boolean
   onSave: (specText: string, spec: PciSpec) => void
   onClose: () => void
@@ -63,6 +71,10 @@ export function PciQuestionnaire({
   markingScheme,
   onUploadMarkingScheme,
   markingSchemeLoading,
+  board,
+  subject,
+  categoryOptions,
+  onExamContextChange,
   canEdit,
   onSave,
   onClose,
@@ -225,6 +237,59 @@ export function PciQuestionnaire({
           </>
         ) : null}
       </p>
+
+      {onExamContextChange && (
+        <div className="mb-3 grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-white/70 p-2">
+          <div>
+            <label
+              htmlFor={`pci-board-${source}`}
+              className="block text-[11px] font-medium text-slate-700"
+            >
+              Board
+            </label>
+            <select
+              id={`pci-board-${source}`}
+              value={board ?? ''}
+              disabled={!canEdit}
+              onChange={e => onExamContextChange({ board: e.target.value })}
+              className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
+            >
+              <option value="">—</option>
+              {EXAM_BOARDS.map(b => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor={`pci-subject-${source}`}
+              className="block text-[11px] font-medium text-slate-700"
+            >
+              Subject / category
+            </label>
+            <input
+              id={`pci-subject-${source}`}
+              list={`pci-subject-list-${source}`}
+              value={subject ?? ''}
+              disabled={!canEdit}
+              onChange={e => onExamContextChange({ category: e.target.value })}
+              placeholder="Search the catalog…"
+              className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
+            />
+            <datalist id={`pci-subject-list-${source}`}>
+              {(categoryOptions ?? []).map(c => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <p className="col-span-2 text-[10px] leading-snug text-slate-400">
+            Shared with Course details — set it here for a new course, or it shows the published
+            course&rsquo;s category. Board auto-fills from the subject; override if needed.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {PCI_SPEC_FIELDS.map(({ key, label }) => (
