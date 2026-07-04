@@ -167,6 +167,9 @@ export interface LiveTask {
    *  layer, same handling as answerKey. */
   pci?: string
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+  /** The lesson this task/assessment was deployed from — tags BuilderTask +
+   *  DeployedMaterial with the real lesson so submissions group correctly. */
+  lessonId?: string
   /** Tutor's answer-reveal policy: 'instant' | 'after_submit' | 'hidden' | 'student_choice'. */
   answerReveal?: 'instant' | 'after_submit' | 'hidden' | 'student_choice'
   deployedAt: number
@@ -1239,6 +1242,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
             title: normalizedTask.title,
             content: normalizedTask as unknown as Record<string, unknown>,
             sessionSequence,
+            // Source lesson (deploy-only), so the Desk groups this under the real
+            // lesson instead of always "Lesson 1".
+            lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
             deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
           })
 
@@ -1257,15 +1263,34 @@ export async function initEnhancedSocketServer(server: NetServer) {
           try {
             const tutorId = socket.data.userId
             if (tutorId) {
-              // builderTask.lessonId is a NOT NULL FK. Most courses have a
-              // lesson, but one published with only a schedule (no built
-              // content) has none — create a placeholder so the deployed task
-              // can still be persisted and graded.
-              let [lesson] = await drizzleDb
-                .select({ lessonId: courseLesson.lessonId })
-                .from(courseLesson)
-                .where(eq(courseLesson.courseId, sessionRec.courseId))
-                .limit(1)
+              // builderTask.lessonId is a NOT NULL FK. Prefer the lesson the task
+              // was actually deployed FROM (task.lessonId, sent on the deploy
+              // payload) so submissions group under the real lesson instead of
+              // always "Lesson 1". Fall back to the course's first lesson, then a
+              // placeholder (a course published with only a schedule has none).
+              let lesson: { lessonId: string } | undefined
+              if (typeof task.lessonId === 'string' && task.lessonId) {
+                const [preferred] = await drizzleDb
+                  .select({ lessonId: courseLesson.lessonId })
+                  .from(courseLesson)
+                  .where(
+                    and(
+                      eq(courseLesson.lessonId, task.lessonId),
+                      eq(courseLesson.courseId, sessionRec.courseId)
+                    )
+                  )
+                  .limit(1)
+                if (preferred?.lessonId) lesson = preferred
+              }
+              if (!lesson) {
+                const [first] = await drizzleDb
+                  .select({ lessonId: courseLesson.lessonId })
+                  .from(courseLesson)
+                  .where(eq(courseLesson.courseId, sessionRec.courseId))
+                  .orderBy(courseLesson.order)
+                  .limit(1)
+                lesson = first
+              }
               // NOTE: set createdAt/updatedAt explicitly. These columns are
               // declared notNull().defaultNow() in the schema, but the prod DB
               // has drifted and lacks the column DEFAULT, so relying on the
@@ -1620,12 +1645,29 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // every persist in this chain. Explicit values are drift-proof.
             const now = new Date()
 
-            // 1) Lesson (builderTask.lessonId is NOT NULL).
-            let [lesson] = await drizzleDb
-              .select({ lessonId: courseLesson.lessonId })
-              .from(courseLesson)
-              .where(eq(courseLesson.courseId, courseId))
-              .limit(1)
+            // 1) Lesson (builderTask.lessonId is NOT NULL). Prefer the lesson the
+            //    task was deployed from; fall back to the first lesson, then a
+            //    placeholder.
+            let lesson: { lessonId: string } | undefined
+            if (typeof task.lessonId === 'string' && task.lessonId) {
+              const [preferred] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(
+                  and(eq(courseLesson.lessonId, task.lessonId), eq(courseLesson.courseId, courseId))
+                )
+                .limit(1)
+              if (preferred?.lessonId) lesson = preferred
+            }
+            if (!lesson) {
+              const [first] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(eq(courseLesson.courseId, courseId))
+                .orderBy(courseLesson.order)
+                .limit(1)
+              lesson = first
+            }
             if (!lesson?.lessonId) {
               const newLessonId = crypto.randomUUID()
               await drizzleDb.insert(courseLesson).values({
@@ -1684,6 +1726,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 itemId: taskId,
                 title: task.title || 'Untitled',
                 sessionSequence: 1,
+                lessonId: lesson.lessonId,
                 deployedAt: now,
               })
             }

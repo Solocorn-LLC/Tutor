@@ -141,6 +141,11 @@ END $$;
 -- that skips migrations still has the column before it serves traffic.
 ALTER TABLE "BuilderTask" ADD COLUMN IF NOT EXISTS "pciSpec" jsonb;
 
+-- Lesson linkage (drizzle/0065): which lesson a session covers + which lesson a
+-- deployed item came from. Nullable; mirrors the migration for skip-migrations.
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "lessonId" text;
+ALTER TABLE "DeployedMaterial" ADD COLUMN IF NOT EXISTS "lessonId" text;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN
