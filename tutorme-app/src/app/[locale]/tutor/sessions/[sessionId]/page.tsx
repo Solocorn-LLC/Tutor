@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Users, MessageSquare, Hand } from 'lucide-react'
+import { ArrowLeft, Users, CheckCircle, BookOpen, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SessionData {
@@ -58,6 +58,8 @@ interface SessionData {
     totalChatMessages: number
     classDuration: number
     classStartTime: string
+    homeworkAssigned: number
+    assetsDeployed: number
   }
 }
 
@@ -115,7 +117,6 @@ export default function TutorSessionInsightsPage() {
   }
 
   const { session, students, metrics } = data
-  const handRaises = students.filter(s => s.handRaised).length
   const scheduledDate = session.scheduledAt
     ? new Date(session.scheduledAt).toLocaleDateString(undefined, {
         weekday: 'long',
@@ -127,7 +128,7 @@ export default function TutorSessionInsightsPage() {
 
   return (
     <div className="min-h-screen w-full bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-6 font-sans">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="w-full px-3 lg:px-4 space-y-6">
         <Card className="rounded-lg border border-[#E5E7EB] bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-white/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -186,27 +187,20 @@ export default function TutorSessionInsightsPage() {
           <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
-                <MessageSquare className="h-4 w-4 text-[#2563EB]" />
-                Messages
+                <CheckCircle className="h-4 w-4 text-[#2DBE8A]" />
+                Task Completion Rate
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-[#344054]">{metrics.totalChatMessages}</p>
-              <p className="mt-1 text-xs font-medium text-[#7F7C77]">Total chat messages</p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
-                <Hand className="h-4 w-4 text-[#F17623]" />
-                Hand Raises
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-[#344054]">{handRaises}</p>
+              <p className="text-2xl font-bold text-[#344054]">
+                {metrics.totalStudents > 0 && metrics.homeworkAssigned > 0
+                  ? `${Math.round(
+                      (metrics.assetsDeployed / metrics.homeworkAssigned) * 100
+                    )}%`
+                  : 'N/A'}
+              </p>
               <p className="mt-1 text-xs font-medium text-[#7F7C77]">
-                From {metrics.totalStudents} students
+                {metrics.assetsDeployed} of {metrics.homeworkAssigned} tasks completed
               </p>
             </CardContent>
           </Card>
@@ -214,6 +208,22 @@ export default function TutorSessionInsightsPage() {
           <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
+                <BookOpen className="h-4 w-4 text-[#F17623]" />
+                Homework Assigned
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-[#344054]">{metrics.homeworkAssigned}</p>
+              <p className="mt-1 text-xs font-medium text-[#7F7C77]">
+                Tasks &amp; assessments deployed
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
+                <Clock className="h-4 w-4 text-[#2563EB]" />
                 Duration
               </CardTitle>
             </CardHeader>
@@ -297,11 +307,6 @@ export default function TutorSessionInsightsPage() {
                         <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-1 text-[#3F3D39]">
                           Msgs: {student.chatMessages}
                         </span>
-                        {student.handRaised && (
-                          <span className="rounded-md border border-[#F5D7B3] bg-[#FFF7ED] px-2 py-1 text-[#F17623]">
-                            Raised hand
-                          </span>
-                        )}
                       </div>
                     </li>
                   ))}
