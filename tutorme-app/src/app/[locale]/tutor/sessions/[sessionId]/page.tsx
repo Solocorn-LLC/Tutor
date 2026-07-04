@@ -128,7 +128,7 @@ export default function TutorSessionInsightsPage() {
 
   return (
     <div className="min-h-screen w-full bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-6 font-sans">
-      <div className="w-full px-3 lg:px-4 space-y-6">
+      <div className="w-full space-y-6 px-3 lg:px-4">
         <Card className="rounded-lg border border-[#E5E7EB] bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-white/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -194,9 +194,7 @@ export default function TutorSessionInsightsPage() {
             <CardContent>
               <p className="text-2xl font-bold text-[#344054]">
                 {metrics.totalStudents > 0 && metrics.homeworkAssigned > 0
-                  ? `${Math.round(
-                      (metrics.assetsDeployed / metrics.homeworkAssigned) * 100
-                    )}%`
+                  ? `${Math.round((metrics.assetsDeployed / metrics.homeworkAssigned) * 100)}%`
                   : 'N/A'}
               </p>
               <p className="mt-1 text-xs font-medium text-[#7F7C77]">
