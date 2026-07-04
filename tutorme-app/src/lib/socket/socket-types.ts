@@ -125,6 +125,10 @@ export interface LiveTask {
    *  NEVER broadcast to students — hidden evaluation layer, like answerKey. */
   pci?: string
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+  /** The lesson this task/assessment was deployed from, so the server can tag the
+   *  persisted BuilderTask + DeployedMaterial with the real lesson (not "Lesson
+   *  1"). Sent tutor→server on deploy. */
+  lessonId?: string
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]
