@@ -1138,21 +1138,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // up from the source task when the caller didn't supply it. Deploy-only —
         // the server never broadcasts it to students.
         let src: Task | undefined
+        let srcLessonId: string | undefined
         for (const mod of nodes) {
           for (const lesson of mod.lessons) {
             const found = lesson.tasks?.find(t => t.id === payload.id)
             if (found) {
               src = found
+              srcLessonId = lesson.id
+              break
+            }
+            // Also match assessments/homework so their deploys carry the lesson.
+            if (
+              lesson.assessments?.some(a => a.id === payload.id) ||
+              lesson.homework?.some(h => h.id === payload.id)
+            ) {
+              srcLessonId = lesson.id
               break
             }
           }
-          if (src) break
+          if (srcLessonId) break
         }
         const enriched: LiveTask = {
           ...payload,
           pci:
             payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined),
           pciSpec: payload.pciSpec ?? src?.pciSpec,
+          // The lesson this material was deployed from, so the server tags it with
+          // the real lesson (not "Lesson 1").
+          lessonId: payload.lessonId ?? srcLessonId,
         }
         setDeployDialog({
           run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
@@ -2422,6 +2435,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [nodes]
     )
 
+    // The lesson id that contains a given task/assessment/homework item, so a
+    // deploy can be tagged with the real lesson (not "Lesson 1").
+    const findLessonIdForItem = useCallback(
+      (id: string): string | undefined => {
+        for (const mod of nodes) {
+          for (const lesson of mod.lessons) {
+            if (
+              lesson.tasks?.some(t => t.id === id) ||
+              lesson.assessments?.some(a => a.id === id) ||
+              lesson.homework?.some(h => h.id === id)
+            ) {
+              return lesson.id
+            }
+          }
+        }
+        return undefined
+      },
+      [nodes]
+    )
+
     const findAssessmentById = useCallback(
       (id: string): Assessment | null => {
         for (const mod of nodes) {
@@ -3194,6 +3227,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
           // grader. Deploy-only; never broadcast to students. (Assessments have
           // no structured pciSpec — that's a task-builder concept.)
           pci: assessmentBuilder.taskPci || undefined,
+          // The lesson this assessment was deployed from (real lesson, not
+          // "Lesson 1").
+          lessonId: findLessonIdForItem(loadedAssessmentId),
           deployedAt: Date.now(),
           polls: [],
           questions: [],
@@ -9107,6 +9143,9 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         title: task.title || 'Task',
                                                         content: task.description || '',
                                                         source: 'task',
+                                                        // Real source lesson (not
+                                                        // "Lesson 1").
+                                                        lessonId: findLessonIdForItem(task.id),
                                                         // Student-safe projection
                                                         // (strips answer key incl.
                                                         // matching pairs / hotspot
