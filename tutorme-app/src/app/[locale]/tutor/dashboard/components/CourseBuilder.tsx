@@ -9572,22 +9572,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!taskTextVisible)
-                                                          setTaskTextVisible(true)
-                                                        setTaskPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
                                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                                   <img
                                                     src={currentTaskDocument.fileUrl}
@@ -9602,22 +9586,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!taskTextVisible)
-                                                          setTaskTextVisible(true)
-                                                        setTaskPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
                                                   <FileText className="mb-4 h-16 w-16 text-blue-500" />
                                                   <a
                                                     href={currentTaskDocument.fileUrl}
@@ -9630,22 +9598,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 </div>
                                               ) : (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!taskTextVisible)
-                                                          setTaskTextVisible(true)
-                                                        setTaskPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-500">
                                                     No document selected
@@ -10009,23 +9961,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!assessmentTextVisible)
-                                                          setAssessmentTextVisible(true)
-                                                        setAssessmentPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
-                                                  <div className="relative h-full w-full pt-11">
+                                                  <div className="relative h-full w-full">
                                                     <NextImage
                                                       src={currentAssessmentDocument.fileUrl}
                                                       alt={currentAssessmentDocument.fileName}
@@ -10038,22 +9974,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               ) : currentAssessmentDocument &&
                                                 currentAssessmentDocument.fileUrl ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!assessmentTextVisible)
-                                                          setAssessmentTextVisible(true)
-                                                        setAssessmentPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
                                                   <FileText className="mb-4 h-16 w-16 text-blue-500" />
                                                   <a
                                                     href={currentAssessmentDocument.fileUrl}
@@ -10067,22 +9987,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 </div>
                                               ) : (
                                                 <div className="flex h-full flex-col items-center justify-center text-gray-400">
-                                                  <div className="absolute left-0 top-0 flex h-11 w-full shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white p-1">
-                                                    <div />
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => {
-                                                        if (!assessmentTextVisible)
-                                                          setAssessmentTextVisible(true)
-                                                        setAssessmentPdfVisible(false)
-                                                      }}
-                                                      className="h-8 w-8 rounded-lg p-0 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                      title="Hide Preview"
-                                                    >
-                                                      <ChevronRight className="h-5 w-5" />
-                                                    </Button>
-                                                  </div>
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-600">
                                                     No document selected
