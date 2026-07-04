@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
+import { FloatingZoomPill } from './FloatingZoomPill'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
@@ -115,9 +116,12 @@ export function PDFViewer({
     setLoading(false)
   }, [])
 
-  const changeScale = useCallback((delta: number) => {
+  const changeScale = useCallback((deltaOrValue: number, absolute = false) => {
     setScale(prev => {
-      const next = Math.round((prev + delta) * 100) / 100
+      if (absolute) {
+        return Math.max(0.5, Math.min(3.0, Math.round(deltaOrValue * 100) / 100))
+      }
+      const next = Math.round((prev + deltaOrValue) * 100) / 100
       return Math.max(0.5, Math.min(3.0, next))
     })
   }, [])
@@ -233,7 +237,17 @@ export function PDFViewer({
 
       {/* Document pages */}
       {!error && !isBlobUrl && pdfData && (
-        <div className={`flex-1 overflow-y-auto ${loading ? 'hidden' : 'block'}`}>
+        <div className={`relative flex-1 overflow-y-auto ${loading ? 'hidden' : 'block'}`}>
+          {/* Floating zoom pill */}
+          {!loading && !error && numPages > 0 && (
+            <FloatingZoomPill
+              scale={scale}
+              onScaleChange={newScale => changeScale(newScale, true)}
+              minScale={0.5}
+              maxScale={1.5}
+              onHidePreview={onHidePreview}
+            />
+          )}
           <Document
             file={pdfData}
             onLoadSuccess={onDocumentLoadSuccess}
