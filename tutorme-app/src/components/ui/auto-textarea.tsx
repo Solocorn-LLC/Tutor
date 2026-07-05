@@ -4,10 +4,11 @@ import { cn } from '@/lib/utils'
 
 export interface AutoTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   disableAutoResize?: boolean
+  maxRows?: number
 }
 
 export const AutoTextarea = React.forwardRef<HTMLTextAreaElement, AutoTextareaProps>(
-  ({ className, value, onChange, onKeyDown, disableAutoResize, ...props }, ref) => {
+  ({ className, value, onChange, onKeyDown, disableAutoResize, maxRows, ...props }, ref) => {
     const internalRef = React.useRef<HTMLTextAreaElement>(null)
     const textareaRef = (ref as any) || internalRef
 
@@ -149,18 +150,29 @@ export const AutoTextarea = React.forwardRef<HTMLTextAreaElement, AutoTextareaPr
         const manualHeight = props.style?.height
         target.style.height = 'auto'
         const autoHeight = target.scrollHeight
+        let finalHeight = autoHeight
+        if (maxRows) {
+          const lineHeight = parseInt(window.getComputedStyle(target).lineHeight) || 20
+          const maxHeight = maxRows * lineHeight
+          if (autoHeight > maxHeight) {
+            finalHeight = maxHeight
+            target.classList.add('overflow-y-auto', 'scrollbar-none')
+          } else {
+            target.classList.remove('overflow-y-auto', 'scrollbar-none')
+          }
+        }
         if (manualHeight && typeof manualHeight === 'string') {
           const manualPx = parseInt(manualHeight)
-          if (!isNaN(manualPx) && manualPx > autoHeight) {
+          if (!isNaN(manualPx) && manualPx > finalHeight) {
             target.style.height = `${manualPx}px`
           } else {
-            target.style.height = `${autoHeight}px`
+            target.style.height = `${finalHeight}px`
           }
         } else {
-          target.style.height = `${autoHeight}px`
+          target.style.height = `${finalHeight}px`
         }
       }
-    }, [value, props.style?.height, disableAutoResize])
+    }, [value, props.style?.height, disableAutoResize, maxRows])
 
     return (
       <div className={cn('relative w-full', disableAutoResize && 'h-full')}>

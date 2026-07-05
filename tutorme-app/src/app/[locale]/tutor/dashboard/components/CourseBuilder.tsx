@@ -8649,7 +8649,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 <MentionTextarea
                                                   mentionItems={mentionItems}
                                                   className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  placeholder="Did you find this task difficult?"
                                                   disableAutoResize
                                                   value={pollPrompt}
                                                   onChange={event =>
@@ -8745,7 +8744,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 <MentionTextarea
                                                   mentionItems={mentionItems}
                                                   className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  placeholder="Ask your AI coach or share a reflection..."
                                                   disableAutoResize
                                                   value={questionPrompt}
                                                   onChange={event =>
@@ -9203,15 +9201,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
-                                    <div className="flex w-full flex-col">
+                                    <div className="relative flex w-full items-end">
                                       <MentionTextarea
                                         mentionItems={mentionItems}
-                                        className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                        placeholder={
-                                          testPciActiveTab === 'classroom'
-                                            ? 'Enter answer (goes to both students)...'
-                                            : 'Ask your AI coach or share a reflection...'
-                                        }
+                                        className="min-h-[40px] w-full flex-1 resize-none border-0 bg-transparent px-4 py-2 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                        maxRows={3}
                                         value={testPciInputs[testPciActiveTab] || ''}
                                         onChange={(e: any) =>
                                           setTestPciInputs(prev => ({
@@ -9230,79 +9224,23 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           }
                                         }}
                                       />
-                                      <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                      <div className="absolute bottom-1.5 right-2 flex items-center gap-1">
                                         {testPciActiveTab === 'classroom' &&
                                           liveDmiItems.length > 0 && (
                                             <Button
                                               variant="outline"
                                               size="sm"
-                                              className="h-9 gap-1 rounded-xl border-[#F17623] px-3 text-[#F17623] shadow-sm hover:bg-[#FFF4EC]"
+                                              className="h-8 gap-1 rounded-lg border-[#F17623] px-2 text-xs text-[#F17623] shadow-sm hover:bg-[#FFF4EC]"
                                               title="View the loaded DMI"
                                               onClick={() => setShowLiveDmiModal(true)}
                                             >
-                                              <FileText className="h-4 w-4" />
-                                              View DMI ({liveDmiItems.length})
+                                              <FileText className="h-3.5 w-3.5" />
+                                              DMI ({liveDmiItems.length})
                                             </Button>
                                           )}
-                                        {testPciActiveTab === 'classroom' && (
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="h-9 w-9 rounded-xl border-gray-300 shadow-sm hover:bg-gray-100"
-                                                title="Toggle View Mode"
-                                              >
-                                                <Plus className="h-4 w-4" />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                              align="end"
-                                              className="max-h-64 w-56 overflow-y-auto"
-                                            >
-                                              {testPciSource === 'task' ? (
-                                                <>
-                                                  <DropdownMenuItem
-                                                    onClick={() => setTestPciViewMode('pdf')}
-                                                    className="flex items-center gap-2"
-                                                  >
-                                                    <FileText className="h-4 w-4" />
-                                                    PDF Document
-                                                    {testPciViewMode === 'pdf' && (
-                                                      <CheckCircle className="ml-auto h-4 w-4 text-green-500" />
-                                                    )}
-                                                  </DropdownMenuItem>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  {assessmentDmiVersions.length > 0 && (
-                                                    <div className="text-muted-foreground px-2 py-1.5 text-xs font-semibold">
-                                                      DMI Versions
-                                                    </div>
-                                                  )}
-                                                  {assessmentDmiVersions.map(version => (
-                                                    <DropdownMenuItem
-                                                      key={version.id}
-                                                      onClick={() =>
-                                                        setTestPciViewMode(`dmi_${version.id}`)
-                                                      }
-                                                      className="flex items-center gap-2"
-                                                    >
-                                                      <Wand2 className="h-4 w-4 text-indigo-500" />
-                                                      Version {version.versionNumber}
-                                                      {testPciViewMode === `dmi_${version.id}` && (
-                                                        <CheckCircle className="ml-auto h-4 w-4 text-green-500" />
-                                                      )}
-                                                    </DropdownMenuItem>
-                                                  ))}
-                                                </>
-                                              )}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        )}
                                         <Button
                                           size="icon"
-                                          className="h-9 w-9 rounded-xl bg-slate-400 shadow-sm hover:bg-slate-500 disabled:opacity-30"
+                                          className="h-8 w-8 rounded-lg bg-slate-400 shadow-sm hover:bg-slate-500 disabled:opacity-30"
                                           disabled={
                                             !(testPciInputs[testPciActiveTab] || '').trim() ||
                                             testPciLoading
@@ -9312,104 +9250,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         >
                                           <Send className="h-4 w-4" />
                                         </Button>
-                                        <Button
-                                          size="icon"
-                                          className="h-9 w-9 rounded-xl bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 disabled:opacity-30"
-                                          disabled={testPciLoading || !canEdit}
-                                          onClick={() => {
-                                            if (!canEdit) return
-                                            if (onSave) {
-                                              onSave(
-                                                nodes.map(n => n.lessons[0] || ({} as any)),
-                                                { developmentMode: devMode, previewDifficulty }
-                                              )
-                                              toast.success('Course and PCI saved')
-                                            }
-                                          }}
-                                          title="Save Course & PCI"
-                                        >
-                                          <Save className="h-4 w-4" />
-                                        </Button>
-                                        {insightsProps?.onDeployTask && (
-                                          <Button
-                                            size="icon"
-                                            className="h-9 w-9 rounded-xl bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 disabled:opacity-30"
-                                            disabled={
-                                              testPciLoading ||
-                                              (!loadedTaskId && !loadedAssessmentId)
-                                            }
-                                            onClick={() => {
-                                              // Ask how/when to reveal answers,
-                                              // then deploy with the chosen mode.
-                                              setDeployDialog({
-                                                run: reveal => {
-                                                  if (testPciSource === 'task') {
-                                                    const task = findTaskById(loadedTaskId || '')
-                                                    if (task) {
-                                                      insightsProps.onDeployTask?.({
-                                                        id: task.id,
-                                                        title: task.title || 'Task',
-                                                        content: task.description || '',
-                                                        source: 'task',
-                                                        // Real source lesson (not
-                                                        // "Lesson 1").
-                                                        lessonId: findLessonIdForItem(task.id),
-                                                        // Student-safe projection
-                                                        // (strips answer key incl.
-                                                        // matching pairs / hotspot
-                                                        // regions).
-                                                        dmiItems:
-                                                          task.dmiItems?.map(toStudentDmiItem) ||
-                                                          [],
-                                                        // Answer key + marks for
-                                                        // server-side grading (never
-                                                        // sent to students).
-                                                        answerKey:
-                                                          task.dmiItems?.map(item => ({
-                                                            id: item.id,
-                                                            answer: item.answer,
-                                                            marks: item.marks,
-                                                          })) || [],
-                                                        answerReveal: reveal,
-                                                        // Tutor's PCI + structured
-                                                        // spec for the live tutor +
-                                                        // grader (deploy-only; never
-                                                        // sent to students).
-                                                        pci:
-                                                          typeof task.instructions === 'string'
-                                                            ? task.instructions
-                                                            : undefined,
-                                                        pciSpec: task.pciSpec,
-                                                        deployedAt: Date.now(),
-                                                        polls: [],
-                                                        questions: [],
-                                                        sourceDocument: task.sourceDocument
-                                                          ? {
-                                                              fileName:
-                                                                task.sourceDocument.fileName,
-                                                              fileUrl: task.sourceDocument.fileUrl,
-                                                              fileKey: task.sourceDocument.fileKey,
-                                                              mimeType:
-                                                                task.sourceDocument.mimeType ||
-                                                                'application/pdf',
-                                                            }
-                                                          : undefined,
-                                                      })
-                                                      toast.success(
-                                                        'Task DMI deployed to live session'
-                                                      )
-                                                    }
-                                                  } else {
-                                                    handleDeployAssessmentDmi(reveal)
-                                                  }
-                                                },
-                                              })
-                                            }}
-                                            title="Deploy to Session"
-                                          >
-                                            <Play className="h-4 w-4" />
-                                          </Button>
-                                        )}
                                       </div>
                                     </div>
                                     <div className="border-border/50 bg-muted/20 border-t px-1 py-1">
@@ -9623,11 +9463,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             )}
                                           >
                                             <AutoTextarea
-                                              placeholder={
-                                                taskBuilder.activeExtensionId
-                                                  ? 'Extension content...'
-                                                  : 'Enter task content or drop files here...'
-                                              }
                                               className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
@@ -9902,7 +9737,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
                                                   mentionItems={mentionItems}
-                                                  placeholder="Ask the PCI assistant..."
                                                   className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                   value={activeTaskPciInput}
                                                   readOnly={!canEdit}
@@ -10019,7 +9853,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             )}
                                           >
                                             <AutoTextarea
-                                              placeholder="Enter assessment content or drop files here..."
                                               className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
@@ -10352,7 +10185,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <div className="flex w-full flex-col">
                                                 <MentionTextarea
                                                   mentionItems={mentionItems}
-                                                  placeholder="Ask the PCI assistant..."
                                                   className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                                   value={
                                                     assessmentPciInputMap[
@@ -10573,7 +10405,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           <MentionTextarea
                                             mentionItems={mentionItems}
                                             className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                            placeholder="Did you find this task difficult?"
                                             disableAutoResize
                                             value={pollPrompt}
                                             onChange={event => setPollPrompt(event.target.value)}
@@ -10650,7 +10481,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           <MentionTextarea
                                             mentionItems={mentionItems}
                                             className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                            placeholder="Ask your AI coach or share a reflection..."
                                             disableAutoResize
                                             value={questionPrompt}
                                             onChange={event =>
