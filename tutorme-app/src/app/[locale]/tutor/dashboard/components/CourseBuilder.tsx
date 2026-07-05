@@ -9603,7 +9603,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                     <div className="relative flex w-full items-end">
                                       <MentionTextarea
                                         mentionItems={mentionItems}
-                                        className="min-h-[40px] w-full flex-1 resize-none border-0 bg-transparent px-4 py-2 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                        className="min-h-[64px] w-full flex-1 resize-none border-0 bg-transparent px-4 py-2 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                         maxRows={3}
                                         value={testPciInputs[testPciActiveTab] || ''}
                                         onChange={(e: any) =>
@@ -9650,13 +9650,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           <Send className="h-4 w-4" />
                                         </Button>
                                       </div>
-                                    </div>
-                                    <div className="border-border/50 bg-muted/20 border-t px-1 py-1">
-                                      <p className="text-muted-foreground text-[10px]">
-                                        Tip: Start line with &quot;1.&quot;, &quot;-&quot;, or
-                                        &quot;a.&quot; for auto-numbering. Use Tab/Shift+Tab to
-                                        indent.
-                                      </p>
                                     </div>
                                   </div>
                                 </div>
