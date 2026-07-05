@@ -10018,42 +10018,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               assessmentPdfVisible ? 'w-1/2' : 'w-full'
                                             )}
                                           >
-                                            <div className="flex h-11 shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-white px-2">
-                                              <div className="flex w-full items-center justify-between gap-2">
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                    if (!assessmentPdfVisible)
-                                                      setAssessmentPdfVisible(true)
-                                                    setAssessmentTextVisible(false)
-                                                  }}
-                                                  className={cn(
-                                                    'h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700',
-                                                    assessmentPdfVisible && assessmentTextVisible
-                                                      ? 'opacity-100'
-                                                      : 'pointer-events-none opacity-0'
-                                                  )}
-                                                  title="Hide Text"
-                                                >
-                                                  <ChevronLeft className="h-5 w-5" />
-                                                </Button>
-
-                                                {!assessmentPdfVisible ? (
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setAssessmentPdfVisible(true)}
-                                                    className="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                                    title="Show Preview"
-                                                  >
-                                                    <ChevronRight className="h-5 w-5" />
-                                                  </Button>
-                                                ) : (
-                                                  <div className="w-8" />
-                                                )}
-                                              </div>
-                                            </div>
                                             <AutoTextarea
                                               placeholder="Enter assessment content or drop files here..."
                                               className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
