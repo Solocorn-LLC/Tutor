@@ -255,6 +255,18 @@ import {
 
 const generateId = utilsGenerateId
 
+/**
+ * When a task/assessment lands in a lesson that already has an item of the same
+ * name, append " new" until the title is unique. Shared by the "Move to lesson…"
+ * flow, cross-lesson drag, and "Move to homework" so the rule is applied
+ * consistently everywhere an item is relocated.
+ */
+function uniqueMovedTitle(title: string | undefined, existingTitles: Set<string>): string {
+  let t = (title || '').trim()
+  while (existingTitles.has(t)) t = `${t} new`
+  return t
+}
+
 import {
   Plus,
   Trash2,
@@ -2555,12 +2567,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           nodes.flatMap(m => m.lessons.flatMap(l => l.homework || [])).length,
           'homework'
         )
+        // Rename on collision with the target lesson's existing homework (the
+        // moved item itself is excluded — it's removed below).
+        const targetHwTitles = new Set<string>(
+          (nodes.find(m => m.id === nodeId)?.lessons.find(l => l.id === lessonId)?.homework || [])
+            .filter(h => h.id !== item.id)
+            .map(h => (h.title || '').trim())
+        )
+        const landedTitle = uniqueMovedTitle(item.title || 'Task', targetHwTitles)
         const homeworkItem: Assessment =
           type === 'task'
             ? {
                 ...base,
                 id: `hw-${generateId()}`,
-                title: item.title || 'Task',
+                title: landedTitle,
                 description: (item as Task).description || '',
                 instructions: (item as Task).instructions || '',
                 dmiItems: (item as Task).dmiItems || [],
@@ -2569,6 +2589,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : {
                 ...cloneAssessment(item as Assessment),
                 id: `hw-${generateId()}`,
+                title: landedTitle,
                 category: 'homework' as const,
               }
         setCourseBuilderNodes(prev =>
@@ -3897,8 +3918,16 @@ FEEDBACK: [one or two short sentences explaining the score]`
         const hwLoc = findHomeworkLocation(activeId)
         if (hwLoc && targetCourseBuilderNodeId && targetLessonId) {
           const hw = nodes[hwLoc.nIdx].lessons[hwLoc.lIdx].homework[hwLoc.hwIndex]
+          // Rename on collision with the target lesson's existing homework/assessments.
+          const targetNode = nodes.find(m => m.id === targetCourseBuilderNodeId)
+          const targetHwTitles = new Set<string>(
+            (targetNode?.lessons.find(l => l.id === targetLessonId)?.homework || [])
+              .filter(h => h.id !== hw.id)
+              .map(h => (h.title || '').trim())
+          )
           const asAssessment = {
             ...cloneAssessment(hw),
+            title: uniqueMovedTitle(hw.title, targetHwTitles),
             category: 'assessment' as const,
             id: `a-${generateId()}`,
           }
@@ -4401,9 +4430,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
       // Name-collision handling: append " new" until unique in the target lesson.
       const targetList = (working[tgtN].lessons[tgtL] as any)[arrKey] || []
-      const existingTitles = new Set(targetList.map((x: any) => (x.title || '').trim()))
-      let title = (item.title || (itemType === 'task' ? 'Task' : 'Assessment')).trim()
-      while (existingTitles.has(title)) title = `${title} new`
+      const existingTitles = new Set<string>(targetList.map((x: any) => (x.title || '').trim()))
+      const title = uniqueMovedTitle(
+        item.title || (itemType === 'task' ? 'Task' : 'Assessment'),
+        existingTitles
+      )
       const movedItem = { ...item, title }
       const targetLessonTitle = working[tgtN].title
 
@@ -5455,7 +5486,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   }
                 }}
                 className={cn(
-                  'flex items-center justify-between rounded-xl bg-slate-200/70 px-3 py-2.5 transition-colors hover:bg-slate-300/70',
+                  'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
                   assetPickerTarget
                     ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
                     : 'cursor-grab active:cursor-grabbing'

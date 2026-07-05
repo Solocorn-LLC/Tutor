@@ -117,7 +117,7 @@ export default function NotificationsPanel({
   )
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-b-2xl border border-[#E5E7EB] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
       <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-br from-[#1F2933] to-[#111827] px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">

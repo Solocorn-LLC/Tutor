@@ -1668,6 +1668,19 @@ function StudentFeedbackContent() {
   const feedbackPolls = activeTask?.polls ?? []
   const feedbackQuestions = activeTask?.questions ?? []
 
+  // Count polls/questions this student hasn't answered yet (and that are still
+  // open), so the Interact tab can badge how many need a response. A closed
+  // poll/question no longer counts — there's nothing the student can do.
+  const myId = session?.user?.id
+  const unansweredInteractCount =
+    feedbackPolls.filter(p => p.status !== 'closed' && !p.responses.some(r => r.studentId === myId))
+      .length +
+    feedbackQuestions.filter(
+      q =>
+        (q as { status?: string }).status !== 'closed' &&
+        !q.responses.some(r => r.studentId === myId)
+    ).length
+
   let latestInteractionType: 'poll' | 'question' | null = null
   let maxCreatedAt = 0
 
@@ -2246,13 +2259,21 @@ function StudentFeedbackContent() {
                   size="sm"
                   onClick={() => setRightPanelTab('interactions')}
                   className={cn(
-                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'interactions'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Interact
+                  {unansweredInteractCount > 0 && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white"
+                      title={`${unansweredInteractCount} unanswered`}
+                    >
+                      {unansweredInteractCount}
+                    </span>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
