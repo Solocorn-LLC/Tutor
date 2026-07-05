@@ -5305,7 +5305,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   }
                 }}
                 className={cn(
-                  'flex items-center justify-between rounded-xl bg-slate-200/70 px-3 py-2.5 transition-colors hover:bg-slate-300/70',
+                  'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
                   assetPickerTarget
                     ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
                     : 'cursor-grab active:cursor-grabbing'
