@@ -18,6 +18,7 @@ export interface PollResultBlock {
   question: string
   totalResponses: number
   options: PollResultOption[]
+  closed?: boolean
 }
 
 /** One sent question + its answers. */
@@ -25,6 +26,7 @@ export interface QuestionResultBlock {
   id: string
   prompt: string
   answers: QuestionAnswerEntry[]
+  closed?: boolean
 }
 
 /**
@@ -38,11 +40,14 @@ export function InsightsReportView({
   pollResults = [],
   questionResults = [],
   onMentionStudent,
+  onClose,
 }: {
   type: 'poll' | 'question'
   pollResults?: PollResultBlock[]
   questionResults?: QuestionResultBlock[]
   onMentionStudent: (studentName: string) => void
+  /** Close a poll/question so no more answers can be submitted. */
+  onClose?: (type: 'poll' | 'question', id: string) => void
 }) {
   const isPoll = type === 'poll'
   const hasData = isPoll ? pollResults.length > 0 : questionResults.length > 0
@@ -75,9 +80,26 @@ export function InsightsReportView({
             >
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="text-xs font-semibold text-slate-800">{poll.question}</p>
-                <span className="shrink-0 text-[11px] text-slate-400">
-                  {poll.totalResponses} {poll.totalResponses === 1 ? 'vote' : 'votes'}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[11px] text-slate-400">
+                    {poll.totalResponses} {poll.totalResponses === 1 ? 'vote' : 'votes'}
+                  </span>
+                  {poll.closed ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                      Closed
+                    </span>
+                  ) : (
+                    onClose && (
+                      <button
+                        type="button"
+                        onClick={() => onClose('poll', poll.id)}
+                        className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-50"
+                      >
+                        Close
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
               <div className="space-y-2.5">
                 {poll.options.map((item, i) => (
@@ -122,7 +144,24 @@ export function InsightsReportView({
               key={q.id}
               className="rounded-2xl border border-blue-100 bg-white/70 p-2.5 shadow-sm"
             >
-              <p className="mb-2 text-xs font-semibold text-slate-800">{q.prompt}</p>
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-800">{q.prompt}</p>
+                {q.closed ? (
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    Closed
+                  </span>
+                ) : (
+                  onClose && (
+                    <button
+                      type="button"
+                      onClick={() => onClose('question', q.id)}
+                      className="shrink-0 rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-50"
+                    >
+                      Close
+                    </button>
+                  )
+                )}
+              </div>
               {q.answers.length === 0 ? (
                 <p className="text-[11px] text-slate-400">No answers yet.</p>
               ) : (
