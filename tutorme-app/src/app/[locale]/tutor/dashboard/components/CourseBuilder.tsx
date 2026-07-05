@@ -311,6 +311,7 @@ import {
   Search,
   TestTube2,
   PencilRuler,
+  Pencil,
   Wrench,
   FileCheck2,
   LayoutPanelTop,
@@ -739,6 +740,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
       return []
     })
+
+    const [newFolderName, setNewFolderName] = useState('')
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+    const [editingFolder, setEditingFolder] = useState<string | null>(null)
+    const [editFolderName, setEditFolderName] = useState('')
 
     // Compute the full list of folders combining custom folders and published course categories
     const computedAssetFolders = useMemo(() => {
@@ -5973,25 +5979,71 @@ FEEDBACK: [one or two short sentences explaining the score]`
               {/* Toolbar — aligned with the two panels below */}
               <div className="flex gap-4">
                 <div className="w-64 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1 rounded-full border-0 bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600"
-                    onClick={() => {
-                      const name = prompt('Folder name:')
-                      if (name && name.trim()) {
-                        const trimmed = name.trim()
-                        if (!computedAssetFolders.includes(trimmed)) {
-                          setAssetFoldersList(prev => [...prev, trimmed])
-                          toast.success(`Folder "${trimmed}" created`)
-                        } else {
-                          toast.error(`Folder "${trimmed}" already exists`)
-                        }
-                      }
-                    }}
-                  >
-                    <Plus className="h-4 w-4" /> Folder
-                  </Button>
+                  {isCreatingFolder ? (
+                    <div className="flex gap-2">
+                      <Input
+                        autoFocus
+                        placeholder="Folder name..."
+                        className="h-9 flex-1 rounded-full border-gray-300 bg-white text-sm shadow-sm"
+                        value={newFolderName}
+                        onChange={e => setNewFolderName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const trimmed = newFolderName.trim()
+                            if (trimmed && !computedAssetFolders.includes(trimmed)) {
+                              setAssetFoldersList(prev => [...prev, trimmed])
+                              toast.success(`Folder "${trimmed}" created`)
+                            } else if (trimmed) {
+                              toast.error(`Folder "${trimmed}" already exists`)
+                            }
+                            setNewFolderName('')
+                            setIsCreatingFolder(false)
+                          }
+                          if (e.key === 'Escape') {
+                            setNewFolderName('')
+                            setIsCreatingFolder(false)
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-9 rounded-full bg-emerald-500 px-3 text-white hover:bg-emerald-600"
+                        onClick={() => {
+                          const trimmed = newFolderName.trim()
+                          if (trimmed && !computedAssetFolders.includes(trimmed)) {
+                            setAssetFoldersList(prev => [...prev, trimmed])
+                            toast.success(`Folder "${trimmed}" created`)
+                          } else if (trimmed) {
+                            toast.error(`Folder "${trimmed}" already exists`)
+                          }
+                          setNewFolderName('')
+                          setIsCreatingFolder(false)
+                        }}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-9 w-9 rounded-full p-0 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                        onClick={() => {
+                          setNewFolderName('')
+                          setIsCreatingFolder(false)
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1 rounded-full border-0 bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white hover:text-emerald-600"
+                      onClick={() => setIsCreatingFolder(true)}
+                    >
+                      <Plus className="h-4 w-4" /> Folder
+                    </Button>
+                  )}
                 </div>
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -6011,36 +6063,162 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <ScrollArea className="flex-1">
                     <div className="space-y-1">
                       {assetFolders.map(folder => (
-                        <button
-                          key={folder}
-                          className={cn(
-                            'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                            assetViewFolder === folder
-                              ? 'bg-blue-50 font-medium text-blue-600'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          )}
-                          onClick={() => setAssetViewFolder(folder)}
-                        >
-                          <span className="flex items-center gap-2">
-                            {assetViewFolder === folder ? (
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            ) : (
-                              <ChevronRight className="h-3.5 w-3.5" />
-                            )}
-                            <span
-                              className={
-                                assetViewFolder === folder ? 'text-blue-600' : 'text-gray-700'
-                              }
+                        <div key={folder}>
+                          {editingFolder === folder ? (
+                            <div className="flex items-center gap-1 px-2 py-1.5">
+                              <Input
+                                autoFocus
+                                className="h-7 flex-1 rounded-md border-gray-300 bg-white text-sm"
+                                value={editFolderName}
+                                onChange={e => setEditFolderName(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    const trimmed = editFolderName.trim()
+                                    if (
+                                      trimmed &&
+                                      trimmed !== folder &&
+                                      !computedAssetFolders.includes(trimmed)
+                                    ) {
+                                      setAssetFoldersList(prev =>
+                                        prev.map(f => (f === folder ? trimmed : f))
+                                      )
+                                      setCourseAssets(prev =>
+                                        prev.map(a =>
+                                          a.folder === folder ? { ...a, folder: trimmed } : a
+                                        )
+                                      )
+                                      toast.success(`Folder renamed to "${trimmed}"`)
+                                    } else if (trimmed && trimmed !== folder) {
+                                      toast.error(`Folder "${trimmed}" already exists`)
+                                    }
+                                    setEditingFolder(null)
+                                    setEditFolderName('')
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingFolder(null)
+                                    setEditFolderName('')
+                                  }
+                                }}
+                              />
+                              <Button
+                                size="icon"
+                                className="h-7 w-7 rounded-md bg-emerald-500 text-white hover:bg-emerald-600"
+                                onClick={() => {
+                                  const trimmed = editFolderName.trim()
+                                  if (
+                                    trimmed &&
+                                    trimmed !== folder &&
+                                    !computedAssetFolders.includes(trimmed)
+                                  ) {
+                                    setAssetFoldersList(prev =>
+                                      prev.map(f => (f === folder ? trimmed : f))
+                                    )
+                                    setCourseAssets(prev =>
+                                      prev.map(a =>
+                                        a.folder === folder ? { ...a, folder: trimmed } : a
+                                      )
+                                    )
+                                    toast.success(`Folder renamed to "${trimmed}"`)
+                                  } else if (trimmed && trimmed !== folder) {
+                                    toast.error(`Folder "${trimmed}" already exists`)
+                                  }
+                                  setEditingFolder(null)
+                                  setEditFolderName('')
+                                }}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                onClick={() => {
+                                  setEditingFolder(null)
+                                  setEditFolderName('')
+                                }}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              className={cn(
+                                'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors',
+                                assetViewFolder === folder
+                                  ? 'bg-blue-50 font-medium text-blue-600'
+                                  : 'text-gray-600 hover:bg-gray-50'
+                              )}
+                              onClick={() => setAssetViewFolder(folder)}
                             >
-                              {folder}
-                            </span>
-                          </span>
-                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                            {folder === 'All'
-                              ? courseAssets.length
-                              : courseAssets.filter(a => a.folder === folder).length}
-                          </span>
-                        </button>
+                              <span className="flex items-center gap-2">
+                                {assetViewFolder === folder ? (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5" />
+                                )}
+                                <span
+                                  className={
+                                    assetViewFolder === folder ? 'text-blue-600' : 'text-gray-700'
+                                  }
+                                >
+                                  {folder}
+                                </span>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                {folder !== 'All' && (
+                                  <>
+                                    <button
+                                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setEditingFolder(folder)
+                                        setEditFolderName(folder)
+                                      }}
+                                      title="Rename folder"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      className="rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        const assetCount = courseAssets.filter(
+                                          a => a.folder === folder
+                                        ).length
+                                        const msg =
+                                          assetCount > 0
+                                            ? `Are you sure? ${assetCount} asset${assetCount > 1 ? 's' : ''} in this folder will become Uncategorized.`
+                                            : 'Are you sure you want to delete this folder?'
+                                        if (confirm(msg)) {
+                                          setAssetFoldersList(prev =>
+                                            prev.filter(f => f !== folder)
+                                          )
+                                          setCourseAssets(prev =>
+                                            prev.map(a =>
+                                              a.folder === folder ? { ...a, folder: undefined } : a
+                                            )
+                                          )
+                                          if (assetViewFolder === folder) {
+                                            setAssetViewFolder('All')
+                                          }
+                                          toast.success(`Folder "${folder}" deleted`)
+                                        }
+                                      }}
+                                      title="Delete folder"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </>
+                                )}
+                                <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                                  {folder === 'All'
+                                    ? courseAssets.length
+                                    : courseAssets.filter(a => a.folder === folder).length}
+                                </span>
+                              </span>
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
