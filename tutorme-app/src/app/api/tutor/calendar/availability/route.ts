@@ -19,7 +19,7 @@ import {
   oneOnOneBookingRequest,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, gt, lt, asc, isNull, inArray } from 'drizzle-orm'
+import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -111,6 +111,12 @@ export const GET = withAuth(
             and(
               eq(liveSession.tutorId, tutorId),
               inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+              // Ignore orphaned sessions: deleting a course sets liveSession.courseId
+              // to null (FK on delete) but leaves the row scheduled, which then
+              // blocked scheduler slots forever. Only count sessions still tied to a
+              // course here; genuinely course-less sessions (ad-hoc) already surface
+              // via their CalendarEvent above, so nothing real is lost.
+              isNotNull(liveSession.courseId),
               // A live session overlaps if: scheduledAt < endDate AND (scheduledAt + duration) > startDate
               // We approximate with scheduledAt within a window that could overlap
               gte(liveSession.scheduledAt, new Date(startDate.getTime() - 24 * 60 * 60 * 1000)),
