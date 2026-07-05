@@ -647,7 +647,7 @@ export default function TutorSettings() {
 
       {/* Mode selector + tab content */}
       <div className="flex min-h-0 flex-1 flex-col pb-0.5">
-        <div className="flex h-full flex-col rounded-[16px] bg-gray-50 p-5">
+        <div className="shadow-hover-lift flex h-full flex-col rounded-[16px] border border-[#E5E7EB] bg-white p-5">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full flex-col">
             <div className="flex-shrink-0">
               <TabsList className="relative flex w-full gap-1.5 rounded-xl bg-[#1F2933] p-1.5">
