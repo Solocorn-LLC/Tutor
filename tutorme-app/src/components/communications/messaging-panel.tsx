@@ -41,7 +41,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const ListIcon = list.icon
 
   return (
-    <Card className="flex h-full w-full flex-col overflow-hidden rounded-none rounded-b-2xl border border-gray-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+    <Card className="flex h-full w-full flex-col overflow-hidden rounded-b-2xl rounded-t-none border border-gray-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
       {/* Full-width Chat header */}
       <div className="relative flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
         Chat
