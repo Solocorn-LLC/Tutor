@@ -20,6 +20,7 @@ import {
   liveSession,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
+import { formatInZone } from '@/lib/time/tz'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -140,8 +141,13 @@ export const GET = withAuth(
             )
           )
 
-        const normalizeDate = (d: Date) => d.toISOString().split('T')[0]
-        const normalizeTime = (d: Date) => d.toISOString().split('T')[1].slice(0, 5)
+        // Event/session instants are read in the TUTOR's timezone so they line
+        // up with availability (also the tutor's local "HH:MM") and the scheduler
+        // cells — previously these used UTC (toISOString), which offset every
+        // event by the tutor's UTC offset.
+        const tutorTz = availability[0]?.timezone || 'UTC'
+        const normalizeDate = (d: Date) => formatInZone(d, tutorTz).date
+        const normalizeTime = (d: Date) => formatInZone(d, tutorTz).time
 
         // Merge calendar events and live sessions into a single events array
         const calendarEventItems = existingEvents.map(ev => ({
