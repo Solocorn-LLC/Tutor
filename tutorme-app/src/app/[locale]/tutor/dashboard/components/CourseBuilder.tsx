@@ -255,6 +255,18 @@ import {
 
 const generateId = utilsGenerateId
 
+/**
+ * When a task/assessment lands in a lesson that already has an item of the same
+ * name, append " new" until the title is unique. Shared by the "Move to lesson…"
+ * flow, cross-lesson drag, and "Move to homework" so the rule is applied
+ * consistently everywhere an item is relocated.
+ */
+function uniqueMovedTitle(title: string | undefined, existingTitles: Set<string>): string {
+  let t = (title || '').trim()
+  while (existingTitles.has(t)) t = `${t} new`
+  return t
+}
+
 import {
   Plus,
   Trash2,
@@ -1129,6 +1141,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
       'submissions'
     )
+    // New (unseen) submission count, surfaced by SubmissionsPanel to badge the tab.
+    const [newSubmissionCount, setNewSubmissionCount] = useState(0)
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
     const [alertDialog, setAlertDialog] = useState<{
@@ -1524,6 +1538,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [insightsProps?.liveTasks, currentInsightsId]
     )
 
+    // Tutor closes a poll/question: server locks it and no more answers land.
+    const handleCloseInsight = useCallback(
+      (kind: 'poll' | 'question', insightId: string) => {
+        const socket = insightsProps?.socket
+        const roomId = insightsProps?.sessionId
+        const taskId = activeLiveTask?.id
+        if (!socket || !roomId || !taskId) return
+        socket.emit('insight:close', { roomId, taskId, type: kind, insightId })
+      },
+      [insightsProps?.socket, insightsProps?.sessionId, activeLiveTask?.id]
+    )
+
     // ALL polls for the active task (newest first) so sending a new poll no
     // longer hides the previous ones. Each option's tally is by 0-based index,
     // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
@@ -1538,6 +1564,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             id: poll.id,
             question: poll.question,
             totalResponses: total,
+            closed: poll.status === 'closed',
             options: Array.from({ length: optionCount }, (_, i) => {
               const responders = poll.responses.filter(r => r.value === i)
               return {
@@ -1559,6 +1586,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         .map(q => ({
           id: q.id,
           prompt: q.prompt,
+          closed: (q as { status?: string }).status === 'closed',
           answers: q.responses.map(r => ({
             studentName: studentNameById.get(r.studentId) || 'Student',
             answer: r.answer,
@@ -2541,12 +2569,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           nodes.flatMap(m => m.lessons.flatMap(l => l.homework || [])).length,
           'homework'
         )
+        // Rename on collision with the target lesson's existing homework (the
+        // moved item itself is excluded — it's removed below).
+        const targetHwTitles = new Set<string>(
+          (nodes.find(m => m.id === nodeId)?.lessons.find(l => l.id === lessonId)?.homework || [])
+            .filter(h => h.id !== item.id)
+            .map(h => (h.title || '').trim())
+        )
+        const landedTitle = uniqueMovedTitle(item.title || 'Task', targetHwTitles)
         const homeworkItem: Assessment =
           type === 'task'
             ? {
                 ...base,
                 id: `hw-${generateId()}`,
-                title: item.title || 'Task',
+                title: landedTitle,
                 description: (item as Task).description || '',
                 instructions: (item as Task).instructions || '',
                 dmiItems: (item as Task).dmiItems || [],
@@ -2555,6 +2591,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : {
                 ...cloneAssessment(item as Assessment),
                 id: `hw-${generateId()}`,
+                title: landedTitle,
                 category: 'homework' as const,
               }
         setCourseBuilderNodes(prev =>
@@ -3366,6 +3403,15 @@ FEEDBACK: [one or two short sentences explaining the score]`
 
     const [editingData, setEditingData] = useState<any>(null)
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
+    // "Move to lesson…" dialog (kebab flow). sourceNodeId is excluded from the
+    // target list so the item isn't "moved" to the lesson it already lives in.
+    const [moveDialog, setMoveDialog] = useState<{
+      itemType: 'task' | 'assessment'
+      itemId: string
+      itemTitle: string
+      sourceNodeId: string
+    } | null>(null)
+    const [moveTarget, setMoveTarget] = useState<string>('')
 
     useEffect(() => {
       if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) return
@@ -3797,6 +3843,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
         const sep = rest.indexOf('::')
         const targetCourseBuilderNodeId = sep >= 0 ? rest.slice(0, sep) : rest
         const targetLessonId = sep >= 0 ? rest.slice(sep + 2) : ''
+        // Dragging a TASK onto another lesson's task section → move it there
+        // (keeps it a task; carries extensions; renames on name collision).
+        const taskLoc = findTaskLocation(activeId)
+        if (taskLoc && targetCourseBuilderNodeId && targetLessonId) {
+          const srcLessonId = nodes[taskLoc.nIdx].lessons[taskLoc.lIdx].id
+          if (srcLessonId !== targetLessonId) {
+            void moveItemToLesson('task', activeId, {
+              kind: 'existing',
+              nodeId: targetCourseBuilderNodeId,
+            })
+            return
+          }
+        }
         const hwLoc = findHomeworkLocation(activeId)
         if (hwLoc && targetCourseBuilderNodeId && targetLessonId) {
           const hw = nodes[hwLoc.nIdx].lessons[hwLoc.lIdx].homework[hwLoc.hwIndex]
@@ -3861,8 +3920,16 @@ FEEDBACK: [one or two short sentences explaining the score]`
         const hwLoc = findHomeworkLocation(activeId)
         if (hwLoc && targetCourseBuilderNodeId && targetLessonId) {
           const hw = nodes[hwLoc.nIdx].lessons[hwLoc.lIdx].homework[hwLoc.hwIndex]
+          // Rename on collision with the target lesson's existing homework/assessments.
+          const targetNode = nodes.find(m => m.id === targetCourseBuilderNodeId)
+          const targetHwTitles = new Set<string>(
+            (targetNode?.lessons.find(l => l.id === targetLessonId)?.homework || [])
+              .filter(h => h.id !== hw.id)
+              .map(h => (h.title || '').trim())
+          )
           const asAssessment = {
             ...cloneAssessment(hw),
+            title: uniqueMovedTitle(hw.title, targetHwTitles),
             category: 'assessment' as const,
             id: `a-${generateId()}`,
           }
@@ -4301,6 +4368,122 @@ FEEDBACK: [one or two short sentences explaining the score]`
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
       setSelectedItem(null)
       toast.success('Assessment removed')
+    }
+
+    // Move a task/assessment from its lesson to another lesson (or a brand-new
+    // one). Tasks carry their extensions (they live inline on the Task object).
+    // If the target lesson already has an item of the same name, the moved item
+    // gets a "new" suffix. Used by both the kebab "Move to lesson…" flow and the
+    // cross-lesson drag-and-drop.
+    const moveItemToLesson = async (
+      itemType: 'task' | 'assessment',
+      itemId: string,
+      target: { kind: 'existing'; nodeId: string } | { kind: 'new' }
+    ) => {
+      const arrKey = itemType === 'task' ? 'tasks' : 'homework'
+      // Locate the item in its source node/lesson.
+      let srcN = -1
+      let srcL = -1
+      let item: any = null
+      for (let n = 0; n < nodes.length && !item; n++) {
+        for (let l = 0; l < nodes[n].lessons.length; l++) {
+          const list = (nodes[n].lessons[l] as any)[arrKey] || []
+          const idx = list.findIndex((x: any) => x.id === itemId)
+          if (idx !== -1) {
+            srcN = n
+            srcL = l
+            item = list[idx]
+            break
+          }
+        }
+      }
+      if (!item) {
+        toast.error('Could not find that item to move')
+        return
+      }
+
+      // Resolve the target node (creating a new "Lesson N" when requested).
+      let working = nodes
+      let tgtN = -1
+      if (target.kind === 'new') {
+        const newNode = DEFAULT_NODE(nodes.length)
+        let maxNum = 0
+        for (const mod of nodes) {
+          const m = /^Lesson\s+(\d+)/i.exec(mod.title || '')
+          if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10))
+        }
+        newNode.title = `Lesson ${maxNum + 1}`
+        newNode.lessons[0].title = `Lesson ${maxNum + 1}`
+        working = [...nodes, newNode]
+        tgtN = working.length - 1
+      } else {
+        tgtN = nodes.findIndex(m => m.id === target.nodeId)
+      }
+      if (tgtN === -1) {
+        toast.error('Could not find the target lesson')
+        return
+      }
+
+      const tgtL = 0 // each node maps to a single lesson in the UI
+      if (working[srcN].lessons[srcL].id === working[tgtN].lessons[tgtL].id) {
+        toast('Already in that lesson')
+        return
+      }
+
+      // Name-collision handling: append " new" until unique in the target lesson.
+      const targetList = (working[tgtN].lessons[tgtL] as any)[arrKey] || []
+      const existingTitles = new Set<string>(targetList.map((x: any) => (x.title || '').trim()))
+      const title = uniqueMovedTitle(
+        item.title || (itemType === 'task' ? 'Task' : 'Assessment'),
+        existingTitles
+      )
+      const movedItem = { ...item, title }
+      const targetLessonTitle = working[tgtN].title
+
+      const next = working.map((mod, n) => {
+        if (n !== srcN && n !== tgtN) return mod
+        const lessons = mod.lessons.map((les, l) => {
+          let cur: any = les
+          if (n === srcN && l === srcL) {
+            cur = { ...cur, [arrKey]: (cur[arrKey] || []).filter((x: any) => x.id !== itemId) }
+          }
+          if (n === tgtN && l === tgtL) {
+            cur = { ...cur, [arrKey]: [...(cur[arrKey] || []), movedItem] }
+          }
+          return cur
+        })
+        return { ...mod, lessons }
+      })
+
+      setCourseBuilderNodes(next)
+      if (mainTab !== 'live') await saveNodesIfPossible(next)
+      setSelectedItem(null)
+      toast.success(
+        title === (item.title || '').trim()
+          ? `Moved to ${targetLessonTitle}`
+          : `Moved to ${targetLessonTitle} as “${title}”`
+      )
+    }
+
+    const openMoveDialog = (
+      itemType: 'task' | 'assessment',
+      itemId: string,
+      itemTitle: string,
+      sourceNodeId: string
+    ) => {
+      setMoveTarget('')
+      setMoveDialog({ itemType, itemId, itemTitle, sourceNodeId })
+    }
+
+    const confirmMoveDialog = async () => {
+      if (!moveDialog || !moveTarget) return
+      const target =
+        moveTarget === '__new__'
+          ? ({ kind: 'new' } as const)
+          : ({ kind: 'existing', nodeId: moveTarget } as const)
+      await moveItemToLesson(moveDialog.itemType, moveDialog.itemId, target)
+      setMoveDialog(null)
+      setMoveTarget('')
     }
 
     const deleteCourseBuilderNodeQuiz = async (nodeId: string, quizId: string) => {
@@ -7151,6 +7334,21 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                             </Button>
                                                           </DropdownMenuTrigger>
                                                           <DropdownMenuContent align="end">
+                                                            {canEdit && (
+                                                              <DropdownMenuItem
+                                                                onClick={e => {
+                                                                  e.stopPropagation()
+                                                                  openMoveDialog(
+                                                                    'task',
+                                                                    task.id,
+                                                                    task.title || 'Task',
+                                                                    node.id
+                                                                  )
+                                                                }}
+                                                              >
+                                                                Move to lesson…
+                                                              </DropdownMenuItem>
+                                                            )}
                                                             {mainTab === 'live' &&
                                                               insightsProps?.onDeployTask && (
                                                                 <DropdownMenuItem
@@ -7902,6 +8100,21 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                           </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
+                                                          {canEdit && (
+                                                            <DropdownMenuItem
+                                                              onClick={e => {
+                                                                e.stopPropagation()
+                                                                openMoveDialog(
+                                                                  'assessment',
+                                                                  hw.id,
+                                                                  hw.title || 'Assessment',
+                                                                  node.id
+                                                                )
+                                                              }}
+                                                            >
+                                                              Move to lesson…
+                                                            </DropdownMenuItem>
+                                                          )}
                                                           {mainTab === 'live' &&
                                                             insightsProps?.onDeployTask && (
                                                               <DropdownMenuItem
@@ -8634,6 +8847,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <InsightsReportView
                                                 type="poll"
                                                 pollResults={pollResults}
+                                                onClose={handleCloseInsight}
                                                 onMentionStudent={name =>
                                                   setPollPrompt(
                                                     pollPrompt
@@ -8730,6 +8944,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <InsightsReportView
                                                 type="question"
                                                 questionResults={questionResults}
+                                                onClose={handleCloseInsight}
                                                 onMentionStudent={name =>
                                                   setQuestionPrompt(
                                                     questionPrompt
@@ -10390,6 +10605,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         <InsightsReportView
                                           type="poll"
                                           pollResults={pollResults}
+                                          onClose={handleCloseInsight}
                                           onMentionStudent={name =>
                                             setPollPrompt(
                                               pollPrompt
@@ -10467,6 +10683,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         <InsightsReportView
                                           type="question"
                                           questionResults={questionResults}
+                                          onClose={handleCloseInsight}
                                           onMentionStudent={name =>
                                             setQuestionPrompt(
                                               questionPrompt
@@ -10546,6 +10763,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                         courseId={courseId || ''}
                         onToggleHidden={setRightPanelHidden}
                         liveSubmissions={insightsProps?.liveSubmissions}
+                        onNewSubmissionCount={setNewSubmissionCount}
                         headerExtra={
                           <div className="px-4 pt-4">
                             <Tabs
@@ -10558,9 +10776,14 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               <TabsList className="grid w-full grid-cols-2 gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                                 <TabsTrigger
                                   value="submissions"
-                                  className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
+                                  className="relative h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                                 >
                                   Submissions
+                                  {newSubmissionCount > 0 && (
+                                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-semibold text-white">
+                                      {newSubmissionCount}
+                                    </span>
+                                  )}
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="insights"
@@ -10848,6 +11071,57 @@ FEEDBACK: [one or two short sentences explaining the score]`
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Move task/assessment to another lesson */}
+        <Dialog open={!!moveDialog} onOpenChange={open => !open && setMoveDialog(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                Move {moveDialog?.itemType === 'task' ? 'task' : 'assessment'} to lesson
+              </DialogTitle>
+              <DialogDescription>
+                Choose a lesson to move “{moveDialog?.itemTitle}” to, or create a new one. If the
+                lesson already has an item with the same name, this one gets a “new” suffix.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <label
+                htmlFor="move-to-lesson-select"
+                className="mb-1 block text-xs font-medium text-gray-700"
+              >
+                Destination lesson
+              </label>
+              <select
+                id="move-to-lesson-select"
+                value={moveTarget}
+                onChange={e => setMoveTarget(e.target.value)}
+                className="w-full rounded-md border border-gray-300 p-2 text-sm text-gray-900"
+              >
+                <option value="">Select a lesson…</option>
+                {nodes
+                  .filter(n => n.id !== moveDialog?.sourceNodeId)
+                  .map(n => (
+                    <option key={n.id} value={n.id}>
+                      {n.title}
+                    </option>
+                  ))}
+                <option value="__new__">＋ Create a new lesson</option>
+              </select>
+            </div>
+            <DialogFooter>
+              <Button variant="modal-secondary-dark" onClick={() => setMoveDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="modal-primary-dark"
+                disabled={!moveTarget}
+                onClick={confirmMoveDialog}
+              >
+                Move
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

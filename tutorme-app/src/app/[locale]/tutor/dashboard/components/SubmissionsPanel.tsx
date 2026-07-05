@@ -91,6 +91,7 @@ export function SubmissionsPanel({
   onToggleHidden,
   headerExtra,
   liveSubmissions,
+  onNewSubmissionCount,
 }: {
   courseId: string
   onToggleHidden: (value: boolean) => void
@@ -98,6 +99,8 @@ export function SubmissionsPanel({
   /** In-session completions received over the socket — overlaid on the DB rows
    *  so a student's "Task Complete" shows immediately without a DB write. */
   liveSubmissions?: LiveSubmission[]
+  /** Reports the count of new (unseen) submissions so a parent tab can badge it. */
+  onNewSubmissionCount?: (count: number) => void
 }) {
   const [data, setData] = useState<SubmissionsTreeResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -316,6 +319,94 @@ export function SubmissionsPanel({
     return map
   }, [data, liveSubmissions])
 
+  // --- New-submission notifications ---
+  // A live (in-session) submission is "new" until the tutor opens it. Seen keys
+  // persist per course so a refetch/reload doesn't re-flag already-viewed ones.
+  const [seenKeys, setSeenKeys] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!courseId) return
+    try {
+      const raw = localStorage.getItem(`subs-seen-${courseId}`)
+      if (raw) setSeenKeys(new Set(JSON.parse(raw)))
+    } catch {
+      /* ignore */
+    }
+  }, [courseId])
+  const markSeen = useCallback(
+    (taskId: string, studentId: string) => {
+      const key = `${taskId}::${studentId}`
+      setSeenKeys(prev => {
+        if (prev.has(key)) return prev
+        const next = new Set(prev).add(key)
+        try {
+          if (courseId) localStorage.setItem(`subs-seen-${courseId}`, JSON.stringify([...next]))
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
+    },
+    [courseId]
+  )
+  // Open a submission → view it → clear its "new" flag.
+  const selectAndSee = useCallback(
+    (leaf: SelectedLeaf | null) => {
+      setSelected(leaf)
+      if (leaf) markSeen(leaf.itemId, leaf.studentId)
+    },
+    [markSeen]
+  )
+
+  // taskId → the sessions/lessons it was deployed to, so a live submission
+  // (which only carries taskId+studentId) can be located precisely in the tree.
+  const deployTargets = useMemo(() => {
+    const m = new Map<string, { sessionId: string; lessonId?: string | null }[]>()
+    for (const d of data?.deployed || []) {
+      const arr = m.get(d.itemId) || []
+      arr.push({ sessionId: d.sessionId, lessonId: d.lessonId })
+      m.set(d.itemId, arr)
+    }
+    return m
+  }, [data])
+  const lessonBySessionId = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const [lessonId, sess] of Object.entries(sessionsByLessonId)) {
+      for (const s of sess as { id: string }[]) m[s.id] = lessonId
+    }
+    return m
+  }, [sessionsByLessonId])
+
+  const newCounts = useMemo(() => {
+    const byLesson: Record<string, number> = {}
+    const bySession: Record<string, number> = {}
+    const byStudentSession: Record<string, number> = {}
+    let total = 0
+    for (const ls of liveSubmissions || []) {
+      const key = `${ls.taskId}::${ls.studentId}`
+      if (seenKeys.has(key)) continue
+      const targets = deployTargets.get(ls.taskId) || []
+      // Fall back to "unknown" grouping when the task isn't in the tree yet.
+      const locs = targets.length > 0 ? targets : [{ sessionId: '', lessonId: undefined }]
+      let counted = false
+      for (const loc of locs) {
+        const lessonId = loc.lessonId || lessonBySessionId[loc.sessionId]
+        if (lessonId) byLesson[lessonId] = (byLesson[lessonId] || 0) + 1
+        if (loc.sessionId) {
+          bySession[loc.sessionId] = (bySession[loc.sessionId] || 0) + 1
+          const sk = `${loc.sessionId}::${ls.studentId}`
+          byStudentSession[sk] = (byStudentSession[sk] || 0) + 1
+        }
+        counted = true
+      }
+      if (counted) total += 1
+    }
+    return { byLesson, bySession, byStudentSession, total }
+  }, [liveSubmissions, seenKeys, deployTargets, lessonBySessionId])
+
+  useEffect(() => {
+    onNewSubmissionCount?.(newCounts.total)
+  }, [newCounts.total, onNewSubmissionCount])
+
   const reportMap = useMemo(() => {
     const map = new Map<string, SubmissionsTreeResponse['reports'][number]>()
     ;(data?.reports || []).forEach(r => {
@@ -337,8 +428,16 @@ export function SubmissionsPanel({
   return (
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+        <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
           Desk
+          {newCounts.total > 0 && (
+            <span
+              className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+              title={`${newCounts.total} new submission${newCounts.total === 1 ? '' : 's'}`}
+            >
+              {newCounts.total}
+            </span>
+          )}
         </div>
         {headerExtra && <div className="px-4">{headerExtra}</div>}
 
@@ -374,6 +473,7 @@ export function SubmissionsPanel({
                       icon={<Folder className="h-4 w-4 text-slate-500" />}
                       title={lesson.title}
                       subtitle={`Lesson ${lesson.order + 1}`}
+                      newCount={newCounts.byLesson[lesson.id] || 0}
                     />
 
                     {open[`lesson_${lesson.id}`] &&
@@ -395,6 +495,7 @@ export function SubmissionsPanel({
                               title={formatSessionTitle(session)}
                               titleClassName={sessionColorById[session.id]}
                               subtitle={session.status || `Session ${idx + 1}`}
+                              newCount={newCounts.bySession[session.id] || 0}
                             />
 
                             {open[sessionKey] && (
@@ -429,8 +530,13 @@ export function SubmissionsPanel({
                                         reportMap={reportMap}
                                         open={open}
                                         toggle={toggle}
-                                        onSelect={setSelected}
+                                        onSelect={selectAndSee}
                                         itemRefs={itemRefs}
+                                        newCount={
+                                          newCounts.byStudentSession[
+                                            `${session.id}::${st.studentId}`
+                                          ] || 0
+                                        }
                                       />
                                     ))}
                                   </div>
@@ -563,6 +669,7 @@ function FolderRow({
   subtitle,
   icon,
   titleClassName,
+  newCount = 0,
 }: {
   isOpen: boolean
   onToggle: () => void
@@ -571,6 +678,8 @@ function FolderRow({
   icon: ReactNode
   /** Overrides the default title color (used to color-code session status). */
   titleClassName?: string
+  /** Number of new (unseen) submissions under this node → shows a red badge. */
+  newCount?: number
 }) {
   return (
     <button
@@ -598,11 +707,21 @@ function FolderRow({
           {subtitle && <div className="truncate text-xs text-slate-500">{subtitle}</div>}
         </div>
       </div>
-      {isOpen ? (
-        <ChevronDown className="h-4 w-4 text-slate-500" />
-      ) : (
-        <ChevronRight className="h-4 w-4 text-slate-500" />
-      )}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {newCount > 0 && (
+          <span
+            className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-semibold text-white"
+            title={`${newCount} new submission${newCount === 1 ? '' : 's'}`}
+          >
+            {newCount}
+          </span>
+        )}
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-slate-500" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-slate-500" />
+        )}
+      </div>
     </button>
   )
 }
@@ -617,6 +736,7 @@ function StudentNode({
   toggle,
   onSelect,
   itemRefs,
+  newCount = 0,
 }: {
   session: any
   student: { studentId: string; name: string }
@@ -627,6 +747,7 @@ function StudentNode({
   toggle: (key: string) => void
   onSelect: (v: SelectedLeaf | null) => void
   itemRefs: React.RefObject<Record<string, HTMLElement | null>>
+  newCount?: number
 }) {
   const studentKey = `student_${session.id}_${student.studentId}`
   const items = deployedBySession[session.id] || { task: [], assessment: [], homework: [] }
@@ -661,6 +782,7 @@ function StudentNode({
         onToggle={() => toggle(studentKey)}
         icon={<Folder className="h-4 w-4 text-slate-500" />}
         title={student.name}
+        newCount={newCount}
       />
 
       {open[studentKey] && (
