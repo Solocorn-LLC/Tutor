@@ -338,7 +338,6 @@ import {
   type PollResultBlock,
   type QuestionResultBlock,
 } from './builder-parts/InsightsReportView'
-import { PciWalkthrough } from './builder-parts/PciWalkthrough'
 
 // ============================================
 // BUILDER MODAL COMPONENTS
@@ -9888,7 +9887,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         data-pci-container="task"
                                         className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm"
                                       >
-                                        <PciWalkthrough kind="task" />
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           <PciGuidance kind="task" />
                                           {renderCurrentPci('task', activeTaskPci)}
@@ -10242,7 +10240,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         data-pci-container="assessment"
                                         className="relative flex h-full min-h-0 flex-col rounded-2xl border border-pink-200 bg-white p-4 shadow-sm"
                                       >
-                                        <PciWalkthrough kind="assessment" />
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
