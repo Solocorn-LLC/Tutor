@@ -930,7 +930,11 @@ function TutorDashboardContent() {
                               onClick={() =>
                                 router.push(
                                   withLocalePath(
-                                    `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
+                                    // The builder edits the TEMPLATE course (where the
+                                    // lessons live). `course.id` is the published
+                                    // variant, which has no builder lessons — opening
+                                    // it showed an empty course after publishing.
+                                    `/tutor/insights?tab=builder&courseId=${course.templateCourseId || course.id}&mode=edit`
                                   )
                                 )
                               }
