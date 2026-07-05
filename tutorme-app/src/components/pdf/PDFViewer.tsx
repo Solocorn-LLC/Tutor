@@ -233,7 +233,7 @@ export function PDFViewer({
               ))
             ) : (
               // Single-page pagination view (for large PDFs or while loading)
-              <div className="flex justify-center px-4 py-4">
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
                 <Page
                   pageNumber={pageNumber}
                   renderTextLayer
