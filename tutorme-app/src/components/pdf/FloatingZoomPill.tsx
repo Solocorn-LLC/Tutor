@@ -8,6 +8,7 @@ interface FloatingZoomPillProps {
   onScaleChange: (scale: number) => void
   minScale?: number
   maxScale?: number
+  defaultScale?: number
   onHidePreview?: () => void
   className?: string
   containerRef?: React.RefObject<HTMLElement | null>
@@ -19,6 +20,7 @@ export function FloatingZoomPill({
   onScaleChange,
   minScale = 0.5,
   maxScale = 1.5,
+  defaultScale = 1.0,
   onHidePreview,
   className,
   containerRef,
@@ -135,7 +137,7 @@ export function FloatingZoomPill({
 
       {/* Reset zoom button */}
       <button
-        onClick={() => onScaleChange(1.0)}
+        onClick={() => onScaleChange(defaultScale)}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
         title="Reset Zoom"
       >

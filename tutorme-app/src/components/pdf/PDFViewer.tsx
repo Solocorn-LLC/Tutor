@@ -188,13 +188,14 @@ export function PDFViewer({
         >
           {/* Floating zoom pill - fixed position, does not scroll with content */}
           {!loading && !error && numPages > 0 && (
-            <div className="pointer-events-none absolute right-4 top-1/2 z-50 -translate-y-1/2">
+            <div className="pointer-events-none absolute bottom-4 right-4 z-50">
               <div className="pointer-events-auto">
                 <FloatingZoomPill
                   scale={scale}
                   onScaleChange={newScale => changeScale(newScale, true)}
                   minScale={0.5}
                   maxScale={1.5}
+                  defaultScale={defaultScale}
                   onHidePreview={onHidePreview}
                   containerRef={scrollContainerRef}
                   fixed
