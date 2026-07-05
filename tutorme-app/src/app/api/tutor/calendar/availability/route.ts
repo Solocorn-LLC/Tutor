@@ -181,6 +181,10 @@ export const GET = withAuth(
             dayOfWeek: a.dayOfWeek,
             startTime: a.startTime,
             endTime: a.endTime,
+            // Tutors store BLOCKED times as isAvailable=false ("available unless
+            // blocked"). The scheduler must see this to grey blocked slots — the
+            // field was previously dropped, so blocked rows read as availability.
+            isAvailable: a.isAvailable,
           })),
           exceptions: exceptions.map(e => ({
             date: normalizeDate(e.date),
