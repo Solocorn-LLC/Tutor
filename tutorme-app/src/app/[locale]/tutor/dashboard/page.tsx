@@ -1066,13 +1066,13 @@ function TutorDashboardContent() {
 
         {/* Course Sessions Modal */}
         <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-white">
                 <Calendar className="text-primary h-5 w-5" />
                 Course Sessions
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-white/80">
                 {selectedCourseForCancel && (
                   <>
                     Manage sessions for{' '}
@@ -1100,7 +1100,7 @@ function TutorDashboardContent() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-4">
+            <div className="mt-4 text-white">
               {loadingSessions ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
