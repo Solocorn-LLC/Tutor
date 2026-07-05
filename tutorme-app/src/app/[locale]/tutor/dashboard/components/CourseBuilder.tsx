@@ -5499,8 +5499,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
               >
                 {' '}
                 <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
-                  <FileText className="h-4 w-4 shrink-0 text-slate-500" />
-                  <span className="flex-1 truncate text-sm font-medium text-slate-700">
+                  <FileText className="h-4 w-4 shrink-0 text-white" />
+                  <span className="flex-1 truncate text-sm font-medium text-white">
                     {asset.name}
                   </span>
                 </div>
@@ -5513,7 +5513,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                        className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
                         aria-label="Asset actions"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -6148,8 +6148,8 @@ FEEDBACK: [one or two short sentences explaining the score]`
             )}
           >
             <div className="flex h-[520px] flex-col gap-4">
-              {/* Modal Header — only title/subtitle, no custom X (Dialog has built-in close) */}
-              <div>
+              {/* Modal Header — centered title and subtitle */}
+              <div className="text-center">
                 <h3 className="text-lg font-bold text-gray-900">Assets</h3>
                 <p className="text-xs text-gray-500">
                   View, organize, and load uploaded assets available in this course.
@@ -6162,7 +6162,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full gap-1 rounded-full border-0 bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                    className="w-full gap-1 rounded-full border-0 bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-600"
                     onClick={() => {
                       const name = prompt('Folder name:')
                       if (name && name.trim()) {
@@ -6208,7 +6208,11 @@ FEEDBACK: [one or two short sentences explaining the score]`
                           onClick={() => setAssetViewFolder(folder)}
                         >
                           <span className="flex items-center gap-2">
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            {assetViewFolder === folder ? (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            )}
                             <span
                               className={
                                 assetViewFolder === folder ? 'text-blue-600' : 'text-gray-700'
@@ -6269,17 +6273,17 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             className={cn(
                               'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
                               assetPickerTarget
-                                ? 'cursor-pointer bg-slate-100 ring-2 ring-transparent hover:bg-slate-200 hover:ring-blue-400'
-                                : 'cursor-grab bg-slate-100 hover:bg-slate-200 active:cursor-grabbing'
+                                ? 'cursor-pointer bg-emerald-500/50 ring-2 ring-transparent hover:bg-emerald-500/60 hover:ring-blue-400'
+                                : 'cursor-grab bg-emerald-500/50 hover:bg-emerald-500/60 active:cursor-grabbing'
                             )}
                           >
                             <div className="mr-3 flex flex-1 items-center gap-3 overflow-hidden">
-                              <FileText className="h-5 w-5 shrink-0 text-slate-400" />
+                              <FileText className="h-5 w-5 shrink-0 text-white" />
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-gray-800">
+                                <p className="truncate text-sm font-semibold text-white">
                                   {asset.name}
                                 </p>
-                                <p className="text-[11px] text-gray-500">
+                                <p className="text-[11px] text-white/80">
                                   Folder: {asset.folder || 'Uncategorized'}
                                 </p>
                               </div>
@@ -6316,7 +6320,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                    className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
                                   >
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
