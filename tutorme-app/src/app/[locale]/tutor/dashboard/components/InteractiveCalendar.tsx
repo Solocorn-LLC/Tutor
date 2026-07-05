@@ -746,7 +746,7 @@ export function InteractiveCalendar({
       return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d')}`
     }
     if (view === 'day') {
-      return format(currentDate, 'MMMM d')
+      return format(currentDate, 'EEE MMMM d')
     }
     return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
   }, [currentDate, view])
