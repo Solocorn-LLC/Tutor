@@ -1141,6 +1141,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
       'submissions'
     )
+    // New (unseen) submission count, surfaced by SubmissionsPanel to badge the tab.
+    const [newSubmissionCount, setNewSubmissionCount] = useState(0)
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
     const [alertDialog, setAlertDialog] = useState<{
@@ -1536,6 +1538,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [insightsProps?.liveTasks, currentInsightsId]
     )
 
+    // Tutor closes a poll/question: server locks it and no more answers land.
+    const handleCloseInsight = useCallback(
+      (kind: 'poll' | 'question', insightId: string) => {
+        const socket = insightsProps?.socket
+        const roomId = insightsProps?.sessionId
+        const taskId = activeLiveTask?.id
+        if (!socket || !roomId || !taskId) return
+        socket.emit('insight:close', { roomId, taskId, type: kind, insightId })
+      },
+      [insightsProps?.socket, insightsProps?.sessionId, activeLiveTask?.id]
+    )
+
     // ALL polls for the active task (newest first) so sending a new poll no
     // longer hides the previous ones. Each option's tally is by 0-based index,
     // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
@@ -1550,6 +1564,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             id: poll.id,
             question: poll.question,
             totalResponses: total,
+            closed: poll.status === 'closed',
             options: Array.from({ length: optionCount }, (_, i) => {
               const responders = poll.responses.filter(r => r.value === i)
               return {
@@ -1571,6 +1586,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         .map(q => ({
           id: q.id,
           prompt: q.prompt,
+          closed: (q as { status?: string }).status === 'closed',
           answers: q.responses.map(r => ({
             studentName: studentNameById.get(r.studentId) || 'Student',
             answer: r.answer,
@@ -8831,6 +8847,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <InsightsReportView
                                                 type="poll"
                                                 pollResults={pollResults}
+                                                onClose={handleCloseInsight}
                                                 onMentionStudent={name =>
                                                   setPollPrompt(
                                                     pollPrompt
@@ -8927,6 +8944,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               <InsightsReportView
                                                 type="question"
                                                 questionResults={questionResults}
+                                                onClose={handleCloseInsight}
                                                 onMentionStudent={name =>
                                                   setQuestionPrompt(
                                                     questionPrompt
@@ -10587,6 +10605,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         <InsightsReportView
                                           type="poll"
                                           pollResults={pollResults}
+                                          onClose={handleCloseInsight}
                                           onMentionStudent={name =>
                                             setPollPrompt(
                                               pollPrompt
@@ -10664,6 +10683,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                         <InsightsReportView
                                           type="question"
                                           questionResults={questionResults}
+                                          onClose={handleCloseInsight}
                                           onMentionStudent={name =>
                                             setQuestionPrompt(
                                               questionPrompt
@@ -10743,6 +10763,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                         courseId={courseId || ''}
                         onToggleHidden={setRightPanelHidden}
                         liveSubmissions={insightsProps?.liveSubmissions}
+                        onNewSubmissionCount={setNewSubmissionCount}
                         headerExtra={
                           <div className="px-4 pt-4">
                             <Tabs
@@ -10755,9 +10776,14 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               <TabsList className="grid w-full grid-cols-2 gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
                                 <TabsTrigger
                                   value="submissions"
-                                  className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
+                                  className="relative h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
                                 >
                                   Submissions
+                                  {newSubmissionCount > 0 && (
+                                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-semibold text-white">
+                                      {newSubmissionCount}
+                                    </span>
+                                  )}
                                 </TabsTrigger>
                                 <TabsTrigger
                                   value="insights"

@@ -56,6 +56,8 @@ export interface LiveTaskQuestion {
   id: string
   taskId: string
   prompt: string
+  /** A closed question accepts no more answers (mirrors LiveTaskPoll.status). */
+  status?: 'open' | 'closed'
   responses: LiveTaskQuestionResponse[]
   createdAt: number
 }
