@@ -179,6 +179,9 @@ const TIME_SLOTS = [
   '21:00',
   '22:00',
   '23:00',
+  // Pairing sentinel so 23:00 (11 PM) becomes a selectable start slot. Ends at
+  // 23:59 rather than 24:00 because the availability API validates HH:MM ≤ 23:59.
+  '23:59',
 ]
 
 const generateAvailability = (): AvailabilityBlock[] => {

@@ -19,7 +19,8 @@ import {
   oneOnOneBookingRequest,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, gt, lt, asc, isNull, inArray } from 'drizzle-orm'
+import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
+import { formatInZone } from '@/lib/time/tz'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -111,6 +112,12 @@ export const GET = withAuth(
             and(
               eq(liveSession.tutorId, tutorId),
               inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+              // Ignore orphaned sessions: deleting a course sets liveSession.courseId
+              // to null (FK on delete) but leaves the row scheduled, which then
+              // blocked scheduler slots forever. Only count sessions still tied to a
+              // course here; genuinely course-less sessions (ad-hoc) already surface
+              // via their CalendarEvent above, so nothing real is lost.
+              isNotNull(liveSession.courseId),
               // A live session overlaps if: scheduledAt < endDate AND (scheduledAt + duration) > startDate
               // We approximate with scheduledAt within a window that could overlap
               gte(liveSession.scheduledAt, new Date(startDate.getTime() - 24 * 60 * 60 * 1000)),
@@ -134,8 +141,13 @@ export const GET = withAuth(
             )
           )
 
-        const normalizeDate = (d: Date) => d.toISOString().split('T')[0]
-        const normalizeTime = (d: Date) => d.toISOString().split('T')[1].slice(0, 5)
+        // Event/session instants are read in the TUTOR's timezone so they line
+        // up with availability (also the tutor's local "HH:MM") and the scheduler
+        // cells — previously these used UTC (toISOString), which offset every
+        // event by the tutor's UTC offset.
+        const tutorTz = availability[0]?.timezone || 'UTC'
+        const normalizeDate = (d: Date) => formatInZone(d, tutorTz).date
+        const normalizeTime = (d: Date) => formatInZone(d, tutorTz).time
 
         // Merge calendar events and live sessions into a single events array
         const calendarEventItems = existingEvents.map(ev => ({
@@ -175,6 +187,10 @@ export const GET = withAuth(
             dayOfWeek: a.dayOfWeek,
             startTime: a.startTime,
             endTime: a.endTime,
+            // Tutors store BLOCKED times as isAvailable=false ("available unless
+            // blocked"). The scheduler must see this to grey blocked slots — the
+            // field was previously dropped, so blocked rows read as availability.
+            isAvailable: a.isAvailable,
           })),
           exceptions: exceptions.map(e => ({
             date: normalizeDate(e.date),

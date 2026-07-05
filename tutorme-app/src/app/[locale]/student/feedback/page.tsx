@@ -1668,6 +1668,19 @@ function StudentFeedbackContent() {
   const feedbackPolls = activeTask?.polls ?? []
   const feedbackQuestions = activeTask?.questions ?? []
 
+  // Count polls/questions this student hasn't answered yet (and that are still
+  // open), so the Interact tab can badge how many need a response. A closed
+  // poll/question no longer counts — there's nothing the student can do.
+  const myId = session?.user?.id
+  const unansweredInteractCount =
+    feedbackPolls.filter(p => p.status !== 'closed' && !p.responses.some(r => r.studentId === myId))
+      .length +
+    feedbackQuestions.filter(
+      q =>
+        (q as { status?: string }).status !== 'closed' &&
+        !q.responses.some(r => r.studentId === myId)
+    ).length
+
   let latestInteractionType: 'poll' | 'question' | null = null
   let maxCreatedAt = 0
 
@@ -2246,13 +2259,21 @@ function StudentFeedbackContent() {
                   size="sm"
                   onClick={() => setRightPanelTab('interactions')}
                   className={cn(
-                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'interactions'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Interact
+                  {unansweredInteractCount > 0 && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white"
+                      title={`${unansweredInteractCount} unanswered`}
+                    >
+                      {unansweredInteractCount}
+                    </span>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
@@ -2438,6 +2459,10 @@ function StudentFeedbackContent() {
                             const selectedValue = poll.responses.find(
                               response => response.studentId === session?.user?.id
                             )?.value
+                            // Once answered (or the tutor closed it) the vote is
+                            // locked — you can't change your answer.
+                            const answered = selectedValue !== undefined
+                            const locked = poll.status === 'closed' || answered
                             return (
                               <div key={poll.id} className="rounded-lg border bg-white p-4">
                                 <p className="text-sm font-medium text-gray-900">{poll.question}</p>
@@ -2450,15 +2475,17 @@ function StudentFeedbackContent() {
                                       key={`${poll.id}-${i}`}
                                       variant={selectedValue === i ? 'default' : 'outline'}
                                       size="sm"
-                                      disabled={poll.status === 'closed'}
+                                      disabled={locked}
                                       onClick={() => handlePollVote(poll, i)}
                                     >
                                       {label}
                                     </Button>
                                   ))}
                                 </div>
-                                {poll.status === 'closed' && (
-                                  <p className="mt-2 text-xs text-gray-500">Poll closed</p>
+                                {locked && (
+                                  <p className="mt-2 text-xs text-gray-500">
+                                    {answered ? 'Answer submitted — locked' : 'Poll closed'}
+                                  </p>
                                 )}
                               </div>
                             )
@@ -2468,33 +2495,56 @@ function StudentFeedbackContent() {
 
                       {feedbackQuestions.length > 0 && (
                         <div className="space-y-3">
-                          {feedbackQuestions.map(question => (
-                            <div key={question.id} className="rounded-lg border bg-white p-4">
-                              <p className="text-sm font-medium text-gray-900">{question.prompt}</p>
-                              <div className="mt-3">
-                                <AutoTextarea
-                                  placeholder="Type your answer..."
-                                  className="min-h-[72px]"
-                                  value={questionDrafts[question.id] || ''}
-                                  onChange={event =>
-                                    setQuestionDrafts(prev => ({
-                                      ...prev,
-                                      [question.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <div className="mt-2 flex justify-end">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleQuestionSend(question)}
-                                    disabled={!questionDrafts[question.id]?.trim()}
-                                  >
-                                    Send
-                                  </Button>
-                                </div>
+                          {feedbackQuestions.map(question => {
+                            const myAnswer = question.responses.find(
+                              r => r.studentId === session?.user?.id
+                            )?.answer
+                            const answered = myAnswer !== undefined
+                            const closed = (question as { status?: string }).status === 'closed'
+                            return (
+                              <div key={question.id} className="rounded-lg border bg-white p-4">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {question.prompt}
+                                </p>
+                                {answered ? (
+                                  // Your answer is locked once submitted.
+                                  <div className="mt-3">
+                                    <div className="rounded-md border bg-gray-50 p-2 text-sm text-gray-700">
+                                      {myAnswer}
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Answer submitted — locked
+                                    </p>
+                                  </div>
+                                ) : closed ? (
+                                  <p className="mt-3 text-xs text-gray-500">Question closed</p>
+                                ) : (
+                                  <div className="mt-3">
+                                    <AutoTextarea
+                                      placeholder="Type your answer..."
+                                      className="min-h-[72px]"
+                                      value={questionDrafts[question.id] || ''}
+                                      onChange={event =>
+                                        setQuestionDrafts(prev => ({
+                                          ...prev,
+                                          [question.id]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                    <div className="mt-2 flex justify-end">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleQuestionSend(question)}
+                                        disabled={!questionDrafts[question.id]?.trim()}
+                                      >
+                                        Send
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
 
