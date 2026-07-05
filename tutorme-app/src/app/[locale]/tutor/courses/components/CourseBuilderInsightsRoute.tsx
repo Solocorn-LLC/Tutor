@@ -14,7 +14,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -1146,27 +1145,59 @@ function CourseBuilderInsightsRouteInner({
       </div>
       {/* Create Course Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-md" theme="metallic">
+        <DialogContent
+          className="max-w-md border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
           <DialogHeader className="text-center">
-            <DialogTitle className="mx-auto text-center">Create New Course</DialogTitle>
+            <DialogTitle className="mx-auto text-center text-white">Create New Course</DialogTitle>
           </DialogHeader>
-          <div className="px-6 py-4">
-            <DialogPanel className="space-y-4">
+
+          <div className="space-y-4 px-6 py-4">
+            <div className="space-y-2">
               <Input
                 value={newCourseName}
-                onChange={e => setNewCourseName?.(e.target.value)}
+                onChange={e => {
+                  const value = e.target.value
+                  if (value.length <= 25) {
+                    setNewCourseName?.(value)
+                  }
+                }}
                 placeholder="Course name"
+                maxLength={25}
+                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 onKeyDown={e => {
-                  if (e.key === 'Enter') onCreateNewCourse?.()
+                  if (e.key === 'Enter' && newCourseName?.trim()) {
+                    e.preventDefault()
+                    onCreateNewCourse?.()
+                  }
                 }}
               />
-            </DialogPanel>
+              <div className="flex justify-end">
+                <span
+                  className={`text-xs font-medium ${
+                    (newCourseName?.length || 0) >= 25
+                      ? 'text-red-500'
+                      : (newCourseName?.length || 0) >= 20
+                        ? 'text-orange-500'
+                        : 'text-gray-400'
+                  }`}
+                >
+                  {newCourseName?.length || 0}/25
+                </span>
+              </div>
+            </div>
           </div>
+
           <DialogFooter className="gap-3">
             <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen?.(false)}>
               Cancel
             </Button>
-            <Button variant="modal-primary-dark" onClick={onCreateNewCourse}>
+            <Button
+              variant="modal-primary-dark"
+              onClick={onCreateNewCourse}
+              disabled={!newCourseName?.trim()}
+            >
               Create
             </Button>
           </DialogFooter>
