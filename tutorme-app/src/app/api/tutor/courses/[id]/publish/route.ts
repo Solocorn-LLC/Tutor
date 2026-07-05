@@ -656,12 +656,15 @@ export const POST = withCsrf(
                     dayOfWeek: calendarAvailability.dayOfWeek,
                     startTime: calendarAvailability.startTime,
                     endTime: calendarAvailability.endTime,
+                    // Include the flag: tutors store BLOCKED times as
+                    // isAvailable=false. Filtering to true only left no windows,
+                    // so blocked slots were never enforced on publish.
+                    isAvailable: calendarAvailability.isAvailable,
                   })
                   .from(calendarAvailability)
                   .where(
                     and(
                       eq(calendarAvailability.tutorId, userId),
-                      eq(calendarAvailability.isAvailable, true),
                       or(
                         isNull(calendarAvailability.validUntil),
                         gte(calendarAvailability.validUntil, now)
@@ -706,10 +709,11 @@ export const POST = withCsrf(
                 const eStr = hhmm(end)
                 const dateKey = dateKeyOf(start)
                 const dayWindows = availabilityWindows.filter(a => a.dayOfWeek === dow)
-                if (
-                  dayWindows.length > 0 &&
-                  !dayWindows.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))
-                ) {
+                // "Available unless blocked": a session overlapping a blocked
+                // (isAvailable=false) window is out of availability. isAvailable=true
+                // and absent rows both mean available, so they never restrict.
+                const blocked = dayWindows.filter(a => a.isAvailable === false)
+                if (blocked.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))) {
                   return 'outside_availability'
                 }
                 for (const ex of dateExceptions) {
