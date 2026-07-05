@@ -40,12 +40,7 @@ export const POST = withAuth(
           scheduledAt: liveSession.scheduledAt,
         })
         .from(liveSession)
-        .where(
-          and(
-            isNull(liveSession.courseId),
-            eq(liveSession.status, 'scheduled')
-          )
-        )
+        .where(and(isNull(liveSession.courseId), eq(liveSession.status, 'scheduled')))
 
       if (orphaned.length === 0) {
         return NextResponse.json({
@@ -59,12 +54,7 @@ export const POST = withAuth(
       const result = await drizzleDb
         .update(liveSession)
         .set({ status: 'ended', endedAt: new Date() })
-        .where(
-          and(
-            isNull(liveSession.courseId),
-            eq(liveSession.status, 'scheduled')
-          )
-        )
+        .where(and(isNull(liveSession.courseId), eq(liveSession.status, 'scheduled')))
         .returning({ sessionId: liveSession.sessionId })
 
       return NextResponse.json({

@@ -1314,34 +1314,6 @@ function TutorInsightsPageInner() {
         />
       </PanelErrorBoundary>
 
-      {/* Create New Course Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>Enter a name for your new course.</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newCourseName}
-            onChange={e => setNewCourseName(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                handleCreateNewCourse()
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="modal-primary-dark" onClick={handleCreateNewCourse}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Delete Course Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
