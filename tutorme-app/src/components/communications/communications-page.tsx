@@ -204,10 +204,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
-              <MessagingPanel
-                activeSection={activeSection}
-                onSectionChange={setActiveSection}
-              />
+              <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
             </CollapsibleCard>
           </TabsContent>
 
