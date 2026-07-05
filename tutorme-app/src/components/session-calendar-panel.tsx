@@ -89,8 +89,9 @@ export function SessionCalendarPanel({
 
   return (
     <Card
+      hoverable={false}
       className={cn(
-        'flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5',
+        'shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5',
         className
       )}
     >
