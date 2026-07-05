@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPanel,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -1145,20 +1146,23 @@ function CourseBuilderInsightsRouteInner({
       </div>
       {/* Create Course Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>Enter a name for your new course.</DialogDescription>
+        <DialogContent className="max-w-md" theme="metallic">
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center">Create New Course</DialogTitle>
           </DialogHeader>
-          <Input
-            value={newCourseName}
-            onChange={e => setNewCourseName?.(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') onCreateNewCourse?.()
-            }}
-          />
-          <DialogFooter>
+          <div className="px-6 py-4">
+            <DialogPanel className="space-y-4">
+              <Input
+                value={newCourseName}
+                onChange={e => setNewCourseName?.(e.target.value)}
+                placeholder="Course name"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') onCreateNewCourse?.()
+                }}
+              />
+            </DialogPanel>
+          </div>
+          <DialogFooter className="gap-3">
             <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen?.(false)}>
               Cancel
             </Button>
