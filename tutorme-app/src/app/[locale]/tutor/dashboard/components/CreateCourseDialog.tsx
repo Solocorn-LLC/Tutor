@@ -188,16 +188,16 @@ export function CreateCourseDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="border border-slate-200 shadow-2xl sm:max-w-[500px]"
         aria-busy={creating}
         aria-describedby={apiError ? 'create-course-api-error' : undefined}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-500" />
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <BookOpen className="text-primary h-5 w-5" />
             New session
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-white/80">
             Create a whole course (course) with modules and lessons. You can add more modules and
             lessons after creation.
           </DialogDescription>

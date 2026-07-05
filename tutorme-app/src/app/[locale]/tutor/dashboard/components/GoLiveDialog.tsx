@@ -68,9 +68,9 @@ export function GoLiveDialog({
         onOpenChange(isOpen)
       }}
     >
-      <DialogContent className="max-w-md" theme="metallic">
+      <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
         <DialogHeader className="text-center">
-          <DialogTitle className="mx-auto text-center">Go Live</DialogTitle>
+          <DialogTitle className="mx-auto text-center text-white">Go Live</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 px-6 py-4">
