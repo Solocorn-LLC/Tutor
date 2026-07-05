@@ -151,7 +151,6 @@ function OneOnOneSettingsCard() {
   if (loading) {
     return (
       <CollapsibleCard
-        flush
         className={SECTION_CARD_CLASS}
         title="1-on-1 Booking"
         icon={<Calendar className="h-5 w-5 text-slate-900" />}
@@ -166,7 +165,6 @@ function OneOnOneSettingsCard() {
 
   return (
     <CollapsibleCard
-      flush
       className={SECTION_CARD_CLASS}
       title="1-on-1 Booking"
       description="Allow students to book private sessions with you"
@@ -874,7 +872,6 @@ export default function TutorSettings() {
 
                   {/* Tax Information */}
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Tax Information"
                     description="Required for payout and tax reporting"
@@ -995,7 +992,6 @@ export default function TutorSettings() {
               <TabsContent value="billing" className="mt-0 flex min-h-0 flex-1 flex-col">
                 <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Payment Methods"
                     description="Manage your payment methods for subscription"
@@ -1045,7 +1041,6 @@ export default function TutorSettings() {
                   </CollapsibleCard>
 
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Subscription Plan"
                     description="Manage your tutor subscription"
@@ -1110,7 +1105,6 @@ export default function TutorSettings() {
                   </CollapsibleCard>
 
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Payout Settings"
                     description="Manage your earnings and withdrawals"
@@ -1154,7 +1148,6 @@ export default function TutorSettings() {
                   </CollapsibleCard>
 
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Billing History"
                     description="View and download your invoices and receipts"
@@ -1207,7 +1200,6 @@ export default function TutorSettings() {
               <TabsContent value="refunds" className="mt-0 flex min-h-0 flex-1 flex-col">
                 <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Refunds"
                     description="Pending refund requests across all your courses — approve to process via the payment gateway, or decline."
@@ -1225,7 +1217,6 @@ export default function TutorSettings() {
               <TabsContent value="notifications" className="mt-0 flex min-h-0 flex-1 flex-col">
                 <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Notification Preferences"
                     description="Control how and when we contact you"
@@ -1342,7 +1333,6 @@ export default function TutorSettings() {
               <TabsContent value="security" className="mt-0 flex min-h-0 flex-1 flex-col">
                 <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Privacy & Security"
                     description="Manage your password and account security"
@@ -1452,7 +1442,6 @@ export default function TutorSettings() {
               <TabsContent value="controls" className="mt-0 flex min-h-0 flex-1 flex-col">
                 <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Live Session Mirroring"
                     description="Control what students see by default during live sessions"
@@ -1513,7 +1502,6 @@ export default function TutorSettings() {
 
                   {/* Course Sync Mode */}
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Course Sync Mode"
                     description="Control how course edits are shared with students during live sessions"
@@ -1576,7 +1564,6 @@ export default function TutorSettings() {
 
                   {/* Document Parsing */}
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Document Import"
                     description="Control how documents are handled when importing into tasks and assessments"
@@ -1610,7 +1597,6 @@ export default function TutorSettings() {
                   </CollapsibleCard>
 
                   <CollapsibleCard
-                    flush
                     className={SECTION_CARD_CLASS}
                     title="Account Controls"
                     description="Temporarily deactivate or permanently delete your account"

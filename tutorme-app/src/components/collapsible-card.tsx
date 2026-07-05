@@ -33,10 +33,10 @@ export function CollapsibleCard({
     <div ref={cardRef}>
       <div
         className={cn(
-          'overflow-hidden border border-[#E5E7EB] p-0',
+          'overflow-hidden p-0',
           flush
-            ? 'rounded-b-[16px] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]'
-            : 'rounded-[16px] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+            ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
+            : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
           className
         )}
       >
