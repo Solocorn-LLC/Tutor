@@ -636,7 +636,7 @@ export default function TutorSettings() {
   }
 
   return (
-    <div className="flex h-full min-h-full flex-col bg-[#fafafc] px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
       {/* Hero */}
       <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_24px_72px_rgba(0,0,0,0.20)] ring-1 ring-white/20">
         <div className="text-center">
