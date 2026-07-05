@@ -69,7 +69,8 @@ const LANGUAGES = [
   { code: 'ja', name: '日本語 (Japanese)' },
 ]
 
-const SECTION_CARD_CLASS = 'flex flex-col overflow-hidden rounded-[16px] bg-white'
+const SECTION_CARD_CLASS =
+  'flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
 
 interface PaymentMethod {
   id: string
@@ -704,7 +705,7 @@ export default function TutorSettings() {
             <div className="flex min-h-0 flex-1 flex-col pt-3">
               {/* Profile & Identity */}
               <TabsContent value="profile" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Your Profile"
@@ -983,14 +984,14 @@ export default function TutorSettings() {
 
               {/* 1-on-1 Booking */}
               <TabsContent value="1-on-1" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <OneOnOneSettingsCard />
                 </div>
               </TabsContent>
 
               {/* Billing & Payment */}
               <TabsContent value="billing" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Payment Methods"
@@ -1198,7 +1199,7 @@ export default function TutorSettings() {
 
               {/* Refunds */}
               <TabsContent value="refunds" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Refunds"
@@ -1215,7 +1216,7 @@ export default function TutorSettings() {
 
               {/* Notifications */}
               <TabsContent value="notifications" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Notification Preferences"
@@ -1331,7 +1332,7 @@ export default function TutorSettings() {
 
               {/* Privacy & Security */}
               <TabsContent value="security" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Privacy & Security"
@@ -1440,7 +1441,7 @@ export default function TutorSettings() {
 
               {/* Live Session Mirroring */}
               <TabsContent value="controls" className="mt-0 flex min-h-0 flex-1 flex-col">
-                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-4 pr-2">
+                <div className="no-scrollbar h-full space-y-6 overflow-y-auto pb-8 pr-6">
                   <CollapsibleCard
                     className={SECTION_CARD_CLASS}
                     title="Live Session Mirroring"
