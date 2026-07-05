@@ -194,25 +194,27 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
           onValueChange={setActiveTab}
           variant="charcoal"
           tabs={[
-            { value: 'messaging', label: 'Messaging', icon: MessageSquare },
-            { value: 'notifications', label: 'Notifications', icon: Bell },
+            { value: 'messaging', label: 'Messaging' },
+            { value: 'notifications', label: 'Notifications' },
           ]}
         >
-          <TabsContent value="messaging" className="flex h-full flex-col gap-4 pb-4">
+          <TabsContent value="messaging" className="flex h-full flex-col">
             <CollapsibleCard
               title="Messaging"
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              className="flex-1"
             >
               <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
             </CollapsibleCard>
           </TabsContent>
 
-          <TabsContent value="notifications" className="flex h-full flex-col gap-4 pb-4">
+          <TabsContent value="notifications" className="flex h-full flex-col">
             <CollapsibleCard
               title="Notifications"
               icon={<Bell className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              className="flex-1"
             >
               <NotificationsPanel
                 role={role}
