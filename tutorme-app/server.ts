@@ -11,6 +11,7 @@ import { config as dotenvConfig } from 'dotenv'
 import { initEnhancedSocketServer } from './src/lib/socket-server-enhanced'
 import { validateEnv } from './src/lib/env'
 import { applyStartupSchemaFixes } from './src/lib/db/startup-schema-fix'
+import { applyStartupDataCleanup } from './src/lib/db/startup-cleanup'
 import { startSessionReminderScheduler } from './src/lib/notifications/session-reminder-scheduler'
 
 // Load environment variables from .env.local before validation
@@ -195,6 +196,9 @@ server
       const schemaFixPromise = applyStartupSchemaFixes()
         .then(() => {
           console.log(`[Server] Step 1b: Schema fixes completed in ${elapsed(schemaFixStart)}`)
+          // Idempotent data cleanup (orphaned sessions) — after schema fixes so
+          // the columns it reads are guaranteed present. Best-effort, non-blocking.
+          return applyStartupDataCleanup()
         })
         .catch((schemaErr: unknown) => {
           const error = schemaErr instanceof Error ? schemaErr : new Error('Schema fix failed')
