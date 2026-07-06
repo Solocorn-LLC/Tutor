@@ -24,6 +24,7 @@ import {
   type AssessmentReviewData,
   type FollowUpTurn,
 } from '@/components/quiz/assessment-review-modal'
+import { AssessmentMasteryCard } from '@/components/student/assessment-mastery-card'
 import { toast } from 'sonner'
 
 interface AssignmentItem {
@@ -409,6 +410,8 @@ export default function StudentAssignmentsPage() {
         </h1>
         <p className="mt-1 text-gray-600">Track your homework, quizzes, and projects</p>
       </div>
+
+      <AssessmentMasteryCard />
 
       {/* Stats Cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
