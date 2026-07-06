@@ -1,10 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { useRef } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { useSlidingPillMetrics } from '@/hooks/use-sliding-pill'
 import { TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export interface SlidingPillTab {
@@ -48,26 +47,82 @@ export function SlidingPillTabsList({
   value,
   tabs,
   variant = 'charcoal',
-  className,
+  className: _className,
   listClassName,
   triggerClassName,
   pillClassName,
 }: SlidingPillTabsListProps) {
-  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const activeIndex = tabs.findIndex(tab => tab.value === value)
-  const { left, width, initialLeft, initialWidth } = useSlidingPillMetrics(triggerRefs, activeIndex)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
+  const _activeIndex = tabs.findIndex(tab => tab.value === value)
   const styles = VARIANT_STYLES[variant]
+
+  const updatePillPosition = useCallback(() => {
+    const list = listRef.current
+    if (!list) return
+
+    const activeTrigger = list.children[_activeIndex] as HTMLElement | undefined
+    if (!activeTrigger || activeTrigger.getAttribute('role') !== 'tab') {
+      // Fallback: find by data-state="active"
+      const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
+      const active = triggers.find(t => t.getAttribute('data-state') === 'active')
+      if (!active) return
+      const rect = active.getBoundingClientRect()
+      const listRect = list.getBoundingClientRect()
+      setPillStyle({
+        left: rect.left - listRect.left,
+        width: rect.width,
+      })
+      return
+    }
+
+    const rect = activeTrigger.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    setPillStyle({
+      left: rect.left - listRect.left,
+      width: rect.width,
+    })
+  }, [_activeIndex])
+
+  // Update position when active tab changes
+  React.useLayoutEffect(() => {
+    updatePillPosition()
+  }, [updatePillPosition])
+
+  // Update after a delay for fonts/layout
+  React.useEffect(() => {
+    const id = setTimeout(updatePillPosition, 100)
+    return () => clearTimeout(id)
+  }, [updatePillPosition])
+
+  // Update on resize
+  React.useEffect(() => {
+    const handleResize = () => updatePillPosition()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updatePillPosition])
+
+  // Use ResizeObserver on the list container
+  React.useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+
+    const ro = new ResizeObserver(() => {
+      updatePillPosition()
+    })
+    ro.observe(list)
+
+    return () => ro.disconnect()
+  }, [updatePillPosition])
 
   return (
     <TabsList
+      ref={listRef}
       className={cn('relative flex w-full gap-1.5 rounded-xl p-1.5', styles.list, listClassName)}
     >
-      {tabs.map((tab, i) => (
+      {tabs.map(tab => (
         <TabsTrigger
           key={tab.value}
-          ref={el => {
-            triggerRefs.current[i] = el
-          }}
           value={tab.value}
           disabled={tab.disabled}
           className={cn(
@@ -81,8 +136,7 @@ export function SlidingPillTabsList({
       ))}
       <motion.div
         className={cn('absolute bottom-1.5 top-1.5 rounded-lg', styles.pill, pillClassName)}
-        initial={{ left: initialLeft, width: initialWidth }}
-        animate={{ left, width }}
+        animate={{ left: pillStyle.left, width: pillStyle.width }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       />
     </TabsList>

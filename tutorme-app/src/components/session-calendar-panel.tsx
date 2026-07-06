@@ -1,11 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { useRef } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useSlidingPillMetrics } from '@/hooks/use-sliding-pill'
 import { Card } from '@/components/ui/card'
 import {
   Select,
@@ -78,21 +77,56 @@ export function SessionCalendarPanel({
   timezone,
   onTimezoneChange,
   variant = 'blue',
-  className,
+  className: _className,
 }: SessionCalendarPanelProps) {
   const listRef = useRef<HTMLDivElement>(null)
-  const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const activeIndex = tabs.findIndex(tab => tab.value === value)
-  const { left, width, initialLeft, initialWidth } = useSlidingPillMetrics(triggerRefs, activeIndex)
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
+  const _activeIndex = tabs.findIndex(tab => tab.value === value)
   const activeTextColor =
     variant === 'orange' ? '#EA580C' : variant === 'charcoal' ? '#1F2933' : '#2563EB'
+
+  const updatePillPosition = useCallback(() => {
+    const list = listRef.current
+    if (!list) return
+    const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
+    const active = triggers.find(t => t.getAttribute('data-state') === 'active')
+    if (!active) return
+    const rect = active.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    setPillStyle({
+      left: rect.left - listRect.left,
+      width: rect.width,
+    })
+  }, [])
+  React.useLayoutEffect(() => {
+    updatePillPosition()
+  }, [updatePillPosition])
+
+  React.useEffect(() => {
+    const id = setTimeout(updatePillPosition, 100)
+    return () => clearTimeout(id)
+  }, [updatePillPosition])
+
+  React.useEffect(() => {
+    const handleResize = () => updatePillPosition()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updatePillPosition])
+
+  React.useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const ro = new ResizeObserver(() => updatePillPosition())
+    ro.observe(list)
+    return () => ro.disconnect()
+  }, [updatePillPosition])
 
   return (
     <Card
       hoverable={false}
       className={cn(
         'shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5',
-        className
+        _className
       )}
     >
       <Tabs value={value} onValueChange={onValueChange} className="flex h-full w-full flex-col">
@@ -109,12 +143,9 @@ export function SessionCalendarPanel({
                     : 'bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]'
               )}
             >
-              {tabs.map((tab, i) => (
+              {tabs.map(tab => (
                 <TabsTrigger
                   key={tab.value}
-                  ref={el => {
-                    triggerRefs.current[i] = el
-                  }}
                   value={tab.value}
                   className={cn(
                     'relative z-10 flex-1 rounded-lg text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none',
@@ -132,8 +163,7 @@ export function SessionCalendarPanel({
               ))}
               <motion.div
                 className="absolute bottom-1.5 top-1.5 rounded-lg bg-white shadow-sm"
-                initial={{ left: initialLeft, width: initialWidth }}
-                animate={{ left, width }}
+                animate={{ left: pillStyle.left, width: pillStyle.width }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             </TabsList>
