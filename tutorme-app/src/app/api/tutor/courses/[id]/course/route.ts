@@ -109,11 +109,11 @@ export const PUT = withCsrf(
 
             for (const sibling of siblingVariants) {
               if (sibling.publishedCourseId === courseId) continue
-              // Correlate by `order` and update the sibling's OWN lesson rows in
-              // place. Feeding this course's lesson ids straight into
-              // updateCourseBuilderData deleted every sibling lesson (their ids
-              // never matched) and cascaded away their students' progress.
-              await CourseBuilderService.propagateLessonsByOrder(
+              // Correlate by shared sourceLessonId (fallback: order) and update the
+              // sibling's OWN lesson rows in place. Feeding this course's lesson ids
+              // straight into updateCourseBuilderData deleted every sibling lesson
+              // (their ids never matched) and cascaded away their students' progress.
+              await CourseBuilderService.propagateLessonsToVariant(
                 sibling.publishedCourseId,
                 userId,
                 lessons

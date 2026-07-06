@@ -24,6 +24,26 @@ WHERE "courseId" IS NULL
   );
 `)
 
+/**
+ * Backfill CourseLesson.sourceLessonId for published-variant lessons that
+ * predate the linkage (drizzle/0066). We use the historical correlation —
+ * template↔published lessons at the same `order` — which is the best we have for
+ * existing rows; newly copied lessons are stamped at publish time. Idempotent:
+ * only touches rows whose sourceLessonId is still NULL.
+ */
+const BACKFILL_SOURCE_LESSON_SQL = sql.raw(`
+UPDATE "CourseLesson" AS pub
+SET "sourceLessonId" = tmpl."id"
+FROM "CourseVariant" cv
+JOIN "CourseLesson" tmpl
+  ON tmpl."courseId" = cv."templateCourseId"
+  AND tmpl."order" = pub."order"
+  AND tmpl."deletedAt" IS NULL
+WHERE pub."courseId" = cv."publishedCourseId"
+  AND pub."sourceLessonId" IS NULL
+  AND pub."deletedAt" IS NULL;
+`)
+
 export async function applyStartupDataCleanup(): Promise<void> {
   try {
     const result = await drizzleDb.execute(CLEANUP_SQL)
@@ -35,6 +55,19 @@ export async function applyStartupDataCleanup(): Promise<void> {
     // Never block boot on a cleanup — log and move on.
     console.error(
       '⚠️ [Server] Orphaned-session cleanup skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const result = await drizzleDb.execute(BACKFILL_SOURCE_LESSON_SQL)
+    const count = (result as { rowCount?: number })?.rowCount ?? 0
+    if (count > 0) {
+      console.log(`[Server] Data cleanup: backfilled sourceLessonId on ${count} lesson(s).`)
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] sourceLessonId backfill skipped:',
       err instanceof Error ? err.message : err
     )
   }

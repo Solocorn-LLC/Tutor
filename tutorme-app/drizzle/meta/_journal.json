@@ -463,6 +463,13 @@
       "when": 1781900000065,
       "tag": "0065_live_lesson_linkage",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1781900000066,
+      "tag": "0066_courselesson_source_lesson",
+      "breakpoints": true
     }
   ]
 }

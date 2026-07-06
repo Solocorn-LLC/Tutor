@@ -183,11 +183,13 @@ export class CourseBuilderService {
       throw new Error('Course not found or access denied')
     }
 
-    // Load lessons
+    // Load lessons. Filter soft-deleted rows to match the other readers
+    // (progress, submissions, publish) — otherwise the builder would show and
+    // re-save a lesson those views already hide.
     const dbLessons = await drizzleDb
       .select()
       .from(courseLesson)
-      .where(eq(courseLesson.courseId, courseId))
+      .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
       .orderBy(asc(courseLesson.order))
 
     // Transform to expected frontend structure
@@ -373,20 +375,21 @@ export class CourseBuilderService {
   }
 
   /**
-   * Propagate a source course's lessons into a TARGET course (a sibling
-   * published variant) by correlating lessons on `order` — the only stable
-   * template↔published key (see lesson-usage.ts). Matched positions are updated
-   * IN PLACE, preserving the target's own `lessonId`s so DeployedMaterial,
-   * live-session, and student-progress links survive; added positions are
-   * inserted; dropped positions are deleted only when nothing has been deployed
-   * from them.
+   * Propagate a source published variant's lessons into a TARGET sibling variant.
+   * Two variants' lessons correlate when they share a `sourceLessonId` (both were
+   * copied from the same template lesson); we fall back to `order` for rows that
+   * predate that linkage. Matched lessons are updated IN PLACE, preserving the
+   * target's own `lessonId` (so DeployedMaterial, live-session, and
+   * student-progress links survive); unmatched source lessons are inserted;
+   * target lessons no longer present in the source are deleted only when nothing
+   * has been deployed from them.
    *
    * This is the SAFE replacement for feeding a foreign course's lessons into
    * updateCourseBuilderData: because sibling variants carry distinct lessonIds,
    * that path deleted every target lesson and then no-op'd on the id conflicts,
    * leaving the sibling empty and cascading away its students' progress.
    */
-  static async propagateLessonsByOrder(
+  static async propagateLessonsToVariant(
     targetCourseId: string,
     userId: string,
     lessons: unknown
@@ -403,28 +406,54 @@ export class CourseBuilderService {
     }
     const sourceLessons = lessons as BuilderLessonInput[]
 
+    // Resolve each source lesson's template origin (sourceLessonId) so we can
+    // correlate to the sibling by a stable id instead of by position.
+    const sourceIds = sourceLessons.map(l => l.id).filter((id): id is string => Boolean(id))
+    const originBySourceId = new Map<string, string>()
+    if (sourceIds.length > 0) {
+      const rows = await drizzleDb
+        .select({ lessonId: courseLesson.lessonId, sourceLessonId: courseLesson.sourceLessonId })
+        .from(courseLesson)
+        .where(inArray(courseLesson.lessonId, sourceIds))
+      for (const r of rows) {
+        if (r.sourceLessonId) originBySourceId.set(r.lessonId, r.sourceLessonId)
+      }
+    }
+
     await drizzleDb.transaction(async tx => {
       const existing = await tx
-        .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+        .select({
+          lessonId: courseLesson.lessonId,
+          order: courseLesson.order,
+          sourceLessonId: courseLesson.sourceLessonId,
+        })
         .from(courseLesson)
         .where(and(eq(courseLesson.courseId, targetCourseId), isNull(courseLesson.deletedAt)))
         .orderBy(asc(courseLesson.order))
 
-      const targetIdByOrder = new Map<number, string>()
+      const targetBySource = new Map<string, string>()
+      const targetByOrder = new Map<number, string>()
       for (const l of existing) {
+        if (l.sourceLessonId && !targetBySource.has(l.sourceLessonId)) {
+          targetBySource.set(l.sourceLessonId, l.lessonId)
+        }
         const ord = l.order ?? 0
-        if (!targetIdByOrder.has(ord)) targetIdByOrder.set(ord, l.lessonId)
+        if (!targetByOrder.has(ord)) targetByOrder.set(ord, l.lessonId)
       }
 
-      const sourceOrders = new Set<number>()
+      const claimed = new Set<string>()
       for (const [idx, les] of sourceLessons.entries()) {
-        sourceOrders.add(idx)
         const builderData = toLessonBuilderData(les)
-        const targetId = targetIdByOrder.get(idx)
-        if (targetId) {
+        const origin = les.id ? originBySourceId.get(les.id) : undefined
+        const targetId = (origin ? targetBySource.get(origin) : undefined) ?? targetByOrder.get(idx)
+        if (targetId && !claimed.has(targetId)) {
+          claimed.add(targetId)
           await tx
             .update(courseLesson)
             .set({
+              // Only (re)assert the linkage when we know the origin; never blank
+              // out a good sourceLessonId the target already has.
+              ...(origin ? { sourceLessonId: origin } : {}),
               title: les.title || 'Untitled Lesson',
               description: les.description || null,
               duration: les.duration ?? 60,
@@ -437,6 +466,7 @@ export class CourseBuilderService {
           await tx.insert(courseLesson).values({
             lessonId: crypto.randomUUID(),
             courseId: targetCourseId,
+            sourceLessonId: origin ?? null,
             title: les.title || 'Untitled Lesson',
             description: les.description || null,
             duration: les.duration ?? 60,
@@ -448,7 +478,7 @@ export class CourseBuilderService {
         }
       }
 
-      const removedIds = existing.filter(l => !sourceOrders.has(l.order ?? 0)).map(l => l.lessonId)
+      const removedIds = existing.filter(l => !claimed.has(l.lessonId)).map(l => l.lessonId)
       if (removedIds.length > 0) {
         const usage = await getLessonUsage(targetCourseId, removedIds)
         const deletable = removedIds.filter(id => !usage[id]?.hasDeployments)
