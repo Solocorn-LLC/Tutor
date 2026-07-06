@@ -44,8 +44,9 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      {/* Content area */}
-      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      {/* Content area — top padding gives the panel header room to breathe above
+          the menu rail, chat list column and the main display area. */}
+      <div className="flex h-full min-h-0 flex-1 overflow-hidden pt-3 sm:pt-4">
         {/* Left menu rail - shorter */}
         <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-2">
           {topItems.map(item => {
