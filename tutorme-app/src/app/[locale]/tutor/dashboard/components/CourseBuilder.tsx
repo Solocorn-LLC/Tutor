@@ -131,6 +131,7 @@ import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
@@ -8962,26 +8963,17 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                           }
                                           className="flex h-full min-h-0 flex-col"
                                         >
-                                          <TabsList className="mb-2 grid w-full grid-cols-3 gap-2 rounded-lg bg-white p-1 shadow-none">
-                                            <TabsTrigger
-                                              value="analytics"
-                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                            >
-                                              Analytics
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                              value="poll"
-                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                            >
-                                              Poll
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                              value="question"
-                                              className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                            >
-                                              Question
-                                            </TabsTrigger>
-                                          </TabsList>
+                                          <SlidingPillTabsList
+                                            value={insightsTab}
+                                            variant="white"
+                                            tabs={[
+                                              { value: 'analytics', label: 'Analytics' },
+                                              { value: 'poll', label: 'Poll' },
+                                              { value: 'question', label: 'Question' },
+                                            ]}
+                                            listClassName="mb-2 grid grid-cols-3 gap-2 shadow-none"
+                                            triggerClassName="h-7 rounded-md px-2 text-[11px]"
+                                          />
 
                                           <TabsContent
                                             value="analytics"
@@ -10705,21 +10697,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                   setLiveRightPanelTab(value as 'submissions' | 'insights')
                                 }}
                               >
-                                <TabsList className="grid w-full grid-cols-2 gap-2 rounded-lg border-0 bg-gray-100 p-1 shadow-none">
-                                  <TabsTrigger
-                                    value="submissions"
-                                    className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
-                                  >
-                                    Submissions
-                                  </TabsTrigger>
-                                  <TabsTrigger
-                                    value="insights"
-                                    disabled={mainTab !== 'live'}
-                                    className="h-8 rounded-md px-3 text-xs font-medium transition-all hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 data-[state=active]:bg-gray-800 data-[state=inactive]:bg-white data-[state=active]:text-white data-[state=inactive]:text-gray-700"
-                                  >
-                                    Insights
-                                  </TabsTrigger>
-                                </TabsList>
+                                <SlidingPillTabsList
+                                  value={liveRightPanelTab}
+                                  variant="gray"
+                                  tabs={[
+                                    { value: 'submissions', label: 'Submissions' },
+                                    {
+                                      value: 'insights',
+                                      label: 'Insights',
+                                      disabled: mainTab !== 'live',
+                                    },
+                                  ]}
+                                  triggerClassName="h-8 rounded-md px-3"
+                                />
                               </Tabs>
                             </div>
                             <div className="min-h-0 flex-1 overflow-hidden p-4 pt-2">
@@ -10732,26 +10722,17 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                     }
                                     className="flex h-full min-h-0 flex-col"
                                   >
-                                    <TabsList className="mb-2 grid w-full shrink-0 grid-cols-3 gap-2 rounded-lg bg-white p-1 shadow-none">
-                                      <TabsTrigger
-                                        value="analytics"
-                                        className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                      >
-                                        Analytics
-                                      </TabsTrigger>
-                                      <TabsTrigger
-                                        value="poll"
-                                        className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                      >
-                                        Poll
-                                      </TabsTrigger>
-                                      <TabsTrigger
-                                        value="question"
-                                        className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-700 transition-all hover:bg-gray-100 data-[state=inactive]:bg-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#2563EB] data-[state=active]:to-[#1D4ED8] data-[state=active]:text-white data-[state=inactive]:text-gray-700 data-[state=active]:shadow-sm"
-                                      >
-                                        Question
-                                      </TabsTrigger>
-                                    </TabsList>
+                                    <SlidingPillTabsList
+                                      value={insightsTab}
+                                      variant="white"
+                                      tabs={[
+                                        { value: 'analytics', label: 'Analytics' },
+                                        { value: 'poll', label: 'Poll' },
+                                        { value: 'question', label: 'Question' },
+                                      ]}
+                                      listClassName="mb-2 grid shrink-0 grid-cols-3 gap-2 shadow-none"
+                                      triggerClassName="h-7 rounded-md px-2 text-[11px]"
+                                    />
                                     <TabsContent
                                       value="analytics"
                                       className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"

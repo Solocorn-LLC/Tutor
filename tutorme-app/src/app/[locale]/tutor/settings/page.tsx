@@ -17,6 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
 import {
   Dialog,
   DialogContent,
@@ -651,56 +652,20 @@ export default function TutorSettings() {
         <div className="flex h-full flex-col rounded-[16px] bg-white p-5 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex h-full flex-col">
             <div className="flex-shrink-0">
-              <TabsList className="relative flex w-full gap-1.5 rounded-xl bg-[#1F2933] p-1.5">
-                <TabsTrigger
-                  value="profile"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Profile
-                </TabsTrigger>
-                <TabsTrigger
-                  value="1-on-1"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  1-on-1
-                </TabsTrigger>
-                <TabsTrigger
-                  value="billing"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Billing
-                </TabsTrigger>
-                <TabsTrigger
-                  value="refunds"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Refunds
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notifications"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Notifications
-                </TabsTrigger>
-                <TabsTrigger
-                  value="security"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Security
-                </TabsTrigger>
-                <TabsTrigger
-                  value="controls"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Account
-                </TabsTrigger>
-                <TabsTrigger
-                  value="session-log"
-                  className="flex-1 rounded-lg text-xs text-white/80 transition-colors hover:text-white data-[state=active]:bg-white data-[state=active]:text-[#1F2933] data-[state=active]:shadow-sm"
-                >
-                  Session Log
-                </TabsTrigger>
-              </TabsList>
+              <SlidingPillTabsList
+                value={activeTab}
+                variant="charcoal"
+                tabs={[
+                  { value: 'profile', label: 'Profile' },
+                  { value: '1-on-1', label: '1-on-1' },
+                  { value: 'billing', label: 'Billing' },
+                  { value: 'refunds', label: 'Refunds' },
+                  { value: 'notifications', label: 'Notifications' },
+                  { value: 'security', label: 'Security' },
+                  { value: 'controls', label: 'Account' },
+                  { value: 'session-log', label: 'Session Log' },
+                ]}
+              />
             </div>
             <div className="flex min-h-0 flex-1 flex-col pt-3">
               {/* Profile & Identity */}

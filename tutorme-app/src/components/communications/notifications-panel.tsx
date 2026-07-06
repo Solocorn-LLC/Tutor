@@ -118,7 +118,7 @@ export default function NotificationsPanel({
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+      <div className="scrollbar-hide flex h-full min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />

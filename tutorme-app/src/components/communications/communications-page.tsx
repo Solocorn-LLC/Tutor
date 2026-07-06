@@ -188,7 +188,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
       </section>
 
       {/* Mode selector + tab content */}
-      <div className="flex min-h-0 flex-1 flex-col pb-0.5">
+      <div className="flex min-h-0 flex-1 flex-col">
         <SessionCalendarPanel
           value={activeTab}
           onValueChange={setActiveTab}
