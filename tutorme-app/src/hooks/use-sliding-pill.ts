@@ -1,25 +1,48 @@
-import { useLayoutEffect, useState, useEffect, type RefObject } from 'react'
+import { useLayoutEffect, useState, useEffect, useRef, type RefObject } from 'react'
 
 export function useSlidingPillMetrics(
   triggerRefs: RefObject<(HTMLElement | null)[]>,
   activeIndex: number
 ) {
   const [metrics, setMetrics] = useState({ left: 0, width: 0 })
+  const prevMetricsRef = useRef({ left: 0, width: 0 })
+  const isFirstRenderRef = useRef(true)
 
   // Calculate metrics based on current DOM state
   const calculateMetrics = () => {
     if (!triggerRefs.current) return
     const trigger = triggerRefs.current[activeIndex]
     if (!trigger) return
-    setMetrics({
+    const newMetrics = {
       left: trigger.offsetLeft,
       width: trigger.offsetWidth,
-    })
+    }
+    // Store previous metrics before updating
+    prevMetricsRef.current = { ...metrics }
+    setMetrics(newMetrics)
   }
 
   // Initial calculation + when activeIndex changes
   useLayoutEffect(() => {
-    calculateMetrics()
+    if (!triggerRefs.current) return
+    const trigger = triggerRefs.current[activeIndex]
+    if (!trigger) return
+
+    const newMetrics = {
+      left: trigger.offsetLeft,
+      width: trigger.offsetWidth,
+    }
+
+    if (isFirstRenderRef.current) {
+      // On first render, set without animation
+      isFirstRenderRef.current = false
+      prevMetricsRef.current = newMetrics
+      setMetrics(newMetrics)
+    } else {
+      // Store current metrics as previous before updating
+      prevMetricsRef.current = { ...metrics }
+      setMetrics(newMetrics)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex])
 
@@ -60,5 +83,9 @@ export function useSlidingPillMetrics(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex])
 
-  return metrics
+  return {
+    ...metrics,
+    initialLeft: prevMetricsRef.current.left,
+    initialWidth: prevMetricsRef.current.width,
+  }
 }
