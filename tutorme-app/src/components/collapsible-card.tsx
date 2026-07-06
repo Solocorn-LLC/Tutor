@@ -31,43 +31,46 @@ export function CollapsibleCard({
 
   return (
     <div ref={cardRef}>
+      {/* Outer wrapper with shadow - overflow visible so shadow shows */}
       <div
         className={cn(
-          'flex flex-col overflow-hidden p-0',
           flush
             ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
             : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
           className
         )}
       >
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          className={cn(
-            'panel-header w-full text-left',
-            flush ? 'panel-header-metallic-flush' : 'panel-header-metallic'
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              {icon && <div className="panel-header-icon">{icon}</div>}
-              <div>
-                <div className="panel-header-title">{title}</div>
-                {description && <span className="panel-header-subtext">{description}</span>}
+        {/* Inner wrapper with overflow hidden for animation */}
+        <div className="flex flex-col overflow-hidden p-0">
+          <button
+            type="button"
+            onClick={() => setOpen(o => !o)}
+            className={cn(
+              'panel-header w-full text-left',
+              flush ? 'panel-header-metallic-flush' : 'panel-header-metallic'
+            )}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {icon && <div className="panel-header-icon">{icon}</div>}
+                <div>
+                  <div className="panel-header-title">{title}</div>
+                  {description && <span className="panel-header-subtext">{description}</span>}
+                </div>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </div>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-              {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            </div>
+          </button>
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-300 ease-in-out',
+              open ? 'flex-1 opacity-100' : 'flex-0 h-0 opacity-0'
+            )}
+          >
+            <div className={cn('h-full overflow-hidden', contentClassName)}>{children}</div>
           </div>
-        </button>
-        <div
-          className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            open ? 'flex-1 opacity-100' : 'flex-0 h-0 opacity-0'
-          )}
-        >
-          <div className={cn('h-full overflow-hidden', contentClassName)}>{children}</div>
         </div>
       </div>
     </div>
