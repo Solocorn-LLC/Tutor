@@ -1525,6 +1525,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [])
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
+    const [pollComposeModeMap, setPollComposeModeMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
 
     const currentInsightsId =
@@ -1610,6 +1611,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const showAIPoll = showAIPollMap[currentInsightsId] ?? false
     const setShowAIPoll = (val: boolean) =>
       setShowAIPollMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    const pollComposeMode = pollComposeModeMap[currentInsightsId] ?? true
+    const setPollComposeMode = (val: boolean) =>
+      setPollComposeModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const showAIQuestion = showAIQuestionMap[currentInsightsId] ?? false
     const setShowAIQuestion = (val: boolean) =>
@@ -9003,67 +9008,134 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             value="poll"
                                             className="flex flex-1 flex-col justify-end overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                           >
-                                            {showAIPoll ? (
-                                              <div className="mb-2 flex-1 overflow-hidden rounded-2xl border border-blue-100 bg-white/60 shadow-sm backdrop-blur-md">
-                                                <AITeachingAssistant
-                                                  mode="poll"
-                                                  currentTopic={
-                                                    activeInsightsTask?.title ||
-                                                    'General Course Content'
-                                                  }
-                                                  nodes={nodes}
-                                                  onSelectPrompt={text => {
-                                                    setPollPrompt(text)
-                                                    setShowAIPoll(false)
-                                                  }}
-                                                  onClose={() => setShowAIPoll(false)}
-                                                />
-                                              </div>
-                                            ) : (
-                                              <InsightsReportView
-                                                type="poll"
-                                                pollResults={pollResults}
-                                                onClose={handleCloseInsight}
-                                                onMentionStudent={name =>
-                                                  setPollPrompt(
-                                                    pollPrompt
-                                                      ? `${pollPrompt} @[${name}](student:${name}) `
-                                                      : `@[${name}](student:${name}) `
-                                                  )
-                                                }
-                                              />
-                                            )}
-                                            {pollOptionPicker}
-                                            <div className="mt-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                              <div className="relative">
-                                                <MentionTextarea
-                                                  mentionItems={mentionItems}
-                                                  className="min-h-[72px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  disableAutoResize
-                                                  value={pollPrompt}
-                                                  onChange={event =>
-                                                    setPollPrompt(event.target.value)
-                                                  }
-                                                />
-                                                <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                  <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className={cn(
-                                                      'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                      showAIPoll
-                                                        ? 'bg-blue-100 text-blue-700'
-                                                        : 'text-blue-600'
+                                            {pollComposeMode ? (
+                                              <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+                                                {/* Header with toggle */}
+                                                <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
+                                                  <span className="text-xs font-semibold text-blue-700">
+                                                    New Poll
+                                                  </span>
+                                                  {pollResults.length > 0 && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setPollComposeMode(false)}
+                                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                                    >
+                                                      View Results
+                                                    </button>
+                                                  )}
+                                                </div>
+                                                {/* Editable question area */}
+                                                <div className="flex-1 overflow-y-auto p-4">
+                                                  <textarea
+                                                    value={pollPrompt}
+                                                    onChange={e => setPollPrompt(e.target.value)}
+                                                    placeholder="Type your poll question here..."
+                                                    className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                                                    rows={3}
+                                                  />
+                                                  {/* Poll options preview */}
+                                                  <div className="mt-4 flex flex-wrap gap-2">
+                                                    {pollOptionMode === 'letters' && (
+                                                      <>
+                                                        {['A', 'B', 'C', 'D', 'E'].map(letter => (
+                                                          <button
+                                                            key={letter}
+                                                            type="button"
+                                                            className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                          >
+                                                            {letter}
+                                                          </button>
+                                                        ))}
+                                                      </>
                                                     )}
-                                                    title="Generate with Socratic AI"
-                                                    onClick={() => setShowAIPoll(!showAIPoll)}
-                                                    disabled={!activeInsightsTaskId}
-                                                  >
-                                                    <Sparkles className="h-4 w-4" />
-                                                  </Button>
+                                                    {pollOptionMode === 'tf' && (
+                                                      <>
+                                                        <button
+                                                          type="button"
+                                                          className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
+                                                        >
+                                                          True
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
+                                                        >
+                                                          False
+                                                        </button>
+                                                      </>
+                                                    )}
+                                                    {pollOptionMode === 'yn' && (
+                                                      <>
+                                                        <button
+                                                          type="button"
+                                                          className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
+                                                        >
+                                                          Yes
+                                                        </button>
+                                                        <button
+                                                          type="button"
+                                                          className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
+                                                        >
+                                                          No
+                                                        </button>
+                                                      </>
+                                                    )}
+                                                    {pollOptionMode === 'custom' && (
+                                                      <>
+                                                        {resolvePollOptions()?.map((opt, i) => (
+                                                          <button
+                                                            key={i}
+                                                            type="button"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
+                                                          >
+                                                            {opt}
+                                                          </button>
+                                                        )) || (
+                                                          <p className="text-xs text-gray-400">
+                                                            Enter custom options below
+                                                          </p>
+                                                        )}
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                  {pollOptionMode === 'custom' && (
+                                                    <textarea
+                                                      value={pollCustomOptions}
+                                                      onChange={e =>
+                                                        setPollCustomOptions(e.target.value)
+                                                      }
+                                                      rows={2}
+                                                      placeholder="Options separated by commas, slashes, or new lines — e.g. Agree, Disagree, Unsure"
+                                                      className={cn(
+                                                        'mt-2 w-full resize-none rounded-md border bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none',
+                                                        customPollValid || !pollCustomOptions.trim()
+                                                          ? 'border-blue-100 focus-visible:border-blue-400'
+                                                          : 'border-amber-300 focus-visible:border-amber-400'
+                                                      )}
+                                                    />
+                                                  )}
+                                                </div>
+                                                {/* Bottom button row */}
+                                                <div className="flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
+                                                  {POLL_OPTION_PRESETS.map(preset => (
+                                                    <button
+                                                      key={preset.id}
+                                                      type="button"
+                                                      onClick={() => setPollOptionMode(preset.id)}
+                                                      className={cn(
+                                                        'flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium transition-colors',
+                                                        pollOptionMode === preset.id
+                                                          ? 'border-blue-600 bg-blue-600 text-white'
+                                                          : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                      )}
+                                                    >
+                                                      {preset.label}
+                                                    </button>
+                                                  ))}
                                                   <Button
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                    size="sm"
+                                                    className="ml-auto h-8 rounded-md bg-blue-600 px-3 text-xs hover:bg-blue-700 disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
                                                       !insightsProps.sessionId ||
@@ -9075,25 +9147,50 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         !insightsProps.sessionId
                                                       )
                                                         return
-                                                      {
-                                                        const opts = resolvePollOptions()
-                                                        if (pollOptionMode === 'custom' && opts) {
-                                                          rememberPollOptionSet(opts)
-                                                        }
-                                                        insightsProps.onSendPoll({
-                                                          taskId: currentInsightsId,
-                                                          question: pollPrompt,
-                                                          options: opts,
-                                                        })
+                                                      const opts = resolvePollOptions()
+                                                      if (pollOptionMode === 'custom' && opts) {
+                                                        rememberPollOptionSet(opts)
                                                       }
+                                                      insightsProps.onSendPoll({
+                                                        taskId: currentInsightsId,
+                                                        question: pollPrompt,
+                                                        options: opts,
+                                                      })
                                                       setPollPrompt('')
+                                                      setPollComposeMode(false)
                                                     }}
                                                   >
-                                                    <Send className="h-4 w-4" />
+                                                    <Send className="mr-1 h-3 w-3" />
+                                                    Send
                                                   </Button>
                                                 </div>
                                               </div>
-                                            </div>
+                                            ) : (
+                                              <>
+                                                <InsightsReportView
+                                                  type="poll"
+                                                  pollResults={pollResults}
+                                                  onClose={handleCloseInsight}
+                                                  onMentionStudent={name =>
+                                                    setPollPrompt(
+                                                      pollPrompt
+                                                        ? `${pollPrompt} @[${name}](student:${name}) `
+                                                        : `@[${name}](student:${name}) `
+                                                    )
+                                                  }
+                                                />
+                                                <div className="flex items-center justify-center py-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setPollComposeMode(true)}
+                                                    className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                                  >
+                                                    <Send className="h-3 w-3" />
+                                                    New Poll
+                                                  </button>
+                                                </div>
+                                              </>
+                                            )}
                                           </TabsContent>
 
                                           <TabsContent
