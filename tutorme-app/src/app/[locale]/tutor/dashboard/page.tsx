@@ -934,7 +934,12 @@ function TutorDashboardContent() {
                                     // lessons live). `course.id` is the published
                                     // variant, which has no builder lessons — opening
                                     // it showed an empty course after publishing.
-                                    `/tutor/insights?tab=builder&courseId=${course.templateCourseId || course.id}&mode=edit`
+                                    // NOTE: no `mode=edit` — that flag forces the builder
+                                    // into detached/localStorage mode, which reads nothing
+                                    // from the DB (empty course) and can wipe the real
+                                    // lessons on save. A published course must load/save
+                                    // against the DB.
+                                    `/tutor/insights?tab=builder&courseId=${course.templateCourseId || course.id}`
                                   )
                                 )
                               }
