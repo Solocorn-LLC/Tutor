@@ -19,6 +19,10 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { QuizModal, type QuestionResultItem } from '@/components/quiz/quiz-modal'
+import {
+  AssessmentReviewModal,
+  type AssessmentReviewData,
+} from '@/components/quiz/assessment-review-modal'
 import { toast } from 'sonner'
 
 interface AssignmentItem {
@@ -74,6 +78,8 @@ export default function StudentAssignmentsPage() {
   const [takingQuiz, setTakingQuiz] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [startTime, setStartTime] = useState<number>(0)
+  // Review of an already-submitted assessment (score + feedback + per-question).
+  const [reviewData, setReviewData] = useState<AssessmentReviewData | null>(null)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -122,12 +128,20 @@ export default function StudentAssignmentsPage() {
       }
       const data = await res.json()
       if (data.alreadySubmitted) {
-        const scoreTxt = data.existingScore != null ? `${Math.round(data.existingScore)}%` : 'N/A'
-        toast.info(
-          data.existingGraded
-            ? `Graded by your tutor: ${scoreTxt}${data.existingFeedback ? ` — ${data.existingFeedback}` : ''}`
-            : `Submitted — provisional score ${scoreTxt} (auto-graded; awaiting your tutor).`
-        )
+        // Re-open the graded assessment for review: score + tutor feedback +
+        // per-question breakdown, instead of a one-line toast.
+        setReviewData({
+          title: data.task.title,
+          score: data.existingScore ?? null,
+          maxScore: data.existingMaxScore ?? null,
+          graded: data.existingGraded === true,
+          feedback: data.existingFeedback ?? null,
+          submittedAt: data.existingSubmittedAt ?? null,
+          gradedAt: data.existingGradedAt ?? null,
+          questions: data.task.questions ?? [],
+          answers: data.existingAnswers ?? null,
+          questionResults: data.existingQuestionResults ?? null,
+        })
         return
       }
       // Map to QuizModal question format
@@ -327,6 +341,9 @@ export default function StudentAssignmentsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {reviewData && (
+        <AssessmentReviewModal data={reviewData} onClose={() => setReviewData(null)} />
+      )}
       <div className="mb-8">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
           <ClipboardList className="h-6 w-6" />
