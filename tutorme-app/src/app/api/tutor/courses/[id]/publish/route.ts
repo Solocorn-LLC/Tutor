@@ -13,6 +13,7 @@ import {
   calendarAvailability,
   calendarException,
   oneOnOneBookingRequest,
+  deployedMaterial,
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -435,6 +436,81 @@ export const POST = withCsrf(
                     isFree,
                   })
                   .where(eq(course.courseId, publishedCourseId))
+
+                // Propagate the template's lesson edits into this already-
+                // published variant. Publish previously copied lessons only when
+                // a variant was first created, so re-publishing never updated the
+                // live lessons. We correlate template↔published lessons by `order`
+                // (the only stable key — see lesson-usage.ts):
+                //   • same order  → update the published lesson IN PLACE, keeping
+                //     its id so DeployedMaterial / live-session links survive;
+                //   • new order   → insert a published copy of the added lesson;
+                //   • dropped order→ delete the published lesson only when nothing
+                //     has been deployed from it, so live classes keep working.
+                const publishedLessonRows = await tx
+                  .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+                  .from(courseLesson)
+                  .where(
+                    and(
+                      eq(courseLesson.courseId, publishedCourseId),
+                      isNull(courseLesson.deletedAt)
+                    )
+                  )
+                  .orderBy(courseLesson.order)
+
+                const publishedIdByOrder = new Map<number, string>()
+                for (const l of publishedLessonRows) {
+                  const ord = l.order ?? 0
+                  if (!publishedIdByOrder.has(ord)) publishedIdByOrder.set(ord, l.lessonId)
+                }
+
+                const templateOrders = new Set<number>()
+                for (const lesson of templateLessons) {
+                  const ord = lesson.order ?? 0
+                  templateOrders.add(ord)
+                  const existingLessonId = publishedIdByOrder.get(ord)
+                  if (existingLessonId) {
+                    await tx
+                      .update(courseLesson)
+                      .set({
+                        title: lesson.title,
+                        description: lesson.description,
+                        duration: lesson.duration ?? 60,
+                        builderData: lesson.builderData,
+                        updatedAt: now,
+                      })
+                      .where(eq(courseLesson.lessonId, existingLessonId))
+                  } else {
+                    await tx.insert(courseLesson).values({
+                      lessonId: crypto.randomUUID(),
+                      courseId: publishedCourseId,
+                      title: lesson.title,
+                      description: lesson.description,
+                      duration: lesson.duration ?? 60,
+                      order: ord,
+                      builderData: lesson.builderData,
+                      createdAt: now,
+                      updatedAt: now,
+                    })
+                  }
+                }
+
+                const removedLessonIds = publishedLessonRows
+                  .filter(l => !templateOrders.has(l.order ?? 0))
+                  .map(l => l.lessonId)
+                if (removedLessonIds.length > 0) {
+                  const deployedRows = await tx
+                    .select({ lessonId: deployedMaterial.lessonId })
+                    .from(deployedMaterial)
+                    .where(inArray(deployedMaterial.lessonId, removedLessonIds))
+                  const deployedIds = new Set(deployedRows.map(d => d.lessonId))
+                  const deletableIds = removedLessonIds.filter(id => !deployedIds.has(id))
+                  if (deletableIds.length > 0) {
+                    await tx
+                      .delete(courseLesson)
+                      .where(inArray(courseLesson.lessonId, deletableIds))
+                  }
+                }
               }
 
               result.push({
