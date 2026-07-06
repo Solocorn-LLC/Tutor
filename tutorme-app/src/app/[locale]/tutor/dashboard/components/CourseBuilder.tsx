@@ -11666,17 +11666,29 @@ FEEDBACK: [one or two short sentences explaining the score]`
                             )}
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm font-medium text-gray-900">
-                                <span className="mr-1 text-indigo-600">
-                                  Q{item.questionLabel ?? item.questionNumber}.
-                                </span>
-                                {item.questionText}
-                                {item.section && (
-                                  <span className="ml-2 inline-block rounded-full bg-indigo-50 px-2 py-0.5 align-middle text-[10px] font-medium text-indigo-600">
-                                    {item.section}
+                              <div className="min-w-0 flex-1">
+                                <div className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+                                  <span className="text-indigo-600">
+                                    Q{item.questionLabel ?? item.questionNumber}.
                                   </span>
-                                )}
-                              </p>
+                                  {item.section && (
+                                    <span className="inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                                      {item.section}
+                                    </span>
+                                  )}
+                                </div>
+                                <textarea
+                                  value={item.questionText || ''}
+                                  disabled={!canEdit}
+                                  placeholder="Question text…"
+                                  onChange={e =>
+                                    applyDmiEdit(dmiEditor.source, item.id, {
+                                      questionText: e.target.value,
+                                    })
+                                  }
+                                  className="min-h-[40px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900 disabled:bg-gray-50"
+                                />
+                              </div>
                               <div className="flex shrink-0 items-center gap-2">
                                 <label className="flex items-center gap-1 text-xs text-gray-600">
                                   Marks
@@ -11705,16 +11717,54 @@ FEEDBACK: [one or two short sentences explaining the score]`
                               </div>
                             </div>
                             {Array.isArray(item.options) && item.options.length > 0 && (
-                              <ul className="mt-1.5 space-y-0.5 pl-1 text-xs text-gray-500">
+                              <div className="mt-2 space-y-1">
+                                <label className="block text-xs font-medium text-gray-600">
+                                  Options
+                                </label>
                                 {item.options.map((o, i) => (
-                                  <li key={i}>
-                                    <span className="mr-1 font-semibold text-gray-400">
+                                  <div key={i} className="flex items-center gap-1.5">
+                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-400">
                                       {String.fromCharCode(97 + i)})
                                     </span>
-                                    {o}
-                                  </li>
+                                    <input
+                                      value={o}
+                                      disabled={!canEdit}
+                                      placeholder={`Option ${String.fromCharCode(97 + i)}`}
+                                      onChange={e => {
+                                        const next = [...(item.options || [])]
+                                        next[i] = e.target.value
+                                        applyDmiEdit(dmiEditor.source, item.id, { options: next })
+                                      }}
+                                      className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit}
+                                      onClick={() => {
+                                        const next = (item.options || []).filter((_, j) => j !== i)
+                                        applyDmiEdit(dmiEditor.source, item.id, { options: next })
+                                      }}
+                                      title="Remove this option"
+                                      className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                 ))}
-                              </ul>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      applyDmiEdit(dmiEditor.source, item.id, {
+                                        options: [...(item.options || []), ''],
+                                      })
+                                    }
+                                    className="text-[11px] font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+                                  >
+                                    + Add option
+                                  </button>
+                                )}
+                              </div>
                             )}
                             <div className="mt-2">
                               <label className="mb-1 block text-xs font-medium text-gray-600">

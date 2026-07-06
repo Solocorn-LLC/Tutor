@@ -10,23 +10,196 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Sparkles, Upload } from 'lucide-react'
+import { HelpCircle, Loader2, Sparkles, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { PCI_SPEC_FIELDS, pciSpecToText, type PciSpec } from '@/lib/assessment/pci-spec'
 import { EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
 
-// Short helper hints per field so tutors know what belongs where.
-const FIELD_HINTS: Partial<Record<keyof PciSpec, string>> = {
-  instructionalContentReference: 'Which lesson/material this refers to',
-  triggerEvent: 'When this applies, e.g. "on a submitted answer"',
-  evaluationLogic: 'How to judge — e.g. "award method marks even if the final answer is wrong"',
-  correctResponseBehavior: 'What to do on a correct answer',
-  incorrectResponseBehavior: 'What to do on a wrong answer — hint vs reveal',
-  partialUnderstandingBehavior: 'Partial-credit policy',
-  noResponseBehavior: 'What to do when the student leaves it blank',
-  explanationRules: 'Whether/how to explain reasoning',
-  retryPolicy: 'Retries allowed, if any',
-  instructionalTone: 'Tone to use',
+/**
+ * Per-field help: a plain-language explanation plus a set of ready-to-use
+ * examples the tutor can drop straight into the box. `placeholder` is a single
+ * concrete example shown inside the empty field ("fill with examples").
+ */
+const FIELD_HELP: Record<
+  keyof PciSpec,
+  { explain: string; examples: string[]; placeholder: string }
+> = {
+  instructionalContentReference: {
+    explain:
+      'Which lesson content or material this policy is about — so the AI knows what it is marking against.',
+    examples: [
+      'Chapter 3: Quadratic equations — worksheet Q1–Q10',
+      'The photosynthesis diagram on slide 12',
+      'Unit 2 vocabulary list (weeks 3–4)',
+      'Reading comprehension passage: "The Gift of the Magi"',
+    ],
+    placeholder: 'e.g. Chapter 3: Quadratic equations — worksheet Q1–Q10',
+  },
+  triggerEvent: {
+    explain: 'What moment this policy kicks in — the event the AI should react to.',
+    examples: [
+      'When the student submits an answer',
+      'When the student asks for a hint',
+      'After the student’s second incorrect attempt',
+      'When the student shows their working',
+    ],
+    placeholder: 'e.g. When the student submits an answer',
+  },
+  evaluationLogic: {
+    explain: 'How answers should be judged — the marking logic. This is the heart of the policy.',
+    examples: [
+      'Award method marks even if the final answer is wrong.',
+      'Accept any value within ±0.1 and equivalent fractions.',
+      'Require correct units — deduct 1 mark if missing.',
+      'Mark against the IB mark scheme; one mark per valid point, max 4.',
+      'Accept synonyms and correct spelling variants.',
+    ],
+    placeholder: 'e.g. Award method marks even if the final answer is wrong',
+  },
+  correctResponseBehavior: {
+    explain: 'What the AI should do when the student gets it right.',
+    examples: [
+      'Confirm briefly and move to the next question.',
+      'Praise, then ask a short follow-up to check depth.',
+      'Mark it correct and reveal the model answer.',
+    ],
+    placeholder: 'e.g. Confirm briefly and move to the next question',
+  },
+  incorrectResponseBehavior: {
+    explain: 'What the AI should do on a wrong answer — hint and let them retry, or reveal.',
+    examples: [
+      'Give a hint pointing at the first wrong step; don’t reveal the answer.',
+      'Ask a guiding question, then let them retry.',
+      'Explain the misconception, then show the correct method.',
+    ],
+    placeholder: 'e.g. Give a hint about the first wrong step; don’t reveal the answer',
+  },
+  partialUnderstandingBehavior: {
+    explain: 'How to handle answers that are partly right — your partial-credit policy.',
+    examples: [
+      'Award marks for each correct step reached.',
+      'Acknowledge what’s right, then probe the missing part.',
+      'Give half marks if the method is right but the arithmetic is wrong.',
+    ],
+    placeholder: 'e.g. Award marks for each correct step; probe the missing part',
+  },
+  noResponseBehavior: {
+    explain: 'What to do when the student leaves it blank or says “I don’t know”.',
+    examples: [
+      'Offer a starting hint if left blank; never mark blank as simply wrong.',
+      'Ask a simpler lead-in question to get them started.',
+      'Encourage an attempt before giving any help.',
+    ],
+    placeholder: 'e.g. Offer a starting hint if left blank',
+  },
+  explanationRules: {
+    explain: 'Whether and how the AI should explain its reasoning to the student.',
+    examples: [
+      'Explain step by step after an attempt, no more than 3 sentences.',
+      'Only explain once the student has tried it themselves.',
+      'Use the same method taught in the lesson, not shortcuts.',
+    ],
+    placeholder: 'e.g. Explain step by step after an attempt, max 3 sentences',
+  },
+  retryPolicy: {
+    explain: 'How many attempts the student gets before the answer is revealed.',
+    examples: [
+      'Allow up to 2 retries before revealing the answer.',
+      'Unlimited retries, with a new hint each time.',
+      'One retry, then move on.',
+    ],
+    placeholder: 'e.g. Allow up to 2 retries before revealing the answer',
+  },
+  instructionalTone: {
+    explain: 'The voice and manner the AI should use with the student.',
+    examples: [
+      'Encouraging and patient.',
+      'Concise and businesslike.',
+      'Warm — use the student’s name and celebrate progress.',
+    ],
+    placeholder: 'e.g. Encouraging and patient',
+  },
+}
+
+/**
+ * A help affordance shown next to a field label. Opens its explanation + example
+ * list on click, or when the cursor rests on it for 2 seconds. Clicking an
+ * example drops it straight into the field.
+ */
+function FieldHelp({
+  explain,
+  examples,
+  disabled,
+  onUse,
+}: {
+  explain: string
+  examples: string[]
+  disabled: boolean
+  onUse: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearTimer = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current)
+      hoverTimer.current = null
+    }
+  }
+  useEffect(() => () => clearTimer(), [])
+
+  return (
+    <span
+      className="relative inline-flex shrink-0"
+      onMouseEnter={() => {
+        clearTimer()
+        // Reveal after the cursor rests on the icon for 2 seconds.
+        hoverTimer.current = setTimeout(() => setOpen(true), 2000)
+      }}
+      onMouseLeave={() => {
+        clearTimer()
+        setOpen(false)
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Help and examples for this field"
+        aria-expanded={open}
+        onClick={() => {
+          clearTimer()
+          setOpen(o => !o)
+        }}
+        className="text-slate-400 transition-colors hover:text-indigo-600"
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 max-h-72 w-64 overflow-y-auto rounded-md border border-slate-200 bg-white p-2.5 text-[11px] shadow-lg">
+          <p className="mb-1.5 leading-snug text-slate-600">{explain}</p>
+          <p className="mb-1 font-semibold text-slate-500">
+            {disabled ? 'Examples:' : 'Examples (click one to use it):'}
+          </p>
+          <ul className="space-y-1">
+            {examples.map((ex, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => {
+                    onUse(ex)
+                    setOpen(false)
+                  }}
+                  className="w-full rounded border border-slate-200 bg-slate-50 px-1.5 py-1 text-left leading-snug text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                >
+                  {ex}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </span>
+  )
 }
 
 /** A per-question digest of the official marking scheme (DMI) — the policy-
@@ -294,18 +467,26 @@ export function PciQuestionnaire({
       <div className="space-y-2">
         {PCI_SPEC_FIELDS.map(({ key, label }) => (
           <div key={key}>
-            <label
-              htmlFor={`pci-field-${source}-${key}`}
-              className="block text-[11px] font-medium text-slate-700"
-            >
-              {label}
-            </label>
+            <div className="flex items-center justify-between gap-1">
+              <label
+                htmlFor={`pci-field-${source}-${key}`}
+                className="block text-[11px] font-medium text-slate-700"
+              >
+                {label}
+              </label>
+              <FieldHelp
+                explain={FIELD_HELP[key].explain}
+                examples={FIELD_HELP[key].examples}
+                disabled={!canEdit}
+                onUse={value => setField(key, value)}
+              />
+            </div>
             <textarea
               id={`pci-field-${source}-${key}`}
               value={spec[key] ?? ''}
               readOnly={!canEdit}
               onChange={e => setField(key, e.target.value)}
-              placeholder={FIELD_HINTS[key] || 'unspecified'}
+              placeholder={FIELD_HELP[key].placeholder}
               rows={1}
               className="mt-0.5 min-h-[32px] w-full resize-y rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900 placeholder:text-slate-400"
             />
