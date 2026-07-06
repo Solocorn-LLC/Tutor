@@ -22,6 +22,7 @@ import { QuizModal, type QuestionResultItem } from '@/components/quiz/quiz-modal
 import {
   AssessmentReviewModal,
   type AssessmentReviewData,
+  type FollowUpTurn,
 } from '@/components/quiz/assessment-review-modal'
 import { toast } from 'sonner'
 
@@ -186,6 +187,28 @@ export default function StudentAssignmentsPage() {
     } finally {
       setHintsLoading(false)
     }
+  }
+
+  // Answer a follow-up about one question, grounded in the tutor's marking policy.
+  const handleAsk = async (
+    questionId: string,
+    question: string,
+    history: FollowUpTurn[]
+  ): Promise<string> => {
+    if (!reviewTaskId) throw new Error('No task')
+    const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+    const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+    const res = await fetch(`/api/student/assignments/${reviewTaskId}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
+      credentials: 'include',
+      body: JSON.stringify({ questionId, question, history }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data?.answer) {
+      throw new Error(data?.error ?? 'Could not answer')
+    }
+    return data.answer as string
   }
 
   const handleQuizComplete = async (results: {
@@ -376,6 +399,7 @@ export default function StudentAssignmentsPage() {
           onClose={() => setReviewData(null)}
           onRequestHints={handleRequestHints}
           hintsLoading={hintsLoading}
+          onAsk={handleAsk}
         />
       )}
       <div className="mb-8">

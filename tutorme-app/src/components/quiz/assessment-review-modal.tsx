@@ -9,10 +9,125 @@
  * one-shot results screen that vanished after the QuizModal closed.
  */
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, XCircle, Clock, X, Sparkles, Loader2, Lightbulb } from 'lucide-react'
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  X,
+  Sparkles,
+  Loader2,
+  Lightbulb,
+  MessageCircle,
+} from 'lucide-react'
 import type { QuestionResultItem } from './quiz-modal'
 import type { AiQuestionFeedbackItem } from '@/lib/feedback/per-question-feedback'
+
+export interface FollowUpTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** Per-question follow-up chat: a student asks about one question and the tutor
+ *  assistant answers, bounded by the tutor's marking policy. Stateless server-
+ *  side — the short history is held here and passed back with each ask. */
+function FollowUpThread({
+  questionId,
+  onAsk,
+}: {
+  questionId: string
+  onAsk: (questionId: string, question: string, history: FollowUpTurn[]) => Promise<string>
+}) {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState<FollowUpTurn[]>([])
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const MAX_USER_TURNS = 6
+  const atLimit = messages.filter(m => m.role === 'user').length >= MAX_USER_TURNS
+
+  const send = async () => {
+    const q = draft.trim()
+    if (!q || sending || atLimit) return
+    const history = messages.slice(-6)
+    setMessages(prev => [...prev, { role: 'user', content: q }])
+    setDraft('')
+    setSending(true)
+    try {
+      const answer = await onAsk(questionId, q, history)
+      setMessages(prev => [...prev, { role: 'assistant', content: answer }])
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry — I could not answer that. Please try again.' },
+      ])
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-violet-600 transition-colors hover:text-violet-700"
+      >
+        <MessageCircle className="h-3.5 w-3.5" /> Ask a follow-up
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+      {messages.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          {messages.map((m, i) => (
+            <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
+              <span
+                className={`inline-block max-w-[85%] rounded-lg px-2 py-1 text-xs leading-relaxed ${
+                  m.role === 'user'
+                    ? 'bg-violet-100 text-violet-900'
+                    : 'border border-gray-200 bg-white text-left text-gray-800'
+                }`}
+              >
+                {m.content}
+              </span>
+            </div>
+          ))}
+          {sending && <p className="text-xs text-gray-400">Tutor is thinking…</p>}
+        </div>
+      )}
+      {atLimit ? (
+        <p className="text-xs text-gray-400">
+          You&rsquo;ve reached the follow-up limit here — ask your tutor for more.
+        </p>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <input
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') send()
+            }}
+            disabled={sending}
+            placeholder="Ask about this question…"
+            className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-900"
+          />
+          <Button
+            size="sm"
+            onClick={send}
+            disabled={sending || !draft.trim()}
+            className="h-7 px-2.5 text-xs"
+          >
+            Send
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export interface AssessmentReviewQuestion {
   id: string
@@ -50,12 +165,15 @@ export function AssessmentReviewModal({
   onClose,
   onRequestHints,
   hintsLoading,
+  onAsk,
 }: {
   data: AssessmentReviewData
   onClose: () => void
   /** Generate grounded AI study hints for the wrong answers (one call, cached). */
   onRequestHints?: () => void
   hintsLoading?: boolean
+  /** Answer a student's follow-up about one question, bounded by the marking policy. */
+  onAsk?: (questionId: string, question: string, history: FollowUpTurn[]) => Promise<string>
 }) {
   const resultById = new Map<string, QuestionResultItem>()
   for (const r of data.questionResults ?? []) resultById.set(String(r.questionId), r)
@@ -217,6 +335,12 @@ export function AssessmentReviewModal({
                         </p>
                       )}
                     </div>
+                  )}
+
+                  {/* Follow-up chat, bounded by the tutor's marking policy — offered
+                      on wrong auto-graded questions (the tutor still owns needsReview). */}
+                  {onAsk && result && !correct && !needsReview && (
+                    <FollowUpThread questionId={String(q.id)} onAsk={onAsk} />
                   )}
                 </div>
               )
