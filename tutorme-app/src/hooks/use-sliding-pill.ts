@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, useEffect, useCallback, type RefObject } from 'react'
+import { useLayoutEffect, useState, useEffect, type RefObject } from 'react'
 
 export function useSlidingPillMetrics(
   triggerRefs: RefObject<(HTMLElement | null)[]>,
@@ -6,7 +6,8 @@ export function useSlidingPillMetrics(
 ) {
   const [metrics, setMetrics] = useState({ left: 0, width: 0 })
 
-  const calculateMetrics = useCallback(() => {
+  // Calculate metrics based on current DOM state
+  const calculateMetrics = () => {
     if (!triggerRefs.current) return
     const trigger = triggerRefs.current[activeIndex]
     if (!trigger) return
@@ -14,12 +15,13 @@ export function useSlidingPillMetrics(
       left: trigger.offsetLeft,
       width: trigger.offsetWidth,
     })
-  }, [activeIndex, triggerRefs])
+  }
 
   // Initial calculation + when activeIndex changes
   useLayoutEffect(() => {
     calculateMetrics()
-  }, [calculateMetrics])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
 
   // Recalculate after a short delay to ensure DOM is ready (fonts, etc.)
   useEffect(() => {
@@ -27,14 +29,16 @@ export function useSlidingPillMetrics(
       calculateMetrics()
     }, 100)
     return () => clearTimeout(timeoutId)
-  }, [calculateMetrics])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
 
   // Recalculate on window resize
   useEffect(() => {
     const handleResize = () => calculateMetrics()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [calculateMetrics])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
 
   // Use ResizeObserver to watch the active trigger element for size changes
   useEffect(() => {
@@ -53,7 +57,8 @@ export function useSlidingPillMetrics(
     }
 
     return () => ro.disconnect()
-  }, [activeIndex, triggerRefs, calculateMetrics])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
 
   return metrics
 }
