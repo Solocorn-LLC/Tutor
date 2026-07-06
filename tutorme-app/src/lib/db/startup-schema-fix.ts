@@ -154,6 +154,10 @@ ALTER TABLE "CourseLesson" ADD COLUMN IF NOT EXISTS "sourceLessonId" text;
 -- graded assessment, so tutors can see what was asked/answered. Nullable jsonb.
 ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "followUps" jsonb;
 
+-- Worked solutions (drizzle/0068): cached AI worked solutions keyed by
+-- questionId, reused instead of re-running the model. Nullable jsonb.
+ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "workedSolutions" jsonb;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN

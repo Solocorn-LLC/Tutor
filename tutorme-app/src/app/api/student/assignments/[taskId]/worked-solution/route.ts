@@ -62,12 +62,22 @@ export async function POST(
 
     // Ownership: the student must have submitted this task.
     const [submission] = await drizzleDb
-      .select({ submissionId: taskSubmission.submissionId })
+      .select({
+        submissionId: taskSubmission.submissionId,
+        workedSolutions: taskSubmission.workedSolutions,
+      })
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
       .limit(1)
     if (!submission) {
       return NextResponse.json({ error: 'No submission for this task' }, { status: 404 })
+    }
+
+    // Return a previously-generated solution as-is — never re-run the model for a
+    // question the student already worked through.
+    const cached = (submission.workedSolutions ?? {}) as Record<string, string>
+    if (typeof cached[questionId] === 'string' && cached[questionId].trim()) {
+      return NextResponse.json({ solution: cached[questionId] })
     }
 
     const [task] = await drizzleDb
@@ -168,6 +178,16 @@ export async function POST(
         '[worked-solution] task guardrail warnings:',
         guardrail.violations.map(v => `${v.ruleId} ${v.severity}`).join(', ')
       )
+    }
+
+    // Cache it on the submission so future views reuse it (best-effort).
+    try {
+      await drizzleDb
+        .update(taskSubmission)
+        .set({ workedSolutions: { ...cached, [questionId]: solution } })
+        .where(eq(taskSubmission.submissionId, submission.submissionId))
+    } catch (persistErr) {
+      console.warn('[worked-solution] failed to cache solution:', persistErr)
     }
 
     return NextResponse.json({ solution })
