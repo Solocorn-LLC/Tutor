@@ -9173,7 +9173,6 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                         question: pollPrompt,
                                                         options: opts,
                                                       })
-                                                      setPollPrompt('')
                                                       setPollComposeMode(false)
                                                     }}
                                                   >
@@ -9199,7 +9198,14 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 <div className="flex items-center justify-center py-2">
                                                   <button
                                                     type="button"
-                                                    onClick={() => setPollComposeMode(true)}
+                                                    onClick={() => {
+                                                      // Pre-fill with the last poll's question if available
+                                                      const lastPoll = pollResults[0]
+                                                      if (lastPoll) {
+                                                        setPollPrompt(lastPoll.question)
+                                                      }
+                                                      setPollComposeMode(true)
+                                                    }}
                                                     className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
                                                   >
                                                     <Send className="h-3 w-3" />
