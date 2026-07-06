@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { FollowUpInsightsCard } from '@/components/tutor/follow-up-insights-card'
 import { MathText, hasMath } from '@/components/answer/MathText'
 import { cn } from '@/lib/utils'
 
@@ -133,6 +134,10 @@ export default function TutorSubmissionsPage() {
           </div>
         </div>
       </section>
+
+      <div className="px-1">
+        <FollowUpInsightsCard />
+      </div>
 
       {/* Mode selector + tab content */}
       <div className="flex min-h-0 flex-1 flex-col pb-0.5">
