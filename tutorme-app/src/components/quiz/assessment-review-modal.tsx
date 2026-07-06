@@ -20,6 +20,8 @@ import {
   Loader2,
   Lightbulb,
   MessageCircle,
+  BookOpen,
+  RotateCcw,
 } from 'lucide-react'
 import type { QuestionResultItem } from './quiz-modal'
 import type { AiQuestionFeedbackItem } from '@/lib/feedback/per-question-feedback'
@@ -32,6 +34,61 @@ export interface FollowUpTurn {
 /** Per-question follow-up chat: a student asks about one question and the tutor
  *  assistant answers, bounded by the tutor's marking policy. Stateless server-
  *  side — the short history is held here and passed back with each ask. */
+/** On-demand worked solution for one question, grounded in the model answer +
+ *  rubric + PCI. Fetches once and caches the result in local state. */
+function WorkedSolution({
+  questionId,
+  onWorkedSolution,
+}: {
+  questionId: string
+  onWorkedSolution: (questionId: string) => Promise<string>
+}) {
+  const [solution, setSolution] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    if (loading || solution) return
+    setLoading(true)
+    try {
+      setSolution(await onWorkedSolution(questionId))
+    } catch {
+      setSolution('Sorry — a worked solution is not available right now.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (solution) {
+    return (
+      <div className="mt-2 rounded-lg border border-sky-100 bg-sky-50/60 p-2.5">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+          Worked solution
+        </p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{solution}</p>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={load}
+      disabled={loading}
+      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-sky-600 transition-colors hover:text-sky-700 disabled:opacity-60"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working it out…
+        </>
+      ) : (
+        <>
+          <BookOpen className="h-3.5 w-3.5" /> Show worked solution
+        </>
+      )}
+    </button>
+  )
+}
+
 function FollowUpThread({
   questionId,
   onAsk,
@@ -151,6 +208,8 @@ export interface AssessmentReviewData {
   questionResults: QuestionResultItem[] | null
   /** Grounded per-question AI study hints, once generated. */
   aiFeedback?: AiQuestionFeedbackItem[] | null
+  /** Tutor's reveal policy — gates worked solutions + practice ('hidden' = off). */
+  answerReveal?: string
 }
 
 function formatAnswer(value: unknown): string {
@@ -166,6 +225,8 @@ export function AssessmentReviewModal({
   onRequestHints,
   hintsLoading,
   onAsk,
+  onWorkedSolution,
+  onPractice,
 }: {
   data: AssessmentReviewData
   onClose: () => void
@@ -174,6 +235,10 @@ export function AssessmentReviewModal({
   hintsLoading?: boolean
   /** Answer a student's follow-up about one question, bounded by the marking policy. */
   onAsk?: (questionId: string, question: string, history: FollowUpTurn[]) => Promise<string>
+  /** Generate a grounded step-by-step worked solution for one question. */
+  onWorkedSolution?: (questionId: string) => Promise<string>
+  /** Re-practise the missed questions (non-graded); receives the wrong question ids. */
+  onPractice?: (questionIds: string[]) => void
 }) {
   const resultById = new Map<string, QuestionResultItem>()
   for (const r of data.questionResults ?? []) resultById.set(String(r.questionId), r)
@@ -183,11 +248,16 @@ export function AssessmentReviewModal({
 
   // Questions the auto-grader marked wrong (and could grade) — the ones AI hints
   // can explain. Offer the button only when there are some and none exist yet.
-  const explainableWrong = (data.questionResults ?? []).filter(
-    r => r.correct === false && r.needsReview !== true
-  ).length
+  const wrongIds = (data.questionResults ?? [])
+    .filter(r => r.correct === false && r.needsReview !== true)
+    .map(r => String(r.questionId))
   const showHintsButton =
-    !!onRequestHints && explainableWrong > 0 && (data.aiFeedback?.length ?? 0) === 0
+    !!onRequestHints && wrongIds.length > 0 && (data.aiFeedback?.length ?? 0) === 0
+
+  // Worked solutions and practice reveal the correct approach, so honour the
+  // tutor's 'hidden' reveal policy — no correct answers means neither is offered.
+  const canReveal = data.answerReveal !== 'hidden'
+  const showPractice = !!onPractice && canReveal && wrongIds.length > 0
 
   const scoreTxt = data.score != null ? `${Math.round(data.score)}%` : 'N/A'
   const gradedDate = data.gradedAt ?? data.submittedAt
@@ -337,8 +407,12 @@ export function AssessmentReviewModal({
                     </div>
                   )}
 
-                  {/* Follow-up chat, bounded by the tutor's marking policy — offered
-                      on wrong auto-graded questions (the tutor still owns needsReview). */}
+                  {/* Worked solution + follow-up chat — offered on wrong auto-graded
+                      questions (the tutor still owns needsReview). Worked solutions
+                      honour the reveal policy. */}
+                  {onWorkedSolution && canReveal && result && !correct && !needsReview && (
+                    <WorkedSolution questionId={String(q.id)} onWorkedSolution={onWorkedSolution} />
+                  )}
                   {onAsk && result && !correct && !needsReview && (
                     <FollowUpThread questionId={String(q.id)} onAsk={onAsk} />
                   )}
@@ -349,8 +423,17 @@ export function AssessmentReviewModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-100 p-4">
-          <Button onClick={onClose} className="w-full">
+        <div className="flex items-center gap-2 border-t border-gray-100 p-4">
+          {showPractice && (
+            <Button
+              variant="outline"
+              onClick={() => onPractice!(wrongIds)}
+              className="flex-1 gap-1.5"
+            >
+              <RotateCcw className="h-4 w-4" /> Practise the ones I missed
+            </Button>
+          )}
+          <Button onClick={onClose} className="flex-1">
             Done
           </Button>
         </div>
