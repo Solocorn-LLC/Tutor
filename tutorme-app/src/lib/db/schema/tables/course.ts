@@ -96,6 +96,12 @@ export const courseLesson = pgTable(
     description: text('description'),
     duration: integer('duration').notNull().default(60),
     order: integer('order').notNull(),
+    // The template lesson this row was copied from at publish time. Lets published
+    // variants correlate back to their template lesson by a stable id instead of
+    // by `order` (which breaks when lessons are reordered). Null on template rows
+    // and on pre-existing rows until backfilled. Soft reference (no FK) — a
+    // dropped template lesson just leaves a dangling value, which callers ignore.
+    sourceLessonId: text('sourceLessonId'),
     // Builder data contains all lesson content (tasks, assessments, homework, media, etc.)
     builderData: jsonb('builderData').default({}),
     createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),

@@ -440,15 +440,24 @@ export const POST = withCsrf(
                 // Propagate the template's lesson edits into this already-
                 // published variant. Publish previously copied lessons only when
                 // a variant was first created, so re-publishing never updated the
-                // live lessons. We correlate template↔published lessons by `order`
-                // (the only stable key — see lesson-usage.ts):
-                //   • same order  → update the published lesson IN PLACE, keeping
-                //     its id so DeployedMaterial / live-session links survive;
-                //   • new order   → insert a published copy of the added lesson;
-                //   • dropped order→ delete the published lesson only when nothing
-                //     has been deployed from it, so live classes keep working.
+                // live lessons. We correlate template↔published lessons by
+                // `sourceLessonId` (stamped at copy time), falling back to `order`
+                // for rows copied before that linkage existed:
+                //   • matched   → update the published lesson IN PLACE, keeping its
+                //     id so DeployedMaterial / live-session links survive, and
+                //     re-sync its `order` to the template;
+                //   • unmatched template lesson → insert a published copy;
+                //   • unmatched published lesson (dropped from template) → delete
+                //     only when nothing has been deployed from it.
+                // Correlating by id (not position) means reordering the template
+                // updates the RIGHT published lesson instead of whatever now sits
+                // at that slot.
                 const publishedLessonRows = await tx
-                  .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+                  .select({
+                    lessonId: courseLesson.lessonId,
+                    order: courseLesson.order,
+                    sourceLessonId: courseLesson.sourceLessonId,
+                  })
                   .from(courseLesson)
                   .where(
                     and(
@@ -458,32 +467,41 @@ export const POST = withCsrf(
                   )
                   .orderBy(courseLesson.order)
 
-                const publishedIdByOrder = new Map<number, string>()
+                const publishedBySource = new Map<string, string>()
+                const publishedByOrder = new Map<number, string>()
                 for (const l of publishedLessonRows) {
+                  if (l.sourceLessonId && !publishedBySource.has(l.sourceLessonId)) {
+                    publishedBySource.set(l.sourceLessonId, l.lessonId)
+                  }
                   const ord = l.order ?? 0
-                  if (!publishedIdByOrder.has(ord)) publishedIdByOrder.set(ord, l.lessonId)
+                  if (!publishedByOrder.has(ord)) publishedByOrder.set(ord, l.lessonId)
                 }
 
-                const templateOrders = new Set<number>()
-                for (const lesson of templateLessons) {
-                  const ord = lesson.order ?? 0
-                  templateOrders.add(ord)
-                  const existingLessonId = publishedIdByOrder.get(ord)
-                  if (existingLessonId) {
+                const claimedPublishedIds = new Set<string>()
+                for (const [idx, lesson] of templateLessons.entries()) {
+                  const ord = lesson.order ?? idx
+                  const matchId =
+                    publishedBySource.get(lesson.lessonId) ?? publishedByOrder.get(ord)
+                  if (matchId && !claimedPublishedIds.has(matchId)) {
+                    claimedPublishedIds.add(matchId)
                     await tx
                       .update(courseLesson)
                       .set({
+                        // (Re)assert the linkage — backfills order-matched legacy rows.
+                        sourceLessonId: lesson.lessonId,
                         title: lesson.title,
                         description: lesson.description,
                         duration: lesson.duration ?? 60,
+                        order: ord,
                         builderData: lesson.builderData,
                         updatedAt: now,
                       })
-                      .where(eq(courseLesson.lessonId, existingLessonId))
+                      .where(eq(courseLesson.lessonId, matchId))
                   } else {
                     await tx.insert(courseLesson).values({
                       lessonId: crypto.randomUUID(),
                       courseId: publishedCourseId,
+                      sourceLessonId: lesson.lessonId,
                       title: lesson.title,
                       description: lesson.description,
                       duration: lesson.duration ?? 60,
@@ -496,7 +514,7 @@ export const POST = withCsrf(
                 }
 
                 const removedLessonIds = publishedLessonRows
-                  .filter(l => !templateOrders.has(l.order ?? 0))
+                  .filter(l => !claimedPublishedIds.has(l.lessonId))
                   .map(l => l.lessonId)
                 if (removedLessonIds.length > 0) {
                   const deployedRows = await tx
@@ -541,11 +559,13 @@ export const POST = withCsrf(
                 isFree,
               })
 
-              // Copy lessons
+              // Copy lessons — stamp sourceLessonId so each published copy can be
+              // correlated back to its template lesson by a stable id later.
               for (const lesson of templateLessons) {
                 await tx.insert(courseLesson).values({
                   lessonId: crypto.randomUUID(),
                   courseId: publishedCourseId,
+                  sourceLessonId: lesson.lessonId,
                   title: lesson.title,
                   description: lesson.description,
                   duration: lesson.duration ?? 60,
