@@ -9,7 +9,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
-import { CourseBuilderService, LESSON_DEPLOYED_ERROR } from '@/lib/services/course-builder.service'
+import {
+  CourseBuilderService,
+  LESSON_DEPLOYED_ERROR,
+  EMPTY_SAVE_ERROR,
+} from '@/lib/services/course-builder.service'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseVariant } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
@@ -105,13 +109,14 @@ export const PUT = withCsrf(
 
             for (const sibling of siblingVariants) {
               if (sibling.publishedCourseId === courseId) continue
-              // Propagation wholesale re-syncs the sibling's lessons; it isn't a
-              // user deletion, so it keeps its existing behavior (guard skipped).
-              await CourseBuilderService.updateCourseBuilderData(
+              // Correlate by `order` and update the sibling's OWN lesson rows in
+              // place. Feeding this course's lesson ids straight into
+              // updateCourseBuilderData deleted every sibling lesson (their ids
+              // never matched) and cascaded away their students' progress.
+              await CourseBuilderService.propagateLessonsByOrder(
                 sibling.publishedCourseId,
                 userId,
-                lessons,
-                { guardDeletions: false }
+                lessons
               )
             }
           }
@@ -130,6 +135,12 @@ export const PUT = withCsrf(
         if (error.message.includes(LESSON_DEPLOYED_ERROR)) {
           return NextResponse.json(
             { error: error.message.replace(`${LESSON_DEPLOYED_ERROR}: `, '') },
+            { status: 409 }
+          )
+        }
+        if (error.message.includes(EMPTY_SAVE_ERROR)) {
+          return NextResponse.json(
+            { error: error.message.replace(`${EMPTY_SAVE_ERROR}: `, '') },
             { status: 409 }
           )
         }
