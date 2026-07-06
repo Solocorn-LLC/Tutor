@@ -83,7 +83,7 @@ export function SessionCalendarPanel({
   const listRef = useRef<HTMLDivElement>(null)
   const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
   const activeIndex = tabs.findIndex(tab => tab.value === value)
-  const { left, width } = useSlidingPillMetrics(triggerRefs, activeIndex)
+  const { left, width, initialLeft, initialWidth } = useSlidingPillMetrics(triggerRefs, activeIndex)
   const activeTextColor =
     variant === 'orange' ? '#EA580C' : variant === 'charcoal' ? '#1F2933' : '#2563EB'
 
@@ -132,7 +132,7 @@ export function SessionCalendarPanel({
               ))}
               <motion.div
                 className="absolute bottom-1.5 top-1.5 rounded-lg bg-white shadow-sm"
-                initial={false}
+                initial={{ left: initialLeft, width: initialWidth }}
                 animate={{ left, width }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
