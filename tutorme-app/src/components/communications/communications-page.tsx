@@ -199,40 +199,36 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
           ]}
         >
           <TabsContent value="messaging" className="flex h-full flex-col">
-            <div className="flex flex-1 flex-col">
-              <CollapsibleCard
-                title="Messaging"
-                icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
-                defaultOpen
-                className="flex-1"
-              >
-                <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
-              </CollapsibleCard>
-            </div>
+            <CollapsibleCard
+              title="Messaging"
+              icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
+              defaultOpen
+              className="flex-1"
+            >
+              <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
+            </CollapsibleCard>
           </TabsContent>
 
           <TabsContent value="notifications" className="flex h-full flex-col">
-            <div className="flex flex-1 flex-col">
-              <CollapsibleCard
-                title="Notifications"
-                icon={<Bell className="h-5 w-5 text-slate-900" />}
-                defaultOpen
-                className="flex-1"
-              >
-                <NotificationsPanel
-                  role={role}
-                  notifications={notifications}
-                  loading={notificationsLoading}
-                  unreadCount={unreadCount}
-                  onMarkAllRead={markAllAsRead}
-                  onClearAll={clearAllNotifications}
-                  onMarkRead={markAsRead}
-                  onDelete={deleteNotification}
-                  onRespondOneOnOne={role === 'tutor' ? respondToOneOnOne : undefined}
-                  respondingIds={respondingIds}
-                />
-              </CollapsibleCard>
-            </div>
+            <CollapsibleCard
+              title="Notifications"
+              icon={<Bell className="h-5 w-5 text-slate-900" />}
+              defaultOpen
+              className="flex-1"
+            >
+              <NotificationsPanel
+                role={role}
+                notifications={notifications}
+                loading={notificationsLoading}
+                unreadCount={unreadCount}
+                onMarkAllRead={markAllAsRead}
+                onClearAll={clearAllNotifications}
+                onMarkRead={markAsRead}
+                onDelete={deleteNotification}
+                onRespondOneOnOne={role === 'tutor' ? respondToOneOnOne : undefined}
+                respondingIds={respondingIds}
+              />
+            </CollapsibleCard>
           </TabsContent>
         </SessionCalendarPanel>
       </div>
