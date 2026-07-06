@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
-import { handleApiError, requireCsrf } from '@/lib/api/middleware'
+import { handleApiError, requireCsrf, withRateLimitPreset } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { builderTask, builderTaskDmi, taskSubmission } from '@/lib/db/schema'
 import { generateWithKimi } from '@/lib/ai/kimi'
@@ -37,6 +37,9 @@ export async function POST(
   context: { params: Promise<Record<string, string | string[]>> }
 ) {
   try {
+    const { response: rateLimitResponse } = await withRateLimitPreset(request, 'aiGenerate')
+    if (rateLimitResponse) return rateLimitResponse
+
     const session = await getServerSession(authOptions, request)
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
