@@ -64,7 +64,7 @@ export function CollapsibleCard({
         <div
           className={cn(
             'overflow-hidden transition-all duration-300 ease-in-out',
-            open ? 'flex-1 opacity-100' : 'h-0 flex-0 opacity-0'
+            open ? 'flex-1 opacity-100' : 'flex-0 h-0 opacity-0'
           )}
         >
           <div className={cn('overflow-hidden', contentClassName)}>{children}</div>
