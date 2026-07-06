@@ -17,6 +17,20 @@ export function useSlidingPillMetrics(
   }, [activeIndex, triggerRefs])
 
   useEffect(() => {
+    // Recalculate after a short delay to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      if (!triggerRefs.current) return
+      const trigger = triggerRefs.current[activeIndex]
+      if (!trigger) return
+      setMetrics({
+        left: trigger.offsetLeft,
+        width: trigger.offsetWidth,
+      })
+    }, 50)
+    return () => clearTimeout(timeoutId)
+  }, [activeIndex, triggerRefs])
+
+  useEffect(() => {
     const handleResize = () => {
       if (!triggerRefs.current) return
       const trigger = triggerRefs.current[activeIndex]
