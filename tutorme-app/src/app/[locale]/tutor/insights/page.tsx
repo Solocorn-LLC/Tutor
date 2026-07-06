@@ -134,14 +134,18 @@ function TutorInsightsPageInner() {
       setSaveMode('live')
       return
     }
-    // If mode=edit was explicitly passed, stay in draft (don't auto-detect)
-    if (searchParams.get('mode') === 'edit') {
-      setSaveMode('draft')
-      return
-    }
     // Otherwise detect from which list the course belongs to
     const isLive = courses.some(c => c.id === courseId)
     const isDraft = draftCourses.some(c => c.id === courseId)
+    // If mode=edit was explicitly passed, prefer draft — BUT never for a real DB
+    // course (present in the live list). Detached/draft mode reads from empty
+    // localStorage (blank builder) and, on save, can hard-delete the course's real
+    // lessons. mode=edit only makes sense for the local scratchpad, so honor it
+    // solely when the course isn't a known live DB course.
+    if (searchParams.get('mode') === 'edit' && !isLive) {
+      setSaveMode('draft')
+      return
+    }
     if (isLive && !isDraft) {
       setSaveMode('live')
     } else if (isDraft && !isLive) {
