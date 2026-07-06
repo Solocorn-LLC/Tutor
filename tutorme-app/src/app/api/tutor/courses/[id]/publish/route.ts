@@ -13,6 +13,7 @@ import {
   calendarAvailability,
   calendarException,
   oneOnOneBookingRequest,
+  deployedMaterial,
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -435,6 +436,99 @@ export const POST = withCsrf(
                     isFree,
                   })
                   .where(eq(course.courseId, publishedCourseId))
+
+                // Propagate the template's lesson edits into this already-
+                // published variant. Publish previously copied lessons only when
+                // a variant was first created, so re-publishing never updated the
+                // live lessons. We correlate template↔published lessons by
+                // `sourceLessonId` (stamped at copy time), falling back to `order`
+                // for rows copied before that linkage existed:
+                //   • matched   → update the published lesson IN PLACE, keeping its
+                //     id so DeployedMaterial / live-session links survive, and
+                //     re-sync its `order` to the template;
+                //   • unmatched template lesson → insert a published copy;
+                //   • unmatched published lesson (dropped from template) → delete
+                //     only when nothing has been deployed from it.
+                // Correlating by id (not position) means reordering the template
+                // updates the RIGHT published lesson instead of whatever now sits
+                // at that slot.
+                const publishedLessonRows = await tx
+                  .select({
+                    lessonId: courseLesson.lessonId,
+                    order: courseLesson.order,
+                    sourceLessonId: courseLesson.sourceLessonId,
+                  })
+                  .from(courseLesson)
+                  .where(
+                    and(
+                      eq(courseLesson.courseId, publishedCourseId),
+                      isNull(courseLesson.deletedAt)
+                    )
+                  )
+                  .orderBy(courseLesson.order)
+
+                const publishedBySource = new Map<string, string>()
+                const publishedByOrder = new Map<number, string>()
+                for (const l of publishedLessonRows) {
+                  if (l.sourceLessonId && !publishedBySource.has(l.sourceLessonId)) {
+                    publishedBySource.set(l.sourceLessonId, l.lessonId)
+                  }
+                  const ord = l.order ?? 0
+                  if (!publishedByOrder.has(ord)) publishedByOrder.set(ord, l.lessonId)
+                }
+
+                const claimedPublishedIds = new Set<string>()
+                for (const [idx, lesson] of templateLessons.entries()) {
+                  const ord = lesson.order ?? idx
+                  const matchId =
+                    publishedBySource.get(lesson.lessonId) ?? publishedByOrder.get(ord)
+                  if (matchId && !claimedPublishedIds.has(matchId)) {
+                    claimedPublishedIds.add(matchId)
+                    await tx
+                      .update(courseLesson)
+                      .set({
+                        // (Re)assert the linkage — backfills order-matched legacy rows.
+                        sourceLessonId: lesson.lessonId,
+                        title: lesson.title,
+                        description: lesson.description,
+                        duration: lesson.duration ?? 60,
+                        order: ord,
+                        builderData: lesson.builderData,
+                        updatedAt: now,
+                      })
+                      .where(eq(courseLesson.lessonId, matchId))
+                  } else {
+                    await tx.insert(courseLesson).values({
+                      lessonId: crypto.randomUUID(),
+                      courseId: publishedCourseId,
+                      sourceLessonId: lesson.lessonId,
+                      title: lesson.title,
+                      description: lesson.description,
+                      duration: lesson.duration ?? 60,
+                      order: ord,
+                      builderData: lesson.builderData,
+                      createdAt: now,
+                      updatedAt: now,
+                    })
+                  }
+                }
+
+                const removedLessonIds = publishedLessonRows
+                  .filter(l => !claimedPublishedIds.has(l.lessonId))
+                  .map(l => l.lessonId)
+                if (removedLessonIds.length > 0) {
+                  const deployedRows = await tx
+                    .select({ lessonId: deployedMaterial.lessonId })
+                    .from(deployedMaterial)
+                    .where(inArray(deployedMaterial.lessonId, removedLessonIds))
+                  const deployedIds = new Set(deployedRows.map(d => d.lessonId))
+                  const deletableIds = removedLessonIds.filter(id => !deployedIds.has(id))
+                  if (deletableIds.length > 0) {
+                    await tx
+                      .delete(courseLesson)
+                      .where(inArray(courseLesson.lessonId, deletableIds))
+                  }
+                }
               }
 
               result.push({
@@ -465,11 +559,13 @@ export const POST = withCsrf(
                 isFree,
               })
 
-              // Copy lessons
+              // Copy lessons — stamp sourceLessonId so each published copy can be
+              // correlated back to its template lesson by a stable id later.
               for (const lesson of templateLessons) {
                 await tx.insert(courseLesson).values({
                   lessonId: crypto.randomUUID(),
                   courseId: publishedCourseId,
+                  sourceLessonId: lesson.lessonId,
                   title: lesson.title,
                   description: lesson.description,
                   duration: lesson.duration ?? 60,

@@ -146,6 +146,10 @@ ALTER TABLE "BuilderTask" ADD COLUMN IF NOT EXISTS "pciSpec" jsonb;
 ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "lessonId" text;
 ALTER TABLE "DeployedMaterial" ADD COLUMN IF NOT EXISTS "lessonId" text;
 
+-- Source-lesson linkage (drizzle/0066): the template lesson a published-variant
+-- lesson was copied from, so correlation survives lesson reordering. Nullable.
+ALTER TABLE "CourseLesson" ADD COLUMN IF NOT EXISTS "sourceLessonId" text;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN

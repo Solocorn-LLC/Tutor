@@ -1,6 +1,6 @@
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseLesson } from '@/lib/db/schema'
-import { eq, and, inArray, asc } from 'drizzle-orm'
+import { eq, and, inArray, asc, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import { removeFile } from '@/lib/storage/service'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
@@ -8,6 +8,14 @@ import { getLessonUsage } from '@/lib/courses/lesson-usage'
 
 /** Thrown when a save would hard-delete a lesson that has deployed material. */
 export const LESSON_DEPLOYED_ERROR = 'LESSON_HAS_DEPLOYMENTS'
+
+/**
+ * Thrown when a save would delete EVERY lesson on a course that currently has
+ * lessons — almost always a failed content-load (the editor serializes an empty
+ * tree) rather than a real "clear the whole course". Callers can pass
+ * `allowEmpty` to override for a genuine full clear.
+ */
+export const EMPTY_SAVE_ERROR = 'EMPTY_LESSON_SAVE'
 
 export interface BuilderLessonMedia {
   videos: unknown[]
@@ -117,6 +125,25 @@ export async function deleteGcsFiles(keys: string[]): Promise<void> {
   }
 }
 
+/** Build the `builderData` JSONB payload for a lesson row from builder input. */
+function toLessonBuilderData(les: BuilderLessonInput) {
+  const media = les.media ?? { videos: [], images: [] }
+  return {
+    isPublished: les.isPublished ?? false,
+    duration: les.duration ?? 45,
+    difficultyMode: les.difficultyMode ?? 'all',
+    variants: les.variants ?? {},
+    media,
+    docs: les.docs ?? [],
+    content: les.content ?? [],
+    tasks: les.tasks ?? [],
+    assessments: les.assessments ?? [],
+    homework: les.homework ?? [],
+    quizzes: les.quizzes ?? [],
+    worksheets: les.worksheets ?? [],
+  }
+}
+
 export class CourseBuilderService {
   /**
    * Scan all lessons in a course for fileKeys and delete the GCS objects.
@@ -156,11 +183,13 @@ export class CourseBuilderService {
       throw new Error('Course not found or access denied')
     }
 
-    // Load lessons
+    // Load lessons. Filter soft-deleted rows to match the other readers
+    // (progress, submissions, publish) — otherwise the builder would show and
+    // re-save a lesson those views already hide.
     const dbLessons = await drizzleDb
       .select()
       .from(courseLesson)
-      .where(eq(courseLesson.courseId, courseId))
+      .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
       .orderBy(asc(courseLesson.order))
 
     // Transform to expected frontend structure
@@ -218,9 +247,16 @@ export class CourseBuilderService {
        * wholesale re-syncs a sibling's lessons and is not a user deletion.
        */
       guardDeletions?: boolean
+      /**
+       * Allow a save that clears every lesson on a course that currently has
+       * lessons. Defaults to false — an empty payload against a non-empty course
+       * is almost always a failed content-load, not an intentional full clear.
+       */
+      allowEmpty?: boolean
     }
   ): Promise<void> {
     const guardDeletions = options?.guardDeletions ?? true
+    const allowEmpty = options?.allowEmpty ?? false
     // Verify ownership
     const [courseRow] = await drizzleDb
       .select({ courseId: course.courseId })
@@ -255,6 +291,17 @@ export class CourseBuilderService {
 
     const oldFileKeys = collectFileKeys(existingLessons.map(l => l.builderData))
 
+    // Floor guard: never let an empty payload wipe a course that has lessons.
+    // This is the signature of a failed content-load (the editor serializes an
+    // empty tree) — refuse it rather than silently deleting the whole course
+    // (and cascading student progress). A genuine full clear passes allowEmpty.
+    if (!allowEmpty && lessons.length === 0 && existingLessons.length > 0) {
+      throw new Error(
+        `${EMPTY_SAVE_ERROR}: refusing to delete all ${existingLessons.length} lesson(s) on an ` +
+          `empty save — the editor may not have finished loading. Reload the course and try again.`
+      )
+    }
+
     await drizzleDb.transaction(async tx => {
       const existingDbLessons = await tx
         .select({ id: courseLesson.lessonId })
@@ -288,21 +335,7 @@ export class CourseBuilderService {
       for (const [idx, les] of incomingLessons.entries()) {
         if (!les.id) les.id = crypto.randomUUID()
 
-        const media = les.media ?? { videos: [], images: [] }
-        const builderData = {
-          isPublished: les.isPublished ?? false,
-          duration: les.duration ?? 45,
-          difficultyMode: les.difficultyMode ?? 'all',
-          variants: les.variants ?? {},
-          media,
-          docs: les.docs ?? [],
-          content: les.content ?? [],
-          tasks: les.tasks ?? [],
-          assessments: les.assessments ?? [],
-          homework: les.homework ?? [],
-          quizzes: les.quizzes ?? [],
-          worksheets: les.worksheets ?? [],
-        }
+        const builderData = toLessonBuilderData(les)
 
         await tx
           .insert(courseLesson)
@@ -339,5 +372,120 @@ export class CourseBuilderService {
     if (orphanedKeys.length > 0) {
       await deleteGcsFiles(orphanedKeys)
     }
+  }
+
+  /**
+   * Propagate a source published variant's lessons into a TARGET sibling variant.
+   * Two variants' lessons correlate when they share a `sourceLessonId` (both were
+   * copied from the same template lesson); we fall back to `order` for rows that
+   * predate that linkage. Matched lessons are updated IN PLACE, preserving the
+   * target's own `lessonId` (so DeployedMaterial, live-session, and
+   * student-progress links survive); unmatched source lessons are inserted;
+   * target lessons no longer present in the source are deleted only when nothing
+   * has been deployed from them.
+   *
+   * This is the SAFE replacement for feeding a foreign course's lessons into
+   * updateCourseBuilderData: because sibling variants carry distinct lessonIds,
+   * that path deleted every target lesson and then no-op'd on the id conflicts,
+   * leaving the sibling empty and cascading away its students' progress.
+   */
+  static async propagateLessonsToVariant(
+    targetCourseId: string,
+    userId: string,
+    lessons: unknown
+  ): Promise<void> {
+    const [courseRow] = await drizzleDb
+      .select({ courseId: course.courseId })
+      .from(course)
+      .where(and(eq(course.courseId, targetCourseId), eq(course.creatorId, userId)))
+    if (!courseRow) {
+      throw new Error('Course not found or access denied')
+    }
+    if (!Array.isArray(lessons)) {
+      throw new Error('Invalid payload: expected lessons array')
+    }
+    const sourceLessons = lessons as BuilderLessonInput[]
+
+    // Resolve each source lesson's template origin (sourceLessonId) so we can
+    // correlate to the sibling by a stable id instead of by position.
+    const sourceIds = sourceLessons.map(l => l.id).filter((id): id is string => Boolean(id))
+    const originBySourceId = new Map<string, string>()
+    if (sourceIds.length > 0) {
+      const rows = await drizzleDb
+        .select({ lessonId: courseLesson.lessonId, sourceLessonId: courseLesson.sourceLessonId })
+        .from(courseLesson)
+        .where(inArray(courseLesson.lessonId, sourceIds))
+      for (const r of rows) {
+        if (r.sourceLessonId) originBySourceId.set(r.lessonId, r.sourceLessonId)
+      }
+    }
+
+    await drizzleDb.transaction(async tx => {
+      const existing = await tx
+        .select({
+          lessonId: courseLesson.lessonId,
+          order: courseLesson.order,
+          sourceLessonId: courseLesson.sourceLessonId,
+        })
+        .from(courseLesson)
+        .where(and(eq(courseLesson.courseId, targetCourseId), isNull(courseLesson.deletedAt)))
+        .orderBy(asc(courseLesson.order))
+
+      const targetBySource = new Map<string, string>()
+      const targetByOrder = new Map<number, string>()
+      for (const l of existing) {
+        if (l.sourceLessonId && !targetBySource.has(l.sourceLessonId)) {
+          targetBySource.set(l.sourceLessonId, l.lessonId)
+        }
+        const ord = l.order ?? 0
+        if (!targetByOrder.has(ord)) targetByOrder.set(ord, l.lessonId)
+      }
+
+      const claimed = new Set<string>()
+      for (const [idx, les] of sourceLessons.entries()) {
+        const builderData = toLessonBuilderData(les)
+        const origin = les.id ? originBySourceId.get(les.id) : undefined
+        const targetId = (origin ? targetBySource.get(origin) : undefined) ?? targetByOrder.get(idx)
+        if (targetId && !claimed.has(targetId)) {
+          claimed.add(targetId)
+          await tx
+            .update(courseLesson)
+            .set({
+              // Only (re)assert the linkage when we know the origin; never blank
+              // out a good sourceLessonId the target already has.
+              ...(origin ? { sourceLessonId: origin } : {}),
+              title: les.title || 'Untitled Lesson',
+              description: les.description || null,
+              duration: les.duration ?? 60,
+              order: idx,
+              builderData,
+              updatedAt: new Date(),
+            })
+            .where(eq(courseLesson.lessonId, targetId))
+        } else {
+          await tx.insert(courseLesson).values({
+            lessonId: crypto.randomUUID(),
+            courseId: targetCourseId,
+            sourceLessonId: origin ?? null,
+            title: les.title || 'Untitled Lesson',
+            description: les.description || null,
+            duration: les.duration ?? 60,
+            order: idx,
+            builderData,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+        }
+      }
+
+      const removedIds = existing.filter(l => !claimed.has(l.lessonId)).map(l => l.lessonId)
+      if (removedIds.length > 0) {
+        const usage = await getLessonUsage(targetCourseId, removedIds)
+        const deletable = removedIds.filter(id => !usage[id]?.hasDeployments)
+        if (deletable.length > 0) {
+          await tx.delete(courseLesson).where(inArray(courseLesson.lessonId, deletable))
+        }
+      }
+    })
   }
 }
