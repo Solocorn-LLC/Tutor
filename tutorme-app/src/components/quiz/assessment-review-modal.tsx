@@ -10,8 +10,9 @@
  */
 
 import { Button } from '@/components/ui/button'
-import { CheckCircle, XCircle, Clock, X } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, X, Sparkles, Loader2, Lightbulb } from 'lucide-react'
 import type { QuestionResultItem } from './quiz-modal'
+import type { AiQuestionFeedbackItem } from '@/lib/feedback/per-question-feedback'
 
 export interface AssessmentReviewQuestion {
   id: string
@@ -33,6 +34,8 @@ export interface AssessmentReviewData {
   questions: AssessmentReviewQuestion[]
   answers: Record<string, unknown> | null
   questionResults: QuestionResultItem[] | null
+  /** Grounded per-question AI study hints, once generated. */
+  aiFeedback?: AiQuestionFeedbackItem[] | null
 }
 
 function formatAnswer(value: unknown): string {
@@ -45,12 +48,28 @@ function formatAnswer(value: unknown): string {
 export function AssessmentReviewModal({
   data,
   onClose,
+  onRequestHints,
+  hintsLoading,
 }: {
   data: AssessmentReviewData
   onClose: () => void
+  /** Generate grounded AI study hints for the wrong answers (one call, cached). */
+  onRequestHints?: () => void
+  hintsLoading?: boolean
 }) {
   const resultById = new Map<string, QuestionResultItem>()
   for (const r of data.questionResults ?? []) resultById.set(String(r.questionId), r)
+
+  const hintById = new Map<string, AiQuestionFeedbackItem>()
+  for (const h of data.aiFeedback ?? []) hintById.set(String(h.questionId), h)
+
+  // Questions the auto-grader marked wrong (and could grade) — the ones AI hints
+  // can explain. Offer the button only when there are some and none exist yet.
+  const explainableWrong = (data.questionResults ?? []).filter(
+    r => r.correct === false && r.needsReview !== true
+  ).length
+  const showHintsButton =
+    !!onRequestHints && explainableWrong > 0 && (data.aiFeedback?.length ?? 0) === 0
 
   const scoreTxt = data.score != null ? `${Math.round(data.score)}%` : 'N/A'
   const gradedDate = data.gradedAt ?? data.submittedAt
@@ -109,6 +128,27 @@ export function AssessmentReviewModal({
             </div>
           )}
 
+          {/* AI study hints — offered once for the wrong answers, grounded in the
+              tutor's marking basis. Clearly distinct from the tutor's own word. */}
+          {showHintsButton && (
+            <button
+              type="button"
+              onClick={onRequestHints}
+              disabled={hintsLoading}
+              className="mb-4 inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-60"
+            >
+              {hintsLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating study hints…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Explain what I got wrong
+                </>
+              )}
+            </button>
+          )}
+
           {/* Per-question breakdown */}
           <div className="space-y-3">
             {data.questions.map((q, i) => {
@@ -116,6 +156,7 @@ export function AssessmentReviewModal({
               const yourAnswer = data.answers?.[q.id]
               const needsReview = result?.needsReview === true
               const correct = result?.correct === true
+              const hint = hintById.get(String(q.id))
               return (
                 <div key={q.id} className="rounded-xl border border-gray-200 p-3.5">
                   <div className="flex items-start justify-between gap-3">
@@ -156,6 +197,27 @@ export function AssessmentReviewModal({
                       </p>
                     )}
                   </div>
+
+                  {/* Grounded AI study hint for a wrong answer */}
+                  {hint && (
+                    <div className="mt-2.5 rounded-lg border border-violet-100 bg-violet-50/60 p-2.5">
+                      <p className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                        <Lightbulb className="h-3 w-3" /> AI study hint
+                      </p>
+                      <p className="text-sm leading-relaxed text-gray-800">{hint.explanation}</p>
+                      {hint.misconception && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          <span className="font-medium text-gray-600">Common slip:</span>{' '}
+                          {hint.misconception}
+                        </p>
+                      )}
+                      {hint.nextStep && (
+                        <p className="mt-1 text-xs text-violet-700">
+                          <span className="font-medium">Next step:</span> {hint.nextStep}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}

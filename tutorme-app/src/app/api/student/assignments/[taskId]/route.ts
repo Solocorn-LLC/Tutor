@@ -112,6 +112,7 @@ export async function GET(
         maxScore: taskSubmission.maxScore,
         submittedAt: taskSubmission.submittedAt,
         gradedAt: taskSubmission.gradedAt,
+        aiFeedback: taskSubmission.aiFeedback,
       })
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
@@ -166,6 +167,9 @@ export async function GET(
       existingMaxScore: existing?.maxScore ?? null,
       existingSubmittedAt: existing?.submittedAt ?? null,
       existingGradedAt: existing?.gradedAt ?? null,
+      // Grounded per-question AI study hints, if already generated (see the
+      // ai-feedback endpoint — generated on demand and cached here).
+      existingAiFeedback: existing?.aiFeedback ?? null,
       task: {
         id: task.taskId,
         title: task.title,

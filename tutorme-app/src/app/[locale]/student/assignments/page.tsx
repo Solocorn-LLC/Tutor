@@ -80,6 +80,8 @@ export default function StudentAssignmentsPage() {
   const [startTime, setStartTime] = useState<number>(0)
   // Review of an already-submitted assessment (score + feedback + per-question).
   const [reviewData, setReviewData] = useState<AssessmentReviewData | null>(null)
+  const [reviewTaskId, setReviewTaskId] = useState<string | null>(null)
+  const [hintsLoading, setHintsLoading] = useState(false)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -130,6 +132,7 @@ export default function StudentAssignmentsPage() {
       if (data.alreadySubmitted) {
         // Re-open the graded assessment for review: score + tutor feedback +
         // per-question breakdown, instead of a one-line toast.
+        setReviewTaskId(taskId)
         setReviewData({
           title: data.task.title,
           score: data.existingScore ?? null,
@@ -141,6 +144,7 @@ export default function StudentAssignmentsPage() {
           questions: data.task.questions ?? [],
           answers: data.existingAnswers ?? null,
           questionResults: data.existingQuestionResults ?? null,
+          aiFeedback: data.existingAiFeedback?.items ?? null,
         })
         return
       }
@@ -156,6 +160,31 @@ export default function StudentAssignmentsPage() {
       setTakingQuiz(true)
     } catch {
       toast.error('Failed to load task')
+    }
+  }
+
+  // Generate grounded AI study hints for the wrong answers (one call, cached).
+  const handleRequestHints = async () => {
+    if (!reviewTaskId || hintsLoading) return
+    setHintsLoading(true)
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
+      const res = await fetch(`/api/student/assignments/${reviewTaskId}/ai-feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(csrf && { 'X-CSRF-Token': csrf }) },
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.aiFeedback?.items?.length) {
+        setReviewData(prev => (prev ? { ...prev, aiFeedback: data.aiFeedback.items } : prev))
+      } else {
+        toast.info('No AI hints available for this assessment.')
+      }
+    } catch {
+      toast.error('Could not generate study hints. Please try again.')
+    } finally {
+      setHintsLoading(false)
     }
   }
 
@@ -342,7 +371,12 @@ export default function StudentAssignmentsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {reviewData && (
-        <AssessmentReviewModal data={reviewData} onClose={() => setReviewData(null)} />
+        <AssessmentReviewModal
+          data={reviewData}
+          onClose={() => setReviewData(null)}
+          onRequestHints={handleRequestHints}
+          hintsLoading={hintsLoading}
+        />
       )}
       <div className="mb-8">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">

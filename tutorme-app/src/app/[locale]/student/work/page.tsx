@@ -148,6 +148,7 @@ function AssignmentsTab() {
           questions: data.task.questions ?? [],
           answers: data.existingAnswers ?? null,
           questionResults: data.existingQuestionResults ?? null,
+          aiFeedback: data.existingAiFeedback?.items ?? null,
         })
         return
       }
