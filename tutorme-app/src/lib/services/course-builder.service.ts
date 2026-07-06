@@ -282,14 +282,18 @@ export class CourseBuilderService {
       )
     }
 
-    // Fetch existing lessons with builderData so we can clean up orphaned GCS
-    // files after the transaction succeeds.
+    // Fetch existing (live) lessons with builderData so we can clean up orphaned
+    // GCS files after the transaction succeeds. Soft-deleted rows are excluded —
+    // they're not part of the editable tree.
     const existingLessons = await drizzleDb
       .select({ lessonId: courseLesson.lessonId, builderData: courseLesson.builderData })
       .from(courseLesson)
-      .where(eq(courseLesson.courseId, courseId))
+      .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
 
     const oldFileKeys = collectFileKeys(existingLessons.map(l => l.builderData))
+    // Ids removed in this save are SOFT-deleted (deletedAt set), so their rows —
+    // and the files they reference — must survive; captured here for GCS cleanup.
+    let softDeletedIds: string[] = []
 
     // Floor guard: never let an empty payload wipe a course that has lessons.
     // This is the signature of a failed content-load (the editor serializes an
@@ -303,10 +307,13 @@ export class CourseBuilderService {
     }
 
     await drizzleDb.transaction(async tx => {
+      // Only consider LIVE lessons for the diff; already soft-deleted rows are
+      // gone from the tree (re-adding the same id resurrects it via the upsert's
+      // deletedAt: null below).
       const existingDbLessons = await tx
         .select({ id: courseLesson.lessonId })
         .from(courseLesson)
-        .where(eq(courseLesson.courseId, courseId))
+        .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
 
       const existingLessonIds = new Set(existingDbLessons.map(l => l.id))
       const incomingLessons = lessons as BuilderLessonInput[]
@@ -317,8 +324,8 @@ export class CourseBuilderService {
       if (idsToDelete.length > 0) {
         // Server-side enforcement of the delete guard (the builder blocks this
         // client-side, but a direct save must not slip a deployed lesson
-        // through). DeployedMaterial.lessonId has no FK cascade, so hard-
-        // deleting a deployed lesson would leave dangling references.
+        // through). DeployedMaterial.lessonId has no FK cascade, so removing a
+        // deployed lesson would orphan references.
         if (guardDeletions) {
           const usage = await getLessonUsage(courseId, idsToDelete)
           const blocked = idsToDelete.filter(id => usage[id]?.hasDeployments)
@@ -329,7 +336,15 @@ export class CourseBuilderService {
             )
           }
         }
-        await tx.delete(courseLesson).where(inArray(courseLesson.lessonId, idsToDelete))
+        // Soft-delete (set deletedAt) rather than hard-delete: every reader
+        // filters isNull(deletedAt), so the lesson leaves the tree while its row
+        // — and any DeployedMaterial / progress / submission that references its
+        // id — stays intact and recoverable.
+        softDeletedIds = idsToDelete
+        await tx
+          .update(courseLesson)
+          .set({ deletedAt: new Date() })
+          .where(inArray(courseLesson.lessonId, idsToDelete))
       }
 
       for (const [idx, les] of incomingLessons.entries()) {
@@ -358,16 +373,23 @@ export class CourseBuilderService {
               duration: les.duration ?? 60,
               order: idx,
               builderData,
+              // Resurrect the row if this id was previously soft-deleted.
+              deletedAt: null,
               updatedAt: new Date(),
             },
           })
       }
     })
 
-    // After successful save, delete orphaned GCS files.
-    // We diff old keys against new keys so shared/reused files are preserved.
-    const newFileKeys = collectFileKeys(lessons)
-    const newKeySet = new Set(newFileKeys)
+    // After successful save, delete orphaned GCS files. We diff old keys against
+    // new keys so shared/reused files are preserved — AND keep the files of
+    // soft-deleted lessons, whose rows still exist and reference them.
+    const softDeletedSet = new Set(softDeletedIds)
+    const keptKeys = collectFileKeys(lessons)
+    const softDeletedKeys = collectFileKeys(
+      existingLessons.filter(l => softDeletedSet.has(l.lessonId)).map(l => l.builderData)
+    )
+    const newKeySet = new Set([...keptKeys, ...softDeletedKeys])
     const orphanedKeys = oldFileKeys.filter(k => !newKeySet.has(k))
     if (orphanedKeys.length > 0) {
       await deleteGcsFiles(orphanedKeys)
