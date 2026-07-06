@@ -63,11 +63,11 @@ export function CollapsibleCard({
         </button>
         <div
           className={cn(
-            'grid h-full transition-all duration-300 ease-in-out',
-            open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            'flex flex-1 overflow-hidden transition-all duration-300 ease-in-out',
+            open ? 'opacity-100' : 'h-0 opacity-0'
           )}
         >
-          <div className="h-full overflow-hidden">
+          <div className="h-full flex-1 overflow-hidden">
             <div className={cn('h-full', contentClassName)}>{children}</div>
           </div>
         </div>
