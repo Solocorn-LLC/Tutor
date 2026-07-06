@@ -180,7 +180,7 @@ export function SessionCalendarPanel({
             )}
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col pt-3">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col pt-3 pb-3">{children}</div>
       </Tabs>
     </Card>
   )

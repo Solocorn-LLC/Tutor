@@ -45,7 +45,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Content area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
         {/* Left menu rail - shorter */}
         <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-2">
           {topItems.map(item => {
@@ -105,7 +105,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
         </div>
 
         {/* Detail / chat area */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
           {/* Chat viewport */}
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center">
             <Inbox className="mb-3 h-16 w-16 text-slate-300" />
