@@ -1502,7 +1502,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
     // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
     const [pollOptionModeMap, setPollOptionModeMap] = useState<
-      Record<string, 'letters' | 'tf' | 'yn' | 'custom'>
+      Record<string, '1-10' | 'tf' | 'yn' | 'custom'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     // Reusable custom option sets, persisted so a tutor can pick a set they used
@@ -1533,6 +1533,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [questionPromptMap, setQuestionPromptMap] = useState<Record<string, string>>({})
     const [showAIPollMap, setShowAIPollMap] = useState<Record<string, boolean>>({})
     const [pollComposeModeMap, setPollComposeModeMap] = useState<Record<string, boolean>>({})
+    const [speedDialOpenMap, setSpeedDialOpenMap] = useState<Record<string, boolean>>({})
     const [showAIQuestionMap, setShowAIQuestionMap] = useState<Record<string, boolean>>({})
 
     const currentInsightsId =
@@ -1623,6 +1624,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setPollComposeMode = (val: boolean) =>
       setPollComposeModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
+    const speedDialOpen = speedDialOpenMap[currentInsightsId] ?? false
+    const setSpeedDialOpen = (val: boolean) =>
+      setSpeedDialOpenMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
     const showAIQuestion = showAIQuestionMap[currentInsightsId] ?? false
     const setShowAIQuestion = (val: boolean) =>
       setShowAIQuestionMap(prev => ({ ...prev, [currentInsightsId]: val }))
@@ -1631,8 +1636,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setPollPrompt = (val: string) =>
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
-    const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? 'letters'
-    const setPollOptionMode = (val: 'letters' | 'tf' | 'yn' | 'custom') =>
+    const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? '1-10'
+    const setPollOptionMode = (val: '1-10' | 'tf' | 'yn' | 'custom') =>
       setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
     const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
     const setPollCustomOptions = (val: string) =>
@@ -1657,6 +1662,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const resolvePollOptions = (): string[] | undefined => {
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
+      if (pollOptionMode === '1-10') return undefined
       if (pollOptionMode === 'custom') {
         const opts = parsePollOptions(pollCustomOptions)
         return opts.length >= 2 ? opts : undefined
@@ -1666,74 +1672,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Shared option-set picker rendered above every poll composer. Preset chips
     // + a custom field (one option per line / comma-separated).
-    const POLL_OPTION_PRESETS: { id: 'letters' | 'tf' | 'yn' | 'custom'; label: string }[] = [
-      { id: 'letters', label: 'A–E' },
+    const POLL_OPTION_PRESETS: { id: '1-10' | 'tf' | 'yn' | 'custom'; label: string }[] = [
+      { id: '1-10', label: '1–10' },
       { id: 'tf', label: 'True/False' },
       { id: 'yn', label: 'Yes/No' },
       { id: 'custom', label: 'Custom' },
     ]
-    const pollOptionPicker = (
-      <div className="mb-2">
-        <div className="flex flex-wrap gap-1.5">
-          {POLL_OPTION_PRESETS.map(preset => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => setPollOptionMode(preset.id)}
-              className={cn(
-                'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
-                pollOptionMode === preset.id
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
-              )}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-        {pollOptionMode === 'custom' && (
-          <>
-            <textarea
-              value={pollCustomOptions}
-              onChange={e => setPollCustomOptions(e.target.value)}
-              rows={2}
-              placeholder="Options separated by commas, slashes, or new lines — e.g. Agree, Disagree, Unsure"
-              className={cn(
-                'mt-1.5 w-full resize-none rounded-lg border bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none',
-                customPollValid || !pollCustomOptions.trim()
-                  ? 'border-blue-100 focus-visible:border-blue-400'
-                  : 'border-amber-300 focus-visible:border-amber-400'
-              )}
-            />
-            {pollCustomOptions.trim() && !customPollValid && (
-              <p className="mt-1 text-[11px] text-amber-600">Enter at least 2 options.</p>
-            )}
-            {/* Reuse a previously-used custom set. */}
-            {savedPollOptionSets.length > 0 && (
-              <div className="mt-1.5">
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                  Saved sets
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {savedPollOptionSets.map((set, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setPollCustomOptions(set.join(', '))}
-                      title={set.join(', ')}
-                      className="max-w-[180px] truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] text-slate-600 hover:border-blue-300 hover:bg-blue-50"
-                    >
-                      {set.join(' · ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )
-
     const questionPrompt =
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
     const setQuestionPrompt = (val: string) =>
@@ -9053,15 +8997,18 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                   />
                                                   {/* Poll options preview */}
                                                   <div className="mt-4 flex flex-wrap gap-2">
-                                                    {pollOptionMode === 'letters' && (
+                                                    {pollOptionMode === '1-10' && (
                                                       <>
-                                                        {['A', 'B', 'C', 'D', 'E'].map(letter => (
+                                                        {Array.from(
+                                                          { length: 10 },
+                                                          (_, i) => i + 1
+                                                        ).map(num => (
                                                           <button
-                                                            key={letter}
+                                                            key={num}
                                                             type="button"
                                                             className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
                                                           >
-                                                            {letter}
+                                                            {num}
                                                           </button>
                                                         ))}
                                                       </>
@@ -9099,60 +9046,82 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                       </>
                                                     )}
                                                     {pollOptionMode === 'custom' && (
-                                                      <>
-                                                        {resolvePollOptions()?.map((opt, i) => (
-                                                          <button
-                                                            key={i}
-                                                            type="button"
-                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
-                                                          >
-                                                            {opt}
-                                                          </button>
-                                                        )) || (
-                                                          <p className="text-xs text-gray-400">
-                                                            Enter custom options below
-                                                          </p>
-                                                        )}
-                                                      </>
+                                                      <p className="text-xs text-gray-400">
+                                                        Custom poll options will appear here
+                                                      </p>
                                                     )}
                                                   </div>
-                                                  {pollOptionMode === 'custom' && (
-                                                    <textarea
-                                                      value={pollCustomOptions}
-                                                      onChange={e =>
-                                                        setPollCustomOptions(e.target.value)
-                                                      }
-                                                      rows={2}
-                                                      placeholder="Options separated by commas, slashes, or new lines — e.g. Agree, Disagree, Unsure"
-                                                      className={cn(
-                                                        'mt-2 w-full resize-none rounded-md border bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none',
-                                                        customPollValid || !pollCustomOptions.trim()
-                                                          ? 'border-blue-100 focus-visible:border-blue-400'
-                                                          : 'border-amber-300 focus-visible:border-amber-400'
-                                                      )}
-                                                    />
-                                                  )}
                                                 </div>
                                                 {/* Bottom button row */}
-                                                <div className="flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
-                                                  {POLL_OPTION_PRESETS.map(preset => (
+                                                <div className="relative flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
+                                                  {/* Speed Dial */}
+                                                  <div className="relative flex-1">
                                                     <button
-                                                      key={preset.id}
                                                       type="button"
-                                                      onClick={() => setPollOptionMode(preset.id)}
+                                                      onClick={() =>
+                                                        setSpeedDialOpen(!speedDialOpen)
+                                                      }
                                                       className={cn(
-                                                        'flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium transition-colors',
-                                                        pollOptionMode === preset.id
-                                                          ? 'border-blue-600 bg-blue-600 text-white'
-                                                          : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                        'flex h-8 w-full items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                        'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
                                                       )}
                                                     >
-                                                      {preset.label}
+                                                      {POLL_OPTION_PRESETS.find(
+                                                        p => p.id === pollOptionMode
+                                                      )?.label || 'Type'}
                                                     </button>
-                                                  ))}
+                                                    {speedDialOpen && (
+                                                      <div className="absolute bottom-full left-0 right-0 z-20 mb-1 flex flex-col gap-1 rounded-lg border border-blue-100 bg-white p-1 shadow-lg">
+                                                        {POLL_OPTION_PRESETS.map(preset => (
+                                                          <button
+                                                            key={preset.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                              setPollOptionMode(preset.id)
+                                                              setSpeedDialOpen(false)
+                                                            }}
+                                                            className={cn(
+                                                              'flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                              pollOptionMode === preset.id
+                                                                ? 'bg-[#2563EB] text-white'
+                                                                : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                            )}
+                                                          >
+                                                            {preset.label}
+                                                          </button>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setPollPrompt('')
+                                                      setPollCustomOptions('')
+                                                    }}
+                                                    className={cn(
+                                                      'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                      'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                    )}
+                                                  >
+                                                    New
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setPollPrompt('')
+                                                      setPollCustomOptions('')
+                                                    }}
+                                                    className={cn(
+                                                      'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                      'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                    )}
+                                                  >
+                                                    Clear
+                                                  </button>
                                                   <Button
                                                     size="sm"
-                                                    className="ml-auto h-8 rounded-md bg-blue-600 px-3 text-xs hover:bg-blue-700 disabled:opacity-30"
+                                                    className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
                                                       !insightsProps.sessionId ||
@@ -9177,7 +9146,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                     }}
                                                   >
                                                     <Send className="mr-1 h-3 w-3" />
-                                                    Send
+                                                    Poll Students
                                                   </Button>
                                                 </div>
                                               </div>
@@ -10905,17 +10874,19 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                             />
                                             {/* Poll options preview */}
                                             <div className="mt-4 flex flex-wrap gap-2">
-                                              {pollOptionMode === 'letters' && (
+                                              {pollOptionMode === '1-10' && (
                                                 <>
-                                                  {['A', 'B', 'C', 'D', 'E'].map(letter => (
-                                                    <button
-                                                      key={letter}
-                                                      type="button"
-                                                      className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {letter}
-                                                    </button>
-                                                  ))}
+                                                  {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                                                    num => (
+                                                      <button
+                                                        key={num}
+                                                        type="button"
+                                                        className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                      >
+                                                        {num}
+                                                      </button>
+                                                    )
+                                                  )}
                                                 </>
                                               )}
                                               {pollOptionMode === 'tf' && (
@@ -10951,58 +10922,80 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 </>
                                               )}
                                               {pollOptionMode === 'custom' && (
-                                                <>
-                                                  {resolvePollOptions()?.map((opt, i) => (
-                                                    <button
-                                                      key={i}
-                                                      type="button"
-                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {opt}
-                                                    </button>
-                                                  )) || (
-                                                    <p className="text-xs text-gray-400">
-                                                      Enter custom options below
-                                                    </p>
-                                                  )}
-                                                </>
+                                                <p className="text-xs text-gray-400">
+                                                  Custom poll options will appear here
+                                                </p>
                                               )}
                                             </div>
-                                            {pollOptionMode === 'custom' && (
-                                              <textarea
-                                                value={pollCustomOptions}
-                                                onChange={e => setPollCustomOptions(e.target.value)}
-                                                rows={2}
-                                                placeholder="Options separated by commas, slashes, or new lines — e.g. Agree, Disagree, Unsure"
-                                                className={cn(
-                                                  'mt-2 w-full resize-none rounded-md border bg-white p-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none',
-                                                  customPollValid || !pollCustomOptions.trim()
-                                                    ? 'border-blue-100 focus-visible:border-blue-400'
-                                                    : 'border-amber-300 focus-visible:border-amber-400'
-                                                )}
-                                              />
-                                            )}
                                           </div>
                                           {/* Bottom button row */}
-                                          <div className="flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
-                                            {POLL_OPTION_PRESETS.map(preset => (
+                                          <div className="relative flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
+                                            {/* Speed Dial */}
+                                            <div className="relative flex-1">
                                               <button
-                                                key={preset.id}
                                                 type="button"
-                                                onClick={() => setPollOptionMode(preset.id)}
+                                                onClick={() => setSpeedDialOpen(!speedDialOpen)}
                                                 className={cn(
-                                                  'flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium transition-colors',
-                                                  pollOptionMode === preset.id
-                                                    ? 'border-blue-600 bg-blue-600 text-white'
-                                                    : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                  'flex h-8 w-full items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                  'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
                                                 )}
                                               >
-                                                {preset.label}
+                                                {POLL_OPTION_PRESETS.find(
+                                                  p => p.id === pollOptionMode
+                                                )?.label || 'Type'}
                                               </button>
-                                            ))}
+                                              {speedDialOpen && (
+                                                <div className="absolute bottom-full left-0 right-0 z-20 mb-1 flex flex-col gap-1 rounded-lg border border-blue-100 bg-white p-1 shadow-lg">
+                                                  {POLL_OPTION_PRESETS.map(preset => (
+                                                    <button
+                                                      key={preset.id}
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setPollOptionMode(preset.id)
+                                                        setSpeedDialOpen(false)
+                                                      }}
+                                                      className={cn(
+                                                        'flex h-8 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                        pollOptionMode === preset.id
+                                                          ? 'bg-[#2563EB] text-white'
+                                                          : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                      )}
+                                                    >
+                                                      {preset.label}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setPollPrompt('')
+                                                setPollCustomOptions('')
+                                              }}
+                                              className={cn(
+                                                'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                              )}
+                                            >
+                                              New
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setPollPrompt('')
+                                                setPollCustomOptions('')
+                                              }}
+                                              className={cn(
+                                                'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                              )}
+                                            >
+                                              Clear
+                                            </button>
                                             <Button
                                               size="sm"
-                                              className="ml-auto h-8 rounded-md bg-blue-600 px-3 text-xs hover:bg-blue-700 disabled:opacity-30"
+                                              className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
                                               disabled={
                                                 !activeInsightsTaskId ||
                                                 !insightsProps.sessionId ||
@@ -11027,7 +11020,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               }}
                                             >
                                               <Send className="mr-1 h-3 w-3" />
-                                              Send
+                                              Poll Students
                                             </Button>
                                           </div>
                                         </div>
