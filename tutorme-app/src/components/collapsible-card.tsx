@@ -42,7 +42,7 @@ export function CollapsibleCard({
         )}
       >
         {/* Inner wrapper with overflow hidden for animation */}
-        <div className="flex flex-col overflow-hidden p-0">
+        <div className="flex h-full flex-col overflow-hidden p-0">
           <button
             type="button"
             onClick={() => setOpen(o => !o)}
