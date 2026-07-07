@@ -2080,7 +2080,27 @@ function StudentFeedbackContent() {
                             PCI, then they can ask about what they got wrong. */}
                         {isChatTask && activeTaskId && (
                           <div className="mt-2 h-[60vh] min-h-[360px]">
-                            <TaskChatPanel taskId={activeTaskId} taskTitle={activeTask.title} />
+                            <TaskChatPanel
+                              taskId={activeTaskId}
+                              taskTitle={activeTask.title}
+                              onCompleted={answers => {
+                                // Broadcast the live "completed" tick to the tutor.
+                                // aiHandled=true → the server only marks completion
+                                // and does NOT re-write the DB (the task-chat route
+                                // already persisted the answers + AI responses).
+                                if (!socket || !selectedSessionId || !activeTaskId) return
+                                const record: Record<string, string> = {}
+                                answers.forEach((a, i) => {
+                                  record[String(i + 1)] = a
+                                })
+                                socket.emit('task:complete', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  answers: record,
+                                  aiHandled: true,
+                                })
+                              }}
+                            />
                           </div>
                         )}
 
