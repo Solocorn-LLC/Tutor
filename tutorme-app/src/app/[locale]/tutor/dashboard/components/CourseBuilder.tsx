@@ -5780,7 +5780,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           setTimeout(() => {
                             handlePciSend(
                               'task',
-                              `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
+                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                             )
                           }, 500)
                         }
@@ -6002,7 +6002,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         setTimeout(() => {
                           handlePciSend(
                             'task',
-                            `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
+                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                           )
                         }, 500)
                       } catch (err: any) {
@@ -6118,7 +6118,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       setTimeout(() => {
                         handlePciSend(
                           'assessment',
-                          `I just uploaded a document named '${assetToLoad?.name}'. Please provide a brief summary of its content, especially noting any diagrams or images if applicable, and ask me to confirm if you got it right so we can build a rubric together.`
+                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                         )
                       }, 500)
                     }}
