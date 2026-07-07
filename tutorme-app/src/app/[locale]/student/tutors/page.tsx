@@ -223,7 +223,10 @@ export default function StudentTutorDirectoryPage() {
 
       {/* Bottom panel: filters + results */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
+        <Card
+          hoverable={false}
+          className="shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5"
+        >
           {/* Filters */}
           <div className="grid grid-cols-1 gap-3 pb-0 md:grid-cols-4">
             <div className="relative">
@@ -423,7 +426,7 @@ export default function StudentTutorDirectoryPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )
