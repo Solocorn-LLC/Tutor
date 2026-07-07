@@ -141,7 +141,7 @@ export default function StudentAITutorPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <p className="text-gray-500">无法加载AI辅导数据</p>
+        <p className="text-gray-500">Failed to load AI tutoring data</p>
       </div>
     )
   }
@@ -158,8 +158,10 @@ export default function StudentAITutorPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">AI 辅导</h1>
-            <p className="text-sm text-gray-500">AI互动历史、苏格拉底式对话与学习表现</p>
+            <h1 className="text-2xl font-bold">AI Tutor</h1>
+            <p className="text-sm text-gray-500">
+              AI interaction history, Socratic dialogue, and learning performance
+            </p>
           </div>
         </div>
       </div>
@@ -170,7 +172,7 @@ export default function StudentAITutorPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总对话次数</p>
+                <p className="text-sm text-gray-500">Total conversations</p>
                 <p className="text-2xl font-bold">{metrics.totalSessions}</p>
               </div>
               <MessageSquare className="h-8 w-8 text-blue-500" />
@@ -181,7 +183,7 @@ export default function StudentAITutorPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总消息数</p>
+                <p className="text-sm text-gray-500">Total messages</p>
                 <p className="text-2xl font-bold">{metrics.totalMessages}</p>
               </div>
               <Bot className="h-8 w-8 text-purple-500" />
@@ -192,7 +194,7 @@ export default function StudentAITutorPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">使用时长 (分钟)</p>
+                <p className="text-sm text-gray-500">Time used (minutes)</p>
                 <p className="text-2xl font-bold">{metrics.totalMinutes}</p>
               </div>
               <Calendar className="h-8 w-8 text-green-500" />
@@ -203,7 +205,7 @@ export default function StudentAITutorPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">活跃科目</p>
+                <p className="text-sm text-gray-500">Active subjects</p>
                 <p className="text-2xl font-bold">{metrics.activeSubjects}</p>
               </div>
               <BookOpen className="h-8 w-8 text-amber-500" />
@@ -218,9 +220,9 @@ export default function StudentAITutorPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5" />
-              学习建议
+              Learning suggestions
             </CardTitle>
-            <CardDescription>基于AI辅导数据的个性化建议</CardDescription>
+            <CardDescription>Personalized suggestions based on AI tutoring data</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -240,13 +242,15 @@ export default function StudentAITutorPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            课程对话记录
+            Lesson conversation history
           </CardTitle>
-          <CardDescription>课程中的AI辅导对话，采用苏格拉底式引导</CardDescription>
+          <CardDescription>
+            In-lesson AI tutoring conversations using Socratic guidance
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {sessionSummaries.length === 0 ? (
-            <p className="py-8 text-center text-gray-500">暂无课程对话记录</p>
+            <p className="py-8 text-center text-gray-500">No lesson conversations yet</p>
           ) : (
             <div className="space-y-4">
               {sessionSummaries.slice(0, 15).map(s => (
@@ -257,7 +261,7 @@ export default function StudentAITutorPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-medium">{s.lessonTitle ?? '未命名课程'}</h3>
+                        <h3 className="font-medium">{s.lessonTitle ?? 'Untitled lesson'}</h3>
                         {s.courseName && (
                           <Badge variant="outline" className="text-xs">
                             {s.courseName}
@@ -267,16 +271,16 @@ export default function StudentAITutorPage() {
                           variant={s.status === 'completed' ? 'default' : 'secondary'}
                           className="text-xs"
                         >
-                          {s.status === 'completed' ? '已完成' : s.currentSection}
+                          {s.status === 'completed' ? 'Completed' : s.currentSection}
                         </Badge>
                       </div>
                       <p className="mt-1 text-sm text-gray-500">
-                        {s.messageCount} 条消息 · 最后活动: {formatDate(s.lastActivityAt)}
+                        {s.messageCount} messages · last active: {formatDate(s.lastActivityAt)}
                       </p>
                       {s.lastMessage && (
                         <div className="mt-2 rounded bg-gray-50 p-2 text-sm">
                           <p className="text-gray-600">
-                            <span className="font-medium text-gray-700">学生:</span>{' '}
+                            <span className="font-medium text-gray-700">Student:</span>{' '}
                             {s.lastMessage.length > 100
                               ? s.lastMessage.slice(0, 100) + '...'
                               : s.lastMessage}
@@ -306,9 +310,9 @@ export default function StudentAITutorPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              已注册科目
+              Enrolled subjects
             </CardTitle>
-            <CardDescription>AI辅导已注册的科目及使用情况</CardDescription>
+            <CardDescription>Subjects enrolled in AI tutoring, and usage</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -316,11 +320,11 @@ export default function StudentAITutorPage() {
                 <div key={e.subjectCode} className="flex flex-col gap-2 rounded-lg border p-4">
                   <span className="font-medium">{e.subjectCode}</span>
                   <p className="text-sm text-gray-500">
-                    {e.totalSessions} 次对话 · {e.totalMinutes} 分钟
+                    {e.totalSessions} conversations · {e.totalMinutes} min
                   </p>
                   {e.lastSessionAt && (
                     <p className="text-xs text-gray-400">
-                      最近: {formatDateShort(e.lastSessionAt)}
+                      Latest: {formatDateShort(e.lastSessionAt)}
                     </p>
                   )}
                 </div>
@@ -336,9 +340,9 @@ export default function StudentAITutorPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              近期使用
+              Recent usage
             </CardTitle>
-            <CardDescription>最近7天的AI辅导使用情况</CardDescription>
+            <CardDescription>AI tutoring usage over the last 7 days</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-2 overflow-x-auto pb-2">
@@ -346,8 +350,8 @@ export default function StudentAITutorPage() {
                 <div key={u.date} className="w-24 shrink-0 rounded-lg border p-3 text-center">
                   <p className="text-xs text-gray-500">{formatDateShort(u.date)}</p>
                   <p className="font-semibold">{u.messageCount}</p>
-                  <p className="text-xs text-gray-400">条消息</p>
-                  <p className="text-xs text-gray-400">{u.minutesUsed} 分钟</p>
+                  <p className="text-xs text-gray-400">messages</p>
+                  <p className="text-xs text-gray-400">{u.minutesUsed} min</p>
                 </div>
               ))}
             </div>

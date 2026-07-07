@@ -35,7 +35,7 @@ function StudentDashboardContent() {
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [themeId, setThemeId] = useState('current')
 
-  const strings = getDashboardStrings('en')
+  const strings = getDashboardStrings()
   const selectedTheme = DASHBOARD_THEMES.find(theme => theme.id === themeId) ?? DASHBOARD_THEMES[0]
   const themeStyle = getThemeStyle(selectedTheme)
 

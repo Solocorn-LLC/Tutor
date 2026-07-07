@@ -39,8 +39,10 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Not authorized to cancel this request' }, { status: 403 })
     }
 
-    // Only allow canceling if status is PENDING or ACCEPTED (not yet paid)
-    if (!['PENDING', 'ACCEPTED'].includes(existingRequest.status)) {
+    // Cancellable while still upcoming: pending, accepted, or paid. A paid
+    // cancellation frees the session and flags a refund (processed via the
+    // standard tutor/admin refund flow — see the refund-owed notification below).
+    if (!['PENDING', 'ACCEPTED', 'PAID'].includes(existingRequest.status)) {
       return NextResponse.json(
         {
           error: `Cannot cancel a request that is already ${existingRequest.status.toLowerCase()}`,
@@ -48,6 +50,7 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
+    const wasPaid = existingRequest.status === 'PAID'
 
     // If there's a calendar event, mark it as cancelled and end the linked live session
     if (existingRequest.calendarEventId) {
@@ -100,8 +103,27 @@ export async function PATCH(request: NextRequest) {
       actionUrl: isStudent ? '/tutor/dashboard' : '/student/dashboard',
     }).catch(console.error)
 
+    // A paid booking that's cancelled owes the student a refund. Flag the tutor
+    // to process it via the standard refund flow (automated gateway refunds for
+    // 1-on-1 are not yet wired, so this stays a deliberate human step).
+    if (wasPaid) {
+      notify({
+        userId: existingRequest.tutorId,
+        type: 'class',
+        title: 'Refund required — 1-on-1 cancelled',
+        message: `A paid 1-on-1 session was cancelled. Please issue a refund of ${existingRequest.costPerSession} to the student.`,
+        data: {
+          requestId: updatedRequest[0].requestId,
+          type: 'one-on-one-refund-required',
+          amount: existingRequest.costPerSession,
+        },
+        actionUrl: '/tutor/dashboard',
+      }).catch(console.error)
+    }
+
     return NextResponse.json({
       success: true,
+      refundRequired: wasPaid,
       request: updatedRequest[0],
     })
   } catch (error) {

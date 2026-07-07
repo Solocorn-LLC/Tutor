@@ -113,6 +113,7 @@ export async function GET(
         submittedAt: taskSubmission.submittedAt,
         gradedAt: taskSubmission.gradedAt,
         aiFeedback: taskSubmission.aiFeedback,
+        followUps: taskSubmission.followUps,
       })
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
@@ -170,6 +171,8 @@ export async function GET(
       // Grounded per-question AI study hints, if already generated (see the
       // ai-feedback endpoint — generated on demand and cached here).
       existingAiFeedback: existing?.aiFeedback ?? null,
+      // Persisted task-chat follow-ups, so a reopened task restores its full chat.
+      existingFollowUps: existing?.followUps ?? null,
       task: {
         id: task.taskId,
         title: task.title,

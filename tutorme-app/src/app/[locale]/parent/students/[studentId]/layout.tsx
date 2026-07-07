@@ -28,31 +28,31 @@ interface StudentData {
 const tabs = [
   {
     id: 'overview',
-    label: '概览',
+    label: 'Overview',
     href: (id: string) => `/parent/students/${id}`,
     icon: TrendingUp,
   },
   {
     id: 'assignments',
-    label: '作业与测验',
+    label: 'Assignments',
     href: (id: string) => `/parent/students/${id}/assignments`,
     icon: ClipboardList,
   },
   {
     id: 'ai-tutor',
-    label: 'AI 辅导',
+    label: 'AI Tutor',
     href: (id: string) => `/parent/students/${id}/ai-tutor`,
     icon: Bot,
   },
   {
     id: 'classes',
-    label: '课程安排',
+    label: 'Classes',
     href: (id: string) => `/parent/students/${id}`,
     icon: Calendar,
   },
   {
     id: 'financial',
-    label: '财务',
+    label: 'Finance',
     href: (id: string) => `/parent/students/${id}`,
     icon: CreditCard,
   },
@@ -96,7 +96,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               {loading ? (
                 <span className="inline-block h-7 w-32 animate-pulse rounded bg-gray-200" />
               ) : (
-                (student?.name ?? '学生')
+                (student?.name ?? 'Student')
               )}
             </h1>
             <p className="text-sm text-gray-500">
@@ -106,7 +106,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 <>
                   {student?.email && `${student.email} · `}
                   {student?.relation}
-                  {student?.level != null && ` · 等级 ${student.level}`}
+                  {student?.level != null && ` · Level ${student.level}`}
                   {student?.xp != null && ` · ${student.xp} XP`}
                 </>
               )}

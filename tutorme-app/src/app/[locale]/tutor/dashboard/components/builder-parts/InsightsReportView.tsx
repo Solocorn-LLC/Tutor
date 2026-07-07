@@ -67,7 +67,7 @@ export function InsightsReportView({
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto pr-2">
         {!hasData ? (
-          <p className="py-8 text-center text-xs text-slate-400">
+          <p className="py-8 text-center text-xs text-slate-600">
             {isPoll
               ? 'No polls sent yet. Send a poll to the class to see results here.'
               : 'No questions sent yet. Ask the class a question to see answers here.'}
@@ -81,7 +81,7 @@ export function InsightsReportView({
               <div className="mb-2 flex items-start justify-between gap-2">
                 <p className="text-xs font-semibold text-slate-800">{poll.question}</p>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-slate-600">
                     {poll.totalResponses} {poll.totalResponses === 1 ? 'vote' : 'votes'}
                   </span>
                   {poll.closed ? (
@@ -163,7 +163,7 @@ export function InsightsReportView({
                 )}
               </div>
               {q.answers.length === 0 ? (
-                <p className="text-[11px] text-slate-400">No answers yet.</p>
+                <p className="text-[11px] text-slate-600">No answers yet.</p>
               ) : (
                 <div className="space-y-2">
                   {q.answers.map((a, i) => (

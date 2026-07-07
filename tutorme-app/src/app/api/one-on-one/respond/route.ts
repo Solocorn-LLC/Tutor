@@ -152,6 +152,8 @@ export async function PATCH(request: NextRequest) {
             status: 'ACCEPTED',
             tutorNotes: validated.tutorNotes || existingRequest.tutorNotes,
             tutorResponseAt: new Date(),
+            // Payment window: the student has 48h to pay before the hold lapses.
+            paymentDueAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
             calendarEventId: newEvent.eventId,
             updatedAt: new Date(),
           })

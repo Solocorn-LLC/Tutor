@@ -15,6 +15,7 @@ import {
   liveSession,
   course,
   sessionParticipant,
+  oneOnOneBookingRequest,
 } from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -41,11 +42,10 @@ export const GET = withAuth(
 
     const courseIds = enrollments.map(e => e.courseId).filter(Boolean)
 
-    if (courseIds.length === 0) {
-      return NextResponse.json({ events: [] })
-    }
-
-    // --- Primary source: CalendarEvent ---
+    // --- Primary source: CalendarEvent (course sessions) ---
+    // Only queried when the student is enrolled in courses; 1-on-1 sessions
+    // (which have no courseId) are fetched separately by studentId below, so a
+    // student with no course enrollments still sees their booked 1-on-1s.
     const calFilters = [
       inArray(calendarEvent.courseId, courseIds),
       eq(calendarEvent.isCancelled, false),
@@ -59,26 +59,28 @@ export const GET = withAuth(
       calFilters.push(lte(calendarEvent.startTime, endDate))
     }
 
-    const calEvents = await drizzleDb
-      .select({
-        eventId: calendarEvent.eventId,
-        title: calendarEvent.title,
-        description: calendarEvent.description,
-        startTime: calendarEvent.startTime,
-        endTime: calendarEvent.endTime,
-        status: calendarEvent.status,
-        meetingUrl: calendarEvent.meetingUrl,
-        courseId: calendarEvent.courseId,
-        location: calendarEvent.location,
-        isVirtual: calendarEvent.isVirtual,
-        tutorId: calendarEvent.tutorId,
-        externalId: calendarEvent.externalId,
-        sessionStatus: liveSession.status,
-      })
-      .from(calendarEvent)
-      .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
-      .where(and(...calFilters))
-      .orderBy(calendarEvent.startTime)
+    const calEvents = courseIds.length
+      ? await drizzleDb
+          .select({
+            eventId: calendarEvent.eventId,
+            title: calendarEvent.title,
+            description: calendarEvent.description,
+            startTime: calendarEvent.startTime,
+            endTime: calendarEvent.endTime,
+            status: calendarEvent.status,
+            meetingUrl: calendarEvent.meetingUrl,
+            courseId: calendarEvent.courseId,
+            location: calendarEvent.location,
+            isVirtual: calendarEvent.isVirtual,
+            tutorId: calendarEvent.tutorId,
+            externalId: calendarEvent.externalId,
+            sessionStatus: liveSession.status,
+          })
+          .from(calendarEvent)
+          .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
+          .where(and(...calFilters))
+          .orderBy(calendarEvent.startTime)
+      : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
     const lsFilters = [
@@ -93,21 +95,59 @@ export const GET = withAuth(
       lsFilters.push(lte(liveSession.scheduledAt, endDate))
     }
 
-    const liveSessions = await drizzleDb
+    const liveSessions = courseIds.length
+      ? await drizzleDb
+          .select({
+            sessionId: liveSession.sessionId,
+            title: liveSession.title,
+            description: liveSession.description,
+            scheduledAt: liveSession.scheduledAt,
+            status: liveSession.status,
+            roomUrl: liveSession.roomUrl,
+            courseId: liveSession.courseId,
+            durationMinutes: liveSession.durationMinutes,
+            tutorId: liveSession.tutorId,
+          })
+          .from(liveSession)
+          .where(and(...lsFilters))
+          .orderBy(liveSession.scheduledAt)
+      : []
+
+    // --- 1-on-1 sessions the student has PAID for (no courseId; keyed by
+    // studentId). Only PAID bookings are surfaced so a session becomes visible/
+    // joinable exactly when payment clears. ---
+    const oneOnOneFilters = [
+      eq(calendarEvent.studentId, studentId),
+      eq(oneOnOneBookingRequest.status, 'PAID'),
+      eq(calendarEvent.isCancelled, false),
+      isNull(calendarEvent.deletedAt),
+    ]
+    if (startParam) oneOnOneFilters.push(gte(calendarEvent.startTime, startDate))
+    if (endParam) oneOnOneFilters.push(lte(calendarEvent.startTime, endDate))
+
+    const oneOnOneEvents = await drizzleDb
       .select({
-        sessionId: liveSession.sessionId,
-        title: liveSession.title,
-        description: liveSession.description,
-        scheduledAt: liveSession.scheduledAt,
-        status: liveSession.status,
-        roomUrl: liveSession.roomUrl,
-        courseId: liveSession.courseId,
-        durationMinutes: liveSession.durationMinutes,
-        tutorId: liveSession.tutorId,
+        eventId: calendarEvent.eventId,
+        title: calendarEvent.title,
+        description: calendarEvent.description,
+        startTime: calendarEvent.startTime,
+        endTime: calendarEvent.endTime,
+        status: calendarEvent.status,
+        meetingUrl: calendarEvent.meetingUrl,
+        location: calendarEvent.location,
+        isVirtual: calendarEvent.isVirtual,
+        tutorId: calendarEvent.tutorId,
+        externalId: calendarEvent.externalId,
+        sessionStatus: liveSession.status,
       })
-      .from(liveSession)
-      .where(and(...lsFilters))
-      .orderBy(liveSession.scheduledAt)
+      .from(calendarEvent)
+      .innerJoin(
+        oneOnOneBookingRequest,
+        eq(oneOnOneBookingRequest.calendarEventId, calendarEvent.eventId)
+      )
+      .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
+      .where(and(...oneOnOneFilters))
+      .orderBy(calendarEvent.startTime)
 
     // Build a set of externalIds already covered by CalendarEvent to avoid duplicates
     const coveredExternalIds = new Set(calEvents.map(e => e.externalId).filter(Boolean) as string[])
@@ -155,6 +195,26 @@ export const GET = withAuth(
           status: ls.status,
           courseId: ls.courseId,
         })),
+      ...oneOnOneEvents.map(e => ({
+        id: e.eventId,
+        sessionId: e.externalId,
+        bookingId: e.eventId,
+        title: e.title || '1-on-1 Session',
+        subject: e.description || '1-on-1 tutoring session',
+        start: e.startTime?.toISOString() ?? new Date().toISOString(),
+        end: e.endTime?.toISOString() ?? new Date().toISOString(),
+        duration:
+          e.endTime && e.startTime
+            ? Math.round((new Date(e.endTime).getTime() - new Date(e.startTime).getTime()) / 60000)
+            : 60,
+        type: 'one-on-one' as const,
+        tutorId: e.tutorId,
+        meetingUrl: e.meetingUrl,
+        location: e.location,
+        isVirtual: e.isVirtual,
+        status: e.sessionStatus || e.status || 'scheduled',
+        courseId: null as string | null,
+      })),
     ]
 
     // Sort by start time

@@ -130,6 +130,7 @@ import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
+import { TestTaskChat } from './TestTaskChat'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -1107,6 +1108,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     })
     const [testPciLoading, setTestPciLoading] = useState(false)
     const [testPciActiveTab, setTestPciActiveTab] = useState('classroom')
+    // Which question the sample answer is being graded against. '' = grade
+    // against the whole scheme (policy test across all questions).
+    const [testPciQuestionId, setTestPciQuestionId] = useState<string>('')
     const [isMirroringToStudents, setIsMirroringToStudents] = useState(true)
 
     // Course sync mode: auto | manual | ask (from localStorage)
@@ -2722,14 +2726,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           : assessmentBuilder.pciSpec
       const dmiItems = testPciSource === 'task' ? taskDmiItems : assessmentDmiItems
       const label = (d: DMIQuestion) => d.questionLabel || d.questionText || ''
-      const rubric = dmiItems
-        .map(d => (d.rubric ? `${label(d)}: ${d.rubric}`.trim() : ''))
-        .filter(Boolean)
-        .join('\n')
-      const modelAnswer = dmiItems
-        .map(d => (d.answer ? `${label(d)}: ${d.answer}`.trim() : ''))
-        .filter(Boolean)
-        .join('\n')
+      const qid = (d: DMIQuestion) => String(d.id ?? d.questionNumber ?? '')
+      // When the tutor picked a specific question, grade against THAT question's
+      // basis only — exactly like production per-question grading. Otherwise fall
+      // back to the whole scheme (a policy test across every question).
+      const selectedItem = testPciQuestionId
+        ? dmiItems.find(d => qid(d) === testPciQuestionId)
+        : undefined
+      const rubric = selectedItem
+        ? selectedItem.rubric || ''
+        : dmiItems
+            .map(d => (d.rubric ? `${label(d)}: ${d.rubric}`.trim() : ''))
+            .filter(Boolean)
+            .join('\n')
+      const modelAnswer = selectedItem
+        ? selectedItem.answer || ''
+        : dmiItems
+            .map(d => (d.answer ? `${label(d)}: ${d.answer}`.trim() : ''))
+            .filter(Boolean)
+            .join('\n')
+      // Per-question metadata (only meaningful for a single selected question).
+      const questionText = selectedItem?.questionText || ''
+      const responseType =
+        selectedItem && typeof selectedItem.responseType === 'string'
+          ? selectedItem.responseType
+          : undefined
+      const sourceDependencies =
+        selectedItem && Array.isArray(selectedItem.sourceDependencies)
+          ? selectedItem.sourceDependencies
+          : undefined
 
       // Append an "AI Coach: …" line to the affected tabs' transcripts.
       const recordNote = (note: string) =>
@@ -2762,7 +2787,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const response = await fetchWithCsrf('/api/tutor/test-grade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pci: pciContent, pciSpec, rubric, modelAnswer, answer }),
+          body: JSON.stringify({
+            pci: pciContent,
+            pciSpec,
+            rubric,
+            modelAnswer,
+            questionText,
+            responseType,
+            sourceDependencies,
+            answer,
+          }),
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || 'Failed to grade')
@@ -5503,7 +5537,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ))
           )}
           {courseAssets.length > 2 && (
-            <p className="text-center text-[10px] text-gray-400">
+            <p className="text-center text-[10px] text-gray-600">
               +{courseAssets.length - 2} more — click View to see all
             </p>
           )}
@@ -6187,7 +6221,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   )}
                 </div>
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
                   <Input
                     placeholder="Search assets..."
                     className="h-9 rounded-full border-gray-300 bg-white pl-9 text-sm shadow-sm"
@@ -6309,7 +6343,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 {folder !== 'All' && (
                                   <>
                                     <button
-                                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                      className="rounded p-0.5 text-gray-600 hover:bg-gray-100 hover:text-gray-600"
                                       onClick={e => {
                                         e.stopPropagation()
                                         setEditingFolder(folder)
@@ -6320,7 +6354,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       <Pencil className="h-3 w-3" />
                                     </button>
                                     <button
-                                      className="rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                      className="rounded p-0.5 text-gray-600 hover:bg-red-50 hover:text-red-500"
                                       onClick={e => {
                                         e.stopPropagation()
                                         const assetCount = courseAssets.filter(
@@ -6370,7 +6404,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   <ScrollArea className="flex-1">
                     <div className="space-y-2">
                       {filteredViewAssets.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-gray-400">
+                        <p className="py-8 text-center text-sm text-gray-600">
                           No assets in this folder.
                         </p>
                       ) : (
@@ -6611,7 +6645,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               <button
                 type="button"
                 onClick={() => setCurrentPci(source, '')}
-                className="text-slate-400 hover:text-red-600"
+                className="text-slate-600 hover:text-red-600"
               >
                 Clear
               </button>
@@ -6702,7 +6736,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             {value}
           </p>
         ) : (
-          <p className="mt-1 italic text-slate-400">
+          <p className="mt-1 italic text-slate-600">
             None yet — chat below to draft one, then click <b>Edit</b> to paste or type it here.
             This is what guides AI grading.
           </p>
@@ -8981,7 +9015,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     value={pollPrompt}
                                                     onChange={e => setPollPrompt(e.target.value)}
                                                     placeholder="Type your poll question here..."
-                                                    className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                                                    className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                                     rows={3}
                                                   />
                                                   {/* Poll options preview */}
@@ -9003,7 +9037,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       </>
                                                     )}
                                                     {pollOptionMode === 'custom' && (
-                                                      <p className="text-xs text-gray-400">
+                                                      <p className="text-xs text-gray-600">
                                                         Custom poll options will appear here
                                                       </p>
                                                     )}
@@ -9330,7 +9364,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   {s.name}
                                                                 </span>
                                                                 <div className="flex items-center gap-2">
-                                                                  <span className="text-slate-400">
+                                                                  <span className="text-slate-600">
                                                                     Page {pageIndex + 1}/{pageCount}
                                                                   </span>
                                                                   <Button
@@ -9636,7 +9670,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             </Tabs>
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
-                              !(mainTab === 'live' && testPciActiveTab === 'student1') && (
+                              !(mainTab === 'live' && testPciActiveTab === 'student1') &&
+                              // For a TASK in the Test tab, preview the new chat-based
+                              // flow students get (chat → Task complete → per-answer
+                              // responses → follow-up); assessments keep the composer.
+                              (mainTab === 'test-pci' && testPciSource === 'task' ? (
+                                <div key={testPciActiveTab} className="mt-1 h-[55vh] min-h-[340px]">
+                                  {(() => {
+                                    const ext = taskBuilder.activeExtensionId
+                                      ? taskBuilder.extensions.find(
+                                          e => e.id === taskBuilder.activeExtensionId
+                                        )
+                                      : null
+                                    return (
+                                      <TestTaskChat
+                                        pci={(ext ? ext.pci : taskBuilder.taskPci) || ''}
+                                        pciSpec={ext ? undefined : taskBuilder.pciSpec}
+                                        questionText={`${taskBuilder.title}\n\n${ext ? ext.content : taskBuilder.taskContent}`}
+                                      />
+                                    )
+                                  })()}
+                                </div>
+                              ) : (
                                 <div
                                   className={cn(
                                     'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
@@ -9644,6 +9699,114 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
+                                    {/* Test controls: per-question selector (grade against
+                                        ONE question's basis like production, or the whole
+                                        scheme) + a badge of which marking basis is present,
+                                        so the tutor knows what the grade will rest on. */}
+                                    {(() => {
+                                      const isTask = testPciSource === 'task'
+                                      const activeExt =
+                                        isTask && taskBuilder.activeExtensionId
+                                          ? taskBuilder.extensions.find(
+                                              e => e.id === taskBuilder.activeExtensionId
+                                            )
+                                          : null
+                                      const pci = (
+                                        activeExt
+                                          ? activeExt.pci
+                                          : isTask
+                                            ? taskBuilder.taskPci
+                                            : assessmentBuilder.taskPci
+                                      ) as string | undefined
+                                      const spec = isTask
+                                        ? activeExt
+                                          ? undefined
+                                          : taskBuilder.pciSpec
+                                        : assessmentBuilder.pciSpec
+                                      const testDmi = isTask ? taskDmiItems : assessmentDmiItems
+                                      const idOf = (d: DMIQuestion) =>
+                                        String(d.id ?? d.questionNumber ?? '')
+                                      const known = testDmi.some(d => idOf(d) === testPciQuestionId)
+                                      const selected = known
+                                        ? testDmi.find(d => idOf(d) === testPciQuestionId)
+                                        : undefined
+
+                                      const specKeys = [
+                                        'evaluationLogic',
+                                        'correctResponseBehavior',
+                                        'incorrectResponseBehavior',
+                                        'partialUnderstandingBehavior',
+                                      ] as const
+                                      const hasSpec =
+                                        !!spec &&
+                                        specKeys.some(
+                                          k => typeof spec[k] === 'string' && spec[k]!.trim()
+                                        )
+                                      const hasPci = (pci?.trim().length ?? 0) > 0 || hasSpec
+                                      const hasRubric = selected
+                                        ? !!selected.rubric?.trim()
+                                        : testDmi.some(d => d.rubric?.trim())
+                                      const hasModel = selected
+                                        ? !!selected.answer?.trim()
+                                        : testDmi.some(d => d.answer?.trim())
+                                      const anyBasis = hasPci || hasRubric || hasModel
+
+                                      const Chip = ({
+                                        ok,
+                                        children,
+                                      }: {
+                                        ok: boolean
+                                        children: React.ReactNode
+                                      }) => (
+                                        <span
+                                          className={cn(
+                                            'inline-flex items-center gap-0.5',
+                                            ok ? 'text-emerald-600' : 'text-slate-300'
+                                          )}
+                                        >
+                                          {ok ? '✓' : '✗'} {children}
+                                        </span>
+                                      )
+
+                                      return (
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pt-2 text-xs">
+                                          {testDmi.length > 0 && (
+                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                              <span className="shrink-0">Grade as answer to:</span>
+                                              <select
+                                                value={known ? testPciQuestionId : ''}
+                                                onChange={e => setTestPciQuestionId(e.target.value)}
+                                                className="min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                                              >
+                                                <option value="">
+                                                  Whole scheme (all questions)
+                                                </option>
+                                                {testDmi.map((d, i) => {
+                                                  const id = idOf(d)
+                                                  if (!id) return null
+                                                  return (
+                                                    <option key={id} value={id}>
+                                                      {d.questionLabel || `Question ${i + 1}`}
+                                                    </option>
+                                                  )
+                                                })}
+                                              </select>
+                                            </div>
+                                          )}
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-slate-500">Basis:</span>
+                                            <Chip ok={hasPci}>PCI</Chip>
+                                            <Chip ok={hasRubric}>Rubric</Chip>
+                                            <Chip ok={hasModel}>Model answer</Chip>
+                                          </div>
+                                          {!anyBasis && (
+                                            <span className="text-amber-600">
+                                              Add a PCI, rubric, or model answer to grade.
+                                            </span>
+                                          )}
+                                        </div>
+                                      )
+                                    })()}
                                     <div className="relative flex w-full items-end">
                                       <MentionTextarea
                                         mentionItems={mentionItems}
@@ -9697,7 +9860,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              ))}
                           </div>
                         </div>
                       </div>
@@ -9739,7 +9902,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <div className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'task' && (
                                 <input
-                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-blue-300"
+                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-blue-300"
                                   placeholder="Select or name a Task"
                                   readOnly={!canEdit}
                                   value={
@@ -9792,7 +9955,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'assessment' && (
                                 <input
-                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-purple-300"
+                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-purple-300"
                                   placeholder="Select or name an Assessment"
                                   readOnly={!canEdit}
                                   value={assessmentBuilder.title || ''}
@@ -10079,7 +10242,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   </a>
                                                 </div>
                                               ) : (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-500">
                                                     No document selected
@@ -10428,7 +10591,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   </a>
                                                 </div>
                                               ) : (
-                                                <div className="flex h-full flex-col items-center justify-center text-gray-400">
+                                                <div className="flex h-full flex-col items-center justify-center text-gray-600">
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-600">
                                                     No document selected
@@ -10458,7 +10621,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
-                                            <span className="text-xs font-light text-gray-400">
+                                            <span className="text-xs font-light text-gray-600">
                                               (
                                             </span>
 
@@ -10525,7 +10688,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               )}
                                             </Button>
 
-                                            <span className="text-xs font-light text-gray-400">
+                                            <span className="text-xs font-light text-gray-600">
                                               )
                                             </span>
                                           </div>
@@ -10832,7 +10995,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               value={pollPrompt}
                                               onChange={e => setPollPrompt(e.target.value)}
                                               placeholder="Type your poll question here..."
-                                              className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                                              className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                               rows={3}
                                             />
                                             {/* Poll options preview */}
@@ -10853,7 +11016,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 </>
                                               )}
                                               {pollOptionMode === 'custom' && (
-                                                <p className="text-xs text-gray-400">
+                                                <p className="text-xs text-gray-600">
                                                   Custom poll options will appear here
                                                 </p>
                                               )}
@@ -11847,7 +12010,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   disabled={!canEdit}
                                   onClick={() => removeDmiItem(dmiEditor.source, item.id)}
                                   title="Remove this question"
-                                  className="rounded-md p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="rounded-md p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -11860,7 +12023,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 </label>
                                 {item.options.map((o, i) => (
                                   <div key={i} className="flex items-center gap-1.5">
-                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-400">
+                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-600">
                                       {String.fromCharCode(97 + i)})
                                     </span>
                                     <input
@@ -11882,7 +12045,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         applyDmiEdit(dmiEditor.source, item.id, { options: next })
                                       }}
                                       title="Remove this option"
-                                      className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
@@ -12113,7 +12276,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 shrink-0 text-slate-400 hover:text-red-500"
+                    className="h-9 w-9 shrink-0 text-slate-600 hover:text-red-500"
                     disabled={dmiSpecRows.length <= 1}
                     onClick={() => setDmiSpecRows(prev => prev.filter((_, i) => i !== idx))}
                   >
