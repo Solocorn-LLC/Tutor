@@ -1107,6 +1107,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     })
     const [testPciLoading, setTestPciLoading] = useState(false)
     const [testPciActiveTab, setTestPciActiveTab] = useState('classroom')
+    // Which question the sample answer is being graded against. '' = grade
+    // against the whole scheme (policy test across all questions).
+    const [testPciQuestionId, setTestPciQuestionId] = useState<string>('')
     const [isMirroringToStudents, setIsMirroringToStudents] = useState(true)
 
     // Course sync mode: auto | manual | ask (from localStorage)
@@ -2722,14 +2725,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           : assessmentBuilder.pciSpec
       const dmiItems = testPciSource === 'task' ? taskDmiItems : assessmentDmiItems
       const label = (d: DMIQuestion) => d.questionLabel || d.questionText || ''
-      const rubric = dmiItems
-        .map(d => (d.rubric ? `${label(d)}: ${d.rubric}`.trim() : ''))
-        .filter(Boolean)
-        .join('\n')
-      const modelAnswer = dmiItems
-        .map(d => (d.answer ? `${label(d)}: ${d.answer}`.trim() : ''))
-        .filter(Boolean)
-        .join('\n')
+      const qid = (d: DMIQuestion) => String(d.id ?? d.questionNumber ?? '')
+      // When the tutor picked a specific question, grade against THAT question's
+      // basis only — exactly like production per-question grading. Otherwise fall
+      // back to the whole scheme (a policy test across every question).
+      const selectedItem = testPciQuestionId
+        ? dmiItems.find(d => qid(d) === testPciQuestionId)
+        : undefined
+      const rubric = selectedItem
+        ? selectedItem.rubric || ''
+        : dmiItems
+            .map(d => (d.rubric ? `${label(d)}: ${d.rubric}`.trim() : ''))
+            .filter(Boolean)
+            .join('\n')
+      const modelAnswer = selectedItem
+        ? selectedItem.answer || ''
+        : dmiItems
+            .map(d => (d.answer ? `${label(d)}: ${d.answer}`.trim() : ''))
+            .filter(Boolean)
+            .join('\n')
+      // Per-question metadata (only meaningful for a single selected question).
+      const questionText = selectedItem?.questionText || ''
+      const responseType =
+        selectedItem && typeof selectedItem.responseType === 'string'
+          ? selectedItem.responseType
+          : undefined
+      const sourceDependencies =
+        selectedItem && Array.isArray(selectedItem.sourceDependencies)
+          ? selectedItem.sourceDependencies
+          : undefined
 
       // Append an "AI Coach: …" line to the affected tabs' transcripts.
       const recordNote = (note: string) =>
@@ -2762,7 +2786,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const response = await fetchWithCsrf('/api/tutor/test-grade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pci: pciContent, pciSpec, rubric, modelAnswer, answer }),
+          body: JSON.stringify({
+            pci: pciContent,
+            pciSpec,
+            rubric,
+            modelAnswer,
+            questionText,
+            responseType,
+            sourceDependencies,
+            answer,
+          }),
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || 'Failed to grade')
@@ -9644,6 +9677,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
+                                    {/* Per-question selector: grade the sample answer
+                                        against ONE question's basis (like production),
+                                        or the whole scheme. Only when the item has a DMI. */}
+                                    {(() => {
+                                      const testDmi =
+                                        testPciSource === 'task' ? taskDmiItems : assessmentDmiItems
+                                      if (testDmi.length === 0) return null
+                                      const idOf = (d: DMIQuestion) =>
+                                        String(d.id ?? d.questionNumber ?? '')
+                                      const known = testDmi.some(d => idOf(d) === testPciQuestionId)
+                                      return (
+                                        <div className="flex items-center gap-2 px-3 pt-2 text-xs text-slate-500">
+                                          <span className="shrink-0">Grade as answer to:</span>
+                                          <select
+                                            value={known ? testPciQuestionId : ''}
+                                            onChange={e => setTestPciQuestionId(e.target.value)}
+                                            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                                          >
+                                            <option value="">Whole scheme (all questions)</option>
+                                            {testDmi.map((d, i) => {
+                                              const id = idOf(d)
+                                              if (!id) return null
+                                              return (
+                                                <option key={id} value={id}>
+                                                  {d.questionLabel || `Question ${i + 1}`}
+                                                </option>
+                                              )
+                                            })}
+                                          </select>
+                                        </div>
+                                      )
+                                    })()}
                                     <div className="relative flex w-full items-end">
                                       <MentionTextarea
                                         mentionItems={mentionItems}

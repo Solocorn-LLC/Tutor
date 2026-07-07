@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       rubric?: unknown
       modelAnswer?: unknown
       questionText?: unknown
+      responseType?: unknown
+      sourceDependencies?: unknown
       answer?: unknown
     }
 
@@ -50,6 +52,10 @@ export async function POST(request: NextRequest) {
       rubric: typeof body.rubric === 'string' ? body.rubric : undefined,
       modelAnswer: typeof body.modelAnswer === 'string' ? body.modelAnswer : undefined,
       questionText: typeof body.questionText === 'string' ? body.questionText : undefined,
+      responseType: typeof body.responseType === 'string' ? body.responseType : undefined,
+      sourceDependencies: Array.isArray(body.sourceDependencies)
+        ? body.sourceDependencies.map(s => String(s))
+        : undefined,
       studentAnswer: answer,
     })
 
