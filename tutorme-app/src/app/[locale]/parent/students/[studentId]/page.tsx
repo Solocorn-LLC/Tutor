@@ -12,6 +12,7 @@ import {
   Loader2,
   BookOpen,
   Calendar,
+  CalendarClock,
   TrendingUp,
   CreditCard,
 } from 'lucide-react'
@@ -33,31 +34,37 @@ interface StudentData {
 const tabs = [
   {
     id: 'overview',
-    label: '概览',
+    label: 'Overview',
     href: (id: string) => `/parent/students/${id}`,
     icon: TrendingUp,
   },
   {
     id: 'assignments',
-    label: '作业与测验',
+    label: 'Assignments',
     href: (id: string) => `/parent/students/${id}/assignments`,
     icon: ClipboardList,
   },
   {
+    id: 'availability',
+    label: 'Availability',
+    href: (id: string) => `/parent/students/${id}/availability`,
+    icon: CalendarClock,
+  },
+  {
     id: 'ai-tutor',
-    label: 'AI 辅导',
+    label: 'AI Tutor',
     href: (id: string) => `/parent/students/${id}/ai-tutor`,
     icon: Bot,
   },
   {
     id: 'classes',
-    label: '课程安排',
+    label: 'Classes',
     href: (id: string) => `/parent/students/${id}`,
     icon: Calendar,
   },
   {
     id: 'financial',
-    label: '财务',
+    label: 'Finance',
     href: (id: string) => `/parent/students/${id}`,
     icon: CreditCard,
   },
@@ -107,7 +114,7 @@ export default function StudentDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <p className="text-gray-500">无法加载学生信息</p>
+        <p className="text-gray-500">Failed to load student information</p>
       </div>
     )
   }
@@ -126,7 +133,7 @@ export default function StudentDetailPage() {
             <p className="text-sm text-gray-500">
               {student.email && `${student.email} · `}
               {student.relation}
-              {student.level != null && ` · 等级 ${student.level}`}
+              {student.level != null && ` · Level ${student.level}`}
               {student.xp != null && ` · ${student.xp} XP`}
             </p>
           </div>
@@ -155,12 +162,12 @@ export default function StudentDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                已选课程
+                Enrolled courses
               </CardTitle>
             </CardHeader>
             <CardContent>
               {student.enrollments.length === 0 ? (
-                <p className="text-sm text-gray-500">暂无课程</p>
+                <p className="text-sm text-gray-500">No courses yet</p>
               ) : (
                 <ul className="space-y-2">
                   {student.enrollments.map(e => (
@@ -174,19 +181,19 @@ export default function StudentDetailPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">快捷入口</CardTitle>
+              <CardTitle className="flex items-center gap-2">Quick access</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/parent/students/${studentId}/assignments`}>
                   <ClipboardList className="mr-2 h-4 w-4" />
-                  作业与测验
+                  Assignments
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/parent/students/${studentId}/ai-tutor`}>
                   <Bot className="mr-2 h-4 w-4" />
-                  AI 辅导
+                  AI Tutor
                 </Link>
               </Button>
             </CardContent>
@@ -194,7 +201,7 @@ export default function StudentDetailPage() {
         </div>
       )}
 
-      {isChildRoute && <p className="text-sm text-gray-500">请使用上方标签切换不同视图</p>}
+      {isChildRoute && <p className="text-sm text-gray-500">Use the tabs above to switch views</p>}
     </div>
   )
 }
