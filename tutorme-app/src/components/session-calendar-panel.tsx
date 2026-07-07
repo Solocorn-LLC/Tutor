@@ -98,8 +98,13 @@ export function SessionCalendarPanel({
     })
   }, [])
   React.useLayoutEffect(() => {
-    updatePillPosition()
-  }, [updatePillPosition])
+    // Defer to next frame so Radix UI has time to update data-state attributes
+    const id = requestAnimationFrame(() => {
+      updatePillPosition()
+    })
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   React.useEffect(() => {
     const id = setTimeout(updatePillPosition, 100)

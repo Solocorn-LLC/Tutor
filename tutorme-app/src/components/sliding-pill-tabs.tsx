@@ -82,12 +82,18 @@ export function SlidingPillTabsList({
       left: rect.left - listRect.left,
       width: rect.width,
     })
-  }, [_activeIndex])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Update position when active tab changes
   React.useLayoutEffect(() => {
-    updatePillPosition()
-  }, [updatePillPosition])
+    // Defer to next frame so Radix UI has time to update data-state attributes
+    const id = requestAnimationFrame(() => {
+      updatePillPosition()
+    })
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   // Update after a delay for fonts/layout
   React.useEffect(() => {
