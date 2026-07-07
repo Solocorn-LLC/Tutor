@@ -37,16 +37,22 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
       }
       const data = await res.json()
       const list: AppNotification[] = (data.notifications || []).map(
-        (n: Record<string, unknown>) => ({
-          id: (n.notificationId as string) || (n.id as string),
-          type: (n.type as string) || 'message',
-          title: n.title as string,
-          message: n.message as string,
-          read: !!n.read,
-          createdAt: (n.createdAt as string) || new Date().toISOString(),
-          actionUrl: (n.actionUrl as string | null) || null,
-          data: (n.data as Record<string, unknown> | null) || null,
-        })
+        (n: Record<string, unknown>) => {
+          const dataObj = (n.data as Record<string, unknown> | null) || null
+          return {
+            id: (n.notificationId as string) || (n.id as string),
+            type: (n.type as string) || 'message',
+            title: n.title as string,
+            message: n.message as string,
+            read: !!n.read,
+            createdAt: (n.createdAt as string) || new Date().toISOString(),
+            actionUrl: (n.actionUrl as string | null) || null,
+            data: dataObj,
+            courseName: (dataObj?.courseName as string) || null,
+            tutorName: (dataObj?.tutorName as string) || null,
+            tutorUsername: (dataObj?.tutorUsername as string) || null,
+          }
+        }
       )
       setNotifications(list)
     } catch {
