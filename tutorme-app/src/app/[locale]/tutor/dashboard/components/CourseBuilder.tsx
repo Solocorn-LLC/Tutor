@@ -130,6 +130,7 @@ import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
+import { TestTaskChat } from './TestTaskChat'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -9669,7 +9670,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             </Tabs>
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
-                              !(mainTab === 'live' && testPciActiveTab === 'student1') && (
+                              !(mainTab === 'live' && testPciActiveTab === 'student1') &&
+                              // For a TASK in the Test tab, preview the new chat-based
+                              // flow students get (chat → Task complete → per-answer
+                              // responses → follow-up); assessments keep the composer.
+                              (mainTab === 'test-pci' && testPciSource === 'task' ? (
+                                <div key={testPciActiveTab} className="mt-1 h-[55vh] min-h-[340px]">
+                                  {(() => {
+                                    const ext = taskBuilder.activeExtensionId
+                                      ? taskBuilder.extensions.find(
+                                          e => e.id === taskBuilder.activeExtensionId
+                                        )
+                                      : null
+                                    return (
+                                      <TestTaskChat
+                                        pci={(ext ? ext.pci : taskBuilder.taskPci) || ''}
+                                        pciSpec={ext ? undefined : taskBuilder.pciSpec}
+                                        questionText={`${taskBuilder.title}\n\n${ext ? ext.content : taskBuilder.taskContent}`}
+                                      />
+                                    )
+                                  })()}
+                                </div>
+                              ) : (
                                 <div
                                   className={cn(
                                     'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
@@ -9838,7 +9860,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              ))}
                           </div>
                         </div>
                       </div>
