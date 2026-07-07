@@ -5536,7 +5536,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ))
           )}
           {courseAssets.length > 2 && (
-            <p className="text-center text-[10px] text-gray-400">
+            <p className="text-center text-[10px] text-gray-600">
               +{courseAssets.length - 2} more — click View to see all
             </p>
           )}
@@ -6220,7 +6220,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   )}
                 </div>
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
                   <Input
                     placeholder="Search assets..."
                     className="h-9 rounded-full border-gray-300 bg-white pl-9 text-sm shadow-sm"
@@ -6342,7 +6342,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 {folder !== 'All' && (
                                   <>
                                     <button
-                                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                      className="rounded p-0.5 text-gray-600 hover:bg-gray-100 hover:text-gray-600"
                                       onClick={e => {
                                         e.stopPropagation()
                                         setEditingFolder(folder)
@@ -6353,7 +6353,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       <Pencil className="h-3 w-3" />
                                     </button>
                                     <button
-                                      className="rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                      className="rounded p-0.5 text-gray-600 hover:bg-red-50 hover:text-red-500"
                                       onClick={e => {
                                         e.stopPropagation()
                                         const assetCount = courseAssets.filter(
@@ -6403,7 +6403,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   <ScrollArea className="flex-1">
                     <div className="space-y-2">
                       {filteredViewAssets.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-gray-400">
+                        <p className="py-8 text-center text-sm text-gray-600">
                           No assets in this folder.
                         </p>
                       ) : (
@@ -6644,7 +6644,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               <button
                 type="button"
                 onClick={() => setCurrentPci(source, '')}
-                className="text-slate-400 hover:text-red-600"
+                className="text-slate-600 hover:text-red-600"
               >
                 Clear
               </button>
@@ -6735,7 +6735,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             {value}
           </p>
         ) : (
-          <p className="mt-1 italic text-slate-400">
+          <p className="mt-1 italic text-slate-600">
             None yet — chat below to draft one, then click <b>Edit</b> to paste or type it here.
             This is what guides AI grading.
           </p>
@@ -9014,7 +9014,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     value={pollPrompt}
                                                     onChange={e => setPollPrompt(e.target.value)}
                                                     placeholder="Type your poll question here..."
-                                                    className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                                                    className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                                     rows={3}
                                                   />
                                                   {/* Poll options preview */}
@@ -9036,7 +9036,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       </>
                                                     )}
                                                     {pollOptionMode === 'custom' && (
-                                                      <p className="text-xs text-gray-400">
+                                                      <p className="text-xs text-gray-600">
                                                         Custom poll options will appear here
                                                       </p>
                                                     )}
@@ -9363,7 +9363,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   {s.name}
                                                                 </span>
                                                                 <div className="flex items-center gap-2">
-                                                                  <span className="text-slate-400">
+                                                                  <span className="text-slate-600">
                                                                     Page {pageIndex + 1}/{pageCount}
                                                                   </span>
                                                                   <Button
@@ -9880,7 +9880,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <div className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'task' && (
                                 <input
-                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-blue-300"
+                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-blue-300"
                                   placeholder="Select or name a Task"
                                   readOnly={!canEdit}
                                   value={
@@ -9933,7 +9933,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 text-sm font-semibold text-[#1F2933]">
                               {mainBuilderTab === 'assessment' && (
                                 <input
-                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-400 focus-visible:border-b focus-visible:border-purple-300"
+                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-purple-300"
                                   placeholder="Select or name an Assessment"
                                   readOnly={!canEdit}
                                   value={assessmentBuilder.title || ''}
@@ -10220,7 +10220,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   </a>
                                                 </div>
                                               ) : (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-500">
                                                     No document selected
@@ -10569,7 +10569,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   </a>
                                                 </div>
                                               ) : (
-                                                <div className="flex h-full flex-col items-center justify-center text-gray-400">
+                                                <div className="flex h-full flex-col items-center justify-center text-gray-600">
                                                   <FileText className="mb-4 h-16 w-16 text-gray-300" />
                                                   <p className="text-lg font-medium text-gray-600">
                                                     No document selected
@@ -10599,7 +10599,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         {/* Centered Pill for Test, Generate DMI, and Version History */}
                                         <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
                                           <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
-                                            <span className="text-xs font-light text-gray-400">
+                                            <span className="text-xs font-light text-gray-600">
                                               (
                                             </span>
 
@@ -10666,7 +10666,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               )}
                                             </Button>
 
-                                            <span className="text-xs font-light text-gray-400">
+                                            <span className="text-xs font-light text-gray-600">
                                               )
                                             </span>
                                           </div>
@@ -10973,7 +10973,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               value={pollPrompt}
                                               onChange={e => setPollPrompt(e.target.value)}
                                               placeholder="Type your poll question here..."
-                                              className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                                              className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                               rows={3}
                                             />
                                             {/* Poll options preview */}
@@ -10994,7 +10994,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 </>
                                               )}
                                               {pollOptionMode === 'custom' && (
-                                                <p className="text-xs text-gray-400">
+                                                <p className="text-xs text-gray-600">
                                                   Custom poll options will appear here
                                                 </p>
                                               )}
@@ -11988,7 +11988,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   disabled={!canEdit}
                                   onClick={() => removeDmiItem(dmiEditor.source, item.id)}
                                   title="Remove this question"
-                                  className="rounded-md p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="rounded-md p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -12001,7 +12001,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 </label>
                                 {item.options.map((o, i) => (
                                   <div key={i} className="flex items-center gap-1.5">
-                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-400">
+                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-600">
                                       {String.fromCharCode(97 + i)})
                                     </span>
                                     <input
@@ -12023,7 +12023,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         applyDmiEdit(dmiEditor.source, item.id, { options: next })
                                       }}
                                       title="Remove this option"
-                                      className="rounded p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
@@ -12254,7 +12254,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 shrink-0 text-slate-400 hover:text-red-500"
+                    className="h-9 w-9 shrink-0 text-slate-600 hover:text-red-500"
                     disabled={dmiSpecRows.length <= 1}
                     onClick={() => setDmiSpecRows(prev => prev.filter((_, i) => i !== idx))}
                   >

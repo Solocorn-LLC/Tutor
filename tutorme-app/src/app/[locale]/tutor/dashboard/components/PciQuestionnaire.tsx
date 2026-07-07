@@ -169,7 +169,7 @@ function FieldHelp({
           clearTimer()
           setOpen(o => !o)
         }}
-        className="text-slate-400 transition-colors hover:text-indigo-600"
+        className="text-slate-600 transition-colors hover:text-indigo-600"
       >
         <HelpCircle className="h-3.5 w-3.5" />
       </button>
@@ -457,7 +457,7 @@ export function PciQuestionnaire({
               ))}
             </datalist>
           </div>
-          <p className="col-span-2 text-[10px] leading-snug text-slate-400">
+          <p className="col-span-2 text-[10px] leading-snug text-slate-600">
             Shared with Course details — set it here for a new course, or it shows the published
             course&rsquo;s category. Board auto-fills from the subject; override if needed.
           </p>
@@ -488,7 +488,7 @@ export function PciQuestionnaire({
               onChange={e => setField(key, e.target.value)}
               placeholder={FIELD_HELP[key].placeholder}
               rows={1}
-              className="mt-0.5 min-h-[32px] w-full resize-y rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900 placeholder:text-slate-400"
+              className="mt-0.5 min-h-[32px] w-full resize-y rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900 placeholder:text-slate-500"
             />
           </div>
         ))}
