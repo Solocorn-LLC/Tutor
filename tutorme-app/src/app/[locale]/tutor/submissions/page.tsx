@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { FollowUpInsightsCard } from '@/components/tutor/follow-up-insights-card'
+import { ClassMasteryCard } from '@/components/tutor/class-mastery-card'
 import { MathText, hasMath } from '@/components/answer/MathText'
 import { cn } from '@/lib/utils'
 
@@ -136,6 +137,7 @@ export default function TutorSubmissionsPage() {
       </section>
 
       <div className="px-1">
+        <ClassMasteryCard />
         <FollowUpInsightsCard />
       </div>
 
