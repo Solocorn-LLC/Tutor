@@ -131,7 +131,7 @@ export default function NotificationsPanel({
               const content = (
                 <div
                   className={cn(
-                    'border-border/20 flex items-start gap-3 rounded-xl border p-3 shadow-sm transition-colors',
+                    'border-border/20 flex w-full items-start gap-3 rounded-xl border p-3 shadow-sm transition-colors',
                     notification.read ? 'bg-white' : 'bg-blue-50/40'
                   )}
                 >
@@ -150,6 +150,16 @@ export default function NotificationsPanel({
                         <p className="mt-0.5 text-[11px] leading-tight text-slate-600">
                           {notification.message}
                         </p>
+                        {(notification.courseName || notification.tutorName) && (
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {notification.courseName}
+                            {notification.courseName && notification.tutorName && ' • '}
+                            {notification.tutorName}
+                            {notification.tutorName && notification.tutorUsername && (
+                              <span className="text-slate-400"> @{notification.tutorUsername}</span>
+                            )}
+                          </p>
+                        )}
                         <p className="mt-0.5 text-[10px] text-slate-400">
                           {formatTime(notification.createdAt)}
                         </p>
