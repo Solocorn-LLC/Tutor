@@ -9677,35 +9677,111 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
-                                    {/* Per-question selector: grade the sample answer
-                                        against ONE question's basis (like production),
-                                        or the whole scheme. Only when the item has a DMI. */}
+                                    {/* Test controls: per-question selector (grade against
+                                        ONE question's basis like production, or the whole
+                                        scheme) + a badge of which marking basis is present,
+                                        so the tutor knows what the grade will rest on. */}
                                     {(() => {
-                                      const testDmi =
-                                        testPciSource === 'task' ? taskDmiItems : assessmentDmiItems
-                                      if (testDmi.length === 0) return null
+                                      const isTask = testPciSource === 'task'
+                                      const activeExt =
+                                        isTask && taskBuilder.activeExtensionId
+                                          ? taskBuilder.extensions.find(
+                                              e => e.id === taskBuilder.activeExtensionId
+                                            )
+                                          : null
+                                      const pci = (
+                                        activeExt
+                                          ? activeExt.pci
+                                          : isTask
+                                            ? taskBuilder.taskPci
+                                            : assessmentBuilder.taskPci
+                                      ) as string | undefined
+                                      const spec = isTask
+                                        ? activeExt
+                                          ? undefined
+                                          : taskBuilder.pciSpec
+                                        : assessmentBuilder.pciSpec
+                                      const testDmi = isTask ? taskDmiItems : assessmentDmiItems
                                       const idOf = (d: DMIQuestion) =>
                                         String(d.id ?? d.questionNumber ?? '')
                                       const known = testDmi.some(d => idOf(d) === testPciQuestionId)
+                                      const selected = known
+                                        ? testDmi.find(d => idOf(d) === testPciQuestionId)
+                                        : undefined
+
+                                      const specKeys = [
+                                        'evaluationLogic',
+                                        'correctResponseBehavior',
+                                        'incorrectResponseBehavior',
+                                        'partialUnderstandingBehavior',
+                                      ] as const
+                                      const hasSpec =
+                                        !!spec &&
+                                        specKeys.some(
+                                          k => typeof spec[k] === 'string' && spec[k]!.trim()
+                                        )
+                                      const hasPci = (pci?.trim().length ?? 0) > 0 || hasSpec
+                                      const hasRubric = selected
+                                        ? !!selected.rubric?.trim()
+                                        : testDmi.some(d => d.rubric?.trim())
+                                      const hasModel = selected
+                                        ? !!selected.answer?.trim()
+                                        : testDmi.some(d => d.answer?.trim())
+                                      const anyBasis = hasPci || hasRubric || hasModel
+
+                                      const Chip = ({
+                                        ok,
+                                        children,
+                                      }: {
+                                        ok: boolean
+                                        children: React.ReactNode
+                                      }) => (
+                                        <span
+                                          className={cn(
+                                            'inline-flex items-center gap-0.5',
+                                            ok ? 'text-emerald-600' : 'text-slate-300'
+                                          )}
+                                        >
+                                          {ok ? '✓' : '✗'} {children}
+                                        </span>
+                                      )
+
                                       return (
-                                        <div className="flex items-center gap-2 px-3 pt-2 text-xs text-slate-500">
-                                          <span className="shrink-0">Grade as answer to:</span>
-                                          <select
-                                            value={known ? testPciQuestionId : ''}
-                                            onChange={e => setTestPciQuestionId(e.target.value)}
-                                            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                                          >
-                                            <option value="">Whole scheme (all questions)</option>
-                                            {testDmi.map((d, i) => {
-                                              const id = idOf(d)
-                                              if (!id) return null
-                                              return (
-                                                <option key={id} value={id}>
-                                                  {d.questionLabel || `Question ${i + 1}`}
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pt-2 text-xs">
+                                          {testDmi.length > 0 && (
+                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                              <span className="shrink-0">Grade as answer to:</span>
+                                              <select
+                                                value={known ? testPciQuestionId : ''}
+                                                onChange={e => setTestPciQuestionId(e.target.value)}
+                                                className="min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                                              >
+                                                <option value="">
+                                                  Whole scheme (all questions)
                                                 </option>
-                                              )
-                                            })}
-                                          </select>
+                                                {testDmi.map((d, i) => {
+                                                  const id = idOf(d)
+                                                  if (!id) return null
+                                                  return (
+                                                    <option key={id} value={id}>
+                                                      {d.questionLabel || `Question ${i + 1}`}
+                                                    </option>
+                                                  )
+                                                })}
+                                              </select>
+                                            </div>
+                                          )}
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-slate-500">Basis:</span>
+                                            <Chip ok={hasPci}>PCI</Chip>
+                                            <Chip ok={hasRubric}>Rubric</Chip>
+                                            <Chip ok={hasModel}>Model answer</Chip>
+                                          </div>
+                                          {!anyBasis && (
+                                            <span className="text-amber-600">
+                                              Add a PCI, rubric, or model answer to grade.
+                                            </span>
+                                          )}
                                         </div>
                                       )
                                     })()}
