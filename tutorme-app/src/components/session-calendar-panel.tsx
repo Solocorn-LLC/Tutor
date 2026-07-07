@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { useRef, useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -161,10 +160,13 @@ export function SessionCalendarPanel({
                   {tab.label}
                 </TabsTrigger>
               ))}
-              <motion.div
-                className="absolute bottom-1.5 top-1.5 rounded-lg bg-white shadow-sm"
-                animate={{ left: pillStyle.left, width: pillStyle.width }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              <div
+                className="absolute bottom-1.5 top-1.5 rounded-lg bg-white shadow-sm transition-all duration-300 ease-out"
+                style={{
+                  left: pillStyle.left,
+                  width: pillStyle.width,
+                  transitionProperty: 'left, width',
+                }}
               />
             </TabsList>
 
