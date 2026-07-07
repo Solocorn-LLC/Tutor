@@ -126,7 +126,7 @@ export default function NotificationsPanel({
         ) : notifications.length === 0 ? (
           EmptyState
         ) : (
-          <div className="space-y-2 pt-4">
+          <div className="w-full space-y-2 pt-4">
             {notifications.map(notification => {
               const content = (
                 <div
