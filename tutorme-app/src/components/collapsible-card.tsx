@@ -34,6 +34,7 @@ export function CollapsibleCard({
       {/* Outer wrapper with shadow - overflow visible so shadow shows */}
       <div
         className={cn(
+          'flex h-full flex-col',
           flush
             ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
             : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
