@@ -223,9 +223,9 @@ export default function StudentTutorDirectoryPage() {
 
       {/* Bottom panel: filters + results */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
+        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
           {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 pb-0 md:grid-cols-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
@@ -311,7 +311,7 @@ export default function StudentTutorDirectoryPage() {
           </div>
 
           {/* Tutor grid */}
-          <div className="flex flex-1 flex-col p-4 pt-3 sm:p-6 sm:pt-4">
+          <div className="flex flex-1 flex-col pt-3 sm:pt-4">
             <div className="flex flex-1 flex-col justify-around">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {loading ? (
