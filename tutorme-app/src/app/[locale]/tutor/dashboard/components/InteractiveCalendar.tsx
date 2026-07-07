@@ -1061,7 +1061,7 @@ export function InteractiveCalendar({
                     <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-200 !bg-white !bg-none p-1.5 !text-slate-700 shadow-lg">
                       <SelectItem
                         value="all"
-                        className="!hover:bg-slate-100 !focus:bg-slate-100 rounded-md text-xs !text-slate-700"
+                        className="!hover:bg-slate-100 rounded-md text-xs !text-slate-700"
                       >
                         All Categories
                       </SelectItem>
@@ -1078,7 +1078,7 @@ export function InteractiveCalendar({
                         <SelectItem
                           key={name}
                           value={name}
-                          className="!hover:bg-slate-100 !focus:bg-slate-100 rounded-md text-xs !text-slate-700"
+                          className="!hover:bg-slate-100 rounded-md text-xs !text-slate-700"
                         >
                           {name}
                         </SelectItem>

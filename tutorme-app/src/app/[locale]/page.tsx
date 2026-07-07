@@ -2243,7 +2243,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 <SelectItem
                   key={region.id}
                   value={region.id}
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   {region.name}
                 </SelectItem>
@@ -2264,7 +2264,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 <SelectItem
                   key={country.code}
                   value={country.code}
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   {country.name}
                 </SelectItem>

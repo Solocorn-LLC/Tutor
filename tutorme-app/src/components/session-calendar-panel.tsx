@@ -205,7 +205,7 @@ export function SessionCalendarPanel({
                         <SelectItem
                           key={tz}
                           value={tz}
-                          className="!hover:bg-slate-100 !focus:bg-slate-100 rounded-md text-xs !text-slate-700"
+                          className="!hover:bg-slate-100 rounded-md text-xs !text-slate-700"
                         >
                           {city}
                         </SelectItem>

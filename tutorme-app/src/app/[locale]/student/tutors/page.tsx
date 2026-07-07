@@ -253,7 +253,7 @@ export default function StudentTutorDirectoryPage() {
                   <SelectItem
                     key={region.id}
                     value={region.id}
-                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                   >
                     {region.name}
                   </SelectItem>
@@ -273,7 +273,7 @@ export default function StudentTutorDirectoryPage() {
                   <SelectItem
                     key={country.code}
                     value={country.code}
-                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                   >
                     {country.name}
                   </SelectItem>
@@ -287,25 +287,25 @@ export default function StudentTutorDirectoryPage() {
               <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
                 <SelectItem
                   value="popular"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Most Popular
                 </SelectItem>
                 <SelectItem
                   value="newest"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Recently Updated
                 </SelectItem>
                 <SelectItem
                   value="courses"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Most Courses
                 </SelectItem>
                 <SelectItem
                   value="rate"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Highest Rated
                 </SelectItem>
