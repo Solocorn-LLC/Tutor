@@ -557,53 +557,8 @@ export function InteractiveCalendar({
     loadExceptions()
   }, [mode, timezoneProp])
 
-  // Load the STUDENT's own availability so the calendar can grey out the hours
-  // they haven't marked free. Student model is INVERTED vs. tutor: a slot is
-  // available only when explicitly marked free (tutors are available unless
-  // blocked), so we build a full grid with isAvailable = "marked free". We only
-  // apply greying once the student has set some availability — otherwise a brand
-  // new student would see an all-grey calendar.
-  useEffect(() => {
-    if (mode !== 'student') return
-    const loadStudentAvailability = async () => {
-      setAvailabilityLoading(true)
-      try {
-        const res = await fetch('/api/student/calendar/availability', { credentials: 'include' })
-        if (!res.ok) return
-        const data = await res.json().catch(() => ({}))
-        const rows = Array.isArray(data?.availability) ? data.availability : []
-        const freeSet = new Set<string>()
-        for (const r of rows) {
-          if (r?.isAvailable) freeSet.add(`${r.dayOfWeek}-${r.startTime}`)
-        }
-        if (freeSet.size === 0) {
-          setAvailability([])
-        } else {
-          setAvailability(
-            generateAvailability().map(block => ({
-              ...block,
-              isAvailable: freeSet.has(`${block.dayOfWeek}-${block.startTime}`),
-            }))
-          )
-        }
-        const exRows = Array.isArray(data?.exceptions) ? data.exceptions : []
-        setCalendarExceptions(
-          exRows.map((e: any) => ({
-            date: typeof e.date === 'string' ? e.date : new Date(e.date).toISOString(),
-            isAvailable: !!e.isAvailable,
-            startTime: e.startTime ?? null,
-            endTime: e.endTime ?? null,
-            reason: e.reason ?? null,
-          }))
-        )
-      } catch {
-        // ignore — leave calendar un-shaded on failure
-      } finally {
-        setAvailabilityLoading(false)
-      }
-    }
-    loadStudentAvailability()
-  }, [mode])
+  // Note: a student's availability is now managed by their parent, not the
+  // student, so the student calendar no longer loads/greys availability here.
 
   // Load calendar events for the visible month (tutor mode)
   useEffect(() => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, Check, CalendarClock, Info } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -15,7 +15,7 @@ const DAYS = [
   { idx: 0, short: 'Sun', long: 'Sunday' },
 ]
 
-// Waking hours shown as togglable slots (24h grid would be unwieldy).
+// Waking hours shown as togglable slots (a full 24h grid would be unwieldy).
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6) // 6:00 .. 22:00
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -26,35 +26,32 @@ const hourLabel = (h: number) => {
   return `${display} ${period}`
 }
 
-interface SessionItem {
-  id: string
-  title: string
-  startTime: string
-  courseName?: string | null
+interface AvailabilityEditorProps {
+  /** The child/student whose availability the parent is editing. */
+  studentId: string
+  studentName?: string
 }
 
 /**
- * Student "My Availability" — an editable weekly grid of free slots, plus the
- * student's upcoming course sessions for context (so availability is set around
- * existing commitments). Persists to /api/student/calendar/availability.
+ * Parent-facing weekly availability editor for a child. Persists to
+ * /api/parent/students/[studentId]/availability, which writes to the same
+ * StudentAvailability table (keyed by the child's studentId) that the rest of
+ * the app reads, so tutor scheduling and calendars stay consistent.
  */
-export function StudentAvailabilityTab() {
+export function AvailabilityEditor({ studentId, studentName }: AvailabilityEditorProps) {
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [available, setAvailable] = useState<Set<string>>(new Set())
-  const [selectedDay, setSelectedDay] = useState<number>(() => {
-    const d = new Date().getDay()
-    return d
-  })
-  const [sessions, setSessions] = useState<SessionItem[]>([])
+  const [selectedDay, setSelectedDay] = useState<number>(() => new Date().getDay())
 
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', [])
+  const endpoint = `/api/parent/students/${studentId}/availability`
 
-  // Load saved availability
+  // Load the child's saved availability
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetch('/api/student/calendar/availability', { credentials: 'include' })
+    fetch(endpoint, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (cancelled) return
@@ -65,7 +62,7 @@ export function StudentAvailabilityTab() {
         setAvailable(set)
       })
       .catch(() => {
-        if (!cancelled) toast.error('Could not load your availability')
+        if (!cancelled) toast.error("Could not load this student's availability")
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -73,46 +70,7 @@ export function StudentAvailabilityTab() {
     return () => {
       cancelled = true
     }
-  }, [])
-
-  // Load upcoming sessions (commitments) for context
-  useEffect(() => {
-    let cancelled = false
-    const start = new Date()
-    const end = new Date()
-    end.setDate(end.getDate() + 30)
-    fetch(
-      `/api/student/calendar/events?start=${encodeURIComponent(
-        start.toISOString()
-      )}&end=${encodeURIComponent(end.toISOString())}`,
-      { credentials: 'include' }
-    )
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return
-        const evs = Array.isArray(data?.events) ? data.events : []
-        setSessions(
-          evs
-            .map((e: Record<string, unknown>) => ({
-              id: String(e.id ?? e.eventId ?? Math.random()),
-              title: String(e.title ?? 'Session'),
-              // The events endpoint names the time field `start` (ISO string).
-              startTime: String(e.start ?? e.startTime ?? e.scheduledAt ?? ''),
-              courseName: (e.courseName as string) ?? null,
-            }))
-            .filter((e: SessionItem) => e.startTime)
-            .sort(
-              (a: SessionItem, b: SessionItem) =>
-                new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-            )
-            .slice(0, 8)
-        )
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  }, [endpoint])
 
   const toggleSlot = useCallback(
     async (day: number, hour: number) => {
@@ -134,7 +92,7 @@ export function StudentAvailabilityTab() {
         const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
         const csrfData = await csrfRes.json().catch(() => ({}))
         const csrfToken = csrfData?.token ?? null
-        const res = await fetch('/api/student/calendar/availability', {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -151,7 +109,7 @@ export function StudentAvailabilityTab() {
         })
         if (!res.ok) throw new Error('save failed')
       } catch {
-        // Revert
+        // Revert on failure
         setAvailable(prev => {
           const s = new Set(prev)
           if (currentlyAvailable) s.add(key)
@@ -163,7 +121,7 @@ export function StudentAvailabilityTab() {
         setSavingKey(null)
       }
     },
-    [available, timezone]
+    [available, timezone, endpoint]
   )
 
   const dayLong = DAYS.find(d => d.idx === selectedDay)?.long ?? ''
@@ -173,9 +131,11 @@ export function StudentAvailabilityTab() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-[#1F2933]">My Availability</h3>
+          <h3 className="text-sm font-semibold text-[#1F2933]">
+            {studentName ? `${studentName}'s Availability` : 'Availability'}
+          </h3>
           <p className="text-xs text-gray-500">
-            Tap the hours you’re free. Tutors use this when scheduling 1-on-1s.
+            Tap the hours your child is free. Tutors use this when scheduling 1-on-1s.
           </p>
         </div>
         <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700">
@@ -240,39 +200,6 @@ export function StudentAvailabilityTab() {
           </div>
         </div>
       )}
-
-      {/* Upcoming commitments (course sessions) */}
-      <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-700">
-          <CalendarClock className="h-4 w-4 text-orange-500" />
-          Your upcoming sessions
-        </div>
-        {sessions.length === 0 ? (
-          <p className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Info className="h-3.5 w-3.5" />
-            No upcoming sessions from your enrolled courses.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {sessions.map(s => (
-              <li key={s.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="truncate font-medium text-gray-700">
-                  {s.title}
-                  {s.courseName ? <span className="text-gray-400"> · {s.courseName}</span> : null}
-                </span>
-                <span className="shrink-0 text-gray-500">
-                  {new Date(s.startTime).toLocaleString([], {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   )
 }
