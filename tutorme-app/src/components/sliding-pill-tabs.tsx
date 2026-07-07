@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { useRef, useState, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -140,10 +139,17 @@ export function SlidingPillTabsList({
           {tab.label}
         </TabsTrigger>
       ))}
-      <motion.div
-        className={cn('absolute bottom-1.5 top-1.5 rounded-lg', styles.pill, pillClassName)}
-        animate={{ left: pillStyle.left, width: pillStyle.width }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      <div
+        className={cn(
+          'absolute bottom-1.5 top-1.5 rounded-lg transition-all duration-300 ease-out',
+          styles.pill,
+          pillClassName
+        )}
+        style={{
+          left: pillStyle.left,
+          width: pillStyle.width,
+          transitionProperty: 'left, width',
+        }}
       />
     </TabsList>
   )

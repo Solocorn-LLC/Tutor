@@ -9,6 +9,7 @@ import {
   forwardRef,
   useImperativeHandle,
   type ComponentProps,
+  Fragment,
 } from 'react'
 
 /**
@@ -9039,25 +9040,31 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                       )?.label || 'Type'}
                                                     </button>
                                                     {speedDialOpen && (
-                                                      <div className="absolute bottom-full left-0 z-20 mb-1 flex flex-col gap-1">
-                                                        {POLL_OPTION_PRESETS.map(preset => (
-                                                          <button
-                                                            key={preset.id}
-                                                            type="button"
-                                                            onClick={() => {
-                                                              setPollOptionMode(preset.id)
-                                                              setSpeedDialOpen(false)
-                                                            }}
-                                                            className={cn(
-                                                              'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                              pollOptionMode === preset.id
-                                                                ? 'bg-[#2563EB] text-white'
-                                                                : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
-                                                            )}
-                                                          >
-                                                            {preset.label}
-                                                          </button>
-                                                        ))}
+                                                      <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col items-center">
+                                                        {POLL_OPTION_PRESETS.map(
+                                                          (preset, index) => (
+                                                            <Fragment key={preset.id}>
+                                                              {index > 0 && (
+                                                                <div className="h-2 w-px bg-blue-200" />
+                                                              )}
+                                                              <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                  setPollOptionMode(preset.id)
+                                                                  setSpeedDialOpen(false)
+                                                                }}
+                                                                className={cn(
+                                                                  'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
+                                                                  pollOptionMode === preset.id
+                                                                    ? 'bg-[#2563EB] text-white'
+                                                                    : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                                )}
+                                                              >
+                                                                {preset.label}
+                                                              </button>
+                                                            </Fragment>
+                                                          )
+                                                        )}
                                                       </div>
                                                     )}
                                                   </div>
@@ -9114,7 +9121,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                     }}
                                                   >
                                                     <Send className="mr-1 h-3 w-3" />
-                                                    Poll Students
+                                                    Poll
                                                   </Button>
                                                 </div>
                                               </div>
@@ -10881,24 +10888,28 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                                 )?.label || 'Type'}
                                               </button>
                                               {speedDialOpen && (
-                                                <div className="absolute bottom-full left-0 z-20 mb-1 flex flex-col gap-1">
-                                                  {POLL_OPTION_PRESETS.map(preset => (
-                                                    <button
-                                                      key={preset.id}
-                                                      type="button"
-                                                      onClick={() => {
-                                                        setPollOptionMode(preset.id)
-                                                        setSpeedDialOpen(false)
-                                                      }}
-                                                      className={cn(
-                                                        'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                        pollOptionMode === preset.id
-                                                          ? 'bg-[#2563EB] text-white'
-                                                          : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col items-center">
+                                                  {POLL_OPTION_PRESETS.map((preset, index) => (
+                                                    <Fragment key={preset.id}>
+                                                      {index > 0 && (
+                                                        <div className="h-2 w-px bg-blue-200" />
                                                       )}
-                                                    >
-                                                      {preset.label}
-                                                    </button>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setPollOptionMode(preset.id)
+                                                          setSpeedDialOpen(false)
+                                                        }}
+                                                        className={cn(
+                                                          'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
+                                                          pollOptionMode === preset.id
+                                                            ? 'bg-[#2563EB] text-white'
+                                                            : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                        )}
+                                                      >
+                                                        {preset.label}
+                                                      </button>
+                                                    </Fragment>
                                                   ))}
                                                 </div>
                                               )}
@@ -10956,7 +10967,7 @@ FEEDBACK: [one or two short sentences explaining the score]`
                                               }}
                                             >
                                               <Send className="mr-1 h-3 w-3" />
-                                              Poll Students
+                                              Poll
                                             </Button>
                                           </div>
                                         </div>
