@@ -21,17 +21,73 @@ interface ChatMsg {
   re?: string
 }
 
-export function TaskChatPanel({ taskId, taskTitle }: { taskId: string; taskTitle?: string }) {
+export function TaskChatPanel({
+  taskId,
+  taskTitle,
+  onCompleted,
+}: {
+  taskId: string
+  taskTitle?: string
+  /** Fired after the task is completed, with the student's answers — the page
+   *  uses it to broadcast the live "completed" tick to the tutor. */
+  onCompleted?: (answers: string[]) => void
+}) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
   const [completed, setCompleted] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, busy])
+
+  // Restore a prior chat: if the student already completed this task, rebuild the
+  // transcript (their answers, each AI response, and any follow-ups) and drop
+  // straight into follow-up mode instead of showing a blank panel.
+  useEffect(() => {
+    let active = true
+    fetch(`/api/student/assignments/${taskId}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!active) return
+        if (data?.alreadySubmitted) {
+          const answersObj =
+            data.existingAnswers && typeof data.existingAnswers === 'object'
+              ? (data.existingAnswers as Record<string, string>)
+              : {}
+          const answers = Object.keys(answersObj)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(k => String(answersObj[k]))
+          const aiItems: Array<{ explanation?: string }> = data.existingAiFeedback?.items ?? []
+          const followUps: Array<{ question?: string; answer?: string }> = Array.isArray(
+            data.existingFollowUps
+          )
+            ? data.existingFollowUps
+            : []
+          const restored: ChatMsg[] = []
+          answers.forEach(a => restored.push({ role: 'student', content: a }))
+          aiItems.forEach((it, i) =>
+            restored.push({ role: 'ai', content: it.explanation ?? '', re: answers[i] })
+          )
+          followUps.forEach(f => {
+            if (f.question) restored.push({ role: 'student', content: f.question })
+            if (f.answer) restored.push({ role: 'ai', content: f.answer })
+          })
+          if (restored.length > 0) {
+            setMessages(restored)
+            setCompleted(true)
+          }
+        }
+        setLoaded(true)
+      })
+      .catch(() => active && setLoaded(true))
+    return () => {
+      active = false
+    }
+  }, [taskId])
 
   const studentAnswers = messages.filter(m => m.role === 'student').map(m => m.content)
 
@@ -74,6 +130,7 @@ export function TaskChatPanel({ taskId, taskTitle }: { taskId: string; taskTitle
         ...responses.map(r => ({ role: 'ai' as const, content: r.response, re: r.answer })),
       ])
       setCompleted(true)
+      onCompleted?.(answers)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to complete the task')
     } finally {
@@ -122,7 +179,12 @@ export function TaskChatPanel({ taskId, taskTitle }: { taskId: string; taskTitle
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.length === 0 && (
+        {!loaded && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+          </div>
+        )}
+        {loaded && messages.length === 0 && (
           <p className="text-sm leading-relaxed text-gray-500">
             {taskTitle ? <span className="font-medium text-gray-700">{taskTitle}. </span> : null}
             Chat your answer(s) below — send each one, then click{' '}
