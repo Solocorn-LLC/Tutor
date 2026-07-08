@@ -187,32 +187,43 @@ export function usePci(deps: UsePciDeps) {
         }
       }
 
-      const response = await fetch('/api/ai/pci-master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          sessionId,
-          // Prior turns so the model can hold a real conversation (the local /
-          // vision provider paths have no server-side memory; ADK keys on
-          // sessionId). Capped and lightly truncated to bound the payload.
-          history: thread.messages.slice(-10).map(m => ({
-            role: m.role,
-            content: m.content.slice(0, 4000),
-          })),
-          context: {
-            type,
-            title: isTask ? taskBuilder.title : assessmentBuilder.title,
-            // Bounded to stay under the server's content limit and keep the
-            // request small on every turn.
-            content: (slideContent || '').slice(0, 48000),
-            pci: pciText,
-            extensionName,
-            sourceDocument,
-          },
-          pdfPages,
-        }),
-      })
+      // Abort a hung request after a bound comfortably above the server's worst
+      // case (2×45s) so a stuck turn fails cleanly with a retry prompt instead
+      // of hanging or surfacing a raw "Load failed".
+      const controller = new AbortController()
+      const abortTimer = setTimeout(() => controller.abort(), 120_000)
+      let response: Response
+      try {
+        response = await fetch('/api/ai/pci-master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: userMessage,
+            sessionId,
+            // Prior turns so the model can hold a real conversation (the local /
+            // vision provider paths have no server-side memory; ADK keys on
+            // sessionId). Capped and lightly truncated to bound the payload.
+            history: thread.messages.slice(-10).map(m => ({
+              role: m.role,
+              content: m.content.slice(0, 4000),
+            })),
+            context: {
+              type,
+              title: isTask ? taskBuilder.title : assessmentBuilder.title,
+              // Bounded to stay under the server's content limit and keep the
+              // request small on every turn.
+              content: (slideContent || '').slice(0, 48000),
+              pci: pciText,
+              extensionName,
+              sourceDocument,
+            },
+            pdfPages,
+          }),
+        })
+      } finally {
+        clearTimeout(abortTimer)
+      }
       if (!response.ok) {
         let errorMessage = `Failed to get AI response (${response.status})`
         try {
@@ -248,12 +259,15 @@ export function usePci(deps: UsePciDeps) {
       // as a TypeError with a terse, non-actionable message like "Load failed"
       // (Safari) or "Failed to fetch" (Chrome). Translate those into a clear hint.
       const raw = error instanceof Error ? error.message : ''
+      const isAbort = error instanceof DOMException && error.name === 'AbortError'
       const isNetworkError =
         error instanceof TypeError ||
         /load failed|failed to fetch|networkerror|network error/i.test(raw)
-      const hint = isNetworkError
-        ? "Couldn't reach the PCI assistant — check your connection and try again."
-        : raw || 'Unable to reach the PCI assistant. Please try again.'
+      const hint = isAbort
+        ? 'The assistant took too long to respond — please try again.'
+        : isNetworkError
+          ? "Couldn't reach the PCI assistant — check your connection and try again."
+          : raw || 'Unable to reach the PCI assistant. Please try again.'
       toast.error(`PCI Assistant error: ${hint}`)
       dispatch({
         type: 'sendError',
