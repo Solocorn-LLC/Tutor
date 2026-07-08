@@ -30,11 +30,11 @@ export function CollapsibleCard({
   const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'start' })
 
   return (
-    <div ref={cardRef} className="flex flex-col">
+    <div ref={cardRef} className="flex h-full flex-col">
       {/* Outer wrapper with shadow - overflow visible so shadow shows */}
       <div
         className={cn(
-          'flex flex-col',
+          'flex h-full flex-col',
           flush
             ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
             : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
