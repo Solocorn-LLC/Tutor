@@ -9651,6 +9651,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     fileUrl={doc.fileUrl}
                                                     fileKey={doc.fileKey}
                                                     className="absolute inset-0 h-full w-full"
+                                                    fitToWidth
                                                   />
                                                 ) : (
                                                   <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
@@ -9683,6 +9684,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       fileUrl={doc.fileUrl}
                                                       fileKey={doc.fileKey}
                                                       className="absolute inset-0 h-full w-full"
+                                                      fitToWidth
                                                     />
                                                   ) : (
                                                     <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
@@ -10513,7 +10515,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   fileUrl={currentTaskDocument.fileUrl}
                                                   fileKey={currentTaskDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
-                                                  defaultScale={0.75}
+                                                  fitToWidth
                                                   onHidePreview={() => {
                                                     if (!taskTextVisible) setTaskTextVisible(true)
                                                     setTaskPdfVisible(false)
