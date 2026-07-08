@@ -212,7 +212,7 @@ function OneOnOneSettingsCard() {
                   }
                   className="w-32"
                 />
-                <span className="text-sm text-gray-500">per hour</span>
+                <span className="whitespace-nowrap text-sm text-gray-500">per hour</span>
               </div>
               <p className="text-xs text-gray-500">
                 Students will see this rate when booking a session
@@ -253,7 +253,11 @@ function OneOnOneSettingsCard() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button
+            className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
+            onClick={handleSave}
+            disabled={saving}
+          >
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -262,7 +266,7 @@ function OneOnOneSettingsCard() {
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Save Settings
+                Save
               </>
             )}
           </Button>
