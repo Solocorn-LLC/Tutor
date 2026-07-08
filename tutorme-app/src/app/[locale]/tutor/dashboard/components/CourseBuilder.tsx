@@ -1222,6 +1222,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
     const [testPciBasis, setTestPciBasis] = useState<'all' | 'pci' | 'rubric' | 'model'>('all')
+    // Per-question test answers + results for the assessment Test tab, so the
+    // tutor tests grading by answering the DMI questions themselves (like a
+    // student) instead of a separate free-text box. Keyed `${studentTab}:${itemId}`.
+    const [testDmiAnswers, setTestDmiAnswers] = useState<Record<string, string>>({})
+    const [testDmiResults, setTestDmiResults] = useState<
+      Record<string, { loading?: boolean; score?: number | null; feedback?: string }>
+    >({})
+    // How the last-generated DMI was classified (per source). Lets the tutor
+    // override a confidently-wrong call — e.g. numbered study notes read as a
+    // question paper — via the "Detected as …" banner, which regenerates.
+    const [dmiDocumentKind, setDmiDocumentKind] = useState<{
+      task?: 'question_paper' | 'study_material'
+      assessment?: 'question_paper' | 'study_material'
+    }>({})
     const [alertDialog, setAlertDialog] = useState<{
       open: boolean
       title: string
@@ -2744,6 +2758,60 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       homework: (lesson.homework || []).map(cloneAssessment),
     })
 
+    // Grade a single assessment DMI question's test answer against THAT
+    // question's basis (its rubric + model answer + the assessment PCI), honoring
+    // the "Test with" basis debug filter. Mirrors production per-question grading;
+    // result is shown inline under the question.
+    const gradeTestDmiItem = async (item: DMIQuestion) => {
+      const key = `${testPciActiveTab}:${item.id}`
+      const answer = (testDmiAnswers[key] || '').trim()
+      if (!answer) return
+      setTestDmiResults(prev => ({ ...prev, [key]: { loading: true } }))
+
+      const usesPci = testPciBasis === 'all' || testPciBasis === 'pci'
+      const usesRubric = testPciBasis === 'all' || testPciBasis === 'rubric'
+      const usesModel = testPciBasis === 'all' || testPciBasis === 'model'
+      try {
+        const res = await fetchWithCsrf('/api/tutor/test-grade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pci: usesPci ? assessmentBuilder.taskPci : '',
+            pciSpec: usesPci ? assessmentBuilder.pciSpec : undefined,
+            rubric: usesRubric ? item.rubric || '' : '',
+            modelAnswer: usesModel ? item.answer || '' : '',
+            questionText: item.questionText || '',
+            responseType: typeof item.responseType === 'string' ? item.responseType : undefined,
+            sourceDependencies: Array.isArray(item.sourceDependencies)
+              ? item.sourceDependencies
+              : undefined,
+            answer,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data?.error || 'Failed to grade')
+        if (!data.hasBasis) {
+          setTestDmiResults(prev => ({
+            ...prev,
+            [key]: {
+              feedback:
+                'No marking basis for this question yet — add a rubric, model answer, or PCI.',
+            },
+          }))
+          return
+        }
+        setTestDmiResults(prev => ({
+          ...prev,
+          [key]: { score: data.score ?? null, feedback: data.feedback || 'Graded.' },
+        }))
+      } catch (e) {
+        setTestDmiResults(prev => ({
+          ...prev,
+          [key]: { feedback: e instanceof Error ? e.message : 'Failed to grade' },
+        }))
+      }
+    }
+
     // Handle Test PCI answer submission with AI scoring
     const handleTestPciSubmit = async () => {
       const currentInput = testPciInputs[testPciActiveTab] || ''
@@ -3320,6 +3388,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           sections: deriveSections(dmiItems),
           totalMarks: deriveTotalMarks(dmiItems),
         }
+
+        // Remember how this DMI was classified so the tutor can override a wrong
+        // call (see the "Detected as …" banner) without needing the model to be
+        // unsure. study_material is inferred when the tutor supplied a question spec.
+        const detectedKind: 'question_paper' | 'study_material' =
+          data.documentKind === 'study_material' || (questionSpec?.length ?? 0) > 0
+            ? 'study_material'
+            : 'question_paper'
+        setDmiDocumentKind(prev => ({ ...prev, [type]: detectedKind }))
 
         if (isTask) {
           setTaskDmiItems(dmiItems)
@@ -9677,6 +9754,77 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               >
                                                 <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
                                                   <div className="space-y-4">
+                                                    {mainTab === 'test-pci' &&
+                                                      testPciSource === 'assessment' &&
+                                                      canEdit &&
+                                                      (version?.items ?? []).length > 0 && (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                          <span className="text-slate-500">
+                                                            Test with:
+                                                          </span>
+                                                          <select
+                                                            value={testPciBasis}
+                                                            onChange={e =>
+                                                              setTestPciBasis(
+                                                                e.target.value as
+                                                                  | 'all'
+                                                                  | 'pci'
+                                                                  | 'rubric'
+                                                                  | 'model'
+                                                              )
+                                                            }
+                                                            title="Debug: isolate one marking basis to see its effect (test only — never affects student grading)"
+                                                            className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-700"
+                                                          >
+                                                            <option value="all">All bases</option>
+                                                            <option value="pci">PCI only</option>
+                                                            <option value="rubric">
+                                                              Rubric only
+                                                            </option>
+                                                            <option value="model">
+                                                              Model answer only
+                                                            </option>
+                                                          </select>
+                                                        </div>
+                                                      )}
+                                                    {dmiDocumentKind[testPciSource] && canEdit && (
+                                                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                                        <span>
+                                                          Detected as{' '}
+                                                          <span className="font-semibold">
+                                                            {dmiDocumentKind[testPciSource] ===
+                                                            'question_paper'
+                                                              ? 'a question paper'
+                                                              : 'study material'}
+                                                          </span>
+                                                          {dmiDocumentKind[testPciSource] ===
+                                                          'question_paper'
+                                                            ? ' — extracted the question numbers.'
+                                                            : ' — authored questions from the content.'}
+                                                        </span>
+                                                        <button
+                                                          type="button"
+                                                          disabled={dmiGenerating}
+                                                          onClick={() =>
+                                                            handleGenerateDMI(
+                                                              testPciSource,
+                                                              undefined,
+                                                              dmiDocumentKind[testPciSource] ===
+                                                                'question_paper'
+                                                                ? 'study_material'
+                                                                : 'question_paper'
+                                                            )
+                                                          }
+                                                          className="ml-auto rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                                                        >
+                                                          Not right? Regenerate as{' '}
+                                                          {dmiDocumentKind[testPciSource] ===
+                                                          'question_paper'
+                                                            ? 'study material'
+                                                            : 'a question paper'}
+                                                        </button>
+                                                      </div>
+                                                    )}
                                                     {(version?.items ?? []).length === 0 && (
                                                       <p className="text-muted-foreground text-sm">
                                                         No questions in this DMI yet. Open{' '}
@@ -9730,6 +9878,63 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             {item.rubric}
                                                           </p>
                                                         )}
+                                                        {mainTab === 'test-pci' &&
+                                                          testPciSource === 'assessment' &&
+                                                          canEdit &&
+                                                          (() => {
+                                                            const ak = `${testPciActiveTab}:${item.id}`
+                                                            const result = testDmiResults[ak]
+                                                            return (
+                                                              <div className="mt-2 border-t border-gray-200 pt-2">
+                                                                <textarea
+                                                                  value={testDmiAnswers[ak] || ''}
+                                                                  onChange={e =>
+                                                                    setTestDmiAnswers(prev => ({
+                                                                      ...prev,
+                                                                      [ak]: e.target.value,
+                                                                    }))
+                                                                  }
+                                                                  rows={2}
+                                                                  placeholder="Type a test answer to grade against this question…"
+                                                                  className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                                                />
+                                                                <div className="mt-1 flex items-center gap-2">
+                                                                  <button
+                                                                    type="button"
+                                                                    disabled={
+                                                                      result?.loading ||
+                                                                      !(
+                                                                        testDmiAnswers[ak] || ''
+                                                                      ).trim()
+                                                                    }
+                                                                    onClick={() =>
+                                                                      gradeTestDmiItem(item)
+                                                                    }
+                                                                    className="rounded-md bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                                                                  >
+                                                                    {result?.loading
+                                                                      ? 'Grading…'
+                                                                      : 'Grade'}
+                                                                  </button>
+                                                                  {result &&
+                                                                    !result.loading &&
+                                                                    typeof result.score ===
+                                                                      'number' && (
+                                                                      <span className="text-xs font-semibold text-violet-700">
+                                                                        Score: {result.score}%
+                                                                      </span>
+                                                                    )}
+                                                                </div>
+                                                                {result &&
+                                                                  !result.loading &&
+                                                                  result.feedback && (
+                                                                    <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
+                                                                      {result.feedback}
+                                                                    </p>
+                                                                  )}
+                                                              </div>
+                                                            )
+                                                          })()}
                                                       </div>
                                                     ))}
                                                   </div>
@@ -9806,6 +10011,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     </div>
                                   )
                                 })()
+                              ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
+                                // Assessments are answered in the DMI: test-grade per question
+                                // above (type an answer under a question and click Grade) rather
+                                // than a separate free-text box, which caused confusion.
+                                <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
+                                  To test grading, type a sample answer under any question above and
+                                  click <span className="font-medium text-violet-700">Grade</span> —
+                                  each answer is marked against that question&rsquo;s rubric, model
+                                  answer, and the assessment PCI.
+                                </div>
                               ) : (
                                 <div
                                   className={cn(
