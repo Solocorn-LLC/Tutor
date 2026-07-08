@@ -5,8 +5,14 @@ export function useSlidingPillMetrics(
   activeIndex: number
 ) {
   const [metrics, setMetrics] = useState({ left: 0, width: 0 })
+  const metricsRef = useRef({ left: 0, width: 0 })
   const prevMetricsRef = useRef({ left: 0, width: 0 })
   const isFirstRenderRef = useRef(true)
+
+  // Keep metricsRef in sync with state so calculateMetrics always reads current values
+  useEffect(() => {
+    metricsRef.current = metrics
+  }, [metrics])
 
   // Calculate metrics based on current DOM state
   const calculateMetrics = () => {
@@ -17,8 +23,8 @@ export function useSlidingPillMetrics(
       left: trigger.offsetLeft,
       width: trigger.offsetWidth,
     }
-    // Store previous metrics before updating
-    prevMetricsRef.current = { ...metrics }
+    // Store previous metrics before updating (read from ref to avoid stale closure)
+    prevMetricsRef.current = { ...metricsRef.current }
     setMetrics(newMetrics)
   }
 
