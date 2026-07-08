@@ -1156,6 +1156,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
       'submissions'
     )
+    // Reset to Submissions when leaving Live mode so the pill doesn't stick on Insights
+    useEffect(() => {
+      if (mainTab !== 'live' && liveRightPanelTab === 'insights') {
+        setLiveRightPanelTab('submissions')
+      }
+    }, [mainTab, liveRightPanelTab])
     // New (unseen) submission count, surfaced by SubmissionsPanel to badge the tab.
     const [newSubmissionCount, setNewSubmissionCount] = useState(0)
 
