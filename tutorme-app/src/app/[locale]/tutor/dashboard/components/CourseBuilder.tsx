@@ -431,7 +431,6 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   const noun = kind === 'assessment' ? 'assessment' : 'task'
   return (
     <details
-      open
       data-pci-anchor="guidance"
       className="group mb-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs text-blue-900"
     >
@@ -5777,7 +5776,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           setTimeout(() => {
                             handlePciSend(
                               'task',
-                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
                             )
                           }, 500)
                         }
@@ -5999,7 +5998,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         setTimeout(() => {
                           handlePciSend(
                             'task',
-                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
                           )
                         }, 500)
                       } catch (err: any) {
@@ -6115,7 +6114,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       setTimeout(() => {
                         handlePciSend(
                           'assessment',
-                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
                         )
                       }, 500)
                     }}
