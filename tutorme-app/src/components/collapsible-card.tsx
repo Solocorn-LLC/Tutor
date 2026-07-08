@@ -13,6 +13,7 @@ export interface CollapsibleCardProps {
   className?: string
   contentClassName?: string
   flush?: boolean
+  fillHeight?: boolean
   children: React.ReactNode
 }
 
@@ -24,17 +25,19 @@ export function CollapsibleCard({
   className,
   contentClassName,
   flush = false,
+  fillHeight = false,
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'start' })
 
   return (
-    <div ref={cardRef} className="flex flex-col">
+    <div ref={cardRef} className={cn('flex flex-col', fillHeight && 'h-full')}>
       {/* Outer wrapper with shadow - overflow visible so shadow shows */}
       <div
         className={cn(
-          'flex h-full flex-col',
+          'flex flex-col',
+          fillHeight && 'h-full',
           flush
             ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
             : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
@@ -42,7 +45,7 @@ export function CollapsibleCard({
         )}
       >
         {/* Inner wrapper with overflow hidden for animation */}
-        <div className="flex flex-col overflow-hidden p-0">
+        <div className={cn('flex flex-col overflow-hidden p-0', fillHeight && 'h-full')}>
           <button
             type="button"
             onClick={() => setOpen(o => !o)}
