@@ -209,6 +209,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Messaging"
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              fillHeight
               className="flex-1"
               contentClassName="pt-3"
             >
@@ -221,6 +222,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Notifications"
               icon={<Bell className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              fillHeight
               className="flex-1"
             >
               <NotificationsPanel
