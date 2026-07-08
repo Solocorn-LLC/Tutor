@@ -19,7 +19,7 @@ import {
 } from '@/lib/assessment/question-types'
 import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
 import { scoreDocumentConfidence } from '@/lib/assessment/confidence'
-import { analyzeDocumentSignals } from '@/lib/assessment/document-signals'
+import { analyzeDocumentSignals, documentKindLooksWrong } from '@/lib/assessment/document-signals'
 import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
@@ -541,18 +541,7 @@ export async function POST(request: NextRequest) {
     // "question paper". Text-only, so skipped for image-only PDFs.
     const signals = content && content.trim() ? analyzeDocumentSignals(content) : null
     const needsKindConfirmation =
-      !questionSpec &&
-      !documentKindOverride &&
-      // The model was unsure / didn't classify — ask rather than assume a paper.
-      (modelKind === null ||
-        // The model called it a paper, but the text shows no paper markers at all
-        // and reads like prose — a likely false "question paper".
-        (modelKind === 'question_paper' &&
-          signals != null &&
-          signals.paperSignal === 'none' &&
-          signals.proseChars > 400) ||
-        // The model called it study material, but the text has strong paper markers.
-        (modelKind === 'study_material' && signals != null && signals.paperSignal === 'strong'))
+      !questionSpec && !documentKindOverride && documentKindLooksWrong(modelKind, signals)
 
     // Warn-only assessment guardrails. Checks wording fidelity against the
     // source (ASMT-4) and other structural rules where data is available.

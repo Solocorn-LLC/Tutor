@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { analyzeDocumentSignals } from './document-signals'
+import { analyzeDocumentSignals, documentKindLooksWrong } from './document-signals'
+
+// Numbered study notes: numbered headings + prose, but NO marks / MCQ / blanks.
+const STUDY_NOTES = [
+  '1. AGENT MARKETPLACE INTERFACE',
+  'The agent marketplace interface lets buyers and sellers discover each other and transact. '.repeat(
+    3
+  ),
+  '2. TRUST AND SAFETY',
+  'Trust and safety mechanisms include reputation scores, escrow, and dispute resolution flows. '.repeat(
+    3
+  ),
+  '3. PRICING MODELS',
+  'Pricing can be fixed, auction-based, or negotiated depending on the category and demand. '.repeat(
+    3
+  ),
+].join('\n')
+
+const REAL_PAPER = `Section A
+1. Calculate the mean of the data set. [3]
+2. Determine the standard deviation. [4]
+(a) State one advantage.
+(b) State one disadvantage.`
 
 describe('analyzeDocumentSignals', () => {
   it('flags a real question paper as a strong paper signal', () => {
@@ -49,5 +71,43 @@ There are two main stages: the light-dependent reactions and the light-independe
     // Numbered headings alone (no marks, no options, no answer blanks, no task
     // verbs) must not read as a strong question paper.
     expect(s.paperSignal).not.toBe('strong')
+  })
+
+  it('sees prose (not hard markers) in numbered study notes', () => {
+    const s = analyzeDocumentSignals(STUDY_NOTES)
+    expect(s.markAllocations).toBe(0)
+    expect(s.answerBlanks).toBe(0)
+    expect(s.mcqOptionLines).toBeLessThan(2)
+    expect(s.proseChars).toBeGreaterThan(400)
+    expect(s.paperSignal).not.toBe('strong')
+  })
+})
+
+describe('documentKindLooksWrong', () => {
+  it('flags an unclassified document', () => {
+    expect(documentKindLooksWrong(null, analyzeDocumentSignals(REAL_PAPER))).toBe(true)
+    expect(documentKindLooksWrong(null, null)).toBe(true)
+  })
+
+  it('flags prose study notes mislabelled as a question paper (the reported bug)', () => {
+    expect(documentKindLooksWrong('question_paper', analyzeDocumentSignals(STUDY_NOTES))).toBe(true)
+  })
+
+  it('does NOT flag a genuine question paper called a question paper', () => {
+    expect(documentKindLooksWrong('question_paper', analyzeDocumentSignals(REAL_PAPER))).toBe(false)
+  })
+
+  it('flags a marker-rich paper mislabelled as study material', () => {
+    expect(documentKindLooksWrong('study_material', analyzeDocumentSignals(REAL_PAPER))).toBe(true)
+  })
+
+  it('does NOT flag study notes correctly called study material', () => {
+    expect(documentKindLooksWrong('study_material', analyzeDocumentSignals(STUDY_NOTES))).toBe(
+      false
+    )
+  })
+
+  it('does not flag a classified doc when signals are unavailable (image-only PDF)', () => {
+    expect(documentKindLooksWrong('question_paper', null)).toBe(false)
   })
 })
