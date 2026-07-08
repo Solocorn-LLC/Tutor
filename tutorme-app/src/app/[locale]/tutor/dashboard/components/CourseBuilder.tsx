@@ -130,6 +130,7 @@ import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
+import { PciSpecSoFar } from './PciSpecSoFar'
 import { TestTaskChat } from './TestTaskChat'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -6626,6 +6627,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const assessmentPciGuardrailWarningsMap = Object.fromEntries(
       Object.entries(pci.assessments).map(([k, t]) => [k, t.guardrailWarnings])
     )
+    const assessmentPciSpecSoFarMap = Object.fromEntries(
+      Object.entries(pci.assessments).map(([k, t]) => [k, t.specSoFar])
+    )
 
     const activeTaskPciMessages = activeTaskThread.messages
     // The saved PCI (marking policy) for the active context — what grading uses.
@@ -10270,6 +10274,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
                                           <PciGuidance kind="task" />
                                           {renderCurrentPci('task', activeTaskPci)}
+                                          <PciSpecSoFar
+                                            spec={activeTaskThread.specSoFar}
+                                            board={pciBoard}
+                                            subject={pciCategory}
+                                          />
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the
@@ -10702,6 +10711,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             'assessment',
                                             assessmentBuilder.taskPci
                                           )}
+                                          <PciSpecSoFar
+                                            spec={
+                                              assessmentPciSpecSoFarMap[loadedAssessmentId || '']
+                                            }
+                                            board={pciBoard}
+                                            subject={pciCategory}
+                                          />
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []
                                           ).length === 0 && (

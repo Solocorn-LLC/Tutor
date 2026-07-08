@@ -341,9 +341,17 @@ export async function POST(request: NextRequest) {
 
     let pciDraft = ''
     let pciSpec: PciSpec | null = null
+    // Partial structured policy captured SO FAR this turn (may be incomplete;
+    // NOT a finalization). Drives the live "policy so far" panel in the chat.
+    let pciSpecSoFar: PciSpec | null = null
     let pciUnconfirmed = false
     if (guardrailDomain) {
-      const env = parseLlmJson<{ reply?: string; pci?: string; spec?: unknown }>(response.response)
+      const env = parseLlmJson<{
+        reply?: string
+        pci?: string
+        spec?: unknown
+        specSoFar?: unknown
+      }>(response.response)
       if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
         if (typeof env.reply === 'string' && env.reply.trim()) {
           response.response = env.reply.trim()
@@ -351,6 +359,8 @@ export async function POST(request: NextRequest) {
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
         // TASK-6: the structured mirror of the finalized rubric.
         pciSpec = normalizePciSpec(env.spec)
+        // Running capture shown to the tutor as the policy takes shape.
+        pciSpecSoFar = normalizePciSpec(env.specSoFar)
       }
       // A rubric the model emitted without the tutor typing an explicit approval
       // this turn is still OFFERED (so the "Apply to PCI" button reliably appears
@@ -394,6 +404,8 @@ export async function POST(request: NextRequest) {
       pciDraft,
       // TASK-6: the finalized rubric in structured form (null until finalized).
       pciSpec,
+      // Partial policy captured so far (may be incomplete; not a finalization).
+      pciSpecSoFar,
       // True when the model proposed a finalized rubric but the tutor hasn't
       // signalled approval — the UI can prompt them to confirm before applying.
       pciUnconfirmed,
