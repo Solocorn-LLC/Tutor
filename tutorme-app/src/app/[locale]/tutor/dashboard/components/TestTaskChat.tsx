@@ -4,7 +4,11 @@
  * TestTaskChat — previews the student's chat-based TASK flow inside the "Test"
  * tab, using the IN-BUILDER PCI (via /api/tutor/test-grade). It mirrors what a
  * student gets: chat answers → "Task complete" → the AI responds to each answer
- * per the PCI → ask follow-ups. Stateless preview (persists nothing).
+ * per the PCI → ask follow-ups.
+ *
+ * State can be persisted by the parent: pass `initialState` to seed the chat and
+ * `onPersist` to mirror every change into a store, so switching Test-tab
+ * students (which remounts this component) doesn't lose the conversation.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -12,24 +16,36 @@ import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { toast } from 'sonner'
 
-interface ChatMsg {
+export interface TestTaskChatMsg {
   role: 'student' | 'ai'
   content: string
   re?: string
 }
 
+export interface TestTaskChatState {
+  messages: TestTaskChatMsg[]
+  draft: string
+  completed: boolean
+}
+
+type ChatMsg = TestTaskChatMsg
+
 export function TestTaskChat({
   pci,
   pciSpec,
   questionText,
+  initialState,
+  onPersist,
 }: {
   pci?: string
   pciSpec?: unknown
   questionText?: string
+  initialState?: TestTaskChatState
+  onPersist?: (state: TestTaskChatState) => void
 }) {
-  const [messages, setMessages] = useState<ChatMsg[]>([])
-  const [draft, setDraft] = useState('')
-  const [completed, setCompleted] = useState(false)
+  const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
+  const [draft, setDraft] = useState(initialState?.draft ?? '')
+  const [completed, setCompleted] = useState(initialState?.completed ?? false)
   const [busy, setBusy] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -37,6 +53,12 @@ export function TestTaskChat({
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, busy])
+
+  // Mirror state to the parent's store so a remount (switching Test students)
+  // can rehydrate it. Cheap; runs only when the persisted fields change.
+  useEffect(() => {
+    onPersist?.({ messages, draft, completed })
+  }, [messages, draft, completed, onPersist])
 
   const studentAnswers = messages.filter(m => m.role === 'student').map(m => m.content)
 
