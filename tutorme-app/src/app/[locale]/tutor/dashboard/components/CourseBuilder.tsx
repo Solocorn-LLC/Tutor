@@ -131,7 +131,7 @@ import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
-import { TestTaskChat } from './TestTaskChat'
+import { TestTaskChat, type TestTaskChatState } from './TestTaskChat'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -1214,6 +1214,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [newSubmissionCount, setNewSubmissionCount] = useState(0)
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
+    // Persists each Test-tab task-chat preview (keyed by task/extension + student
+    // tab) across the remounts that happen when switching Test students, so the
+    // conversation isn't lost. A ref: writing it must not trigger a re-render.
+    const testTaskChatStore = useRef<Record<string, TestTaskChatState>>({})
+    // Test-tab-only DEBUG control: grade against all available bases (default) or
+    // isolate one (PCI / rubric / model answer) to see its effect alone. Never
+    // affects student/production grading — only the tutor's test-grade requests.
+    const [testPciBasis, setTestPciBasis] = useState<'all' | 'pci' | 'rubric' | 'model'>('all')
     const [alertDialog, setAlertDialog] = useState<{
       open: boolean
       title: string
@@ -2840,16 +2848,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         })
       }
 
+      // DEBUG basis isolation (test-tab only): drop the bases the tutor didn't
+      // pick so grading rests on just the selected one. 'all' keeps everything.
+      const usesPci = testPciBasis === 'all' || testPciBasis === 'pci'
+      const usesRubric = testPciBasis === 'all' || testPciBasis === 'rubric'
+      const usesModel = testPciBasis === 'all' || testPciBasis === 'model'
+
       try {
         // Grade through the shared engine — identical to what students get.
         const response = await fetchWithCsrf('/api/tutor/test-grade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            pci: pciContent,
-            pciSpec,
-            rubric,
-            modelAnswer,
+            pci: usesPci ? pciContent : '',
+            pciSpec: usesPci ? pciSpec : undefined,
+            rubric: usesRubric ? rubric : '',
+            modelAnswer: usesModel ? modelAnswer : '',
             questionText,
             responseType,
             sourceDependencies,
@@ -9663,6 +9677,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               >
                                                 <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
                                                   <div className="space-y-4">
+                                                    {(version?.items ?? []).length === 0 && (
+                                                      <p className="text-muted-foreground text-sm">
+                                                        No questions in this DMI yet. Open{' '}
+                                                        <span className="font-medium">
+                                                          Edit marks &amp; answers
+                                                        </span>{' '}
+                                                        and generate the DMI — for study material
+                                                        the AI will author questions from the
+                                                        content.
+                                                      </p>
+                                                    )}
                                                     {(version?.items ?? []).map(item => (
                                                       <div
                                                         key={item.id}
@@ -9758,22 +9783,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               // flow students get (chat → Task complete → per-answer
                               // responses → follow-up); assessments keep the composer.
                               (mainTab === 'test-pci' && testPciSource === 'task' ? (
-                                <div key={testPciActiveTab} className="mt-1 h-[55vh] min-h-[340px]">
-                                  {(() => {
-                                    const ext = taskBuilder.activeExtensionId
-                                      ? taskBuilder.extensions.find(
-                                          e => e.id === taskBuilder.activeExtensionId
-                                        )
-                                      : null
-                                    return (
+                                (() => {
+                                  const ext = taskBuilder.activeExtensionId
+                                    ? taskBuilder.extensions.find(
+                                        e => e.id === taskBuilder.activeExtensionId
+                                      )
+                                    : null
+                                  // Persist per task/extension AND per student tab, so each
+                                  // preview keeps its own conversation across remounts.
+                                  const persistKey = `${ext ? ext.id : 'base'}:${testPciActiveTab}`
+                                  return (
+                                    <div key={persistKey} className="mt-1 h-[55vh] min-h-[340px]">
                                       <TestTaskChat
                                         pci={(ext ? ext.pci : taskBuilder.taskPci) || ''}
                                         pciSpec={ext ? undefined : taskBuilder.pciSpec}
                                         questionText={`${taskBuilder.title}\n\n${ext ? ext.content : taskBuilder.taskContent}`}
+                                        initialState={testTaskChatStore.current[persistKey]}
+                                        onPersist={s => {
+                                          testTaskChatStore.current[persistKey] = s
+                                        }}
                                       />
-                                    )
-                                  })()}
-                                </div>
+                                    </div>
+                                  )
+                                })()
                               ) : (
                                 <div
                                   className={cn(
@@ -9882,6 +9914,36 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <Chip ok={hasRubric}>Rubric</Chip>
                                             <Chip ok={hasModel}>Model answer</Chip>
                                           </div>
+                                          {anyBasis && (
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-slate-500">Test with:</span>
+                                              <select
+                                                value={testPciBasis}
+                                                onChange={e =>
+                                                  setTestPciBasis(
+                                                    e.target.value as
+                                                      | 'all'
+                                                      | 'pci'
+                                                      | 'rubric'
+                                                      | 'model'
+                                                  )
+                                                }
+                                                title="Debug: isolate one marking basis to see its effect (test only — never affects student grading)"
+                                                className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-700"
+                                              >
+                                                <option value="all">All bases</option>
+                                                <option value="pci" disabled={!hasPci}>
+                                                  PCI only
+                                                </option>
+                                                <option value="rubric" disabled={!hasRubric}>
+                                                  Rubric only
+                                                </option>
+                                                <option value="model" disabled={!hasModel}>
+                                                  Model answer only
+                                                </option>
+                                              </select>
+                                            </div>
+                                          )}
                                           {!anyBasis && (
                                             <span className="text-amber-600">
                                               Add a PCI, rubric, or model answer to grade.

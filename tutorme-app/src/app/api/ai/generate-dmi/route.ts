@@ -94,7 +94,7 @@ Rules:
   question wording, instructions, marks, or answers. Enumerate EVERY part across ALL pages, in
   order, exactly once: do not skip, merge, summarise, repeat, or stop early. A 6-question paper with
   sub-parts typically yields 15-30 fields.
-- For study_material: generate 5-10 questions; here "label" is the full question text.
+- For study_material: AUTHOR 5-10 questions that TEST the material — never bare numbers, section titles, or headings. Here "label" is the FULL question wording (a complete, answerable question), and each item carries a model "answer" and a "rubric". Choose a sensible mix of types for the content.
 - "type" is exactly one of: short, long, mcq, true_false, multiple_response, fill_blank, matching,
   ordering, hotspot, drag_drop. Choose by how EACH part is answered: a multiple-choice item (lettered
   options on the paper) -> "mcq"; a numeric / one-line response -> "short"; an extended written
@@ -463,14 +463,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No content or PDF pages provided' }, { status: 400 })
     }
 
-    // When the tutor has specified question types + counts (study material path),
-    // tell the model to generate exactly that mix.
+    // Study-material path. If the tutor specified question types + counts, generate
+    // exactly that mix. Otherwise (option A) still AUTHOR a sensible set of questions
+    // from the material — do NOT emit bare question numbers. Only a genuine printed
+    // question paper is extracted number-by-number (the model classifies, and the
+    // question_paper override forces extraction).
     const specInstruction =
       questionSpec && questionSpec.length > 0
         ? `\n\nThis source is study material. Generate exactly: ${questionSpec
             .map(s => `${s.count} ${DMI_QUESTION_TYPE_LABELS[s.type]} (${s.type})`)
             .join(', ')}. Use those exact types and counts.`
-        : ''
+        : documentKindOverride === 'question_paper'
+          ? ''
+          : `\n\nIf this source is NOT a printed question paper (i.e. documentKind is study_material or uncertain), do NOT emit bare question numbers. Instead AUTHOR 5-10 NEW questions that assess the key points of this material — each with the FULL question wording as "label", a suitable "type", "marks", a model "answer", and a "rubric" — choosing a sensible mix of types for the content. ONLY when the document genuinely IS a printed question paper should you extract its existing question references instead of authoring.`
 
     // When the tutor has explicitly confirmed the document kind, tell the model
     // so it classifies + extracts accordingly (and we skip re-confirmation).
