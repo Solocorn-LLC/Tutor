@@ -222,7 +222,7 @@ export default function StudentTutorDirectoryPage() {
       </section>
 
       {/* Bottom panel: filters + results */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+      <div className="flex min-h-0 flex-1 flex-col py-2">
         <Card
           hoverable={false}
           className="shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5"
