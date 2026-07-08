@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
+import { CategoryGridIcon } from '@/components/categories/CategoryGridIcon'
+import { CategorySearchModal } from '@/components/categories/CategorySearchModal'
 
 interface TutorCoursePreview {
   id: string
@@ -61,10 +63,12 @@ export default function StudentTutorDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
+  const [geoDetected, setGeoDetected] = useState(false)
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate' | 'following'>(
-    'following'
+    'popular'
   )
   const [currentPage, setCurrentPage] = useState(1)
+  const [showCategories, setShowCategories] = useState(false)
   const ITEMS_PER_PAGE = 8
 
   const availableCountries = useMemo(() => {
@@ -73,7 +77,31 @@ export default function StudentTutorDirectoryPage() {
   }, [selectedRegion])
   const [following, setFollowing] = useState<Set<string>>(new Set())
 
-  // Load following from API on mount
+  // Edit 1: Auto-detect user's country from IP on mount
+  useEffect(() => {
+    if (geoDetected) return
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then((data: { country?: string }) => {
+        if (!data.country) return
+        const code = data.country.toUpperCase()
+        for (const region of REGIONS) {
+          if (region.id === 'global') continue
+          const found = region.countries.find(c => c.code === code)
+          if (found) {
+            setSelectedRegion(region.id)
+            setSelectedCountryCode(code)
+            setGeoDetected(true)
+            break
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail — user can manually select
+      })
+  }, [geoDetected])
+
+  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
@@ -132,29 +160,83 @@ export default function StudentTutorDirectoryPage() {
     }
   }
 
+  // Edit 2: Tiered fetching — exact matches first, then popular
   useEffect(() => {
     let active = true
+
+    const fetchTieredTutors = async (
+      query: string,
+      countryCode: string
+    ): Promise<TutorDirectoryItem[]> => {
+      const baseParams = new URLSearchParams()
+      baseParams.set('page', '1')
+      baseParams.set('pageSize', '40') // 5 pages worth
+      if (query) baseParams.set('q', query)
+
+      const tierQueries: { url: string }[] = []
+
+      // Tier 1: Query + Country (most relevant)
+      if (query && countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams(baseParams)
+        p.set('country', countryCode)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 2: Query only
+      if (query) {
+        const p = new URLSearchParams(baseParams)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 3: Country only
+      if (countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams()
+        p.set('page', '1')
+        p.set('pageSize', '40')
+        p.set('country', countryCode)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 4: All remaining (no filters)
+      const p = new URLSearchParams()
+      p.set('page', '1')
+      p.set('pageSize', '40')
+      tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+
+      const responses = await Promise.all(
+        tierQueries.map(tq => fetch(tq.url, { credentials: 'include' }).catch(() => null))
+      )
+
+      const tierResults = await Promise.all(
+        responses.map(async res => {
+          if (!res) return { items: [] }
+          try {
+            const json = await res.json()
+            return { items: json.tutors || [] }
+          } catch {
+            return { items: [] }
+          }
+        })
+      )
+
+      const seen = new Set<string>()
+      const results: TutorDirectoryItem[] = []
+      for (const tier of tierResults) {
+        for (const item of tier.items) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            results.push(item)
+          }
+        }
+      }
+      return results
+    }
 
     const load = async () => {
       setLoading(true)
       try {
-        const qs = new URLSearchParams()
-        if (searchQuery.trim()) qs.set('q', searchQuery.trim())
-        if (selectedRegion && selectedRegion !== 'global' && selectedCountryCode) {
-          qs.set('country', selectedCountryCode)
-        }
-        qs.set('sort', sortBy === 'following' ? 'popular' : sortBy)
-
-        const res = await fetch(`/api/public/tutors?${qs.toString()}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
-        if (!res.ok) throw new Error('Failed to load tutors')
-        const data = await res.json()
+        const enrichedTutors = await fetchTieredTutors(searchQuery.trim(), selectedCountryCode)
         if (!active) return
-
-        const enrichedTutors = Array.isArray(data?.tutors) ? data.tutors : []
-
         setTutors(enrichedTutors)
       } catch {
         if (!active) return
@@ -168,7 +250,7 @@ export default function StudentTutorDirectoryPage() {
     return () => {
       active = false
     }
-  }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
+  }, [searchQuery, selectedCountryCode])
 
   const filteredTutors = useMemo(() => {
     if (sortBy === 'following') {
@@ -238,14 +320,23 @@ export default function StudentTutorDirectoryPage() {
         >
           {/* Filters */}
           <div className="grid grid-cols-1 gap-3 pb-0 md:grid-cols-4">
-            <div className="relative">
+            {/* Edit 3: Search input with category grid icon */}
+            <div className="relative flex items-center gap-2">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={searchQuery}
                 onChange={event => setSearchQuery(event.target.value)}
                 placeholder="Search tutor, subject, specialty..."
-                className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+                className="h-9 border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-900 placeholder:text-slate-400"
               />
+              <button
+                type="button"
+                onClick={() => setShowCategories(true)}
+                className="absolute right-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white transition-colors hover:bg-slate-50"
+                aria-label="Browse categories"
+              >
+                <CategoryGridIcon className="h-4 w-4" />
+              </button>
             </div>
             <Select
               value={selectedRegion}
@@ -330,7 +421,7 @@ export default function StudentTutorDirectoryPage() {
 
           {/* Tutor grid */}
           <div className="flex flex-1 flex-col pt-3 sm:pt-4">
-            <div className="flex flex-1 flex-col justify-around">
+            <div className="flex flex-1 flex-col justify-start">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {loading ? (
                   Array.from({ length: 8 }).map((_, index) => (
@@ -436,6 +527,16 @@ export default function StudentTutorDirectoryPage() {
           </div>
         </Card>
       </div>
+
+      {/* Edit 3: Category Search Modal */}
+      <CategorySearchModal
+        isOpen={showCategories}
+        onClose={() => setShowCategories(false)}
+        onSelectCategory={categories => {
+          setShowCategories(false)
+          setSearchQuery(categories.join(' '))
+        }}
+      />
     </div>
   )
 }
