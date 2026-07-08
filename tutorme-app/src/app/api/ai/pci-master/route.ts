@@ -244,8 +244,11 @@ export async function POST(request: NextRequest) {
     // Timeout + retry budget for the upstream model call. Moonshot/Kimi is the
     // sole provider, so a slow or 5xx/429 response has no second provider to fall
     // back to — bound each attempt and retry a couple of times before giving up.
-    const GEN_TIMEOUT_MS = 60_000
-    const GEN_RETRIES = 3
+    // Kept well under Cloud Run's 300s request timeout (worst case 2×45s = 90s)
+    // so a slow turn returns a clean error instead of the connection dropping
+    // and surfacing as "Load failed" in the chat.
+    const GEN_TIMEOUT_MS = 45_000
+    const GEN_RETRIES = 2
     const fallbackOptions = {
       temperature: activeTemperature,
       maxTokens: 4096,
