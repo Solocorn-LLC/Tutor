@@ -172,7 +172,7 @@ export function CategorySelector({
                     <SelectItem
                       key={region.id}
                       value={region.id}
-                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-white focus-visible:text-[#1F2933] data-[disabled]:opacity-50"
+                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:outline-none focus-visible:bg-white focus-visible:text-[#1F2933] focus-visible:outline-none focus-visible:ring-0 data-[disabled]:opacity-50"
                     >
                       {region.name}
                     </SelectItem>
@@ -202,7 +202,7 @@ export function CategorySelector({
                     <SelectItem
                       key={country.code}
                       value={country.code}
-                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-white focus-visible:text-[#1F2933] data-[disabled]:opacity-50"
+                      className="rounded-full px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white hover:text-[#1F2933] focus:outline-none focus-visible:bg-white focus-visible:text-[#1F2933] focus-visible:outline-none focus-visible:ring-0 data-[disabled]:opacity-50"
                     >
                       {country.name}
                     </SelectItem>
