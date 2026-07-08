@@ -55,7 +55,7 @@ export function SlidingPillTabsList({
 }: SlidingPillTabsListProps) {
   const triggerRefs = useRef<(HTMLButtonElement | null)[]>([])
   const activeIndex = tabs.findIndex(tab => tab.value === value)
-  const { left, width } = useSlidingPillMetrics(triggerRefs, activeIndex)
+  const { left, width, initialLeft, initialWidth } = useSlidingPillMetrics(triggerRefs, activeIndex)
   const styles = VARIANT_STYLES[variant]
 
   return (
@@ -81,7 +81,7 @@ export function SlidingPillTabsList({
       ))}
       <motion.div
         className={cn('absolute bottom-1.5 top-1.5 rounded-lg', styles.pill, pillClassName)}
-        initial={false}
+        initial={{ left: initialLeft, width: initialWidth }}
         animate={{ left, width }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       />
