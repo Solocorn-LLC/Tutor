@@ -130,7 +130,6 @@ import { getThread, type PciTarget } from './hooks/pci-reducer'
 import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
-import { PciInterview } from './PciInterview'
 import { TestTaskChat } from './TestTaskChat'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -1031,9 +1030,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [editingCurrentPci, setEditingCurrentPci] = useState(false)
     // Which source's guided PCI questionnaire is open ('task' | 'assessment' | null).
     const [pciFormSource, setPciFormSource] = useState<'task' | 'assessment' | null>(null)
-    // Assessment PCI is authored by a conversational agent by default; the
-    // box-filling Guided form stays as a fallback ('form').
-    const [pciFormMode, setPciFormMode] = useState<'chat' | 'form'>('chat')
     // Directly set the saved PCI (the marking policy used by grading) for the
     // active context — the active task extension, the base task, or the
     // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
@@ -5780,7 +5776,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           setTimeout(() => {
                             handlePciSend(
                               'task',
-                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                             )
                           }, 500)
                         }
@@ -6002,7 +5998,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         setTimeout(() => {
                           handlePciSend(
                             'task',
-                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                           )
                         }, 500)
                       } catch (err: any) {
@@ -6118,7 +6114,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       setTimeout(() => {
                         handlePciSend(
                           'assessment',
-                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of its content, especially noting any diagrams or images if applicable. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
+                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then, right away, start helping me build the marking policy: begin probing me with ONE simple question at a time — using clear, simple language and a small example each time — so we build it together. Please ask your first question now; do not stop and wait for me to confirm the summary first.`
                         )
                       }, 500)
                     }}
@@ -6675,95 +6671,49 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             )}
           </div>
         </div>
-        {pciFormSource === source &&
-          // Assessment PCI: conversational agent by default, Guided form as fallback.
-          (source === 'assessment' && pciFormMode === 'chat' ? (
-            <PciInterview
-              source={source}
-              title={assessmentBuilder.title}
-              content={assessmentBuilder.taskContent}
-              markingScheme={assessmentDmiItems
-                .map(q => ({
-                  label: q.questionLabel,
-                  marks: typeof q.marks === 'number' ? q.marks : undefined,
-                  rubric: q.rubric?.trim() || undefined,
-                  responseType: q.responseType?.trim() || undefined,
-                  hasVariants: (q.acceptableVariants?.length ?? 0) > 0,
-                }))
-                .filter(q => q.rubric || typeof q.marks === 'number' || q.hasVariants)}
-              board={pciBoard}
-              subject={pciCategory}
-              onExamContextChange={patch => handlePciExamContextChange(source, patch)}
-              canEdit={canEdit}
-              onSave={(specText, spec) => {
-                setCurrentPci(source, specText, {
-                  approvedPci: specText,
-                  spec,
-                  transcript: [],
-                  approvedAt: Date.now(),
-                })
-                setPciFormSource(null)
-                toast.success('Marking policy saved to PCI')
-              }}
-              onClose={() => setPciFormSource(null)}
-              onSwitchToForm={() => setPciFormMode('form')}
-            />
-          ) : (
-            <>
-              {source === 'assessment' && (
-                <div className="mb-1 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setPciFormMode('chat')}
-                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
-                  >
-                    Use chat instead
-                  </button>
-                </div>
-              )}
-              <PciQuestionnaire
-                source={source}
-                title={source === 'task' ? taskBuilder.title : assessmentBuilder.title}
-                content={
-                  source === 'task' ? taskBuilder.taskContent : assessmentBuilder.taskContent
-                }
-                currentPci={value}
-                // The official marking scheme (DMI) loaded in "Edit marks & answers",
-                // distilled to its policy-bearing bits (no answers) so the AI can
-                // infer award conventions from it.
-                markingScheme={(source === 'task' ? taskDmiItems : assessmentDmiItems)
-                  .map(q => ({
-                    label: q.questionLabel,
-                    marks: typeof q.marks === 'number' ? q.marks : undefined,
-                    rubric: q.rubric?.trim() || undefined,
-                    responseType: q.responseType?.trim() || undefined,
-                    hasVariants: (q.acceptableVariants?.length ?? 0) > 0,
-                  }))
-                  .filter(q => q.rubric || typeof q.marks === 'number' || q.hasVariants)}
-                // Upload a marking scheme straight from the Guided form: fills the
-                // DMI (marks & answers) via the same flow as "Edit marks & answers",
-                // then the form auto-prefills the PCI from it.
-                onUploadMarkingScheme={file => handleMarkingSchemeFile(file, source)}
-                markingSchemeLoading={markingSchemeLoading}
-                board={pciBoard}
-                subject={pciCategory}
-                categoryOptions={pciCategoryOptions}
-                onExamContextChange={patch => handlePciExamContextChange(source, patch)}
-                canEdit={canEdit}
-                onSave={(specText, spec) => {
-                  setCurrentPci(source, specText, {
-                    approvedPci: specText,
-                    spec,
-                    transcript: [],
-                    approvedAt: Date.now(),
-                  })
-                  setPciFormSource(null)
-                  toast.success('Marking policy saved to PCI')
-                }}
-                onClose={() => setPciFormSource(null)}
-              />
-            </>
-          ))}
+        {pciFormSource === source && (
+          // Manual, structured alternative to the conversational PCI assistant chat
+          // (the single conversational surface). No competing chat here.
+          <PciQuestionnaire
+            source={source}
+            title={source === 'task' ? taskBuilder.title : assessmentBuilder.title}
+            content={source === 'task' ? taskBuilder.taskContent : assessmentBuilder.taskContent}
+            currentPci={value}
+            // The official marking scheme (DMI) loaded in "Edit marks & answers",
+            // distilled to its policy-bearing bits (no answers) so the AI can
+            // infer award conventions from it.
+            markingScheme={(source === 'task' ? taskDmiItems : assessmentDmiItems)
+              .map(q => ({
+                label: q.questionLabel,
+                marks: typeof q.marks === 'number' ? q.marks : undefined,
+                rubric: q.rubric?.trim() || undefined,
+                responseType: q.responseType?.trim() || undefined,
+                hasVariants: (q.acceptableVariants?.length ?? 0) > 0,
+              }))
+              .filter(q => q.rubric || typeof q.marks === 'number' || q.hasVariants)}
+            // Upload a marking scheme straight from the Guided form: fills the
+            // DMI (marks & answers) via the same flow as "Edit marks & answers",
+            // then the form auto-prefills the PCI from it.
+            onUploadMarkingScheme={file => handleMarkingSchemeFile(file, source)}
+            markingSchemeLoading={markingSchemeLoading}
+            board={pciBoard}
+            subject={pciCategory}
+            categoryOptions={pciCategoryOptions}
+            onExamContextChange={patch => handlePciExamContextChange(source, patch)}
+            canEdit={canEdit}
+            onSave={(specText, spec) => {
+              setCurrentPci(source, specText, {
+                approvedPci: specText,
+                spec,
+                transcript: [],
+                approvedAt: Date.now(),
+              })
+              setPciFormSource(null)
+              toast.success('Marking policy saved to PCI')
+            }}
+            onClose={() => setPciFormSource(null)}
+          />
+        )}
         {editingCurrentPci ? (
           <>
             <textarea
