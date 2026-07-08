@@ -13,6 +13,7 @@ import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
 import { normalizePciSpec, type PciSpec } from '@/lib/assessment/pci-spec'
+import { signalsPciFinalize } from '@/lib/assessment/pci-finalize'
 import {
   guardrailSystemPrompt,
   runTaskGuardrails,
@@ -334,19 +335,10 @@ export async function POST(request: NextRequest) {
     // is the conversational chat text, `pci` is the finalized rubric (non-empty
     // only after the tutor approves finalizing). Extract both so the chat never
     // shows a raw spec and the builder can write a clean PCI to the field.
-    // TASK-5 (Confirmation): the tutor's message must explicitly signal approval
-    // to FINALIZE THE RUBRIC before the engine presents a finalized one — the
-    // model alone cannot finalize. The tutor's explicit "Apply to PCI" click is
-    // the real gate; this flag only informs pciUnconfirmed + the validator.
-    //
-    // Match ONLY unambiguous finalize intent. We deliberately exclude generic
-    // agreement words — "confirm", "correct", "looks good", "sounds good",
-    // "agreed", "go ahead" — because they also mean "yes, the SUMMARY is right"
-    // in the confirm-summary step, and must not be misread as finalizing.
-    const tutorSignaledFinalize =
-      /\b(finali[sz]e|approve the (rubric|pci|policy|marking policy)|lock it in|activate the (rubric|pci|policy)|apply (it|this|the (rubric|pci|policy|marking policy))|save (it|the (rubric|pci|policy))|use this (rubric|policy) as (the )?final)\b/i.test(
-        safeMessage
-      )
+    // TASK-5 (Confirmation): only an explicit finalize request flags this — the
+    // tutor's "Apply to PCI" click is the real gate. See signalsPciFinalize for
+    // why generic agreement words are excluded (they collide with confirm-summary).
+    const tutorSignaledFinalize = signalsPciFinalize(safeMessage)
 
     let pciDraft = ''
     let pciSpec: PciSpec | null = null

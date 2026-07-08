@@ -45,6 +45,33 @@ function countMatches(text: string, re: RegExp): number {
   return m ? m.length : 0
 }
 
+/**
+ * Given the AI's `documentKind` and the code-level signals, does the claim look
+ * wrong enough to double-check with the tutor before generating a DMI? Catches
+ * the two failure modes:
+ *  - a prose document with numbered HEADINGS (e.g. study notes "1. …, 2. …")
+ *    mislabelled "question paper" — it has numbered lines but NONE of the hard
+ *    paper markers (marks, MCQ options, answer blanks) and reads like prose;
+ *  - a marker-rich paper mislabelled "study material".
+ * When signals are unavailable (image-only PDF), only an unclassified doc is
+ * flagged. Returns true → the route asks the tutor to confirm the kind.
+ */
+export function documentKindLooksWrong(
+  modelKind: 'question_paper' | 'study_material' | null,
+  signals: DocumentSignals | null
+): boolean {
+  if (modelKind === null) return true
+  if (!signals) return false
+  if (modelKind === 'question_paper') {
+    const noHardPaperMarkers =
+      signals.markAllocations === 0 && signals.answerBlanks === 0 && signals.mcqOptionLines < 2
+    // No hard markers AND reads like prose → probably material, not a paper.
+    return noHardPaperMarkers && signals.proseChars > 400
+  }
+  // study_material but strong paper markers → probably a paper.
+  return signals.paperSignal === 'strong'
+}
+
 export function analyzeDocumentSignals(content: string): DocumentSignals {
   const text = content ?? ''
   const lines = text.split('\n')
