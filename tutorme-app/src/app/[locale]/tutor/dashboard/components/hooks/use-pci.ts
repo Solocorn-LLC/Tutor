@@ -117,6 +117,12 @@ export function usePci(deps: UsePciDeps) {
     const input = overrideMessage || thread.input
     if (!input.trim() || thread.loading) return
     const userMessage = input.trim()
+    // Only attach the document's rendered page images on the FIRST turn. The
+    // model summarises them into the conversation, so resending several MB of
+    // base64 images on every later turn (e.g. when the tutor confirms the
+    // summary) just bloats the request — which can make the fetch fail outright
+    // ("Load failed"). Later turns rely on the text content + conversation.
+    const isFirstTurn = thread.messages.length === 0
 
     // Clear the input box only on a real send (not a quick-action override), then
     // append the user's message + start loading.
@@ -160,9 +166,10 @@ export function usePci(deps: UsePciDeps) {
           }
         : undefined
 
-      // Render an attached PDF's pages (cached) so the model can SEE the document.
+      // Render an attached PDF's pages (cached) so the model can SEE the
+      // document — first turn only (see isFirstTurn above).
       let pdfPages: string[] | undefined
-      if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+      if (isFirstTurn && sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
         const cacheKey = sourceDocData.fileUrl
         const cached = deps.pdfPageCache.get(cacheKey)
         if (cached) {
@@ -196,7 +203,9 @@ export function usePci(deps: UsePciDeps) {
           context: {
             type,
             title: isTask ? taskBuilder.title : assessmentBuilder.title,
-            content: slideContent,
+            // Bounded to stay under the server's content limit and keep the
+            // request small on every turn.
+            content: (slideContent || '').slice(0, 48000),
             pci: pciText,
             extensionName,
             sourceDocument,
@@ -235,15 +244,17 @@ export function usePci(deps: UsePciDeps) {
         warnings,
       })
     } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? `PCI Assistant error: ${error.message}`
-          : 'PCI Assistant error. Please try again.'
-      toast.error(message)
-      const hint =
-        error instanceof Error && error.message
-          ? error.message
-          : 'Unable to reach the PCI assistant. Please try again.'
+      // A rejected fetch (offline, connection reset, request too large) surfaces
+      // as a TypeError with a terse, non-actionable message like "Load failed"
+      // (Safari) or "Failed to fetch" (Chrome). Translate those into a clear hint.
+      const raw = error instanceof Error ? error.message : ''
+      const isNetworkError =
+        error instanceof TypeError ||
+        /load failed|failed to fetch|networkerror|network error/i.test(raw)
+      const hint = isNetworkError
+        ? "Couldn't reach the PCI assistant — check your connection and try again."
+        : raw || 'Unable to reach the PCI assistant. Please try again.'
+      toast.error(`PCI Assistant error: ${hint}`)
       dispatch({
         type: 'sendError',
         target,
