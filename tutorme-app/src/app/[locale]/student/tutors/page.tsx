@@ -349,20 +349,9 @@ export default function StudentTutorDirectoryPage() {
                     </Card>
                   ))
                 ) : filteredTutors.length === 0 ? (
-                  <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-                    <CardHeader>
-                      <CardTitle className="text-white">
-                        {sortBy === 'following'
-                          ? 'You are not following any tutors'
-                          : 'No tutors match your current filters'}
-                      </CardTitle>
-                      <CardDescription className="text-white/70">
-                        {sortBy === 'following'
-                          ? 'Follow tutors from their profile pages to see them here.'
-                          : 'Try broadening search terms or selecting a different region or country.'}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
+                  <div className="col-span-full py-10 text-center text-sm text-gray-500">
+                    Unfortunately, the search did not find any tutors. Please try again.
+                  </div>
                 ) : (
                   paginatedTutors.map(tutor => (
                     <TutorCard
