@@ -30,7 +30,7 @@ export function CollapsibleCard({
   const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'start' })
 
   return (
-    <div ref={cardRef} className="flex h-full flex-col">
+    <div ref={cardRef} className="flex flex-col">
       {/* Outer wrapper with shadow - overflow visible so shadow shows */}
       <div
         className={cn(
@@ -42,7 +42,7 @@ export function CollapsibleCard({
         )}
       >
         {/* Inner wrapper with overflow hidden for animation */}
-        <div className="flex h-full flex-col overflow-hidden p-0">
+        <div className="flex flex-col overflow-hidden p-0">
           <button
             type="button"
             onClick={() => setOpen(o => !o)}
