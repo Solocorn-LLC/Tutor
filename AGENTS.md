@@ -1,6 +1,6 @@
 # Solocorn — AI Coding Agent Guide
 
-> **Last updated:** 2026-06-25
+> **Last updated:** 2026-07-08
 > **Repository root:** `c:\VSCODE\Tutor`
 > **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens), `Classroom/` (tutor documentation)
 
@@ -28,15 +28,15 @@ Solocorn (also marketed as CogniClass / TutorMekimi) is an AI-human hybrid tutor
 - **Main app default port:** `3003`
 - **Landing page default port:** `3000`
 - **ADK service default port:** `8080` (container port); `services/adk/docker-compose.yml` maps host `4310`, so run the container with `PORT=4310` for that mapping to work locally
-- **API routes:** 245 `route.ts` files under `src/app/api/`
+- **API routes:** 254 `route.ts` files under `src/app/api/`
 - **Components:** 32 top-level directories in `tutorme-app/src/components/`
 - **Library modules:** 49 top-level directories in `tutorme-app/src/lib/`
 - **Custom hooks:** 13 in `tutorme-app/src/hooks/`
 - **Zustand stores:** 2 in `tutorme-app/src/stores/`
 - **Migrations:** 87 SQL files in `tutorme-app/drizzle/` (65 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
-- **TypeScript/TSX files in `tutorme-app/src/`:** 968
-- **Unit/integration test files:** 74 `.test.ts` files (68 unit, 6 integration)
-- **Playwright E2E specs:** 12 in `tutorme-app/e2e/`
+- **TypeScript/TSX files in `tutorme-app/src/`:** ~1,032
+- **Unit/integration test files:** 108 `.test.ts` files total (68 unit, 6+ integration)
+- **Playwright E2E specs:** 15 in `tutorme-app/e2e/`
 
 ---
 
@@ -66,12 +66,12 @@ c:\VSCODE\Tutor/
 │   │   │   │   ├── session/
 │   │   │   │   ├── tutors/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (top-level domains, 245 route.ts files)
+│   │   │   └── api/          # REST API endpoints (top-level domains, 254 route.ts files)
 │   │   ├── components/       # React components (feature-organized, 32 top-level dirs)
 │   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (49 top-level dirs)
 │   │   ├── hooks/            # Custom React hooks (13 files)
 │   │   └── stores/           # Zustand client stores (2 files)
-│   ├── e2e/                  # Playwright E2E specs (12 test files)
+│   ├── e2e/                  # Playwright E2E specs (15 test files)
 │   ├── drizzle/              # Drizzle migration files (87 SQL files + meta/ + archive/)
 │   ├── messages/             # next-intl JSON translations (en.json, zh-CN.json)
 │   ├── scripts/              # Build, deployment & utility scripts (37+ files)
@@ -258,7 +258,7 @@ The main app does **not** use the standard Next.js dev server. Instead, it runs 
 `Dockerfile.production` is a multi-stage build:
 
 1. **base** — `node:20-slim` with LibreOffice installed (for document processing)
-2. **deps** — `npm ci` with `--max-old-space-size=4096`
+2. **deps** — `npm ci` with `--max-old-space-size=6144` (retries with cache clean on failure)
 3. **builder** — Copies deps, installs Linux native bindings, writes dummy `.env.production`, runs `npm run build`, and compiles the custom server to `server-production.js`
 4. **runner** — Minimal image with `nextjs` user, copies `.next/`, `public/`, `drizzle/`, `scripts/`, compiled `server.js`, and runs `node scripts/start-prod.js` on port `3003`
 
@@ -451,10 +451,10 @@ Startup environment validation lives in `src/lib/env.ts` and is called from `ser
 
 ### App Router (`src/app/`)
 
-- `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans), and top-level providers (`Providers`, `PerformanceProviders`).
-- `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `AuthProvider`. Validates locale param against configured locales.
+- `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts (Fira Code, Fira Sans, EB Garamond), and top-level providers (`Providers`, `PerformanceProviders`).
+- `src/app/[locale]/layout.tsx` — Locale layout wrapping `NextIntlClientProvider`, `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 245 `route.ts` files across the API tree.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 254 `route.ts` files across the API tree.
 
 **Role-specific layout behaviors:**
 
@@ -588,7 +588,7 @@ The design system is documented in `design-system/solocorn/MASTER.md`.
 | Destructive | `#DC2626` | `--color-destructive` |
 | Ring | `#7C3AED` | `--color-ring` |
 
-**Typography:** Fira Code (headings), Fira Sans (body). Google Fonts loaded in root layout.
+**Typography:** Fira Code (headings), Fira Sans (body), EB Garamond (serif). Google Fonts loaded in root layout.
 
 **Anti-Patterns (Forbidden):**
 
@@ -710,7 +710,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 - **Include:** `src/**/*.test.{ts,tsx}` and `src/**/__tests__/**/*.{test,spec}.{ts,tsx}`
 - **Exclude:** `node_modules`, `.next`, integration, accessibility
 - **No database required.**
-- **Count:** 68 `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
+- **Count:** 68+ `.test.ts` files scattered across `src/` (including API route tests, lib tests, and component tests). No `.test.tsx` files.
 
 ### Integration Tests (Vitest)
 
@@ -751,6 +751,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 5. **format** — `npm run format:check` (continue-on-error)
 6. **security** — `npm run security:check`
 7. **integration** — ephemeral Postgres 16, `drizzle-kit push --force`, `npm run test:integration`
+8. **e2e-insights** (advisory, continue-on-error) — ephemeral Postgres 16, build, seed, start app, run `insights-tab-loop.spec.ts`
 
 `.github/workflows/secret-scan.yml` runs `gitleaks` on every push/PR.
 
@@ -800,7 +801,7 @@ The main app uses a custom Tailwind v3 theme defined in `tailwind.config.ts` wit
 2. **Docker builds** — Main app (`Dockerfile.production`) and ADK (`services/adk/Dockerfile`) are built and pushed to Google Artifact Registry (`asia-southeast1-docker.pkg.dev/{PROJECT}/tutorme-repo/...`).
 3. **Deploy ADK first** — Uses `deploy-cloudrun@v2` (1 CPU, 1 GiB, 0–10 instances, port 8080, unauthenticated).
 4. **Run migrations** — Executes `node scripts/migrate.js` inside the freshly built main-app image via `docker run --rm` against production `DATABASE_URL` / `DIRECT_URL`.
-5. **Deploy main app** — Uses `deploy-cloudrun@v2` (1 CPU, 1 GiB, 0–10 instances, unauthenticated). Env vars include `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `REDIS_URL`, `ADK_BASE_URL` (set to ADK deploy output), `ADK_AUTH_TOKEN`, etc.
+5. **Deploy main app** — Uses `deploy-cloudrun@v2` (1 CPU, 1 GiB, 0–10 instances, unauthenticated, `--no-cpu-throttling`, `--session-affinity`). Env vars include `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `REDIS_URL`, `ADK_BASE_URL` (set to ADK deploy output), `ADK_AUTH_TOKEN`, etc.
 6. **Traffic routing** — `gcloud run services update-traffic ... --to-latest` (100% traffic to new revision).
 
 **Required GitHub Secrets:** `GCP_PROJECT_ID`, `GCP_SA_KEY`, `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `REDIS_URL`, `ADK_AUTH_TOKEN`, `KIMI_API_KEY`, `GEMINI_API_KEY`, `NEXT_PUBLIC_APP_URL`.
