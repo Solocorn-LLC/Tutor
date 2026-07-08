@@ -61,7 +61,9 @@ export default function StudentTutorDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
-  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate'>('popular')
+  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate' | 'following'>(
+    'following'
+  )
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 8
 
@@ -141,7 +143,7 @@ export default function StudentTutorDirectoryPage() {
         if (selectedRegion && selectedRegion !== 'global' && selectedCountryCode) {
           qs.set('country', selectedCountryCode)
         }
-        qs.set('sort', sortBy)
+        qs.set('sort', sortBy === 'following' ? 'popular' : sortBy)
 
         const res = await fetch(`/api/public/tutors?${qs.toString()}`, {
           credentials: 'include',
@@ -168,21 +170,28 @@ export default function StudentTutorDirectoryPage() {
     }
   }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
 
-  const totalPages = Math.max(1, Math.ceil(tutors.length / ITEMS_PER_PAGE))
-  const paginatedTutors = tutors.slice(
+  const filteredTutors = useMemo(() => {
+    if (sortBy === 'following') {
+      return tutors.filter(tutor => following.has(tutor.id))
+    }
+    return tutors
+  }, [tutors, sortBy, following])
+
+  const totalPages = Math.max(1, Math.ceil(filteredTutors.length / ITEMS_PER_PAGE))
+  const paginatedTutors = filteredTutors.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
 
   const headlineMetrics = useMemo(() => {
-    const totalCourses = tutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
-    const totalEnrollments = tutors.reduce((sum, tutor) => sum + tutor.totalEnrollments, 0)
+    const totalCourses = filteredTutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
+    const totalEnrollments = filteredTutors.reduce((sum, tutor) => sum + tutor.totalEnrollments, 0)
     return {
-      tutorCount: tutors.length,
+      tutorCount: filteredTutors.length,
       totalCourses,
       totalEnrollments,
     }
-  }, [tutors])
+  }, [filteredTutors])
 
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
@@ -286,6 +295,12 @@ export default function StudentTutorDirectoryPage() {
               </SelectTrigger>
               <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
                 <SelectItem
+                  value="following"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
+                  Following
+                </SelectItem>
+                <SelectItem
                   value="popular"
                   className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
@@ -333,14 +348,18 @@ export default function StudentTutorDirectoryPage() {
                       </CardContent>
                     </Card>
                   ))
-                ) : tutors.length === 0 ? (
+                ) : filteredTutors.length === 0 ? (
                   <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
                     <CardHeader>
                       <CardTitle className="text-white">
-                        No tutors match your current filters
+                        {sortBy === 'following'
+                          ? 'You are not following any tutors'
+                          : 'No tutors match your current filters'}
                       </CardTitle>
                       <CardDescription className="text-white/70">
-                        Try broadening search terms or selecting a different region or country.
+                        {sortBy === 'following'
+                          ? 'Follow tutors from their profile pages to see them here.'
+                          : 'Try broadening search terms or selecting a different region or country.'}
                       </CardDescription>
                     </CardHeader>
                   </Card>
@@ -380,7 +399,7 @@ export default function StudentTutorDirectoryPage() {
             </div>
 
             {/* Pagination */}
-            {!loading && tutors.length > 0 && (
+            {!loading && filteredTutors.length > 0 && (
               <div className="flex items-center justify-center gap-2 pt-4">
                 <button
                   type="button"
