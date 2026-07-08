@@ -1222,6 +1222,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
     const [testPciBasis, setTestPciBasis] = useState<'all' | 'pci' | 'rubric' | 'model'>('all')
+    // How the last-generated DMI was classified (per source). Lets the tutor
+    // override a confidently-wrong call — e.g. numbered study notes read as a
+    // question paper — via the "Detected as …" banner, which regenerates.
+    const [dmiDocumentKind, setDmiDocumentKind] = useState<{
+      task?: 'question_paper' | 'study_material'
+      assessment?: 'question_paper' | 'study_material'
+    }>({})
     const [alertDialog, setAlertDialog] = useState<{
       open: boolean
       title: string
@@ -3320,6 +3327,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           sections: deriveSections(dmiItems),
           totalMarks: deriveTotalMarks(dmiItems),
         }
+
+        // Remember how this DMI was classified so the tutor can override a wrong
+        // call (see the "Detected as …" banner) without needing the model to be
+        // unsure. study_material is inferred when the tutor supplied a question spec.
+        const detectedKind: 'question_paper' | 'study_material' =
+          data.documentKind === 'study_material' || (questionSpec?.length ?? 0) > 0
+            ? 'study_material'
+            : 'question_paper'
+        setDmiDocumentKind(prev => ({ ...prev, [type]: detectedKind }))
 
         if (isTask) {
           setTaskDmiItems(dmiItems)
@@ -9677,6 +9693,44 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               >
                                                 <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
                                                   <div className="space-y-4">
+                                                    {dmiDocumentKind[testPciSource] && canEdit && (
+                                                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                                        <span>
+                                                          Detected as{' '}
+                                                          <span className="font-semibold">
+                                                            {dmiDocumentKind[testPciSource] ===
+                                                            'question_paper'
+                                                              ? 'a question paper'
+                                                              : 'study material'}
+                                                          </span>
+                                                          {dmiDocumentKind[testPciSource] ===
+                                                          'question_paper'
+                                                            ? ' — extracted the question numbers.'
+                                                            : ' — authored questions from the content.'}
+                                                        </span>
+                                                        <button
+                                                          type="button"
+                                                          disabled={dmiGenerating}
+                                                          onClick={() =>
+                                                            handleGenerateDMI(
+                                                              testPciSource,
+                                                              undefined,
+                                                              dmiDocumentKind[testPciSource] ===
+                                                                'question_paper'
+                                                                ? 'study_material'
+                                                                : 'question_paper'
+                                                            )
+                                                          }
+                                                          className="ml-auto rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                                                        >
+                                                          Not right? Regenerate as{' '}
+                                                          {dmiDocumentKind[testPciSource] ===
+                                                          'question_paper'
+                                                            ? 'study material'
+                                                            : 'a question paper'}
+                                                        </button>
+                                                      </div>
+                                                    )}
                                                     {(version?.items ?? []).length === 0 && (
                                                       <p className="text-muted-foreground text-sm">
                                                         No questions in this DMI yet. Open{' '}
