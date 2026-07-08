@@ -230,6 +230,8 @@ export function usePci(deps: UsePciDeps) {
         draft: draft || undefined,
         // TASK-6: the structured spec mirror (present only on finalization).
         spec: data.pciSpec || undefined,
+        // Running capture for the live "policy so far" panel (may be partial).
+        specSoFar: data.pciSpecSoFar || undefined,
         warnings,
       })
     } catch (error) {

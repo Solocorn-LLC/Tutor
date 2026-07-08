@@ -25,6 +25,12 @@ export interface PciThread {
   draft: string
   /** Structured form of the finalized rubric (TASK-6), when the model emitted one. */
   draftSpec?: import('@/lib/assessment/pci-spec').PciSpec
+  /**
+   * Partial structured policy the assistant has captured SO FAR this
+   * conversation (may be incomplete; NOT finalized). Drives the live
+   * "policy so far" panel. Distinct from `draftSpec` (the finalized mirror).
+   */
+  specSoFar?: import('@/lib/assessment/pci-spec').PciSpec
   guardrailWarnings: PciGuardrailWarning[]
 }
 
@@ -66,6 +72,7 @@ export type PciAction =
       assistant: PciMessage
       draft?: string
       spec?: import('@/lib/assessment/pci-spec').PciSpec
+      specSoFar?: import('@/lib/assessment/pci-spec').PciSpec
       warnings: PciGuardrailWarning[]
     }
   | { type: 'sendError'; target: PciTarget; hint: string; assistant: PciMessage }
@@ -117,6 +124,10 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
         messages: [...getThread(state, action.target).messages, action.assistant],
         ...(action.draft ? { draft: action.draft } : {}),
         ...(action.spec ? { draftSpec: action.spec } : {}),
+        // Merge captured-so-far fields; keep prior values if a turn omits them.
+        ...(action.specSoFar
+          ? { specSoFar: { ...getThread(state, action.target).specSoFar, ...action.specSoFar } }
+          : {}),
         errorHint: '',
         guardrailWarnings: action.warnings,
         loading: false,
