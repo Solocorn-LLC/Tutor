@@ -177,7 +177,7 @@ export function AiAssistantPanel({
               {messages.map(m => (
                 <motion.div
                   key={m.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 60 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, ease: 'easeOut' }}
                   className={`max-w-[90%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
