@@ -1837,6 +1837,94 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         ),
       ])
 
+    /**
+     * Fetch tiered search results:
+     * 1. Query + Country (most relevant)
+     * 2. Query only
+     * 3. Country only
+     * 4. All remaining results
+     */
+    const fetchTiered = async (
+      kind: 'courses' | 'tutors',
+      searchQuery: string,
+      countryCode: string
+    ): Promise<any[]> => {
+      const baseParams = new URLSearchParams()
+      baseParams.set('page', '1')
+      baseParams.set('pageSize', '24')
+      if (searchQuery) baseParams.set('q', searchQuery)
+
+      const tierQueries: { label: string; url: string }[] = []
+
+      // Tier 1: Query + Country
+      if (searchQuery && countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams(baseParams)
+        p.set('country', countryCode)
+        tierQueries.push({ label: 'tier1', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 2: Query only
+      if (searchQuery) {
+        const p = new URLSearchParams(baseParams)
+        tierQueries.push({ label: 'tier2', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 3: Country only
+      if (countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams()
+        p.set('page', '1')
+        p.set('pageSize', '24')
+        p.set('country', countryCode)
+        tierQueries.push({ label: 'tier3', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 4: All remaining (no filters)
+      const p = new URLSearchParams()
+      p.set('page', '1')
+      p.set('pageSize', '24')
+      tierQueries.push({ label: 'tier4', url: `/api/public/${kind}?${p.toString()}` })
+
+      // Fetch all tiers in parallel
+      const responses = await Promise.all(
+        tierQueries.map(tq =>
+          fetchWithTimeout(tq.url, { signal: controller.signal }).catch(err => {
+            console.warn(`[Landing] ${kind} ${tq.label} fetch failed:`, err)
+            return null
+          })
+        )
+      )
+
+      // Parse all responses
+      const tierResults = await Promise.all(
+        responses.map(async (res, i) => {
+          if (!res) return { label: tierQueries[i].label, items: [] }
+          try {
+            const json = await res.json()
+            return {
+              label: tierQueries[i].label,
+              items: kind === 'courses' ? json.courses || [] : json.tutors || [],
+            }
+          } catch {
+            return { label: tierQueries[i].label, items: [] }
+          }
+        })
+      )
+
+      // Merge in tier order, deduplicate by ID
+      const seen = new Set<string>()
+      const results: any[] = []
+      for (const tier of tierResults) {
+        for (const item of tier.items) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            results.push(item)
+          }
+        }
+      }
+
+      return results
+    }
+
     const run = async () => {
       console.log('[Landing] Fetch starting...')
       setIsLoading(true)
@@ -1844,47 +1932,20 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       setCoursesPage(0)
       setTutorsPage(0)
       try {
-        const params = new URLSearchParams()
-        params.set('page', '1')
-        params.set('pageSize', '24')
-        if (q) params.set('q', q)
-        if (selectedRegion !== 'global' && selectedCountryCode) {
-          params.set('country', selectedCountryCode)
-        }
-        const qp = `?${params.toString()}`
-        const [coursesRes, tutorsRes] = await Promise.all([
-          fetchWithTimeout(`/api/public/courses${qp}`, {
-            signal: controller.signal,
-          }),
-          fetchWithTimeout(`/api/public/tutors${qp}`, {
-            signal: controller.signal,
-          }),
+        const [coursesResults, tutorsResults] = await Promise.all([
+          fetchTiered('courses', q, selectedCountryCode),
+          fetchTiered('tutors', q, selectedCountryCode),
         ])
-        console.log('[Landing] Fetch completed:', {
-          coursesOk: coursesRes.ok,
-          tutorsOk: tutorsRes.ok,
-        })
-
-        const parseJsonSafe = async (res: Response) => {
-          const ct = res.headers.get('content-type') || ''
-          if (!ct.includes('application/json')) return null
-          return await res.json()
-        }
-
-        const [coursesJson, tutorsJson] = await Promise.all([
-          coursesRes.ok ? parseJsonSafe(coursesRes) : null,
-          tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
-        ])
-        console.log('[Landing] Parsed JSON:', {
-          coursesCount: coursesJson?.courses?.length,
-          tutorsCount: tutorsJson?.tutors?.length,
+        console.log('[Landing] Tiered fetch completed:', {
+          coursesCount: coursesResults.length,
+          tutorsCount: tutorsResults.length,
         })
 
         if (!finished) {
-          setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
-          setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
+          setCourses(coursesResults)
+          setTutors(tutorsResults)
 
-          if (!coursesRes.ok && !tutorsRes.ok) {
+          if (coursesResults.length === 0 && tutorsResults.length === 0) {
             setLoadError('Unable to load results.')
           }
         }
