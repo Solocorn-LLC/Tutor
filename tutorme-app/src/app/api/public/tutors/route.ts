@@ -322,7 +322,15 @@ export async function GET(request: NextRequest) {
       const tutorCombinations = [
         ...new Set(tutorVariants.map(v => `${v.category} - ${v.nationality}`)),
       ]
-      const tutorNationalities = [...new Set(tutorVariants.map(v => v.nationality))]
+      const tutorNationalities = [
+        ...new Set(
+          [
+            ...tutorVariants.map(v => v.nationality),
+            profileData?.nationality,
+            profileData?.countryOfResidence,
+          ].filter(Boolean)
+        ),
+      ]
       const allCategories = [...new Set(tutorCourses.flatMap(c => c.categories || []))]
 
       const latestCourse = tutorCourses.sort(
