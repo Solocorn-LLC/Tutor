@@ -12669,16 +12669,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (!open) setDmiSpecDialog(null)
           }}
         >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Choose questions to generate</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
+            <DialogHeader className="text-center">
+              <DialogTitle className="mx-auto text-center text-white">
+                Choose questions to generate
+              </DialogTitle>
+              <DialogDescription className="text-white/80">
                 This document looks like study material rather than a question paper. Pick the
                 question types and how many of each to generate.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-3 py-2">
+            <div className="space-y-3 px-6 py-4">
               {dmiSpecRows.map((row, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <Select
@@ -12691,7 +12693,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       )
                     }
                   >
-                    <SelectTrigger className="h-9 flex-1">
+                    <SelectTrigger className="h-10 flex-1 rounded-[10px] border border-gray-200 bg-white text-sm font-medium text-gray-900">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -12719,7 +12721,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                       )
                     }
-                    className="h-9 w-20"
+                    className="h-10 w-20 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
                   />
                   <Button
                     type="button"
@@ -12737,17 +12739,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 type="button"
                 variant="outline"
                 size="sm"
+                className="h-10 rounded-[10px] border border-white bg-[#22C55E] px-6 text-sm font-medium text-white hover:border-[#22C55E] hover:bg-white hover:text-[#22C55E]"
                 onClick={() => setDmiSpecRows(prev => [...prev, { type: 'short', count: 3 }])}
               >
                 <Plus className="mr-1 h-4 w-4" /> Add type
               </Button>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDmiSpecDialog(null)}>
+            <DialogFooter className="gap-3">
+              <Button variant="modal-secondary-dark" onClick={() => setDmiSpecDialog(null)}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirmDmiSpec} disabled={dmiGenerating}>
+              <Button
+                variant="modal-primary-dark"
+                onClick={handleConfirmDmiSpec}
+                disabled={dmiGenerating}
+              >
+                {dmiGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Generate
               </Button>
             </DialogFooter>
