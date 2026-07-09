@@ -466,16 +466,16 @@ const translations: Translations = {
 
   // Footer
   footerBrand: {
-    en: 'Solocorn LLC',
-    'zh-CN': 'Solocorn LLC',
-    'zh-HK': 'Solocorn LLC',
-    es: 'Solocorn LLC',
-    fr: 'Solocorn LLC',
-    de: 'Solocorn LLC',
-    ja: 'Solocorn LLC',
-    ko: 'Solocorn LLC',
-    pt: 'Solocorn LLC',
-    hi: 'Solocorn LLC',
+    en: 'Solocorn',
+    'zh-CN': 'Solocorn',
+    'zh-HK': 'Solocorn',
+    es: 'Solocorn',
+    fr: 'Solocorn',
+    de: 'Solocorn',
+    ja: 'Solocorn',
+    ko: 'Solocorn',
+    pt: 'Solocorn',
+    hi: 'Solocorn',
   },
   privacyPolicy: {
     en: 'Privacy Policy',
@@ -502,16 +502,16 @@ const translations: Translations = {
     hi: 'सेवा की शर्तें',
   },
   allRightsReserved: {
-    en: '© 2026 Solocorn LLC. All rights reserved.',
-    'zh-CN': '© 2026 Solocorn LLC。保留所有权利。',
-    'zh-HK': '© 2026 Solocorn LLC。保留所有權利。',
-    es: '© 2026 Solocorn LLC. Todos los derechos reservados.',
-    fr: '© 2026 Solocorn LLC. Tous droits réservés.',
-    de: '© 2026 Solocorn LLC. Alle Rechte vorbehalten.',
-    ja: '© 2026 Solocorn LLC. All rights reserved.',
-    ko: '© 2026 Solocorn LLC. 모든 권리 보유.',
-    pt: '© 2026 Solocorn LLC. Todos os direitos reservados.',
-    hi: '© 2026 Solocorn LLC। सर्वाधिकार सुरक्षित।',
+    en: '© 2026 Solocorn. All rights reserved.',
+    'zh-CN': '© 2026 Solocorn。保留所有权利。',
+    'zh-HK': '© 2026 Solocorn。保留所有權利。',
+    es: '© 2026 Solocorn. Todos los derechos reservados.',
+    fr: '© 2026 Solocorn. Tous droits réservés.',
+    de: '© 2026 Solocorn. Alle Rechte vorbehalten.',
+    ja: '© 2026 Solocorn. All rights reserved.',
+    ko: '© 2026 Solocorn. 모든 권리 보유.',
+    pt: '© 2026 Solocorn. Todos os direitos reservados.',
+    hi: '© 2026 Solocorn। सर्वाधिकार सुरक्षित।',
   },
 
   // Modal Content
@@ -3740,8 +3740,8 @@ const TermsOfServiceModal = ({
             </p>
             <h3 className="mt-4 font-semibold">4. Intellectual Property</h3>
             <p>
-              All content and materials available on Solocorn are the property of Solocorn LLC and
-              are protected by applicable intellectual property laws.
+              All content and materials available on Solocorn are the property of Solocorn and are
+              protected by applicable intellectual property laws.
             </p>
             <h3 className="mt-4 font-semibold">5. Limitation of Liability</h3>
             <p>
