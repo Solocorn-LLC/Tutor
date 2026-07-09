@@ -31,6 +31,13 @@ export interface PciThread {
    * "policy so far" panel. Distinct from `draftSpec` (the finalized mirror).
    */
   specSoFar?: import('@/lib/assessment/pci-spec').PciSpec
+  /**
+   * "policy so far" fields the tutor corrected inline. These are STICKY: a later
+   * model turn (or the server-side fallback extraction) may not overwrite them,
+   * so a correction holds until the tutor edits it again. Clearing a field drops
+   * it from here so the assistant may re-capture it.
+   */
+  editedSpecKeys?: string[]
   guardrailWarnings: PciGuardrailWarning[]
 }
 
@@ -124,21 +131,32 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
         loading: true,
       })
 
-    case 'sendSuccess':
+    case 'sendSuccess': {
       // Append the assistant reply, hold any finalized draft + structured spec,
       // clear the error, record guardrail warnings, and stop loading.
+      const cur = getThread(state, action.target)
+      // Merge captured-so-far fields; keep prior values if a turn omits them.
+      // Tutor-corrected fields are STICKY — the model may not overwrite them, so
+      // an inline correction holds until the tutor edits it again.
+      let specSoFarPatch: Partial<PciThread> = {}
+      if (action.specSoFar) {
+        const edited = new Set(cur.editedSpecKeys ?? [])
+        const merged: Record<string, string> = { ...(cur.specSoFar ?? {}) }
+        for (const [k, v] of Object.entries(action.specSoFar)) {
+          if (!edited.has(k)) merged[k] = v
+        }
+        specSoFarPatch = { specSoFar: merged }
+      }
       return patch(state, action.target, {
-        messages: [...getThread(state, action.target).messages, action.assistant],
+        messages: [...cur.messages, action.assistant],
         ...(action.draft ? { draft: action.draft } : {}),
         ...(action.spec ? { draftSpec: action.spec } : {}),
-        // Merge captured-so-far fields; keep prior values if a turn omits them.
-        ...(action.specSoFar
-          ? { specSoFar: { ...getThread(state, action.target).specSoFar, ...action.specSoFar } }
-          : {}),
+        ...specSoFarPatch,
         errorHint: '',
         guardrailWarnings: action.warnings,
         loading: false,
       })
+    }
 
     case 'sendError':
       return patch(state, action.target, {
@@ -154,12 +172,20 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
       return patch(state, action.target, { draft: '', draftSpec: undefined })
 
     case 'editSpecSoFar': {
-      const current = getThread(state, action.target).specSoFar ?? {}
-      const next = { ...current }
+      const t = getThread(state, action.target)
+      const next = { ...(t.specSoFar ?? {}) }
+      const edited = new Set(t.editedSpecKeys ?? [])
       const v = action.value.trim()
-      if (v) next[action.key] = v
-      else delete next[action.key]
-      return patch(state, action.target, { specSoFar: next })
+      if (v) {
+        // Set + protect: this correction is now sticky.
+        next[action.key] = v
+        edited.add(action.key)
+      } else {
+        // Cleared: drop the value and un-protect so the assistant may re-capture.
+        delete next[action.key]
+        edited.delete(action.key)
+      }
+      return patch(state, action.target, { specSoFar: next, editedSpecKeys: [...edited] })
     }
 
     case 'reset':
