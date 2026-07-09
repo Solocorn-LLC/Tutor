@@ -5047,6 +5047,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 }))
               )
               toast.success(`Loaded '${asset.name}' into Assessment`)
+              // DMI-first: auto-generate the DMI now (the PCI chat stays locked
+              // until it's ready). Kind detection asks the tutor if unsure.
+              setTimeout(() => handleGenerateDMI('assessment'), 500)
             } else {
               // For tasks, load document and text
               if (!asset.url && !asset.fileKey) {
@@ -6228,12 +6231,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       setLoadAsModalOpen(false)
                       setAssetToLoad(null)
 
-                      // Auto-send first PCI message
+                      // DMI-first: generate the DMI (questions + answers/marks)
+                      // right away. The marking-policy (PCI) chat stays locked
+                      // until the DMI is ready. handleGenerateDMI detects the
+                      // document kind and asks the tutor to confirm if unsure.
                       setTimeout(() => {
-                        handlePciSend(
-                          'assessment',
-                          `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
-                        )
+                        handleGenerateDMI('assessment')
                       }, 500)
                     }}
                   >
@@ -6694,6 +6697,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
     const hasAssessmentDocument = !!currentAssessmentDocument
+
+    // DMI-first gate: an assessment's marking-policy (PCI) chat unlocks only once
+    // the DMI exists with questions, marks, and an answer key/rubric (the "basic"
+    // bar). Per-question gaps are surfaced but don't block.
+    const assessmentDmiTotalMarks = assessmentDmiItems.reduce(
+      (sum, q) => sum + (typeof q.marks === 'number' && q.marks > 0 ? q.marks : 0),
+      0
+    )
+    const assessmentDmiHasAnswerKey = assessmentDmiItems.some(
+      q => (q.answer?.trim()?.length ?? 0) > 0 || (q.rubric?.trim()?.length ?? 0) > 0
+    )
+    const assessmentDmiReady =
+      assessmentDmiItems.length > 0 && assessmentDmiTotalMarks > 0 && assessmentDmiHasAnswerKey
 
     // PCI assistant state + actions, consolidated into a reducer-backed hook.
     // Called late (all deps below are defined by here); the two early consumers
@@ -11025,6 +11041,50 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             'assessment',
                                             assessmentBuilder.taskPci
                                           )}
+                                          {!assessmentDmiReady && (
+                                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
+                                              <p className="font-semibold">
+                                                Set up the questions &amp; marking scheme first
+                                              </p>
+                                              <p className="mt-1">
+                                                The marking-policy chat unlocks once your DMI has
+                                                questions, marks, and an answer key or rubric.{' '}
+                                                {assessmentDmiItems.length === 0
+                                                  ? 'Generate the DMI from your document to begin.'
+                                                  : assessmentDmiTotalMarks === 0
+                                                    ? 'Open “Edit marks & answers” to set the marks.'
+                                                    : 'Open “Edit marks & answers” to add the answer key / rubric.'}
+                                              </p>
+                                              {canEdit && (
+                                                <div className="mt-2 flex gap-2">
+                                                  {assessmentDmiItems.length === 0 ? (
+                                                    <button
+                                                      type="button"
+                                                      disabled={dmiGenerating}
+                                                      onClick={() =>
+                                                        handleGenerateDMI('assessment')
+                                                      }
+                                                      className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                                                    >
+                                                      {dmiGenerating
+                                                        ? 'Generating…'
+                                                        : 'Generate DMI'}
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setDmiEditor({ source: 'assessment' })
+                                                      }
+                                                      className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
+                                                    >
+                                                      Edit marks &amp; answers
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
                                           <PciSpecSoFar
                                             spec={
                                               assessmentPciSpecSoFarMap[loadedAssessmentId || '']
@@ -11043,14 +11103,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               )
                                             }
                                           />
-                                          {(
-                                            assessmentPciMessagesMap[loadedAssessmentId || ''] || []
-                                          ).length === 0 && (
-                                            <p className="text-muted-foreground text-xs">
-                                              Start a PCI chat to build instructions with the
-                                              assistant.
-                                            </p>
-                                          )}
+                                          {assessmentDmiReady &&
+                                            (
+                                              assessmentPciMessagesMap[loadedAssessmentId || ''] ||
+                                              []
+                                            ).length === 0 && (
+                                              <p className="text-muted-foreground text-xs">
+                                                Start a PCI chat to build instructions with the
+                                                assistant.
+                                              </p>
+                                            )}
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []
                                           ).map((msg, idx) => (
@@ -11131,7 +11193,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       loadedAssessmentId || ''
                                                     ] || ''
                                                   }
-                                                  readOnly={!canEdit}
+                                                  readOnly={!canEdit || !assessmentDmiReady}
+                                                  placeholder={
+                                                    assessmentDmiReady
+                                                      ? undefined
+                                                      : 'Complete the DMI (questions, marks, answer key) to unlock the marking-policy chat'
+                                                  }
                                                   onChange={(e: any) =>
                                                     setPciInput(
                                                       {
@@ -11142,7 +11209,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     )
                                                   }
                                                   onKeyDown={(e: any) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                    if (
+                                                      e.key === 'Enter' &&
+                                                      !e.shiftKey &&
+                                                      assessmentDmiReady
+                                                    ) {
                                                       e.preventDefault()
                                                       handlePciSend('assessment')
                                                     }
@@ -11155,6 +11226,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     size="icon"
                                                     className="h-8 w-8 shrink-0 rounded-full"
                                                     disabled={
+                                                      !assessmentDmiReady ||
                                                       assessmentPciLoadingMap[
                                                         loadedAssessmentId || ''
                                                       ] ||
