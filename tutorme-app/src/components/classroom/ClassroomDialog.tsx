@@ -312,7 +312,7 @@ export function ClassroomDialog({
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   All sessions
                 </p>
-                <div className="scrollbar-hide mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                <div className="scrollbar-hide mt-3 max-h-[360px] space-y-3 overflow-y-auto pr-2">
                   {sessions.map(session => {
                     const isVirtual = session.isVirtual === true
                     const isActive = session.status === 'active'
@@ -346,9 +346,9 @@ export function ClassroomDialog({
                       <div
                         key={session.id}
                         className={cn(
-                          'flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 transition-colors',
+                          'border-border/30 bg-card flex items-center justify-between rounded-lg border p-3 transition-all duration-200',
                           canClick
-                            ? 'cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40'
+                            ? 'hover:border-border/50 cursor-pointer hover:bg-white'
                             : 'opacity-80'
                         )}
                         onClick={() => {
@@ -364,23 +364,24 @@ export function ClassroomDialog({
                       >
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-sm font-medium text-slate-800">
-                              {session.title}
-                            </p>
+                            <p className="truncate font-medium text-gray-900">{session.title}</p>
                             <Badge
                               variant="outline"
                               className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
                             >
                               {displayStatus}
                             </Badge>
-                            {isVirtual && (
-                              <Badge
-                                variant="outline"
-                                className="bg-info/10 text-info border-info/25 text-[10px] uppercase tracking-wide"
-                              >
-                                From schedule
-                              </Badge>
-                            )}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] uppercase tracking-wide',
+                                isVirtual || session.scheduleId
+                                  ? 'bg-info/10 text-info border-info/25'
+                                  : 'bg-warning/10 text-warning border-warning/25'
+                              )}
+                            >
+                              {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
+                            </Badge>
                             {session.scheduleName && (
                               <Badge
                                 variant="outline"
