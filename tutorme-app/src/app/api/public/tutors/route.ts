@@ -87,7 +87,11 @@ export async function GET(request: NextRequest) {
             specialties: categories,
             hourlyRate: profileData.hourlyRate,
             oneOnOneEnabled: profileData.oneOnOneEnabled ?? true,
-            tutorNationalities: [],
+            tutorNationalities: profileData.nationality
+              ? [profileData.nationality]
+              : profileData.countryOfResidence
+                ? [profileData.countryOfResidence]
+                : [],
             categoryNationalityCombinations: [],
             courseCount: tutorCourses.length,
             totalEnrollments: 0,
