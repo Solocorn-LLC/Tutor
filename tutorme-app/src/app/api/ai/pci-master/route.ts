@@ -71,6 +71,9 @@ const PciMasterRequestSchema = z.object({
       // The captured "policy so far" (incl. tutor inline corrections), sent back
       // so the model treats it as authoritative and carries it forward.
       capturedSoFar: z.record(z.string(), z.string()).optional(),
+      // Assessment DMI digest (per-question marks + rubric, no answers) so the
+      // marking policy is built with the real questions/marks/rubrics in view.
+      markingScheme: z.string().max(16000).optional(),
     })
     .optional(),
   // Rendered page images (data URLs) of an attached PDF, so the model can SEE the
@@ -186,6 +189,11 @@ export async function POST(request: NextRequest) {
       context?.extensionName && `Extension Name: ${context.extensionName}`,
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
+      context?.markingScheme &&
+        `Marking scheme (the DMI — per-question marks + rubric; use it to ask targeted marking-policy questions and to ground the policy in the real questions/marks; do NOT copy per-question rubric text into the policy):\n${truncate(
+          context.markingScheme,
+          12000
+        )}`,
       context?.capturedSoFar &&
         Object.keys(context.capturedSoFar).length > 0 &&
         `Policy captured so far (the tutor may have corrected these — treat them as AUTHORITATIVE and carry these exact values forward in "specSoFar"; do not overwrite or re-capture a stale value):\n${JSON.stringify(

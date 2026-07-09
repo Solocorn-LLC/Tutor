@@ -6727,6 +6727,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       autoCreateAssessment,
       renderPdfToImages,
       pdfPageCache,
+      // DMI digest (marks + rubric, no answers) so the policy chat sees the
+      // actual questions/marks/rubrics.
+      assessmentMarkingScheme: assessmentDmiItems
+        .map(q => {
+          const label = q.questionLabel || `Q${q.questionNumber ?? ''}`
+          const text =
+            q.questionText && q.questionText.trim() && q.questionText.trim() !== label
+              ? ` ${q.questionText.trim()}`
+              : ''
+          const marks =
+            typeof q.marks === 'number' && q.marks > 0
+              ? ` [${q.marks} mark${q.marks === 1 ? '' : 's'}]`
+              : ''
+          const rubric = q.rubric?.trim() ? `\n  rubric: ${q.rubric.trim()}` : ''
+          return `${label}:${text}${marks}${rubric}`
+        })
+        .join('\n'),
     })
     const { pci, handlePciSend, applyTaskPciDraft, applyAssessmentPciDraft, setPciInput } = pciApi
     const editSpecSoFar = pciApi.editSpecSoFar
@@ -6967,6 +6984,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         })
       }
     }, [loadedTaskId, hasTaskDocument])
+
+    // DMI-first kickoff: once the assessment's DMI is ready (chat unlocked) and
+    // the marking-policy chat has no messages yet, auto-start the guided flow —
+    // skipping the document summary (the DMI review already covered the
+    // questions) and going straight to probing the marking policy. Fires once
+    // per assessment.
+    const pciKickoffRef = useRef<Set<string>>(new Set())
+    useEffect(() => {
+      const id = loadedAssessmentId
+      if (!id || !assessmentDmiReady || !canEdit) return
+      const thread = getThread(pci, { kind: 'assessment', id })
+      if (thread.messages.length > 0 || thread.loading) return
+      if (pciKickoffRef.current.has(id)) return
+      pciKickoffRef.current.add(id)
+      const t = setTimeout(() => {
+        handlePciSend(
+          'assessment',
+          'The questions and marking scheme (the DMI) are already set up, so skip any document summary. Go straight to helping me build the marking policy: ask me ONE simple question at a time about how answers should be marked — in clear, simple language with a small example each time. Start with the most important point.'
+        )
+      }, 300)
+      return () => clearTimeout(t)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadedAssessmentId, assessmentDmiReady, canEdit])
 
     // Auto-switch assessment panels based on document presence
     useEffect(() => {

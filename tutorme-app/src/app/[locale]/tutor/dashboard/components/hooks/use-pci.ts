@@ -39,6 +39,12 @@ interface UsePciDeps {
     sourceDocument?: PciSourceDoc
   }
   assessmentBuilder: { taskContent: string; taskPci: string; title: string }
+  /**
+   * Compact digest of the assessment's DMI (per-question marks + rubric, no
+   * answers) so the marking-policy chat builds the policy WITH the actual
+   * questions/marks/rubrics in view. Empty when there's no DMI.
+   */
+  assessmentMarkingScheme?: string
   /** Writes the finalized rubric to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
@@ -222,6 +228,12 @@ export function usePci(deps: UsePciDeps) {
               // authoritative and carries them forward (doesn't re-capture a
               // stale value).
               capturedSoFar: thread.specSoFar,
+              // The DMI marking scheme (assessment only), so the policy is built
+              // with the actual questions/marks/rubrics in view.
+              markingScheme:
+                !isTask && deps.assessmentMarkingScheme
+                  ? deps.assessmentMarkingScheme.slice(0, 12000)
+                  : undefined,
             },
             pdfPages,
           }),
