@@ -327,7 +327,7 @@ export default function StudentTutorDirectoryPage() {
                 value={searchQuery}
                 onChange={event => setSearchQuery(event.target.value)}
                 placeholder="Search tutor, subject, specialty..."
-                className="h-9 border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-900 placeholder:text-slate-400"
+                className="h-9 border-slate-700/25 bg-white pl-9 pr-10 text-sm text-slate-900 placeholder:text-slate-400"
               />
               <button
                 type="button"
