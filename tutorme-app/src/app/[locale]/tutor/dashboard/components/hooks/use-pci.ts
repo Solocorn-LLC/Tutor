@@ -217,6 +217,11 @@ export function usePci(deps: UsePciDeps) {
               pci: pciText,
               extensionName,
               sourceDocument,
+              // The captured "policy so far" — including any fields the tutor
+              // corrected inline. Sent back so the model treats these as
+              // authoritative and carries them forward (doesn't re-capture a
+              // stale value).
+              capturedSoFar: thread.specSoFar,
             },
             pdfPages,
           }),
@@ -281,6 +286,13 @@ export function usePci(deps: UsePciDeps) {
     }
   }
 
+  // Tutor correction of a captured "policy so far" field (empty value clears it).
+  const editSpecSoFar = (
+    target: PciTarget,
+    key: keyof import('@/lib/assessment/pci-spec').PciSpec,
+    value: string
+  ) => dispatch({ type: 'editSpecSoFar', target, key, value })
+
   return {
     pci,
     handlePciSend,
@@ -289,6 +301,7 @@ export function usePci(deps: UsePciDeps) {
     setPciInput,
     loadPciMessages,
     resetPci,
+    editSpecSoFar,
   }
 }
 

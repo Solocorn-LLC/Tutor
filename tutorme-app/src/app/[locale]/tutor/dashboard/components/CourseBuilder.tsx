@@ -6713,6 +6713,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       pdfPageCache,
     })
     const { pci, handlePciSend, applyTaskPciDraft, applyAssessmentPciDraft, setPciInput } = pciApi
+    const editSpecSoFar = pciApi.editSpecSoFar
     loadPciMessagesRef.current = pciApi.loadPciMessages
     resetPciRef.current = pciApi.resetPci
 
@@ -10587,6 +10588,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             spec={activeTaskThread.specSoFar}
                                             board={pciBoard}
                                             subject={pciCategory}
+                                            editable={canEdit}
+                                            onEditField={(key, value) =>
+                                              editSpecSoFar(activeTaskTarget, key, value)
+                                            }
                                           />
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
@@ -11026,6 +11031,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             }
                                             board={pciBoard}
                                             subject={pciCategory}
+                                            editable={canEdit}
+                                            onEditField={(key, value) =>
+                                              editSpecSoFar(
+                                                {
+                                                  kind: 'assessment',
+                                                  id: loadedAssessmentId || '',
+                                                },
+                                                key,
+                                                value
+                                              )
+                                            }
                                           />
                                           {(
                                             assessmentPciMessagesMap[loadedAssessmentId || ''] || []

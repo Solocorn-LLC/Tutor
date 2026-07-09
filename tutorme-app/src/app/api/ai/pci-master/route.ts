@@ -12,7 +12,7 @@ import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
-import { normalizePciSpec, type PciSpec } from '@/lib/assessment/pci-spec'
+import { normalizePciSpec, PCI_SPEC_FIELDS, type PciSpec } from '@/lib/assessment/pci-spec'
 import { signalsPciFinalize } from '@/lib/assessment/pci-finalize'
 import {
   guardrailSystemPrompt,
@@ -68,6 +68,9 @@ const PciMasterRequestSchema = z.object({
           mimeType: z.string().max(200).optional(),
         })
         .optional(),
+      // The captured "policy so far" (incl. tutor inline corrections), sent back
+      // so the model treats it as authoritative and carries it forward.
+      capturedSoFar: z.record(z.string(), z.string()).optional(),
     })
     .optional(),
   // Rendered page images (data URLs) of an attached PDF, so the model can SEE the
@@ -183,6 +186,11 @@ export async function POST(request: NextRequest) {
       context?.extensionName && `Extension Name: ${context.extensionName}`,
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
+      context?.capturedSoFar &&
+        Object.keys(context.capturedSoFar).length > 0 &&
+        `Policy captured so far (the tutor may have corrected these — treat them as AUTHORITATIVE and carry these exact values forward in "specSoFar"; do not overwrite or re-capture a stale value):\n${JSON.stringify(
+          context.capturedSoFar
+        )}`,
     ]
       .filter(Boolean)
       .join('\n\n')
@@ -378,6 +386,41 @@ export async function POST(request: NextRequest) {
       // applied without it, so this never silently finalizes.
       if ((pciDraft || pciSpec) && !tutorSignaledFinalize) {
         pciUnconfirmed = true
+      }
+    }
+
+    // Guaranteed population (bulletproofing): if the model returned NOTHING
+    // structured this turn but the tutor has been answering marking questions,
+    // extract the captured policy from the conversation ourselves so the "policy
+    // so far" panel still fills. Bounded — only on an empty result, only once
+    // there's real back-and-forth, and only for a substantive tutor message.
+    if (
+      guardrailDomain &&
+      !pciSpecSoFar &&
+      (history?.length ?? 0) >= 2 &&
+      safeMessage.length > 12
+    ) {
+      try {
+        const convo = [
+          ...(history ?? []).map(
+            h => `${h.role === 'assistant' ? 'Assistant' : 'Tutor'}: ${h.content}`
+          ),
+          `Tutor: ${safeMessage}`,
+        ]
+          .join('\n')
+          .slice(-8000)
+        const keys = PCI_SPEC_FIELDS.map(f => f.key).join(', ')
+        const extractPrompt = `From this conversation between an assistant and a tutor setting up a marking policy, extract ONLY what the TUTOR has actually stated about how answers should be marked. Return ONE JSON object using any of these optional keys (omit anything the tutor has not stated): ${keys}. Each value a short plain phrase in the tutor's own meaning. No prose, no code fences.\n\nConversation:\n${convo}`
+        const extracted = await generateWithFallback(extractPrompt, {
+          temperature: 0.1,
+          maxTokens: 500,
+          skipCache: true,
+          timeoutMs: 20_000,
+          retries: 1,
+        })
+        pciSpecSoFar = normalizePciSpec(parseLlmJson(extracted.content))
+      } catch (err) {
+        console.warn('[pci-master] specSoFar fallback extraction failed:', err)
       }
     }
 

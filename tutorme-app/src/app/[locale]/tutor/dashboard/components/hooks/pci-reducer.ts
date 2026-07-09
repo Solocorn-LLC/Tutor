@@ -78,6 +78,13 @@ export type PciAction =
   | { type: 'sendError'; target: PciTarget; hint: string; assistant: PciMessage }
   | { type: 'sendDone'; target: PciTarget }
   | { type: 'clearDraft'; target: PciTarget }
+  // Tutor correction of a captured "policy so far" field (empty value clears it).
+  | {
+      type: 'editSpecSoFar'
+      target: PciTarget
+      key: keyof import('@/lib/assessment/pci-spec').PciSpec
+      value: string
+    }
   | { type: 'reset' }
 
 /** Read a thread (returns a fresh empty thread for an unseen extension/assessment). */
@@ -145,6 +152,15 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
 
     case 'clearDraft':
       return patch(state, action.target, { draft: '', draftSpec: undefined })
+
+    case 'editSpecSoFar': {
+      const current = getThread(state, action.target).specSoFar ?? {}
+      const next = { ...current }
+      const v = action.value.trim()
+      if (v) next[action.key] = v
+      else delete next[action.key]
+      return patch(state, action.target, { specSoFar: next })
+    }
 
     case 'reset':
       return initialPciState()
