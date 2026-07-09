@@ -277,6 +277,7 @@ export function PDFViewer({
                     renderAnnotationLayer
                     scale={scale}
                     className="shadow-lg"
+                    onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
                     loading={
                       <div className="flex h-[600px] w-[600px] items-center justify-center bg-white">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
