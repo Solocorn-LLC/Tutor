@@ -360,8 +360,16 @@ export async function POST(request: NextRequest) {
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
         // TASK-6: the structured mirror of the finalized rubric.
         pciSpec = normalizePciSpec(env.spec)
-        // Running capture shown to the tutor as the policy takes shape.
-        pciSpecSoFar = normalizePciSpec(env.specSoFar)
+        // Running capture for the live "policy so far" panel. The model is
+        // unreliable about the dedicated `specSoFar` key — it often puts captured
+        // fields in the intuitive `spec` field instead, or omits `specSoFar`
+        // entirely — which left the panel empty even though the tutor's answers
+        // WERE captured. So read BOTH and merge (specSoFar wins on conflict); the
+        // reducer then accumulates across turns. The panel now fills whenever the
+        // model captured anything structured, not only on the exact key.
+        const asObj = (v: unknown): Record<string, unknown> =>
+          v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+        pciSpecSoFar = normalizePciSpec({ ...asObj(env.spec), ...asObj(env.specSoFar) })
       }
       // A rubric the model emitted without the tutor typing an explicit approval
       // this turn is still OFFERED (so the "Apply to PCI" button reliably appears
