@@ -202,6 +202,8 @@ function TutorDashboardContent() {
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   // Course context for creating a one-time (non-schedule) session from the sessions modal.
   const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
+  // Controls fade-out of Course Sessions modal when creating one-time session
+  const [creatingOneTime, setCreatingOneTime] = useState(false)
   // Course name + variant for the sessions modal (from the sessions API).
   const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
     name: string | null
@@ -1058,7 +1060,11 @@ function TutorDashboardContent() {
         <CreateClassDialog
           open={!!oneTimeCourse}
           onOpenChange={open => {
-            if (!open) setOneTimeCourse(null)
+            if (!open) {
+              // Cancel clicked: close CreateClassDialog and fade Course Sessions modal back in
+              setOneTimeCourse(null)
+              setCreatingOneTime(false)
+            }
           }}
           courseId={oneTimeCourse?.id}
           courseName={oneTimeCourse?.name}
@@ -1066,6 +1072,7 @@ function TutorDashboardContent() {
           onClassCreated={() => {
             const course = oneTimeCourse
             setOneTimeCourse(null)
+            setCreatingOneTime(false)
             if (course) {
               toast.success('One-time session created')
               handleOpenSessionsModal({ id: course.id, name: course.name } as EnrolledCourse)
@@ -1074,8 +1081,16 @@ function TutorDashboardContent() {
         />
 
         {/* Course Sessions Modal */}
-        <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
-          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl">
+        <Dialog
+          open={cancelModalOpen}
+          onOpenChange={open => {
+            if (!open) setCreatingOneTime(false)
+            setCancelModalOpen(open)
+          }}
+        >
+          <DialogContent
+            className={`max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl transition-opacity duration-300 ${creatingOneTime ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+          >
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-white">
                 <Calendar className="text-primary h-5 w-5" />
@@ -1389,15 +1404,18 @@ function TutorDashboardContent() {
                 {selectedCourseForCancel && (
                   <Button
                     variant="modal-primary-dark"
-                    onClick={() =>
-                      setOneTimeCourse({
-                        id: selectedCourseForCancel.id,
-                        name: selectedCourseForCancel.name,
-                      })
-                    }
+                    onClick={() => {
+                      setCreatingOneTime(true)
+                      setTimeout(() => {
+                        setOneTimeCourse({
+                          id: selectedCourseForCancel.id,
+                          name: selectedCourseForCancel.name,
+                        })
+                      }, 300)
+                    }}
                   >
                     <Video className="mr-1 h-4 w-4" />
-                    Create one-time session
+                    Create Class
                   </Button>
                 )}
                 <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
