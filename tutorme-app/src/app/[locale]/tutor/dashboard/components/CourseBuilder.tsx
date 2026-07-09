@@ -6995,7 +6995,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const t = setTimeout(() => {
         handlePciSend(
           'assessment',
-          'The questions and marking scheme (the DMI) are already set up, so skip any document summary. Go straight to helping me build the marking policy: ask me ONE simple question at a time about how answers should be marked — in clear, simple language with a small example each time. Start with the most important point.'
+          'The questions, sections, and marks (the DMI) are already set up — you have them, so do not ask me about the questions, types, sections, or marks. Skip any document summary and go straight to building the GENERAL marking policy for the whole assessment: ask me ONE simple question at a time about the overall rules — how marks are awarded (method vs final answer, partial credit), how to handle wrong / partial / no answers, and tone — in clear, simple language with a small example each time. Only ask about a specific question if its marking is different from the general rule.'
         )
       }, 300)
       return () => clearTimeout(t)

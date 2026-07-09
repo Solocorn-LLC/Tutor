@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
       context?.markingScheme &&
-        `Marking scheme (the DMI — per-question marks + rubric; use it to ask targeted marking-policy questions and to ground the policy in the real questions/marks; do NOT copy per-question rubric text into the policy):\n${truncate(
+        `Marking scheme already set up (the DMI — the questions, sections, per-question marks, and any rubrics). Treat this as KNOWN: never ask the tutor what the questions/sections/types are or how many marks a question is worth. Use it to build a GENERAL marking policy for the whole assessment (not a per-question interview), and do NOT copy per-question rubric text into the policy:\n${truncate(
           context.markingScheme,
           12000
         )}`,
