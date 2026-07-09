@@ -133,6 +133,7 @@ import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
 import { TestTaskChat, type TestTaskChatState } from './TestTaskChat'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
+import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -6700,16 +6701,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // DMI-first gate: an assessment's marking-policy (PCI) chat unlocks only once
     // the DMI exists with questions, marks, and an answer key/rubric (the "basic"
-    // bar). Per-question gaps are surfaced but don't block.
-    const assessmentDmiTotalMarks = assessmentDmiItems.reduce(
-      (sum, q) => sum + (typeof q.marks === 'number' && q.marks > 0 ? q.marks : 0),
-      0
-    )
-    const assessmentDmiHasAnswerKey = assessmentDmiItems.some(
-      q => (q.answer?.trim()?.length ?? 0) > 0 || (q.rubric?.trim()?.length ?? 0) > 0
-    )
-    const assessmentDmiReady =
-      assessmentDmiItems.length > 0 && assessmentDmiTotalMarks > 0 && assessmentDmiHasAnswerKey
+    // bar). Per-question gaps are surfaced but don't block. See assessmentDmiReadiness.
+    const { totalMarks: assessmentDmiTotalMarks, ready: assessmentDmiReady } =
+      assessmentDmiReadiness(assessmentDmiItems)
 
     // PCI assistant state + actions, consolidated into a reducer-backed hook.
     // Called late (all deps below are defined by here); the two early consumers
