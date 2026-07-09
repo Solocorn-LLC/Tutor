@@ -16,8 +16,8 @@ export const CategoryGridIcon = ({ className }: { className?: string }) => (
   >
     <style>{`
       @keyframes cat-pulse {
-        0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 transparent); }
-        50% { transform: scale(1.25); filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.25); }
       }
       @keyframes cat-brighten {
         0%, 100% { opacity: 1; }

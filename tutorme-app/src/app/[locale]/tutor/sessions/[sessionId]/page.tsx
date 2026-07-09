@@ -134,10 +134,10 @@ export default function TutorSessionInsightsPage() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.push('/tutor/classes')}
-                className="rounded-lg p-2 text-[#344054] transition hover:bg-white/50"
+                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-colors hover:bg-gray-100"
                 aria-label="Back to Sessions"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="mx-auto h-5 w-5" />
               </button>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-[#344054]">
