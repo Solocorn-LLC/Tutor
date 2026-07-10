@@ -48,6 +48,8 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
       <div className="flex h-full min-h-0 flex-1 overflow-hidden">
         {/* Left menu rail - shorter */}
         <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-2">
+          {/* Spacer to align Chats icon with heading */}
+          <div className="h-2 w-full" />
           {topItems.map(item => {
             const Icon = item.icon
             const active = activeSection === item.id
