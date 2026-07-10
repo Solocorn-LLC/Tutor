@@ -1995,7 +1995,11 @@ function StudentFeedbackContent() {
                           </div>
                         )}
 
-                        {activeTask.sourceDocument &&
+                        {/* For a chat task the document lives inside the chat panel
+                            (it collapses into a pinned card after the first message),
+                            so only render the standalone viewer for non-chat tasks. */}
+                        {!isChatTask &&
+                          activeTask.sourceDocument &&
                           (() => {
                             const doc = activeTask.sourceDocument
                             const rawUrl = doc.fileUrl || ''
@@ -2079,10 +2083,11 @@ function StudentFeedbackContent() {
                             "Task complete" → the AI responds to each answer per the
                             PCI, then they can ask about what they got wrong. */}
                         {isChatTask && activeTaskId && (
-                          <div className="mt-2 h-[60vh] min-h-[360px]">
+                          <div className="mt-2 h-[78vh] min-h-[520px]">
                             <TaskChatPanel
                               taskId={activeTaskId}
                               taskTitle={activeTask.title}
+                              sourceDocument={activeTask.sourceDocument}
                               onCompleted={answers => {
                                 // Broadcast the live "completed" tick to the tutor.
                                 // aiHandled=true → the server only marks completion

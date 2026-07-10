@@ -5166,6 +5166,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               fileMimeType = uploadData.isPdf
                 ? 'application/pdf'
                 : uploadData.type || 'application/pdf'
+            } else {
+              // Surface the server's reason (e.g. "File too large (max 20MB)")
+              // instead of a generic failure, so load problems are diagnosable.
+              const reason = await uploadRes
+                .json()
+                .then(d => d?.error)
+                .catch(() => null)
+              toast.error(
+                reason ? `Upload failed: ${reason}` : `Upload failed (${uploadRes.status})`
+              )
+              return
             }
           } catch {
             toast.error('Failed to upload document')
