@@ -10544,13 +10544,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           </div>
 
                           {/* Content area */}
-                          <div className="relative flex-1 rounded-none border-0 bg-transparent p-0 shadow-none">
+                          <div className="relative min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none">
                             {/* Task Builder Tab */}
                             <TabsContent
                               value="task"
                               className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
                             >
-                              <div className="flex flex-1 gap-px overflow-hidden">
+                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
                                 {/* Main content with tabs */}
                                 <div className="flex flex-1 flex-col overflow-hidden">
                                   <Tabs
@@ -11014,7 +11014,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               value="assessment"
                               className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
                             >
-                              <div className="flex flex-1 gap-px overflow-hidden">
+                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
                                 {/* Main content with tabs */}
                                 <div className="flex flex-1 flex-col overflow-hidden">
                                   <Tabs
