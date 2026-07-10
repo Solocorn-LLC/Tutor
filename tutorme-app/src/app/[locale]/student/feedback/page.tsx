@@ -64,7 +64,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
-import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -77,6 +76,7 @@ import type {
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 import { TaskAiHelper } from './TaskAiHelper'
 import { TaskChatPanel } from './TaskChatPanel'
+import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -1998,67 +1998,17 @@ function StudentFeedbackContent() {
                         {/* For a chat task the document lives inside the chat panel
                             (it collapses into a pinned card after the first message),
                             so only render the standalone viewer for non-chat tasks. */}
-                        {!isChatTask &&
-                          activeTask.sourceDocument &&
-                          (() => {
-                            const doc = activeTask.sourceDocument
-                            const rawUrl = doc.fileUrl || ''
-                            // Prefer streaming by object key through our same-origin
-                            // proxy: it reads from storage server-side (no signed/
-                            // public URL needed), so it works even when GCS URL
-                            // signing is misconfigured or a stored URL has expired.
-                            // Fall back to the direct URL only when there's no key.
-                            const url = doc.fileKey
-                              ? `/api/proxy-file?key=${encodeURIComponent(doc.fileKey)}`
-                              : rawUrl
-                            // Without a key, a blob: URL only resolves in the tutor's
-                            // browser and an empty URL never reached storage — show a
-                            // clear message instead of a silently blank frame.
-                            const loadable =
-                              !!doc.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
-                            const isPdf =
-                              doc.mimeType === 'application/pdf' ||
-                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
-                            const isImage = doc.mimeType?.startsWith('image/')
-                            return (
-                              <div className="mb-4 h-[55vh] w-full">
-                                {!loadable ? (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 text-center">
-                                    <FileText className="h-8 w-8 text-slate-400" />
-                                    <p className="text-sm text-slate-500">
-                                      This document is unavailable. Ask your tutor to re-deploy it.
-                                    </p>
-                                  </div>
-                                ) : isPdf ? (
-                                  // Paginated/continuous-scroll viewer so students can
-                                  // see EVERY page of a multi-page paper (the bare iframe
-                                  // with toolbar/navpanes hidden gave no page navigation).
-                                  <PDFViewer fileUrl={url} className="h-full w-full" />
-                                ) : isImage ? (
-                                  <div className="flex h-full items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={url}
-                                      alt="Document"
-                                      className="max-h-full max-w-full object-contain"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2">
-                                    <FileText className="h-8 w-8 text-blue-600" />
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-sm text-blue-600 underline"
-                                    >
-                                      Open document
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
+                        {!isChatTask && activeTask.sourceDocument && (
+                          // Same renderer the chat flow uses (via TaskDocumentCard),
+                          // in its non-collapsible mode — one code path for the PDF/
+                          // image viewer and the "document unavailable" fallback.
+                          <div className="mb-4 h-[55vh] w-full">
+                            <TaskDocumentCard
+                              sourceDocument={activeTask.sourceDocument}
+                              alwaysOpen
+                            />
+                          </div>
+                        )}
 
                         {/* The questions + answer inputs live in the right-hand
                             Assessment tab (single source of truth). Here we just
