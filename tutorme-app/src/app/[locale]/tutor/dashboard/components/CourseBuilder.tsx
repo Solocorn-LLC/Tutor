@@ -7092,9 +7092,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // DMI-first kickoff: once the assessment's DMI is ready (chat unlocked) and
     // the marking-policy chat has no messages yet, auto-start the guided flow —
-    // skipping the document summary (the DMI review already covered the
-    // questions) and going straight to probing the marking policy. Fires once
-    // per assessment.
+    // the agent first summarizes the assessment (using the DMI it already has)
+    // for the tutor to confirm, then walks the general marking policy. Fires
+    // once per assessment.
     const pciKickoffRef = useRef<Set<string>>(new Set())
     useEffect(() => {
       const id = loadedAssessmentId
@@ -7106,7 +7106,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const t = setTimeout(() => {
         handlePciSend(
           'assessment',
-          'The questions, sections, and marks (the DMI) are already set up — you have them, so do not ask me about the questions, types, sections, or marks. Skip any document summary and go straight to building the GENERAL marking policy for the whole assessment: ask me ONE simple question at a time about the overall rules — how marks are awarded (method vs final answer, partial credit), how to handle wrong / partial / no answers, and tone — in clear, simple language with a small example each time. Only ask about a specific question if its marking is different from the general rule.'
+          'You already have the questions, sections, and marks (the DMI), so do not ask me about the questions, types, sections, or marks. First give me a brief summary of this assessment — what it covers, its sections / question types, and the total marks — so I can confirm you have understood it, then guide me through the GENERAL marking policy for the whole assessment one simple question at a time (how marks are awarded — method vs final answer, partial credit — how to handle wrong / partial / no answers, and tone), in clear, simple language with a small example each time. Only ask about a specific question if its marking differs from the general rule.'
         )
       }, 300)
       return () => clearTimeout(t)
