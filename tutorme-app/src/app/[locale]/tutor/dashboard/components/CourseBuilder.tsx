@@ -5574,7 +5574,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       typeof window !== 'undefined'
                         ? localStorage.getItem('tutor-parse-documents') === 'true'
                         : false
-                    const newAssets = await Promise.all(
+                    const results = await Promise.all(
                       files.map(async (f: File) => {
                         let textContent = ''
                         if (parsePref) {
@@ -5588,10 +5588,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           textContent = `[Imported ${f.name}]`
                         }
 
-                        // Upload to server — any file gets converted to PDF
-                        let fileUrl = ''
-                        let fileKey = ''
-                        let fileMimeType = 'application/pdf'
+                        // Upload to server. A failed upload must NOT silently
+                        // create a file-less asset (that later fails to load with
+                        // "no stored file") — surface the real reason instead.
                         try {
                           const uploadForm = new FormData()
                           uploadForm.append('file', f)
@@ -5600,32 +5599,60 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             method: 'POST',
                             body: uploadForm,
                           })
-                          if (uploadRes.ok) {
-                            const uploadData = await uploadRes.json()
-                            fileUrl = uploadData.url || ''
-                            fileKey = uploadData.key || ''
-                            fileMimeType = uploadData.isPdf
-                              ? 'application/pdf'
-                              : uploadData.type || 'application/pdf'
+                          if (!uploadRes.ok) {
+                            const reason = await uploadRes
+                              .json()
+                              .then(d => d?.error)
+                              .catch(() => null)
+                            return {
+                              ok: false as const,
+                              name: f.name,
+                              error: reason || `upload failed (${uploadRes.status})`,
+                            }
                           }
-                        } catch {
-                          // Fallback: no server URL
-                        }
-
-                        return {
-                          id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
-                          name: f.name,
-                          content: textContent,
-                          url: fileUrl || undefined,
-                          fileKey: fileKey || undefined,
-                          mimeType: fileMimeType || undefined,
-                          folder:
-                            designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                          const uploadData = await uploadRes.json()
+                          const fileUrl = uploadData.url || ''
+                          const fileKey = uploadData.key || ''
+                          if (!fileUrl && !fileKey) {
+                            return {
+                              ok: false as const,
+                              name: f.name,
+                              error: 'upload returned no file reference',
+                            }
+                          }
+                          return {
+                            ok: true as const,
+                            asset: {
+                              id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+                              name: f.name,
+                              content: textContent,
+                              url: fileUrl || undefined,
+                              fileKey: fileKey || undefined,
+                              mimeType: uploadData.isPdf
+                                ? 'application/pdf'
+                                : uploadData.type || 'application/pdf',
+                              folder:
+                                designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                            },
+                          }
+                        } catch (err: any) {
+                          return {
+                            ok: false as const,
+                            name: f.name,
+                            error: err?.message || 'network error',
+                          }
                         }
                       })
                     )
-                    setCourseAssets(prev => [...prev, ...newAssets])
-                    if (files.length > 0) toast.success(`${files.length} asset(s) imported`)
+                    const okAssets = results.flatMap(r => (r.ok ? [r.asset] : []))
+                    const failures = results.filter(r => !r.ok)
+                    if (okAssets.length > 0) {
+                      setCourseAssets(prev => [...prev, ...okAssets])
+                      toast.success(`${okAssets.length} asset(s) imported`)
+                    }
+                    for (const fail of failures) {
+                      toast.error(`Could not import '${fail.name}': ${fail.error}`)
+                    }
                     e.target.value = ''
                   }}
                 />
