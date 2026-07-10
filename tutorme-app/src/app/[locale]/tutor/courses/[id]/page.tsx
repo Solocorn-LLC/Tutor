@@ -692,7 +692,10 @@ export default function TutorCoursePage() {
         <div className="space-y-6">
           <div className="relative">
             <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2">
-              <BackButton href={`/tutor/insights?tab=builder&courseId=${id}&mode=edit`} />
+              <BackButton
+                href={`/tutor/insights?tab=builder&courseId=${id}&mode=edit`}
+                className="text-white hover:bg-white/20 hover:text-white"
+              />
             </div>
             <button
               type="button"
