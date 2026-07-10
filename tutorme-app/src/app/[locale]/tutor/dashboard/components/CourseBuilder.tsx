@@ -336,6 +336,7 @@ import {
   Brain,
   ClipboardList,
   RefreshCw,
+  Type,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -10486,8 +10487,65 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       value="content"
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
+                                      {/* View controls: switch between the text
+                                          editor (left) and the document (right),
+                                          or show both side by side. Only relevant
+                                          once a document is present. */}
+                                      {hasTaskDocument && (
+                                        <div className="mb-2 flex shrink-0 items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                                          {[
+                                            {
+                                              key: 'text',
+                                              label: 'Text',
+                                              icon: <Type className="h-3.5 w-3.5" />,
+                                              active: taskTextVisible && !taskPdfVisible,
+                                              onClick: () => {
+                                                setTaskTextVisible(true)
+                                                setTaskPdfVisible(false)
+                                              },
+                                            },
+                                            {
+                                              key: 'split',
+                                              label: 'Split',
+                                              icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
+                                              active: taskTextVisible && taskPdfVisible,
+                                              onClick: () => {
+                                                setTaskTextVisible(true)
+                                                setTaskPdfVisible(true)
+                                              },
+                                            },
+                                            {
+                                              key: 'document',
+                                              label: 'Document',
+                                              icon: <FileText className="h-3.5 w-3.5" />,
+                                              active: !taskTextVisible && taskPdfVisible,
+                                              onClick: () => {
+                                                setTaskTextVisible(false)
+                                                setTaskPdfVisible(true)
+                                              },
+                                            },
+                                          ].map(view => (
+                                            <button
+                                              key={view.key}
+                                              type="button"
+                                              onClick={view.onClick}
+                                              title={`${view.label} view`}
+                                              aria-pressed={view.active}
+                                              className={cn(
+                                                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                                view.active
+                                                  ? 'bg-[#EEF4FF] text-[#2B5FB8]'
+                                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                              )}
+                                            >
+                                              {view.icon}
+                                              {view.label}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                       <div
-                                        className="relative flex h-full min-h-0 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
+                                        className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
@@ -10658,20 +10716,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               taskTextVisible ? 'w-1/2' : 'w-full'
                                             )}
                                           >
-                                            {!taskTextVisible && (
-                                              <div className="absolute left-2 top-2 z-10 flex gap-2">
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() => setTaskTextVisible(true)}
-                                                  className="h-8 w-8 bg-white/90 p-0 shadow-sm backdrop-blur-sm hover:bg-white"
-                                                  title="Show Text"
-                                                >
-                                                  <ChevronRight className="h-5 w-5 text-slate-600" />
-                                                </Button>
-                                              </div>
-                                            )}
-
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
                                               {currentTaskDocument?.mimeType ===
                                               'application/pdf' ? (
