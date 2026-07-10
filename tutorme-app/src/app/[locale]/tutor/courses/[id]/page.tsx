@@ -690,29 +690,31 @@ export default function TutorCoursePage() {
     <div className="h-full min-h-screen bg-white pb-12">
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-8 sm:px-6">
         <div className="space-y-6">
-          <button
-            type="button"
-            onClick={() => {
-              const nextCollapsed = !allCollapsed
-              setAllCollapsed(nextCollapsed)
-              setInfoOpen(!nextCollapsed)
-              setCategoriesOpen(!nextCollapsed)
-              variantManagerRef.current?.setPanelsOpen(!nextCollapsed)
-            }}
-            className="panel-header panel-header-metallic course-top-header w-full cursor-pointer text-left"
-          >
-            <div className="relative flex items-center justify-center">
-              <div className="absolute left-0">
-                <BackButton href={`/tutor/insights?tab=builder&courseId=${id}`} />
-              </div>
-              <div className="text-center">
-                <div className="panel-header-title">Course Details</div>
-                <div className="panel-header-subtext">
-                  Manage all information and settings for your course.
+          <div className="relative">
+            <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2">
+              <BackButton href={`/tutor/insights?tab=builder&courseId=${id}&mode=edit`} />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const nextCollapsed = !allCollapsed
+                setAllCollapsed(nextCollapsed)
+                setInfoOpen(!nextCollapsed)
+                setCategoriesOpen(!nextCollapsed)
+                variantManagerRef.current?.setPanelsOpen(!nextCollapsed)
+              }}
+              className="panel-header panel-header-metallic course-top-header w-full cursor-pointer text-left"
+            >
+              <div className="relative flex items-center justify-center">
+                <div className="text-center">
+                  <div className="panel-header-title">Course Details</div>
+                  <div className="panel-header-subtext">
+                    Manage all information and settings for your course.
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
+            </button>
+          </div>
 
           <Card
             variant="floating"
