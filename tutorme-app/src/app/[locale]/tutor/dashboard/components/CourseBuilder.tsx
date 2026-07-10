@@ -430,6 +430,33 @@ const pdfPageCache = new Map<string, string[]>()
 // Collapsible explainer at the top of a PCI tab. PCI ("how to mark this") is easy
 // to confuse with the question content, so this spells out what it is, the flow,
 // and concrete things worth telling the assistant — to point tutors the right way.
+// --- MCQ answer-key helpers (DMI editor) ------------------------------------
+// Choice options are labelled A, B, C… and the answer key stores those letters.
+// These map an option index to its letter and read which letters an item's
+// free-text `answer` currently marks as correct (tolerant of "A", "A, C",
+// "A C", or the option's exact text).
+function dmiOptionLetter(index: number): string {
+  return String.fromCharCode(65 + index)
+}
+function dmiSelectedOptionLetters(
+  answer: string | undefined,
+  options: readonly string[]
+): Set<string> {
+  const selected = new Set<string>()
+  const ans = (answer ?? '').trim()
+  if (!ans) return selected
+  const tokens = ans
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean)
+  options.forEach((opt, i) => {
+    const letter = dmiOptionLetter(i)
+    const text = (opt ?? '').trim().toLowerCase()
+    if (tokens.includes(letter) || (text && ans.toLowerCase() === text)) selected.add(letter)
+  })
+  return selected
+}
+
 function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   const noun = kind === 'assessment' ? 'assessment' : 'task'
   return (
@@ -12669,6 +12696,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           item.questionType === 'short' ||
                           item.questionType === 'long' ||
                           item.questionType === 'fill_blank'
+                        const hasOptions = Array.isArray(item.options) && item.options.length > 0
+                        const isMultiSelect = item.questionType === 'multiple_response'
+                        const selectedOptionLetters = hasOptions
+                          ? dmiSelectedOptionLetters(item.answer, item.options as string[])
+                          : new Set<string>()
                         return (
                           <div
                             key={item.id}
@@ -12735,36 +12767,78 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <label className="block text-xs font-medium text-gray-600">
                                   Options
                                 </label>
-                                {item.options.map((o, i) => (
-                                  <div key={i} className="flex items-center gap-1.5">
-                                    <span className="w-5 shrink-0 text-xs font-semibold text-gray-600">
-                                      {String.fromCharCode(97 + i)})
-                                    </span>
-                                    <input
-                                      value={o}
-                                      disabled={!canEdit}
-                                      placeholder={`Option ${String.fromCharCode(97 + i)}`}
-                                      onChange={e => {
-                                        const next = [...(item.options || [])]
-                                        next[i] = e.target.value
-                                        applyDmiEdit(dmiEditor.source, item.id, { options: next })
-                                      }}
-                                      className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50"
-                                    />
-                                    <button
-                                      type="button"
-                                      disabled={!canEdit}
-                                      onClick={() => {
-                                        const next = (item.options || []).filter((_, j) => j !== i)
-                                        applyDmiEdit(dmiEditor.source, item.id, { options: next })
-                                      }}
-                                      title="Remove this option"
-                                      className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                ))}
+                                {item.options.map((o, i) => {
+                                  const letter = dmiOptionLetter(i)
+                                  const isCorrect = selectedOptionLetters.has(letter)
+                                  return (
+                                    <div key={i} className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        disabled={!canEdit}
+                                        aria-pressed={isCorrect}
+                                        title={
+                                          isCorrect
+                                            ? 'Correct answer — click to unset'
+                                            : 'Mark as the correct answer'
+                                        }
+                                        onClick={() => {
+                                          if (isMultiSelect) {
+                                            const next = new Set(selectedOptionLetters)
+                                            if (next.has(letter)) next.delete(letter)
+                                            else next.add(letter)
+                                            applyDmiEdit(dmiEditor.source, item.id, {
+                                              answer: [...next].sort().join(', '),
+                                            })
+                                          } else {
+                                            applyDmiEdit(dmiEditor.source, item.id, {
+                                              answer: isCorrect ? '' : letter,
+                                            })
+                                          }
+                                        }}
+                                        className={cn(
+                                          'flex h-6 w-6 shrink-0 items-center justify-center border text-xs font-semibold transition-colors',
+                                          isMultiSelect ? 'rounded-md' : 'rounded-full',
+                                          isCorrect
+                                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                                            : 'border-gray-300 bg-white text-gray-600 hover:border-emerald-400 hover:text-emerald-600',
+                                          !canEdit && 'cursor-not-allowed opacity-60'
+                                        )}
+                                      >
+                                        {isCorrect ? <Check className="h-3.5 w-3.5" /> : letter}
+                                      </button>
+                                      <input
+                                        value={o}
+                                        disabled={!canEdit}
+                                        placeholder={`Option ${letter}`}
+                                        onChange={e => {
+                                          const next = [...(item.options || [])]
+                                          next[i] = e.target.value
+                                          applyDmiEdit(dmiEditor.source, item.id, { options: next })
+                                        }}
+                                        className={cn(
+                                          'flex-1 rounded-md border px-2 py-1 text-sm text-gray-900 disabled:bg-gray-50',
+                                          isCorrect
+                                            ? 'border-emerald-400 bg-emerald-50/40'
+                                            : 'border-gray-300'
+                                        )}
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={!canEdit}
+                                        onClick={() => {
+                                          const next = (item.options || []).filter(
+                                            (_, j) => j !== i
+                                          )
+                                          applyDmiEdit(dmiEditor.source, item.id, { options: next })
+                                        }}
+                                        title="Remove this option"
+                                        className="rounded p-1 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  )
+                                })}
                                 {canEdit && (
                                   <button
                                     type="button"
@@ -12783,8 +12857,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <div className="mt-2">
                               <label className="mb-1 block text-xs font-medium text-gray-600">
                                 Answer key
-                                {Array.isArray(item.options) && item.options.length > 0
-                                  ? ' (letter, e.g. A)'
+                                {hasOptions
+                                  ? isMultiSelect
+                                    ? ' — click the correct options above'
+                                    : ' — click the correct option above'
                                   : ''}
                               </label>
                               <textarea
