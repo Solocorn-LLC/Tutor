@@ -316,10 +316,15 @@ export default function StudentTutorDirectoryPage() {
       <div className="flex min-h-0 flex-1 flex-col pt-2">
         <Card
           hoverable={false}
-          className="shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5"
+          className="shadow-hover-lift flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white ring-1 ring-black/5"
         >
+          {/* Panel header — gives the panel a visible top edge for the floating effect */}
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] bg-slate-50 px-5 py-2.5">
+            <h3 className="text-sm font-semibold text-slate-700">Find Tutors</h3>
+            <span className="text-xs text-slate-400">{filteredTutors.length} available</span>
+          </div>
           {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 pb-0 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 px-5 pb-0 pt-5 md:grid-cols-4">
             {/* Edit 3: Search input with category grid icon */}
             <div className="relative flex items-center gap-2">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -420,7 +425,7 @@ export default function StudentTutorDirectoryPage() {
           </div>
 
           {/* Tutor grid */}
-          <div className="flex flex-1 flex-col pt-3 sm:pt-4">
+          <div className="flex flex-1 flex-col px-5 pb-5 pt-3 sm:pt-4">
             <div className="flex flex-1 flex-col justify-start">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {loading ? (
