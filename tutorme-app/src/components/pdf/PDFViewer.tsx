@@ -91,9 +91,12 @@ export function PDFViewer({
     }
   }, [fitToWidth, fitScale])
 
-  // Fetch PDF through proxy so expired GCS URLs get refreshed server-side
+  // Fetch PDF through proxy so expired GCS URLs get refreshed server-side.
+  // A durable fileKey is enough on its own — the by-key proxy streams the
+  // object directly — so don't require a (possibly empty/expired) fileUrl.
+  const hasKey = typeof fileKey === 'string' && /^(documents|assets|resources)\//.test(fileKey)
   useEffect(() => {
-    if (!fileUrl || isBlobUrl) return
+    if ((!fileUrl && !hasKey) || isBlobUrl) return
 
     let cancelled = false
     setLoading(true)
@@ -139,7 +142,7 @@ export function PDFViewer({
     return () => {
       cancelled = true
     }
-  }, [fileUrl, fileKey, isBlobUrl])
+  }, [fileUrl, fileKey, hasKey, isBlobUrl])
 
   // Always render every page in a continuous scroll view, regardless of length.
   const isScrollMode = numPages > 0
