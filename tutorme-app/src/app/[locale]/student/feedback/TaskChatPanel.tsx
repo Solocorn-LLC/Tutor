@@ -9,18 +9,10 @@
  * server-side (see /api/student/assignments/[taskId]/task-chat).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Send,
-  Loader2,
-  CheckCircle2,
-  Sparkles,
-  FileText,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
-import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { TaskDocumentCard, type TaskDocumentSource } from '@/components/task/TaskDocumentCard'
 import { toast } from 'sonner'
 
 interface ChatMsg {
@@ -28,13 +20,6 @@ interface ChatMsg {
   content: string
   /** For an AI response: the student answer it addresses. */
   re?: string
-}
-
-interface TaskSourceDocument {
-  fileName?: string | null
-  fileUrl?: string | null
-  fileKey?: string | null
-  mimeType?: string | null
 }
 
 export function TaskChatPanel({
@@ -47,7 +32,7 @@ export function TaskChatPanel({
   taskTitle?: string
   /** The task's document (PDF/image). Shown full until the first message, then
    *  collapsed into a pinned, re-expandable "document" card in the chat. */
-  sourceDocument?: TaskSourceDocument | null
+  sourceDocument?: TaskDocumentSource | null
   /** Fired after the task is completed, with the student's answers — the page
    *  uses it to broadcast the live "completed" tick to the tutor. */
   onCompleted?: (answers: string[]) => void
@@ -64,34 +49,11 @@ export function TaskChatPanel({
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, busy])
 
-  // The task document shows full at the top until the student sends their first
-  // message, then it collapses into a pinned card so the whole panel reads as one
-  // chat. The student can re-expand it inline at any time.
+  // The task document shows full until the student sends their first message,
+  // then auto-collapses into a pinned card (see TaskDocumentCard). Keep it
+  // collapsed until the prior-chat check resolves so a returning (already
+  // completed) student doesn't see it flash open then slam shut.
   const hasSentMessage = messages.some(m => m.role === 'student')
-  const [pdfOpen, setPdfOpen] = useState(true)
-  const didAutoCollapse = useRef(false)
-  useEffect(() => {
-    if (hasSentMessage && !didAutoCollapse.current) {
-      didAutoCollapse.current = true
-      setPdfOpen(false)
-    }
-  }, [hasSentMessage])
-
-  const doc = useMemo(() => {
-    if (!sourceDocument) return null
-    const rawUrl = sourceDocument.fileUrl || ''
-    const url = sourceDocument.fileKey
-      ? `/api/proxy-file?key=${encodeURIComponent(sourceDocument.fileKey)}`
-      : rawUrl
-    const loadable = !!sourceDocument.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
-    if (!loadable) return null
-    const name = sourceDocument.fileName || 'Task document'
-    const isPdf =
-      sourceDocument.mimeType === 'application/pdf' ||
-      (!sourceDocument.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument.fileName || rawUrl))
-    const isImage = !!sourceDocument.mimeType?.startsWith('image/')
-    return { url, name, isPdf, isImage }
-  }, [sourceDocument])
 
   // Restore a prior chat: if the student already completed this task, rebuild the
   // transcript (their answers, each AI response, and any follow-ups) and drop
@@ -227,56 +189,10 @@ export function TaskChatPanel({
         )}
       </div>
 
-      {/* Task document, pinned at the top of the chat. Full until the student's
-          first message, then a collapsed "document" card they can re-expand. */}
-      {doc && (
-        <div className="shrink-0 border-b border-orange-100 bg-white">
-          <button
-            type="button"
-            onClick={() => setPdfOpen(o => !o)}
-            className="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-orange-50/50"
-          >
-            <FileText className="h-4 w-4 shrink-0 text-[#F17623]" />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
-              {doc.name}
-            </span>
-            <span className="text-xs text-gray-500">{pdfOpen ? 'Hide' : 'Click to view'}</span>
-            {pdfOpen ? (
-              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-            ) : (
-              <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-            )}
-          </button>
-          {pdfOpen && (
-            <div className="h-[46vh] w-full border-t border-orange-100">
-              {doc.isPdf ? (
-                <PDFViewer fileUrl={doc.url} className="h-full w-full" />
-              ) : doc.isImage ? (
-                <div className="flex h-full items-center justify-center bg-slate-50 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={doc.url}
-                    alt={doc.name}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-2">
-                  <FileText className="h-8 w-8 text-blue-600" />
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-blue-600 underline"
-                  >
-                    Open document
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Task document — full until the student's first message, then a pinned,
+          re-expandable "document" card (kept collapsed until the prior-chat
+          check resolves so a returning student doesn't see it flash). */}
+      <TaskDocumentCard sourceDocument={sourceDocument} autoOpen={loaded && !hasSentMessage} />
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {!loaded && (
