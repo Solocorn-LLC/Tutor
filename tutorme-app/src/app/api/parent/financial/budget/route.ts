@@ -23,7 +23,7 @@ export const GET = withAuth(
     try {
       const family = await getFamilyAccountForParent(session)
       if (!family) {
-        return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+        return NextResponse.json({ error: 'No family account found' }, { status: 404 })
       }
 
       const cacheKey = `parent:financial:budget:${family.familyAccountId}`
@@ -85,7 +85,7 @@ export const GET = withAuth(
 
       return NextResponse.json({ success: true, data })
     } catch (err) {
-      return handleApiError(err, '获取预算信息失败', 'ParentFinancialBudget')
+      return handleApiError(err, 'Failed to fetch budget information', 'ParentFinancialBudget')
     }
   },
   { role: 'PARENT' }

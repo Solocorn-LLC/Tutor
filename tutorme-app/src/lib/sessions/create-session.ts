@@ -28,6 +28,8 @@ export interface CreateSessionInput {
   courseId?: string
   /** CourseSchedule this session is materialized from (course sessions only). */
   scheduleId?: string
+  /** The lesson this session covers (its lesson-plan slot). Course sessions only. */
+  lessonId?: string
   studentId?: string
   maxStudents?: number
   description?: string
@@ -79,6 +81,7 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
       tutorId: input.tutorId,
       courseId: input.courseId ?? null,
       scheduleId: input.scheduleId ?? null,
+      lessonId: input.lessonId ?? null,
       title: input.title,
       category: input.category,
       description: input.description ?? null,

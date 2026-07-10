@@ -181,6 +181,10 @@ export interface Assessment extends WithDifficultyVariants {
   title: string
   description: string
   instructions: string
+  /** Current approved structured PCI spec (TASK-6), when finalized. Persisted at
+   *  deploy to BuilderTask.pciSpec so the grader can use the same structured
+   *  marking policy tasks already get. */
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
   activeDmiVersionId?: string
@@ -379,7 +383,7 @@ export interface CourseBuilderInsightsProps {
   }[]
   /** Present only inside a live session; deploy buttons hide when undefined. */
   onDeployTask?: (task: LiveTask) => void
-  onSendPoll: (payload: { taskId: string; question: string }) => void
+  onSendPoll: (payload: { taskId: string; question: string; options?: string[] }) => void
   onSendQuestion: (payload: { taskId: string; prompt: string }) => void
   students?: LiveStudent[]
   metrics?: EngagementMetrics | null
@@ -430,6 +434,11 @@ export interface CourseBuilderProps {
   isStudentView?: boolean
   onSyncToLiveSession?: (silent?: boolean) => void
   onUnsyncedChangesChange?: (hasUnsynced: boolean) => void
+  /**
+   * When a live session is opened with an assigned lesson, expand and scroll to
+   * that lesson once on mount. Value is the lesson id (courseLesson.lessonId).
+   */
+  focusLessonId?: string | null
 }
 
 export interface CourseBuilderRef {

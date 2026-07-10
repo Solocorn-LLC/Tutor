@@ -11,6 +11,10 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { QuizModal, type QuestionResultItem } from '@/components/quiz/quiz-modal'
+import {
+  AssessmentReviewModal,
+  type AssessmentReviewData,
+} from '@/components/quiz/assessment-review-modal'
 import { StudentQuiz } from '@/types/quiz'
 import {
   ClipboardList,
@@ -109,6 +113,7 @@ function AssignmentsTab() {
   const [takingQuiz, setTakingQuiz] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [startTime, setStartTime] = useState<number>(0)
+  const [reviewData, setReviewData] = useState<AssessmentReviewData | null>(null)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -132,7 +137,19 @@ function AssignmentsTab() {
       }
       const data = await res.json()
       if (data.alreadySubmitted) {
-        toast.info(`Already submitted. Score: ${data.existingScore ?? 'N/A'}%`)
+        setReviewData({
+          title: data.task.title,
+          score: data.existingScore ?? null,
+          maxScore: data.existingMaxScore ?? null,
+          graded: data.existingGraded === true,
+          feedback: data.existingFeedback ?? null,
+          submittedAt: data.existingSubmittedAt ?? null,
+          gradedAt: data.existingGradedAt ?? null,
+          questions: data.task.questions ?? [],
+          answers: data.existingAnswers ?? null,
+          questionResults: data.existingQuestionResults ?? null,
+          aiFeedback: data.existingAiFeedback?.items ?? null,
+        })
         return
       }
       setActiveTask({
@@ -319,6 +336,9 @@ function AssignmentsTab() {
 
   return (
     <div className="space-y-6">
+      {reviewData && (
+        <AssessmentReviewModal data={reviewData} onClose={() => setReviewData(null)} />
+      )}
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card>

@@ -10,12 +10,14 @@ import {
   refund,
   courseVariant,
   calendarEvent,
+  liveSession,
 } from '@/lib/db/schema'
 import { eq, and, isNull, sql, inArray } from 'drizzle-orm'
 import { CourseBuilderService } from '@/lib/services/course-builder.service'
 import { z } from 'zod'
 import { notifyMany } from '@/lib/notifications/notify'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
+import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 const patchCourseSchema = z.strictObject({
   name: z.string().min(1).optional(),
@@ -393,6 +395,16 @@ export const DELETE = withAuth(
 
       // Delete all events directly linked to this course
       await drizzleDb.delete(calendarEvent).where(eq(calendarEvent.courseId, id))
+
+      // Cancel any open live sessions associated with this course so they no longer
+      // block time slots in the scheduler (orphaned sessions from deleted courses
+      // would otherwise remain as 'scheduled' and show as unavailable).
+      await drizzleDb
+        .update(liveSession)
+        .set({ status: 'ended', endedAt: new Date() })
+        .where(
+          and(eq(liveSession.courseId, id), inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES))
+        )
 
       // Clean up GCS files referenced in lesson builderData before deleting the course
       await CourseBuilderService.cleanupCourseFiles(id)

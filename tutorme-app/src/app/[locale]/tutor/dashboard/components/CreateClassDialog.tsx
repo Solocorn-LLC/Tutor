@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import {
@@ -25,19 +25,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
-import { Loader2 } from 'lucide-react'
-
-const SUBJECTS = [
-  { value: 'math', label: 'Mathematics' },
-  { value: 'physics', label: 'Physics' },
-  { value: 'chemistry', label: 'Chemistry' },
-  { value: 'biology', label: 'Biology' },
-  { value: 'english', label: 'English' },
-  { value: 'history', label: 'History' },
-  { value: 'cs', label: 'Computer Science' },
-  { value: 'ielts', label: 'IELTS' },
-  { value: 'toefl', label: 'TOEFL' },
-]
+import { Loader2, Video } from 'lucide-react'
 
 interface CreateClassDialogProps {
   open: boolean
@@ -48,6 +36,24 @@ interface CreateClassDialogProps {
   /** When set, the one-time session is linked to this course (still scheduleId-null). */
   courseId?: string
   courseName?: string
+}
+
+/** Build 30-minute time-slot options from 00:00 to 23:30. */
+function useTimeOptions() {
+  return useMemo(() => {
+    const opts: { value: string; label: string }[] = []
+    for (let h = 0; h < 24; h++) {
+      for (const m of [0, 30]) {
+        const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+        const ampm = h < 12 ? 'AM' : 'PM'
+        const minute = m.toString().padStart(2, '0')
+        const label = `${hour12}:${minute} ${ampm}`
+        const value = `${h.toString().padStart(2, '0')}:${minute}`
+        opts.push({ value, label })
+      }
+    }
+    return opts
+  }, [])
 }
 
 export function CreateClassDialog({
@@ -62,22 +68,23 @@ export function CreateClassDialog({
   const router = useRouter()
   const [creating, setCreating] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+  const timeOptions = useTimeOptions()
+
   const [form, setForm] = useState({
     title: '',
-    subject: '',
     description: '',
     maxStudents: 50,
     durationMinutes: 60,
-    scheduledAt: '',
+    date: '',
+    time: '09:00',
   })
 
-  // When launched from a course's sessions modal, prefill subject/title from the
+  // When launched from a course's sessions modal, prefill title from the
   // course so the form is valid and the one-time session is clearly associated.
   useEffect(() => {
     if (!open || !courseName) return
     setForm(prev => ({
       ...prev,
-      subject: prev.subject || courseName,
       title: prev.title || `${courseName} — one-time session`,
     }))
   }, [open, courseName])
@@ -86,12 +93,11 @@ export function CreateClassDialog({
     if (!open || !initialDate) return
     const nextDate = new Date(initialDate)
     nextDate.setHours(9, 0, 0, 0)
-    const nextValue = format(nextDate, "yyyy-MM-dd'T'HH:mm")
+    const datePart = format(nextDate, 'yyyy-MM-dd')
+    const timePart = format(nextDate, 'HH:mm')
     setForm(prev => {
-      const currentDatePart = prev.scheduledAt.split('T')[0]
-      const nextDatePart = nextValue.split('T')[0]
-      if (!prev.scheduledAt || currentDatePart !== nextDatePart) {
-        return { ...prev, scheduledAt: nextValue }
+      if (!prev.date || prev.date !== datePart) {
+        return { ...prev, date: datePart, time: timePart }
       }
       return prev
     })
@@ -102,19 +108,19 @@ export function CreateClassDialog({
       toast.error('Please enter a session title')
       return
     }
-    if (!form.subject) {
-      toast.error('Please select a subject')
+    if (!form.date) {
+      toast.error('Please select a date')
       return
     }
-    if (!form.scheduledAt) {
-      toast.error('Please select date and time')
+    if (!form.time) {
+      toast.error('Please select a time')
       return
     }
 
     setCreating(true)
     setApiError(null)
     try {
-      const scheduledDate = new Date(form.scheduledAt)
+      const scheduledDate = new Date(`${form.date}T${form.time}`)
       if (Number.isNaN(scheduledDate.getTime())) {
         const message = 'Please provide a valid date and time.'
         setApiError(message)
@@ -122,12 +128,15 @@ export function CreateClassDialog({
         return
       }
 
+      // Use courseName as subject when available; otherwise fall back to title.
+      const subject = courseName?.trim() || form.title.trim()
+
       const res = await fetchWithCsrf('/api/class/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title,
-          subject: form.subject,
+          subject,
           description: form.description,
           maxStudents: form.maxStudents,
           durationMinutes: form.durationMinutes,
@@ -178,108 +187,125 @@ export function CreateClassDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-[500px]"
+        theme="metallic"
+        size="lg"
+        className="max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl"
         aria-busy={creating}
         aria-describedby={apiError ? 'create-class-api-error' : undefined}
       >
         <DialogHeader>
-          <DialogTitle>Create New Session</DialogTitle>
-          <DialogDescription>Schedule a new live session for your students.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Video className="text-primary h-5 w-5" />
+            Create New Session
+          </DialogTitle>
+          <DialogDescription className="text-white/80">
+            Schedule a new live session for your students.
+          </DialogDescription>
         </DialogHeader>
+
         <div className="pt-4">
-          <div className="rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-6 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-            <DialogPanel className="space-y-4">
-              {apiError && (
-                <p
-                  id="create-class-api-error"
-                  className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
-                  role="alert"
-                >
-                  {apiError}
-                </p>
-              )}
+          <DialogPanel variant="default" className="space-y-4 p-6">
+            {apiError && (
+              <p
+                id="create-class-api-error"
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+                role="alert"
+              >
+                {apiError}
+              </p>
+            )}
+
+            <div>
+              <Label className="text-gray-900">Class Title *</Label>
+              <Input
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g., AP Calculus - Limits"
+                disabled={creating}
+                aria-invalid={!!apiError}
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-900">Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="What will you cover in this session?"
+                disabled={creating}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-gray-900">Class Title *</Label>
+                <Label className="text-gray-900">Date *</Label>
                 <Input
-                  value={form.title}
-                  onChange={e => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g., AP Calculus - Limits"
+                  type="date"
+                  value={form.date}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
                   disabled={creating}
-                  aria-invalid={!!apiError}
                 />
               </div>
               <div>
-                <Label className="text-gray-900">Subject *</Label>
-                <Select value={form.subject} onValueChange={v => setForm({ ...form, subject: v })}>
-                  <SelectTrigger disabled={creating}>
-                    <SelectValue placeholder="Select subject" />
+                <Label className="text-gray-900">Time *</Label>
+                <Select
+                  value={form.time}
+                  onValueChange={v => setForm({ ...form, time: v })}
+                  disabled={creating}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SUBJECTS.map(s => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
+                    {timeOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-gray-900">Description</Label>
-                <Textarea
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  placeholder="What will you cover in this session?"
-                  disabled={creating}
-                />
+                <Label className="text-gray-900">Duration</Label>
+                <Select
+                  value={form.durationMinutes.toString()}
+                  onValueChange={v => setForm({ ...form, durationMinutes: parseInt(v) })}
+                >
+                  <SelectTrigger disabled={creating}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="60">1 hour</SelectItem>
+                    <SelectItem value="90">1.5 hours</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
-                <Label className="text-gray-900">Date & Time *</Label>
-                <Input
-                  type="datetime-local"
-                  value={form.scheduledAt}
-                  onChange={e => setForm({ ...form, scheduledAt: e.target.value })}
-                  disabled={creating}
-                />
+                <Label className="text-gray-900">Max Students</Label>
+                <Select
+                  value={form.maxStudents.toString()}
+                  onValueChange={v => setForm({ ...form, maxStudents: parseInt(v) })}
+                >
+                  <SelectTrigger disabled={creating}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 students</SelectItem>
+                    <SelectItem value="25">25 students</SelectItem>
+                    <SelectItem value="50">50 students</SelectItem>
+                    <SelectItem value="100">100 students</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-900">Duration (minutes)</Label>
-                  <Select
-                    value={form.durationMinutes.toString()}
-                    onValueChange={v => setForm({ ...form, durationMinutes: parseInt(v) })}
-                  >
-                    <SelectTrigger disabled={creating}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="90">1.5 hours</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-gray-900">Max Students</Label>
-                  <Select
-                    value={form.maxStudents.toString()}
-                    onValueChange={v => setForm({ ...form, maxStudents: parseInt(v) })}
-                  >
-                    <SelectTrigger disabled={creating}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10 students</SelectItem>
-                      <SelectItem value="25">25 students</SelectItem>
-                      <SelectItem value="50">50 students</SelectItem>
-                      <SelectItem value="100">100 students</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </DialogPanel>
-          </div>
+            </div>
+          </DialogPanel>
         </div>
+
         <DialogFooter className="gap-3">
           <Button
             variant="modal-secondary-dark"

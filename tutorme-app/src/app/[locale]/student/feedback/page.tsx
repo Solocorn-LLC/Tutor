@@ -36,6 +36,7 @@ import {
   Send,
   Bell,
   Loader2,
+  NotebookPen,
   Layout,
   ArrowLeft,
   LogOut,
@@ -63,7 +64,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
-import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -74,6 +74,9 @@ import type {
   ChatMessage,
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
+import { TaskAiHelper } from './TaskAiHelper'
+import { TaskChatPanel } from './TaskChatPanel'
+import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -473,9 +476,11 @@ function WrittenAnswer({
         <button
           type="button"
           onClick={() => setShowDraw(true)}
-          className="inline-flex items-center gap-1 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#F17623] bg-[#FFF4EC] px-3 py-1 text-xs font-semibold text-[#9a4a12] transition-colors hover:bg-[#ffe9d8]"
         >
-          + Add a drawing
+          {/* Paper-and-pen icon signals this is for handwriting, not just drawing. */}
+          <NotebookPen className="h-3.5 w-3.5" />
+          Write or draw
         </button>
       )}
     </div>
@@ -981,6 +986,7 @@ function StudentFeedbackContent() {
     tasks: true,
     assessments: true,
     homework: true,
+    materials: true,
     reports: true,
     recordedSessions: true,
   })
@@ -1010,6 +1016,7 @@ function StudentFeedbackContent() {
             tasks: true,
             assessments: true,
             homework: true,
+            materials: true,
             reports: true,
             recordedSessions: true,
           }
@@ -1295,6 +1302,12 @@ function StudentFeedbackContent() {
           scheduledAt: data?.session?.scheduledAt ?? null,
           endedAt: data?.session?.endedAt ?? null,
         })
+        // The server issues a room URL even when it couldn't mint a video token
+        // (private rooms need one). Surface that reason up front instead of the
+        // cryptic Daily "Failed to join video call" the student hits on click.
+        if (data?.videoError) {
+          toast.error(data.videoError)
+        }
       } catch (err: any) {
         console.error('Join request failed:', err)
         toast.error(err?.message || 'Failed to load live session')
@@ -1641,6 +1654,12 @@ function StudentFeedbackContent() {
     tasks.find(task => task.id === activeTaskId) ||
     (selectedDirectoryItem?.id === activeTaskId ? selectedDirectoryItem : null) ||
     null
+  // A deployed TASK has no DMI — the student answers it by chatting (new flow).
+  // Assessments/DMI-bearing items keep the structured answer flow.
+  const isChatTask =
+    !!activeTask &&
+    activeTask.source === 'task' &&
+    !(Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0)
   const currentSession = sessions.find(s => s.id === selectedSessionId) || null
   const isScheduled = currentSession?.status === 'scheduled'
   const isPassedSession =
@@ -1657,6 +1676,19 @@ function StudentFeedbackContent() {
 
   const feedbackPolls = activeTask?.polls ?? []
   const feedbackQuestions = activeTask?.questions ?? []
+
+  // Count polls/questions this student hasn't answered yet (and that are still
+  // open), so the Interact tab can badge how many need a response. A closed
+  // poll/question no longer counts — there's nothing the student can do.
+  const myId = session?.user?.id
+  const unansweredInteractCount =
+    feedbackPolls.filter(p => p.status !== 'closed' && !p.responses.some(r => r.studentId === myId))
+      .length +
+    feedbackQuestions.filter(
+      q =>
+        (q as { status?: string }).status !== 'closed' &&
+        !q.responses.some(r => r.studentId === myId)
+    ).length
 
   let latestInteractionType: 'poll' | 'question' | null = null
   let maxCreatedAt = 0
@@ -1736,6 +1768,7 @@ function StudentFeedbackContent() {
         item.type === 'task' ||
         item.type === 'assessment' ||
         item.type === 'homework' ||
+        item.type === 'asset' ||
         item.type === 'recording'
       ) {
         try {
@@ -1962,66 +1995,20 @@ function StudentFeedbackContent() {
                           </div>
                         )}
 
-                        {activeTask.sourceDocument &&
-                          (() => {
-                            const doc = activeTask.sourceDocument
-                            const rawUrl = doc.fileUrl || ''
-                            // Prefer streaming by object key through our same-origin
-                            // proxy: it reads from storage server-side (no signed/
-                            // public URL needed), so it works even when GCS URL
-                            // signing is misconfigured or a stored URL has expired.
-                            // Fall back to the direct URL only when there's no key.
-                            const url = doc.fileKey
-                              ? `/api/proxy-file?key=${encodeURIComponent(doc.fileKey)}`
-                              : rawUrl
-                            // Without a key, a blob: URL only resolves in the tutor's
-                            // browser and an empty URL never reached storage — show a
-                            // clear message instead of a silently blank frame.
-                            const loadable =
-                              !!doc.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
-                            const isPdf =
-                              doc.mimeType === 'application/pdf' ||
-                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
-                            const isImage = doc.mimeType?.startsWith('image/')
-                            return (
-                              <div className="mb-4 h-[55vh] w-full">
-                                {!loadable ? (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 text-center">
-                                    <FileText className="h-8 w-8 text-slate-400" />
-                                    <p className="text-sm text-slate-500">
-                                      This document is unavailable. Ask your tutor to re-deploy it.
-                                    </p>
-                                  </div>
-                                ) : isPdf ? (
-                                  // Paginated/continuous-scroll viewer so students can
-                                  // see EVERY page of a multi-page paper (the bare iframe
-                                  // with toolbar/navpanes hidden gave no page navigation).
-                                  <PDFViewer fileUrl={url} className="h-full w-full" />
-                                ) : isImage ? (
-                                  <div className="flex h-full items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={url}
-                                      alt="Document"
-                                      className="max-h-full max-w-full object-contain"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2">
-                                    <FileText className="h-8 w-8 text-blue-600" />
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-sm text-blue-600 underline"
-                                    >
-                                      Open document
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
+                        {/* For a chat task the document lives inside the chat panel
+                            (it collapses into a pinned card after the first message),
+                            so only render the standalone viewer for non-chat tasks. */}
+                        {!isChatTask && activeTask.sourceDocument && (
+                          // Same renderer the chat flow uses (via TaskDocumentCard),
+                          // in its non-collapsible mode — one code path for the PDF/
+                          // image viewer and the "document unavailable" fallback.
+                          <div className="mb-4 h-[55vh] w-full">
+                            <TaskDocumentCard
+                              sourceDocument={activeTask.sourceDocument}
+                              alwaysOpen
+                            />
+                          </div>
+                        )}
 
                         {/* The questions + answer inputs live in the right-hand
                             Assessment tab (single source of truth). Here we just
@@ -2042,7 +2029,38 @@ function StudentFeedbackContent() {
                           </button>
                         )}
 
-                        {!activeTask.content &&
+                        {/* Chat-based task: the student answers by chatting, then
+                            "Task complete" → the AI responds to each answer per the
+                            PCI, then they can ask about what they got wrong. */}
+                        {isChatTask && activeTaskId && (
+                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
+                            <TaskChatPanel
+                              taskId={activeTaskId}
+                              taskTitle={activeTask.title}
+                              sourceDocument={activeTask.sourceDocument}
+                              onCompleted={answers => {
+                                // Broadcast the live "completed" tick to the tutor.
+                                // aiHandled=true → the server only marks completion
+                                // and does NOT re-write the DB (the task-chat route
+                                // already persisted the answers + AI responses).
+                                if (!socket || !selectedSessionId || !activeTaskId) return
+                                const record: Record<string, string> = {}
+                                answers.forEach((a, i) => {
+                                  record[String(i + 1)] = a
+                                })
+                                socket.emit('task:complete', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  answers: record,
+                                  aiHandled: true,
+                                })
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {!isChatTask &&
+                          !activeTask.content &&
                           !activeTask.sourceDocument &&
                           !(
                             Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
@@ -2080,77 +2098,80 @@ function StudentFeedbackContent() {
                   </div>
                 </div>
 
-                {/* Input row */}
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="relative flex-1">
-                    <Input
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
+                {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
+                    chat tasks, which use the in-viewer TaskChatPanel instead. */}
+                {!isChatTask && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="relative flex-1">
+                      <Input
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            if (chatInput.trim() && socket) {
+                              socket.emit('chat_message', { text: chatInput.trim() })
+                              setChatInput('')
+                            }
+                          }
+                        }}
+                        className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
+                        disabled={!chatInput.trim() || !socket}
+                        onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
                             setChatInput('')
                           }
-                        }
-                      }}
-                      className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
-                    />
+                        }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <Button
-                      size="icon"
-                      className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
-                      disabled={!chatInput.trim() || !socket}
+                      className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                      disabled={!activeTaskId || !socket}
                       onClick={() => {
-                        if (chatInput.trim() && socket) {
-                          socket.emit('chat_message', { text: chatInput.trim() })
-                          setChatInput('')
-                        }
+                        if (!activeTaskId || !socket || !selectedSessionId) return
+                        // Include any typed answers so the tutor's Insights can see
+                        // each student's responses, not just a completion tick.
+                        const answers = (activeTask?.dmiItems ?? []).reduce(
+                          (acc, item) => {
+                            const a = taskAnswers[item.id]
+                            if (a && a.trim()) acc[item.id] = a.trim()
+                            return acc
+                          },
+                          {} as Record<string, string>
+                        )
+                        // Wait for the server's acknowledgement so we report a
+                        // TRUE result. If the payload is dropped (e.g. too large
+                        // with drawings) the ack never arrives → show a real error
+                        // instead of a false "submitted".
+                        socket
+                          .timeout(20000)
+                          .emit(
+                            'task:complete',
+                            { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                            (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                              if (err || !resp?.ok) {
+                                toast.error(
+                                  resp?.error ||
+                                    'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                )
+                                return
+                              }
+                              toast.success('Task submitted')
+                            }
+                          )
                       }}
                     >
-                      <Send className="h-4 w-4" />
+                      Task Complete
                     </Button>
                   </div>
-                  <Button
-                    className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                    disabled={!activeTaskId || !socket}
-                    onClick={() => {
-                      if (!activeTaskId || !socket || !selectedSessionId) return
-                      // Include any typed answers so the tutor's Insights can see
-                      // each student's responses, not just a completion tick.
-                      const answers = (activeTask?.dmiItems ?? []).reduce(
-                        (acc, item) => {
-                          const a = taskAnswers[item.id]
-                          if (a && a.trim()) acc[item.id] = a.trim()
-                          return acc
-                        },
-                        {} as Record<string, string>
-                      )
-                      // Wait for the server's acknowledgement so we report a
-                      // TRUE result. If the payload is dropped (e.g. too large
-                      // with drawings) the ack never arrives → show a real error
-                      // instead of a false "submitted".
-                      socket
-                        .timeout(20000)
-                        .emit(
-                          'task:complete',
-                          { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                          (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                            if (err || !resp?.ok) {
-                              toast.error(
-                                resp?.error ||
-                                  'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                              )
-                              return
-                            }
-                            toast.success('Task submitted')
-                          }
-                        )
-                    }}
-                  >
-                    Task Complete
-                  </Button>
-                </div>
+                )}
               </TabsContent>
 
               <TabsContent
@@ -2236,13 +2257,21 @@ function StudentFeedbackContent() {
                   size="sm"
                   onClick={() => setRightPanelTab('interactions')}
                   className={cn(
-                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'interactions'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Interact
+                  {unansweredInteractCount > 0 && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white"
+                      title={`${unansweredInteractCount} unanswered`}
+                    >
+                      {unansweredInteractCount}
+                    </span>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
@@ -2386,6 +2415,14 @@ function StudentFeedbackContent() {
                       {activeTask ? 'This task has no questions to answer.' : ''}
                     </p>
                   )}
+                  {/* Ask the AI tutor about this task — applies the task's PCI
+                      (TASK-6). Integrity is enforced server-side (ASMT-15). */}
+                  {activeTask && (
+                    <TaskAiHelper
+                      taskId={activeTaskId}
+                      subject={sessionContext?.courseCategory || 'General'}
+                    />
+                  )}
                 </div>
               ) : rightPanelTab === 'my-board' ? (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -2420,24 +2457,33 @@ function StudentFeedbackContent() {
                             const selectedValue = poll.responses.find(
                               response => response.studentId === session?.user?.id
                             )?.value
+                            // Once answered (or the tutor closed it) the vote is
+                            // locked — you can't change your answer.
+                            const answered = selectedValue !== undefined
+                            const locked = poll.status === 'closed' || answered
                             return (
                               <div key={poll.id} className="rounded-lg border bg-white p-4">
                                 <p className="text-sm font-medium text-gray-900">{poll.question}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  {poll.options.map(option => (
+                                  {(
+                                    poll.optionLabels ??
+                                    poll.options.map((_, i) => String.fromCharCode(65 + i))
+                                  ).map((label, i) => (
                                     <Button
-                                      key={`${poll.id}-${option}`}
-                                      variant={selectedValue === option ? 'default' : 'outline'}
+                                      key={`${poll.id}-${i}`}
+                                      variant={selectedValue === i ? 'default' : 'outline'}
                                       size="sm"
-                                      disabled={poll.status === 'closed'}
-                                      onClick={() => handlePollVote(poll, option)}
+                                      disabled={locked}
+                                      onClick={() => handlePollVote(poll, i)}
                                     >
-                                      {option}
+                                      {label}
                                     </Button>
                                   ))}
                                 </div>
-                                {poll.status === 'closed' && (
-                                  <p className="mt-2 text-xs text-gray-500">Poll closed</p>
+                                {locked && (
+                                  <p className="mt-2 text-xs text-gray-500">
+                                    {answered ? 'Answer submitted — locked' : 'Poll closed'}
+                                  </p>
                                 )}
                               </div>
                             )
@@ -2447,33 +2493,56 @@ function StudentFeedbackContent() {
 
                       {feedbackQuestions.length > 0 && (
                         <div className="space-y-3">
-                          {feedbackQuestions.map(question => (
-                            <div key={question.id} className="rounded-lg border bg-white p-4">
-                              <p className="text-sm font-medium text-gray-900">{question.prompt}</p>
-                              <div className="mt-3">
-                                <AutoTextarea
-                                  placeholder="Type your answer..."
-                                  className="min-h-[72px]"
-                                  value={questionDrafts[question.id] || ''}
-                                  onChange={event =>
-                                    setQuestionDrafts(prev => ({
-                                      ...prev,
-                                      [question.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <div className="mt-2 flex justify-end">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleQuestionSend(question)}
-                                    disabled={!questionDrafts[question.id]?.trim()}
-                                  >
-                                    Send
-                                  </Button>
-                                </div>
+                          {feedbackQuestions.map(question => {
+                            const myAnswer = question.responses.find(
+                              r => r.studentId === session?.user?.id
+                            )?.answer
+                            const answered = myAnswer !== undefined
+                            const closed = (question as { status?: string }).status === 'closed'
+                            return (
+                              <div key={question.id} className="rounded-lg border bg-white p-4">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {question.prompt}
+                                </p>
+                                {answered ? (
+                                  // Your answer is locked once submitted.
+                                  <div className="mt-3">
+                                    <div className="rounded-md border bg-gray-50 p-2 text-sm text-gray-700">
+                                      {myAnswer}
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Answer submitted — locked
+                                    </p>
+                                  </div>
+                                ) : closed ? (
+                                  <p className="mt-3 text-xs text-gray-500">Question closed</p>
+                                ) : (
+                                  <div className="mt-3">
+                                    <AutoTextarea
+                                      placeholder="Type your answer..."
+                                      className="min-h-[72px]"
+                                      value={questionDrafts[question.id] || ''}
+                                      onChange={event =>
+                                        setQuestionDrafts(prev => ({
+                                          ...prev,
+                                          [question.id]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                    <div className="mt-2 flex justify-end">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleQuestionSend(question)}
+                                        disabled={!questionDrafts[question.id]?.trim()}
+                                      >
+                                        Send
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
 
@@ -2722,6 +2791,61 @@ function StudentFeedbackContent() {
                                                         </span>
                                                       </button>
                                                     ))}
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Materials — documents/resources the
+                                              tutor deployed in a live session. */}
+                                          <div>
+                                            <button
+                                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100"
+                                              onClick={() =>
+                                                setFoldersOpen(prev => ({
+                                                  ...prev,
+                                                  materials: !prev.materials,
+                                                }))
+                                              }
+                                            >
+                                              {foldersOpen.materials ? (
+                                                <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                                              ) : (
+                                                <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                                              )}
+                                              <Folder
+                                                className="h-4 w-4 shrink-0 text-amber-400"
+                                                fill="currentColor"
+                                              />
+                                              <span className="text-sm font-medium text-slate-700">
+                                                Materials
+                                              </span>
+                                            </button>
+                                            {foldersOpen.materials && (
+                                              <div className="mt-1 flex flex-col gap-0.5 pl-6">
+                                                {(!courseData.materials ||
+                                                  courseData.materials.length === 0) && (
+                                                  <span className="px-2 py-1 text-xs text-slate-500">
+                                                    Empty folder
+                                                  </span>
+                                                )}
+                                                {courseData.materials &&
+                                                  [...courseData.materials].reverse().map(task => (
+                                                    <button
+                                                      key={task.id}
+                                                      onClick={() =>
+                                                        handleSelectDirectoryItem(task)
+                                                      }
+                                                      className={cn(
+                                                        'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                                                        activeTaskId === (task.itemId || task.id)
+                                                          ? 'bg-amber-50 font-medium text-amber-700'
+                                                          : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                      )}
+                                                    >
+                                                      <FileText className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                                                      <span className="truncate">{task.title}</span>
+                                                    </button>
+                                                  ))}
                                               </div>
                                             )}
                                           </div>

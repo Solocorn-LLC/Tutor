@@ -18,7 +18,6 @@ import { getParamAsync } from '@/lib/api/params'
 import { handleApiError, requireCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { builderTask, builderTaskDmi, courseEnrollment, taskSubmission } from '@/lib/db/schema'
-import { generateFeedback, submitFeedbackForReview } from '@/lib/feedback/workflow'
 import { autoGradeDmi, type DmiAnswerItem } from '@/lib/grading/auto-grade'
 
 const MAX_SCORE = 100
@@ -160,24 +159,13 @@ export async function POST(
       submittedAt: new Date(),
     })
 
-    // Best-effort: generate AI feedback into the tutor's review queue. Submission
-    // already persisted, so any failure here must not fail the request.
-    try {
-      const request_ = {
-        studentId,
-        submissionId,
-        courseId: task.courseId,
-        type: 'task_feedback' as const,
-        context: { taskId, recentPerformance: score ?? undefined },
-        priority: 'medium' as const,
-      }
-      const generated = await generateFeedback(request_)
-      if (generated.success && generated.feedback) {
-        await submitFeedbackForReview(generated.feedback, request_)
-      }
-    } catch (feedbackError) {
-      console.warn('[submit] AI feedback generation failed (non-critical):', feedbackError)
-    }
+    // (Removed) The old best-effort call to generateFeedback/submitFeedbackForReview
+    // wrote to the orphaned FeedbackWorkflow table — a review panel mounted nowhere
+    // and read by no student route — while adding a synchronous Kimi call to every
+    // submit. The feedback students actually see is the auto-graded per-question
+    // breakdown plus the tutor's own feedback (delivered via the task GET). If a
+    // real AI-feedback queue is wired later, it should consume the marking basis
+    // (answers + rubric + model answer + PCI), not the generic recent-score prompt.
 
     // Reveal correct answers in the response when the tutor chose 'after_submit'
     // or 'student_choice' — now that the student has submitted it's safe to show

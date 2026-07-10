@@ -134,7 +134,7 @@ describe('/api/ai/pci-master', () => {
     })
   })
 
-  it('task domain: suppresses a finalized rubric until the tutor signals approval (TASK-5)', async () => {
+  it('task domain: offers the rubric but flags it unconfirmed until the tutor applies (TASK-5)', async () => {
     mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: '{"reply":"Here is the finalized rubric.","pci":"FINAL RUBRIC TEXT"}',
@@ -142,11 +142,13 @@ describe('/api/ai/pci-master', () => {
       parsed: null,
     })
 
-    // No approval phrase → the engine must NOT surface the draft, and flags it.
+    // No approval phrase this turn → the rubric is still OFFERED so the Apply
+    // button appears, but flagged unconfirmed. The tutor's Apply click is the
+    // explicit TASK-5 confirmation; nothing auto-applies.
     const res = await postBody({ message: 'what do you think?', context: { type: 'task' } })
     const data = await res.json()
 
-    expect(data.pciDraft).toBe('')
+    expect(data.pciDraft).toBe('FINAL RUBRIC TEXT')
     expect(data.pciUnconfirmed).toBe(true)
   })
 

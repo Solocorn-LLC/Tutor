@@ -115,21 +115,21 @@ export default function StudentAssignmentsPage() {
         return (
           <Badge variant="default" className="bg-green-600">
             <CheckCircle2 className="mr-1 h-3 w-3" />
-            已提交
+            Submitted
           </Badge>
         )
       case 'overdue':
         return (
           <Badge variant="destructive">
             <AlertCircle className="mr-1 h-3 w-3" />
-            已逾期
+            Overdue
           </Badge>
         )
       default:
         return (
           <Badge variant="secondary">
             <Clock className="mr-1 h-3 w-3" />
-            待完成
+            Pending
           </Badge>
         )
     }
@@ -137,11 +137,11 @@ export default function StudentAssignmentsPage() {
 
   const getTypeLabel = (type: string) => {
     const map: Record<string, string> = {
-      quiz: '测验',
-      assignment: '作业',
-      practice: '练习',
-      assessment: '评估',
-      project: '项目',
+      quiz: 'Quiz',
+      assignment: 'Assignment',
+      practice: 'Practice',
+      assessment: 'Assessment',
+      project: 'Project',
     }
     return map[type] ?? type
   }
@@ -156,8 +156,10 @@ export default function StudentAssignmentsPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">作业与测验</h1>
-            <p className="text-sm text-gray-500">查看孩子的作业完成情况、AI评分和教师反馈</p>
+            <h1 className="text-2xl font-bold">Assignments</h1>
+            <p className="text-sm text-gray-500">
+              View your child's assignment completion, AI grading, and tutor feedback
+            </p>
           </div>
         </div>
       </div>
@@ -168,7 +170,7 @@ export default function StudentAssignmentsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">总计</p>
+                <p className="text-sm text-gray-500">Total</p>
                 <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <ClipboardList className="h-8 w-8 text-gray-400" />
@@ -179,7 +181,7 @@ export default function StudentAssignmentsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">待完成</p>
+                <p className="text-sm text-gray-500">Pending</p>
                 <p className="text-2xl font-bold">{stats.pending}</p>
               </div>
               <Clock className="h-8 w-8 text-amber-500" />
@@ -190,7 +192,7 @@ export default function StudentAssignmentsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">已提交</p>
+                <p className="text-sm text-gray-500">Submitted</p>
                 <p className="text-2xl font-bold">{stats.submitted}</p>
               </div>
               <CheckCircle2 className="h-8 w-8 text-green-500" />
@@ -201,7 +203,7 @@ export default function StudentAssignmentsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">已逾期</p>
+                <p className="text-sm text-gray-500">Overdue</p>
                 <p className="text-2xl font-bold">{stats.overdue}</p>
               </div>
               <AlertCircle className="h-8 w-8 text-red-500" />
@@ -213,8 +215,10 @@ export default function StudentAssignmentsPage() {
       {/* Assignments list */}
       <Card>
         <CardHeader>
-          <CardTitle>全部作业</CardTitle>
-          <CardDescription>包含作业、测验、练习等，支持AI评分与教师反馈</CardDescription>
+          <CardTitle>All assignments</CardTitle>
+          <CardDescription>
+            Includes assignments, quizzes, and practice — with AI grading and tutor feedback
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -224,10 +228,10 @@ export default function StudentAssignmentsPage() {
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
-                <TabsTrigger value="all">全部 ({stats.total})</TabsTrigger>
-                <TabsTrigger value="pending">待完成 ({stats.pending})</TabsTrigger>
-                <TabsTrigger value="submitted">已提交 ({stats.submitted})</TabsTrigger>
-                <TabsTrigger value="overdue">已逾期 ({stats.overdue})</TabsTrigger>
+                <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
+                <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+                <TabsTrigger value="submitted">Submitted ({stats.submitted})</TabsTrigger>
+                <TabsTrigger value="overdue">Overdue ({stats.overdue})</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeTab} className="mt-0">
@@ -259,11 +263,11 @@ export default function StudentAssignmentsPage() {
                               <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
                                 {a.lessonTitle && <span>{a.lessonTitle}</span>}
                                 {a.courseName && <span>· {a.courseName}</span>}
-                                {a.tutorName && <span>· 教师: {a.tutorName}</span>}
+                                {a.tutorName && <span>· Tutor: {a.tutorName}</span>}
                                 {a.dueDate && (
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    截止: {formatDate(a.dueDate)}
+                                    Due: {formatDate(a.dueDate)}
                                   </span>
                                 )}
                               </div>
@@ -277,7 +281,7 @@ export default function StudentAssignmentsPage() {
                               )}
                               <div className="text-sm text-gray-500">
                                 <FileQuestion className="mr-1 inline h-4 w-4" />
-                                {a.questionCount} 题
+                                {a.questionCount} questions
                               </div>
                             </div>
                           </div>
@@ -290,7 +294,7 @@ export default function StudentAssignmentsPage() {
                                   <Bot className="mt-0.5 h-4 w-4 shrink-0 text-purple-500" />
                                   <div className="text-sm">
                                     <span className="font-medium text-gray-700">
-                                      AI 评分
+                                      AI grading
                                       {a.aiScore != null && `: ${Math.round(a.aiScore)}%`}
                                     </span>
                                     {a.aiComments && (
@@ -298,12 +302,12 @@ export default function StudentAssignmentsPage() {
                                     )}
                                     {a.aiStrengths.length > 0 && (
                                       <p className="mt-1 text-green-700">
-                                        优点: {a.aiStrengths.join('、')}
+                                        Strengths: {a.aiStrengths.join(', ')}
                                       </p>
                                     )}
                                     {a.aiImprovements.length > 0 && (
                                       <p className="mt-1 text-amber-700">
-                                        改进: {a.aiImprovements.join('、')}
+                                        Improvements: {a.aiImprovements.join(', ')}
                                       </p>
                                     )}
                                   </div>
@@ -314,10 +318,10 @@ export default function StudentAssignmentsPage() {
                                   <User className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
                                   <div className="text-sm">
                                     <span className="font-medium text-gray-700">
-                                      教师反馈
+                                      Tutor feedback
                                       {a.tutorApproved && (
                                         <Badge variant="secondary" className="ml-2 text-xs">
-                                          已批阅
+                                          Reviewed
                                         </Badge>
                                       )}
                                     </span>
@@ -330,10 +334,9 @@ export default function StudentAssignmentsPage() {
 
                           {a.status === 'submitted' && a.submittedAt && (
                             <div className="border-t px-4 py-2 text-xs text-gray-500">
-                              提交于 {formatDate(a.submittedAt)}
-                              {a.timeSpent != null &&
-                                ` · 用时 ${Math.round(a.timeSpent / 60)} 分钟`}
-                              {a.attempts > 0 && ` · 第 ${a.attempts}/${a.maxAttempts} 次尝试`}
+                              Submitted on {formatDate(a.submittedAt)}
+                              {a.timeSpent != null && ` · ${Math.round(a.timeSpent / 60)} min`}
+                              {a.attempts > 0 && ` · Attempt ${a.attempts}/${a.maxAttempts} `}
                             </div>
                           )}
                         </CardContent>
@@ -341,7 +344,7 @@ export default function StudentAssignmentsPage() {
                     ))}
                   {assignments.filter(a => (activeTab === 'all' ? true : a.status === activeTab))
                     .length === 0 && (
-                    <div className="py-12 text-center text-gray-500">暂无作业</div>
+                    <div className="py-12 text-center text-gray-500">No assignments yet</div>
                   )}
                 </div>
               </TabsContent>

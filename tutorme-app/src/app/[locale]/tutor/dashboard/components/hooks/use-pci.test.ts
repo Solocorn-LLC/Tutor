@@ -148,4 +148,37 @@ describe('usePci', () => {
       expect.objectContaining({ spec: { evaluationLogic: 'Exact match' } })
     )
   })
+
+  it('applyAssessmentPciDraft carries the structured spec into the audit record (parity)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: 'ok',
+        pciDraft: 'FINAL',
+        pciSpec: { evaluationLogic: 'Award method marks' },
+        guardrailWarnings: [],
+      }),
+    }) as unknown as typeof fetch
+    const setCurrentPci = vi.fn()
+    const assessmentTarget = { kind: 'assessment' as const, id: 'a1' }
+    const { result } = renderHook(() =>
+      usePci(
+        deps({
+          loadedAssessmentId: 'a1',
+          autoCreateAssessment: () => ({ id: 'a1' }),
+          setCurrentPci,
+        })
+      )
+    )
+    act(() => result.current.setPciInput(assessmentTarget, 'q'))
+    await act(async () => {
+      await result.current.handlePciSend('assessment')
+    })
+    act(() => result.current.applyAssessmentPciDraft('a1'))
+    expect(setCurrentPci).toHaveBeenCalledWith(
+      'assessment',
+      'FINAL',
+      expect.objectContaining({ spec: { evaluationLogic: 'Award method marks' } })
+    )
+  })
 })

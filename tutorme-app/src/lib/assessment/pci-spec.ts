@@ -66,3 +66,18 @@ export function normalizePciSpec(raw: unknown): PciSpec | null {
   }
   return Object.keys(out).length > 0 ? out : null
 }
+
+/**
+ * Render a `PciSpec` as human-/model-readable `Label: value` lines in the
+ * canonical field order, including only fields the tutor actually defined.
+ * Returns '' for a null/empty spec so callers can cheaply skip injection.
+ */
+export function pciSpecToText(spec: PciSpec | null | undefined): string {
+  if (!spec) return ''
+  const lines: string[] = []
+  for (const { key, label } of PCI_SPEC_FIELDS) {
+    const v = spec[key]
+    if (typeof v === 'string' && v.trim()) lines.push(`${label}: ${v.trim()}`)
+  }
+  return lines.join('\n')
+}

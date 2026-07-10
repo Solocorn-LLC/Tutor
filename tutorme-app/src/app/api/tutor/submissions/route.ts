@@ -56,6 +56,10 @@ export async function GET(request: NextRequest) {
         answers: taskSubmission.answers,
         questionResults: taskSubmission.questionResults,
         tutorFeedback: taskSubmission.tutorFeedback,
+        // The AI study hints the student received + any follow-up Q&A they had,
+        // so the tutor can see the AI layer and catch drift.
+        aiFeedback: taskSubmission.aiFeedback,
+        followUps: taskSubmission.followUps,
         timeSpent: taskSubmission.timeSpent,
         submittedAt: taskSubmission.submittedAt,
         gradedAt: taskSubmission.gradedAt,

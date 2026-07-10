@@ -368,7 +368,11 @@ function TutorControlsPanel({
 
                     <button
                       type="button"
-                      disabled={panelDisabled || mode !== 'build' || !hasSession}
+                      // Video joins the live session — it must be usable while
+                      // live (mode === 'classroom'), not only in build mode. It
+                      // was wrongly gated on mode === 'build' (like the adjacent
+                      // build-only actions), so it was disabled during a session.
+                      disabled={panelDisabled || !hasSession}
                       onClick={onVideo}
                       className={cn(
                         actionButtonBase,
@@ -793,7 +797,7 @@ function CourseBuilderInsightsRouteInner({
 
   return (
     <div
-      className="text-foreground flex h-screen w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
+      className="text-foreground flex h-full w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
       data-tutor-route="insights-builder"
       style={model.themeStyle}
     >
@@ -806,25 +810,6 @@ function CourseBuilderInsightsRouteInner({
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
                   {/* Course selector — locked to read-only when a session is active */}
-                  {activeMainTab !== 'live' &&
-                    activeMainTab !== 'test-pci' &&
-                    insightsProps.sessionId &&
-                    currentCourse && (
-                      <div className="flex h-9 min-w-[160px] max-w-[320px] items-center px-2 text-sm font-semibold text-slate-700">
-                        {currentCourse.nationality && currentCourse.nationality !== 'Global' ? (
-                          <span className="inline-flex items-center gap-1">
-                            {currentCourse.name} — {currentCourse.variantCategory || ''} —{' '}
-                            <CountryFlag
-                              countryName={currentCourse.nationality}
-                              size="xs"
-                              showLabel
-                            />
-                          </span>
-                        ) : (
-                          currentCourse.name
-                        )}
-                      </div>
-                    )}
                   {activeMainTab !== 'live' &&
                     activeMainTab !== 'test-pci' &&
                     insightsProps.onCourseChange && (
@@ -840,7 +825,11 @@ function CourseBuilderInsightsRouteInner({
                       >
                         <SelectTrigger
                           className={cn(
-                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
+                            // Header card is hardcoded light (bg-white) regardless of
+                            // theme, so use a hardcoded dark text colour — the theme
+                            // token text-foreground flips to white under dark themes
+                            // and made the course name unreadable here.
+                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0',
                             hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
                           )}
                         >
@@ -915,35 +904,22 @@ function CourseBuilderInsightsRouteInner({
                       </Select>
                     )}
 
-                  {activeMainTab !== 'live' &&
-                    activeMainTab !== 'test-pci' &&
-                    onCourseNameChange &&
-                    courseId &&
-                    courseId !== 'insights-draft' && (
-                      <input
-                        className={cn(
-                          'h-9 min-w-[200px] rounded-md border-none bg-transparent px-2 text-sm font-semibold transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
-                          isCoursePublished ? 'cursor-not-allowed opacity-70' : 'hover:bg-slate-100'
-                        )}
-                        value={courseName || ''}
-                        readOnly={isCoursePublished}
-                        onChange={e => {
-                          onCourseNameChange(e.target.value)
-                        }}
-                        placeholder="Course Name..."
-                        title={
-                          isCoursePublished ? 'Published variant names cannot be edited' : undefined
-                        }
-                      />
-                    )}
-
+                  {activeMainTab === 'builder' && (
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
+                      {currentCourse?.name && (
+                        <span className="text-xl font-normal text-slate-500">
+                          {currentCourse.name}
+                        </span>
+                      )}
+                    </h1>
+                  )}
                   {activeMainTab === 'live' && (
                     // Centered across the full header via absolute positioning;
                     // pointer-events-none so the overlay never blocks the back
                     // button / header controls underneath it.
-                    <h1 className="text-foreground pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
                       {model.course?.name && (
-                        <span className="text-muted-foreground text-xl font-normal">
+                        <span className="text-xl font-normal text-slate-500">
                           {model.course.name}
                         </span>
                       )}
@@ -963,9 +939,9 @@ function CourseBuilderInsightsRouteInner({
                     </h1>
                   )}
                   {activeMainTab === 'test-pci' && (
-                    <h1 className="text-foreground flex flex-1 items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
                       {(model.course?.name || currentCourse?.name) && (
-                        <span className="text-muted-foreground ml-2 text-xl font-normal">
+                        <span className="text-xl font-normal text-slate-500">
                           {model.course?.name || currentCourse?.name}
                         </span>
                       )}
@@ -1027,26 +1003,6 @@ function CourseBuilderInsightsRouteInner({
                   <div className="h-2 w-2 rounded-full bg-amber-500" />
                   Editing
                 </div>
-              )}
-              {/* End Session lives in the floating Controls palette too, but that
-                  palette is easy to collapse or drag aside — so surface a always-
-                  visible copy here in the header whenever a session is active, so
-                  the tutor can reliably end the class. */}
-              {insightsProps.sessionId && (
-                <button
-                  type="button"
-                  onClick={handleEndSession}
-                  disabled={endingSession}
-                  className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  title="End the live session"
-                >
-                  {endingSession ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <PhoneOff className="h-4 w-4" />
-                  )}
-                  {endingSession ? 'Ending…' : 'End Session'}
-                </button>
               )}
               {/* Reflect the real socket connection: emerald when connected,
                   red when a session is live but the socket has dropped, amber
@@ -1135,6 +1091,9 @@ function CourseBuilderInsightsRouteInner({
               onSaveModeChange={onSaveModeChange}
               onSyncToLiveSession={onSyncToLiveSession}
               onUnsyncedChangesChange={setHasUnsyncedChanges}
+              focusLessonId={
+                isClassroomMode ? (searchParams.get('lessonId') ?? undefined) : undefined
+              }
             />
           </PanelErrorBoundary>
         )}
@@ -1190,24 +1149,59 @@ function CourseBuilderInsightsRouteInner({
       </div>
       {/* Create Course Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>Enter a name for your new course.</DialogDescription>
+        <DialogContent
+          className="max-w-md border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Create New Course</DialogTitle>
           </DialogHeader>
-          <Input
-            value={newCourseName}
-            onChange={e => setNewCourseName?.(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') onCreateNewCourse?.()
-            }}
-          />
-          <DialogFooter>
+
+          <div className="space-y-4 px-6 py-4">
+            <div className="space-y-2">
+              <Input
+                value={newCourseName}
+                onChange={e => {
+                  const value = e.target.value
+                  if (value.length <= 25) {
+                    setNewCourseName?.(value)
+                  }
+                }}
+                placeholder="Course name"
+                maxLength={25}
+                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newCourseName?.trim()) {
+                    e.preventDefault()
+                    onCreateNewCourse?.()
+                  }
+                }}
+              />
+              <div className="flex justify-end">
+                <span
+                  className={`text-xs font-medium ${
+                    (newCourseName?.length || 0) >= 25
+                      ? 'text-red-500'
+                      : (newCourseName?.length || 0) >= 20
+                        ? 'text-orange-500'
+                        : 'text-gray-600'
+                  }`}
+                >
+                  {newCourseName?.length || 0}/25
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3">
             <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen?.(false)}>
               Cancel
             </Button>
-            <Button variant="modal-primary-dark" onClick={onCreateNewCourse}>
+            <Button
+              variant="modal-primary-dark"
+              onClick={onCreateNewCourse}
+              disabled={!newCourseName?.trim()}
+            >
               Create
             </Button>
           </DialogFooter>
@@ -1271,7 +1265,7 @@ function CourseBuilderInsightsRouteInner({
 
       {/* Reschedule Dialog */}
       <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-0 bg-[rgba(31,41,51,0.72)] p-0 shadow-[0_24px_64px_rgba(15,23,42,0.32)] backdrop-blur-[18px] sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]">
+        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]">
           <div className="flex h-full flex-col p-7 sm:p-8">
             <DialogHeader className="p-0">
               <DialogTitle>Reschedule as Independent Course</DialogTitle>
@@ -1314,7 +1308,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Price</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-slate-400" />
+                      <DollarSign className="h-4 w-4 text-slate-600" />
                       <Input
                         type="number"
                         min={0}
@@ -1346,7 +1340,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Language</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <Languages className="h-4 w-4 text-slate-400" />
+                      <Languages className="h-4 w-4 text-slate-600" />
                       <Input
                         value={rescheduleLanguage}
                         onChange={e => setRescheduleLanguage(e.target.value)}

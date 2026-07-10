@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useRealmSession } from '@/hooks/use-realm-session'
@@ -73,6 +73,7 @@ const bottomNavItems: NavItem[] = [
 
 export default function TutorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { data: session, status } = useSession()
   const { data: realmSession, status: realmStatus } = useRealmSession('tutor')
@@ -97,6 +98,18 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isSubmissionsPage = pathname?.includes('/tutor/submissions')
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
+
+  // Use a robust pathname check for insights page detection that works across
+  // SSR and client-side hydration, handling both prefixed and non-prefixed paths.
+  // With next-intl localePrefix: 'as-needed', the pathname may include the locale
+  // segment during SSR (e.g., /en/tutor/insights) but not on the client.
+  const isInsightsPage =
+    pathname === '/tutor/insights' ||
+    pathname?.startsWith('/tutor/insights/') ||
+    pathname?.endsWith('/tutor/insights') ||
+    pathname?.includes('/tutor/insights/') ||
+    /\/tutor\/insights(\/|$)/.test(pathname || '')
+
   const isFloatingPage =
     isDashboardPage ||
     isReportsPage ||
@@ -104,7 +117,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isSubmissionsPage ||
     isAccountPage ||
     isMyPage ||
-    isSupportPage
+    isSupportPage ||
+    isInsightsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage &&
       !isReportsPage &&
@@ -137,11 +151,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isCourseBuilder = pathname?.includes('/courses/') && pathname?.includes('/builder')
 
   // Check if we're on the Course Publish page (course detail page) - hide sidebar for focused editing
-  // Pattern: /tutor/courses/[id] but not sub-paths like /tasks or /enrollments
-  const isCoursePublishPage = pathname?.match(/^\/tutor\/courses\/[^\/]+$/) !== null
-
-  // Insights page has its own layout with course builder integrated
-  const isInsightsPage = pathname === '/tutor/insights' || pathname?.startsWith('/tutor/insights/')
+  // Pattern: /tutor/courses/[id] or /:locale/tutor/courses/[id] but not sub-paths like /tasks or /enrollments
+  const isCoursePublishPage = pathname?.match(/^(\/[^\/]+)?\/tutor\/courses\/[^\/]+$/) !== null
 
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
@@ -170,8 +181,27 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     return () => clearInterval(interval)
   }, [])
 
-  if (isCourseBuilder || isCoursePublishPage || isInsightsPage) {
-    return <>{children}</>
+  // Force insights pages and classroom pages to have no nav and no wrapper
+  // Use a robust check that handles locale-prefixed paths during SSR
+  const isInsightsPageForce = pathname?.includes('/tutor/insights')
+  // Also check for classroom paths in case redirect hasn't completed
+  const isClassroomPage = pathname?.includes('/tutor/classroom')
+  // Check for classroom view mode via search params as a fallback
+  const isClassroomView = searchParams?.get('view') === 'classroom'
+
+  if (
+    isCourseBuilder ||
+    isInsightsPage ||
+    isInsightsPageForce ||
+    isClassroomPage ||
+    isClassroomView
+  ) {
+    return <div className="isolate flex h-screen w-full overflow-hidden bg-white">{children}</div>
+  }
+
+  // Course Publish/Details page needs scrollable content, not fixed height
+  if (isCoursePublishPage) {
+    return <div className="isolate min-h-screen w-full bg-white">{children}</div>
   }
 
   return (

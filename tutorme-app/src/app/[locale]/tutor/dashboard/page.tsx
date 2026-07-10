@@ -34,7 +34,6 @@ import {
   Users,
   AlertCircle,
   Ban,
-  Eye,
   CalendarClock,
   Pencil,
   Presentation,
@@ -54,6 +53,7 @@ import { DEFAULT_TIMEZONE, type CalendarView } from './components/InteractiveCal
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
 import { CountryFlag } from '@/components/country-flag'
+import { ClassroomDialog } from '@/components/classroom/ClassroomDialog'
 
 function SessionCountdown({ scheduledAt }: { scheduledAt: string }) {
   const [countdown, setCountdown] = useState('')
@@ -162,6 +162,15 @@ type CourseSession = {
   /** Display name of the linked schedule, e.g. "Schedule 1" (null for one-time). */
   scheduleName?: string | null
   durationMinutes?: number
+  /** The lesson this session covers (auto-assigned on publish, tutor-editable). */
+  lessonId?: string | null
+  lessonTitle?: string | null
+}
+
+type CourseLessonOption = {
+  id: string
+  title: string
+  order: number
 }
 
 type OneOnOneRequest = {
@@ -194,6 +203,8 @@ function TutorDashboardContent() {
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   // Course context for creating a one-time (non-schedule) session from the sessions modal.
   const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
+  // Controls fade-out of Course Sessions modal when creating one-time session
+  const [creatingOneTime, setCreatingOneTime] = useState(false)
   // Course name + variant for the sessions modal (from the sessions API).
   const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
     name: string | null
@@ -227,12 +238,17 @@ function TutorDashboardContent() {
   const [oneOnOneRequests, setOneOnOneRequests] = useState<OneOnOneRequest[]>([])
   const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null)
 
+  const [classroomDialogOpen, setClassroomDialogOpen] = useState(false)
+  const [classroomCourse, setClassroomCourse] = useState<EnrolledCourse | null>(null)
+
   // Cancel Course Modal State
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [selectedCourseForCancel, setSelectedCourseForCancel] = useState<EnrolledCourse | null>(
     null
   )
   const [courseSessions, setCourseSessions] = useState<CourseSession[]>([])
+  const [courseLessonOptions, setCourseLessonOptions] = useState<CourseLessonOption[]>([])
+  const [savingLessonSessionId, setSavingLessonSessionId] = useState<string | null>(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const loadingSessionsRef = useRef(false)
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null)
@@ -473,6 +489,7 @@ function TutorDashboardContent() {
     setSelectedCourseForCancel(course)
     setCancelModalOpen(true)
     setCourseSessions([])
+    setCourseLessonOptions([])
     setSessionLoadError(null)
     setLoadingSessions(true)
 
@@ -483,6 +500,7 @@ function TutorDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setCourseSessions(data.sessions || [])
+        setCourseLessonOptions(data.lessons || [])
         setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
       } else {
         const errData = await res.json().catch(() => ({}))
@@ -572,6 +590,56 @@ function TutorDashboardContent() {
       setCancellingSessionId(null)
     }
   }, [])
+
+  const handleAssignLesson = useCallback(
+    async (sessionId: string, lessonId: string) => {
+      const nextLessonId = lessonId || null
+      // Optimistic update so the picker feels instant.
+      const prevSessions = courseSessions
+      setSavingLessonSessionId(sessionId)
+      setCourseSessions(prev =>
+        prev.map(s =>
+          s.id === sessionId
+            ? {
+                ...s,
+                lessonId: nextLessonId,
+                lessonTitle: courseLessonOptions.find(l => l.id === nextLessonId)?.title ?? null,
+              }
+            : s
+        )
+      )
+
+      try {
+        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        const csrfData = await csrfRes.json().catch(() => ({}))
+        const csrfToken = csrfData?.token ?? null
+
+        const res = await fetch(`/api/tutor/sessions/${sessionId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'set-lesson', lessonId: nextLessonId }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setCourseSessions(prevSessions) // roll back
+          toast.error(data.error || 'Failed to update lesson')
+          return
+        }
+        toast.success(nextLessonId ? 'Lesson updated' : 'Lesson cleared')
+      } catch {
+        setCourseSessions(prevSessions) // roll back
+        toast.error('Failed to update lesson')
+      } finally {
+        setSavingLessonSessionId(null)
+      }
+    },
+    [courseSessions, courseLessonOptions]
+  )
 
   const withLocalePath = useCallback(
     (path: string) => {
@@ -831,28 +899,21 @@ function TutorDashboardContent() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() =>
-                                router.push(withLocalePath(`/tutor/classroom/${course.id}`))
-                              }
+                              onClick={() => {
+                                setClassroomCourse(course)
+                                setClassroomDialogOpen(true)
+                              }}
                               className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
                             >
                               <Presentation className="mr-1 h-3 w-3" />
                               Classroom
                             </Button>
-                            {hasViewableSessions ? (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleOpenSessionsModal(course)}
-                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
-                              >
-                                <Eye className="mr-1 h-3 w-3" />
-                                View Sessions
-                              </Button>
-                            ) : (
-                              // Sessions come only from the course schedule — send the
-                              // tutor to the scheduler (course details page) to add slots
-                              // and publish, instead of creating an ad-hoc session.
+                            {/* When sessions exist, the "N sessions" count badge above
+                                already opens the sessions modal, so a separate "View
+                                Sessions" button here was redundant and has been removed.
+                                With no sessions yet, send the tutor to the scheduler
+                                (course details page) to add slots and publish. */}
+                            {!hasViewableSessions && (
                               <Button
                                 asChild
                                 variant="default"
@@ -876,7 +937,16 @@ function TutorDashboardContent() {
                               onClick={() =>
                                 router.push(
                                   withLocalePath(
-                                    `/tutor/insights?tab=builder&courseId=${course.id}&mode=edit`
+                                    // The builder edits the TEMPLATE course (where the
+                                    // lessons live). `course.id` is the published
+                                    // variant, which has no builder lessons — opening
+                                    // it showed an empty course after publishing.
+                                    // NOTE: no `mode=edit` — that flag forces the builder
+                                    // into detached/localStorage mode, which reads nothing
+                                    // from the DB (empty course) and can wipe the real
+                                    // lessons on save. A published course must load/save
+                                    // against the DB.
+                                    `/tutor/insights?tab=builder&courseId=${course.templateCourseId || course.id}`
                                   )
                                 )
                               }
@@ -995,7 +1065,11 @@ function TutorDashboardContent() {
         <CreateClassDialog
           open={!!oneTimeCourse}
           onOpenChange={open => {
-            if (!open) setOneTimeCourse(null)
+            if (!open) {
+              // Cancel clicked: close CreateClassDialog and fade Course Sessions modal back in
+              setOneTimeCourse(null)
+              setCreatingOneTime(false)
+            }
           }}
           courseId={oneTimeCourse?.id}
           courseName={oneTimeCourse?.name}
@@ -1003,6 +1077,7 @@ function TutorDashboardContent() {
           onClassCreated={() => {
             const course = oneTimeCourse
             setOneTimeCourse(null)
+            setCreatingOneTime(false)
             if (course) {
               toast.success('One-time session created')
               handleOpenSessionsModal({ id: course.id, name: course.name } as EnrolledCourse)
@@ -1010,15 +1085,33 @@ function TutorDashboardContent() {
           }}
         />
 
+        <ClassroomDialog
+          open={classroomDialogOpen}
+          onOpenChange={setClassroomDialogOpen}
+          courseId={classroomCourse?.id ?? null}
+          courseName={classroomCourse?.name ?? ''}
+          nationality={classroomCourse?.nationality ?? null}
+          variantCategory={classroomCourse?.variantCategory ?? null}
+          categories={classroomCourse?.categories ?? null}
+        />
+
         {/* Course Sessions Modal */}
-        <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
-          <DialogContent className="max-w-2xl">
+        <Dialog
+          open={cancelModalOpen}
+          onOpenChange={open => {
+            if (!open) setCreatingOneTime(false)
+            setCancelModalOpen(open)
+          }}
+        >
+          <DialogContent
+            className={`max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl transition-opacity duration-300 ${creatingOneTime ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+          >
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-white">
                 <Calendar className="text-primary h-5 w-5" />
                 Course Sessions
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-white/80">
                 {selectedCourseForCancel && (
                   <>
                     Manage sessions for{' '}
@@ -1046,7 +1139,7 @@ function TutorDashboardContent() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-4">
+            <div className="mt-4 text-white">
               {loadingSessions ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
@@ -1088,7 +1181,7 @@ function TutorDashboardContent() {
                   )}
                 </div>
               ) : (
-                <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-2">
+                <div className="scrollbar-hide h-[460px] space-y-3 overflow-y-auto pr-2">
                   {courseSessions.length > 6 && (
                     <p className="text-muted-foreground pb-1 text-xs">
                       {courseSessions.length} sessions — scroll to see all
@@ -1130,11 +1223,11 @@ function TutorDashboardContent() {
                       return (
                         <div
                           key={session.id}
-                          className="border-border/30 bg-card/50 hover:border-border/50 hover:bg-card flex items-center justify-between rounded-lg border p-3 transition-all duration-200"
+                          className="border-border/30 bg-card hover:border-border/50 flex items-center justify-between rounded-lg border p-3 transition-all duration-200 hover:bg-white"
                         >
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-medium">
+                              <p className="truncate font-medium text-gray-900">
                                 {sessionsCourseMeta?.name
                                   ? (() => {
                                       const [cat, nat] = sessionsCourseMeta.variantName
@@ -1213,6 +1306,31 @@ function TutorDashboardContent() {
                               <p className="text-muted-foreground truncate text-xs">
                                 {session.description}
                               </p>
+                            )}
+                            {!isVirtual && courseLessonOptions.length > 0 && (
+                              <div className="flex items-center gap-2 pt-0.5">
+                                <BookOpen className="text-muted-foreground h-3 w-3 shrink-0" />
+                                <label className="sr-only" htmlFor={`lesson-${session.id}`}>
+                                  Lesson this session covers
+                                </label>
+                                <select
+                                  id={`lesson-${session.id}`}
+                                  value={session.lessonId ?? ''}
+                                  disabled={savingLessonSessionId === session.id}
+                                  onChange={e => handleAssignLesson(session.id, e.target.value)}
+                                  className="border-border/40 bg-background max-w-[220px] truncate rounded-md border px-2 py-1 text-xs text-gray-900 disabled:opacity-60"
+                                >
+                                  <option value="">No lesson assigned</option>
+                                  {courseLessonOptions.map((l, i) => (
+                                    <option key={l.id} value={l.id}>
+                                      {`Lesson ${i + 1}: ${l.title}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                {savingLessonSessionId === session.id && (
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                )}
+                              </div>
                             )}
                           </div>
                           <div className="ml-4 flex items-center gap-2">
@@ -1296,37 +1414,24 @@ function TutorDashboardContent() {
 
             <Separator className="my-4" />
 
-            <DialogFooter className="flex items-center justify-between sm:justify-between">
-              <div className="flex items-center gap-2 text-xs">
-                <AlertCircle className="h-4 w-4" />
-                <span>Add recurring sessions in the scheduler, or create a one-off session</span>
-              </div>
+            <DialogFooter className="flex items-center justify-end sm:justify-end">
               <div className="flex flex-wrap items-center gap-2">
                 {selectedCourseForCancel && (
-                  <>
-                    <Button asChild variant="outline">
-                      <Link
-                        href={withLocalePath(
-                          `/tutor/courses/${selectedCourseForCancel.templateCourseId ?? selectedCourseForCancel.id}`
-                        )}
-                      >
-                        <CalendarClock className="mr-1 h-4 w-4" />
-                        +Add/Edit schedule
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
+                  <Button
+                    variant="modal-primary-dark"
+                    onClick={() => {
+                      setCreatingOneTime(true)
+                      setTimeout(() => {
                         setOneTimeCourse({
                           id: selectedCourseForCancel.id,
                           name: selectedCourseForCancel.name,
                         })
-                      }
-                    >
-                      <Video className="mr-1 h-4 w-4" />
-                      Create one-time session
-                    </Button>
-                  </>
+                      }, 300)
+                    }}
+                  >
+                    <Video className="mr-1 h-4 w-4" />
+                    Create Class
+                  </Button>
                 )}
                 <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
                   Close
@@ -1339,6 +1444,7 @@ function TutorDashboardContent() {
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
+        canCreate
         onClose={() => setScheduleCourse(null)}
       />
     </div>

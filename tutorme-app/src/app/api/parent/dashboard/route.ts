@@ -15,7 +15,10 @@ export const GET = withAuth(
     const startTime = Date.now()
     const family = await getFamilyAccountForParent(session)
     if (!family) {
-      return NextResponse.json({ error: '未找到家庭账户，请先完成家长注册' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'No family account found. Please complete parent registration first.' },
+        { status: 404 }
+      )
     }
 
     const cacheKey = `parent:dashboard:${family.familyAccountId}:${session.user.id}`

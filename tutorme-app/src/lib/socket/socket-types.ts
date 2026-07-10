@@ -41,7 +41,12 @@ export interface LiveTaskPoll {
   id: string
   taskId: string
   question: string
+  /** Option indices [0..n-1]; a vote's `value` is the chosen index. Length = the
+   *  number of options. */
   options: number[]
+  /** Display labels per option index (e.g. ['True','False'], ['Yes','No'], or
+   *  custom). Absent ⇒ render A/B/C/… by index (back-compat). */
+  optionLabels?: string[]
   status: 'open' | 'closed'
   responses: LiveTaskPollResponse[]
   createdAt: number
@@ -51,6 +56,8 @@ export interface LiveTaskQuestion {
   id: string
   taskId: string
   prompt: string
+  /** A closed question accepts no more answers (mirrors LiveTaskPoll.status). */
+  status?: 'open' | 'closed'
   responses: LiveTaskQuestionResponse[]
   createdAt: number
 }
@@ -115,6 +122,15 @@ export interface LiveTask {
   }>
   /** Tutor's answer-reveal policy for this deploy (default 'instant'). */
   answerReveal?: AnswerReveal
+  /** Tutor's task PCI (free-text) + finalized structured spec (TASK-6). Sent
+   *  tutor→server on deploy ONLY so the live tutor + grader can apply them;
+   *  NEVER broadcast to students — hidden evaluation layer, like answerKey. */
+  pci?: string
+  pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+  /** The lesson this task/assessment was deployed from, so the server can tag the
+   *  persisted BuilderTask + DeployedMaterial with the real lesson (not "Lesson
+   *  1"). Sent tutor→server on deploy. */
+  lessonId?: string
   deployedAt: number
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]

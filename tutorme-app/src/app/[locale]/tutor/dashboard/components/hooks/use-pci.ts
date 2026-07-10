@@ -39,6 +39,12 @@ interface UsePciDeps {
     sourceDocument?: PciSourceDoc
   }
   assessmentBuilder: { taskContent: string; taskPci: string; title: string }
+  /**
+   * Compact digest of the assessment's DMI (per-question marks + rubric, no
+   * answers) so the marking-policy chat builds the policy WITH the actual
+   * questions/marks/rubrics in view. Empty when there's no DMI.
+   */
+  assessmentMarkingScheme?: string
   /** Writes the finalized rubric to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
@@ -85,9 +91,18 @@ export function usePci(deps: UsePciDeps) {
 
   const applyAssessmentPciDraft = (assessmentId: string) => {
     const target: PciTarget = { kind: 'assessment', id: assessmentId }
-    const draft = getThread(pci, target).draft
+    const thread = getThread(pci, target)
+    const draft = thread.draft
     if (!draft) return
-    deps.setCurrentPci('assessment', draft)
+    // Persist the structured spec + audit too (parity with tasks), so the
+    // finalized assessment PCI carries its machine-readable form to the grader.
+    const audit: PciAuditRecord = {
+      approvedPci: draft,
+      spec: thread.draftSpec,
+      transcript: thread.messages,
+      approvedAt: Date.now(),
+    }
+    deps.setCurrentPci('assessment', draft, audit)
     dispatch({ type: 'clearDraft', target })
     toast.success('Rubric applied to PCI')
   }
@@ -108,6 +123,12 @@ export function usePci(deps: UsePciDeps) {
     const input = overrideMessage || thread.input
     if (!input.trim() || thread.loading) return
     const userMessage = input.trim()
+    // Only attach the document's rendered page images on the FIRST turn. The
+    // model summarises them into the conversation, so resending several MB of
+    // base64 images on every later turn (e.g. when the tutor confirms the
+    // summary) just bloats the request — which can make the fetch fail outright
+    // ("Load failed"). Later turns rely on the text content + conversation.
+    const isFirstTurn = thread.messages.length === 0
 
     // Clear the input box only on a real send (not a quick-action override), then
     // append the user's message + start loading.
@@ -151,9 +172,10 @@ export function usePci(deps: UsePciDeps) {
           }
         : undefined
 
-      // Render an attached PDF's pages (cached) so the model can SEE the document.
+      // Render an attached PDF's pages (cached) so the model can SEE the
+      // document — first turn only (see isFirstTurn above).
       let pdfPages: string[] | undefined
-      if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+      if (isFirstTurn && sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
         const cacheKey = sourceDocData.fileUrl
         const cached = deps.pdfPageCache.get(cacheKey)
         if (cached) {
@@ -171,23 +193,54 @@ export function usePci(deps: UsePciDeps) {
         }
       }
 
-      const response = await fetch('/api/ai/pci-master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          sessionId,
-          context: {
-            type,
-            title: isTask ? taskBuilder.title : assessmentBuilder.title,
-            content: slideContent,
-            pci: pciText,
-            extensionName,
-            sourceDocument,
-          },
-          pdfPages,
-        }),
-      })
+      // Abort a hung request after a bound comfortably above the server's worst
+      // case (2×45s) so a stuck turn fails cleanly with a retry prompt instead
+      // of hanging or surfacing a raw "Load failed".
+      const controller = new AbortController()
+      const abortTimer = setTimeout(() => controller.abort(), 120_000)
+      let response: Response
+      try {
+        response = await fetch('/api/ai/pci-master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: userMessage,
+            sessionId,
+            // Prior turns so the model can hold a real conversation (the local /
+            // vision provider paths have no server-side memory; ADK keys on
+            // sessionId). Capped and lightly truncated to bound the payload.
+            history: thread.messages.slice(-10).map(m => ({
+              role: m.role,
+              content: m.content.slice(0, 4000),
+            })),
+            context: {
+              type,
+              title: isTask ? taskBuilder.title : assessmentBuilder.title,
+              // Bounded to stay under the server's content limit and keep the
+              // request small on every turn.
+              content: (slideContent || '').slice(0, 48000),
+              pci: pciText,
+              extensionName,
+              sourceDocument,
+              // The captured "policy so far" — including any fields the tutor
+              // corrected inline. Sent back so the model treats these as
+              // authoritative and carries them forward (doesn't re-capture a
+              // stale value).
+              capturedSoFar: thread.specSoFar,
+              // The DMI marking scheme (assessment only), so the policy is built
+              // with the actual questions/marks/rubrics in view.
+              markingScheme:
+                !isTask && deps.assessmentMarkingScheme
+                  ? deps.assessmentMarkingScheme.slice(0, 12000)
+                  : undefined,
+            },
+            pdfPages,
+          }),
+        })
+      } finally {
+        clearTimeout(abortTimer)
+      }
       if (!response.ok) {
         let errorMessage = `Failed to get AI response (${response.status})`
         try {
@@ -214,18 +267,25 @@ export function usePci(deps: UsePciDeps) {
         draft: draft || undefined,
         // TASK-6: the structured spec mirror (present only on finalization).
         spec: data.pciSpec || undefined,
+        // Running capture for the live "policy so far" panel (may be partial).
+        specSoFar: data.pciSpecSoFar || undefined,
         warnings,
       })
     } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? `PCI Assistant error: ${error.message}`
-          : 'PCI Assistant error. Please try again.'
-      toast.error(message)
-      const hint =
-        error instanceof Error && error.message
-          ? error.message
-          : 'Unable to reach the PCI assistant. Please try again.'
+      // A rejected fetch (offline, connection reset, request too large) surfaces
+      // as a TypeError with a terse, non-actionable message like "Load failed"
+      // (Safari) or "Failed to fetch" (Chrome). Translate those into a clear hint.
+      const raw = error instanceof Error ? error.message : ''
+      const isAbort = error instanceof DOMException && error.name === 'AbortError'
+      const isNetworkError =
+        error instanceof TypeError ||
+        /load failed|failed to fetch|networkerror|network error/i.test(raw)
+      const hint = isAbort
+        ? 'The assistant took too long to respond — please try again.'
+        : isNetworkError
+          ? "Couldn't reach the PCI assistant — check your connection and try again."
+          : raw || 'Unable to reach the PCI assistant. Please try again.'
+      toast.error(`PCI Assistant error: ${hint}`)
       dispatch({
         type: 'sendError',
         target,
@@ -238,6 +298,13 @@ export function usePci(deps: UsePciDeps) {
     }
   }
 
+  // Tutor correction of a captured "policy so far" field (empty value clears it).
+  const editSpecSoFar = (
+    target: PciTarget,
+    key: keyof import('@/lib/assessment/pci-spec').PciSpec,
+    value: string
+  ) => dispatch({ type: 'editSpecSoFar', target, key, value })
+
   return {
     pci,
     handlePciSend,
@@ -246,6 +313,7 @@ export function usePci(deps: UsePciDeps) {
     setPciInput,
     loadPciMessages,
     resetPci,
+    editSpecSoFar,
   }
 }
 

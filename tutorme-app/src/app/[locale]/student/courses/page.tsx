@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { StudentHeroSection } from '@/app/[locale]/student/dashboard/components/StudentHeroSection'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import {
   Dialog,
@@ -50,6 +51,7 @@ import {
 import { cn, resolvePublicUrl } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { CountryFlag } from '@/components/country-flag'
 
 function stringToColor(str: string): string {
   let hash = 0
@@ -72,6 +74,7 @@ interface Course {
   tutorHandle?: string | null
   tutorImage?: string | null
   tutorAvatar?: string | null
+  variantNationality?: string | null
   hasOutline?: boolean
   _count: {
     modules: number
@@ -114,6 +117,8 @@ interface SessionItem {
   status: 'scheduled' | 'active' | 'ended' | 'upcoming' | 'opening_soon'
   durationMinutes?: number
   tutorName?: string
+  lessonTitle?: string | null
+  lessonNumber?: number | null
 }
 
 function getSessionStatus(scheduledAt: string, existingStatus?: string): SessionItem['status'] {
@@ -194,7 +199,7 @@ function SessionList({
             className="flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center"
           >
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h4 className="truncate font-semibold text-gray-900">{session.title}</h4>
                 <span
                   className={cn(
@@ -204,6 +209,13 @@ function SessionList({
                 >
                   {status.replace('_', ' ')}
                 </span>
+                {session.lessonTitle && (
+                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                    {session.lessonNumber
+                      ? `Lesson ${session.lessonNumber}: ${session.lessonTitle}`
+                      : session.lessonTitle}
+                  </span>
+                )}
               </div>
               {session.scheduledAt && (
                 <div className="flex items-center text-sm text-gray-500">
@@ -272,9 +284,9 @@ function CoursePageInner() {
   const searchParams = useSearchParams()
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<
-    'mine' | 'pending' | 'completed' | 'favorites' | 'following'
-  >((searchParams.get('tab') as any) || 'mine')
+  const [activeTab, setActiveTab] = useState<'mine' | 'pending' | 'completed' | 'favorites'>(
+    (searchParams.get('tab') as any) || 'mine'
+  )
   const [selectedEnrollment, setSelectedEnrollment] = useState<Course | null>(null)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [sessionsCourseId, setSessionsCourseId] = useState<string | null>(null)
@@ -338,42 +350,14 @@ function CoursePageInner() {
     }
   }
 
-  const [followingTutors, setFollowingTutors] = useState<any[]>([])
-  const [isFollowingLoading, setIsFollowingLoading] = useState(false)
-
-  const loadFollowing = async () => {
-    setIsFollowingLoading(true)
-    try {
-      const res = await fetch('/api/follows/list')
-      if (res.ok) {
-        const data = await res.json()
-        setFollowingTutors(data.following || [])
-      }
-    } catch (error) {
-      console.error('Failed to load following tutors:', error)
-    } finally {
-      setIsFollowingLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadFavorites()
-    window.addEventListener('storage', loadFavorites)
-    return () => window.removeEventListener('storage', loadFavorites)
-  }, [])
-
   // Initial data load: enrollments are shared across all course tabs, so fetch once.
   useEffect(() => {
     loadCourses()
+    loadFavorites()
+    window.addEventListener('storage', loadFavorites)
+    return () => window.removeEventListener('storage', loadFavorites)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Following tab loads its own data when selected.
-  useEffect(() => {
-    if (activeTab === 'following') {
-      loadFollowing()
-    }
-  }, [activeTab])
 
   const loadCourses = async () => {
     setIsLoading(true)
@@ -646,7 +630,7 @@ function CoursePageInner() {
       />
 
       {/* Tabs */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl pb-0.5 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
         <SessionCalendarPanel
           value={activeTab}
           onValueChange={value => {
@@ -659,10 +643,9 @@ function CoursePageInner() {
             { value: 'pending', label: `Pending (${upcoming.length})` },
             { value: 'completed', label: `Completed (${completed.length})` },
             { value: 'favorites', label: `Favorites (${favorites.length})` },
-            { value: 'following', label: `Following (${followingTutors.length})` },
           ]}
         >
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-4">
+          <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-4">
             {isLoading ? (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3].map(i => (
@@ -672,185 +655,105 @@ function CoursePageInner() {
                 ))}
               </div>
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col gap-12">
-                {activeTab === 'mine' && (
-                  <CourseSection
-                    title="Ongoing Courses"
-                    description="Courses you've started — your start date has passed and you haven't finished them yet. Join live sessions and keep learning."
-                    courses={ongoing}
-                    favoriteIds={favoriteIds}
-                    toggleFavorite={toggleFavorite}
-                    onDetails={setDetailCourse}
-                    onSchedule={setScheduleCourse}
-                    enteringClass={enteringClass}
-                    onEnterClass={handleEnterClass}
-                    onUnregister={handleUnregister}
-                    unregisteringId={unregisteringId}
-                  />
-                )}
-                {activeTab === 'pending' && (
-                  <CourseSection
-                    title="Pending Courses"
-                    description="Courses you're enrolled in that haven't started yet — their start date is still in the future. They'll move to Ongoing once they begin."
-                    courses={upcoming}
-                    favoriteIds={favoriteIds}
-                    toggleFavorite={toggleFavorite}
-                    onDetails={setDetailCourse}
-                    onSchedule={setScheduleCourse}
-                    enteringClass={enteringClass}
-                    onEnterClass={handleEnterClass}
-                    onUnregister={handleUnregister}
-                    unregisteringId={unregisteringId}
-                  />
-                )}
-                {activeTab === 'completed' && (
-                  <CourseSection
-                    title="Completed Courses"
-                    description="Courses you've finished — you've completed all lessons. Revisit materials and recordings anytime."
-                    courses={completed}
-                    favoriteIds={favoriteIds}
-                    toggleFavorite={toggleFavorite}
-                    onDetails={setDetailCourse}
-                    onSchedule={setScheduleCourse}
-                    enteringClass={enteringClass}
-                    onEnterClass={handleEnterClass}
-                    onUnregister={handleUnregister}
-                    unregisteringId={unregisteringId}
-                  />
-                )}
-                {activeTab === 'favorites' && (
-                  <CourseSection
-                    title="Favorite Courses"
-                    description="Courses you've saved to revisit later. Favoriting doesn't enrol you — open one to enrol or view details."
-                    courses={favorites}
-                    favoriteIds={favoriteIds}
-                    toggleFavorite={toggleFavorite}
-                    onDetails={setDetailCourse}
-                    onSchedule={setScheduleCourse}
-                    enteringClass={enteringClass}
-                    onEnterClass={handleEnterClass}
-                  />
-                )}
-                {activeTab === 'following' && (
-                  <section className="flex min-h-0 flex-1 flex-col">
-                    <div className="mb-6 flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-gray-900">Following tutors</h2>
-                      <Badge variant="outline">{followingTutors.length} tutors</Badge>
+              <>
+                <TabsContent value="mine" className="h-full overflow-hidden">
+                  {ongoing.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No courses in this section
+                      </h3>
                     </div>
-                    {isFollowingLoading ? (
-                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {[1, 2, 3].map(i => (
-                          <Card key={i} className="border-border bg-card animate-pulse">
-                            <CardHeader className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <div className="bg-muted h-10 w-10 rounded-full" />
-                                <div className="flex-1 space-y-2">
-                                  <div className="bg-muted h-4 w-3/4 rounded" />
-                                  <div className="bg-muted h-3 w-1/2 rounded" />
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="bg-muted h-4 rounded" />
-                              <div className="bg-muted h-4 rounded" />
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : followingTutors.length === 0 ? (
-                      <div className="flex flex-1 flex-col items-center justify-center text-center">
-                        <Heart className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-                        <h3 className="text-lg font-medium text-gray-900">No followed tutors</h3>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {followingTutors.map(tutor => (
-                          <div
-                            key={tutor.id}
-                            className={cn(
-                              'group relative flex flex-col overflow-hidden rounded-[20px] text-left transition-all duration-300',
-                              'border border-[rgba(255,255,255,0.12)]',
-                              'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
-                              'shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_8px_24px_rgba(0,0,0,0.14)]',
-                              'hover:-translate-y-[2px] hover:brightness-105',
-                              'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_10px_28px_rgba(0,0,0,0.18)]'
-                            )}
-                            style={{
-                              backgroundImage:
-                                'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
-                            }}
-                          >
-                            <div className="flex h-full flex-col p-5">
-                              <div className="flex items-start gap-4">
-                                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
-                                  {resolvePublicUrl(tutor.avatarUrl) ? (
-                                    <img
-                                      src={resolvePublicUrl(tutor.avatarUrl)}
-                                      alt={tutor.name}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-lg font-bold text-slate-100">
-                                      {tutor.name?.charAt(0)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex min-w-0 flex-1 flex-col pt-1">
-                                  <h3 className="truncate text-lg font-semibold text-slate-50">
-                                    {tutor.name}
-                                  </h3>
-                                  <p className="mt-1 text-xs font-medium text-slate-300">
-                                    @{tutor.username}
-                                  </p>
-                                </div>
-                              </div>
+                  ) : (
+                    <CourseSection
+                      title="Ongoing Courses"
+                      description="Courses you've started — your start date has passed and you haven't finished them yet. Join live sessions and keep learning."
+                      courses={ongoing}
+                      favoriteIds={favoriteIds}
+                      toggleFavorite={toggleFavorite}
+                      onDetails={setDetailCourse}
+                      onSchedule={setScheduleCourse}
+                      enteringClass={enteringClass}
+                      onEnterClass={handleEnterClass}
+                      onUnregister={handleUnregister}
+                      unregisteringId={unregisteringId}
+                    />
+                  )}
+                </TabsContent>
 
-                              {tutor.bio && (
-                                <p className="mt-4 line-clamp-2 text-xs text-slate-300">
-                                  {tutor.bio}
-                                </p>
-                              )}
+                <TabsContent value="pending" className="h-full overflow-hidden">
+                  {upcoming.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No courses in this section
+                      </h3>
+                    </div>
+                  ) : (
+                    <CourseSection
+                      title="Pending Courses"
+                      description="Courses you're enrolled in that haven't started yet — their start date is still in the future. They'll move to Ongoing once they begin."
+                      courses={upcoming}
+                      favoriteIds={favoriteIds}
+                      toggleFavorite={toggleFavorite}
+                      onDetails={setDetailCourse}
+                      onSchedule={setScheduleCourse}
+                      enteringClass={enteringClass}
+                      onEnterClass={handleEnterClass}
+                      onUnregister={handleUnregister}
+                      unregisteringId={unregisteringId}
+                    />
+                  )}
+                </TabsContent>
 
-                              <div className="mb-4 mt-4 flex flex-wrap gap-1.5">
-                                {tutor.specialties?.slice(0, 3).map((specialty: string) => (
-                                  <span
-                                    key={specialty}
-                                    className="rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-2.5 py-0.5 text-[11px] text-slate-200"
-                                  >
-                                    {specialty}
-                                  </span>
-                                ))}
-                              </div>
+                <TabsContent value="completed" className="h-full overflow-hidden">
+                  {completed.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No courses in this section
+                      </h3>
+                    </div>
+                  ) : (
+                    <CourseSection
+                      title="Completed Courses"
+                      description="Courses you've finished — you've completed all lessons. Revisit materials and recordings anytime."
+                      courses={completed}
+                      favoriteIds={favoriteIds}
+                      toggleFavorite={toggleFavorite}
+                      onDetails={setDetailCourse}
+                      onSchedule={setScheduleCourse}
+                      enteringClass={enteringClass}
+                      onEnterClass={handleEnterClass}
+                      onUnregister={handleUnregister}
+                      unregisteringId={unregisteringId}
+                    />
+                  )}
+                </TabsContent>
 
-                              <div className="mt-auto border-t border-[rgba(255,255,255,0.1)] pt-4">
-                                <Link
-                                  href={`/u/${tutor.username}`}
-                                  onClick={() => showOverlay()}
-                                  className="flex w-full items-center justify-center rounded-full border border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] py-2 text-sm font-medium text-slate-100 backdrop-blur-[6px] transition-colors hover:bg-[rgba(255,255,255,0.15)] hover:text-white"
-                                >
-                                  View Profile
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                {((activeTab === 'mine' && ongoing.length === 0) ||
-                  (activeTab === 'pending' && upcoming.length === 0) ||
-                  (activeTab === 'completed' && completed.length === 0) ||
-                  (activeTab === 'favorites' && favorites.length === 0)) && (
-                  <div className="flex flex-1 flex-col items-center justify-center text-center">
-                    <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900">
-                      No courses in this section
-                    </h3>
-                  </div>
-                )}
-              </div>
+                <TabsContent value="favorites" className="h-full overflow-hidden">
+                  {favorites.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No courses in this section
+                      </h3>
+                    </div>
+                  ) : (
+                    <CourseSection
+                      title="Favorite Courses"
+                      description="Courses you've saved to revisit later. Favoriting doesn't enrol you — open one to enrol or view details."
+                      courses={favorites}
+                      favoriteIds={favoriteIds}
+                      toggleFavorite={toggleFavorite}
+                      onDetails={setDetailCourse}
+                      onSchedule={setScheduleCourse}
+                      enteringClass={enteringClass}
+                      onEnterClass={handleEnterClass}
+                    />
+                  )}
+                </TabsContent>
+              </>
             )}
           </div>
         </SessionCalendarPanel>
@@ -1216,42 +1119,49 @@ function CourseCard({
       </div>
 
       <div className="flex gap-2 border-t border-[rgba(255,255,255,0.1)] p-4">
-        {(isOngoing || isPending) && (
-          <Button
-            className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-emerald-600"
-            disabled={enteringClass === course.id}
-            onClick={e => {
-              e.stopPropagation()
-              onEnterClass(course.id)
-            }}
-          >
-            {enteringClass === course.id
-              ? 'Joining...'
-              : progressPercent > 0
-                ? 'Continue'
-                : 'Enter Classroom'}
-          </Button>
-        )}
-        {progress?.isCompleted && (
-          <Link href={`/student/feedback`} className="flex-1" onClick={e => e.stopPropagation()}>
-            <Button className="h-8 w-full border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] text-xs text-slate-100 transition-colors hover:bg-[rgba(255,255,255,0.15)]">
-              <Trophy className="mr-2 h-4 w-4 text-yellow-400" />
-              View Results
+        <div className="flex flex-1 items-center gap-2">
+          {(isOngoing || isPending) && (
+            <Button
+              className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-emerald-600"
+              disabled={enteringClass === course.id}
+              onClick={e => {
+                e.stopPropagation()
+                onEnterClass(course.id)
+              }}
+            >
+              {enteringClass === course.id
+                ? 'Joining...'
+                : progressPercent > 0
+                  ? 'Continue'
+                  : 'Enter Classroom'}
             </Button>
-          </Link>
-        )}
-        {onUnregister && course.enrollment && (
-          <Button
-            variant="outline"
-            className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-red-600"
-            disabled={unregisteringId === course.id}
-            onClick={e => {
-              e.stopPropagation()
-              onUnregister(course)
-            }}
-          >
-            {unregisteringId === course.id ? 'Unregistering...' : 'Unregister'}
-          </Button>
+          )}
+          {progress?.isCompleted && (
+            <Link href={`/student/feedback`} className="flex-1" onClick={e => e.stopPropagation()}>
+              <Button className="h-8 w-full border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.08)] text-xs text-slate-100 transition-colors hover:bg-[rgba(255,255,255,0.15)]">
+                <Trophy className="mr-2 h-4 w-4 text-yellow-400" />
+                View Results
+              </Button>
+            </Link>
+          )}
+          {onUnregister && course.enrollment && (
+            <Button
+              variant="outline"
+              className="h-8 flex-1 border border-white/60 bg-transparent text-xs text-white transition-colors hover:bg-white hover:text-red-600"
+              disabled={unregisteringId === course.id}
+              onClick={e => {
+                e.stopPropagation()
+                onUnregister(course)
+              }}
+            >
+              {unregisteringId === course.id ? 'Unregistering...' : 'Unregister'}
+            </Button>
+          )}
+        </div>
+        {course.variantNationality && course.variantNationality !== 'Global' && (
+          <div className="flex items-center">
+            <CountryFlag countryName={course.variantNationality} size="xs" />
+          </div>
         )}
       </div>
     </div>

@@ -1,7 +1,9 @@
 /**
  * AI Orchestrator
- * Manages AI providers with fallback chain:
- * 1. Kimi K2.5 (Moonshot AI) - PRIMARY
+ * Manages AI providers with a fallback chain:
+ * 1. Kimi K2.5 (Moonshot AI) — PRIMARY (via ADK, then direct)
+ * 2. Optional OpenAI-compatible secondary provider — used ONLY when Kimi is
+ *    unavailable and FALLBACK_AI_* env vars are set (see lib/ai/fallback-provider)
  *
  * Response caching for repeated prompts (5 min TTL)
  */
@@ -10,9 +12,15 @@ import { generateWithKimi, chatWithKimi } from '@/lib/ai/kimi'
 import type { UsageContext } from '@/lib/ai/usage'
 import { cache } from '@/lib/db'
 import { adkGenerate, adkChat } from '@/lib/adk-client'
+import {
+  getFallbackProviderConfig,
+  generateWithFallbackProvider,
+  chatWithFallbackProvider,
+} from '@/lib/ai/fallback-provider'
 
-// Kimi (Moonshot) is the only provider. Gemini was removed.
-type AIProvider = 'kimi'
+// Kimi (Moonshot) is primary; `fallback` is an optional OpenAI-compatible
+// secondary provider used only when Kimi is unavailable (see fallback-provider).
+type AIProvider = 'kimi' | 'fallback'
 
 /** Build the "provider failed" error, surfacing the REAL upstream reason
  * (e.g. a 429 quota message) rather than a misleading "not configured". */
@@ -110,6 +118,32 @@ export async function generateWithFallback(
     return result
   } catch (error) {
     console.warn('[ai] generate via kimi failed:', error instanceof Error ? error.message : error)
+    // Secondary provider (only if configured): turn a Kimi outage into a
+    // degraded-but-working response instead of a hard failure.
+    const fb = getFallbackProviderConfig()
+    if (fb) {
+      try {
+        const content = await generateWithFallbackProvider(prompt, fb, {
+          temperature: options.temperature,
+          maxTokens: options.maxTokens,
+          timeoutMs: options.timeoutMs,
+          retries: options.retries,
+        })
+        console.warn('[ai] served generate via fallback provider after kimi failure')
+        const result = {
+          content,
+          provider: 'fallback' as AIProvider,
+          latencyMs: Date.now() - startTime,
+        }
+        if (!options.skipCache) await cache.set(cacheKeyForPrompt(prompt), result, AI_CACHE_TTL)
+        return result
+      } catch (fbError) {
+        console.warn(
+          '[ai] fallback provider also failed:',
+          fbError instanceof Error ? fbError.message : fbError
+        )
+      }
+    }
     throw kimiFailedError(error)
   }
 }
@@ -163,6 +197,31 @@ export async function chatWithFallback(
     return result
   } catch (error) {
     console.warn('[ai] chat via kimi failed:', error instanceof Error ? error.message : error)
+    // Secondary provider (only if configured).
+    const fb = getFallbackProviderConfig()
+    if (fb) {
+      try {
+        const content = await chatWithFallbackProvider(messages, fb, {
+          temperature: options.temperature,
+          maxTokens: options.maxTokens,
+          timeoutMs: options.timeoutMs,
+          retries: options.retries,
+        })
+        console.warn('[ai] served chat via fallback provider after kimi failure')
+        const result = {
+          content,
+          provider: 'fallback' as AIProvider,
+          latencyMs: Date.now() - startTime,
+        }
+        if (!options.skipCache) await cache.set(cacheKeyForChat(messages), result, AI_CACHE_TTL)
+        return result
+      } catch (fbError) {
+        console.warn(
+          '[ai] fallback provider also failed:',
+          fbError instanceof Error ? fbError.message : fbError
+        )
+      }
+    }
     throw kimiFailedError(error)
   }
 }

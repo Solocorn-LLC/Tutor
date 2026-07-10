@@ -14,7 +14,12 @@ import { DAYS, TIME_SLOT_OPTIONS } from '../constants'
 import { expandSchedule, extractTemplate } from './expand-schedule'
 
 interface AvailabilityData {
-  availability: Array<{ dayOfWeek: number; startTime: string; endTime: string }>
+  availability: Array<{
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    isAvailable?: boolean
+  }>
   exceptions: Array<{
     date: string
     isAvailable: boolean
@@ -192,13 +197,18 @@ export function VariantScheduleEditor({
         .toString()
         .padStart(2, '0')}:${(slotEndM % 60).toString().padStart(2, '0')}`
 
-      // 1. Check recurring availability
+      // 1. Check recurring availability. Tutors follow an "available unless
+      // blocked" model: every slot is available by default, and a row with
+      // isAvailable === false marks a BLOCKED time. So a slot is unavailable
+      // exactly when it overlaps a blocked row. (isAvailable=true rows and absent
+      // rows both mean available, so positive windows must NOT restrict — doing so
+      // is what let "all off" still read as available when the flag was dropped.)
       const dayAvailability = availabilityData.availability.filter(a => a.dayOfWeek === dayIndex)
-      const withinAvailability = dayAvailability.some(a =>
-        timesOverlap(slotStartStr, slotEndStr, a.startTime, a.endTime)
-      )
-      if (dayAvailability.length > 0 && !withinAvailability) {
-        return { available: false, reason: 'Outside your set availability' }
+      const blockedWindows = dayAvailability.filter(a => a.isAvailable === false)
+      if (
+        blockedWindows.some(a => timesOverlap(slotStartStr, slotEndStr, a.startTime, a.endTime))
+      ) {
+        return { available: false, reason: 'Blocked in your availability' }
       }
 
       // 2. Check exceptions

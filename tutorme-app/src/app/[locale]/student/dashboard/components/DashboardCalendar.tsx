@@ -11,7 +11,6 @@ import {
   type CalendarView,
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
-import { StudentAvailabilityTab } from './StudentAvailabilityTab'
 import { Badge } from '@/components/ui/badge'
 import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -24,10 +23,12 @@ export interface CalendarEvent {
   start: string
   end: string
   duration: number
-  type: 'class'
+  type: 'class' | 'one-on-one'
   tutorName: string | null
   tutorAvatarUrl?: string | null
   courseDescription?: string | null
+  meetingUrl?: string | null
+  status?: string
 }
 
 interface DashboardCalendarProps {
@@ -137,6 +138,8 @@ export function DashboardCalendar({
   // Exclude completed/ended sessions and sort chronologically so the next session is on top.
   const classes = useMemo<ClassItem[]>(() => {
     const mapped = events
+      // 1-on-1 sessions have their own Bookings tab, so keep them out of Sessions.
+      .filter(ev => ev.type !== 'one-on-one')
       .map(ev => {
         const evStatus = (ev as any).status as string | undefined
         const status: ClassItem['status'] =
@@ -205,6 +208,15 @@ export function DashboardCalendar({
     })
   }, [events])
 
+  // Paid 1-on-1 sessions the student has booked (surfaced by the events API).
+  const oneOnOneSessions = useMemo(
+    () =>
+      events
+        .filter(ev => ev.type === 'one-on-one')
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
+    [events]
+  )
+
   return (
     <SessionCalendarPanel
       value={activeTab}
@@ -212,7 +224,6 @@ export function DashboardCalendar({
       tabs={[
         { value: 'classes', label: 'Sessions' },
         { value: 'calendar', label: 'Calendar' },
-        { value: 'availability', label: 'My Availability' },
         { value: 'bookings', label: 'Bookings' },
       ]}
       showCalendarControls={activeTab === 'calendar'}
@@ -237,14 +248,6 @@ export function DashboardCalendar({
         />
       </TabsContent>
 
-      {/* My Availability Tab */}
-      <TabsContent
-        value="availability"
-        className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
-        <StudentAvailabilityTab />
-      </TabsContent>
-
       {/* Bookings Tab */}
       <TabsContent value="bookings" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
@@ -253,13 +256,57 @@ export function DashboardCalendar({
             <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
             <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
             <div className="flex-1 overflow-y-auto pr-1">
-              <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
-                <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
-                <p className="text-muted-foreground text-sm">No 1-on-1 sessions booked yet.</p>
-                <p className="text-muted-foreground/70 mt-1 text-xs">
-                  Your upcoming private sessions will appear here.
-                </p>
-              </div>
+              {oneOnOneSessions.length === 0 ? (
+                <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
+                  <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
+                  <p className="text-muted-foreground text-sm">No 1-on-1 sessions booked yet.</p>
+                  <p className="text-muted-foreground/70 mt-1 text-xs">
+                    Your upcoming private sessions will appear here.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {oneOnOneSessions.map(s => {
+                    const isLive = s.status === 'live' || s.status === 'active'
+                    return (
+                      <li
+                        key={s.id}
+                        className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#1F2933]">
+                            {s.title}
+                            {s.tutorName ? (
+                              <span className="font-normal text-gray-400"> · {s.tutorName}</span>
+                            ) : null}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {formatDate(s.start)} · {formatEventTime(s.start)}
+                          </p>
+                        </div>
+                        {s.meetingUrl ? (
+                          <a
+                            href={s.meetingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                              isLive
+                                ? 'bg-emerald-600 hover:bg-emerald-700'
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            )}
+                          >
+                            <Video className="h-3.5 w-3.5" />
+                            {isLive ? 'Join now' : 'Join'}
+                          </a>
+                        ) : (
+                          <span className="shrink-0 text-xs text-gray-400">Scheduled</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
           </div>
 

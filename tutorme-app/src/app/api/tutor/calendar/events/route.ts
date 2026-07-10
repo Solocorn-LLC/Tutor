@@ -15,7 +15,7 @@ import {
   sessionParticipant,
   courseVariant,
 } from '@/lib/db/schema'
-import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
+import { eq, and, gte, lte, inArray, isNull, isNotNull, sql } from 'drizzle-orm'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -70,6 +70,11 @@ export const GET = withAuth(
     const lsFilters = [
       eq(liveSession.tutorId, tutorId),
       inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
+      // Skip orphaned sessions: a course deleted before sessions were ended on
+      // delete leaves rows with courseId nulled (FK) but still 'scheduled', which
+      // otherwise linger on the calendar forever. Genuine course-less sessions
+      // (ad-hoc) surface via their CalendarEvent, so nothing real is hidden.
+      isNotNull(liveSession.courseId),
     ]
 
     if (startParam) {

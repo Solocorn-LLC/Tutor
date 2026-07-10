@@ -138,4 +138,81 @@ describe('pciReducer', () => {
     expect(getThread(s, task).draft).toBe('')
     expect(getThread(s, task).draftSpec).toBeUndefined()
   })
+
+  // ── "policy so far" panel: cumulative capture + sticky tutor edits ──────────
+
+  it('sendSuccess accumulates specSoFar across turns (keeps fields a turn omits)', () => {
+    let s = pciReducer(initialPciState(), {
+      type: 'sendSuccess',
+      target: asmt,
+      assistant: { role: 'assistant', content: 'a1' },
+      specSoFar: { evaluationLogic: 'method marks' },
+      warnings: [],
+    })
+    s = pciReducer(s, {
+      type: 'sendSuccess',
+      target: asmt,
+      assistant: { role: 'assistant', content: 'a2' },
+      specSoFar: { retryPolicy: 'two tries' }, // this turn omits evaluationLogic
+      warnings: [],
+    })
+    expect(getThread(s, asmt).specSoFar).toEqual({
+      evaluationLogic: 'method marks',
+      retryPolicy: 'two tries',
+    })
+  })
+
+  it('editSpecSoFar sets a field and marks it edited; clearing removes + un-marks it', () => {
+    let s = pciReducer(initialPciState(), {
+      type: 'editSpecSoFar',
+      target: task,
+      key: 'instructionalTone',
+      value: '  warm and patient  ',
+    })
+    expect(getThread(s, task).specSoFar).toEqual({ instructionalTone: 'warm and patient' })
+    expect(getThread(s, task).editedSpecKeys).toEqual(['instructionalTone'])
+
+    s = pciReducer(s, { type: 'editSpecSoFar', target: task, key: 'instructionalTone', value: '' })
+    expect(getThread(s, task).specSoFar).toEqual({})
+    expect(getThread(s, task).editedSpecKeys).toEqual([])
+  })
+
+  it('a tutor edit is STICKY — a later model turn cannot overwrite it, but updates other fields', () => {
+    let s = pciReducer(initialPciState(), {
+      type: 'editSpecSoFar',
+      target: asmt,
+      key: 'retryPolicy',
+      value: 'one try only',
+    })
+    // The model returns a different retryPolicy AND a new field.
+    s = pciReducer(s, {
+      type: 'sendSuccess',
+      target: asmt,
+      assistant: { role: 'assistant', content: 'a' },
+      specSoFar: { retryPolicy: 'three tries', noResponseBehavior: 'give a hint' },
+      warnings: [],
+    })
+    const t = getThread(s, asmt)
+    expect(t.specSoFar?.retryPolicy).toBe('one try only') // protected
+    expect(t.specSoFar?.noResponseBehavior).toBe('give a hint') // non-edited field updated
+  })
+
+  it('clearing an edited field un-protects it so the assistant may re-capture it', () => {
+    let s = pciReducer(initialPciState(), {
+      type: 'editSpecSoFar',
+      target: task,
+      key: 'evaluationLogic',
+      value: 'exact match',
+    })
+    s = pciReducer(s, { type: 'editSpecSoFar', target: task, key: 'evaluationLogic', value: '' })
+    // After clearing, a model turn can capture it again.
+    s = pciReducer(s, {
+      type: 'sendSuccess',
+      target: task,
+      assistant: { role: 'assistant', content: 'a' },
+      specSoFar: { evaluationLogic: 'accept equivalents' },
+      warnings: [],
+    })
+    expect(getThread(s, task).specSoFar?.evaluationLogic).toBe('accept equivalents')
+  })
 })

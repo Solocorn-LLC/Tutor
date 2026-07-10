@@ -24,18 +24,18 @@ export const GET = withAuth(
 
     const family = await getFamilyAccountForParent(session)
     if (!family) {
-      return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+      return NextResponse.json({ error: 'No family account found' }, { status: 404 })
     }
 
     if (!family.studentIds.includes(studentId)) {
-      return NextResponse.json({ error: '无权查看该学生' }, { status: 403 })
+      return NextResponse.json({ error: 'Not authorized to view this student' }, { status: 403 })
     }
 
     const member = family.members.find(
       m => m.userId === studentId || m.familyMemberId === studentId
     )
     if (!member?.userId) {
-      return NextResponse.json({ error: '学生未关联' }, { status: 404 })
+      return NextResponse.json({ error: 'Student not linked' }, { status: 404 })
     }
 
     const cacheKey = `parent:student:analytics:${family.familyAccountId}:${studentId}`
@@ -67,7 +67,7 @@ export const GET = withAuth(
     ])
 
     if (!userData) {
-      return NextResponse.json({ error: '学生不存在' }, { status: 404 })
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
 
     const data = {

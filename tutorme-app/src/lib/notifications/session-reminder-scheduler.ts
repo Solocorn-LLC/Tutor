@@ -18,7 +18,7 @@
 
 import { and, eq, gte, lte, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession, courseEnrollment } from '@/lib/db/schema'
+import { liveSession, courseEnrollment, course, profile } from '@/lib/db/schema'
 import { notify, notifyMany } from './notify'
 
 /** How far ahead of a session's start to send the reminder. */
@@ -73,10 +73,29 @@ export async function runSessionReminderScan(): Promise<void> {
 
     const minutes = Math.max(1, Math.round((s.scheduledAt.getTime() - Date.now()) / 60000))
     const message = `"${s.title}" starts in about ${minutes} minute${minutes === 1 ? '' : 's'}.`
+
+    // Fetch course name and tutor profile for enriched notification data
+    const [courseRow] = s.courseId
+      ? await drizzleDb
+          .select({ name: course.name })
+          .from(course)
+          .where(eq(course.courseId, s.courseId))
+          .limit(1)
+      : [null]
+
+    const [tutorProfile] = await drizzleDb
+      .select({ name: profile.name, username: profile.username })
+      .from(profile)
+      .where(eq(profile.userId, s.tutorId))
+      .limit(1)
+
     const data = {
       sessionId: s.sessionId,
       scheduledAt: s.scheduledAt.toISOString(),
       kind: 'session-reminder',
+      courseName: courseRow?.name || null,
+      tutorName: tutorProfile?.name || null,
+      tutorUsername: tutorProfile?.username || null,
     }
 
     // Tutor reminder.

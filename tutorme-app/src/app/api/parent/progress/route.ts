@@ -14,7 +14,7 @@ export const GET = withAuth(
   async (req: NextRequest, session) => {
     const family = await getFamilyAccountForParent(session)
     if (!family) {
-      return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+      return NextResponse.json({ error: 'No family account found' }, { status: 404 })
     }
 
     const cacheKey = `parent:progress:${family.familyAccountId}`

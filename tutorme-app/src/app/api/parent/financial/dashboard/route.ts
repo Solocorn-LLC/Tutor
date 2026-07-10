@@ -24,7 +24,7 @@ export const GET = withAuth(
     try {
       const family = await getFamilyAccountForParent(session)
       if (!family) {
-        return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+        return NextResponse.json({ error: 'No family account found' }, { status: 404 })
       }
 
       const { searchParams } = new URL(req.url)
@@ -80,7 +80,7 @@ export const GET = withAuth(
       res.headers.set('X-Response-Time', `${Date.now() - startTime}ms`)
       return res
     } catch (err) {
-      return handleApiError(err, '获取财务概览失败', 'ParentFinancialDashboard')
+      return handleApiError(err, 'Failed to fetch financial overview', 'ParentFinancialDashboard')
     }
   },
   { role: 'PARENT' }

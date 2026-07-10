@@ -163,6 +163,17 @@ export function useCourseBuilderContentModel({
     }
   ) => {
     const isDetached = dataMode === 'detached'
+
+    // Guard against wiping the course when its content never loaded. On a
+    // DB-backed course, loadedLessons stays null only when the load failed
+    // (a successfully-empty course loads as []). Saving an empty tree in that
+    // state would delete every lesson, so refuse it. (The server enforces the
+    // same floor; this just avoids firing the destructive request.)
+    if (!isDetached && !options?.isAutoSave && lessons.length === 0 && loadedLessons === null) {
+      toast.error('Lessons haven’t finished loading yet — reload the course before saving.')
+      return
+    }
+
     if (!options?.isAutoSave && !isDetached) setSaving(true)
 
     const result = await saveCourse({

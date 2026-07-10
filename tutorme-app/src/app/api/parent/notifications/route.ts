@@ -23,7 +23,7 @@ export const GET = withAuth(
   async (req: NextRequest, session) => {
     const family = await getFamilyAccountForParent(session)
     if (!family) {
-      return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+      return NextResponse.json({ error: 'No family account found' }, { status: 404 })
     }
 
     const cacheKey = `parent:notifications:${family.familyAccountId}`
@@ -60,14 +60,14 @@ export const PATCH = withAuth(
   async (req: NextRequest, session) => {
     const family = await getFamilyAccountForParent(session)
     if (!family) {
-      return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+      return NextResponse.json({ error: 'No family account found' }, { status: 404 })
     }
 
     let body: { ids?: string[]; all?: boolean }
     try {
       body = markReadSchema.parse(await req.json().catch(() => ({})))
     } catch {
-      return NextResponse.json({ error: '无效请求' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
     const conditions: any[] = [eq(familyNotification.parentId, family.familyAccountId)]
@@ -77,7 +77,7 @@ export const PATCH = withAuth(
     } else if (body.ids?.length) {
       conditions.push(inArray(familyNotification.notificationId, body.ids))
     } else {
-      return NextResponse.json({ error: '请提供 ids 或 all' }, { status: 400 })
+      return NextResponse.json({ error: 'Provide ids or all' }, { status: 400 })
     }
 
     await drizzleDb

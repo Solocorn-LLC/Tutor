@@ -17,7 +17,7 @@ export const GET = withAuth(
     try {
       const family = await getFamilyAccountForParent(session)
       if (!family) {
-        return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+        return NextResponse.json({ error: 'No family account found' }, { status: 404 })
       }
 
       const { searchParams } = new URL(req.url)
@@ -73,7 +73,7 @@ export const GET = withAuth(
 
       return NextResponse.json({ success: true, data })
     } catch (err) {
-      return handleApiError(err, '获取支付记录失败', 'ParentFinancialPayments')
+      return handleApiError(err, 'Failed to fetch payment records', 'ParentFinancialPayments')
     }
   },
   { role: 'PARENT' }

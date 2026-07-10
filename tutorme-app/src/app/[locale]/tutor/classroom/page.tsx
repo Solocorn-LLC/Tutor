@@ -33,14 +33,16 @@ export default async function TutorClassroomRedirect({
   // The insights classroom reads courseId from the URL; nav links that pass only a
   // sessionId would otherwise lose the course context. Derive it from the session.
   const sessionId = typeof sp.sessionId === 'string' ? sp.sessionId : undefined
-  if (sessionId && !qs.get('courseId')) {
+  if (sessionId && (!qs.get('courseId') || !qs.get('lessonId'))) {
     try {
       const [row] = await drizzleDb
-        .select({ courseId: liveSession.courseId })
+        .select({ courseId: liveSession.courseId, lessonId: liveSession.lessonId })
         .from(liveSession)
         .where(eq(liveSession.sessionId, sessionId))
         .limit(1)
-      if (row?.courseId) qs.set('courseId', row.courseId)
+      if (row?.courseId && !qs.get('courseId')) qs.set('courseId', row.courseId)
+      // Carry the session's assigned lesson so the classroom opens on it.
+      if (row?.lessonId && !qs.get('lessonId')) qs.set('lessonId', row.lessonId)
     } catch {
       // Fall through and redirect with whatever params we have.
     }

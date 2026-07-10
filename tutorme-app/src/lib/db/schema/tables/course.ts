@@ -96,6 +96,12 @@ export const courseLesson = pgTable(
     description: text('description'),
     duration: integer('duration').notNull().default(60),
     order: integer('order').notNull(),
+    // The template lesson this row was copied from at publish time. Lets published
+    // variants correlate back to their template lesson by a stable id instead of
+    // by `order` (which breaks when lessons are reordered). Null on template rows
+    // and on pre-existing rows until backfilled. Soft reference (no FK) — a
+    // dropped template lesson just leaves a dangling value, which callers ignore.
+    sourceLessonId: text('sourceLessonId'),
     // Builder data contains all lesson content (tasks, assessments, homework, media, etc.)
     builderData: jsonb('builderData').default({}),
     createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -319,6 +325,14 @@ export const taskSubmission = pgTable(
     maxScore: integer('maxScore').notNull(),
     status: text('status').notNull(),
     aiFeedback: jsonb('aiFeedback'),
+    // Persisted follow-up Q&A the student had with the PCI-scoped assistant, so
+    // the tutor can see what was asked/answered (and catch AI drift). Array of
+    // { questionId, question, answer, at }.
+    followUps: jsonb('followUps'),
+    // Cached AI worked solutions, keyed by questionId: { [questionId]: string }.
+    // Generated on demand and reused so we never re-run the model for a solution
+    // the student already viewed.
+    workedSolutions: jsonb('workedSolutions'),
     tutorFeedback: text('tutorFeedback'),
     tutorApproved: boolean('tutorApproved').notNull(),
     submittedAt: timestamp('submittedAt', { withTimezone: true }).notNull().defaultNow(),

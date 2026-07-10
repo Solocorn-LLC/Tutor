@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -18,6 +18,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 type SubmissionsTreeResponse = {
   course: { id: string; name: string }
@@ -31,6 +32,7 @@ type SubmissionsTreeResponse = {
     itemId: string
     title: string
     sessionSequence: number
+    lessonId?: string | null
     deployedAt: string | Date | null
   }[]
   sessionParticipants: { sessionId: string; studentId: string; studentName: string | null }[]
@@ -89,6 +91,7 @@ export function SubmissionsPanel({
   onToggleHidden,
   headerExtra,
   liveSubmissions,
+  onNewSubmissionCount,
 }: {
   courseId: string
   onToggleHidden: (value: boolean) => void
@@ -96,6 +99,8 @@ export function SubmissionsPanel({
   /** In-session completions received over the socket — overlaid on the DB rows
    *  so a student's "Task Complete" shows immediately without a DB write. */
   liveSubmissions?: LiveSubmission[]
+  /** Reports the count of new (unseen) submissions so a parent tab can badge it. */
+  onNewSubmissionCount?: (count: number) => void
 }) {
   const [data, setData] = useState<SubmissionsTreeResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -116,49 +121,82 @@ export function SubmissionsPanel({
     prevOpenRef.current = { ...open }
   }, [open])
 
-  useEffect(() => {
-    if (!courseId) return
-    // Skip fetch for draft/placeholder course IDs
-    if (courseId === 'insights-draft' || courseId === 'builder-draft') {
-      setError(null)
-      setData(null)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    fetch(`/api/tutor/courses/${courseId}/submissions-tree`, { cache: 'no-store' })
-      .then(async res => {
+  const loadTree = useCallback(
+    async (preserveOpen: boolean) => {
+      if (!courseId) return
+      // Skip fetch for draft/placeholder course IDs
+      if (courseId === 'insights-draft' || courseId === 'builder-draft') {
+        setError(null)
+        setData(null)
+        return
+      }
+      // A background refetch (preserveOpen) must not flash the loading spinner or
+      // wipe the tree on a transient failure — keep showing the current data.
+      if (!preserveOpen) {
+        setLoading(true)
+        setError(null)
+      }
+      try {
+        const res = await fetch(`/api/tutor/courses/${courseId}/submissions-tree`, {
+          cache: 'no-store',
+        })
         const contentType = res.headers.get('content-type') || ''
         if (!contentType.includes('application/json')) {
-          if (res.status !== 404) {
+          if (!preserveOpen && res.status !== 404) {
             setError(res.ok ? 'Failed to load submissions' : `Server error (${res.status})`)
           }
-          setData(null)
+          if (!preserveOpen) setData(null)
           return
         }
         const json = await res.json()
         if (!res.ok || json?.error) {
           // Silently ignore 404 — course may not have sessions/submissions yet.
           // Only show errors for actual failures, not empty data.
-          if (res.status !== 404) {
+          if (!preserveOpen && res.status !== 404) {
             setError(json?.error || 'Failed to load submissions')
           }
-          setData(null)
+          if (!preserveOpen) setData(null)
           return
         }
         setData(json)
-        const nextOpen: Record<string, boolean> = { course: true }
-        ;(json?.lessons || []).forEach((l: any) => {
-          nextOpen[`lesson_${l.id}`] = true
-        })
-        setOpen(nextOpen)
-      })
-      .catch(err => {
-        setError(err?.message || 'Failed to load submissions')
-        setData(null)
-      })
-      .finally(() => setLoading(false))
-  }, [courseId])
+        // Only auto-expand on the first load — a refetch must not collapse or
+        // re-expand folders the tutor has toggled.
+        if (!preserveOpen) {
+          const nextOpen: Record<string, boolean> = { course: false }
+          ;(json?.lessons || []).forEach((l: any) => {
+            nextOpen[`lesson_${l.id}`] = false
+          })
+          setOpen(nextOpen)
+        }
+      } catch (err) {
+        if (!preserveOpen) {
+          setError(err instanceof Error ? err.message : 'Failed to load submissions')
+          setData(null)
+        }
+      } finally {
+        if (!preserveOpen) setLoading(false)
+      }
+    },
+    [courseId]
+  )
+
+  useEffect(() => {
+    loadTree(false)
+  }, [loadTree])
+
+  // A live "Task Complete" persists the submission — and self-heals the
+  // deployed-material / participant rows — server-side, asynchronously. The tree
+  // is otherwise built from a single mount-time REST snapshot, so tasks deployed
+  // or submitted after mount never appeared and the Tasks/Assessments counts
+  // stayed at 0. Refetch shortly after each new live submission so both the
+  // deployed items and the persisted rows show up. Debounced so a burst of
+  // completions triggers one refetch; `open` selection is preserved.
+  const liveSubmissionCount = liveSubmissions?.length ?? 0
+  useEffect(() => {
+    if (liveSubmissionCount === 0) return
+    const t = setTimeout(() => loadTree(true), 1500)
+    return () => clearTimeout(t)
+  }, [liveSubmissionCount, loadTree])
 
   const lessons = useMemo(() => {
     const ls = data?.lessons || []
@@ -168,17 +206,38 @@ export function SubmissionsPanel({
 
   const sessions = useMemo(() => (data?.sessions || []).filter(s => !!s.id), [data])
 
+  // Which lesson each session belongs to, derived from the REAL lesson its
+  // deployed material came from (deployedMaterial.lessonId) — not the old
+  // by-array-index guess that dumped everything under "Lesson 1". A session with
+  // material from several lessons is placed under whichever lesson it deployed
+  // most from. Sessions with no lesson-tagged material fall back to the index
+  // mapping so pre-existing data doesn't disappear.
+  const lessonIdBySessionId = useMemo(() => {
+    const validLesson = new Set(lessons.map(l => l.id))
+    const counts: Record<string, Record<string, number>> = {}
+    for (const d of data?.deployed || []) {
+      if (!d.lessonId || !validLesson.has(d.lessonId)) continue
+      counts[d.sessionId] = counts[d.sessionId] || {}
+      counts[d.sessionId][d.lessonId] = (counts[d.sessionId][d.lessonId] || 0) + 1
+    }
+    const out: Record<string, string> = {}
+    for (const [sid, byLesson] of Object.entries(counts)) {
+      out[sid] = Object.entries(byLesson).sort((a, b) => b[1] - a[1])[0][0]
+    }
+    return out
+  }, [data, lessons])
+
   const sessionsByLessonId = useMemo(() => {
     const map: Record<string, SubmissionsTreeResponse['sessions']> = {}
     if (sessions.length === 0) return map
     sessions.forEach((s, idx) => {
       const lessonIdx = Math.min(idx, Math.max(0, lessons.length - 1))
-      const lessonId = lessons[lessonIdx]?.id || 'lesson_unknown'
+      const lessonId = lessonIdBySessionId[s.id] || lessons[lessonIdx]?.id || 'lesson_unknown'
       if (!map[lessonId]) map[lessonId] = []
       map[lessonId].push({ ...s } as any)
     })
     return map
-  }, [sessions, lessons])
+  }, [sessions, lessons, lessonIdBySessionId])
 
   // Color-code sessions by lifecycle/chronology so the tutor can see status at a
   // glance: green = active now, yellow = the next-upcoming session (the one right
@@ -260,6 +319,94 @@ export function SubmissionsPanel({
     return map
   }, [data, liveSubmissions])
 
+  // --- New-submission notifications ---
+  // A live (in-session) submission is "new" until the tutor opens it. Seen keys
+  // persist per course so a refetch/reload doesn't re-flag already-viewed ones.
+  const [seenKeys, setSeenKeys] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!courseId) return
+    try {
+      const raw = localStorage.getItem(`subs-seen-${courseId}`)
+      if (raw) setSeenKeys(new Set(JSON.parse(raw)))
+    } catch {
+      /* ignore */
+    }
+  }, [courseId])
+  const markSeen = useCallback(
+    (taskId: string, studentId: string) => {
+      const key = `${taskId}::${studentId}`
+      setSeenKeys(prev => {
+        if (prev.has(key)) return prev
+        const next = new Set(prev).add(key)
+        try {
+          if (courseId) localStorage.setItem(`subs-seen-${courseId}`, JSON.stringify([...next]))
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
+    },
+    [courseId]
+  )
+  // Open a submission → view it → clear its "new" flag.
+  const selectAndSee = useCallback(
+    (leaf: SelectedLeaf | null) => {
+      setSelected(leaf)
+      if (leaf) markSeen(leaf.itemId, leaf.studentId)
+    },
+    [markSeen]
+  )
+
+  // taskId → the sessions/lessons it was deployed to, so a live submission
+  // (which only carries taskId+studentId) can be located precisely in the tree.
+  const deployTargets = useMemo(() => {
+    const m = new Map<string, { sessionId: string; lessonId?: string | null }[]>()
+    for (const d of data?.deployed || []) {
+      const arr = m.get(d.itemId) || []
+      arr.push({ sessionId: d.sessionId, lessonId: d.lessonId })
+      m.set(d.itemId, arr)
+    }
+    return m
+  }, [data])
+  const lessonBySessionId = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const [lessonId, sess] of Object.entries(sessionsByLessonId)) {
+      for (const s of sess as { id: string }[]) m[s.id] = lessonId
+    }
+    return m
+  }, [sessionsByLessonId])
+
+  const newCounts = useMemo(() => {
+    const byLesson: Record<string, number> = {}
+    const bySession: Record<string, number> = {}
+    const byStudentSession: Record<string, number> = {}
+    let total = 0
+    for (const ls of liveSubmissions || []) {
+      const key = `${ls.taskId}::${ls.studentId}`
+      if (seenKeys.has(key)) continue
+      const targets = deployTargets.get(ls.taskId) || []
+      // Fall back to "unknown" grouping when the task isn't in the tree yet.
+      const locs = targets.length > 0 ? targets : [{ sessionId: '', lessonId: undefined }]
+      let counted = false
+      for (const loc of locs) {
+        const lessonId = loc.lessonId || lessonBySessionId[loc.sessionId]
+        if (lessonId) byLesson[lessonId] = (byLesson[lessonId] || 0) + 1
+        if (loc.sessionId) {
+          bySession[loc.sessionId] = (bySession[loc.sessionId] || 0) + 1
+          const sk = `${loc.sessionId}::${ls.studentId}`
+          byStudentSession[sk] = (byStudentSession[sk] || 0) + 1
+        }
+        counted = true
+      }
+      if (counted) total += 1
+    }
+    return { byLesson, bySession, byStudentSession, total }
+  }, [liveSubmissions, seenKeys, deployTargets, lessonBySessionId])
+
+  useEffect(() => {
+    onNewSubmissionCount?.(newCounts.total)
+  }, [newCounts.total, onNewSubmissionCount])
+
   const reportMap = useMemo(() => {
     const map = new Map<string, SubmissionsTreeResponse['reports'][number]>()
     ;(data?.reports || []).forEach(r => {
@@ -279,10 +426,18 @@ export function SubmissionsPanel({
   }
 
   return (
-    <>
+    <TooltipProvider>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+        <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
           Desk
+          {newCounts.total > 0 && (
+            <span
+              className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+              title={`${newCounts.total} new submission${newCounts.total === 1 ? '' : 's'}`}
+            >
+              {newCounts.total}
+            </span>
+          )}
         </div>
         {headerExtra && <div className="px-4">{headerExtra}</div>}
 
@@ -318,6 +473,7 @@ export function SubmissionsPanel({
                       icon={<Folder className="h-4 w-4 text-slate-500" />}
                       title={lesson.title}
                       subtitle={`Lesson ${lesson.order + 1}`}
+                      newCount={newCounts.byLesson[lesson.id] || 0}
                     />
 
                     {open[`lesson_${lesson.id}`] &&
@@ -339,6 +495,7 @@ export function SubmissionsPanel({
                               title={formatSessionTitle(session)}
                               titleClassName={sessionColorById[session.id]}
                               subtitle={session.status || `Session ${idx + 1}`}
+                              newCount={newCounts.bySession[session.id] || 0}
                             />
 
                             {open[sessionKey] && (
@@ -373,8 +530,13 @@ export function SubmissionsPanel({
                                         reportMap={reportMap}
                                         open={open}
                                         toggle={toggle}
-                                        onSelect={setSelected}
+                                        onSelect={selectAndSee}
                                         itemRefs={itemRefs}
+                                        newCount={
+                                          newCounts.byStudentSession[
+                                            `${session.id}::${st.studentId}`
+                                          ] || 0
+                                        }
                                       />
                                     ))}
                                   </div>
@@ -496,7 +658,7 @@ export function SubmissionsPanel({
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   )
 }
 
@@ -507,6 +669,7 @@ function FolderRow({
   subtitle,
   icon,
   titleClassName,
+  newCount = 0,
 }: {
   isOpen: boolean
   onToggle: () => void
@@ -515,6 +678,8 @@ function FolderRow({
   icon: ReactNode
   /** Overrides the default title color (used to color-code session status). */
   titleClassName?: string
+  /** Number of new (unseen) submissions under this node → shows a red badge. */
+  newCount?: number
 }) {
   return (
     <button
@@ -527,17 +692,36 @@ function FolderRow({
           {icon}
         </span>
         <div className="min-w-0">
-          <div className={`truncate text-sm font-semibold ${titleClassName || 'text-slate-800'}`}>
-            {title}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`truncate text-sm font-semibold ${titleClassName || 'text-slate-800'}`}
+              >
+                {title}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start" className="max-w-xs">
+              <p className="text-xs">{title}</p>
+            </TooltipContent>
+          </Tooltip>
           {subtitle && <div className="truncate text-xs text-slate-500">{subtitle}</div>}
         </div>
       </div>
-      {isOpen ? (
-        <ChevronDown className="h-4 w-4 text-slate-500" />
-      ) : (
-        <ChevronRight className="h-4 w-4 text-slate-500" />
-      )}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {newCount > 0 && (
+          <span
+            className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-semibold text-white"
+            title={`${newCount} new submission${newCount === 1 ? '' : 's'}`}
+          >
+            {newCount}
+          </span>
+        )}
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-slate-500" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-slate-500" />
+        )}
+      </div>
     </button>
   )
 }
@@ -552,6 +736,7 @@ function StudentNode({
   toggle,
   onSelect,
   itemRefs,
+  newCount = 0,
 }: {
   session: any
   student: { studentId: string; name: string }
@@ -562,6 +747,7 @@ function StudentNode({
   toggle: (key: string) => void
   onSelect: (v: SelectedLeaf | null) => void
   itemRefs: React.RefObject<Record<string, HTMLElement | null>>
+  newCount?: number
 }) {
   const studentKey = `student_${session.id}_${student.studentId}`
   const items = deployedBySession[session.id] || { task: [], assessment: [], homework: [] }
@@ -596,6 +782,7 @@ function StudentNode({
         onToggle={() => toggle(studentKey)}
         icon={<Folder className="h-4 w-4 text-slate-500" />}
         title={student.name}
+        newCount={newCount}
       />
 
       {open[studentKey] && (
