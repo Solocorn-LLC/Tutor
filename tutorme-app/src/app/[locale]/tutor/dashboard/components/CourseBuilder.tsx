@@ -6282,19 +6282,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       // fails to refresh an expired presigned URL, which silently
                       // left the assessment with no source document ("No document
                       // selected", no error).
-                      if (assetToLoad.url || assetToLoad.fileKey) {
-                        targetAssess.sourceDocument = {
-                          fileName: assetToLoad.name,
-                          fileUrl: assetToLoad.url || '',
-                          fileKey: assetToLoad.fileKey,
-                          mimeType: assetToLoad.mimeType || 'application/pdf',
-                          uploadedAt: new Date().toISOString(),
-                          extractedText,
-                        }
-                      } else {
+                      // A durable fileKey is enough (the viewer streams it via the
+                      // by-key proxy), so don't require a signed url. But with NO
+                      // stored file at all, there is nothing to preview or deploy —
+                      // abort instead of creating an empty assessment and then
+                      // (mis)reporting "Loaded …". This happens for stale/broken
+                      // assets whose upload never stored a file; the tutor must
+                      // re-upload the document to get a working asset.
+                      if (!assetToLoad.url && !assetToLoad.fileKey) {
                         toast.error(
                           'This document has no stored file — please re-upload it before loading.'
                         )
+                        setLoadAsModalOpen(false)
+                        setAssetToLoad(null)
+                        return
+                      }
+
+                      targetAssess.sourceDocument = {
+                        fileName: assetToLoad.name,
+                        fileUrl: assetToLoad.url || '',
+                        fileKey: assetToLoad.fileKey,
+                        mimeType: assetToLoad.mimeType || 'application/pdf',
+                        uploadedAt: new Date().toISOString(),
+                        extractedText,
                       }
 
                       const newCourseBuilderNodes = [...nodes]
