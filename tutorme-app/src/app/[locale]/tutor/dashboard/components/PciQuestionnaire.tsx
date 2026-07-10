@@ -14,6 +14,7 @@ import { HelpCircle, Loader2, Sparkles, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { PCI_SPEC_FIELDS, pciSpecToText, type PciSpec } from '@/lib/assessment/pci-spec'
 import { EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
+import { cn } from '@/lib/utils'
 
 /**
  * Per-field help: a plain-language explanation plus a set of ready-to-use
@@ -422,29 +423,37 @@ export function PciQuestionnaire({
       </p>
 
       {onExamContextChange && (
-        <div className="mb-3 grid grid-cols-2 gap-2 rounded-md border border-slate-200 bg-white/70 p-2">
-          <div>
-            <label
-              htmlFor={`pci-board-${source}`}
-              className="block text-[11px] font-medium text-slate-700"
-            >
-              Board
-            </label>
-            <select
-              id={`pci-board-${source}`}
-              value={board ?? ''}
-              disabled={!canEdit}
-              onChange={e => onExamContextChange({ board: e.target.value })}
-              className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
-            >
-              <option value="">—</option>
-              {EXAM_BOARDS.map(b => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div
+          className={cn(
+            'mb-3 grid gap-2 rounded-md border border-slate-200 bg-white/70 p-2',
+            // Board (AP, IB, SAT…) applies to assessments only; tasks show subject alone.
+            source === 'assessment' ? 'grid-cols-2' : 'grid-cols-1'
+          )}
+        >
+          {source === 'assessment' && (
+            <div>
+              <label
+                htmlFor={`pci-board-${source}`}
+                className="block text-[11px] font-medium text-slate-700"
+              >
+                Board
+              </label>
+              <select
+                id={`pci-board-${source}`}
+                value={board ?? ''}
+                disabled={!canEdit}
+                onChange={e => onExamContextChange({ board: e.target.value })}
+                className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
+              >
+                <option value="">—</option>
+                {EXAM_BOARDS.map(b => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label
               htmlFor={`pci-subject-${source}`}

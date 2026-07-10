@@ -742,9 +742,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [pciBoardOverride, setPciBoardOverride] = useState<string | null>(null)
     const pciCategory =
       courseCategoryOverride ?? (designatedFolder !== 'Uncategorized' ? designatedFolder : '')
-    const pciBoard =
-      pciBoardOverride ?? deriveExamContext(pciCategory || null, courseName).examBody ?? ''
     const pciCategoryOptions = useMemo(() => getAllCourseCategoryOptions(), [])
+    // `pciBoard` (the exam Board — AP, IB, SAT…) is derived further down, once the
+    // loaded assessment document is available, so it can be auto-detected from the
+    // paper itself rather than the course folder. Board applies to assessments only.
 
     const [assetFoldersList, setAssetFoldersList] = useState<string[]>(() => {
       if (typeof window !== 'undefined') {
@@ -6810,6 +6811,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
     const hasAssessmentDocument = !!currentAssessmentDocument
 
+    // Auto-detect the exam Board from the ASSESSMENT itself — its file name,
+    // title, and the start of its extracted text — so it reflects THIS paper
+    // (e.g. an SAT paper reads "SAT") instead of being fixed to the course
+    // folder. Falls back to the course category, and the tutor can always
+    // override it in the Guided form. Board applies to assessments only.
+    const detectedAssessmentBoard = useMemo(() => {
+      const probe = [
+        currentAssessmentDocument?.fileName,
+        assessmentBuilder.title,
+        (currentAssessmentDocument?.extractedText || '').slice(0, 1200),
+      ]
+        .filter(Boolean)
+        .join('\n')
+      return deriveExamContext(probe || null).examBody || ''
+    }, [currentAssessmentDocument, assessmentBuilder.title])
+    const pciBoard =
+      pciBoardOverride ??
+      (detectedAssessmentBoard || deriveExamContext(pciCategory || null, courseName).examBody || '')
+
     // DMI-first gate: an assessment's marking-policy (PCI) chat unlocks only once
     // the DMI exists with questions, marks, and an answer key/rubric (the "basic"
     // bar). Per-question gaps are surfaced but don't block. See assessmentDmiReadiness.
@@ -10836,8 +10856,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           {renderCurrentPci('task', activeTaskPci)}
                                           <PciSpecSoFar
                                             spec={activeTaskThread.specSoFar}
-                                            board={pciBoard}
                                             subject={pciCategory}
+                                            showBoard={false}
                                             editable={canEdit}
                                             onEditField={(key, value) =>
                                               editSpecSoFar(activeTaskTarget, key, value)

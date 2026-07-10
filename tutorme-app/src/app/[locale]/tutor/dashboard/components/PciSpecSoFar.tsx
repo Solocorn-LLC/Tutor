@@ -24,13 +24,27 @@ interface PciSpecSoFarProps {
   spec?: PciSpec
   board?: string
   subject?: string
+  /** Whether to show the exam Board — Board applies to assessments only, not
+   *  tasks. Defaults to true; pass false for tasks. */
+  showBoard?: boolean
   /** Allow inline corrections of captured fields. */
   editable?: boolean
   onEditField?: (key: PciSpecKey, value: string) => void
 }
 
-export function PciSpecSoFar({ spec, board, subject, editable, onEditField }: PciSpecSoFarProps) {
-  const hasContext = !!board?.trim() || !!subject?.trim()
+export function PciSpecSoFar({
+  spec,
+  board,
+  subject,
+  showBoard = true,
+  editable,
+  onEditField,
+}: PciSpecSoFarProps) {
+  // Board (AP, IB, SAT…) is an assessment-only concept; tasks show subject only.
+  const contextValue = showBoard
+    ? [board?.trim(), subject?.trim()].filter(Boolean).join(' · ')
+    : subject?.trim() || ''
+  const hasContext = !!contextValue
   const total = PCI_SPEC_FIELDS.length
   const filledCount = PCI_SPEC_FIELDS.filter(f => spec?.[f.key]?.trim()).length
 
@@ -76,10 +90,10 @@ export function PciSpecSoFar({ spec, board, subject, editable, onEditField }: Pc
       <ul className="space-y-0.5">
         {hasContext && (
           <li className="px-1 py-0.5 text-xs">
-            <span className="font-medium text-slate-600">Board / Subject:</span>{' '}
-            <span className="text-slate-700">
-              {[board?.trim(), subject?.trim()].filter(Boolean).join(' · ')}
-            </span>
+            <span className="font-medium text-slate-600">
+              {showBoard ? 'Board / Subject:' : 'Subject:'}
+            </span>{' '}
+            <span className="text-slate-700">{contextValue}</span>
           </li>
         )}
         {PCI_SPEC_FIELDS.map(f => {
