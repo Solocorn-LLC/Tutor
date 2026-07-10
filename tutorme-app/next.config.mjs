@@ -43,6 +43,14 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
+    // Raise the proxy (middleware) request-body cap above the app's own 20MB
+    // upload limit. Next 16 defaults this to 10MB; a request body over the cap
+    // is TRUNCATED before route handlers run, which corrupts multipart FormData
+    // and makes `request.formData()` throw "Failed to parse body as FormData".
+    // That silently broke document uploads between 10–20MB (e.g. a 10.5MB SAT
+    // paper) while smaller papers succeeded. 25MB gives headroom over the 20MB
+    // limit enforced in /api/uploads/documents.
+    proxyClientMaxBodySize: '25mb',
   },
   serverExternalPackages: ['pg', 'pg-native', 'jspdf', 'jspdf-autotable', 'mathjax'],
   webpack: (config, { isServer }) => {
