@@ -1341,6 +1341,11 @@ export default function PublicTutorPage() {
                                 View schedules <ExternalLink className="h-3 w-3" />
                               </button>
                             </div>
+                            {course.country && course.country !== 'Global' && (
+                              <div className="ml-auto flex items-center">
+                                <CountryFlag countryName={course.country} size="xs" />
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

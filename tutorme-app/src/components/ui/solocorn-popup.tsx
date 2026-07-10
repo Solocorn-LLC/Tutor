@@ -52,7 +52,7 @@ const SolocornPopupItem = React.forwardRef<HTMLDivElement, SolocornPopupItemProp
       ref={ref}
       className={cn(
         'flex cursor-pointer select-none items-center gap-3.5 rounded-lg px-4 py-2 text-[13px] font-semibold text-white/[0.94] outline-none transition-all hover:bg-white/10 active:scale-[0.98]',
-        destructive && 'text-red-400 hover:bg-red-500/10 focus:bg-red-500/10',
+        destructive && 'text-red-400 hover:bg-red-500/10 focus-visible:bg-red-500/10',
         className
       )}
       {...props}

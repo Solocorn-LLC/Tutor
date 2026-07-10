@@ -1169,7 +1169,7 @@ function CourseBuilderInsightsRouteInner({
                 }}
                 placeholder="Course name"
                 maxLength={25}
-                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && newCourseName?.trim()) {
                     e.preventDefault()
@@ -1184,7 +1184,7 @@ function CourseBuilderInsightsRouteInner({
                       ? 'text-red-500'
                       : (newCourseName?.length || 0) >= 20
                         ? 'text-orange-500'
-                        : 'text-gray-400'
+                        : 'text-gray-600'
                   }`}
                 >
                   {newCourseName?.length || 0}/25
@@ -1308,7 +1308,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Price</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-slate-400" />
+                      <DollarSign className="h-4 w-4 text-slate-600" />
                       <Input
                         type="number"
                         min={0}
@@ -1340,7 +1340,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Language</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <Languages className="h-4 w-4 text-slate-400" />
+                      <Languages className="h-4 w-4 text-slate-600" />
                       <Input
                         value={rescheduleLanguage}
                         onChange={e => setRescheduleLanguage(e.target.value)}

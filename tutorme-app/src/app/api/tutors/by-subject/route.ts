@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
         name: profile.name,
         avatarUrl: profile.avatarUrl,
         bio: profile.bio,
+        nationality: profile.nationality,
+        countryOfResidence: profile.countryOfResidence,
       })
       .from(profile)
       .where(inArray(profile.userId, userIds))
@@ -100,6 +102,10 @@ export async function GET(request: NextRequest) {
       const app = tutorAppByUserId.get(userId)
       const appCategories = Array.isArray(app?.categories) ? app.categories : []
       const appCountries = Array.isArray(app?.tutoringCountries) ? app.tutoringCountries : []
+      const profileCountries = [
+        ...new Set([p?.nationality, p?.countryOfResidence, ...appCountries].filter(Boolean)),
+      ]
+      const countries = profileCountries.length > 0 ? profileCountries : appCountries
       return {
         id: userId,
         username: u?.handle ?? userId,
@@ -114,7 +120,7 @@ export async function GET(request: NextRequest) {
         totalStudents: tutorTotalStudents.get(userId) ?? 0,
         totalClasses: tutorSessionCount.get(userId) ?? 0,
         specialties: appCategories,
-        countries: appCountries,
+        countries,
       }
     })
 

@@ -63,11 +63,11 @@ import SessionLog from '@/components/session-log'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
-  { code: 'zh', name: '中文 (Chinese)' },
+  { code: 'zh', name: 'Chinese' },
   { code: 'es', name: 'Español (Spanish)' },
   { code: 'fr', name: 'Français (French)' },
   { code: 'de', name: 'Deutsch (German)' },
-  { code: 'ja', name: '日本語 (Japanese)' },
+  { code: 'ja', name: 'Japanese' },
 ]
 
 const SECTION_CARD_CLASS =
@@ -169,7 +169,6 @@ function OneOnOneSettingsCard() {
     <CollapsibleCard
       className={SECTION_CARD_CLASS}
       title="1-on-1 Booking"
-      description="Allow students to book private sessions with you"
       icon={<Calendar className="h-5 w-5 text-slate-900" />}
       defaultOpen
     >
@@ -213,7 +212,7 @@ function OneOnOneSettingsCard() {
                   }
                   className="w-32"
                 />
-                <span className="text-sm text-gray-500">per hour</span>
+                <span className="whitespace-nowrap text-sm text-gray-500">per hour</span>
               </div>
               <p className="text-xs text-gray-500">
                 Students will see this rate when booking a session
@@ -254,7 +253,11 @@ function OneOnOneSettingsCard() {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button
+            className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
+            onClick={handleSave}
+            disabled={saving}
+          >
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -263,7 +266,7 @@ function OneOnOneSettingsCard() {
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Save Settings
+                Save
               </>
             )}
           </Button>
@@ -834,7 +837,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Tax Information"
-              description="Required for payout and tax reporting"
               icon={<FileText className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">
@@ -949,7 +951,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Payment Methods"
-              description="Manage your payment methods for subscription"
               icon={<CreditCard className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
@@ -998,7 +999,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Subscription Plan"
-              description="Manage your tutor subscription"
               icon={<DollarSign className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">
@@ -1060,7 +1060,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Payout Settings"
-              description="Manage your earnings and withdrawals"
               icon={<DollarSign className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">
@@ -1103,7 +1102,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Billing History"
-              description="View and download your invoices and receipts"
               icon={<FileText className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-4 p-6">
@@ -1156,7 +1154,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Refunds"
-              description="Pending refund requests across all your courses — approve to process via the payment gateway, or decline."
               icon={<DollarSign className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
@@ -1174,7 +1171,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Notification Preferences"
-              description="Control how and when we contact you"
               icon={<Bell className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
@@ -1283,7 +1279,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Privacy & Security"
-              description="Manage your password and account security"
               icon={<Shield className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
@@ -1390,7 +1385,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Live Session Mirroring"
-              description="Control what students see by default during live sessions"
               icon={<Smartphone className="h-5 w-5 text-slate-900" />}
               defaultOpen
             >
@@ -1450,7 +1444,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Course Sync Mode"
-              description="Control how course edits are shared with students during live sessions"
               icon={<LayoutPanelTop className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">
@@ -1512,7 +1505,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Document Import"
-              description="Control how documents are handled when importing into tasks and assessments"
               icon={<FileText className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">
@@ -1545,7 +1537,6 @@ export default function TutorSettings() {
             <CollapsibleCard
               className={SECTION_CARD_CLASS}
               title="Account Controls"
-              description="Temporarily deactivate or permanently delete your account"
               icon={<UserCircle className="h-5 w-5 text-slate-900" />}
             >
               <div className="space-y-6 p-6">

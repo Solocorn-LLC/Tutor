@@ -64,7 +64,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
-import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -76,6 +75,8 @@ import type {
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 import { TaskAiHelper } from './TaskAiHelper'
+import { TaskChatPanel } from './TaskChatPanel'
+import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -1653,6 +1654,12 @@ function StudentFeedbackContent() {
     tasks.find(task => task.id === activeTaskId) ||
     (selectedDirectoryItem?.id === activeTaskId ? selectedDirectoryItem : null) ||
     null
+  // A deployed TASK has no DMI — the student answers it by chatting (new flow).
+  // Assessments/DMI-bearing items keep the structured answer flow.
+  const isChatTask =
+    !!activeTask &&
+    activeTask.source === 'task' &&
+    !(Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0)
   const currentSession = sessions.find(s => s.id === selectedSessionId) || null
   const isScheduled = currentSession?.status === 'scheduled'
   const isPassedSession =
@@ -1988,66 +1995,20 @@ function StudentFeedbackContent() {
                           </div>
                         )}
 
-                        {activeTask.sourceDocument &&
-                          (() => {
-                            const doc = activeTask.sourceDocument
-                            const rawUrl = doc.fileUrl || ''
-                            // Prefer streaming by object key through our same-origin
-                            // proxy: it reads from storage server-side (no signed/
-                            // public URL needed), so it works even when GCS URL
-                            // signing is misconfigured or a stored URL has expired.
-                            // Fall back to the direct URL only when there's no key.
-                            const url = doc.fileKey
-                              ? `/api/proxy-file?key=${encodeURIComponent(doc.fileKey)}`
-                              : rawUrl
-                            // Without a key, a blob: URL only resolves in the tutor's
-                            // browser and an empty URL never reached storage — show a
-                            // clear message instead of a silently blank frame.
-                            const loadable =
-                              !!doc.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
-                            const isPdf =
-                              doc.mimeType === 'application/pdf' ||
-                              (!doc.mimeType && /\.pdf($|\?|#)/i.test(doc.fileName || rawUrl))
-                            const isImage = doc.mimeType?.startsWith('image/')
-                            return (
-                              <div className="mb-4 h-[55vh] w-full">
-                                {!loadable ? (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 text-center">
-                                    <FileText className="h-8 w-8 text-slate-400" />
-                                    <p className="text-sm text-slate-500">
-                                      This document is unavailable. Ask your tutor to re-deploy it.
-                                    </p>
-                                  </div>
-                                ) : isPdf ? (
-                                  // Paginated/continuous-scroll viewer so students can
-                                  // see EVERY page of a multi-page paper (the bare iframe
-                                  // with toolbar/navpanes hidden gave no page navigation).
-                                  <PDFViewer fileUrl={url} className="h-full w-full" />
-                                ) : isImage ? (
-                                  <div className="flex h-full items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={url}
-                                      alt="Document"
-                                      className="max-h-full max-w-full object-contain"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-full flex-col items-center justify-center gap-2">
-                                    <FileText className="h-8 w-8 text-blue-600" />
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-sm text-blue-600 underline"
-                                    >
-                                      Open document
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
+                        {/* For a chat task the document lives inside the chat panel
+                            (it collapses into a pinned card after the first message),
+                            so only render the standalone viewer for non-chat tasks. */}
+                        {!isChatTask && activeTask.sourceDocument && (
+                          // Same renderer the chat flow uses (via TaskDocumentCard),
+                          // in its non-collapsible mode — one code path for the PDF/
+                          // image viewer and the "document unavailable" fallback.
+                          <div className="mb-4 h-[55vh] w-full">
+                            <TaskDocumentCard
+                              sourceDocument={activeTask.sourceDocument}
+                              alwaysOpen
+                            />
+                          </div>
+                        )}
 
                         {/* The questions + answer inputs live in the right-hand
                             Assessment tab (single source of truth). Here we just
@@ -2068,7 +2029,38 @@ function StudentFeedbackContent() {
                           </button>
                         )}
 
-                        {!activeTask.content &&
+                        {/* Chat-based task: the student answers by chatting, then
+                            "Task complete" → the AI responds to each answer per the
+                            PCI, then they can ask about what they got wrong. */}
+                        {isChatTask && activeTaskId && (
+                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
+                            <TaskChatPanel
+                              taskId={activeTaskId}
+                              taskTitle={activeTask.title}
+                              sourceDocument={activeTask.sourceDocument}
+                              onCompleted={answers => {
+                                // Broadcast the live "completed" tick to the tutor.
+                                // aiHandled=true → the server only marks completion
+                                // and does NOT re-write the DB (the task-chat route
+                                // already persisted the answers + AI responses).
+                                if (!socket || !selectedSessionId || !activeTaskId) return
+                                const record: Record<string, string> = {}
+                                answers.forEach((a, i) => {
+                                  record[String(i + 1)] = a
+                                })
+                                socket.emit('task:complete', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  answers: record,
+                                  aiHandled: true,
+                                })
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {!isChatTask &&
+                          !activeTask.content &&
                           !activeTask.sourceDocument &&
                           !(
                             Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
@@ -2106,77 +2098,80 @@ function StudentFeedbackContent() {
                   </div>
                 </div>
 
-                {/* Input row */}
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="relative flex-1">
-                    <Input
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
+                {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
+                    chat tasks, which use the in-viewer TaskChatPanel instead. */}
+                {!isChatTask && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="relative flex-1">
+                      <Input
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            if (chatInput.trim() && socket) {
+                              socket.emit('chat_message', { text: chatInput.trim() })
+                              setChatInput('')
+                            }
+                          }
+                        }}
+                        className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
+                        disabled={!chatInput.trim() || !socket}
+                        onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
                             setChatInput('')
                           }
-                        }
-                      }}
-                      className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
-                    />
+                        }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <Button
-                      size="icon"
-                      className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
-                      disabled={!chatInput.trim() || !socket}
+                      className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                      disabled={!activeTaskId || !socket}
                       onClick={() => {
-                        if (chatInput.trim() && socket) {
-                          socket.emit('chat_message', { text: chatInput.trim() })
-                          setChatInput('')
-                        }
+                        if (!activeTaskId || !socket || !selectedSessionId) return
+                        // Include any typed answers so the tutor's Insights can see
+                        // each student's responses, not just a completion tick.
+                        const answers = (activeTask?.dmiItems ?? []).reduce(
+                          (acc, item) => {
+                            const a = taskAnswers[item.id]
+                            if (a && a.trim()) acc[item.id] = a.trim()
+                            return acc
+                          },
+                          {} as Record<string, string>
+                        )
+                        // Wait for the server's acknowledgement so we report a
+                        // TRUE result. If the payload is dropped (e.g. too large
+                        // with drawings) the ack never arrives → show a real error
+                        // instead of a false "submitted".
+                        socket
+                          .timeout(20000)
+                          .emit(
+                            'task:complete',
+                            { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                            (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                              if (err || !resp?.ok) {
+                                toast.error(
+                                  resp?.error ||
+                                    'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                )
+                                return
+                              }
+                              toast.success('Task submitted')
+                            }
+                          )
                       }}
                     >
-                      <Send className="h-4 w-4" />
+                      Task Complete
                     </Button>
                   </div>
-                  <Button
-                    className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                    disabled={!activeTaskId || !socket}
-                    onClick={() => {
-                      if (!activeTaskId || !socket || !selectedSessionId) return
-                      // Include any typed answers so the tutor's Insights can see
-                      // each student's responses, not just a completion tick.
-                      const answers = (activeTask?.dmiItems ?? []).reduce(
-                        (acc, item) => {
-                          const a = taskAnswers[item.id]
-                          if (a && a.trim()) acc[item.id] = a.trim()
-                          return acc
-                        },
-                        {} as Record<string, string>
-                      )
-                      // Wait for the server's acknowledgement so we report a
-                      // TRUE result. If the payload is dropped (e.g. too large
-                      // with drawings) the ack never arrives → show a real error
-                      // instead of a false "submitted".
-                      socket
-                        .timeout(20000)
-                        .emit(
-                          'task:complete',
-                          { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                          (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                            if (err || !resp?.ok) {
-                              toast.error(
-                                resp?.error ||
-                                  'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                              )
-                              return
-                            }
-                            toast.success('Task submitted')
-                          }
-                        )
-                    }}
-                  >
-                    Task Complete
-                  </Button>
-                </div>
+                )}
               </TabsContent>
 
               <TabsContent

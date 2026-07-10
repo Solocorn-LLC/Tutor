@@ -43,11 +43,11 @@ import { CollapsibleCard } from '@/components/collapsible-card'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
-  { code: 'zh', name: '中文 (Chinese)' },
+  { code: 'zh', name: 'Chinese' },
   { code: 'es', name: 'Español (Spanish)' },
   { code: 'fr', name: 'Français (French)' },
   { code: 'de', name: 'Deutsch (German)' },
-  { code: 'ja', name: '日本語 (Japanese)' },
+  { code: 'ja', name: 'Japanese' },
 ]
 
 interface PaymentMethod {

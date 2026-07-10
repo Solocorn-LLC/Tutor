@@ -16,7 +16,7 @@ export const GET = withAuth(
   async (req: NextRequest, session) => {
     const userId = session.user?.id
     if (!userId) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const cacheKey = `parent:messages:${userId}`

@@ -42,4 +42,8 @@ export interface AppNotification {
   createdAt: string
   actionUrl?: string | null
   data?: Record<string, unknown> | null
+  // Derived from data for UI display
+  courseName?: string | null
+  tutorName?: string | null
+  tutorUsername?: string | null
 }

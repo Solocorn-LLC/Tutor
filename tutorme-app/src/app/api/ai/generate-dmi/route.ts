@@ -19,7 +19,11 @@ import {
 } from '@/lib/assessment/question-types'
 import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
 import { scoreDocumentConfidence } from '@/lib/assessment/confidence'
-import { analyzeDocumentSignals } from '@/lib/assessment/document-signals'
+import {
+  analyzeDocumentSignals,
+  documentKindLooksWrong,
+  resolveDocumentKind,
+} from '@/lib/assessment/document-signals'
 import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
@@ -94,7 +98,7 @@ Rules:
   question wording, instructions, marks, or answers. Enumerate EVERY part across ALL pages, in
   order, exactly once: do not skip, merge, summarise, repeat, or stop early. A 6-question paper with
   sub-parts typically yields 15-30 fields.
-- For study_material: generate 5-10 questions; here "label" is the full question text.
+- For study_material: AUTHOR 5-10 questions that TEST the material — never bare numbers, section titles, or headings. Here "label" is the FULL question wording (a complete, answerable question), and each item carries a model "answer" and a "rubric". Choose a sensible mix of types for the content.
 - "type" is exactly one of: short, long, mcq, true_false, multiple_response, fill_blank, matching,
   ordering, hotspot, drag_drop. Choose by how EACH part is answered: a multiple-choice item (lettered
   options on the paper) -> "mcq"; a numeric / one-line response -> "short"; an extended written
@@ -463,21 +467,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No content or PDF pages provided' }, { status: 400 })
     }
 
-    // When the tutor has specified question types + counts (study material path),
-    // tell the model to generate exactly that mix.
+    // Code-level signals cross-check the model's classification. A STRONG paper
+    // signal (mark allocations, MCQ options A–E, answer blanks, or dense numbered
+    // questions + task verbs) reliably means a question paper — so we FORCE
+    // extraction even if the model would waffle to study_material (e.g. an SAT /
+    // exam paper whose reading passages read "prose-heavy"). The tutor's explicit
+    // override still wins. Text-only, so it can't help an image-only PDF.
+    const signals = content && content.trim() ? analyzeDocumentSignals(content) : null
+    const { settled: effectiveKindOverride } = resolveDocumentKind(documentKindOverride, signals)
+
+    // Study-material path. If the tutor specified question types + counts, generate
+    // exactly that mix. Otherwise (option A) still AUTHOR a sensible set of questions
+    // from the material — do NOT emit bare question numbers. Only a genuine printed
+    // question paper is extracted number-by-number (the model classifies, and the
+    // question_paper override forces extraction).
     const specInstruction =
       questionSpec && questionSpec.length > 0
         ? `\n\nThis source is study material. Generate exactly: ${questionSpec
             .map(s => `${s.count} ${DMI_QUESTION_TYPE_LABELS[s.type]} (${s.type})`)
             .join(', ')}. Use those exact types and counts.`
-        : ''
+        : effectiveKindOverride === 'question_paper'
+          ? ''
+          : `\n\nIf this source is NOT a printed question paper (i.e. documentKind is study_material or uncertain), do NOT emit bare question numbers. Instead AUTHOR 5-10 NEW questions that assess the key points of this material — each with the FULL question wording as "label", a suitable "type", "marks", a model "answer", and a "rubric" — choosing a sensible mix of types for the content. ONLY when the document genuinely IS a printed question paper should you extract its existing question references instead of authoring.`
 
-    // When the tutor has explicitly confirmed the document kind, tell the model
-    // so it classifies + extracts accordingly (and we skip re-confirmation).
+    // When the kind is settled (tutor confirmed, or strong code-level paper
+    // markers), tell the model so it classifies + extracts accordingly.
     const overrideInstruction =
-      documentKindOverride === 'question_paper'
-        ? `\n\nThe tutor has confirmed this document IS a question paper. Set documentKind to "question_paper" and extract one answer-input field per answerable part — do NOT author new questions or answers.`
-        : documentKindOverride === 'study_material'
+      effectiveKindOverride === 'question_paper'
+        ? `\n\nThis document IS a question paper — treat it as one (it has the clear markers of a paper). Set documentKind to "question_paper" and extract ONE answer-input field per answerable part, labelled by its question number/reference EXACTLY as printed — do NOT author new questions or answers.`
+        : effectiveKindOverride === 'study_material'
           ? `\n\nThe tutor has confirmed this document is study material (not a question paper). Set documentKind to "study_material".`
           : ''
 
@@ -527,27 +545,15 @@ export async function POST(request: NextRequest) {
     const { documentKind: modelKind, questions } =
       parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
 
-    // A tutor override wins; otherwise use the model's classification.
-    const documentKind = documentKindOverride ?? modelKind
+    // A settled kind (tutor override, or a strong code-level paper signal) wins;
+    // otherwise use the model's classification.
+    const { documentKind } = resolveDocumentKind(documentKindOverride, signals, modelKind)
 
-    // Code-level cross-check on the classification (ASMT). We do NOT let the
-    // heuristic decide the kind — only flag a LIKELY misclassification so the
-    // tutor confirms, instead of silently defaulting an ambiguous document to
-    // "question paper". Text-only, so skipped for image-only PDFs.
-    const signals = content && content.trim() ? analyzeDocumentSignals(content) : null
+    // When the kind isn't already settled, flag a LIKELY misclassification so the
+    // tutor confirms rather than silently defaulting an ambiguous document. A
+    // strong paper signal already forced question_paper above, so it's excluded.
     const needsKindConfirmation =
-      !questionSpec &&
-      !documentKindOverride &&
-      // The model was unsure / didn't classify — ask rather than assume a paper.
-      (modelKind === null ||
-        // The model called it a paper, but the text shows no paper markers at all
-        // and reads like prose — a likely false "question paper".
-        (modelKind === 'question_paper' &&
-          signals != null &&
-          signals.paperSignal === 'none' &&
-          signals.proseChars > 400) ||
-        // The model called it study material, but the text has strong paper markers.
-        (modelKind === 'study_material' && signals != null && signals.paperSignal === 'strong'))
+      !questionSpec && !effectiveKindOverride && documentKindLooksWrong(modelKind, signals)
 
     // Warn-only assessment guardrails. Checks wording fidelity against the
     // source (ASMT-4) and other structural rules where data is available.

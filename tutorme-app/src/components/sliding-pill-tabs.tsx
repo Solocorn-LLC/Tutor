@@ -46,77 +46,52 @@ export function SlidingPillTabsList({
   value,
   tabs,
   variant = 'charcoal',
-  className: _className,
+  className,
   listClassName,
   triggerClassName,
   pillClassName,
 }: SlidingPillTabsListProps) {
   const listRef = useRef<HTMLDivElement>(null)
-  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
-  const _activeIndex = tabs.findIndex(tab => tab.value === value)
+  const [pillStyle, setPillStyle] = useState<{ left: number; width: number } | null>(null)
   const styles = VARIANT_STYLES[variant]
 
   const updatePillPosition = useCallback(() => {
     const list = listRef.current
     if (!list) return
-
-    const activeTrigger = list.children[_activeIndex] as HTMLElement | undefined
-    if (!activeTrigger || activeTrigger.getAttribute('role') !== 'tab') {
-      // Fallback: find by data-state="active"
-      const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
-      const active = triggers.find(t => t.getAttribute('data-state') === 'active')
-      if (!active) return
-      const rect = active.getBoundingClientRect()
-      const listRect = list.getBoundingClientRect()
-      setPillStyle({
-        left: rect.left - listRect.left,
-        width: rect.width,
-      })
-      return
-    }
-
-    const rect = activeTrigger.getBoundingClientRect()
+    const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
+    const active = triggers.find(t => t.getAttribute('data-state') === 'active')
+    if (!active) return
+    const rect = active.getBoundingClientRect()
     const listRect = list.getBoundingClientRect()
     setPillStyle({
       left: rect.left - listRect.left,
       width: rect.width,
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Update position when active tab changes
   React.useLayoutEffect(() => {
-    // Defer to next frame so Radix UI has time to update data-state attributes
     const id = requestAnimationFrame(() => {
       updatePillPosition()
     })
     return () => cancelAnimationFrame(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  }, [value, updatePillPosition])
 
-  // Update after a delay for fonts/layout
   React.useEffect(() => {
-    const id = setTimeout(updatePillPosition, 100)
-    return () => clearTimeout(id)
+    const timeoutId = setTimeout(updatePillPosition, 100)
+    return () => clearTimeout(timeoutId)
   }, [updatePillPosition])
 
-  // Update on resize
   React.useEffect(() => {
     const handleResize = () => updatePillPosition()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [updatePillPosition])
 
-  // Use ResizeObserver on the list container
   React.useEffect(() => {
     const list = listRef.current
     if (!list) return
-
-    const ro = new ResizeObserver(() => {
-      updatePillPosition()
-    })
+    const ro = new ResizeObserver(() => updatePillPosition())
     ro.observe(list)
-
     return () => ro.disconnect()
   }, [updatePillPosition])
 
@@ -139,18 +114,16 @@ export function SlidingPillTabsList({
           {tab.label}
         </TabsTrigger>
       ))}
-      <div
-        className={cn(
-          'absolute bottom-1.5 top-1.5 rounded-lg transition-all duration-300 ease-out',
-          styles.pill,
-          pillClassName
-        )}
-        style={{
-          left: pillStyle.left,
-          width: pillStyle.width,
-          transitionProperty: 'left, width',
-        }}
-      />
+      {pillStyle && (
+        <div
+          className={cn('absolute bottom-1.5 top-1.5 rounded-lg', styles.pill, pillClassName)}
+          style={{
+            left: pillStyle.left,
+            width: pillStyle.width,
+            transition: 'left 300ms ease-out, width 300ms ease-out',
+          }}
+        />
+      )}
     </TabsList>
   )
 }

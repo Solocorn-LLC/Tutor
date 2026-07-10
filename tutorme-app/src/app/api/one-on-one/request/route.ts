@@ -13,6 +13,7 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
+import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 
 const requestSchema = z.object({
   tutorId: z.string().min(1),
@@ -80,6 +81,22 @@ export const POST = withCsrf(
         },
         { status: 409 }
       )
+    }
+
+    // Every proposed time must fall within the student's availability (managed
+    // by their parent). Not enforced when no availability is configured yet.
+    for (const slot of validated.proposedSlots) {
+      const withinAvailability = await isSlotWithinStudentAvailability(
+        session.user.id,
+        slot.date,
+        slot.startTime,
+        slot.endTime
+      )
+      if (!withinAvailability) {
+        throw new ValidationError(
+          'One or more of your proposed times are outside your available hours. Ask your parent to update your availability, or choose a different time.'
+        )
+      }
     }
 
     // For the existing table, use the first proposed slot as the primary request

@@ -9,6 +9,9 @@ interface FloatingZoomPillProps {
   minScale?: number
   maxScale?: number
   defaultScale?: number
+  /** When provided, the slider operates relative to this fit-to-width scale.
+   *  100% on the slider = fitScale. The reset button returns to fitScale. */
+  fitScale?: number | null
   onHidePreview?: () => void
   className?: string
   containerRef?: React.RefObject<HTMLElement | null>
@@ -21,6 +24,7 @@ export function FloatingZoomPill({
   minScale = 0.5,
   maxScale = 1.5,
   defaultScale = 1.0,
+  fitScale,
   onHidePreview,
   className,
   containerRef,
@@ -31,16 +35,22 @@ export function FloatingZoomPill({
   const dragStartRef = useRef({ x: 0, y: 0 })
   const pillRef = useRef<HTMLDivElement>(null)
 
-  // Convert scale (0.5-1.5) to slider percentage (0-100)
+  const isFitMode = fitScale !== null && fitScale !== undefined
+
+  // Effective min/max for the slider: if in fit mode, allow 0.25x to 4x of fitScale
+  const effectiveMinScale = isFitMode ? fitScale * 0.25 : minScale
+  const effectiveMaxScale = isFitMode ? fitScale * 4.0 : maxScale
+
+  // Convert scale to slider percentage (0-100)
   const scaleToPercent = useCallback(
-    (s: number) => ((s - minScale) / (maxScale - minScale)) * 100,
-    [minScale, maxScale]
+    (s: number) => ((s - effectiveMinScale) / (effectiveMaxScale - effectiveMinScale)) * 100,
+    [effectiveMinScale, effectiveMaxScale]
   )
 
-  // Convert slider percentage (0-100) to scale (0.5-1.5)
+  // Convert slider percentage (0-100) to scale
   const percentToScale = useCallback(
-    (p: number) => minScale + (p / 100) * (maxScale - minScale),
-    [minScale, maxScale]
+    (p: number) => effectiveMinScale + (p / 100) * (effectiveMaxScale - effectiveMinScale),
+    [effectiveMinScale, effectiveMaxScale]
   )
 
   const handleMouseDown = useCallback(
@@ -101,6 +111,18 @@ export function FloatingZoomPill({
 
   const sliderPercent = scaleToPercent(scale)
 
+  // Display percentage: in fit mode, show relative to fit (100% = fit)
+  // In normal mode, show absolute (100% = scale 1.0)
+  const displayPercent = isFitMode ? Math.round((scale / fitScale) * 100) : Math.round(scale * 100)
+
+  const handleReset = () => {
+    if (isFitMode) {
+      onScaleChange(fitScale)
+    } else {
+      onScaleChange(defaultScale)
+    }
+  }
+
   return (
     <div
       ref={pillRef}
@@ -117,7 +139,7 @@ export function FloatingZoomPill({
     >
       {/* Zoom percentage with space above */}
       <div className="mt-1 flex flex-col items-center gap-1">
-        <span className="text-[10px] font-medium text-gray-700">{Math.round(scale * 100)}%</span>
+        <span className="text-[10px] font-medium text-gray-700">{displayPercent}%</span>
         <div className="relative h-24 w-4">
           <input
             type="range"
@@ -137,9 +159,9 @@ export function FloatingZoomPill({
 
       {/* Reset zoom button */}
       <button
-        onClick={() => onScaleChange(defaultScale)}
+        onClick={handleReset}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
-        title="Reset Zoom"
+        title={isFitMode ? 'Fit to Width' : 'Reset Zoom'}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

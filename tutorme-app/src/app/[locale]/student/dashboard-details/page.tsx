@@ -37,7 +37,7 @@ export default function StudentDashboardDetails() {
     reviewHistory?: any[]
   } | null>(null)
 
-  const strings = getDashboardStrings('en')
+  const strings = getDashboardStrings()
 
   const fetchDashboardData = useCallback(async () => {
     if (status !== 'authenticated') return

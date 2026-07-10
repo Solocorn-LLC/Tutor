@@ -208,3 +208,25 @@ jobs:
 
       - name: Show production URL
         run: echo "Production URL -> ${{ steps.deploy-prod.outputs.url }}"
+
+      # Non-blocking post-deploy smoke of document storage. Hits the existing
+      # unauthenticated diagnostic and surfaces a GH annotation if GCS is
+      # mis-set (e.g. signBlob missing → signed URLs fall back to 403 public
+      # URLs), so a "Failed to fetch PDF" class of incident is caught here
+      # instead of by a tutor. Never fails the deploy.
+      - name: Storage health smoke (non-blocking)
+        continue-on-error: true
+        run: |
+          URL="${{ steps.deploy-prod.outputs.url }}"
+          echo "Checking storage health at $URL/api/health/storage"
+          body=$(curl -s -m 30 -w $'\n%{http_code}' "$URL/api/health/storage" || printf '\n000')
+          code=$(printf '%s' "$body" | tail -1)
+          json=$(printf '%s' "$body" | sed '$d')
+          echo "HTTP $code"
+          echo "$json"
+          overall=$(printf '%s' "$json" | grep -o '"overall":"[a-z_]*"' | head -1)
+          case "$overall" in
+            *healthy*) echo "Storage OK ($overall)";;
+            "") echo "::warning title=Storage health::Could not read storage health (HTTP $code).";;
+            *) echo "::warning title=Storage health::$overall — see JSON above (check signBlob / bucket / credentials).";;
+          esac

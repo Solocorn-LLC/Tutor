@@ -1549,10 +1549,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
     socket.on(
       'task:complete',
       (
-        data: { roomId: string; taskId: string; answers?: Record<string, string> },
+        data: {
+          roomId: string
+          taskId: string
+          answers?: Record<string, string>
+          // Set by the chat-task flow: the answers + AI responses were already
+          // persisted over HTTP (task-chat route), so this event should only
+          // broadcast the live completion tick and NOT write the DB again.
+          aiHandled?: boolean
+        },
         ack?: (resp: { ok: boolean; error?: string }) => void
       ) => {
-        const { roomId, taskId, answers } = data
+        const { roomId, taskId, answers, aiHandled } = data
         if (!roomId || !taskId) {
           ack?.({ ok: false, error: 'Invalid submission' })
           return
@@ -1607,6 +1615,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // the payload had been dropped — e.g. too large — no ack would arrive
         // and the client would surface a real error instead of a false success.
         ack?.({ ok: true })
+
+        // Chat tasks already persisted everything (taskSubmission + AI responses)
+        // over HTTP — this event was only for the live completion tick, so stop
+        // before the DB write to avoid clobbering that richer row.
+        if (aiHandled) return
 
         // Persist the completion durably so it reaches the tutor's grading
         // views. There are THREE tutor readers with DIFFERENT requirements:

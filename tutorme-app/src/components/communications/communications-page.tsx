@@ -37,16 +37,22 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
       }
       const data = await res.json()
       const list: AppNotification[] = (data.notifications || []).map(
-        (n: Record<string, unknown>) => ({
-          id: (n.notificationId as string) || (n.id as string),
-          type: (n.type as string) || 'message',
-          title: n.title as string,
-          message: n.message as string,
-          read: !!n.read,
-          createdAt: (n.createdAt as string) || new Date().toISOString(),
-          actionUrl: (n.actionUrl as string | null) || null,
-          data: (n.data as Record<string, unknown> | null) || null,
-        })
+        (n: Record<string, unknown>) => {
+          const dataObj = (n.data as Record<string, unknown> | null) || null
+          return {
+            id: (n.notificationId as string) || (n.id as string),
+            type: (n.type as string) || 'message',
+            title: n.title as string,
+            message: n.message as string,
+            read: !!n.read,
+            createdAt: (n.createdAt as string) || new Date().toISOString(),
+            actionUrl: (n.actionUrl as string | null) || null,
+            data: dataObj,
+            courseName: (dataObj?.courseName as string) || null,
+            tutorName: (dataObj?.tutorName as string) || null,
+            tutorUsername: (dataObj?.tutorUsername as string) || null,
+          }
+        }
       )
       setNotifications(list)
     } catch {
@@ -155,7 +161,14 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero — Analytics-style header */}
-      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
+      <section
+        className={cn(
+          'relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20',
+          role === 'student'
+            ? 'bg-gradient-to-br from-[#F97316] to-[#EA580C]'
+            : 'bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]'
+        )}
+      >
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <h1 className="text-xl font-bold text-white">Communications</h1>
@@ -203,7 +216,9 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Messaging"
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              fillHeight
               className="flex-1"
+              contentClassName="pt-3"
             >
               <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
             </CollapsibleCard>
@@ -214,6 +229,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Notifications"
               icon={<Bell className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              fillHeight
               className="flex-1"
             >
               <NotificationsPanel

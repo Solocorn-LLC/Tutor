@@ -287,7 +287,7 @@ export default function LearnPage() {
             ) : (
               <Card>
                 <CardContent className="py-8 text-center text-gray-500">
-                  暂无视频链接。请先上传或设置视频地址。
+                  No video link yet. Please upload or set a video URL first.
                 </CardContent>
               </Card>
             )}
