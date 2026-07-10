@@ -1537,7 +1537,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
     // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
     const [pollOptionModeMap, setPollOptionModeMap] = useState<
-      Record<string, '1-10' | 'tf' | 'yn' | 'custom'>
+      Record<string, '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     // Reusable custom option sets, persisted so a tutor can pick a set they used
@@ -1672,7 +1672,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? '1-10'
-    const setPollOptionMode = (val: '1-10' | 'tf' | 'yn' | 'custom') =>
+    const setPollOptionMode = (val: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom') =>
       setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
     const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
     const setPollCustomOptions = (val: string) =>
@@ -1697,7 +1697,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const resolvePollOptions = (): string[] | undefined => {
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
-      if (pollOptionMode === '1-10') return undefined
+      if (pollOptionMode === 'likert')
+        return ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree']
+      if (pollOptionMode === 'ae') return ['A', 'B', 'C', 'D', 'E']
       if (pollOptionMode === 'custom') {
         const opts = parsePollOptions(pollCustomOptions)
         return opts.length >= 2 ? opts : undefined
@@ -1707,8 +1709,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Shared option-set picker rendered above every poll composer. Preset chips
     // + a custom field (one option per line / comma-separated).
-    const POLL_OPTION_PRESETS: { id: '1-10' | 'tf' | 'yn' | 'custom'; label: string }[] = [
+    const POLL_OPTION_PRESETS: {
+      id: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'
+      label: string
+    }[] = [
       { id: '1-10', label: '1–10' },
+      { id: 'likert', label: 'Likert' },
+      { id: 'ae', label: 'A–E' },
       { id: 'tf', label: 'True/False' },
       { id: 'yn', label: 'Yes/No' },
       { id: 'custom', label: 'Custom' },
@@ -9170,7 +9177,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                                                 {/* Header with toggle */}
                                                 <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
-                                                  <span className="text-xs font-semibold text-blue-700">
+                                                  <span className="flex-1 text-center text-xs font-semibold text-blue-700">
                                                     New Poll
                                                   </span>
                                                   {pollResults.length > 0 && (
@@ -9188,7 +9195,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <textarea
                                                     value={pollPrompt}
                                                     onChange={e => setPollPrompt(e.target.value)}
-                                                    placeholder="Type your poll question here..."
+                                                    placeholder="On a scale of 1 to 10, "
                                                     className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                                     rows={3}
                                                   />
