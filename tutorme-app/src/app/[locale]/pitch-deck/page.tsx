@@ -14,7 +14,7 @@ export default function PitchDeckPage() {
           <div className="scrollbar-hide h-[85vh] overflow-y-auto rounded-xl border-2 border-slate-300 shadow-2xl">
             <iframe
               src="/documents/solocorn-pitch-deck.pdf#toolbar=0&navpanes=0&scrollbar=0"
-              className="block h-full w-full border-0"
+              className="block h-[3000px] w-full border-0"
               title="Solocorn Pitch Deck"
             />
           </div>
