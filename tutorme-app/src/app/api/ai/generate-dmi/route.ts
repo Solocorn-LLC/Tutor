@@ -19,7 +19,11 @@ import {
 } from '@/lib/assessment/question-types'
 import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
 import { scoreDocumentConfidence } from '@/lib/assessment/confidence'
-import { analyzeDocumentSignals, documentKindLooksWrong } from '@/lib/assessment/document-signals'
+import {
+  analyzeDocumentSignals,
+  documentKindLooksWrong,
+  resolveDocumentKind,
+} from '@/lib/assessment/document-signals'
 import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
@@ -470,8 +474,7 @@ export async function POST(request: NextRequest) {
     // exam paper whose reading passages read "prose-heavy"). The tutor's explicit
     // override still wins. Text-only, so it can't help an image-only PDF.
     const signals = content && content.trim() ? analyzeDocumentSignals(content) : null
-    const effectiveKindOverride: 'question_paper' | 'study_material' | undefined =
-      documentKindOverride ?? (signals?.paperSignal === 'strong' ? 'question_paper' : undefined)
+    const { settled: effectiveKindOverride } = resolveDocumentKind(documentKindOverride, signals)
 
     // Study-material path. If the tutor specified question types + counts, generate
     // exactly that mix. Otherwise (option A) still AUTHOR a sensible set of questions
@@ -544,7 +547,7 @@ export async function POST(request: NextRequest) {
 
     // A settled kind (tutor override, or a strong code-level paper signal) wins;
     // otherwise use the model's classification.
-    const documentKind = effectiveKindOverride ?? modelKind
+    const { documentKind } = resolveDocumentKind(documentKindOverride, signals, modelKind)
 
     // When the kind isn't already settled, flag a LIKELY misclassification so the
     // tutor confirms rather than silently defaulting an ambiguous document. A

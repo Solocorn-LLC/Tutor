@@ -1,5 +1,30 @@
 import { describe, it, expect } from 'vitest'
-import { analyzeDocumentSignals, documentKindLooksWrong } from './document-signals'
+import {
+  analyzeDocumentSignals,
+  documentKindLooksWrong,
+  resolveDocumentKind,
+  type DocumentSignals,
+} from './document-signals'
+
+const signalsWith = (paperSignal: DocumentSignals['paperSignal']): DocumentSignals => ({
+  markAllocations: 0,
+  questionLines: 0,
+  mcqOptionLines: 0,
+  mcqOptionMarkers: 0,
+  answerBlanks: 0,
+  imperativeCues: 0,
+  proseChars: 0,
+  paperSignal,
+})
+
+// SAT-style: pdfjs collapses each question's options onto one line, so the
+// options/numbers are INLINE (not line-anchored) amid heavy reading passages.
+const SAT_COLLAPSED = `--- Page 4 ---
+Module 1 Reading and Writing 33 QUESTIONS DIRECTIONS ... All questions in this section are multiple-choice with four answer choices. ${Array.from(
+  { length: 12 },
+  (_, i) =>
+    `${i + 1} A long reading passage sets up the context for the question in considerable detail here. Which choice completes the text with the most logical and precise word? A) alpha B) beta C) gamma D) delta`
+).join(' ')}`
 
 // Numbered study notes: numbered headings + prose, but NO marks / MCQ / blanks.
 const STUDY_NOTES = [
@@ -109,5 +134,61 @@ describe('documentKindLooksWrong', () => {
 
   it('does not flag a classified doc when signals are unavailable (image-only PDF)', () => {
     expect(documentKindLooksWrong('question_paper', null)).toBe(false)
+  })
+})
+
+describe('analyzeDocumentSignals — inline MCQ options (SAT / collapsed extraction)', () => {
+  it('detects an MCQ paper as STRONG even when options are inline, not line-anchored', () => {
+    const s = analyzeDocumentSignals(SAT_COLLAPSED)
+    // The line-anchored counts are defeated by the collapsed layout...
+    expect(s.mcqOptionLines).toBeLessThan(4)
+    // ...but the inline option markers catch it.
+    expect(s.mcqOptionMarkers).toBeGreaterThanOrEqual(8)
+    expect(s.paperSignal).toBe('strong')
+  })
+
+  it('a bit of prose with one or two lettered items is NOT strong', () => {
+    const s = analyzeDocumentSignals(
+      'The framework has two parts. A) the parser and B) the evaluator, described below at length in prose that continues.'
+    )
+    expect(s.mcqOptionMarkers).toBeLessThan(8)
+    expect(s.paperSignal).not.toBe('strong')
+  })
+})
+
+describe('resolveDocumentKind', () => {
+  it('a strong paper signal forces question_paper (the SAT/exam-paper backstop)', () => {
+    const r = resolveDocumentKind(undefined, signalsWith('strong'), 'study_material')
+    expect(r.settled).toBe('question_paper')
+    expect(r.documentKind).toBe('question_paper')
+  })
+
+  it('the tutor override always wins — even over a strong signal', () => {
+    const r = resolveDocumentKind('study_material', signalsWith('strong'), 'question_paper')
+    expect(r.settled).toBe('study_material')
+    expect(r.documentKind).toBe('study_material')
+  })
+
+  it('a weak/none signal defers to the model classification', () => {
+    expect(resolveDocumentKind(undefined, signalsWith('weak'), 'study_material').documentKind).toBe(
+      'study_material'
+    )
+    expect(resolveDocumentKind(undefined, signalsWith('weak')).settled).toBeUndefined()
+  })
+
+  it('no signals (image-only PDF) → defers to the model', () => {
+    expect(resolveDocumentKind(undefined, null, 'question_paper').documentKind).toBe(
+      'question_paper'
+    )
+    expect(resolveDocumentKind(undefined, null, null).documentKind).toBeNull()
+  })
+
+  it('resolves a collapsed SAT paper to question_paper against a study_material model call', () => {
+    const r = resolveDocumentKind(
+      undefined,
+      analyzeDocumentSignals(SAT_COLLAPSED),
+      'study_material'
+    )
+    expect(r.documentKind).toBe('question_paper')
   })
 })
