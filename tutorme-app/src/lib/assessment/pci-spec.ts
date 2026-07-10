@@ -27,6 +27,8 @@ export interface PciSpec {
   explanationRules?: string
   /** Retry policy (if defined). */
   retryPolicy?: string
+  /** When/whether the correct answer is revealed to the student (if defined). */
+  answerRevealPolicy?: string
   /** Instructional tone. */
   instructionalTone?: string
 }
@@ -42,6 +44,7 @@ export const PCI_SPEC_FIELDS: { key: keyof PciSpec; label: string }[] = [
   { key: 'noResponseBehavior', label: 'No-response behaviour' },
   { key: 'explanationRules', label: 'Explanation rules' },
   { key: 'retryPolicy', label: 'Retry policy' },
+  { key: 'answerRevealPolicy', label: 'Answer-reveal policy' },
   { key: 'instructionalTone', label: 'Instructional tone' },
 ]
 

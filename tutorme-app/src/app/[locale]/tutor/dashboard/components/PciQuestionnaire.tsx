@@ -110,6 +110,16 @@ const FIELD_HELP: Record<
     ],
     placeholder: 'e.g. Allow up to 2 retries before revealing the answer',
   },
+  answerRevealPolicy: {
+    explain: 'When (or whether) the correct answer is shown to the student.',
+    examples: [
+      'Reveal the answer only after the final attempt.',
+      'Never reveal the answer — keep giving hints.',
+      'Show the model answer once they get it right.',
+      'Reveal after 2 incorrect attempts, then explain why.',
+    ],
+    placeholder: 'e.g. Reveal the answer only after the final attempt',
+  },
   instructionalTone: {
     explain: 'The voice and manner the AI should use with the student.',
     examples: [
