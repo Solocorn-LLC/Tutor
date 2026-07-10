@@ -1087,6 +1087,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assessmentSourceDocument, setAssessmentSourceDocument] = useState<
       ImportedLearningResource | undefined
     >(undefined)
+    // When a DMI is generated from *study material* the tutor's upload stays
+    // visible in the builder, but must NOT be deployed to students (they get the
+    // generated questions as Classroom content instead). This flag records that
+    // "reference-only" state without wiping the document — wiping it previously
+    // produced a "No document selected" preview for study material, and for any
+    // question paper misclassified as study material (e.g. a large SAT paper
+    // whose server-side text extraction fell back to images).
+    const [assessmentSourceReferenceOnly, setAssessmentSourceReferenceOnly] = useState(false)
 
     // Test PCI state
     const [testPciInputs, setTestPciInputs] = useState<Record<string, string>>({
@@ -1336,6 +1344,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setSelectedItem(null)
       setTaskSourceDocument(undefined)
       setAssessmentSourceDocument(undefined)
+      setAssessmentSourceReferenceOnly(false)
       setTaskDmiItems([])
       setAssessmentDmiItems([])
       setTaskDmiVersions([])
@@ -1909,6 +1918,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           : []
       )
       setAssessmentSourceDocument(assessment.sourceDocument)
+      setAssessmentSourceReferenceOnly(false)
       setAssessmentBuilderActiveTab('content')
     }, [])
 
@@ -3162,8 +3172,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           // budget is spent on the actual questions. Fall back to page images
           // for scanned PDFs.
           const extracted = await extractPdfText(sourceDoc.fileUrl, 60, sourceDoc.fileKey)
+          const priorText = (sourceDoc.extractedText || '').trim()
           if (extracted.trim().length > 200) {
             pdfText = focusOnQuestions(extracted).slice(0, 70000)
+          } else if (priorText.length > 200) {
+            // Server-side re-extraction came back thin (large/complex PDF, slow
+            // proxy), but we already captured solid text at upload time. Prefer
+            // that over a handful of page images — real text carries the
+            // question/MCQ markers the classifier needs, so a genuine question
+            // paper (e.g. a large SAT) isn't misread as study material.
+            pdfText = focusOnQuestions(priorText).slice(0, 70000)
           } else {
             try {
               pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8, sourceDoc.fileKey)
@@ -3313,16 +3331,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }))
             setTaskSourceDocument(undefined)
           } else {
+            // Keep the uploaded document visible in the builder; mark it
+            // reference-only so it isn't deployed to students.
             setAssessmentBuilder(prev => ({
               ...prev,
               taskContent: generatedClassroomContent,
-              sourceDocument: undefined,
             }))
-            setAssessmentSourceDocument(undefined)
+            setAssessmentSourceReferenceOnly(true)
           }
           toast.info(
             'Generated questions set as the Classroom content; the original material will not be deployed.'
           )
+        } else if (!isTask) {
+          // Question paper (or a re-run that reclassified): the document IS the
+          // deliverable, so clear any stale reference-only marker.
+          setAssessmentSourceReferenceOnly(false)
         }
 
         const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
@@ -3492,21 +3515,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           deployedAt: Date.now(),
           polls: [],
           questions: [],
-          sourceDocument: currentAssessmentDocument
-            ? {
-                fileName: currentAssessmentDocument.fileName,
-                fileUrl: currentAssessmentDocument.fileUrl,
-                fileKey: currentAssessmentDocument.fileKey,
-                mimeType: currentAssessmentDocument.mimeType,
-              }
-            : undefined,
+          // Reference-only (study-material-derived) documents stay in the
+          // builder for the tutor but are NOT sent to students — they receive
+          // the generated questions as Classroom content instead.
+          sourceDocument:
+            currentAssessmentDocument && !assessmentSourceReferenceOnly
+              ? {
+                  fileName: currentAssessmentDocument.fileName,
+                  fileUrl: currentAssessmentDocument.fileUrl,
+                  fileKey: currentAssessmentDocument.fileKey,
+                  mimeType: currentAssessmentDocument.mimeType,
+                }
+              : undefined,
         }
 
         // Success is confirmed by the server's task:deployed broadcast (handled in
         // insights/page.tsx), not optimistically here.
         insightsProps.onDeployTask?.(task)
       },
-      [assessmentBuilder, assessmentDmiItems, insightsProps, loadedAssessmentId, deployAnswerReveal]
+      [
+        assessmentBuilder,
+        assessmentDmiItems,
+        assessmentSourceReferenceOnly,
+        insightsProps,
+        loadedAssessmentId,
+        deployAnswerReveal,
+      ]
     )
 
     useEffect(() => {
@@ -5213,6 +5247,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
 
           setAssessmentSourceDocument(newDoc)
+          setAssessmentSourceReferenceOnly(false)
           setAssessmentUploadedFiles([{ id: 'source', name: newAsset.name }])
           setAssessmentBuilder(prev => ({
             ...prev,
@@ -6206,15 +6241,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
                       const extractedText = assetToLoad.content || `[Asset: ${assetToLoad.name}]`
                       targetAssess.description = extractedText
-                      if (assetToLoad.url) {
+                      // A durable fileKey is enough to display/deploy the doc (the
+                      // viewer streams it via the by-key proxy), so don't require a
+                      // signed url — it can come back empty when the assets API
+                      // fails to refresh an expired presigned URL, which silently
+                      // left the assessment with no source document ("No document
+                      // selected", no error).
+                      if (assetToLoad.url || assetToLoad.fileKey) {
                         targetAssess.sourceDocument = {
                           fileName: assetToLoad.name,
-                          fileUrl: assetToLoad.url,
+                          fileUrl: assetToLoad.url || '',
                           fileKey: assetToLoad.fileKey,
                           mimeType: assetToLoad.mimeType || 'application/pdf',
                           uploadedAt: new Date().toISOString(),
                           extractedText,
                         }
+                      } else {
+                        toast.error(
+                          'This document has no stored file — please re-upload it before loading.'
+                        )
                       }
 
                       const newCourseBuilderNodes = [...nodes]
