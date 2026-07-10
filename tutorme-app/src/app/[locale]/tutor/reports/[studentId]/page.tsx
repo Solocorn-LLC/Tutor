@@ -163,11 +163,11 @@ export default function StudentReportPage() {
   const getClusterLabel = (cluster: string) => {
     switch (cluster) {
       case 'advanced':
-        return '优秀'
+        return 'Excellent'
       case 'intermediate':
-        return '中等'
+        return 'Average'
       case 'struggling':
-        return '需帮助'
+        return 'Needs help'
       default:
         return cluster
     }

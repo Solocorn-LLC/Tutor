@@ -16,7 +16,7 @@ const buttonVariants = cva(
     'whitespace-nowrap text-sm font-medium',
     'rounded-lg', // Soft rounded corners
     'ease-premium transition-all duration-200',
-    'focus-visible:outline-none',
+    'focus-visible:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
     'disabled:pointer-events-none disabled:opacity-50',
     'active:scale-[0.98]', // Subtle press effect
   ],

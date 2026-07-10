@@ -13,6 +13,7 @@ import {
   calendarAvailability,
   calendarException,
   oneOnOneBookingRequest,
+  deployedMaterial,
 } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -20,6 +21,7 @@ import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, sql, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
+import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
 
 // GET current variants for this template course
 export const GET = withAuth(
@@ -160,11 +162,17 @@ const DAY_MAP: Record<string, number> = {
  */
 function generateSessionDates(
   schedule: ScheduleItem[],
-  weeksAhead = 8
+  weeksAhead = 8,
+  timeZone = 'UTC'
 ): Array<{ scheduledAt: Date; title: string; durationMinutes: number }> {
   const sessions: Array<{ scheduledAt: Date; title: string; durationMinutes: number }> = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const cutoffMs = Date.now() + 60 * 60 * 1000 // skip sessions within the next hour
+
+  // Add `n` days to a wall-clock date (Y/1-based-M/D) → new Y/M/D, without tz drift.
+  const addDays = (year: number, month: number, day: number, n: number) => {
+    const t = new Date(Date.UTC(year, month - 1, day + n))
+    return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() }
+  }
 
   for (const slot of schedule) {
     const targetDay = DAY_MAP[slot.dayOfWeek]
@@ -186,14 +194,12 @@ function generateSessionDates(
       continue
 
     if (slot.date) {
-      // Manual specific date
-      const dateParts = slot.date.split('-').map(Number)
-      const [year, month, day] = dateParts
+      // Manual specific date — the "HH:MM" is the tutor's local wall clock.
+      const [year, month, day] = slot.date.split('-').map(Number)
       if (!year || !month || !day) continue
-      const sessionDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
+      const sessionDate = zonedWallClockToUtc(year, month, day, hours, minutes, timeZone)
       if (isNaN(sessionDate.getTime())) continue
-      // Skip sessions already in the past (within the next hour cutoff)
-      if (sessionDate.getTime() < Date.now() + 60 * 60 * 1000) continue
+      if (sessionDate.getTime() < cutoffMs) continue
       sessions.push({
         scheduledAt: sessionDate,
         title: `Live Session — ${slot.date} ${slot.startTime}`,
@@ -202,21 +208,23 @@ function generateSessionDates(
       continue
     }
 
-    // Find the next occurrence of this day (relative to today, in server local time)
-    const cursor = new Date(today)
-    const daysUntil = (targetDay - cursor.getDay() + 7) % 7
-    cursor.setDate(cursor.getDate() + daysUntil)
-    cursor.setHours(hours, minutes, 0, 0)
-
-    // If the time already passed today or is less than 1 hour away, start from next week
-    if (cursor.getTime() < Date.now() + 60 * 60 * 1000) {
-      cursor.setDate(cursor.getDate() + 7)
+    // Find the next occurrence of this weekday in the TUTOR's timezone, so a
+    // "9 AM Monday" slot means 9 AM Monday for the tutor (not the server/UTC).
+    const now = new Date()
+    const todayZ = zonedDateParts(now, timeZone)
+    const todayWeekday = zonedWeekday(now, timeZone)
+    const daysUntil = (targetDay - todayWeekday + 7) % 7
+    let occ = addDays(todayZ.year, todayZ.month, todayZ.day, daysUntil)
+    let first = zonedWallClockToUtc(occ.year, occ.month, occ.day, hours, minutes, timeZone)
+    if (first.getTime() < cutoffMs) {
+      occ = addDays(occ.year, occ.month, occ.day, 7)
+      first = zonedWallClockToUtc(occ.year, occ.month, occ.day, hours, minutes, timeZone)
     }
 
     // Generate sessions for the next N weeks
     for (let w = 0; w < weeksAhead; w++) {
-      const sessionDate = new Date(cursor)
-      sessionDate.setDate(cursor.getDate() + w * 7)
+      const wk = addDays(occ.year, occ.month, occ.day, w * 7)
+      const sessionDate = zonedWallClockToUtc(wk.year, wk.month, wk.day, hours, minutes, timeZone)
       if (isNaN(sessionDate.getTime())) continue
       sessions.push({
         scheduledAt: sessionDate,
@@ -361,6 +369,16 @@ export const POST = withCsrf(
           recommendations: Array<{ date: string; startTime: string; endTime: string }>
         }> = []
 
+        // The tutor's timezone (all their availability rows share it). Session
+        // "HH:MM" slots are that tutor's wall clock, so everything — session
+        // creation and the availability check — is computed in this zone.
+        const [tutorTzRow] = await drizzleDb
+          .select({ timezone: calendarAvailability.timezone })
+          .from(calendarAvailability)
+          .where(eq(calendarAvailability.tutorId, userId))
+          .limit(1)
+        const tutorTimeZone = tutorTzRow?.timezone || 'UTC'
+
         await drizzleDb.transaction(async tx => {
           // Fetch existing variants with their course data
           const existingRows = await tx
@@ -418,6 +436,99 @@ export const POST = withCsrf(
                     isFree,
                   })
                   .where(eq(course.courseId, publishedCourseId))
+
+                // Propagate the template's lesson edits into this already-
+                // published variant. Publish previously copied lessons only when
+                // a variant was first created, so re-publishing never updated the
+                // live lessons. We correlate template↔published lessons by
+                // `sourceLessonId` (stamped at copy time), falling back to `order`
+                // for rows copied before that linkage existed:
+                //   • matched   → update the published lesson IN PLACE, keeping its
+                //     id so DeployedMaterial / live-session links survive, and
+                //     re-sync its `order` to the template;
+                //   • unmatched template lesson → insert a published copy;
+                //   • unmatched published lesson (dropped from template) → delete
+                //     only when nothing has been deployed from it.
+                // Correlating by id (not position) means reordering the template
+                // updates the RIGHT published lesson instead of whatever now sits
+                // at that slot.
+                const publishedLessonRows = await tx
+                  .select({
+                    lessonId: courseLesson.lessonId,
+                    order: courseLesson.order,
+                    sourceLessonId: courseLesson.sourceLessonId,
+                  })
+                  .from(courseLesson)
+                  .where(
+                    and(
+                      eq(courseLesson.courseId, publishedCourseId),
+                      isNull(courseLesson.deletedAt)
+                    )
+                  )
+                  .orderBy(courseLesson.order)
+
+                const publishedBySource = new Map<string, string>()
+                const publishedByOrder = new Map<number, string>()
+                for (const l of publishedLessonRows) {
+                  if (l.sourceLessonId && !publishedBySource.has(l.sourceLessonId)) {
+                    publishedBySource.set(l.sourceLessonId, l.lessonId)
+                  }
+                  const ord = l.order ?? 0
+                  if (!publishedByOrder.has(ord)) publishedByOrder.set(ord, l.lessonId)
+                }
+
+                const claimedPublishedIds = new Set<string>()
+                for (const [idx, lesson] of templateLessons.entries()) {
+                  const ord = lesson.order ?? idx
+                  const matchId =
+                    publishedBySource.get(lesson.lessonId) ?? publishedByOrder.get(ord)
+                  if (matchId && !claimedPublishedIds.has(matchId)) {
+                    claimedPublishedIds.add(matchId)
+                    await tx
+                      .update(courseLesson)
+                      .set({
+                        // (Re)assert the linkage — backfills order-matched legacy rows.
+                        sourceLessonId: lesson.lessonId,
+                        title: lesson.title,
+                        description: lesson.description,
+                        duration: lesson.duration ?? 60,
+                        order: ord,
+                        builderData: lesson.builderData,
+                        updatedAt: now,
+                      })
+                      .where(eq(courseLesson.lessonId, matchId))
+                  } else {
+                    await tx.insert(courseLesson).values({
+                      lessonId: crypto.randomUUID(),
+                      courseId: publishedCourseId,
+                      sourceLessonId: lesson.lessonId,
+                      title: lesson.title,
+                      description: lesson.description,
+                      duration: lesson.duration ?? 60,
+                      order: ord,
+                      builderData: lesson.builderData,
+                      createdAt: now,
+                      updatedAt: now,
+                    })
+                  }
+                }
+
+                const removedLessonIds = publishedLessonRows
+                  .filter(l => !claimedPublishedIds.has(l.lessonId))
+                  .map(l => l.lessonId)
+                if (removedLessonIds.length > 0) {
+                  const deployedRows = await tx
+                    .select({ lessonId: deployedMaterial.lessonId })
+                    .from(deployedMaterial)
+                    .where(inArray(deployedMaterial.lessonId, removedLessonIds))
+                  const deployedIds = new Set(deployedRows.map(d => d.lessonId))
+                  const deletableIds = removedLessonIds.filter(id => !deployedIds.has(id))
+                  if (deletableIds.length > 0) {
+                    await tx
+                      .delete(courseLesson)
+                      .where(inArray(courseLesson.lessonId, deletableIds))
+                  }
+                }
               }
 
               result.push({
@@ -448,11 +559,13 @@ export const POST = withCsrf(
                 isFree,
               })
 
-              // Copy lessons
+              // Copy lessons — stamp sourceLessonId so each published copy can be
+              // correlated back to its template lesson by a stable id later.
               for (const lesson of templateLessons) {
                 await tx.insert(courseLesson).values({
                   lessonId: crypto.randomUUID(),
                   courseId: publishedCourseId,
+                  sourceLessonId: lesson.lessonId,
                   title: lesson.title,
                   description: lesson.description,
                   duration: lesson.duration ?? 60,
@@ -544,11 +657,34 @@ export const POST = withCsrf(
               }
             }
 
+            // Published lessons in course order — each schedule's sessions are
+            // auto-assigned a lesson sequentially (session 1 → Lesson 1, session 2
+            // → Lesson 2, …) so a schedule no longer collapses everything into
+            // Lesson 1. Sessions beyond the last lesson are left unassigned (null)
+            // for the tutor to fill in via the per-session lesson picker.
+            const publishedLessons = await tx
+              .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+              .from(courseLesson)
+              .where(
+                and(eq(courseLesson.courseId, publishedCourseId), isNull(courseLesson.deletedAt))
+              )
+              .orderBy(courseLesson.order)
+
             // Generate live sessions from all schedules
             for (const s of schedules) {
               const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
               if (scheduleItems.length === 0) continue
-              const sessionDates = generateSessionDates(scheduleItems, s.weeksToSchedule || 8)
+              const sessionDates = generateSessionDates(
+                scheduleItems,
+                s.weeksToSchedule || 8,
+                tutorTimeZone
+              )
+
+              // Each schedule is an independent offering that walks the whole
+              // course, so the lesson cursor restarts at Lesson 1 per schedule.
+              // It only advances when a session is actually materialized, so
+              // skipped (conflicting/out-of-availability) slots don't burn a lesson.
+              let lessonCursor = 0
 
               const scheduledAts = sessionDates.map(s => s.scheduledAt).filter(Boolean)
               const minScheduledAt =
@@ -578,6 +714,7 @@ export const POST = withCsrf(
                           durationMinutes: liveSession.durationMinutes,
                           courseId: liveSession.courseId,
                           roomUrl: liveSession.roomUrl,
+                          lessonId: liveSession.lessonId,
                         })
                         .from(liveSession)
                         .where(
@@ -636,12 +773,15 @@ export const POST = withCsrf(
                     dayOfWeek: calendarAvailability.dayOfWeek,
                     startTime: calendarAvailability.startTime,
                     endTime: calendarAvailability.endTime,
+                    // Include the flag: tutors store BLOCKED times as
+                    // isAvailable=false. Filtering to true only left no windows,
+                    // so blocked slots were never enforced on publish.
+                    isAvailable: calendarAvailability.isAvailable,
                   })
                   .from(calendarAvailability)
                   .where(
                     and(
                       eq(calendarAvailability.tutorId, userId),
-                      eq(calendarAvailability.isAvailable, true),
                       or(
                         isNull(calendarAvailability.validUntil),
                         gte(calendarAvailability.validUntil, now)
@@ -667,11 +807,11 @@ export const POST = withCsrf(
                   : Promise.resolve([]),
               ])
 
-              // Wall-clock helpers (sessions are built as server-local = UTC, the
-              // same wall clock the scheduler compares against).
-              const hhmm = (d: Date) =>
-                `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
-              const dateKeyOf = (d: Date) => d.toISOString().split('T')[0]
+              // Wall-clock helpers in the TUTOR's timezone — availability/exception
+              // times are stored as the tutor's local "HH:MM", so the session
+              // instant must be read in the same zone (not UTC) to compare.
+              const hhmm = (d: Date) => formatInZone(d, tutorTimeZone).time
+              const dateKeyOf = (d: Date) => formatInZone(d, tutorTimeZone).date
               const timesOverlapStr = (s1: string, e1: string, s2: string, e2: string) =>
                 s1 < e2 && e1 > s2
 
@@ -681,15 +821,16 @@ export const POST = withCsrf(
                 start: Date,
                 end: Date
               ): 'outside_availability' | 'exception' | null {
-                const dow = start.getUTCDay()
+                const dow = zonedWeekday(start, tutorTimeZone)
                 const sStr = hhmm(start)
                 const eStr = hhmm(end)
                 const dateKey = dateKeyOf(start)
                 const dayWindows = availabilityWindows.filter(a => a.dayOfWeek === dow)
-                if (
-                  dayWindows.length > 0 &&
-                  !dayWindows.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))
-                ) {
+                // "Available unless blocked": a session overlapping a blocked
+                // (isAvailable=false) window is out of availability. isAvailable=true
+                // and absent rows both mean available, so they never restrict.
+                const blocked = dayWindows.filter(a => a.isAvailable === false)
+                if (blocked.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))) {
                   return 'outside_availability'
                 }
                 for (const ex of dateExceptions) {
@@ -843,6 +984,22 @@ export const POST = withCsrf(
                         externalId: conflictingLs.sessionId,
                       })
                     }
+                    // Backfill the lesson on a session created before lesson
+                    // linkage existed (or a re-publish), keeping the sequence
+                    // aligned. Only set it when currently empty so a tutor's
+                    // manual re-assignment is never overwritten.
+                    const backfillLessonId =
+                      lessonCursor < publishedLessons.length
+                        ? publishedLessons[lessonCursor].lessonId
+                        : null
+                    if (!conflictingLs.lessonId && backfillLessonId) {
+                      await tx
+                        .update(liveSession)
+                        .set({ lessonId: backfillLessonId })
+                        .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+                    }
+                    // Existing same-course session occupies this slot → advance.
+                    lessonCursor++
                     continue
                   } else {
                     // Conflict with a different course — skip and recommend
@@ -862,6 +1019,11 @@ export const POST = withCsrf(
                   }
                 }
 
+                const assignedLessonId =
+                  lessonCursor < publishedLessons.length
+                    ? publishedLessons[lessonCursor].lessonId
+                    : undefined
+
                 try {
                   await createSession(
                     {
@@ -873,6 +1035,7 @@ export const POST = withCsrf(
                       type: 'COURSE',
                       courseId: publishedCourseId,
                       scheduleId: scheduleIdByPayload.get(s) ?? undefined,
+                      lessonId: assignedLessonId,
                       description: templateCourse.description ?? undefined,
                       status: 'scheduled',
                       maxStudents: s.maxStudents ?? 50,
@@ -880,6 +1043,8 @@ export const POST = withCsrf(
                     },
                     tx
                   )
+                  // Session materialized → advance to the next lesson.
+                  lessonCursor++
                 } catch (insertError: any) {
                   const pgError = insertError?.cause || insertError
                   const msg = insertError?.message || String(insertError)

@@ -134,14 +134,16 @@ function TutorInsightsPageInner() {
       setSaveMode('live')
       return
     }
-    // If mode=edit was explicitly passed, stay in draft (don't auto-detect)
+    // Otherwise detect from which list the course belongs to
+    const isLive = courses.some(c => c.id === courseId)
+    const isDraft = draftCourses.some(c => c.id === courseId)
+    // If mode=edit was explicitly passed (from Course Builder nav), prefer draft
+    // mode for editing. For live DB courses, this keeps dataMode as 'default' (not
+    // 'detached') so content loads from the DB safely rather than empty localStorage.
     if (searchParams.get('mode') === 'edit') {
       setSaveMode('draft')
       return
     }
-    // Otherwise detect from which list the course belongs to
-    const isLive = courses.some(c => c.id === courseId)
-    const isDraft = draftCourses.some(c => c.id === courseId)
     if (isLive && !isDraft) {
       setSaveMode('live')
     } else if (isDraft && !isLive) {
@@ -1112,7 +1114,7 @@ function TutorInsightsPageInner() {
     socket.emit('task:deploy', { roomId: sessionId, task })
   }
 
-  const handleSendPoll = (payload: { taskId: string; question: string }) => {
+  const handleSendPoll = (payload: { taskId: string; question: string; options?: string[] }) => {
     if (!socket || !sessionId) return
     const check = checkSessionActive()
     if (!check.ok) {
@@ -1124,6 +1126,7 @@ function TutorInsightsPageInner() {
       taskId: payload.taskId,
       type: 'poll',
       prompt: payload.question,
+      options: payload.options,
     })
   }
 
@@ -1158,6 +1161,14 @@ function TutorInsightsPageInner() {
   }
 
   if (!courseId) {
+    // If a sessionId is in the URL, we're still resolving the linked course — show spinner
+    if (searchParams.get('sessionId')) {
+      return (
+        <div className="flex h-full w-full flex-1 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="p-6">
@@ -1219,10 +1230,11 @@ function TutorInsightsPageInner() {
     )
   }
 
-  const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
+  const dataMode =
+    saveMode === 'draft' && !sessionId && courseId === 'insights-draft' ? 'detached' : 'default'
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-stretch bg-gray-50">
+    <div className="flex h-screen w-full flex-col items-stretch bg-gray-50">
       <PanelErrorBoundary label="the insights builder" resetKeys={[courseId, saveMode]}>
         <CourseBuilderInsightsRoute
           courseId={courseId}
@@ -1304,34 +1316,6 @@ function TutorInsightsPageInner() {
           modeLocked={false}
         />
       </PanelErrorBoundary>
-
-      {/* Create New Course Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Course</DialogTitle>
-            <DialogDescription>Enter a name for your new course.</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newCourseName}
-            onChange={e => setNewCourseName(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                handleCreateNewCourse()
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="modal-primary-dark" onClick={handleCreateNewCourse}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Course Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

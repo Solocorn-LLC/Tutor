@@ -864,12 +864,12 @@ export default function TutorRegistrationPage() {
                             <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40">
                               <SelectValue placeholder="Select Region..." />
                             </SelectTrigger>
-                            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
                               {REGIONS.filter(r => r.id !== 'global').map(regionItem => (
                                 <SelectItem
                                   key={regionItem.id}
                                   value={regionItem.id}
-                                  className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                  className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                                 >
                                   {regionItem.name}
                                 </SelectItem>
@@ -893,7 +893,7 @@ export default function TutorRegistrationPage() {
                             >
                               <SelectValue placeholder="Select Country" />
                             </SelectTrigger>
-                            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
                               {availableCountries.length === 0 ? (
                                 <div className="py-3 text-center text-[13px] text-white/70">
                                   No countries available
@@ -903,7 +903,7 @@ export default function TutorRegistrationPage() {
                                   <SelectItem
                                     key={country.code}
                                     value={country.code}
-                                    className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                    className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                                   >
                                     {country.name}
                                   </SelectItem>

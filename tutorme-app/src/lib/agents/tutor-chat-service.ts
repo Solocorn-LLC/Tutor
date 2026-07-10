@@ -6,6 +6,8 @@ import { findRelevantConcepts } from '@/lib/ai/subjects'
 import { extractWhiteboardItems } from '@/lib/ai/whiteboard-extract'
 import { classifyHintType, extractNextSteps } from '@/lib/agents/tutor'
 import { withAssessmentIntegrity } from '@/lib/assessment/active-assessment'
+import { withTaskPci } from '@/lib/assessment/task-pci-context'
+import type { PciSpec } from '@/lib/assessment/pci-spec'
 
 export interface TutorChatInput {
   userId: string
@@ -23,6 +25,14 @@ export interface TutorChatInput {
    * `hasActiveAssessment`.
    */
   assessmentActive?: boolean
+  /**
+   * The current task's PCI (TASK-6), when the student is working on a specific
+   * deployed task. Free-text notes and/or the finalized structured spec; the
+   * tutor applies them as instructional guidance for THIS task. Loaded by the
+   * caller from `builderTask` (persisted at deploy). No-op when absent.
+   */
+  taskPci?: string | null
+  taskPciSpec?: PciSpec | null
 }
 
 export interface TutorChatOutput {
@@ -81,12 +91,18 @@ export async function runTutorChat(input: TutorChatInput): Promise<TutorChatOutp
     userMessage: safeMessage,
   }
 
+  // TASK-6: when the student is on a specific task, apply that task's PCI as
+  // instructional guidance. Applied to the base prompt first, then the
+  // integrity directive is layered on top so it stays first/highest.
+  const taskAwarePrompt = withTaskPci(
+    buildCompletePrompt(promptConfig),
+    input.taskPci,
+    input.taskPciSpec
+  )
+
   // ASMT-15: while the student has a live assessment, constrain the tutor to
   // procedural-only help so it can't be used to solve in-progress questions.
-  const systemPrompt = withAssessmentIntegrity(
-    buildCompletePrompt(promptConfig),
-    input.assessmentActive === true
-  )
+  const systemPrompt = withAssessmentIntegrity(taskAwarePrompt, input.assessmentActive === true)
 
   const aiResponse = await generateWithFallback(systemPrompt, {
     temperature: 0.7,

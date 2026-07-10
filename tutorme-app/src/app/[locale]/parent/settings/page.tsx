@@ -71,7 +71,7 @@ export default function ParentSettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="zh-CN">简体中文</SelectItem>
+                  <SelectItem value="zh-CN">Chinese (Simplified)</SelectItem>
                   <SelectItem value="en">English</SelectItem>
                 </SelectContent>
               </Select>

@@ -141,6 +141,23 @@ END $$;
 -- that skips migrations still has the column before it serves traffic.
 ALTER TABLE "BuilderTask" ADD COLUMN IF NOT EXISTS "pciSpec" jsonb;
 
+-- Lesson linkage (drizzle/0065): which lesson a session covers + which lesson a
+-- deployed item came from. Nullable; mirrors the migration for skip-migrations.
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "lessonId" text;
+ALTER TABLE "DeployedMaterial" ADD COLUMN IF NOT EXISTS "lessonId" text;
+
+-- Source-lesson linkage (drizzle/0066): the template lesson a published-variant
+-- lesson was copied from, so correlation survives lesson reordering. Nullable.
+ALTER TABLE "CourseLesson" ADD COLUMN IF NOT EXISTS "sourceLessonId" text;
+
+-- Follow-up Q&A (drizzle/0067): persisted student<->assistant follow-ups on a
+-- graded assessment, so tutors can see what was asked/answered. Nullable jsonb.
+ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "followUps" jsonb;
+
+-- Worked solutions (drizzle/0068): cached AI worked solutions keyed by
+-- questionId, reused instead of re-running the model. Nullable jsonb.
+ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "workedSolutions" jsonb;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN

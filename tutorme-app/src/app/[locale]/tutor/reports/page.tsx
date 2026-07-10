@@ -39,6 +39,7 @@ import { StudentReportsTab } from '@/components/reports/student-reports-tab'
 import { cn } from '@/lib/utils'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { CountryFlag } from '@/components/country-flag'
+import { CollapsibleCard } from '@/components/collapsible-card'
 
 interface ClassOption {
   id: string
@@ -133,9 +134,6 @@ export default function TutorReports() {
   const [globalAttentionStudents, setGlobalAttentionStudents] = useState<Student[]>([])
   const [globalAllStudents, setGlobalAllStudents] = useState<Student[]>([])
   const [loadingGlobals, setLoadingGlobals] = useState(true)
-
-  const [rosterExpanded, setRosterExpanded] = useState(true)
-  const [reportsExpanded, setReportsExpanded] = useState(true)
 
   interface AnalyticsData {
     totalCourses: number
@@ -388,169 +386,124 @@ export default function TutorReports() {
         >
           {/* Revenue Tab */}
           <TabsContent value="revenue" className="flex h-full flex-col gap-4 pb-4">
-            <RevenueDashboard
-              className="flex-1 overflow-hidden rounded-[16px] border-0 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]"
-              themeId="current"
-            />
+            <RevenueDashboard className="flex-1 overflow-hidden" themeId="current" embedded />
           </TabsContent>
 
           {/* Students Tab */}
-          <TabsContent value="students" className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
-            <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
-              <button
-                type="button"
-                onClick={() => setRosterExpanded(prev => !prev)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="panel-header-icon">
-                      <Users className="h-5 w-5 text-slate-900" />
-                    </div>
-                    <div>
-                      <div className="panel-header-title">Student Roster</div>
-                    </div>
+          <TabsContent value="students" className="flex h-full flex-col gap-4 pb-4">
+            <CollapsibleCard
+              title="Student Roster"
+              icon={<Users className="h-5 w-5 text-slate-900" />}
+              defaultOpen
+              fillHeight
+              className="flex-1"
+            >
+              <div className="space-y-6">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Student Roster</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Manage and view all enrolled students
+                    </p>
                   </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {rosterExpanded ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Search students..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-64 border-slate-200 bg-slate-50/50"
+                    />
+                    <Select value={selectedCluster} onValueChange={setSelectedCluster}>
+                      <SelectTrigger className="w-40 border-slate-200 bg-slate-50/50">
+                        <SelectValue placeholder="Filter by cluster" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Students</SelectItem>
+                        <SelectItem value="advanced">Advanced</SelectItem>
+                        <SelectItem value="intermediate">Intermediate</SelectItem>
+                        <SelectItem value="struggling">Needs Support</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </button>
-              {rosterExpanded && (
-                <div className="h-full space-y-6 p-6">
-                  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-800">Student Roster</h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Manage and view all enrolled students
-                      </p>
+                <div className="space-y-3">
+                  {filteredStudents.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
+                      {searchQuery ? 'No students match your search.' : 'No students enrolled yet.'}
                     </div>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Search students..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="w-64 border-slate-200 bg-slate-50/50"
-                      />
-                      <Select value={selectedCluster} onValueChange={setSelectedCluster}>
-                        <SelectTrigger className="w-40 border-slate-200 bg-slate-50/50">
-                          <SelectValue placeholder="Filter by cluster" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Students</SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                          <SelectItem value="intermediate">Intermediate</SelectItem>
-                          <SelectItem value="struggling">Needs Support</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {filteredStudents.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
-                        {searchQuery
-                          ? 'No students match your search.'
-                          : 'No students enrolled yet.'}
-                      </div>
-                    ) : (
-                      filteredStudents.map(student => (
-                        <div
-                          key={student.id}
-                          className="flex items-center justify-between rounded-[12px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.14)] transition-all duration-200 ease-in-out hover:bg-slate-50 hover:shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
-                        >
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
-                                {student.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold text-slate-800">{student.name}</p>
-                              <p className="text-xs font-medium text-slate-500">{student.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                Courses
-                              </p>
-                              <p className="font-semibold text-slate-700">
-                                {student.courseCount ?? 0}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                Classes
-                              </p>
-                              <p className="font-semibold text-slate-700">
-                                {student.classCount ?? 0}
-                              </p>
-                            </div>
-                            {student.cluster && (
-                              <Badge
-                                className={cn(
-                                  getClusterBadgeClass(student.cluster),
-                                  'border-0 font-semibold'
-                                )}
-                              >
-                                {getClusterLabel(student.cluster)}
-                              </Badge>
-                            )}
-                            <Link href={`/tutor/reports/${student.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-slate-400 hover:bg-slate-100 hover:text-slate-800"
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                  ) : (
+                    filteredStudents.map(student => (
+                      <div
+                        key={student.id}
+                        className="flex items-center justify-between rounded-[12px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-4 shadow-[0_14px_45px_rgba(0,0,0,0.14)] transition-all duration-200 ease-in-out hover:bg-slate-50 hover:shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+                              {student.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-slate-800">{student.name}</p>
+                            <p className="text-xs font-medium text-slate-500">{student.email}</p>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              Courses
+                            </p>
+                            <p className="font-semibold text-slate-700">
+                              {student.courseCount ?? 0}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              Classes
+                            </p>
+                            <p className="font-semibold text-slate-700">
+                              {student.classCount ?? 0}
+                            </p>
+                          </div>
+                          {student.cluster && (
+                            <Badge
+                              className={cn(
+                                getClusterBadgeClass(student.cluster),
+                                'border-0 font-semibold'
+                              )}
+                            >
+                              {getClusterLabel(student.cluster)}
+                            </Badge>
+                          )}
+                          <Link href={`/tutor/reports/${student.id}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-slate-400 hover:bg-slate-100 hover:text-slate-800"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            </CollapsibleCard>
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
-            <div className="flex flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
-              <button
-                type="button"
-                onClick={() => setReportsExpanded(prev => !prev)}
-                className="panel-header panel-header-metallic w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="panel-header-icon">
-                      <BarChart3 className="h-5 w-5 text-slate-900" />
-                    </div>
-                    <div>
-                      <div className="panel-header-title">Student Reports</div>
-                    </div>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                    {reportsExpanded ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
-                  </div>
-                </div>
-              </button>
-              {reportsExpanded && (
-                <div className="min-h-0 flex-1 p-6">
-                  <StudentReportsTab />
-                </div>
-              )}
-            </div>
+          <TabsContent value="reports" className="flex h-full flex-col gap-4 pb-4">
+            <CollapsibleCard
+              title="Student Reports"
+              icon={<BarChart3 className="h-5 w-5 text-slate-900" />}
+              defaultOpen
+              fillHeight
+              className="flex-1"
+            >
+              <StudentReportsTab />
+            </CollapsibleCard>
           </TabsContent>
 
           {/* Courses & Classes Tab */}

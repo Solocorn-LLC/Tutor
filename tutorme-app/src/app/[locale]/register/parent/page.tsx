@@ -478,34 +478,34 @@ export default function ParentRegistrationPage() {
                         <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
                           <SelectItem
                             value="parent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Parent
                           </SelectItem>
                           <SelectItem
                             value="guardian"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Guardian
                           </SelectItem>
                           <SelectItem
                             value="step-parent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Step-Parent
                           </SelectItem>
                           <SelectItem
                             value="grandparent"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Grandparent
                           </SelectItem>
                           <SelectItem
                             value="other"
-                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                            className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                           >
                             Other
                           </SelectItem>
@@ -607,7 +607,7 @@ export default function ParentRegistrationPage() {
                           <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
                             <SelectValue placeholder="Select grade" />
                           </SelectTrigger>
-                          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                          <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
                             {[
                               'Grade 1',
                               'Grade 2',
@@ -626,7 +626,7 @@ export default function ParentRegistrationPage() {
                               <SelectItem
                                 key={grade}
                                 value={grade}
-                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15 focus:bg-white/20 focus:text-white"
+                                className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"
                               >
                                 {grade}
                               </SelectItem>

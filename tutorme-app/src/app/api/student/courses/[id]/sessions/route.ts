@@ -3,7 +3,12 @@ import { eq, and, asc } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession as liveSessionTable, courseEnrollment, course } from '@/lib/db/schema'
+import {
+  liveSession as liveSessionTable,
+  courseEnrollment,
+  course,
+  courseLesson,
+} from '@/lib/db/schema'
 import { or, isNull } from 'drizzle-orm'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
 import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
@@ -46,6 +51,15 @@ export const GET = withAuth(
       // Fetch real live sessions, scoped to the student's chosen schedule when
       // they have one (a switch then cascades to which sessions they see).
       // One-time/ad-hoc sessions (scheduleId null) are shown to everyone.
+      // Lesson titles so each session can show which lesson it covers.
+      const lessonRows = await drizzleDb
+        .select({ id: courseLesson.lessonId, title: courseLesson.title, order: courseLesson.order })
+        .from(courseLesson)
+        .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
+        .orderBy(asc(courseLesson.order))
+      const lessonTitleById = new Map(lessonRows.map(l => [l.id, l.title]))
+      const lessonNumberById = new Map(lessonRows.map((l, i) => [l.id, i + 1]))
+
       const enrolledScheduleId = (enrollment as { scheduleId?: string | null }).scheduleId ?? null
       const realSessions = await drizzleDb.query.liveSession.findMany({
         where: enrolledScheduleId
@@ -76,6 +90,9 @@ export const GET = withAuth(
         isVirtual: false,
         durationMinutes: s.durationMinutes ?? 120,
         maxStudents: s.maxStudents ?? 50,
+        lessonId: s.lessonId ?? null,
+        lessonTitle: s.lessonId ? (lessonTitleById.get(s.lessonId) ?? null) : null,
+        lessonNumber: s.lessonId ? (lessonNumberById.get(s.lessonId) ?? null) : null,
       }))
 
       // Generate virtual sessions from the schedule that publish actually

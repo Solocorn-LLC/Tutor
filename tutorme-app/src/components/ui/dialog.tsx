@@ -74,9 +74,9 @@ const dialogContentVariants = cva(
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         ],
         metallic: [
-          'bg-[rgba(39,43,50,0.72)]',
-          'backdrop-blur-[18px]',
-          'border-0',
+          'bg-[rgba(31,41,51,0.60)]',
+          'backdrop-blur-xl',
+          'border border-white/10',
           'p-6',
           'text-white',
           'shadow-[0_24px_64px_rgba(15,23,42,0.32)]',

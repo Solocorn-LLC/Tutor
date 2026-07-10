@@ -9,6 +9,7 @@ import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
+import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 
 const respondSchema = z.object({
   requestId: z.string().min(1),
@@ -65,6 +66,24 @@ export async function PATCH(request: NextRequest) {
         validated.selectedSlot?.date || existingRequest.requestedDate.toISOString().split('T')[0]
       const slotStartTime = validated.selectedSlot?.startTime || existingRequest.startTime
       const slotEndTime = validated.selectedSlot?.endTime || existingRequest.endTime
+
+      // The accepted time must fall within the student's availability (managed
+      // by their parent). Not enforced when no availability is configured yet.
+      const withinAvailability = await isSlotWithinStudentAvailability(
+        existingRequest.studentId,
+        slotDate,
+        slotStartTime,
+        slotEndTime
+      )
+      if (!withinAvailability) {
+        return NextResponse.json(
+          {
+            error:
+              "That time is outside the student's available hours. Ask the student's parent to update their availability, or accept a different slot.",
+          },
+          { status: 400 }
+        )
+      }
 
       // Create event timestamps
       const eventStart = new Date(`${slotDate}T${slotStartTime}:00`)
@@ -133,6 +152,8 @@ export async function PATCH(request: NextRequest) {
             status: 'ACCEPTED',
             tutorNotes: validated.tutorNotes || existingRequest.tutorNotes,
             tutorResponseAt: new Date(),
+            // Payment window: the student has 48h to pay before the hold lapses.
+            paymentDueAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
             calendarEventId: newEvent.eventId,
             updatedAt: new Date(),
           })

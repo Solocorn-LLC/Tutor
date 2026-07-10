@@ -145,14 +145,13 @@ export class DailyCoProvider implements VideoProvider {
           room_name: roomName,
           user_id: userId,
           is_owner: isOwner,
-          ...(isOwner
-            ? {}
-            : {
-                start_video_off: true,
-                permissions: {
-                  canSendVideo: false,
-                },
-              }),
+          // Students start with their camera off. NOTE: a non-standard
+          // `permissions: { canSendVideo: false }` used to sit here — that key
+          // isn't part of Daily's meeting-token schema, so the /meeting-tokens
+          // call rejected it (400), token creation threw, and students were
+          // handed a null token for a PRIVATE room → every join failed ("Try
+          // again"). `start_video_off` covers the camera-off intent on its own.
+          ...(isOwner ? {} : { start_video_off: true }),
           exp: expiry,
         },
       }),

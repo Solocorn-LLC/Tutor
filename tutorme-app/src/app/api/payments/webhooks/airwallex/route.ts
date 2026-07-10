@@ -21,6 +21,7 @@ import {
 } from '@/lib/db/schema'
 import { AirwallexGateway } from '@/lib/payments'
 import { sendPaymentConfirmation } from '@/lib/notifications/payment-email'
+import { notify } from '@/lib/notifications/notify'
 import { eq, and, sql } from 'drizzle-orm'
 
 export async function POST(req: NextRequest) {
@@ -190,6 +191,15 @@ export async function POST(req: NextRequest) {
             .limit(1)
 
           if (requestRow) {
+            // Notify the tutor that the booking is now paid & confirmed.
+            notify({
+              userId: requestRow.tutorId,
+              type: 'class',
+              title: '1-on-1 payment received',
+              message: 'The student has paid — the 1-on-1 session is confirmed.',
+              data: { requestId: meta.requestId as string, type: 'one-on-one-paid' },
+              actionUrl: '/tutor/dashboard',
+            }).catch(() => {})
             const [userRow] = await drizzleDb
               .select({ email: user.email, name: profile.name })
               .from(user)

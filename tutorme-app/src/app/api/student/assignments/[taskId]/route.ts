@@ -102,7 +102,19 @@ export async function GET(
 
     // Existing submission (if any) for this student
     const [existing] = await drizzleDb
-      .select({ score: taskSubmission.score, status: taskSubmission.status })
+      .select({
+        score: taskSubmission.score,
+        status: taskSubmission.status,
+        tutorApproved: taskSubmission.tutorApproved,
+        tutorFeedback: taskSubmission.tutorFeedback,
+        answers: taskSubmission.answers,
+        questionResults: taskSubmission.questionResults,
+        maxScore: taskSubmission.maxScore,
+        submittedAt: taskSubmission.submittedAt,
+        gradedAt: taskSubmission.gradedAt,
+        aiFeedback: taskSubmission.aiFeedback,
+        followUps: taskSubmission.followUps,
+      })
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
       .limit(1)
@@ -131,15 +143,36 @@ export async function GET(
             : 'instant'
     // correctAnswer is exposed for 'instant' and 'student_choice' (the student
     // may opt into practice mode); stripped for after_submit/hidden so it can't
-    // be peeked before submitting.
-    const exposeAnswers = answerReveal === 'instant' || answerReveal === 'student_choice'
+    // be peeked before submitting. BUT once the student has submitted, reveal the
+    // key for every mode except 'hidden' so they can review what they got wrong.
+    const alreadySubmitted = existing != null
+    const exposeAnswers =
+      answerReveal === 'instant' ||
+      answerReveal === 'student_choice' ||
+      (alreadySubmitted && answerReveal !== 'hidden')
     const safeQuestions = exposeAnswers
       ? questions
       : questions.map(({ correctAnswer: _c, ...q }) => q)
 
     return NextResponse.json({
-      alreadySubmitted: existing != null,
+      alreadySubmitted,
       existingScore: existing?.score ?? null,
+      // Whether the tutor has finalized the grade (vs the automatic provisional
+      // score). Lets the student see "graded by your tutor" + any feedback.
+      existingGraded: existing?.status === 'graded' || existing?.tutorApproved === true,
+      existingFeedback: existing?.tutorFeedback ?? null,
+      // Full graded review so a student can re-open a completed assessment and see
+      // their per-question breakdown + the tutor's feedback (not just a score).
+      existingAnswers: existing?.answers ?? null,
+      existingQuestionResults: existing?.questionResults ?? null,
+      existingMaxScore: existing?.maxScore ?? null,
+      existingSubmittedAt: existing?.submittedAt ?? null,
+      existingGradedAt: existing?.gradedAt ?? null,
+      // Grounded per-question AI study hints, if already generated (see the
+      // ai-feedback endpoint — generated on demand and cached here).
+      existingAiFeedback: existing?.aiFeedback ?? null,
+      // Persisted task-chat follow-ups, so a reopened task restores its full chat.
+      existingFollowUps: existing?.followUps ?? null,
       task: {
         id: task.taskId,
         title: task.title,

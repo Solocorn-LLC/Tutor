@@ -95,7 +95,11 @@ export interface LiveTaskPoll {
   id: string
   taskId: string
   question: string
+  /** Option indices [0..n-1]; a vote's `value` is the chosen index. */
   options: number[]
+  /** Display labels per option index (['True','False'], ['Yes','No'], custom).
+   *  Absent ⇒ render A/B/C/… by index. */
+  optionLabels?: string[]
   status: 'open' | 'closed'
   responses: LiveTaskPollResponse[]
   createdAt: number
@@ -105,6 +109,9 @@ export interface LiveTaskQuestion {
   id: string
   taskId: string
   prompt: string
+  /** Mirrors LiveTaskPoll: a closed question accepts no more answers. Optional
+   *  for back-compat with snapshots created before questions had a status. */
+  status?: 'open' | 'closed'
   responses: LiveTaskQuestionResponse[]
   createdAt: number
 }
@@ -163,6 +170,9 @@ export interface LiveTask {
    *  layer, same handling as answerKey. */
   pci?: string
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+  /** The lesson this task/assessment was deployed from — tags BuilderTask +
+   *  DeployedMaterial with the real lesson so submissions group correctly. */
+  lessonId?: string
   /** Tutor's answer-reveal policy: 'instant' | 'after_submit' | 'hidden' | 'student_choice'. */
   answerReveal?: 'instant' | 'after_submit' | 'hidden' | 'student_choice'
   deployedAt: number
@@ -1235,6 +1245,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
             title: normalizedTask.title,
             content: normalizedTask as unknown as Record<string, unknown>,
             sessionSequence,
+            // Source lesson (deploy-only), so the Desk groups this under the real
+            // lesson instead of always "Lesson 1".
+            lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
             deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
           })
 
@@ -1253,15 +1266,34 @@ export async function initEnhancedSocketServer(server: NetServer) {
           try {
             const tutorId = socket.data.userId
             if (tutorId) {
-              // builderTask.lessonId is a NOT NULL FK. Most courses have a
-              // lesson, but one published with only a schedule (no built
-              // content) has none — create a placeholder so the deployed task
-              // can still be persisted and graded.
-              let [lesson] = await drizzleDb
-                .select({ lessonId: courseLesson.lessonId })
-                .from(courseLesson)
-                .where(eq(courseLesson.courseId, sessionRec.courseId))
-                .limit(1)
+              // builderTask.lessonId is a NOT NULL FK. Prefer the lesson the task
+              // was actually deployed FROM (task.lessonId, sent on the deploy
+              // payload) so submissions group under the real lesson instead of
+              // always "Lesson 1". Fall back to the course's first lesson, then a
+              // placeholder (a course published with only a schedule has none).
+              let lesson: { lessonId: string } | undefined
+              if (typeof task.lessonId === 'string' && task.lessonId) {
+                const [preferred] = await drizzleDb
+                  .select({ lessonId: courseLesson.lessonId })
+                  .from(courseLesson)
+                  .where(
+                    and(
+                      eq(courseLesson.lessonId, task.lessonId),
+                      eq(courseLesson.courseId, sessionRec.courseId)
+                    )
+                  )
+                  .limit(1)
+                if (preferred?.lessonId) lesson = preferred
+              }
+              if (!lesson) {
+                const [first] = await drizzleDb
+                  .select({ lessonId: courseLesson.lessonId })
+                  .from(courseLesson)
+                  .where(eq(courseLesson.courseId, sessionRec.courseId))
+                  .orderBy(courseLesson.order)
+                  .limit(1)
+                lesson = first
+              }
               // NOTE: set createdAt/updatedAt explicitly. These columns are
               // declared notNull().defaultNow() in the schema, but the prod DB
               // has drifted and lacks the column DEFAULT, so relying on the
@@ -1517,10 +1549,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
     socket.on(
       'task:complete',
       (
-        data: { roomId: string; taskId: string; answers?: Record<string, string> },
+        data: {
+          roomId: string
+          taskId: string
+          answers?: Record<string, string>
+          // Set by the chat-task flow: the answers + AI responses were already
+          // persisted over HTTP (task-chat route), so this event should only
+          // broadcast the live completion tick and NOT write the DB again.
+          aiHandled?: boolean
+        },
         ack?: (resp: { ok: boolean; error?: string }) => void
       ) => {
-        const { roomId, taskId, answers } = data
+        const { roomId, taskId, answers, aiHandled } = data
         if (!roomId || !taskId) {
           ack?.({ ok: false, error: 'Invalid submission' })
           return
@@ -1576,6 +1616,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // and the client would surface a real error instead of a false success.
         ack?.({ ok: true })
 
+        // Chat tasks already persisted everything (taskSubmission + AI responses)
+        // over HTTP — this event was only for the live completion tick, so stop
+        // before the DB write to avoid clobbering that richer row.
+        if (aiHandled) return
+
         // Persist the completion durably so it reaches the tutor's grading
         // views. There are THREE tutor readers with DIFFERENT requirements:
         //   - Grading page (/api/tutor/submissions): taskSubmission ⋈ builderTask,
@@ -1616,12 +1661,29 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // every persist in this chain. Explicit values are drift-proof.
             const now = new Date()
 
-            // 1) Lesson (builderTask.lessonId is NOT NULL).
-            let [lesson] = await drizzleDb
-              .select({ lessonId: courseLesson.lessonId })
-              .from(courseLesson)
-              .where(eq(courseLesson.courseId, courseId))
-              .limit(1)
+            // 1) Lesson (builderTask.lessonId is NOT NULL). Prefer the lesson the
+            //    task was deployed from; fall back to the first lesson, then a
+            //    placeholder.
+            let lesson: { lessonId: string } | undefined
+            if (typeof task.lessonId === 'string' && task.lessonId) {
+              const [preferred] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(
+                  and(eq(courseLesson.lessonId, task.lessonId), eq(courseLesson.courseId, courseId))
+                )
+                .limit(1)
+              if (preferred?.lessonId) lesson = preferred
+            }
+            if (!lesson) {
+              const [first] = await drizzleDb
+                .select({ lessonId: courseLesson.lessonId })
+                .from(courseLesson)
+                .where(eq(courseLesson.courseId, courseId))
+                .orderBy(courseLesson.order)
+                .limit(1)
+              lesson = first
+            }
             if (!lesson?.lessonId) {
               const newLessonId = crypto.randomUUID()
               await drizzleDb.insert(courseLesson).values({
@@ -1680,6 +1742,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 itemId: taskId,
                 title: task.title || 'Untitled',
                 sessionSequence: 1,
+                lessonId: lesson.lessonId,
                 deployedAt: now,
               })
             }
@@ -2144,6 +2207,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
         taskId?: string
         type: 'poll' | 'question' | 'tutor:state_sync'
         prompt?: string
+        /** Poll option labels chosen by the tutor (True/False, Yes/No, custom).
+         *  Omitted ⇒ default A–E. */
+        options?: string[]
         payload?: unknown
       }) => {
         if (socket.data.role !== 'tutor') return
@@ -2210,11 +2276,19 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         if (type === 'poll') {
+          // Tutor-chosen labels (True/False, Yes/No, custom); fall back to A–E.
+          // Sanitized: trimmed, non-empty, deduped-by-position, capped at 8.
+          const rawLabels = Array.isArray(data.options)
+            ? data.options.map(o => String(o ?? '').trim()).filter(Boolean)
+            : []
+          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 8) : ['A', 'B', 'C', 'D', 'E']
           const poll: LiveTaskPoll = {
             id: `poll-${taskId}-${Date.now()}`,
             taskId,
             question: prompt || 'Did you find this task difficult?',
-            options: [1, 2, 3, 4, 5],
+            // Index-based options; a vote's `value` is the chosen 0-based index.
+            options: labels.map((_, i) => i),
+            optionLabels: labels,
             status: 'open',
             responses: [],
             createdAt: Date.now(),
@@ -2231,6 +2305,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           id: `question-${taskId}-${Date.now()}`,
           taskId,
           prompt: prompt || 'Do you have a question about this task?',
+          status: 'open',
           responses: [],
           createdAt: Date.now(),
         }
@@ -2266,16 +2341,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
           const studentId = socket.data.userId
           if (!studentId) return
           const existingIndex = poll.responses.findIndex(r => r.studentId === studentId)
+          // Once answered, a response is immutable — ignore any change attempt.
+          if (existingIndex >= 0) return
           const response: LiveTaskPollResponse = {
             studentId,
             value,
             submittedAt: Date.now(),
           }
-          if (existingIndex >= 0) {
-            poll.responses[existingIndex] = response
-          } else {
-            poll.responses.push(response)
-          }
+          poll.responses.push(response)
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
@@ -2284,23 +2357,50 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         const question = task.questions.find(item => item.id === insightId)
-        if (!question) return
+        if (!question || question.status === 'closed') return
         const studentId = socket.data.userId
         if (!studentId || !answer?.trim()) return
         const existingIndex = question.responses.findIndex(r => r.studentId === studentId)
+        // Once answered, a response is immutable — ignore any change attempt.
+        if (existingIndex >= 0) return
         const response: LiveTaskQuestionResponse = {
           studentId,
           answer: answer.trim(),
           submittedAt: Date.now(),
         }
-        if (existingIndex >= 0) {
-          question.responses[existingIndex] = response
-        } else {
-          question.responses.push(response)
-        }
+        question.responses.push(response)
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
+        io.to(roomId).emit('task:updated', { task })
+      }
+    )
+
+    // Tutor closes a poll/question: no further responses are accepted and the
+    // already-collected answers are locked. Broadcast so both sides update.
+    socket.on(
+      'insight:close',
+      (data: { roomId: string; taskId: string; type: 'poll' | 'question'; insightId: string }) => {
+        const { roomId, taskId, type, insightId } = data
+        if (!roomId || !taskId || !insightId) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+        const task = room.tasks.find(item => item.id === taskId)
+        if (!task) return
+
+        if (type === 'poll') {
+          const poll = task.polls.find(item => item.id === insightId)
+          if (!poll) return
+          poll.status = 'closed'
+          io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
+        } else {
+          const question = task.questions.find(item => item.id === insightId)
+          if (!question) return
+          question.status = 'closed'
+          io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
+        }
+        room.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('task:updated', { task })
       }
     )

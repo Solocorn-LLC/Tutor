@@ -10,6 +10,10 @@ import { z } from 'zod'
 import { runTutorChat } from '@/lib/agents/tutor-chat-service'
 import { hasActiveAssessment } from '@/lib/assessment/active-assessment'
 import { getServerSession, authOptions } from '@/lib/auth'
+import { drizzleDb } from '@/lib/db/drizzle'
+import { builderTask } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { normalizePciSpec } from '@/lib/assessment/pci-spec'
 
 type TutorMode = 'socratic' | 'direct' | 'lesson' | 'practice'
 
@@ -22,6 +26,8 @@ const TutorRequestSchema = z.object({
   voiceGender: z.enum(['female', 'male']).default('female'),
   voiceAccent: z.string().max(32).default('US'),
   conversationId: z.string().max(128).optional(),
+  /** The task the student is working on, so the tutor applies its PCI (TASK-6). */
+  taskId: z.string().max(100).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -48,12 +54,35 @@ export async function POST(request: NextRequest) {
       voiceGender,
       voiceAccent,
       conversationId,
+      taskId,
     } = parsed.data
 
     const teachingMode: TutorMode = mode === 'hint' ? 'socratic' : mode
 
     // ASMT-15: refuse to solve assessment questions while one is in progress.
     const assessmentActive = await hasActiveAssessment(session.user.id)
+
+    // TASK-6: when the student names the task they're on, load that task's PCI
+    // (free-text + structured spec, persisted at deploy) so the tutor applies
+    // the tutor-authored instructional approach. Best-effort — a miss just
+    // falls back to generic tutoring, never an error.
+    let taskPci: string | null = null
+    let taskPciSpec = null as ReturnType<typeof normalizePciSpec>
+    if (taskId) {
+      try {
+        const [t] = await drizzleDb
+          .select({ pci: builderTask.pci, pciSpec: builderTask.pciSpec })
+          .from(builderTask)
+          .where(eq(builderTask.taskId, taskId))
+          .limit(1)
+        if (t) {
+          taskPci = typeof t.pci === 'string' && t.pci.trim() ? t.pci : null
+          taskPciSpec = normalizePciSpec(t.pciSpec)
+        }
+      } catch (taskErr) {
+        console.warn('[ai-tutor] task PCI load failed (non-critical):', taskErr)
+      }
+    }
 
     const response = await runTutorChat({
       userId: session.user.id,
@@ -66,6 +95,8 @@ export async function POST(request: NextRequest) {
       voiceAccent,
       chatHistory: [],
       assessmentActive,
+      taskPci,
+      taskPciSpec,
     })
 
     return NextResponse.json({

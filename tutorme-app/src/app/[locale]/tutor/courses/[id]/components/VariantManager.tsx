@@ -880,7 +880,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                           }}
                         >
                           <Plus className="mr-1 h-4 w-4" />
-                          Add another schedule
+                          Add Schedule
                         </Button>
                       </div>
                     </div>
@@ -919,7 +919,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           }}
         >
           <DialogContent
-            className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-0 bg-[rgba(31,41,51,0.72)] p-0 shadow-[0_24px_64px_rgba(15,23,42,0.32)] backdrop-blur-[18px] sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
+            className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
             rounded="lg"
           >
             <div className="flex h-full flex-col p-5 sm:p-6">

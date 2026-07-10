@@ -16,7 +16,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import * as enums from '../enums'
 import { user } from './auth'
-import { course, courseSchedule } from './course'
+import { course, courseSchedule, courseLesson } from './course'
 
 export const liveSession = pgTable(
   'LiveSession',
@@ -29,6 +29,12 @@ export const liveSession = pgTable(
     // The CourseSchedule this session was materialized from (null for ad-hoc / 1:1).
     // Lets a session trace back to its schedule and makes re-publish idempotent.
     scheduleId: text('scheduleId').references(() => courseSchedule.scheduleId, {
+      onDelete: 'set null',
+    }),
+    // The lesson this session covers (its "lesson plan" slot). Assigned when a
+    // schedule materializes into sessions; nullable for ad-hoc/1:1. Lets the live
+    // view auto-load the right lesson and the Desk group by it.
+    lessonId: text('lessonId').references(() => courseLesson.lessonId, {
       onDelete: 'set null',
     }),
     title: text('title').notNull(),
@@ -166,6 +172,9 @@ export const deployedMaterial = pgTable(
     title: text('title').notNull(),
     content: jsonb('content').$type<Record<string, unknown>>(), // Snapshot of the item's content at deployment time
     sessionSequence: integer('sessionSequence').notNull(), // e.g. 1 for 's1', 2 for 's2'
+    // The lesson this material was deployed from, so the Desk can group
+    // submissions under the real lesson (not always "Lesson 1"). Nullable.
+    lessonId: text('lessonId'),
     deployedAt: timestamp('deployedAt', { withTimezone: true }).notNull().defaultNow(),
   },
   table => ({

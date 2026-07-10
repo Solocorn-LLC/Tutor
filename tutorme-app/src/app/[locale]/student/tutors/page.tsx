@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
 import { TutorCard } from '../subjects/[subjectCode]/courses/components/TutorCard'
+import { CategoryGridIcon } from '@/components/categories/CategoryGridIcon'
+import { CategorySearchModal } from '@/components/categories/CategorySearchModal'
 
 interface TutorCoursePreview {
   id: string
@@ -61,8 +63,12 @@ export default function StudentTutorDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
-  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate'>('popular')
+  const [geoDetected, setGeoDetected] = useState(false)
+  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'courses' | 'rate' | 'following'>(
+    'popular'
+  )
   const [currentPage, setCurrentPage] = useState(1)
+  const [showCategories, setShowCategories] = useState(false)
   const ITEMS_PER_PAGE = 8
 
   const availableCountries = useMemo(() => {
@@ -71,7 +77,31 @@ export default function StudentTutorDirectoryPage() {
   }, [selectedRegion])
   const [following, setFollowing] = useState<Set<string>>(new Set())
 
-  // Load following from API on mount
+  // Edit 1: Auto-detect user's country from IP on mount
+  useEffect(() => {
+    if (geoDetected) return
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then((data: { country?: string }) => {
+        if (!data.country) return
+        const code = data.country.toUpperCase()
+        for (const region of REGIONS) {
+          if (region.id === 'global') continue
+          const found = region.countries.find(c => c.code === code)
+          if (found) {
+            setSelectedRegion(region.id)
+            setSelectedCountryCode(code)
+            setGeoDetected(true)
+            break
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fail — user can manually select
+      })
+  }, [geoDetected])
+
+  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
@@ -130,29 +160,83 @@ export default function StudentTutorDirectoryPage() {
     }
   }
 
+  // Edit 2: Tiered fetching — exact matches first, then popular
   useEffect(() => {
     let active = true
+
+    const fetchTieredTutors = async (
+      query: string,
+      countryCode: string
+    ): Promise<TutorDirectoryItem[]> => {
+      const baseParams = new URLSearchParams()
+      baseParams.set('page', '1')
+      baseParams.set('pageSize', '40') // 5 pages worth
+      if (query) baseParams.set('q', query)
+
+      const tierQueries: { url: string }[] = []
+
+      // Tier 1: Query + Country (most relevant)
+      if (query && countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams(baseParams)
+        p.set('country', countryCode)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 2: Query only
+      if (query) {
+        const p = new URLSearchParams(baseParams)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 3: Country only
+      if (countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams()
+        p.set('page', '1')
+        p.set('pageSize', '40')
+        p.set('country', countryCode)
+        tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+      }
+
+      // Tier 4: All remaining (no filters)
+      const p = new URLSearchParams()
+      p.set('page', '1')
+      p.set('pageSize', '40')
+      tierQueries.push({ url: `/api/public/tutors?${p.toString()}` })
+
+      const responses = await Promise.all(
+        tierQueries.map(tq => fetch(tq.url, { credentials: 'include' }).catch(() => null))
+      )
+
+      const tierResults = await Promise.all(
+        responses.map(async res => {
+          if (!res) return { items: [] }
+          try {
+            const json = await res.json()
+            return { items: json.tutors || [] }
+          } catch {
+            return { items: [] }
+          }
+        })
+      )
+
+      const seen = new Set<string>()
+      const results: TutorDirectoryItem[] = []
+      for (const tier of tierResults) {
+        for (const item of tier.items) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            results.push(item)
+          }
+        }
+      }
+      return results
+    }
 
     const load = async () => {
       setLoading(true)
       try {
-        const qs = new URLSearchParams()
-        if (searchQuery.trim()) qs.set('q', searchQuery.trim())
-        if (selectedRegion && selectedRegion !== 'global' && selectedCountryCode) {
-          qs.set('country', selectedCountryCode)
-        }
-        qs.set('sort', sortBy)
-
-        const res = await fetch(`/api/public/tutors?${qs.toString()}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
-        if (!res.ok) throw new Error('Failed to load tutors')
-        const data = await res.json()
+        const enrichedTutors = await fetchTieredTutors(searchQuery.trim(), selectedCountryCode)
         if (!active) return
-
-        const enrichedTutors = Array.isArray(data?.tutors) ? data.tutors : []
-
         setTutors(enrichedTutors)
       } catch {
         if (!active) return
@@ -166,28 +250,35 @@ export default function StudentTutorDirectoryPage() {
     return () => {
       active = false
     }
-  }, [searchQuery, selectedRegion, selectedCountryCode, sortBy])
+  }, [searchQuery, selectedCountryCode])
 
-  const totalPages = Math.max(1, Math.ceil(tutors.length / ITEMS_PER_PAGE))
-  const paginatedTutors = tutors.slice(
+  const filteredTutors = useMemo(() => {
+    if (sortBy === 'following') {
+      return tutors.filter(tutor => following.has(tutor.id))
+    }
+    return tutors
+  }, [tutors, sortBy, following])
+
+  const totalPages = Math.max(1, Math.ceil(filteredTutors.length / ITEMS_PER_PAGE))
+  const paginatedTutors = filteredTutors.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
 
   const headlineMetrics = useMemo(() => {
-    const totalCourses = tutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
-    const totalEnrollments = tutors.reduce((sum, tutor) => sum + tutor.totalEnrollments, 0)
+    const totalCourses = filteredTutors.reduce((sum, tutor) => sum + tutor.courseCount, 0)
+    const totalEnrollments = filteredTutors.reduce((sum, tutor) => sum + tutor.totalEnrollments, 0)
     return {
-      tutorCount: tutors.length,
+      tutorCount: filteredTutors.length,
       totalCourses,
       totalEnrollments,
     }
-  }, [tutors])
+  }, [filteredTutors])
 
   return (
-    <div className="text-foreground flex h-full flex-col bg-slate-50 px-6 pb-0 pt-2 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero */}
-      <section className="relative mb-4 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
+      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="relative flex flex-wrap items-center justify-center gap-3">
           <div className="text-center">
             <h2 className="text-xl font-bold text-white">Solocorn Tutors</h2>
@@ -222,18 +313,30 @@ export default function StudentTutorDirectoryPage() {
       </section>
 
       {/* Bottom panel: filters + results */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4">
-        <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+      <div className="flex min-h-0 flex-1 flex-col pt-2">
+        <Card
+          hoverable={false}
+          className="shadow-hover-lift flex h-full flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 ring-1 ring-black/5"
+        >
           {/* Filters */}
-          <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:p-6 sm:pb-0 md:grid-cols-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 gap-3 pb-0 md:grid-cols-4">
+            {/* Edit 3: Search input with category grid icon */}
+            <div className="relative flex items-center gap-2">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={searchQuery}
                 onChange={event => setSearchQuery(event.target.value)}
                 placeholder="Search tutor, subject, specialty..."
-                className="h-9 border-slate-200 bg-white pl-9 text-sm text-slate-900 placeholder:text-slate-400"
+                className="h-9 border-slate-700/25 bg-white pl-9 pr-10 text-sm text-slate-900 placeholder:text-slate-400"
               />
+              <button
+                type="button"
+                onClick={() => setShowCategories(true)}
+                className="absolute right-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white transition-colors hover:bg-slate-50"
+                aria-label="Browse categories"
+              >
+                <CategoryGridIcon className="h-4 w-4" />
+              </button>
             </div>
             <Select
               value={selectedRegion}
@@ -250,7 +353,7 @@ export default function StudentTutorDirectoryPage() {
                   <SelectItem
                     key={region.id}
                     value={region.id}
-                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                   >
                     {region.name}
                   </SelectItem>
@@ -270,7 +373,7 @@ export default function StudentTutorDirectoryPage() {
                   <SelectItem
                     key={country.code}
                     value={country.code}
-                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                    className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                   >
                     {country.name}
                   </SelectItem>
@@ -283,26 +386,32 @@ export default function StudentTutorDirectoryPage() {
               </SelectTrigger>
               <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
                 <SelectItem
+                  value="following"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                >
+                  Following
+                </SelectItem>
+                <SelectItem
                   value="popular"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Most Popular
                 </SelectItem>
                 <SelectItem
                   value="newest"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Recently Updated
                 </SelectItem>
                 <SelectItem
                   value="courses"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Most Courses
                 </SelectItem>
                 <SelectItem
                   value="rate"
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   Highest Rated
                 </SelectItem>
@@ -311,8 +420,8 @@ export default function StudentTutorDirectoryPage() {
           </div>
 
           {/* Tutor grid */}
-          <div className="flex flex-1 flex-col p-4 pt-3 sm:p-6 sm:pt-4">
-            <div className="flex flex-1 flex-col justify-around">
+          <div className="flex flex-1 flex-col pt-3 sm:pt-4">
+            <div className="flex flex-1 flex-col justify-start">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {loading ? (
                   Array.from({ length: 8 }).map((_, index) => (
@@ -330,17 +439,10 @@ export default function StudentTutorDirectoryPage() {
                       </CardContent>
                     </Card>
                   ))
-                ) : tutors.length === 0 ? (
-                  <Card className="col-span-full overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-                    <CardHeader>
-                      <CardTitle className="text-white">
-                        No tutors match your current filters
-                      </CardTitle>
-                      <CardDescription className="text-white/70">
-                        Try broadening search terms or selecting a different region or country.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
+                ) : filteredTutors.length === 0 ? (
+                  <div className="col-span-full py-10 text-center text-sm text-gray-500">
+                    Unfortunately, the search did not find any tutors. Please try again.
+                  </div>
                 ) : (
                   paginatedTutors.map(tutor => (
                     <TutorCard
@@ -377,7 +479,7 @@ export default function StudentTutorDirectoryPage() {
             </div>
 
             {/* Pagination */}
-            {!loading && tutors.length > 0 && (
+            {!loading && filteredTutors.length > 0 && (
               <div className="flex items-center justify-center gap-2 pt-4">
                 <button
                   type="button"
@@ -423,8 +525,18 @@ export default function StudentTutorDirectoryPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
+
+      {/* Edit 3: Category Search Modal */}
+      <CategorySearchModal
+        isOpen={showCategories}
+        onClose={() => setShowCategories(false)}
+        onSelectCategory={categories => {
+          setShowCategories(false)
+          setSearchQuery(categories.join(' '))
+        }}
+      />
     </div>
   )
 }

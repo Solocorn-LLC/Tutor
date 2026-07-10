@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizePciSpec } from './pci-spec'
+import { normalizePciSpec, pciSpecToText } from './pci-spec'
 
 describe('normalizePciSpec (TASK-6)', () => {
   it('keeps only recognized, tutor-defined fields', () => {
@@ -31,5 +31,29 @@ describe('normalizePciSpec (TASK-6)', () => {
     expect(normalizePciSpec(null)).toBeNull()
     expect(normalizePciSpec('nope')).toBeNull()
     expect(normalizePciSpec(['a'])).toBeNull()
+  })
+})
+
+describe('pciSpecToText (TASK-6)', () => {
+  it('renders defined fields as labelled lines in canonical order', () => {
+    const text = pciSpecToText({
+      // deliberately out of canonical order to prove ordering is enforced
+      instructionalTone: 'Encouraging',
+      evaluationLogic: 'Award method marks.',
+      incorrectResponseBehavior: 'Give a socratic hint.',
+    })
+    expect(text).toBe(
+      [
+        'Evaluation logic: Award method marks.',
+        'Incorrect-response behaviour: Give a socratic hint.',
+        'Instructional tone: Encouraging',
+      ].join('\n')
+    )
+  })
+
+  it('returns "" for null/empty specs', () => {
+    expect(pciSpecToText(null)).toBe('')
+    expect(pciSpecToText(undefined)).toBe('')
+    expect(pciSpecToText({})).toBe('')
   })
 })

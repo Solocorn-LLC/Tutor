@@ -19,6 +19,7 @@ import {
   courseVariant,
   sessionReplayArtifact,
   calendarEvent,
+  deployedMaterial,
 } from '@/lib/db/schema'
 import { eq, and, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
@@ -164,6 +165,20 @@ export const GET = withAuth(
       Math.floor((Date.now() - new Date(classStart).getTime()) / 60000)
     )
 
+    const deployedMaterials = await drizzleDb
+      .select({
+        type: deployedMaterial.type,
+        itemId: deployedMaterial.itemId,
+        title: deployedMaterial.title,
+      })
+      .from(deployedMaterial)
+      .where(eq(deployedMaterial.sessionId, classId))
+
+    const homeworkCount = deployedMaterials.filter(
+      m => m.type === 'task' || m.type === 'assessment'
+    ).length
+    const assetCount = deployedMaterials.filter(m => m.type === 'asset').length
+
     const tutorCourses = await drizzleDb
       .select({ id: course.courseId, name: course.name, updatedAt: course.updatedAt })
       .from(course)
@@ -194,11 +209,51 @@ export const GET = withAuth(
 
     const sessionDuration = liveSessionRow.durationMinutes ?? 240
     // Resilient: a Daily token hiccup must not 500 the whole classroom (chat /
-    // whiteboard / roster still load; the room is public so video can still join).
+    // whiteboard / roster still load). NOTE: rooms are token-gated (private), so a
+    // null token means the tutor CANNOT join the video — hence the recreate below.
     let token: string | null = null
+    let roomUrl = liveSessionRow.roomUrl
     if (liveSessionRow.roomId) {
+      // Rooms expire (durationMinutes + buffer). Reopening a session after that
+      // would mint a token for a dead room and fail every tutor join. Recreate it
+      // once and persist — mirroring the student join route — so the tutor lands
+      // in a live room. The compare-and-set on roomId avoids double-recreation.
+      let activeRoomId = liveSessionRow.roomId
       try {
-        token = await dailyProvider.createMeetingToken(liveSessionRow.roomId, tutorId, {
+        const roomLive = await dailyProvider.isRoomActive(liveSessionRow.roomId)
+        if (!roomLive) {
+          const fresh = await dailyProvider.createRoom(liveSessionRow.tutorId, {
+            maxParticipants: Math.min((liveSessionRow.maxStudents ?? 9) + 1, 50),
+            durationMinutes: liveSessionRow.durationMinutes ?? 120,
+          })
+          const updated = await drizzleDb
+            .update(liveSession)
+            .set({ roomId: fresh.id, roomUrl: fresh.url })
+            .where(
+              and(eq(liveSession.sessionId, classId), eq(liveSession.roomId, liveSessionRow.roomId))
+            )
+            .returning({ roomId: liveSession.roomId, roomUrl: liveSession.roomUrl })
+          if (updated.length > 0) {
+            activeRoomId = fresh.id
+            roomUrl = fresh.url
+          } else {
+            const [current] = await drizzleDb
+              .select({ roomId: liveSession.roomId, roomUrl: liveSession.roomUrl })
+              .from(liveSession)
+              .where(eq(liveSession.sessionId, classId))
+              .limit(1)
+            if (current?.roomId) {
+              activeRoomId = current.roomId
+              roomUrl = current.roomUrl
+            }
+            dailyProvider.deleteRoom(fresh.id).catch(() => {})
+          }
+        }
+      } catch (err: any) {
+        console.error('[tutor classes GET] room re-check/recreate failed:', err?.message)
+      }
+      try {
+        token = await dailyProvider.createMeetingToken(activeRoomId, tutorId, {
           isOwner: true,
           durationMinutes: sessionDuration,
         })
@@ -243,7 +298,7 @@ export const GET = withAuth(
         subject: liveSessionRow.category,
         status: liveSessionRow.status,
         roomId: liveSessionRow.roomId,
-        roomUrl: liveSessionRow.roomUrl,
+        roomUrl,
         token,
         scheduledAt: liveSessionRow.scheduledAt?.toISOString?.() ?? null,
         startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
@@ -280,8 +335,15 @@ export const GET = withAuth(
         passive: students.filter(s => s.engagementScore >= 30 && s.engagementScore < 60).length,
         disengaged: students.filter(s => s.engagementScore < 30).length,
         engagementTrend: 'stable',
+        homeworkAssigned: homeworkCount,
+        assetsDeployed: assetCount,
       },
       alerts: [],
+      deployedMaterials: deployedMaterials.map(m => ({
+        type: m.type,
+        itemId: m.itemId,
+        title: m.title,
+      })),
     })
   },
   { role: 'TUTOR' }

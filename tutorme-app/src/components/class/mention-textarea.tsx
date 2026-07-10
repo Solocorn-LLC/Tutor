@@ -25,6 +25,7 @@ export interface MentionItem {
 interface MentionTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   mentionItems: MentionItem[]
   disableAutoResize?: boolean
+  maxRows?: number
 }
 
 const MENTION_REGEX = /@\[([^\]]+)\]\(([^:]+):([^)]+)\)/g
@@ -35,6 +36,7 @@ export function MentionTextarea({
   value,
   onChange,
   disableAutoResize,
+  maxRows,
   ...props
 }: MentionTextareaProps) {
   const [open, setOpen] = useState(false)
@@ -322,6 +324,7 @@ export function MentionTextarea({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         disableAutoResize={disableAutoResize}
+        maxRows={maxRows}
         {...props}
       />
 

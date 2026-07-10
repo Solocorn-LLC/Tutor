@@ -20,7 +20,7 @@ export const GET = withAuth(
     try {
       const family = await getFamilyAccountForParent(session)
       if (!family) {
-        return NextResponse.json({ error: '未找到家庭账户' }, { status: 404 })
+        return NextResponse.json({ error: 'No family account found' }, { status: 404 })
       }
 
       const { searchParams } = new URL(req.url)
@@ -66,7 +66,7 @@ export const GET = withAuth(
 
       return NextResponse.json({ success: true, data })
     } catch (err) {
-      return handleApiError(err, '获取消费分析失败', 'ParentFinancialSpending')
+      return handleApiError(err, 'Failed to fetch spending analysis', 'ParentFinancialSpending')
     }
   },
   { role: 'PARENT' }
