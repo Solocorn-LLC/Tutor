@@ -2083,7 +2083,7 @@ function StudentFeedbackContent() {
                             "Task complete" → the AI responds to each answer per the
                             PCI, then they can ask about what they got wrong. */}
                         {isChatTask && activeTaskId && (
-                          <div className="mt-2 h-[78vh] min-h-[520px]">
+                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
                             <TaskChatPanel
                               taskId={activeTaskId}
                               taskTitle={activeTask.title}

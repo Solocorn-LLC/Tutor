@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { TaskDocumentCard, type TaskDocumentSource } from '@/components/task/TaskDocumentCard'
 import { toast } from 'sonner'
 
 export interface TestTaskChatMsg {
@@ -34,12 +35,16 @@ export function TestTaskChat({
   pci,
   pciSpec,
   questionText,
+  sourceDocument,
   initialState,
   onPersist,
 }: {
   pci?: string
   pciSpec?: unknown
   questionText?: string
+  /** The task's document — previewed inline exactly as students see it (full
+   *  until the first sample answer, then a collapsed, re-expandable card). */
+  sourceDocument?: TaskDocumentSource | null
   initialState?: TestTaskChatState
   onPersist?: (state: TestTaskChatState) => void
 }) {
@@ -164,6 +169,14 @@ export function TestTaskChat({
           )}
         </span>
       </div>
+
+      {/* Document preview — mirrors the student flow: full until the first sample
+          answer, then a pinned, re-expandable card. */}
+      <TaskDocumentCard
+        sourceDocument={sourceDocument}
+        autoOpen={!studentAnswers.length}
+        accent="violet"
+      />
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && (

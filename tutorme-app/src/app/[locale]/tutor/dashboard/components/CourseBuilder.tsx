@@ -9747,6 +9747,45 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             )
                                           }
 
+                                          // Test-tab task preview: render the exact student chat flow
+                                          // (the document collapses into the chat on the first sample
+                                          // answer) filling this panel — instead of a separate PDF +
+                                          // chat, so the tutor previews what students actually see.
+                                          if (mainTab === 'test-pci' && testPciSource === 'task') {
+                                            const previewExt = taskBuilder.activeExtensionId
+                                              ? taskBuilder.extensions.find(
+                                                  e => e.id === taskBuilder.activeExtensionId
+                                                )
+                                              : null
+                                            const previewKey = `${previewExt ? previewExt.id : 'base'}:${tab.id}`
+                                            return (
+                                              <div className="h-full min-h-0 w-full">
+                                                <TestTaskChat
+                                                  pci={
+                                                    (previewExt
+                                                      ? previewExt.pci
+                                                      : taskBuilder.taskPci) || ''
+                                                  }
+                                                  pciSpec={
+                                                    previewExt ? undefined : taskBuilder.pciSpec
+                                                  }
+                                                  questionText={`${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`}
+                                                  sourceDocument={
+                                                    previewExt
+                                                      ? previewExt.sourceDocument
+                                                      : currentTaskDocument
+                                                  }
+                                                  initialState={
+                                                    testTaskChatStore.current[previewKey]
+                                                  }
+                                                  onPersist={s => {
+                                                    testTaskChatStore.current[previewKey] = s
+                                                  }}
+                                                />
+                                              </div>
+                                            )
+                                          }
+
                                           // Document-only: render directly without ResizablePanelGroup
                                           // so the PDF fills the entire tab area.
                                           if (hasDoc && !hasDmi) {
@@ -10049,29 +10088,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               // flow students get (chat → Task complete → per-answer
                               // responses → follow-up); assessments keep the composer.
                               (mainTab === 'test-pci' && testPciSource === 'task' ? (
-                                (() => {
-                                  const ext = taskBuilder.activeExtensionId
-                                    ? taskBuilder.extensions.find(
-                                        e => e.id === taskBuilder.activeExtensionId
-                                      )
-                                    : null
-                                  // Persist per task/extension AND per student tab, so each
-                                  // preview keeps its own conversation across remounts.
-                                  const persistKey = `${ext ? ext.id : 'base'}:${testPciActiveTab}`
-                                  return (
-                                    <div key={persistKey} className="mt-1 h-[55vh] min-h-[340px]">
-                                      <TestTaskChat
-                                        pci={(ext ? ext.pci : taskBuilder.taskPci) || ''}
-                                        pciSpec={ext ? undefined : taskBuilder.pciSpec}
-                                        questionText={`${taskBuilder.title}\n\n${ext ? ext.content : taskBuilder.taskContent}`}
-                                        initialState={testTaskChatStore.current[persistKey]}
-                                        onPersist={s => {
-                                          testTaskChatStore.current[persistKey] = s
-                                        }}
-                                      />
-                                    </div>
-                                  )
-                                })()
+                                // A task is previewed via the chat flow rendered in the panel
+                                // above (the document collapses into the chat), so nothing
+                                // extra is needed here.
+                                <></>
                               ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
                                 // Assessments are answered in the DMI: test-grade per question
                                 // above (type an answer under a question and click Grade) rather
