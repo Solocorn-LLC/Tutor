@@ -134,14 +134,16 @@ function TutorInsightsPageInner() {
       setSaveMode('live')
       return
     }
-    // If mode=edit was explicitly passed, stay in draft (don't auto-detect)
+    // Otherwise detect from which list the course belongs to
+    const isLive = courses.some(c => c.id === courseId)
+    const isDraft = draftCourses.some(c => c.id === courseId)
+    // If mode=edit was explicitly passed (from Course Builder nav), prefer draft
+    // mode for editing. For live DB courses, this keeps dataMode as 'default' (not
+    // 'detached') so content loads from the DB safely rather than empty localStorage.
     if (searchParams.get('mode') === 'edit') {
       setSaveMode('draft')
       return
     }
-    // Otherwise detect from which list the course belongs to
-    const isLive = courses.some(c => c.id === courseId)
-    const isDraft = draftCourses.some(c => c.id === courseId)
     if (isLive && !isDraft) {
       setSaveMode('live')
     } else if (isDraft && !isLive) {
@@ -1228,7 +1230,8 @@ function TutorInsightsPageInner() {
     )
   }
 
-  const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
+  const dataMode =
+    saveMode === 'draft' && !sessionId && courseId === 'insights-draft' ? 'detached' : 'default'
 
   return (
     <div className="flex h-screen w-full flex-col items-stretch bg-gray-50">

@@ -1,7 +1,9 @@
+'use client'
+
 import { MessageSquare, Users, UserPlus, Heart, Settings, Search, Inbox } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+
 export type CommSection = 'chats' | 'contacts' | 'requests' | 'followers' | 'settings'
 
 interface MessagingPanelProps {
@@ -41,14 +43,9 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const ListIcon = list.icon
 
   return (
-    <Card className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-0 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
-      {/* Full-width Chat header */}
-      <div className="relative flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-        Chat
-      </div>
-
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Content area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
         {/* Left menu rail - shorter */}
         <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-2">
           {topItems.map(item => {
@@ -108,7 +105,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
         </div>
 
         {/* Detail / chat area */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
           {/* Chat viewport */}
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center">
             <Inbox className="mb-3 h-16 w-16 text-slate-300" />
@@ -138,6 +135,6 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }

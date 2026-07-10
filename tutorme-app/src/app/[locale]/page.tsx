@@ -466,16 +466,16 @@ const translations: Translations = {
 
   // Footer
   footerBrand: {
-    en: 'Solocorn LLC',
-    'zh-CN': 'Solocorn LLC',
-    'zh-HK': 'Solocorn LLC',
-    es: 'Solocorn LLC',
-    fr: 'Solocorn LLC',
-    de: 'Solocorn LLC',
-    ja: 'Solocorn LLC',
-    ko: 'Solocorn LLC',
-    pt: 'Solocorn LLC',
-    hi: 'Solocorn LLC',
+    en: 'Solocorn',
+    'zh-CN': 'Solocorn',
+    'zh-HK': 'Solocorn',
+    es: 'Solocorn',
+    fr: 'Solocorn',
+    de: 'Solocorn',
+    ja: 'Solocorn',
+    ko: 'Solocorn',
+    pt: 'Solocorn',
+    hi: 'Solocorn',
   },
   privacyPolicy: {
     en: 'Privacy Policy',
@@ -502,16 +502,16 @@ const translations: Translations = {
     hi: 'सेवा की शर्तें',
   },
   allRightsReserved: {
-    en: '© 2026 Solocorn LLC. All rights reserved.',
-    'zh-CN': '© 2026 Solocorn LLC。保留所有权利。',
-    'zh-HK': '© 2026 Solocorn LLC。保留所有權利。',
-    es: '© 2026 Solocorn LLC. Todos los derechos reservados.',
-    fr: '© 2026 Solocorn LLC. Tous droits réservés.',
-    de: '© 2026 Solocorn LLC. Alle Rechte vorbehalten.',
-    ja: '© 2026 Solocorn LLC. All rights reserved.',
-    ko: '© 2026 Solocorn LLC. 모든 권리 보유.',
-    pt: '© 2026 Solocorn LLC. Todos os direitos reservados.',
-    hi: '© 2026 Solocorn LLC। सर्वाधिकार सुरक्षित।',
+    en: '© 2026 Solocorn. All rights reserved.',
+    'zh-CN': '© 2026 Solocorn。保留所有权利。',
+    'zh-HK': '© 2026 Solocorn。保留所有權利。',
+    es: '© 2026 Solocorn. Todos los derechos reservados.',
+    fr: '© 2026 Solocorn. Tous droits réservés.',
+    de: '© 2026 Solocorn. Alle Rechte vorbehalten.',
+    ja: '© 2026 Solocorn. All rights reserved.',
+    ko: '© 2026 Solocorn. 모든 권리 보유.',
+    pt: '© 2026 Solocorn. Todos os direitos reservados.',
+    hi: '© 2026 Solocorn। सर्वाधिकार सुरक्षित।',
   },
 
   // Modal Content
@@ -1837,6 +1837,94 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         ),
       ])
 
+    /**
+     * Fetch tiered search results:
+     * 1. Query + Country (most relevant)
+     * 2. Query only
+     * 3. Country only
+     * 4. All remaining results
+     */
+    const fetchTiered = async (
+      kind: 'courses' | 'tutors',
+      searchQuery: string,
+      countryCode: string
+    ): Promise<any[]> => {
+      const baseParams = new URLSearchParams()
+      baseParams.set('page', '1')
+      baseParams.set('pageSize', '24')
+      if (searchQuery) baseParams.set('q', searchQuery)
+
+      const tierQueries: { label: string; url: string }[] = []
+
+      // Tier 1: Query + Country
+      if (searchQuery && countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams(baseParams)
+        p.set('country', countryCode)
+        tierQueries.push({ label: 'tier1', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 2: Query only
+      if (searchQuery) {
+        const p = new URLSearchParams(baseParams)
+        tierQueries.push({ label: 'tier2', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 3: Country only
+      if (countryCode && countryCode !== 'global') {
+        const p = new URLSearchParams()
+        p.set('page', '1')
+        p.set('pageSize', '24')
+        p.set('country', countryCode)
+        tierQueries.push({ label: 'tier3', url: `/api/public/${kind}?${p.toString()}` })
+      }
+
+      // Tier 4: All remaining (no filters)
+      const p = new URLSearchParams()
+      p.set('page', '1')
+      p.set('pageSize', '24')
+      tierQueries.push({ label: 'tier4', url: `/api/public/${kind}?${p.toString()}` })
+
+      // Fetch all tiers in parallel
+      const responses = await Promise.all(
+        tierQueries.map(tq =>
+          fetchWithTimeout(tq.url, { signal: controller.signal }).catch(err => {
+            console.warn(`[Landing] ${kind} ${tq.label} fetch failed:`, err)
+            return null
+          })
+        )
+      )
+
+      // Parse all responses
+      const tierResults = await Promise.all(
+        responses.map(async (res, i) => {
+          if (!res) return { label: tierQueries[i].label, items: [] }
+          try {
+            const json = await res.json()
+            return {
+              label: tierQueries[i].label,
+              items: kind === 'courses' ? json.courses || [] : json.tutors || [],
+            }
+          } catch {
+            return { label: tierQueries[i].label, items: [] }
+          }
+        })
+      )
+
+      // Merge in tier order, deduplicate by ID
+      const seen = new Set<string>()
+      const results: any[] = []
+      for (const tier of tierResults) {
+        for (const item of tier.items) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            results.push(item)
+          }
+        }
+      }
+
+      return results
+    }
+
     const run = async () => {
       console.log('[Landing] Fetch starting...')
       setIsLoading(true)
@@ -1844,47 +1932,20 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       setCoursesPage(0)
       setTutorsPage(0)
       try {
-        const params = new URLSearchParams()
-        params.set('page', '1')
-        params.set('pageSize', '24')
-        if (q) params.set('q', q)
-        if (selectedRegion !== 'global' && selectedCountryCode) {
-          params.set('country', selectedCountryCode)
-        }
-        const qp = `?${params.toString()}`
-        const [coursesRes, tutorsRes] = await Promise.all([
-          fetchWithTimeout(`/api/public/courses${qp}`, {
-            signal: controller.signal,
-          }),
-          fetchWithTimeout(`/api/public/tutors${qp}`, {
-            signal: controller.signal,
-          }),
+        const [coursesResults, tutorsResults] = await Promise.all([
+          fetchTiered('courses', q, selectedCountryCode),
+          fetchTiered('tutors', q, selectedCountryCode),
         ])
-        console.log('[Landing] Fetch completed:', {
-          coursesOk: coursesRes.ok,
-          tutorsOk: tutorsRes.ok,
-        })
-
-        const parseJsonSafe = async (res: Response) => {
-          const ct = res.headers.get('content-type') || ''
-          if (!ct.includes('application/json')) return null
-          return await res.json()
-        }
-
-        const [coursesJson, tutorsJson] = await Promise.all([
-          coursesRes.ok ? parseJsonSafe(coursesRes) : null,
-          tutorsRes.ok ? parseJsonSafe(tutorsRes) : null,
-        ])
-        console.log('[Landing] Parsed JSON:', {
-          coursesCount: coursesJson?.courses?.length,
-          tutorsCount: tutorsJson?.tutors?.length,
+        console.log('[Landing] Tiered fetch completed:', {
+          coursesCount: coursesResults.length,
+          tutorsCount: tutorsResults.length,
         })
 
         if (!finished) {
-          setCourses(Array.isArray(coursesJson?.courses) ? coursesJson.courses : [])
-          setTutors(Array.isArray(tutorsJson?.tutors) ? tutorsJson.tutors : [])
+          setCourses(coursesResults)
+          setTutors(tutorsResults)
 
-          if (!coursesRes.ok && !tutorsRes.ok) {
+          if (coursesResults.length === 0 && tutorsResults.length === 0) {
             setLoadError('Unable to load results.')
           }
         }
@@ -1985,7 +2046,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             <div className="truncate text-slate-300">
               {item?.isFree ? 'Free' : item?.price != null ? `$${item.price}` : 'Free'}
             </div>
-            <div className="text-blue-400">{formatCourseDate(item?.updatedAt)}</div>
+            <div className="flex items-center gap-2 text-blue-400">
+              {formatCourseDate(item?.updatedAt)}
+              {item?.variantNationality && item.variantNationality !== 'Global' && (
+                <CountryFlag countryName={item.variantNationality} size="xs" />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2243,7 +2309,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 <SelectItem
                   key={region.id}
                   value={region.id}
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   {region.name}
                 </SelectItem>
@@ -2264,7 +2330,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                 <SelectItem
                   key={country.code}
                   value={country.code}
-                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
+                  className="mx-1.5 rounded-md text-slate-700 hover:bg-slate-100/50 focus:text-slate-900 focus:outline-none"
                 >
                   {country.name}
                 </SelectItem>
@@ -3674,8 +3740,8 @@ const TermsOfServiceModal = ({
             </p>
             <h3 className="mt-4 font-semibold">4. Intellectual Property</h3>
             <p>
-              All content and materials available on Solocorn are the property of Solocorn LLC and
-              are protected by applicable intellectual property laws.
+              All content and materials available on Solocorn are the property of Solocorn and are
+              protected by applicable intellectual property laws.
             </p>
             <h3 className="mt-4 font-semibold">5. Limitation of Liability</h3>
             <p>

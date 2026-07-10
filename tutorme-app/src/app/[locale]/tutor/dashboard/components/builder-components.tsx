@@ -457,7 +457,7 @@ export function PreviewCard({
       case 'nodeQuiz':
         return <FileQuestion className="h-4 w-4 text-red-500" />
       default:
-        return <FileText className="h-4 w-4 text-slate-400" />
+        return <FileText className="h-4 w-4 text-slate-600" />
     }
   }
 
@@ -488,7 +488,7 @@ export function PreviewCard({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -561,7 +561,7 @@ export function PreviewCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-1 text-[11px] font-medium text-slate-600">
-                    <Clock className="h-3 w-3 text-slate-400" />
+                    <Clock className="h-3 w-3 text-slate-600" />
                     {normalizedItem.estimatedMinutes}m
                   </div>
                 </TooltipTrigger>
@@ -1046,7 +1046,7 @@ export function DragHandle({ className }: { className?: string }) {
       {...ctx.listeners}
       onMouseDown={ctx.onDragStart}
       className={cn(
-        'cursor-grab p-1 text-gray-400 hover:text-gray-600 active:cursor-grabbing',
+        'cursor-grab p-1 text-gray-600 hover:text-gray-600 active:cursor-grabbing',
         className
       )}
     >
@@ -1092,7 +1092,7 @@ export function SortableTreeItem({
                 {...attributes}
                 {...listeners}
                 onMouseDown={onDragStart}
-                className="cursor-grab p-1 text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+                className="cursor-grab p-1 text-gray-600 hover:text-gray-600 active:cursor-grabbing"
               >
                 <GripVertical className="h-4 w-4" />
               </div>
@@ -1103,7 +1103,7 @@ export function SortableTreeItem({
                 {...attributes}
                 {...listeners}
                 onMouseDown={onDragStart}
-                className="cursor-grab p-1 text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+                className="cursor-grab p-1 text-gray-600 hover:text-gray-600 active:cursor-grabbing"
               >
                 <GripVertical className="h-4 w-4" />
               </div>

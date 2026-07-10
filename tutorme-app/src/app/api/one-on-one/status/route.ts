@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
         eq(oneOnOneBookingRequest.studentId, targetStudentId),
         or(
           eq(oneOnOneBookingRequest.status, 'PENDING'),
-          eq(oneOnOneBookingRequest.status, 'ACCEPTED')
+          eq(oneOnOneBookingRequest.status, 'ACCEPTED'),
+          eq(oneOnOneBookingRequest.status, 'PAID')
         )
       ),
       with: {

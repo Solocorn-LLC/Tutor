@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { FollowUpInsightsCard } from '@/components/tutor/follow-up-insights-card'
+import { ClassMasteryCard } from '@/components/tutor/class-mastery-card'
 import { MathText, hasMath } from '@/components/answer/MathText'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +50,22 @@ interface Submission {
       needsReview?: boolean
     }
   >
+  /** AI study hints the student received (grounded per-question feedback). */
+  aiFeedback?: {
+    items?: Array<{
+      questionId: string
+      explanation: string
+      misconception?: string
+      nextStep?: string
+    }>
+  } | null
+  /** Follow-up Q&A the student had with the PCI-scoped assistant. */
+  followUps?: Array<{
+    questionId: string
+    question: string
+    answer: string
+    at?: string
+  }> | null
 }
 
 type StatusFilter = 'all' | 'submitted' | 'graded'
@@ -117,6 +135,11 @@ export default function TutorSubmissionsPage() {
           </div>
         </div>
       </section>
+
+      <div className="px-1">
+        <ClassMasteryCard />
+        <FollowUpInsightsCard />
+      </div>
 
       {/* Mode selector + tab content */}
       <div className="flex min-h-0 flex-1 flex-col pb-0.5">
@@ -560,6 +583,60 @@ function SubmissionRow({
               </ul>
             )}
           </div>
+
+          {/* AI layer: what the student was shown/asked by the assistant, so the
+              tutor can vet it and see where the student struggled. */}
+          {((submission.aiFeedback?.items?.length ?? 0) > 0 ||
+            (submission.followUps?.length ?? 0) > 0) && (
+            <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50/50 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                AI assistant activity
+              </p>
+
+              {(submission.aiFeedback?.items?.length ?? 0) > 0 && (
+                <div className="mb-3">
+                  <p className="mb-1 text-xs font-medium text-gray-600">
+                    Study hints shown to the student
+                  </p>
+                  <ul className="space-y-1.5">
+                    {submission.aiFeedback!.items!.map((h, i) => (
+                      <li key={i} className="rounded-md bg-white/70 p-2 text-xs text-gray-700">
+                        <span className="font-medium text-gray-500">Q{h.questionId}: </span>
+                        {h.explanation}
+                        {h.misconception && (
+                          <span className="text-gray-400"> (slip: {h.misconception})</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(submission.followUps?.length ?? 0) > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">
+                    Follow-up questions the student asked
+                  </p>
+                  <ul className="space-y-1.5">
+                    {submission.followUps!.map((f, i) => (
+                      <li key={i} className="rounded-md bg-white/70 p-2 text-xs">
+                        <p className="text-gray-800">
+                          <span className="font-medium text-violet-700">
+                            Q{f.questionId} · asked:{' '}
+                          </span>
+                          {f.question}
+                        </p>
+                        <p className="mt-0.5 text-gray-600">
+                          <span className="text-gray-400">assistant: </span>
+                          {f.answer}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-[140px_1fr] sm:items-start">
             <div>

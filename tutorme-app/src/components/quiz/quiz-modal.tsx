@@ -24,6 +24,8 @@ export interface QuestionResultItem {
   pointsMax: number
   selectedAnswer?: unknown
   timeSpentSec?: number
+  /** Open-ended/drawn answers the auto-grader can't score — a tutor grades these. */
+  needsReview?: boolean
 }
 
 /** What the parent's submit returns so the modal can show the authoritative

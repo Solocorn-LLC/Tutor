@@ -14,7 +14,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogPanel,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -826,7 +825,11 @@ function CourseBuilderInsightsRouteInner({
                       >
                         <SelectTrigger
                           className={cn(
-                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold shadow-none transition-colors focus:ring-0',
+                            // Header card is hardcoded light (bg-white) regardless of
+                            // theme, so use a hardcoded dark text colour — the theme
+                            // token text-foreground flips to white under dark themes
+                            // and made the course name unreadable here.
+                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0',
                             hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
                           )}
                         >
@@ -902,9 +905,9 @@ function CourseBuilderInsightsRouteInner({
                     )}
 
                   {activeMainTab === 'builder' && (
-                    <h1 className="text-foreground pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
                       {currentCourse?.name && (
-                        <span className="text-muted-foreground text-xl font-normal">
+                        <span className="text-xl font-normal text-slate-500">
                           {currentCourse.name}
                         </span>
                       )}
@@ -914,9 +917,9 @@ function CourseBuilderInsightsRouteInner({
                     // Centered across the full header via absolute positioning;
                     // pointer-events-none so the overlay never blocks the back
                     // button / header controls underneath it.
-                    <h1 className="text-foreground pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
                       {model.course?.name && (
-                        <span className="text-muted-foreground text-xl font-normal">
+                        <span className="text-xl font-normal text-slate-500">
                           {model.course.name}
                         </span>
                       )}
@@ -936,9 +939,9 @@ function CourseBuilderInsightsRouteInner({
                     </h1>
                   )}
                   {activeMainTab === 'test-pci' && (
-                    <h1 className="text-foreground pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight">
+                    <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
                       {(model.course?.name || currentCourse?.name) && (
-                        <span className="text-muted-foreground text-xl font-normal">
+                        <span className="text-xl font-normal text-slate-500">
                           {model.course?.name || currentCourse?.name}
                         </span>
                       )}
@@ -1146,27 +1149,59 @@ function CourseBuilderInsightsRouteInner({
       </div>
       {/* Create Course Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-md" theme="metallic">
+        <DialogContent
+          className="max-w-md border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
           <DialogHeader className="text-center">
-            <DialogTitle className="mx-auto text-center">Create New Course</DialogTitle>
+            <DialogTitle className="mx-auto text-center text-white">Create New Course</DialogTitle>
           </DialogHeader>
-          <div className="px-6 py-4">
-            <DialogPanel className="space-y-4">
+
+          <div className="space-y-4 px-6 py-4">
+            <div className="space-y-2">
               <Input
                 value={newCourseName}
-                onChange={e => setNewCourseName?.(e.target.value)}
+                onChange={e => {
+                  const value = e.target.value
+                  if (value.length <= 25) {
+                    setNewCourseName?.(value)
+                  }
+                }}
                 placeholder="Course name"
+                maxLength={25}
+                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 onKeyDown={e => {
-                  if (e.key === 'Enter') onCreateNewCourse?.()
+                  if (e.key === 'Enter' && newCourseName?.trim()) {
+                    e.preventDefault()
+                    onCreateNewCourse?.()
+                  }
                 }}
               />
-            </DialogPanel>
+              <div className="flex justify-end">
+                <span
+                  className={`text-xs font-medium ${
+                    (newCourseName?.length || 0) >= 25
+                      ? 'text-red-500'
+                      : (newCourseName?.length || 0) >= 20
+                        ? 'text-orange-500'
+                        : 'text-gray-600'
+                  }`}
+                >
+                  {newCourseName?.length || 0}/25
+                </span>
+              </div>
+            </div>
           </div>
+
           <DialogFooter className="gap-3">
             <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen?.(false)}>
               Cancel
             </Button>
-            <Button variant="modal-primary-dark" onClick={onCreateNewCourse}>
+            <Button
+              variant="modal-primary-dark"
+              onClick={onCreateNewCourse}
+              disabled={!newCourseName?.trim()}
+            >
               Create
             </Button>
           </DialogFooter>
@@ -1273,7 +1308,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Price</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-slate-400" />
+                      <DollarSign className="h-4 w-4 text-slate-600" />
                       <Input
                         type="number"
                         min={0}
@@ -1305,7 +1340,7 @@ function CourseBuilderInsightsRouteInner({
                   <div>
                     <Label className="text-sm font-medium text-white">Language</Label>
                     <div className="mt-1 flex items-center gap-2">
-                      <Languages className="h-4 w-4 text-slate-400" />
+                      <Languages className="h-4 w-4 text-slate-600" />
                       <Input
                         value={rescheduleLanguage}
                         onChange={e => setRescheduleLanguage(e.target.value)}

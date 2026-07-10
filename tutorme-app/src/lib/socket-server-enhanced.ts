@@ -109,6 +109,9 @@ export interface LiveTaskQuestion {
   id: string
   taskId: string
   prompt: string
+  /** Mirrors LiveTaskPoll: a closed question accepts no more answers. Optional
+   *  for back-compat with snapshots created before questions had a status. */
+  status?: 'open' | 'closed'
   responses: LiveTaskQuestionResponse[]
   createdAt: number
 }
@@ -1546,10 +1549,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
     socket.on(
       'task:complete',
       (
-        data: { roomId: string; taskId: string; answers?: Record<string, string> },
+        data: {
+          roomId: string
+          taskId: string
+          answers?: Record<string, string>
+          // Set by the chat-task flow: the answers + AI responses were already
+          // persisted over HTTP (task-chat route), so this event should only
+          // broadcast the live completion tick and NOT write the DB again.
+          aiHandled?: boolean
+        },
         ack?: (resp: { ok: boolean; error?: string }) => void
       ) => {
-        const { roomId, taskId, answers } = data
+        const { roomId, taskId, answers, aiHandled } = data
         if (!roomId || !taskId) {
           ack?.({ ok: false, error: 'Invalid submission' })
           return
@@ -1604,6 +1615,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // the payload had been dropped — e.g. too large — no ack would arrive
         // and the client would surface a real error instead of a false success.
         ack?.({ ok: true })
+
+        // Chat tasks already persisted everything (taskSubmission + AI responses)
+        // over HTTP — this event was only for the live completion tick, so stop
+        // before the DB write to avoid clobbering that richer row.
+        if (aiHandled) return
 
         // Persist the completion durably so it reaches the tutor's grading
         // views. There are THREE tutor readers with DIFFERENT requirements:
@@ -2289,6 +2305,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           id: `question-${taskId}-${Date.now()}`,
           taskId,
           prompt: prompt || 'Do you have a question about this task?',
+          status: 'open',
           responses: [],
           createdAt: Date.now(),
         }
@@ -2324,16 +2341,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
           const studentId = socket.data.userId
           if (!studentId) return
           const existingIndex = poll.responses.findIndex(r => r.studentId === studentId)
+          // Once answered, a response is immutable — ignore any change attempt.
+          if (existingIndex >= 0) return
           const response: LiveTaskPollResponse = {
             studentId,
             value,
             submittedAt: Date.now(),
           }
-          if (existingIndex >= 0) {
-            poll.responses[existingIndex] = response
-          } else {
-            poll.responses.push(response)
-          }
+          poll.responses.push(response)
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
@@ -2342,23 +2357,50 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         const question = task.questions.find(item => item.id === insightId)
-        if (!question) return
+        if (!question || question.status === 'closed') return
         const studentId = socket.data.userId
         if (!studentId || !answer?.trim()) return
         const existingIndex = question.responses.findIndex(r => r.studentId === studentId)
+        // Once answered, a response is immutable — ignore any change attempt.
+        if (existingIndex >= 0) return
         const response: LiveTaskQuestionResponse = {
           studentId,
           answer: answer.trim(),
           submittedAt: Date.now(),
         }
-        if (existingIndex >= 0) {
-          question.responses[existingIndex] = response
-        } else {
-          question.responses.push(response)
-        }
+        question.responses.push(response)
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
+        io.to(roomId).emit('task:updated', { task })
+      }
+    )
+
+    // Tutor closes a poll/question: no further responses are accepted and the
+    // already-collected answers are locked. Broadcast so both sides update.
+    socket.on(
+      'insight:close',
+      (data: { roomId: string; taskId: string; type: 'poll' | 'question'; insightId: string }) => {
+        const { roomId, taskId, type, insightId } = data
+        if (!roomId || !taskId || !insightId) return
+        const room = activeRooms.get(roomId)
+        if (!room) return
+        const task = room.tasks.find(item => item.id === taskId)
+        if (!task) return
+
+        if (type === 'poll') {
+          const poll = task.polls.find(item => item.id === insightId)
+          if (!poll) return
+          poll.status = 'closed'
+          io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
+        } else {
+          const question = task.questions.find(item => item.id === insightId)
+          if (!question) return
+          question.status = 'closed'
+          io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
+        }
+        room.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('task:updated', { task })
       }
     )

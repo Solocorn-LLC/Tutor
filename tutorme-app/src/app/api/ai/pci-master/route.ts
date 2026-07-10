@@ -12,7 +12,8 @@ import { adkPciMasterChat } from '@/lib/adk-client'
 import { generateWithFallback } from '@/lib/agents'
 import { generateWithKimiVision } from '@/lib/ai/kimi'
 import { parseLlmJson, stripCodeFences } from '@/lib/ai/llm-response'
-import { normalizePciSpec, type PciSpec } from '@/lib/assessment/pci-spec'
+import { normalizePciSpec, PCI_SPEC_FIELDS, type PciSpec } from '@/lib/assessment/pci-spec'
+import { signalsPciFinalize } from '@/lib/assessment/pci-finalize'
 import {
   guardrailSystemPrompt,
   runTaskGuardrails,
@@ -67,6 +68,12 @@ const PciMasterRequestSchema = z.object({
           mimeType: z.string().max(200).optional(),
         })
         .optional(),
+      // The captured "policy so far" (incl. tutor inline corrections), sent back
+      // so the model treats it as authoritative and carries it forward.
+      capturedSoFar: z.record(z.string(), z.string()).optional(),
+      // Assessment DMI digest (per-question marks + rubric, no answers) so the
+      // marking policy is built with the real questions/marks/rubrics in view.
+      markingScheme: z.string().max(16000).optional(),
     })
     .optional(),
   // Rendered page images (data URLs) of an attached PDF, so the model can SEE the
@@ -182,6 +189,16 @@ export async function POST(request: NextRequest) {
       context?.extensionName && `Extension Name: ${context.extensionName}`,
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
+      context?.markingScheme &&
+        `Marking scheme already set up (the DMI — the questions, sections, per-question marks, and any rubrics). Treat this as KNOWN: never ask the tutor what the questions/sections/types are or how many marks a question is worth. Use it to build a GENERAL marking policy for the whole assessment (not a per-question interview), and do NOT copy per-question rubric text into the policy:\n${truncate(
+          context.markingScheme,
+          12000
+        )}`,
+      context?.capturedSoFar &&
+        Object.keys(context.capturedSoFar).length > 0 &&
+        `Policy captured so far (the tutor may have corrected these — treat them as AUTHORITATIVE and carry these exact values forward in "specSoFar"; do not overwrite or re-capture a stale value):\n${JSON.stringify(
+          context.capturedSoFar
+        )}`,
     ]
       .filter(Boolean)
       .join('\n\n')
@@ -244,8 +261,11 @@ export async function POST(request: NextRequest) {
     // Timeout + retry budget for the upstream model call. Moonshot/Kimi is the
     // sole provider, so a slow or 5xx/429 response has no second provider to fall
     // back to — bound each attempt and retry a couple of times before giving up.
-    const GEN_TIMEOUT_MS = 60_000
-    const GEN_RETRIES = 3
+    // Kept well under Cloud Run's 300s request timeout (worst case 2×45s = 90s)
+    // so a slow turn returns a clean error instead of the connection dropping
+    // and surfacing as "Load failed" in the chat.
+    const GEN_TIMEOUT_MS = 45_000
+    const GEN_RETRIES = 2
     const fallbackOptions = {
       temperature: activeTemperature,
       maxTokens: 4096,
@@ -331,19 +351,24 @@ export async function POST(request: NextRequest) {
     // is the conversational chat text, `pci` is the finalized rubric (non-empty
     // only after the tutor approves finalizing). Extract both so the chat never
     // shows a raw spec and the builder can write a clean PCI to the field.
-    // TASK-5 (Confirmation): the tutor's message must explicitly signal approval
-    // before the engine presents a finalized rubric — the model alone cannot
-    // finalize. Used both to gate the draft and to inform the validator.
-    const tutorSignaledFinalize =
-      /\b(confirm(ed)?|finali[sz]e|approve[d]?|looks good|go ahead|activate|apply it|lock it in|use (that|this)|that'?s (right|correct|good|it)|sounds good|save it|agreed)\b/i.test(
-        safeMessage
-      )
+    // TASK-5 (Confirmation): only an explicit finalize request flags this — the
+    // tutor's "Apply to PCI" click is the real gate. See signalsPciFinalize for
+    // why generic agreement words are excluded (they collide with confirm-summary).
+    const tutorSignaledFinalize = signalsPciFinalize(safeMessage)
 
     let pciDraft = ''
     let pciSpec: PciSpec | null = null
+    // Partial structured policy captured SO FAR this turn (may be incomplete;
+    // NOT a finalization). Drives the live "policy so far" panel in the chat.
+    let pciSpecSoFar: PciSpec | null = null
     let pciUnconfirmed = false
     if (guardrailDomain) {
-      const env = parseLlmJson<{ reply?: string; pci?: string; spec?: unknown }>(response.response)
+      const env = parseLlmJson<{
+        reply?: string
+        pci?: string
+        spec?: unknown
+        specSoFar?: unknown
+      }>(response.response)
       if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
         if (typeof env.reply === 'string' && env.reply.trim()) {
           response.response = env.reply.trim()
@@ -351,6 +376,16 @@ export async function POST(request: NextRequest) {
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
         // TASK-6: the structured mirror of the finalized rubric.
         pciSpec = normalizePciSpec(env.spec)
+        // Running capture for the live "policy so far" panel. The model is
+        // unreliable about the dedicated `specSoFar` key — it often puts captured
+        // fields in the intuitive `spec` field instead, or omits `specSoFar`
+        // entirely — which left the panel empty even though the tutor's answers
+        // WERE captured. So read BOTH and merge (specSoFar wins on conflict); the
+        // reducer then accumulates across turns. The panel now fills whenever the
+        // model captured anything structured, not only on the exact key.
+        const asObj = (v: unknown): Record<string, unknown> =>
+          v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+        pciSpecSoFar = normalizePciSpec({ ...asObj(env.spec), ...asObj(env.specSoFar) })
       }
       // A rubric the model emitted without the tutor typing an explicit approval
       // this turn is still OFFERED (so the "Apply to PCI" button reliably appears
@@ -359,6 +394,41 @@ export async function POST(request: NextRequest) {
       // applied without it, so this never silently finalizes.
       if ((pciDraft || pciSpec) && !tutorSignaledFinalize) {
         pciUnconfirmed = true
+      }
+    }
+
+    // Guaranteed population (bulletproofing): if the model returned NOTHING
+    // structured this turn but the tutor has been answering marking questions,
+    // extract the captured policy from the conversation ourselves so the "policy
+    // so far" panel still fills. Bounded — only on an empty result, only once
+    // there's real back-and-forth, and only for a substantive tutor message.
+    if (
+      guardrailDomain &&
+      !pciSpecSoFar &&
+      (history?.length ?? 0) >= 2 &&
+      safeMessage.length > 12
+    ) {
+      try {
+        const convo = [
+          ...(history ?? []).map(
+            h => `${h.role === 'assistant' ? 'Assistant' : 'Tutor'}: ${h.content}`
+          ),
+          `Tutor: ${safeMessage}`,
+        ]
+          .join('\n')
+          .slice(-8000)
+        const keys = PCI_SPEC_FIELDS.map(f => f.key).join(', ')
+        const extractPrompt = `From this conversation between an assistant and a tutor setting up a marking policy, extract ONLY what the TUTOR has actually stated about how answers should be marked. Return ONE JSON object using any of these optional keys (omit anything the tutor has not stated): ${keys}. Each value a short plain phrase in the tutor's own meaning. No prose, no code fences.\n\nConversation:\n${convo}`
+        const extracted = await generateWithFallback(extractPrompt, {
+          temperature: 0.1,
+          maxTokens: 500,
+          skipCache: true,
+          timeoutMs: 20_000,
+          retries: 1,
+        })
+        pciSpecSoFar = normalizePciSpec(parseLlmJson(extracted.content))
+      } catch (err) {
+        console.warn('[pci-master] specSoFar fallback extraction failed:', err)
       }
     }
 
@@ -387,6 +457,26 @@ export async function POST(request: NextRequest) {
           guardrailWarnings.map(v => `${v.ruleId} ${v.severity}`).join(', ')
         )
       }
+    } else if (guardrailDomain === 'assessment') {
+      // Warn-only hygiene for the assessment marking-policy chat. The DMI's
+      // STRUCTURAL guardrails (question-wording fidelity, rubric/marks totals,
+      // evaluation-layer separation) run in generate-dmi, where the parsed
+      // question structure exists. In this CONVERSATIONAL chat the relevant
+      // checks are the domain-agnostic ones — fabricated evaluation policy
+      // (marks/retries/penalties not in the source), false certainty, and
+      // keeping the reply conversational. Reuse those and surface them under a
+      // neutral PCI-* label so they aren't misattributed to a TASK-* rule.
+      guardrailWarnings = runTaskGuardrails(response.response, {
+        sourceContent: context?.content,
+        finalizing: tutorSignaledFinalize,
+        finalizedPci: pciDraft,
+      }).violations.map(v => ({ ...v, ruleId: v.ruleId.replace(/^TASK-/, 'PCI-') }))
+      if (guardrailWarnings.length > 0) {
+        console.warn(
+          `[guardrails] pci-master assessment violations (${guardrailWarnings.length}):`,
+          guardrailWarnings.map(v => `${v.ruleId} ${v.severity}`).join(', ')
+        )
+      }
     }
 
     return NextResponse.json({
@@ -394,6 +484,8 @@ export async function POST(request: NextRequest) {
       pciDraft,
       // TASK-6: the finalized rubric in structured form (null until finalized).
       pciSpec,
+      // Partial policy captured so far (may be incomplete; not a finalization).
+      pciSpecSoFar,
       // True when the model proposed a finalized rubric but the tutor hasn't
       // signalled approval — the UI can prompt them to confirm before applying.
       pciUnconfirmed,

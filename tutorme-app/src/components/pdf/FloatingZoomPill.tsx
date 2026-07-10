@@ -8,6 +8,10 @@ interface FloatingZoomPillProps {
   onScaleChange: (scale: number) => void
   minScale?: number
   maxScale?: number
+  defaultScale?: number
+  /** When provided, the slider operates relative to this fit-to-width scale.
+   *  100% on the slider = fitScale. The reset button returns to fitScale. */
+  fitScale?: number | null
   onHidePreview?: () => void
   className?: string
   containerRef?: React.RefObject<HTMLElement | null>
@@ -19,6 +23,8 @@ export function FloatingZoomPill({
   onScaleChange,
   minScale = 0.5,
   maxScale = 1.5,
+  defaultScale = 1.0,
+  fitScale,
   onHidePreview,
   className,
   containerRef,
@@ -29,16 +35,22 @@ export function FloatingZoomPill({
   const dragStartRef = useRef({ x: 0, y: 0 })
   const pillRef = useRef<HTMLDivElement>(null)
 
-  // Convert scale (0.5-1.5) to slider percentage (0-100)
+  const isFitMode = fitScale !== null && fitScale !== undefined
+
+  // Effective min/max for the slider: if in fit mode, allow 0.25x to 4x of fitScale
+  const effectiveMinScale = isFitMode ? fitScale * 0.25 : minScale
+  const effectiveMaxScale = isFitMode ? fitScale * 4.0 : maxScale
+
+  // Convert scale to slider percentage (0-100)
   const scaleToPercent = useCallback(
-    (s: number) => ((s - minScale) / (maxScale - minScale)) * 100,
-    [minScale, maxScale]
+    (s: number) => ((s - effectiveMinScale) / (effectiveMaxScale - effectiveMinScale)) * 100,
+    [effectiveMinScale, effectiveMaxScale]
   )
 
-  // Convert slider percentage (0-100) to scale (0.5-1.5)
+  // Convert slider percentage (0-100) to scale
   const percentToScale = useCallback(
-    (p: number) => minScale + (p / 100) * (maxScale - minScale),
-    [minScale, maxScale]
+    (p: number) => effectiveMinScale + (p / 100) * (effectiveMaxScale - effectiveMinScale),
+    [effectiveMinScale, effectiveMaxScale]
   )
 
   const handleMouseDown = useCallback(
@@ -99,6 +111,18 @@ export function FloatingZoomPill({
 
   const sliderPercent = scaleToPercent(scale)
 
+  // Display percentage: in fit mode, show relative to fit (100% = fit)
+  // In normal mode, show absolute (100% = scale 1.0)
+  const displayPercent = isFitMode ? Math.round((scale / fitScale) * 100) : Math.round(scale * 100)
+
+  const handleReset = () => {
+    if (isFitMode) {
+      onScaleChange(fitScale)
+    } else {
+      onScaleChange(defaultScale)
+    }
+  }
+
   return (
     <div
       ref={pillRef}
@@ -110,14 +134,13 @@ export function FloatingZoomPill({
       style={{
         transform: fixed ? undefined : `translate(${position.x}px, ${position.y}px)`,
         right: '16px',
-        top: '50%',
-        marginTop: '-90px',
+        bottom: '16px',
       }}
     >
-      {/* Vertical zoom slider */}
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-[10px] font-medium text-gray-700">{Math.round(scale * 100)}%</span>
-        <div className="relative h-24 w-5">
+      {/* Zoom percentage with space above */}
+      <div className="mt-1 flex flex-col items-center gap-1">
+        <span className="text-[10px] font-medium text-gray-700">{displayPercent}%</span>
+        <div className="relative h-24 w-4">
           <input
             type="range"
             min="0"
@@ -125,7 +148,7 @@ export function FloatingZoomPill({
             step="1"
             value={sliderPercent}
             onChange={handleSliderChange}
-            className="absolute inset-0 h-24 w-5 cursor-pointer appearance-none rounded-full bg-gray-500/30 outline-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_rgba(255,255,255,0.8),0_2px_4px_rgba(0,0,0,0.3)]"
+            className="absolute inset-0 h-24 w-4 cursor-pointer appearance-none rounded-full bg-gray-500/30 outline-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_rgba(255,255,255,0.8),0_2px_4px_rgba(0,0,0,0.3)]"
             style={{
               writingMode: 'vertical-lr',
               direction: 'rtl',
@@ -134,28 +157,27 @@ export function FloatingZoomPill({
         </div>
       </div>
 
-      {/* Hide Preview arrow */}
-      {onHidePreview && (
-        <button
-          onClick={onHidePreview}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/20 hover:text-white"
-          title="Hide Preview"
+      {/* Reset zoom button */}
+      <button
+        onClick={handleReset}
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-700"
+        title={isFitMode ? 'Fit to Width' : 'Reset Zoom'}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
-      )}
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
     </div>
   )
 }

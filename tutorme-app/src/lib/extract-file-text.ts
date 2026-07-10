@@ -105,27 +105,48 @@ function readAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   })
 }
 
+// Client-side PDF text extraction is best-effort: its output is only a preview /
+// fallback (the server re-extracts for DMI generation). It runs *before* the
+// upload in the builder, so it must never hang or block the upload on a big,
+// many-page document (e.g. a 56-page SAT paper). We therefore cap the pages we
+// read and race the whole thing against a hard timeout, returning whatever text
+// we've gathered so far rather than stalling.
+const PDF_MAX_PAGES = 40
+const PDF_EXTRACT_TIMEOUT_MS = 15_000
+
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjs = await import('pdfjs-dist')
-  if (typeof window !== 'undefined') {
-    const opts = (pdfjs as { GlobalWorkerOptions?: { workerSrc?: string } }).GlobalWorkerOptions
-    if (opts && !opts.workerSrc) {
-      opts.workerSrc = '/pdf.worker.min.mjs'
-    }
-  }
-  const data = await file.arrayBuffer()
-  const doc = await pdfjs.getDocument({ data }).promise
-  const numPages = doc.numPages
   const parts: string[] = []
-  for (let i = 1; i <= numPages; i++) {
-    const page = await doc.getPage(i)
-    const content = await page.getTextContent()
-    const pageText = content.items
-      .map((item: { str?: string }) => (item as { str?: string }).str ?? '')
-      .join(' ')
-    parts.push(pageText)
-  }
-  return parts.join('\n\n').trim() || ''
+
+  const run = (async () => {
+    const pdfjs = await import('pdfjs-dist')
+    if (typeof window !== 'undefined') {
+      const opts = (pdfjs as { GlobalWorkerOptions?: { workerSrc?: string } }).GlobalWorkerOptions
+      if (opts && !opts.workerSrc) {
+        opts.workerSrc = '/pdf.worker.min.mjs'
+      }
+    }
+    const data = await file.arrayBuffer()
+    const doc = await pdfjs.getDocument({ data }).promise
+    const numPages = Math.min(doc.numPages, PDF_MAX_PAGES)
+    for (let i = 1; i <= numPages; i++) {
+      const page = await doc.getPage(i)
+      const content = await page.getTextContent()
+      const pageText = content.items
+        .map((item: { str?: string }) => (item as { str?: string }).str ?? '')
+        .join(' ')
+      parts.push(pageText)
+    }
+    return parts.join('\n\n').trim()
+  })()
+
+  // If parsing stalls (huge PDF, worker failing to load and falling back to the
+  // main thread, etc.), give up after the budget and hand back partial text so
+  // the caller can proceed with the upload instead of appearing to freeze.
+  const timeout = new Promise<string>(resolve =>
+    setTimeout(() => resolve(parts.join('\n\n').trim()), PDF_EXTRACT_TIMEOUT_MS)
+  )
+
+  return (await Promise.race([run, timeout])) || ''
 }
 
 async function extractDocxText(file: File): Promise<string> {

@@ -389,7 +389,7 @@ export default function AdminRegistrationPage() {
                       <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-500/40">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 bg-[#1F2933] p-1.5 shadow-lg">
+                      <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
                         <SelectItem
                           value="super"
                           className="rounded-md text-[13px] text-white/[0.94] hover:bg-white/15"

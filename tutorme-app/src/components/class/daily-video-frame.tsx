@@ -700,7 +700,10 @@ export function DailyVideoFrame({
                 </PopoverTrigger>
                 <PopoverContent
                   align="center"
-                  className="max-h-[70vh] w-[340px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4"
+                  // The floating video overlay is z-[9999]; the picker portals to
+                  // body with the lower z-popover, so it rendered behind the
+                  // video. Lift it above the overlay.
+                  className="z-[10000] max-h-[70vh] w-[340px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4"
                 >
                   <div className="mb-2 text-sm font-semibold text-slate-900">
                     Virtual background

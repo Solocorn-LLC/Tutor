@@ -17,6 +17,9 @@ interface PDFViewerProps {
   className?: string
   defaultScale?: number
   onHidePreview?: () => void
+  /** When true, the PDF page is scaled to fit the container width on load,
+   *  with the zoom slider operating relative to this fit scale (100% = fit). */
+  fitToWidth?: boolean
 }
 
 function getProxiedPdfUrl(fileUrl: string, fileKey?: string): string {
@@ -39,6 +42,7 @@ export function PDFViewer({
   className = '',
   defaultScale = 1.25,
   onHidePreview,
+  fitToWidth = false,
 }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState<number>(1)
@@ -49,17 +53,58 @@ export function PDFViewer({
   const [pdfData, setPdfData] = useState<string | ArrayBuffer | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // Fit-to-width state
+  const [fitScale, setFitScale] = useState<number | null>(null)
+  const [pageNaturalWidth, setPageNaturalWidth] = useState<number | null>(null)
+  const hasSetInitialScaleRef = useRef(false)
+
   // Detect blob URLs immediately — they are client-side only and break after refresh
   const isBlobUrl = typeof fileUrl === 'string' && fileUrl.startsWith('blob:')
 
-  // Fetch PDF through proxy so expired GCS URLs get refreshed server-side
+  // Calculate fit-to-width scale from container and page dimensions
+  const calculateFitScale = useCallback(() => {
+    if (!fitToWidth || !scrollContainerRef.current || !pageNaturalWidth) return
+    const containerWidth = scrollContainerRef.current.clientWidth
+    // Account for horizontal padding (px-4 = 16px each side)
+    const padding = 32
+    const availableWidth = Math.max(containerWidth - padding, 100)
+    const newFitScale = availableWidth / pageNaturalWidth
+    setFitScale(Math.max(0.25, Math.min(4.0, newFitScale)))
+  }, [fitToWidth, pageNaturalWidth])
+
+  // Recalculate fit scale when container resizes
   useEffect(() => {
-    if (!fileUrl || isBlobUrl) return
+    if (!fitToWidth || !scrollContainerRef.current) return
+    const el = scrollContainerRef.current
+    const ro = new ResizeObserver(() => {
+      calculateFitScale()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fitToWidth, calculateFitScale])
+
+  // Set initial scale to fit scale once calculated
+  useEffect(() => {
+    if (fitToWidth && fitScale !== null && !hasSetInitialScaleRef.current) {
+      setScale(fitScale)
+      hasSetInitialScaleRef.current = true
+    }
+  }, [fitToWidth, fitScale])
+
+  // Fetch PDF through proxy so expired GCS URLs get refreshed server-side.
+  // A durable fileKey is enough on its own — the by-key proxy streams the
+  // object directly — so don't require a (possibly empty/expired) fileUrl.
+  const hasKey = typeof fileKey === 'string' && /^(documents|assets|resources)\//.test(fileKey)
+  useEffect(() => {
+    if ((!fileUrl && !hasKey) || isBlobUrl) return
 
     let cancelled = false
     setLoading(true)
     setError(null)
     setPdfData(null)
+    hasSetInitialScaleRef.current = false
+    setFitScale(null)
+    setPageNaturalWidth(null)
 
     const fetchPdf = async () => {
       try {
@@ -97,7 +142,7 @@ export function PDFViewer({
     return () => {
       cancelled = true
     }
-  }, [fileUrl, fileKey, isBlobUrl])
+  }, [fileUrl, fileKey, hasKey, isBlobUrl])
 
   // Always render every page in a continuous scroll view, regardless of length.
   const isScrollMode = numPages > 0
@@ -115,13 +160,24 @@ export function PDFViewer({
     setLoading(false)
   }, [])
 
+  // Called when a Page loads — gives us the natural page dimensions
+  const onPageLoadSuccess = useCallback(
+    (page: pdfjs.PDFPageProxy) => {
+      if (!fitToWidth) return
+      const viewport = page.getViewport({ scale: 1 })
+      setPageNaturalWidth(viewport.width)
+      calculateFitScale()
+    },
+    [fitToWidth, calculateFitScale]
+  )
+
   const changeScale = useCallback((deltaOrValue: number, absolute = false) => {
     setScale(prev => {
       if (absolute) {
-        return Math.max(0.5, Math.min(3.0, Math.round(deltaOrValue * 100) / 100))
+        return Math.max(0.25, Math.min(4.0, Math.round(deltaOrValue * 100) / 100))
       }
       const next = Math.round((prev + deltaOrValue) * 100) / 100
-      return Math.max(0.5, Math.min(3.0, next))
+      return Math.max(0.25, Math.min(4.0, next))
     })
   }, [])
 
@@ -188,13 +244,15 @@ export function PDFViewer({
         >
           {/* Floating zoom pill - fixed position, does not scroll with content */}
           {!loading && !error && numPages > 0 && (
-            <div className="pointer-events-none absolute right-4 top-1/2 z-50 -translate-y-1/2">
+            <div className="pointer-events-none absolute bottom-4 right-4 z-50">
               <div className="pointer-events-auto">
                 <FloatingZoomPill
                   scale={scale}
                   onScaleChange={newScale => changeScale(newScale, true)}
                   minScale={0.5}
                   maxScale={1.5}
+                  defaultScale={defaultScale}
+                  fitScale={fitScale}
                   onHidePreview={onHidePreview}
                   containerRef={scrollContainerRef}
                   fixed
@@ -222,6 +280,7 @@ export function PDFViewer({
                     renderAnnotationLayer
                     scale={scale}
                     className="shadow-lg"
+                    onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
                     loading={
                       <div className="flex h-[600px] w-[600px] items-center justify-center bg-white">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
@@ -232,13 +291,14 @@ export function PDFViewer({
               ))
             ) : (
               // Single-page pagination view (for large PDFs or while loading)
-              <div className="flex justify-center px-4 py-4">
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
                 <Page
                   pageNumber={pageNumber}
                   renderTextLayer
                   renderAnnotationLayer
                   scale={scale}
                   className="shadow-lg"
+                  onLoadSuccess={onPageLoadSuccess}
                   loading={
                     <div className="flex h-[600px] w-[600px] items-center justify-center bg-white">
                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />

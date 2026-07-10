@@ -152,6 +152,7 @@ export const GET = withAuth(
           tasks: [],
           assessments: [],
           homework: [],
+          materials: [],
           reports: [],
           recordedSessions: [],
         }
@@ -233,6 +234,11 @@ export const GET = withAuth(
           break
         case 'homework':
           directory[tutorKey][courseKey].homework.push(item)
+          break
+        case 'asset':
+          // Documents / resources the tutor deployed in a live session. Without
+          // this case they were silently dropped from the Directory.
+          directory[tutorKey][courseKey].materials.push(item)
           break
         case 'recording':
           directory[tutorKey][courseKey].recordedSessions.push(item)
