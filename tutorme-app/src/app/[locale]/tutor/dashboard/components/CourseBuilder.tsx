@@ -6828,9 +6828,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [currentAssessmentDocument, assessmentBuilder.title])
     const pciBoard =
       pciBoardOverride ??
-      (detectedAssessmentBoard ||
-        deriveExamContext(pciCategory || null, courseName).examBody ||
-        '')
+      (detectedAssessmentBoard || deriveExamContext(pciCategory || null, courseName).examBody || '')
 
     // DMI-first gate: an assessment's marking-policy (PCI) chat unlocks only once
     // the DMI exists with questions, marks, and an answer key/rubric (the "basic"
