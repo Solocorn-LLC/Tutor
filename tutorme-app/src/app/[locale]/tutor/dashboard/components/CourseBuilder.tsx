@@ -1546,7 +1546,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
     // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
     const [pollOptionModeMap, setPollOptionModeMap] = useState<
-      Record<string, '1-10' | 'tf' | 'yn' | 'custom'>
+      Record<string, '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     // Reusable custom option sets, persisted so a tutor can pick a set they used
@@ -1681,7 +1681,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? '1-10'
-    const setPollOptionMode = (val: '1-10' | 'tf' | 'yn' | 'custom') =>
+    const setPollOptionMode = (val: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom') =>
       setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
     const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
     const setPollCustomOptions = (val: string) =>
@@ -1706,7 +1706,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const resolvePollOptions = (): string[] | undefined => {
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
-      if (pollOptionMode === '1-10') return undefined
+      if (pollOptionMode === 'likert')
+        return ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree']
+      if (pollOptionMode === 'ae') return ['A', 'B', 'C', 'D', 'E']
       if (pollOptionMode === 'custom') {
         const opts = parsePollOptions(pollCustomOptions)
         return opts.length >= 2 ? opts : undefined
@@ -1716,8 +1718,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Shared option-set picker rendered above every poll composer. Preset chips
     // + a custom field (one option per line / comma-separated).
-    const POLL_OPTION_PRESETS: { id: '1-10' | 'tf' | 'yn' | 'custom'; label: string }[] = [
+    const POLL_OPTION_PRESETS: {
+      id: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'
+      label: string
+    }[] = [
       { id: '1-10', label: '1–10' },
+      { id: 'likert', label: 'Likert' },
+      { id: 'ae', label: 'A–E' },
       { id: 'tf', label: 'True/False' },
       { id: 'yn', label: 'Yes/No' },
       { id: 'custom', label: 'Custom' },
@@ -5574,7 +5581,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       typeof window !== 'undefined'
                         ? localStorage.getItem('tutor-parse-documents') === 'true'
                         : false
-                    const newAssets = await Promise.all(
+                    const results = await Promise.all(
                       files.map(async (f: File) => {
                         let textContent = ''
                         if (parsePref) {
@@ -5588,10 +5595,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           textContent = `[Imported ${f.name}]`
                         }
 
-                        // Upload to server — any file gets converted to PDF
-                        let fileUrl = ''
-                        let fileKey = ''
-                        let fileMimeType = 'application/pdf'
+                        // Upload to server. A failed upload must NOT silently
+                        // create a file-less asset (that later fails to load with
+                        // "no stored file") — surface the real reason instead.
                         try {
                           const uploadForm = new FormData()
                           uploadForm.append('file', f)
@@ -5600,32 +5606,60 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             method: 'POST',
                             body: uploadForm,
                           })
-                          if (uploadRes.ok) {
-                            const uploadData = await uploadRes.json()
-                            fileUrl = uploadData.url || ''
-                            fileKey = uploadData.key || ''
-                            fileMimeType = uploadData.isPdf
-                              ? 'application/pdf'
-                              : uploadData.type || 'application/pdf'
+                          if (!uploadRes.ok) {
+                            const reason = await uploadRes
+                              .json()
+                              .then(d => d?.error)
+                              .catch(() => null)
+                            return {
+                              ok: false as const,
+                              name: f.name,
+                              error: reason || `upload failed (${uploadRes.status})`,
+                            }
                           }
-                        } catch {
-                          // Fallback: no server URL
-                        }
-
-                        return {
-                          id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
-                          name: f.name,
-                          content: textContent,
-                          url: fileUrl || undefined,
-                          fileKey: fileKey || undefined,
-                          mimeType: fileMimeType || undefined,
-                          folder:
-                            designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                          const uploadData = await uploadRes.json()
+                          const fileUrl = uploadData.url || ''
+                          const fileKey = uploadData.key || ''
+                          if (!fileUrl && !fileKey) {
+                            return {
+                              ok: false as const,
+                              name: f.name,
+                              error: 'upload returned no file reference',
+                            }
+                          }
+                          return {
+                            ok: true as const,
+                            asset: {
+                              id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+                              name: f.name,
+                              content: textContent,
+                              url: fileUrl || undefined,
+                              fileKey: fileKey || undefined,
+                              mimeType: uploadData.isPdf
+                                ? 'application/pdf'
+                                : uploadData.type || 'application/pdf',
+                              folder:
+                                designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                            },
+                          }
+                        } catch (err: any) {
+                          return {
+                            ok: false as const,
+                            name: f.name,
+                            error: err?.message || 'network error',
+                          }
                         }
                       })
                     )
-                    setCourseAssets(prev => [...prev, ...newAssets])
-                    if (files.length > 0) toast.success(`${files.length} asset(s) imported`)
+                    const okAssets = results.flatMap(r => (r.ok ? [r.asset] : []))
+                    const failures = results.filter(r => !r.ok)
+                    if (okAssets.length > 0) {
+                      setCourseAssets(prev => [...prev, ...okAssets])
+                      toast.success(`${okAssets.length} asset(s) imported`)
+                    }
+                    for (const fail of failures) {
+                      toast.error(`Could not import '${fail.name}': ${fail.error}`)
+                    }
                     e.target.value = ''
                   }}
                 />
@@ -9226,7 +9260,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                                                 {/* Header with toggle */}
                                                 <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
-                                                  <span className="text-xs font-semibold text-blue-700">
+                                                  <span className="flex-1 text-center text-xs font-semibold text-blue-700">
                                                     New Poll
                                                   </span>
                                                   {pollResults.length > 0 && (
@@ -9244,7 +9278,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <textarea
                                                     value={pollPrompt}
                                                     onChange={e => setPollPrompt(e.target.value)}
-                                                    placeholder="Type your poll question here..."
+                                                    placeholder="On a scale of 1 to 10, "
                                                     className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                                     rows={3}
                                                   />
@@ -9747,6 +9781,45 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             )
                                           }
 
+                                          // Test-tab task preview: render the exact student chat flow
+                                          // (the document collapses into the chat on the first sample
+                                          // answer) filling this panel — instead of a separate PDF +
+                                          // chat, so the tutor previews what students actually see.
+                                          if (mainTab === 'test-pci' && testPciSource === 'task') {
+                                            const previewExt = taskBuilder.activeExtensionId
+                                              ? taskBuilder.extensions.find(
+                                                  e => e.id === taskBuilder.activeExtensionId
+                                                )
+                                              : null
+                                            const previewKey = `${previewExt ? previewExt.id : 'base'}:${tab.id}`
+                                            return (
+                                              <div className="h-full min-h-0 w-full">
+                                                <TestTaskChat
+                                                  pci={
+                                                    (previewExt
+                                                      ? previewExt.pci
+                                                      : taskBuilder.taskPci) || ''
+                                                  }
+                                                  pciSpec={
+                                                    previewExt ? undefined : taskBuilder.pciSpec
+                                                  }
+                                                  questionText={`${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`}
+                                                  sourceDocument={
+                                                    previewExt
+                                                      ? previewExt.sourceDocument
+                                                      : currentTaskDocument
+                                                  }
+                                                  initialState={
+                                                    testTaskChatStore.current[previewKey]
+                                                  }
+                                                  onPersist={s => {
+                                                    testTaskChatStore.current[previewKey] = s
+                                                  }}
+                                                />
+                                              </div>
+                                            )
+                                          }
+
                                           // Document-only: render directly without ResizablePanelGroup
                                           // so the PDF fills the entire tab area.
                                           if (hasDoc && !hasDmi) {
@@ -10049,29 +10122,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               // flow students get (chat → Task complete → per-answer
                               // responses → follow-up); assessments keep the composer.
                               (mainTab === 'test-pci' && testPciSource === 'task' ? (
-                                (() => {
-                                  const ext = taskBuilder.activeExtensionId
-                                    ? taskBuilder.extensions.find(
-                                        e => e.id === taskBuilder.activeExtensionId
-                                      )
-                                    : null
-                                  // Persist per task/extension AND per student tab, so each
-                                  // preview keeps its own conversation across remounts.
-                                  const persistKey = `${ext ? ext.id : 'base'}:${testPciActiveTab}`
-                                  return (
-                                    <div key={persistKey} className="mt-1 h-[55vh] min-h-[340px]">
-                                      <TestTaskChat
-                                        pci={(ext ? ext.pci : taskBuilder.taskPci) || ''}
-                                        pciSpec={ext ? undefined : taskBuilder.pciSpec}
-                                        questionText={`${taskBuilder.title}\n\n${ext ? ext.content : taskBuilder.taskContent}`}
-                                        initialState={testTaskChatStore.current[persistKey]}
-                                        onPersist={s => {
-                                          testTaskChatStore.current[persistKey] = s
-                                        }}
-                                      />
-                                    </div>
-                                  )
-                                })()
+                                // A task is previewed via the chat flow rendered in the panel
+                                // above (the document collapses into the chat), so nothing
+                                // extra is needed here.
+                                <></>
                               ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
                                 // Assessments are answered in the DMI: test-grade per question
                                 // above (type an answer under a question and click Grade) rather
