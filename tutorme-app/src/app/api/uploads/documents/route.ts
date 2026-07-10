@@ -124,8 +124,23 @@ async function convertToPdf(inputPath: string, outputDir: string): Promise<strin
 
 export const POST = withCsrf(
   withAuth(async (request: NextRequest, session: Session) => {
+    // ── DIAGNOSTIC (temporary) ──────────────────────────────────────────────
+    // Stage-by-stage tracing to pinpoint why large PDFs (e.g. a 10.5MB SAT
+    // paper) fail to upload while smaller papers succeed. Logs size + each
+    // step's elapsed ms and the exact error/stack on failure. Remove once the
+    // root cause is fixed. Correlate by the `rid` prefix in Cloud Run logs.
+    const rid = `upl_${Date.now().toString(36)}`
+    const t0 = Date.now()
+    const diag = (stage: string, extra?: Record<string, unknown>) =>
+      console.log(
+        `[uploads/documents ${rid}] ${stage} (+${Date.now() - t0}ms)`,
+        extra ? JSON.stringify(extra) : ''
+      )
+    let stage = 'start'
     try {
+      diag('received request')
       const formData = await request.formData()
+      stage = 'parsed-formdata'
       const file = formData.get('file')
 
       // Duck typing to avoid `instanceof File` issues in different Node.js environments
@@ -134,6 +149,12 @@ export const POST = withCsrf(
       }
 
       const fileObj = file as File
+      diag('parsed formData', {
+        name: fileObj.name,
+        size: fileObj.size,
+        sizeMB: +(fileObj.size / 1048576).toFixed(2),
+        type: fileObj.type,
+      })
 
       if (fileObj.size > MAX_FILE_SIZE_BYTES) {
         return NextResponse.json({ error: 'File too large (max 20MB)' }, { status: 400 })
@@ -160,8 +181,12 @@ export const POST = withCsrf(
 
       const storedName = `${timestamp}-${safeName}`
       const absolutePath = path.join(absoluteDir, storedName)
+      stage = 'buffering'
       const bytes = Buffer.from(await fileObj.arrayBuffer())
+      diag('buffered arrayBuffer', { bytes: bytes.length })
+      stage = 'writing-temp'
       await writeFile(absolutePath, bytes)
+      diag('wrote temp file', { absolutePath })
 
       let finalPath = absolutePath
       let finalName = storedName
@@ -198,13 +223,19 @@ export const POST = withCsrf(
       if (isGcsConfigured()) {
         try {
           const gcsKey = `documents/${userId}/${finalName}`
+          stage = 'gcs-upload'
+          diag('gcs upload start', { gcsKey, finalMime, convertedToPdf })
           const uploadResult = await uploadLocalFile(finalPath, gcsKey, finalMime, true)
+          diag('gcs upload done')
 
           // Generate a fresh presigned URL instead of relying on the public URL
           // which may 403 when uniform bucket-level access is enabled
+          stage = 'refresh-signed-url'
           const signedUrl = await refreshGcsUrl(uploadResult.url, 7 * 24 * 3600)
+          diag('signed url refreshed', { hasUrl: !!signedUrl })
 
           await cleanupTempFiles()
+          diag('SUCCESS (gcs)', { hasUrl: !!signedUrl, key: gcsKey })
 
           return NextResponse.json({
             url: signedUrl,
@@ -217,16 +248,26 @@ export const POST = withCsrf(
             isPdf: finalMime === 'application/pdf',
           })
         } catch (uploadError: any) {
+          diag('GCS FAILED', {
+            stage,
+            message: uploadError?.message,
+            code: uploadError?.code,
+            name: uploadError?.name,
+            stack: uploadError?.stack?.split('\n').slice(0, 4).join(' | '),
+          })
           await cleanupTempFiles()
           throw new Error(`GCS Upload Failed: ${uploadError.message}`)
         }
       }
 
       // Fallback to persistent local storage if GCS is not configured
+      stage = 'local-store'
+      diag('gcs not configured — using local storage')
       const buffer = await readFile(finalPath)
       const storageKey = `documents/${userId}/${finalName}`
       const result = await storeFile(buffer, storageKey, finalMime)
       await cleanupTempFiles()
+      diag('SUCCESS (local)', { hasUrl: !!result.url, key: result.key })
 
       return NextResponse.json({
         url: result.url,
@@ -239,6 +280,13 @@ export const POST = withCsrf(
         isPdf: finalMime === 'application/pdf',
       })
     } catch (err: any) {
+      diag('UNCAUGHT FAILURE', {
+        stage,
+        message: err?.message,
+        code: err?.code,
+        name: err?.name,
+        stack: err?.stack?.split('\n').slice(0, 5).join(' | '),
+      })
       return handleApiError(err, 'Upload failed', 'api/uploads/documents/route.ts')
     }
   })
