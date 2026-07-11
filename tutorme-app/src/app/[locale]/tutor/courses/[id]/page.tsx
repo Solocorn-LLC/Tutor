@@ -692,10 +692,14 @@ export default function TutorCoursePage() {
         <div className="space-y-6">
           <div className="relative">
             <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2">
-              <BackButton
-                href={`/tutor/insights?tab=builder&courseId=${id}&mode=edit`}
-                className="text-white hover:bg-white/20 hover:text-white"
-              />
+              <button
+                type="button"
+                onClick={() => router.push(`/tutor/insights?tab=builder&courseId=${id}&mode=edit`)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/20"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
             </div>
             <div className="panel-header panel-header-metallic course-top-header w-full text-left">
               <div className="relative flex items-center justify-center">
