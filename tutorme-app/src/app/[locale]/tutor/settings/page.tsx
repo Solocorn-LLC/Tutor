@@ -57,6 +57,7 @@ import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { AvatarUploader } from '@/components/avatar-uploader'
+import { TimezoneSelector } from '@/components/timezone-selector'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
@@ -323,7 +324,8 @@ export default function TutorSettings() {
     email: session?.user?.email || '',
     avatarUrl: '',
     language: 'en',
-    timezone: 'Asia/Shanghai',
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
     nationality: '',
     countryOfResidence: '',
     specialties: [] as string[],
@@ -535,6 +537,12 @@ export default function TutorSettings() {
       })
 
       if (response.ok) {
+        // Store timezone preference in localStorage for client-side timezone
+        try {
+          localStorage.setItem('user-timezone', formData.timezone)
+        } catch {
+          // Ignore localStorage errors
+        }
         toast.success('Profile updated successfully')
       } else {
         throw new Error('Failed to update profile')
@@ -758,8 +766,11 @@ export default function TutorSettings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Input id="timezone" value={formData.timezone} disabled className="bg-white" />
-                    <p className="text-xs text-gray-500">Automatically detected</p>
+                    <TimezoneSelector
+                      id="timezone"
+                      value={formData.timezone}
+                      onChange={value => setFormData(prev => ({ ...prev, timezone: value }))}
+                    />
                   </div>
                 </div>
 
