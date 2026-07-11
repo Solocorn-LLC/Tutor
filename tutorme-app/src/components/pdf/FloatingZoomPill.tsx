@@ -21,8 +21,8 @@ interface FloatingZoomPillProps {
 export function FloatingZoomPill({
   scale,
   onScaleChange,
-  minScale = 0.5,
-  maxScale = 1.5,
+  minScale = 0.2,
+  maxScale = 2.0,
   defaultScale = 1.0,
   fitScale,
   onHidePreview,

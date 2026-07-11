@@ -11094,7 +11094,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   fileUrl={currentTaskDocument.fileUrl}
                                                   fileKey={currentTaskDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
-                                                  fitToWidth
+                                                  fitToScreen
                                                   onHidePreview={() => {
                                                     if (!taskTextVisible) setTaskTextVisible(true)
                                                     setTaskPdfVisible(false)

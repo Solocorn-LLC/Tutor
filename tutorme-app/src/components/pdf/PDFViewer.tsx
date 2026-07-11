@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
 import { FloatingZoomPill } from './FloatingZoomPill'
+import { cn } from '@/lib/utils'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
@@ -20,6 +21,9 @@ interface PDFViewerProps {
   /** When true, the PDF page is scaled to fit the container width on load,
    *  with the zoom slider operating relative to this fit scale (100% = fit). */
   fitToWidth?: boolean
+  /** When true, the PDF page is scaled to fit entirely within the container
+   *  (both width and height), centered with padding. For Task PDFs only. */
+  fitToScreen?: boolean
 }
 
 function getProxiedPdfUrl(fileUrl: string, fileKey?: string): string {
@@ -40,9 +44,10 @@ export function PDFViewer({
   fileUrl,
   fileKey,
   className = '',
-  defaultScale = 1.25,
+  defaultScale = 1.0,
   onHidePreview,
   fitToWidth = false,
+  fitToScreen = false,
 }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState<number>(1)
@@ -56,6 +61,7 @@ export function PDFViewer({
   // Fit-to-width state
   const [fitScale, setFitScale] = useState<number | null>(null)
   const [pageNaturalWidth, setPageNaturalWidth] = useState<number | null>(null)
+  const [pageNaturalHeight, setPageNaturalHeight] = useState<number | null>(null)
   const hasSetInitialScaleRef = useRef(false)
 
   // Detect blob URLs immediately — they are client-side only and break after refresh
@@ -69,27 +75,46 @@ export function PDFViewer({
     const padding = 32
     const availableWidth = Math.max(containerWidth - padding, 100)
     const newFitScale = availableWidth / pageNaturalWidth
-    setFitScale(Math.max(0.25, Math.min(4.0, newFitScale)))
+    setFitScale(Math.max(0.2, Math.min(2.0, newFitScale)))
   }, [fitToWidth, pageNaturalWidth])
+
+  // Calculate fit-to-screen scale (for Tasks - fits both width and height)
+  const calculateFitToScreenScale = useCallback(() => {
+    if (!fitToScreen || !scrollContainerRef.current || !pageNaturalWidth || !pageNaturalHeight)
+      return
+    const containerWidth = scrollContainerRef.current.clientWidth
+    const containerHeight = scrollContainerRef.current.clientHeight
+    // Account for padding (doubled from current standard)
+    const horizontalPadding = 32
+    const verticalPadding = 64 // doubled top padding, equal bottom padding
+    const availableWidth = Math.max(containerWidth - horizontalPadding, 100)
+    const availableHeight = Math.max(containerHeight - verticalPadding, 100)
+    const scaleX = availableWidth / pageNaturalWidth
+    const scaleY = availableHeight / pageNaturalHeight
+    const newFitScale = Math.min(scaleX, scaleY)
+    setFitScale(Math.max(0.2, Math.min(2.0, newFitScale)))
+  }, [fitToScreen, pageNaturalWidth, pageNaturalHeight])
 
   // Recalculate fit scale when container resizes
   useEffect(() => {
-    if (!fitToWidth || !scrollContainerRef.current) return
+    if (!scrollContainerRef.current) return
+    if (!fitToWidth && !fitToScreen) return
     const el = scrollContainerRef.current
     const ro = new ResizeObserver(() => {
-      calculateFitScale()
+      if (fitToWidth) calculateFitScale()
+      if (fitToScreen) calculateFitToScreenScale()
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [fitToWidth, calculateFitScale])
+  }, [fitToWidth, fitToScreen, calculateFitScale, calculateFitToScreenScale])
 
   // Set initial scale to fit scale once calculated
   useEffect(() => {
-    if (fitToWidth && fitScale !== null && !hasSetInitialScaleRef.current) {
+    if ((fitToWidth || fitToScreen) && fitScale !== null && !hasSetInitialScaleRef.current) {
       setScale(fitScale)
       hasSetInitialScaleRef.current = true
     }
-  }, [fitToWidth, fitScale])
+  }, [fitToWidth, fitToScreen, fitScale])
 
   // Fetch PDF through proxy so expired GCS URLs get refreshed server-side.
   // A durable fileKey is enough on its own — the by-key proxy streams the
@@ -163,21 +188,22 @@ export function PDFViewer({
   // Called when a Page loads — gives us the natural page dimensions
   const onPageLoadSuccess = useCallback(
     (page: pdfjs.PDFPageProxy) => {
-      if (!fitToWidth) return
       const viewport = page.getViewport({ scale: 1 })
       setPageNaturalWidth(viewport.width)
-      calculateFitScale()
+      setPageNaturalHeight(viewport.height)
+      if (fitToWidth) calculateFitScale()
+      if (fitToScreen) calculateFitToScreenScale()
     },
-    [fitToWidth, calculateFitScale]
+    [fitToWidth, fitToScreen, calculateFitScale, calculateFitToScreenScale]
   )
 
   const changeScale = useCallback((deltaOrValue: number, absolute = false) => {
     setScale(prev => {
       if (absolute) {
-        return Math.max(0.25, Math.min(4.0, Math.round(deltaOrValue * 100) / 100))
+        return Math.max(0.2, Math.min(2.0, Math.round(deltaOrValue * 100) / 100))
       }
       const next = Math.round((prev + deltaOrValue) * 100) / 100
-      return Math.max(0.25, Math.min(4.0, next))
+      return Math.max(0.2, Math.min(2.0, next))
     })
   }, [])
 
@@ -249,8 +275,8 @@ export function PDFViewer({
                 <FloatingZoomPill
                   scale={scale}
                   onScaleChange={newScale => changeScale(newScale, true)}
-                  minScale={0.5}
-                  maxScale={1.5}
+                  minScale={0.2}
+                  maxScale={2.0}
                   defaultScale={defaultScale}
                   fitScale={fitScale}
                   onHidePreview={onHidePreview}
@@ -272,7 +298,10 @@ export function PDFViewer({
               Array.from(new Array(numPages), (_, index) => (
                 <div
                   key={`page_${index + 1}`}
-                  className="mb-4 flex justify-center px-4 pt-4 last:pb-4"
+                  className={cn(
+                    'flex justify-center px-4',
+                    fitToScreen ? 'min-h-full items-center py-8' : 'mb-4 pt-4 last:pb-4'
+                  )}
                 >
                   <Page
                     pageNumber={index + 1}
@@ -291,7 +320,12 @@ export function PDFViewer({
               ))
             ) : (
               // Single-page pagination view (for large PDFs or while loading)
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
+              <div
+                className={cn(
+                  'flex items-center justify-center px-4',
+                  fitToScreen ? 'min-h-full py-8' : 'min-h-full py-4'
+                )}
+              >
                 <Page
                   pageNumber={pageNumber}
                   renderTextLayer
