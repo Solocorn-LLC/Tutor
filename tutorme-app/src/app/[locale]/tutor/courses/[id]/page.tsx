@@ -698,7 +698,7 @@ export default function TutorCoursePage() {
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/20"
                 aria-label="Go back"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5" style={{ color: 'white' }} />
               </button>
             </div>
             <div className="panel-header panel-header-metallic course-top-header w-full text-left">

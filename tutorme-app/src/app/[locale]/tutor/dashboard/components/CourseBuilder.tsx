@@ -1353,9 +1353,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     ])
     const [mcqChoices, setMcqChoices] = useState(4)
     const [mcqMarks, setMcqMarks] = useState(1)
-    // Numbering across sections: false = continuous (1..N over the whole paper);
-    // true = each section restarts its question numbers at 1 (e.g. per module).
-    const [mcqRestartPerSection, setMcqRestartPerSection] = useState(false)
     // "Edit marks & answers" review modal — lets the tutor set per-question marks
     // and vet/approve the AI-generated answers before deploying.
     const [dmiEditor, setDmiEditor] = useState<{ source: 'task' | 'assessment' } | null>(null)
@@ -1450,32 +1447,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           // the real lesson (not "Lesson 1").
           lessonId: payload.lessonId ?? srcLessonId,
         }
-
-        // Guard: blank multiple-choice questions (no text, no option text) with no
-        // source document would show students empty choices they can't answer.
-        // This happens with a locally-configured MCQ DMI when the paper isn't
-        // attached. Block it with a clear message instead of deploying silently.
-        const blankMcq = (enriched.dmiItems ?? []).filter(
-          q =>
-            (q.questionType === 'mcq' || q.questionType === 'multiple_response') &&
-            !(q.questionText ?? '').trim() &&
-            !(q.options ?? []).some(o => (o ?? '').trim())
-        )
-        const hasSource = !!(enriched.sourceDocument?.fileUrl || enriched.sourceDocument?.fileKey)
-        if (blankMcq.length > 0 && !hasSource) {
-          toast.error(
-            `${blankMcq.length} multiple-choice question${blankMcq.length !== 1 ? 's have' : ' has'} no text and no source document — students would see blank choices. Attach the source paper, or add question/option text, before deploying.`
-          )
-          return
-        }
-
-        // Seed the answer-reveal default from the tutor's PCI policy (they can
-        // still change it in the dialog).
-        const revealFromPolicy = revealPolicyToDeployMode(
-          (enriched.pciSpec as { answerRevealPolicy?: string } | undefined)?.answerRevealPolicy
-        )
-        if (revealFromPolicy) setDeployAnswerReveal(revealFromPolicy)
-
         setDeployDialog({
           run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
         })
@@ -3360,8 +3331,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       type: 'task' | 'assessment',
       questionSpec?: Array<{ type: DmiQuestionType; count: number }>,
       documentKindOverride?: 'question_paper' | 'study_material',
-      skipFormatPrompt?: boolean,
-      forceFormatPrompt?: boolean
+      skipFormatPrompt?: boolean
     ) => {
       const isTask = type === 'task'
       const builder = isTask ? taskBuilder : assessmentBuilder
@@ -3386,25 +3356,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // A multiple-choice paper doesn't need the AI to read it — the tutor
       // configures sections + counts and we build the DMI locally. Free-response
       // uses the AI flow. (Re-runs that already carry a spec/override or the
-      // explicit skip flag bypass this.) The choice is remembered per course so
-      // repeated papers don't re-prompt; the manual Generate button forces the
-      // chooser so the tutor can switch.
+      // explicit skip flag bypass this.)
       if (type === 'assessment' && !questionSpec && !documentKindOverride && !skipFormatPrompt) {
-        const courseKey = courseId || courseName || ''
-        const pref = forceFormatPrompt ? null : readDmiFormatPref(courseKey)
-        if (pref === 'multiple_choice') {
-          setMcqSections([{ name: '', count: 10 }])
-          setMcqChoices(4)
-          setMcqMarks(1)
-          setMcqRestartPerSection(false)
-          setMcqConfigDialog({ type })
-          return
-        }
-        if (pref !== 'free_response') {
-          setDmiFormatDialog({ type })
-          return
-        }
-        // pref === 'free_response' → fall through to the AI flow below.
+        setDmiFormatDialog({ type })
+        return
       }
 
       setDmiGenerating(true)
@@ -3664,18 +3619,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const handleChooseFreeResponse = () => {
       const type = dmiFormatDialog?.type
       setDmiFormatDialog(null)
-      writeDmiFormatPref(courseId || courseName || '', 'free_response')
       if (type) void handleGenerateDMI(type, undefined, undefined, true)
     }
     const handleChooseMultipleChoice = () => {
       const type = dmiFormatDialog?.type
       setDmiFormatDialog(null)
       if (!type) return
-      writeDmiFormatPref(courseId || courseName || '', 'multiple_choice')
       setMcqSections([{ name: '', count: 10 }])
       setMcqChoices(4)
       setMcqMarks(1)
-      setMcqRestartPerSection(false)
       setMcqConfigDialog({ type })
     }
 
@@ -3696,18 +3648,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const choices = Math.max(2, Math.min(8, Math.round(mcqChoices) || 4))
       const marks = Math.max(1, Math.round(mcqMarks) || 1)
       const items: DMIQuestion[] = []
-      // `questionNumber` stays globally unique (ordering/identity); the visible
-      // `questionLabel` is what restarts per section when the tutor chose that.
-      let globalN = 0
+      let n = 0
       for (const sec of sections) {
-        let localN = 0
         for (let i = 0; i < sec.count; i++) {
-          globalN++
-          localN++
+          n++
           items.push({
             id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            questionNumber: globalN,
-            questionLabel: String(mcqRestartPerSection ? localN : globalN),
+            questionNumber: n,
+            questionLabel: String(n),
             questionText: '',
             answer: '',
             marks,
@@ -9732,6 +9680,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     onClick={() => {
                                                       setPollPrompt('')
                                                       setPollCustomOptions('')
+                                                      setPollOptionMode('1-10')
                                                     }}
                                                     className={cn(
                                                       'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
@@ -11586,13 +11535,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   )
                                                   return
                                                 }
-                                                handleGenerateDMI(
-                                                  'assessment',
-                                                  undefined,
-                                                  undefined,
-                                                  false,
-                                                  true
-                                                )
+                                                handleGenerateDMI('assessment')
                                               }}
                                             >
                                               {dmiGenerating ? (
@@ -11670,13 +11613,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       type="button"
                                                       disabled={dmiGenerating}
                                                       onClick={() =>
-                                                        handleGenerateDMI(
-                                                          'assessment',
-                                                          undefined,
-                                                          undefined,
-                                                          false,
-                                                          true
-                                                        )
+                                                        handleGenerateDMI('assessment')
                                                       }
                                                       className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
                                                     >
@@ -12155,6 +12092,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               onClick={() => {
                                                 setPollPrompt('')
                                                 setPollCustomOptions('')
+                                                setPollOptionMode('1-10')
                                               }}
                                               className={cn(
                                                 'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
@@ -13600,39 +13538,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     className="h-9 w-16 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
                   />
                 </label>
-              </div>
-              <div className="border-t border-slate-100 pt-3">
-                <p className="mb-1.5 text-xs font-medium text-gray-600">Question numbering</p>
-                <div className="flex w-fit gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
-                  {[
-                    {
-                      key: false,
-                      label: 'Continuous',
-                      hint: 'numbered 1…N across the whole paper',
-                    },
-                    {
-                      key: true,
-                      label: 'Restart each section',
-                      hint: 'each section starts again at 1',
-                    },
-                  ].map(opt => (
-                    <button
-                      key={String(opt.key)}
-                      type="button"
-                      onClick={() => setMcqRestartPerSection(opt.key)}
-                      title={opt.hint}
-                      aria-pressed={mcqRestartPerSection === opt.key}
-                      className={cn(
-                        'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                        mcqRestartPerSection === opt.key
-                          ? 'bg-[#EEF4FF] text-[#2B5FB8]'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
               </div>
               <p className="text-[11px] text-gray-500">
                 {mcqSections.reduce((sum, s) => sum + (Math.round(s.count) || 0), 0)} question(s) in
