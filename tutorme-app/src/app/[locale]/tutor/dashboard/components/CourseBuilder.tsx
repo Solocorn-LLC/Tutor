@@ -64,6 +64,90 @@ function sanitizeBlobUrls(obj: unknown, path = ''): { sanitized: unknown; remove
 
   return { sanitized: obj, removedPaths }
 }
+
+// Editable Likert scale item component
+function EditableLikertItem({
+  index,
+  label,
+  onChange,
+  onDelete,
+  canDelete,
+}: {
+  index: number
+  label: string
+  onChange: (index: number, value: string) => void
+  onDelete: (index: number) => void
+  canDelete: boolean
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState(label)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  const handleSave = () => {
+    if (editValue.trim()) {
+      onChange(index, editValue.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave()
+    } else if (e.key === 'Escape') {
+      setEditValue(label)
+      setIsEditing(false)
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex h-8 items-center gap-2 rounded-md border border-blue-300 bg-white px-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={editValue}
+          onChange={e => setEditValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent text-xs text-blue-700 outline-none"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="group flex h-8 items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3">
+      <button
+        type="button"
+        onClick={() => {
+          setEditValue(label)
+          setIsEditing(true)
+        }}
+        className="flex-1 text-center text-xs font-medium text-blue-700"
+      >
+        {label}
+      </button>
+      {canDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(index)}
+          className="flex h-5 w-5 items-center justify-center rounded text-blue-400 opacity-0 transition-opacity hover:bg-blue-100 hover:text-blue-600 group-hover:opacity-100"
+          aria-label={`Delete ${label}`}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 import NextImage from 'next/image'
 import {
   DndContext,
@@ -1594,6 +1678,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
+    // Custom Likert scale labels per task (global defaults, editable)
+    const [pollLikertLabelsMap, setPollLikertLabelsMap] = useState<Record<string, string[]>>({})
+    const DEFAULT_LIKERT_LABELS = [
+      'Strongly Disagree',
+      'Disagree',
+      'Neutral',
+      'Agree',
+      'Strongly Agree',
+    ]
     // Reusable custom option sets, persisted so a tutor can pick a set they used
     // before instead of retyping it. Loaded once from localStorage.
     const [savedPollOptionSets, setSavedPollOptionSets] = useState<string[][]>([])
@@ -1661,6 +1754,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // longer hides the previous ones. Each option's tally is by 0-based index,
     // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
     // A/B/C… fallback for legacy polls.
+    const getPollPlaceholder = (mode: string): string => {
+      if (mode === 'likert') return 'How difficult did you find this task?'
+      if (mode === '1-10')
+        return 'On a scale of 1-10, how difficult did you find this task. 10 is very difficult while 1 is too easy.'
+      return 'Type your poll question here...'
+    }
+
     const pollResults = useMemo<PollResultBlock[]>(() => {
       const polls = activeLiveTask?.polls ?? []
       return polls
@@ -1732,6 +1832,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setPollCustomOptions = (val: string) =>
       setPollCustomOptionsMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
+    // Likert label helpers
+    const likertLabels = pollLikertLabelsMap[currentInsightsId] ?? DEFAULT_LIKERT_LABELS
+    const setLikertLabel = (index: number, value: string) => {
+      setPollLikertLabelsMap(prev => {
+        const current = prev[currentInsightsId] ?? [...DEFAULT_LIKERT_LABELS]
+        const updated = [...current]
+        updated[index] = value
+        return { ...prev, [currentInsightsId]: updated }
+      })
+    }
+    const deleteLikertLabel = (index: number) => {
+      setPollLikertLabelsMap(prev => {
+        const current = prev[currentInsightsId] ?? [...DEFAULT_LIKERT_LABELS]
+        if (current.length <= 2) return prev
+        const updated = current.filter((_, i) => i !== index)
+        return { ...prev, [currentInsightsId]: updated }
+      })
+    }
+    const addLikertLabel = () => {
+      setPollLikertLabelsMap(prev => {
+        const current = prev[currentInsightsId] ?? [...DEFAULT_LIKERT_LABELS]
+        return { ...prev, [currentInsightsId]: [...current, 'New Option'] }
+      })
+    }
+
     // Resolve the chosen preset to explicit labels. `letters` returns undefined
     // so the server applies its A–E default; custom is split on newlines/commas.
     // Split custom options on any common separator — newline, comma, slash, pipe
@@ -1751,8 +1876,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const resolvePollOptions = (): string[] | undefined => {
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
-      if (pollOptionMode === 'likert')
-        return ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree']
+      if (pollOptionMode === 'likert') {
+        const custom = pollLikertLabelsMap[currentInsightsId]
+        return custom && custom.length >= 2 ? custom : DEFAULT_LIKERT_LABELS
+      }
       if (pollOptionMode === 'ae') return ['A', 'B', 'C', 'D', 'E']
       if (pollOptionMode === 'custom') {
         const opts = parsePollOptions(pollCustomOptions)
@@ -9487,7 +9614,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <textarea
                                                     value={pollPrompt}
                                                     onChange={e => setPollPrompt(e.target.value)}
-                                                    placeholder="On a scale of 1 to 10, "
+                                                    placeholder={getPollPlaceholder(pollOptionMode)}
                                                     className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                                     rows={3}
                                                   />
@@ -9511,21 +9638,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     )}
                                                     {pollOptionMode === 'likert' && (
                                                       <div className="flex flex-col gap-2">
-                                                        {[
-                                                          'Strongly Disagree',
-                                                          'Disagree',
-                                                          'Neutral',
-                                                          'Agree',
-                                                          'Strongly Agree',
-                                                        ].map((label, i) => (
-                                                          <button
+                                                        {likertLabels.map((label, i) => (
+                                                          <EditableLikertItem
                                                             key={i}
-                                                            type="button"
-                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
-                                                          >
-                                                            {label}
-                                                          </button>
+                                                            index={i}
+                                                            label={label}
+                                                            onChange={setLikertLabel}
+                                                            onDelete={deleteLikertLabel}
+                                                            canDelete={likertLabels.length > 2}
+                                                          />
                                                         ))}
+                                                        <button
+                                                          type="button"
+                                                          onClick={addLikertLabel}
+                                                          className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                                                        >
+                                                          <Plus className="h-3.5 w-3.5" />
+                                                          Add option
+                                                        </button>
                                                       </div>
                                                     )}
                                                     {pollOptionMode === 'ae' && (
@@ -11882,7 +12012,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <textarea
                                               value={pollPrompt}
                                               onChange={e => setPollPrompt(e.target.value)}
-                                              placeholder="Type your poll question here..."
+                                              placeholder={getPollPlaceholder(pollOptionMode)}
                                               className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
                                               rows={3}
                                             />
@@ -11905,21 +12035,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               )}
                                               {pollOptionMode === 'likert' && (
                                                 <div className="flex flex-col gap-2">
-                                                  {[
-                                                    'Strongly Disagree',
-                                                    'Disagree',
-                                                    'Neutral',
-                                                    'Agree',
-                                                    'Strongly Agree',
-                                                  ].map((label, i) => (
-                                                    <button
+                                                  {likertLabels.map((label, i) => (
+                                                    <EditableLikertItem
                                                       key={i}
-                                                      type="button"
-                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {label}
-                                                    </button>
+                                                      index={i}
+                                                      label={label}
+                                                      onChange={setLikertLabel}
+                                                      onDelete={deleteLikertLabel}
+                                                      canDelete={likertLabels.length > 2}
+                                                    />
                                                   ))}
+                                                  <button
+                                                    type="button"
+                                                    onClick={addLikertLabel}
+                                                    className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                                                  >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                    Add option
+                                                  </button>
                                                 </div>
                                               )}
                                               {pollOptionMode === 'ae' && (
