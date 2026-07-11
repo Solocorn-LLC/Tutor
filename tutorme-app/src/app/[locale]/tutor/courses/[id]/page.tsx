@@ -691,7 +691,7 @@ export default function TutorCoursePage() {
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-8 sm:px-6">
         <div className="space-y-6">
           <div className="relative">
-            <div className="absolute left-0 top-1/2 z-10 -translate-y-1/2">
+            <div className="absolute left-[5px] top-1/2 z-10 -translate-y-1/2">
               <button
                 type="button"
                 onClick={() => router.push(`/tutor/insights?tab=builder&courseId=${id}&mode=edit`)}
@@ -731,9 +731,6 @@ export default function TutorCoursePage() {
                   </div>
                   <div>
                     <div className="panel-header-title">Course Information</div>
-                    <div className="panel-header-subtext">
-                      Add the basic details of your course.
-                    </div>
                   </div>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
@@ -812,8 +809,7 @@ export default function TutorCoursePage() {
                     <Tags className="h-5 w-5 text-slate-900" />
                   </div>
                   <div>
-                    <div className="panel-header-title">Categories</div>
-                    <div className="panel-header-subtext">Select a category for your course.</div>
+                    <div className="panel-header-title">Category</div>
                   </div>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
