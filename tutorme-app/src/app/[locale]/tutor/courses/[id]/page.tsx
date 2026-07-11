@@ -697,17 +697,7 @@ export default function TutorCoursePage() {
                 className="text-white hover:bg-white/20 hover:text-white"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                const nextCollapsed = !allCollapsed
-                setAllCollapsed(nextCollapsed)
-                setInfoOpen(!nextCollapsed)
-                setCategoriesOpen(!nextCollapsed)
-                variantManagerRef.current?.setPanelsOpen(!nextCollapsed)
-              }}
-              className="panel-header panel-header-metallic course-top-header w-full cursor-pointer text-left"
-            >
+            <div className="panel-header panel-header-metallic course-top-header w-full text-left">
               <div className="relative flex items-center justify-center">
                 <div className="text-center">
                   <div className="panel-header-title">Course Details</div>
@@ -716,7 +706,7 @@ export default function TutorCoursePage() {
                   </div>
                 </div>
               </div>
-            </button>
+            </div>
           </div>
 
           <Card
