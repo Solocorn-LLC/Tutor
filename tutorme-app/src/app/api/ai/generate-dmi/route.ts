@@ -454,6 +454,10 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Tutor-only: this returns generated answers + rubrics for an assessment.
+    if (session.user.role !== 'TUTOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json().catch(() => null)
     const parsed = GenerateDmiRequestSchema.safeParse(body)

@@ -155,6 +155,10 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Tutor-only course-builder PCI chat.
+    if (session.user.role !== 'TUTOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     // Rate-limit per authenticated user, not per IP, so co-located tutors behind
     // one NAT/proxy don't share a single AI quota.
