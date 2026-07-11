@@ -43,7 +43,7 @@ export function getPool(): Pool {
   // An idle client can emit 'error' (e.g. DB restart, network blip). Without a
   // listener, pg re-emits it as an uncaught exception that crashes the process —
   // a single transient blip would take down the whole instance under load.
-  pool.on('error', (err) => {
+  pool.on('error', err => {
     console.error('[db] idle pool client error:', err.message)
   })
 

@@ -5,7 +5,7 @@ const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
 
 function isPrivateIpv4(ip: string): boolean {
   const parts = ip.split('.').map(Number)
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+  if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
     // Not a well-formed dotted-quad — treat as unsafe rather than "public".
     return true
   }
@@ -39,7 +39,7 @@ function isPrivateIp(ip: string): boolean {
     if (rest.includes('.') && net.isIPv4(rest)) return isPrivateIpv4(rest)
     // Hex-encoded mapped form: ::ffff:a9fe:a9fe
     const groups = rest.split(':')
-    if (groups.length === 2 && groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) {
+    if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
       const hi = parseInt(groups[0], 16)
       const lo = parseInt(groups[1], 16)
       const v4 = [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.')
@@ -83,7 +83,7 @@ export async function assertSafeProxyUrl(rawUrl: string): Promise<URL> {
   // re-resolves it, leaving a DNS-rebinding window. Callers should also validate
   // every redirect hop; pinning the vetted IP into the connection is a follow-up.
   const addresses = await dns.lookup(hostname, { all: true, verbatim: true })
-  if (addresses.length === 0 || addresses.some((address) => isPrivateIp(address.address))) {
+  if (addresses.length === 0 || addresses.some(address => isPrivateIp(address.address))) {
     throw new Error('Private network URLs are not allowed')
   }
 

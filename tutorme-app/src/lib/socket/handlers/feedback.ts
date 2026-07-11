@@ -235,10 +235,7 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
           await db
             .delete(dbPollResponse)
             .where(
-              and(
-                eq(dbPollResponse.pollId, data.pollId),
-                eq(dbPollResponse.studentId, studentId)
-              )
+              and(eq(dbPollResponse.pollId, data.pollId), eq(dbPollResponse.studentId, studentId))
             )
           await db.insert(dbPollResponse).values({
             responseId: crypto.randomUUID(),

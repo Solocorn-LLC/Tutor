@@ -62,9 +62,7 @@ export async function GET(
     const formattedPoll = {
       ...pollRow,
       options,
-      responses: hideStudentIds
-        ? responses.map(r => ({ ...r, studentId: undefined }))
-        : responses,
+      responses: hideStudentIds ? responses.map(r => ({ ...r, studentId: undefined })) : responses,
       totalResponses: responses.length,
     }
 
