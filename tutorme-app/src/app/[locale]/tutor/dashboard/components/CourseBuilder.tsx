@@ -542,6 +542,46 @@ function dmiSelectedOptionLetters(
   return selected
 }
 
+// Map the tutor's free-text PCI answer-reveal policy to a deploy reveal mode, so
+// the Deploy dialog can default to what they already said (they can still change
+// it). Returns null when the policy doesn't clearly map to a mode.
+function revealPolicyToDeployMode(
+  policy?: string
+): 'instant' | 'after_submit' | 'hidden' | 'student_choice' | null {
+  const p = (policy ?? '').toLowerCase().trim()
+  if (!p) return null
+  if (/\bnever\b|\bhidden\b|do ?n'?t reveal|do not reveal|no reveal|withhold|keep hidden/.test(p))
+    return 'hidden'
+  if (/student'?s? choice|let (the )?student|on request|when they (want|choose)|optional/.test(p))
+    return 'student_choice'
+  if (
+    /after (the )?(final|last|submit|submission|attempt|answer|test|quiz)|once (they|the student|submitted)|on (the )?results|end of/.test(
+      p
+    )
+  )
+    return 'after_submit'
+  if (/instant|immediately|right away|straight away|as soon as|show (the )?answer/.test(p))
+    return 'instant'
+  return null
+}
+
+// Remember the tutor's assessment DMI response-format choice per course, so the
+// chooser doesn't re-prompt on every paper in a course that's all one format.
+type DmiFormat = 'free_response' | 'multiple_choice'
+function readDmiFormatPref(courseKey: string): DmiFormat | null {
+  if (typeof window === 'undefined' || !courseKey) return null
+  const v = window.localStorage.getItem(`tutor-dmi-format:${courseKey}`)
+  return v === 'free_response' || v === 'multiple_choice' ? v : null
+}
+function writeDmiFormatPref(courseKey: string, value: DmiFormat): void {
+  if (typeof window === 'undefined' || !courseKey) return
+  try {
+    window.localStorage.setItem(`tutor-dmi-format:${courseKey}`, value)
+  } catch {
+    // ignore storage failures (private mode, quota)
+  }
+}
+
 function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   const noun = kind === 'assessment' ? 'assessment' : 'task'
   return (
@@ -1417,6 +1457,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           // the real lesson (not "Lesson 1").
           lessonId: payload.lessonId ?? srcLessonId,
         }
+
+        // Guard: blank multiple-choice questions (no text, no option text) with no
+        // source document would show students empty choices they can't answer.
+        // This happens with a locally-configured MCQ DMI when the paper isn't
+        // attached. Block it with a clear message instead of deploying silently.
+        const blankMcq = (enriched.dmiItems ?? []).filter(
+          q =>
+            (q.questionType === 'mcq' || q.questionType === 'multiple_response') &&
+            !(q.questionText ?? '').trim() &&
+            !(q.options ?? []).some(o => (o ?? '').trim())
+        )
+        const hasSource = !!(enriched.sourceDocument?.fileUrl || enriched.sourceDocument?.fileKey)
+        if (blankMcq.length > 0 && !hasSource) {
+          toast.error(
+            `${blankMcq.length} multiple-choice question${blankMcq.length !== 1 ? 's have' : ' has'} no text and no source document — students would see blank choices. Attach the source paper, or add question/option text, before deploying.`
+          )
+          return
+        }
+
+        // Seed the answer-reveal default from the tutor's PCI policy (they can
+        // still change it in the dialog).
+        const revealFromPolicy = revealPolicyToDeployMode(
+          (enriched.pciSpec as { answerRevealPolicy?: string } | undefined)?.answerRevealPolicy
+        )
+        if (revealFromPolicy) setDeployAnswerReveal(revealFromPolicy)
+
         setDeployDialog({
           run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
         })
@@ -3321,7 +3387,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       type: 'task' | 'assessment',
       questionSpec?: Array<{ type: DmiQuestionType; count: number }>,
       documentKindOverride?: 'question_paper' | 'study_material',
-      skipFormatPrompt?: boolean
+      skipFormatPrompt?: boolean,
+      forceFormatPrompt?: boolean
     ) => {
       const isTask = type === 'task'
       const builder = isTask ? taskBuilder : assessmentBuilder
@@ -3346,10 +3413,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // A multiple-choice paper doesn't need the AI to read it — the tutor
       // configures sections + counts and we build the DMI locally. Free-response
       // uses the AI flow. (Re-runs that already carry a spec/override or the
-      // explicit skip flag bypass this.)
+      // explicit skip flag bypass this.) The choice is remembered per course so
+      // repeated papers don't re-prompt; the manual Generate button forces the
+      // chooser so the tutor can switch.
       if (type === 'assessment' && !questionSpec && !documentKindOverride && !skipFormatPrompt) {
-        setDmiFormatDialog({ type })
-        return
+        const courseKey = courseId || courseName || ''
+        const pref = forceFormatPrompt ? null : readDmiFormatPref(courseKey)
+        if (pref === 'multiple_choice') {
+          setMcqSections([{ name: '', count: 10 }])
+          setMcqChoices(4)
+          setMcqMarks(1)
+          setMcqRestartPerSection(false)
+          setMcqConfigDialog({ type })
+          return
+        }
+        if (pref !== 'free_response') {
+          setDmiFormatDialog({ type })
+          return
+        }
+        // pref === 'free_response' → fall through to the AI flow below.
       }
 
       setDmiGenerating(true)
@@ -3609,12 +3691,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const handleChooseFreeResponse = () => {
       const type = dmiFormatDialog?.type
       setDmiFormatDialog(null)
+      writeDmiFormatPref(courseId || courseName || '', 'free_response')
       if (type) void handleGenerateDMI(type, undefined, undefined, true)
     }
     const handleChooseMultipleChoice = () => {
       const type = dmiFormatDialog?.type
       setDmiFormatDialog(null)
       if (!type) return
+      writeDmiFormatPref(courseId || courseName || '', 'multiple_choice')
       setMcqSections([{ name: '', count: 10 }])
       setMcqChoices(4)
       setMcqMarks(1)
@@ -11595,7 +11679,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   )
                                                   return
                                                 }
-                                                handleGenerateDMI('assessment')
+                                                handleGenerateDMI(
+                                                  'assessment',
+                                                  undefined,
+                                                  undefined,
+                                                  false,
+                                                  true
+                                                )
                                               }}
                                             >
                                               {dmiGenerating ? (
@@ -11673,7 +11763,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       type="button"
                                                       disabled={dmiGenerating}
                                                       onClick={() =>
-                                                        handleGenerateDMI('assessment')
+                                                        handleGenerateDMI(
+                                                          'assessment',
+                                                          undefined,
+                                                          undefined,
+                                                          false,
+                                                          true
+                                                        )
                                                       }
                                                       className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
                                                     >
