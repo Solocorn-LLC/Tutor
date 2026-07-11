@@ -87,5 +87,6 @@ The variant is derived client-side from the DMI and passed as `context.variant`:
   questions were generated (provenance `llm_inferred`) and to confirm coverage /
   difficulty before building the policy.
 
-Tasks have no sub-variants yet — `guardrailSystemPrompt('task', …)` ignores the
-variant.
+Tasks use the same mechanism but only the **source** modifier: a `study_material`
+note (composition does not apply — task answering is free-form chat). See
+[`tasks-pci.md`](./tasks-pci.md) → "Prompt variants".

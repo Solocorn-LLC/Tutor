@@ -7114,6 +7114,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         composition: resolvePciComposition(assessmentDmiItems.map(q => q.questionType)),
         documentKind: dmiDocumentKind.assessment,
       },
+      // Task steering: source only (task answering is free-form, no composition).
+      taskPciVariant: {
+        documentKind: dmiDocumentKind.task,
+      },
     })
     const { pci, handlePciSend, applyTaskPciDraft, applyAssessmentPciDraft, setPciInput } = pciApi
     const editSpecSoFar = pciApi.editSpecSoFar

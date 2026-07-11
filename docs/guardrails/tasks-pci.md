@@ -15,14 +15,14 @@ rules change.
 
 ## Enforcement model
 
-| Layer | Mechanism | Status |
-| --- | --- | --- |
-| Prompt | `TASK_PCI_SYSTEM_PROMPT` injected into every task-PCI LLM call (`api/ai/pci-master` when `context.type === 'task'`); temperature lowered to `GUARDRAILED_TEMPERATURE` (0.2) for consistency. | **Active** |
-| Validator | `validateTaskPciOutput` runs after generation, returns `guardrailWarnings`, logs violations. | **Active (warn-only)** |
-| Code — confirmation gate (TASK-5) | `api/ai/pci-master` suppresses a finalized `pci` until the tutor's message signals approval (returns `pciUnconfirmed`); the builder's "Apply to PCI" button is the second, human gate. | **Active (blocking)** |
-| Code — data capture (TASK-18) | On "Apply to PCI" the task records a `PciAuditRecord` `{approvedPci, transcript, approvedAt}` in `task.pciHistory` — an append-only, versioned log distinguishing what was said/interpreted vs approved. | **Active** |
-| Code — safe failure (TASK-10 / 19) | `ai-grade` refuses (`422`, `needsManualGrading`) when there is no marking basis (no PCI, rubric, or model answer) instead of fabricating a score (`resolveMarkingBasis`). | **Active (blocking)** |
-| Code — final authority (TASK-20) | `ai-grade` treats the approved PCI as the binding marking policy, overriding the rubric / model answer where they conflict. | **Active (execution prompt)** |
+| Layer                              | Mechanism                                                                                                                                                                                                | Status                        |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Prompt                             | `TASK_PCI_SYSTEM_PROMPT` injected into every task-PCI LLM call (`api/ai/pci-master` when `context.type === 'task'`); temperature lowered to `GUARDRAILED_TEMPERATURE` (0.2) for consistency.             | **Active**                    |
+| Validator                          | `validateTaskPciOutput` runs after generation, returns `guardrailWarnings`, logs violations.                                                                                                             | **Active (warn-only)**        |
+| Code — confirmation gate (TASK-5)  | `api/ai/pci-master` suppresses a finalized `pci` until the tutor's message signals approval (returns `pciUnconfirmed`); the builder's "Apply to PCI" button is the second, human gate.                   | **Active (blocking)**         |
+| Code — data capture (TASK-18)      | On "Apply to PCI" the task records a `PciAuditRecord` `{approvedPci, transcript, approvedAt}` in `task.pciHistory` — an append-only, versioned log distinguishing what was said/interpreted vs approved. | **Active**                    |
+| Code — safe failure (TASK-10 / 19) | `ai-grade` refuses (`422`, `needsManualGrading`) when there is no marking basis (no PCI, rubric, or model answer) instead of fabricating a score (`resolveMarkingBasis`).                                | **Active (blocking)**         |
+| Code — final authority (TASK-20)   | `ai-grade` treats the approved PCI as the binding marking policy, overriding the rubric / model answer where they conflict.                                                                              | **Active (execution prompt)** |
 
 "Warn-only" applies to the **validator**: violations are detected, logged, and returned to the
 client, but not blocked (raise a violation's severity to `error` and gate the call site to make it
@@ -44,7 +44,7 @@ and execution and is tracked separately.
 6. **Specification** — After confirmation, emit a structured spec. Undefined fields stay `"unspecified"` — never fabricated for completeness.
 7. **Execution** — Follow the approved PCI exactly during student execution; no improvisation.
 8. **Consistency** — Materially consistent behaviour across equivalent interactions. Wording may vary; logic may not.
-9. **Explanation** — When explanation is in scope, explain *why* (tied to lesson content), not just "correct/incorrect" — unless the tutor asked for minimal feedback.
+9. **Explanation** — When explanation is in scope, explain _why_ (tied to lesson content), not just "correct/incorrect" — unless the tutor asked for minimal feedback.
 10. **No Hallucinated Evaluation** — Never pretend to know an answer/rubric/scoring that's missing. State the basis is unclear and ask. "A confident mistake at scale is still a mistake."
 11. **Partial Understanding** — Apply tutor-defined partial credit; otherwise don't invent a framework — say it's unspecified.
 12. **Tone** — Tutor-defined tone, else clear/professional/instructional/non-hostile/non-sarcastic. Never mocking or theatrical.
@@ -65,3 +65,18 @@ and execution and is tracked separately.
 
 Heuristic checks are intentionally conservative (favouring few false positives). The prompt layer
 does the bulk of the behavioural enforcement; the validator is a backstop and an audit signal.
+
+## Prompt variants (per-type steering)
+
+Like assessments, the task PCI chat can append a short **steering addendum** to
+`TASK_PCI_SYSTEM_PROMPT` — added AFTER the full base prompt (which embeds all 20
+rules), so no guardrail is ever dropped or relaxed. Implementation:
+`src/lib/ai/guardrails/variants.ts` (`taskVariantAddendum`), selected in
+`guardrailSystemPrompt('task', variant)` and passed as `context.variant`.
+
+Task answering is free-form chat, so the question-composition variants used for
+assessments do NOT apply here. The only task modifier is **source**: when the
+task's `documentKind` is `study_material`, a note tells the model the prompt(s)
+were generated (not taken from a question paper) and to confirm they match the
+tutor's intent before building the marking policy. Absent that, the base task
+prompt is used unchanged.
