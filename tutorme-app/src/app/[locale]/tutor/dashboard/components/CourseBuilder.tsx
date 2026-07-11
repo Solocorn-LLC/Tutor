@@ -204,6 +204,7 @@ import {
 import { deriveExamContext } from '@/lib/assessment/marking-scheme'
 import { getAllCourseCategoryOptions } from '@/lib/data/all-categories'
 import { deriveSections, deriveTotalMarks } from '@/lib/assessment/sections'
+import { reverifyAssessment, type ReverifyItem } from '@/lib/assessment/assessment-gates'
 import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
@@ -1404,6 +1405,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // and carry it separately as `answerKey` (server-only, for grading). Every
         // deploy path routes through here, so this is the single guarantee that
         // answers/rubrics never reach students. Block if anything still leaks.
+
+        // ASMT-12 gradability gate (assessment-only): the assessment must be
+        // internally consistent and fully gradable before deploy — no duplicate
+        // question numbers, every open (short/long) question has a rubric
+        // pathway, and every closed (mcq/…) question has an answer key. Runs on
+        // the RAW items (which still carry answers/rubrics). This blocks, e.g.,
+        // deploying a configured MCQ paper before all correct options are set.
+        if (payload.source === 'assessment') {
+          const issues = reverifyAssessment((payload.dmiItems ?? []) as unknown as ReverifyItem[])
+          if (issues.length > 0) {
+            const shown = issues
+              .slice(0, 3)
+              .map(i => i.message)
+              .join(' ')
+            const more = issues.length > 3 ? ` (+${issues.length - 3} more)` : ''
+            toast.error(`Cannot deploy — ${shown}${more}`)
+            return
+          }
+        }
+
         const {
           dmiItems: safeDmiItems,
           answerKey,
