@@ -695,7 +695,7 @@ export default function TutorCoursePage() {
               <button
                 type="button"
                 onClick={() => router.push(`/tutor/insights?tab=builder&courseId=${id}&mode=edit`)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/20"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/30 hover:text-white"
                 aria-label="Go back"
               >
                 <ArrowLeft className="h-5 w-5" style={{ color: 'white' }} />
