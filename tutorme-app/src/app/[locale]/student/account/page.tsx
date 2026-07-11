@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AvatarUploader } from '@/components/avatar-uploader'
+import { TimezoneSelector } from '@/components/timezone-selector'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { CollapsibleCard } from '@/components/collapsible-card'
 
@@ -93,7 +94,8 @@ export default function StudentAccount() {
     email: '',
     avatarUrl: '',
     language: 'en',
-    timezone: 'Asia/Shanghai',
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
   })
 
   const [notifications, setNotifications] = useState({
@@ -193,6 +195,12 @@ export default function StudentAccount() {
       })
 
       if (response.ok) {
+        // Store timezone preference in localStorage for client-side timezone
+        try {
+          localStorage.setItem('user-timezone', formData.timezone)
+        } catch {
+          // Ignore localStorage errors
+        }
         toast.success('Profile updated successfully')
       } else {
         throw new Error('Failed to update profile')
@@ -416,13 +424,11 @@ export default function StudentAccount() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="timezone">Timezone</Label>
-                      <Input
+                      <TimezoneSelector
                         id="timezone"
                         value={formData.timezone}
-                        disabled
-                        className="bg-white"
+                        onChange={value => setFormData(prev => ({ ...prev, timezone: value }))}
                       />
-                      <p className="text-xs text-gray-500">Automatically detected</p>
                     </div>
                   </div>
 

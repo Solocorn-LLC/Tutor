@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -11,9 +12,82 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Bell, Globe, Lock, Moon } from 'lucide-react'
+import { Bell, Globe, Lock, Moon, Loader2, Save } from 'lucide-react'
+import { toast } from 'sonner'
+import { TimezoneSelector } from '@/components/timezone-selector'
+
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'es', name: 'Español (Spanish)' },
+  { code: 'fr', name: 'Français (French)' },
+  { code: 'de', name: 'Deutsch (German)' },
+  { code: 'ja', name: 'Japanese' },
+]
 
 export default function ParentSettingsPage() {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [timezone, setTimezone] = useState(
+    (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC'
+  )
+  const [language, setLanguage] = useState('en')
+
+  // Load profile data on mount
+  useEffect(() => {
+    fetch('/api/user/profile', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.profile) {
+          setTimezone(data.profile.timezone || timezone)
+          setLanguage(data.profile.preferredLanguage || 'en')
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load profile:', err)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          preferredLanguage: language,
+          timezone,
+        }),
+      })
+
+      if (response.ok) {
+        // Store timezone preference in localStorage for client-side timezone
+        try {
+          localStorage.setItem('user-timezone', timezone)
+        } catch {
+          // Ignore localStorage errors
+        }
+        toast.success('Settings saved successfully')
+      } else {
+        throw new Error('Failed to save settings')
+      }
+    } catch (err) {
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -66,27 +140,37 @@ export default function ParentSettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Language</Label>
-              <Select defaultValue="zh-CN">
+              <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="zh-CN">Chinese (Simplified)</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
+                  {LANGUAGES.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Timezone</Label>
-              <Select defaultValue="Asia/Shanghai">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Asia/Shanghai">Asia/Shanghai (GMT+8)</SelectItem>
-                  <SelectItem value="Asia/Hong_Kong">Asia/Hong Kong (GMT+8)</SelectItem>
-                </SelectContent>
-              </Select>
+              <TimezoneSelector value={timezone} onChange={setTimezone} />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
