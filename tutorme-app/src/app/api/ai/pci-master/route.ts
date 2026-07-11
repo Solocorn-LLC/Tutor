@@ -183,6 +183,14 @@ export async function POST(request: NextRequest) {
       : SYSTEM_PROMPT
     const activeTemperature = guardrailDomain ? GUARDRAILED_TEMPERATURE : 0.7
 
+    // Observability: record which per-type variant actually fired, so the
+    // composition thresholds / addendum wording can be tuned from real usage.
+    if (guardrailDomain) {
+      console.log(
+        `[pci-master] domain=${guardrailDomain} composition=${context?.variant?.composition ?? '-'} documentKind=${context?.variant?.documentKind ?? '-'}`
+      )
+    }
+
     const safeMessage = AISecurityManager.sanitizeAiInput(message)
     if (!safeMessage) {
       return NextResponse.json(
