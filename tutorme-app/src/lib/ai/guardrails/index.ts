@@ -43,6 +43,7 @@ export { stripEvaluationLayer, findEvaluationLeaks } from './serialize'
 
 export {
   resolvePciComposition,
+  inferDocumentKindFromProvenance,
   assessmentVariantAddendum,
   taskVariantAddendum,
   type PciComposition,

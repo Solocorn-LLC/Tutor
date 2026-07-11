@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   resolvePciComposition,
+  inferDocumentKindFromProvenance,
   assessmentVariantAddendum,
   taskVariantAddendum,
   guardrailSystemPrompt,
@@ -42,6 +43,36 @@ describe('resolvePciComposition', () => {
 
   it('ignores null/undefined entries when computing ratios', () => {
     expect(resolvePciComposition(['mcq', null, 'mcq', undefined, 'mcq', 'mcq'])).toBe('objective')
+  })
+})
+
+describe('inferDocumentKindFromProvenance (pre-fix backfill)', () => {
+  it('returns undefined with no provenance signal', () => {
+    expect(inferDocumentKindFromProvenance([])).toBeUndefined()
+    expect(inferDocumentKindFromProvenance([null, undefined])).toBeUndefined()
+  })
+
+  it('infers study_material when every known answer is llm_inferred', () => {
+    expect(inferDocumentKindFromProvenance(['llm_inferred', 'llm_inferred'])).toBe('study_material')
+    // undefined entries are ignored, not disqualifying
+    expect(inferDocumentKindFromProvenance(['llm_inferred', undefined, 'llm_inferred'])).toBe(
+      'study_material'
+    )
+  })
+
+  it('never labels study_material when a real answer source is present (avoids mislabelling papers)', () => {
+    expect(
+      inferDocumentKindFromProvenance(['llm_inferred', 'answer_sheet_extracted'])
+    ).toBeUndefined()
+    expect(inferDocumentKindFromProvenance(['tutor_provided'])).toBeUndefined()
+    expect(inferDocumentKindFromProvenance(['llm_inferred', 'tutor_edited'])).toBeUndefined()
+  })
+
+  it('never returns question_paper (undefined is the safe no-note default)', () => {
+    // A wrong guess can only withhold the note, never fabricate a classification.
+    const result = inferDocumentKindFromProvenance(['answer_sheet_extracted'])
+    expect(result).not.toBe('question_paper')
+    expect(result).toBeUndefined()
   })
 })
 

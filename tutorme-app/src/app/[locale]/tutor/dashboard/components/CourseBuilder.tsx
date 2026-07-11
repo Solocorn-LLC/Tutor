@@ -209,7 +209,7 @@ import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
-import { resolvePciComposition } from '@/lib/ai/guardrails'
+import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -2048,7 +2048,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setTaskDmiItems(task.dmiItems || [])
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
         // applies for a returning tutor, not just in the generation session.
-        setDmiDocumentKind(prev => ({ ...prev, task: task.documentKind }))
+        setDmiDocumentKind(prev => ({
+          ...prev,
+          // Backfill pre-fix DMIs (no saved kind) from answer provenance.
+          task:
+            task.documentKind ??
+            inferDocumentKindFromProvenance((task.dmiItems ?? []).map(i => i.answerProvenance)),
+        }))
         // Normalize persisted versions so `items` is always an array — a legacy /
         // partially-saved version with a missing items array would otherwise crash
         // the DMI version-list / preview dialogs (rendered at the root, outside the
@@ -2098,7 +2104,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentDmiItems(assessment.dmiItems || [])
       // Rehydrate the DMI source kind so the PCI-chat study-material variant
       // applies for a returning tutor, not just in the generation session.
-      setDmiDocumentKind(prev => ({ ...prev, assessment: assessment.documentKind }))
+      setDmiDocumentKind(prev => ({
+        ...prev,
+        // Backfill pre-fix DMIs (no saved kind) from answer provenance.
+        assessment:
+          assessment.documentKind ??
+          inferDocumentKindFromProvenance((assessment.dmiItems ?? []).map(i => i.answerProvenance)),
+      }))
       // Normalize so every version's `items` is an array (see task note above).
       setAssessmentDmiVersions(
         (assessment.dmiVersions || []).map(v => ({

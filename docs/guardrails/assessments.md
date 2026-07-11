@@ -85,7 +85,11 @@ The variant is derived client-side from the DMI and passed as `context.variant`:
     parts differ, then branch.
 - **Source** (`documentKind`): a `study_material` note tells the model the
   questions were generated (provenance `llm_inferred`) and to confirm coverage /
-  difficulty before building the policy.
+  difficulty before building the policy. `documentKind` is persisted with the DMI
+  (survives reload); for DMIs generated before it was persisted,
+  `inferDocumentKindFromProvenance` backfills it conservatively at load time
+  (only all-`llm_inferred` answers → `study_material`; any answer-sheet/tutor
+  source → left unset, so a real paper is never mislabelled).
 
 Tasks use the same mechanism but only the **source** modifier: a `study_material`
 note (composition does not apply — task answering is free-form chat). See

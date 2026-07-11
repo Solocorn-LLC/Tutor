@@ -9,9 +9,10 @@
  * embeds ASSESSMENT_GUARDRAILS), the validators, and the state machine remain
  * the binding rules. See docs/guardrails/assessments.md → "Prompt variants".
  *
- * Tasks intentionally have no sub-variants yet; `guardrailSystemPrompt('task')`
- * ignores any variant. The classifier + addenda live here (not in assessment.ts)
- * so the canonical rule module stays the single source of the rules.
+ * Tasks use the source modifier only (a study-material note) — composition does
+ * not apply to free-form chat answering. The classifier + addenda live here (not
+ * in assessment.ts) so the canonical rule module stays the single source of the
+ * rules.
  */
 
 import { OPEN_DMI_TYPES, type DmiQuestionType } from '@/lib/assessment/question-types'
@@ -49,6 +50,34 @@ export function resolvePciComposition(
   if (closedRatio >= OBJECTIVE_THRESHOLD) return 'objective'
   if (openRatio >= FREE_RESPONSE_THRESHOLD) return 'free_response'
   return 'mixed'
+}
+
+/**
+ * Best-effort backfill of `documentKind` for DMIs generated BEFORE it was
+ * persisted, inferred from answer provenance (ASMT-5). Deliberately CONSERVATIVE
+ * to avoid mislabelling a real question paper as study material:
+ *  - any answer from a real source (answer sheet / tutor) → NOT study material
+ *    (returns undefined → base prompt, treated as a question paper);
+ *  - only when every known answer is `llm_inferred` (the signature of AI-
+ *    generated study-material questions) do we infer `study_material`.
+ * It never returns `question_paper` (undefined already means "no note"), so a
+ * wrong guess can only ever WITHHOLD the study-material note, never fabricate a
+ * question-paper classification. A regenerated DMI persists the real value and
+ * supersedes this inference.
+ */
+export function inferDocumentKindFromProvenance(
+  provenances: ReadonlyArray<string | null | undefined>
+): 'study_material' | undefined {
+  const known = provenances.filter((p): p is string => !!p)
+  if (known.length === 0) return undefined
+  if (
+    known.some(
+      p => p === 'answer_sheet_extracted' || p === 'tutor_provided' || p === 'tutor_edited'
+    )
+  ) {
+    return undefined
+  }
+  return known.every(p => p === 'llm_inferred') ? 'study_material' : undefined
 }
 
 const COMPOSITION_ADDENDA: Record<PciComposition, string> = {
