@@ -1,8 +1,0 @@
-services:
-  adk-service:
-    build: .
-    ports:
-      - "4310:4310"
-    env_file:
-      - .env
-    restart: unless-stopped

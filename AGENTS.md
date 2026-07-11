@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-07-08
 > **Repository root:** `c:\VSCODE\Tutor`
-> **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `services/adk/` (Google ADK microservice), `design-system/` (shared design tokens), `Classroom/` (tutor documentation)
+> **Covers:** `tutorme-app/` (main Next.js app), `landing-page/` (Vite landing page), `design-system/` (shared design tokens), `Classroom/` (tutor documentation). The Google ADK microservice was extracted to its own repo (`Solocorn-LLC/adk-service`); some `services/adk/` references below are historical.
 
 ---
 
