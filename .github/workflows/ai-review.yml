@@ -1,0 +1,36 @@
+name: AI review
+
+on:
+  pull_request:
+    branches: [main]
+
+# Advisory: posts a review comment; does not gate merges (the job always
+# succeeds). Promote to a required check once you trust it.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Review the diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+          KIMI_BASE_URL: https://api.moonshot.ai/v1
+          KIMI_MODEL: moonshot-v1-32k
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/ai-review.mjs
