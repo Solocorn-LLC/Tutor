@@ -1672,10 +1672,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, 'analytics' | 'poll' | 'question'>
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
-    // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No),
-    // or 'custom' (tutor-typed). Custom labels held in pollCustomOptionsMap.
+    // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No)
     const [pollOptionModeMap, setPollOptionModeMap] = useState<
-      Record<string, '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'>
+      Record<string, '1-10' | 'likert' | 'ae' | 'tf' | 'yn'>
     >({})
     const [pollCustomOptionsMap, setPollCustomOptionsMap] = useState<Record<string, string>>({})
     // Custom Likert scale labels per task (global defaults, editable)
@@ -1755,9 +1754,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // labelled from the poll's optionLabels (True/False, Yes/No, custom) with an
     // A/B/C… fallback for legacy polls.
     const getPollPlaceholder = (mode: string): string => {
-      if (mode === 'likert') return 'How difficult did you find this task?'
-      if (mode === '1-10')
-        return 'On a scale of 1-10, how difficult did you find this task. 10 is very difficult while 1 is too easy.'
+      if (mode === '1-10') return 'On a scale of 1 to 10, how difficult did you find this task?'
+      if (mode === 'likert') return 'Did you find this task difficult?'
+      if (mode === 'tf') return 'The explanation to your answer was clear and concise?'
+      if (mode === 'yn') return 'Did you complete all your homework tasks?'
       return 'Type your poll question here...'
     }
 
@@ -1826,7 +1826,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? '1-10'
-    const setPollOptionMode = (val: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom') =>
+    const setPollOptionMode = (val: '1-10' | 'likert' | 'ae' | 'tf' | 'yn') =>
       setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
     const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
     const setPollCustomOptions = (val: string) =>
@@ -1891,7 +1891,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Shared option-set picker rendered above every poll composer. Preset chips
     // + a custom field (one option per line / comma-separated).
     const POLL_OPTION_PRESETS: {
-      id: '1-10' | 'likert' | 'ae' | 'tf' | 'yn' | 'custom'
+      id: '1-10' | 'likert' | 'ae' | 'tf' | 'yn'
       label: string
     }[] = [
       { id: '1-10', label: '1–10' },
@@ -1899,7 +1899,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       { id: 'ae', label: 'A–E' },
       { id: 'tf', label: 'True/False' },
       { id: 'yn', label: 'Yes/No' },
-      { id: 'custom', label: 'Custom' },
     ]
     const questionPrompt =
       questionPromptMap[currentInsightsId] ?? 'Do you have a question about this task?'
@@ -9671,10 +9670,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ))}
                                                       </div>
                                                     )}
-                                                    {pollOptionMode === 'custom' && (
-                                                      <p className="text-xs text-gray-600">
-                                                        Custom poll options will appear here
-                                                      </p>
+                                                    {pollOptionMode === 'tf' && (
+                                                      <div className="flex flex-wrap gap-2">
+                                                        {['True', 'False'].map(option => (
+                                                          <button
+                                                            key={option}
+                                                            type="button"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                          >
+                                                            {option}
+                                                          </button>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                    {pollOptionMode === 'yn' && (
+                                                      <div className="flex flex-wrap gap-2">
+                                                        {['Yes', 'No'].map(option => (
+                                                          <button
+                                                            key={option}
+                                                            type="button"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                          >
+                                                            {option}
+                                                          </button>
+                                                        ))}
+                                                      </div>
                                                     )}
                                                   </div>
                                                 </div>
@@ -9730,6 +9750,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     onClick={() => {
                                                       setPollPrompt('')
                                                       setPollCustomOptions('')
+                                                      setPollOptionMode('1-10')
                                                     }}
                                                     className={cn(
                                                       'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
@@ -12068,10 +12089,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   ))}
                                                 </div>
                                               )}
-                                              {pollOptionMode === 'custom' && (
-                                                <p className="text-xs text-gray-600">
-                                                  Custom poll options will appear here
-                                                </p>
+                                              {pollOptionMode === 'tf' && (
+                                                <div className="flex flex-wrap gap-2">
+                                                  {['True', 'False'].map(option => (
+                                                    <button
+                                                      key={option}
+                                                      type="button"
+                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                    >
+                                                      {option}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {pollOptionMode === 'yn' && (
+                                                <div className="flex flex-wrap gap-2">
+                                                  {['Yes', 'No'].map(option => (
+                                                    <button
+                                                      key={option}
+                                                      type="button"
+                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                    >
+                                                      {option}
+                                                    </button>
+                                                  ))}
+                                                </div>
                                               )}
                                             </div>
                                           </div>
@@ -12123,6 +12165,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               onClick={() => {
                                                 setPollPrompt('')
                                                 setPollCustomOptions('')
+                                                setPollOptionMode('1-10')
                                               }}
                                               className={cn(
                                                 'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
