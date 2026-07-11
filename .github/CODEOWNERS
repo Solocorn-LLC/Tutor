@@ -1,0 +1,45 @@
+# CODEOWNERS — per-area review ownership for the Solocorn-LLC org teams.
+#
+# STAGED, NOT ENFORCED: this file only auto-requests reviews from the matching
+# team. It does NOT block merges until "Require review from Code Owners" is
+# enabled in branch protection. Enable that ONLY after the teams have members —
+# empty teams + required code-owner review = unmergeable PRs.
+#
+# Teams: @Solocorn-LLC/platform  @Solocorn-LLC/backend
+#        @Solocorn-LLC/frontend  @Solocorn-LLC/security
+# gitignore-style matching; the LAST matching pattern wins.
+
+# Default owner for anything not matched below
+*                                     @Solocorn-LLC/platform
+
+# --- Infra / CI / deploy / ops ---
+/.github/                             @Solocorn-LLC/platform
+/scripts/                             @Solocorn-LLC/platform
+/tutorme-app/Dockerfile               @Solocorn-LLC/platform
+/tutorme-app/Dockerfile.production    @Solocorn-LLC/platform
+/tutorme-app/next.config.mjs          @Solocorn-LLC/platform
+/tutorme-app/server.ts                @Solocorn-LLC/platform @Solocorn-LLC/backend
+
+# --- Backend: API routes + lib business logic ---
+/tutorme-app/src/app/api/             @Solocorn-LLC/backend
+/tutorme-app/src/lib/                 @Solocorn-LLC/backend
+
+# --- Database: schema + migrations ---
+/tutorme-app/src/lib/db/              @Solocorn-LLC/backend
+/tutorme-app/drizzle/                 @Solocorn-LLC/backend
+
+# --- Security-sensitive (listed after lib/ so these win) ---
+/tutorme-app/src/lib/security/        @Solocorn-LLC/security @Solocorn-LLC/backend
+/tutorme-app/src/lib/payments/        @Solocorn-LLC/security @Solocorn-LLC/backend
+/tutorme-app/src/lib/auth.ts          @Solocorn-LLC/security @Solocorn-LLC/backend
+/tutorme-app/src/app/api/admin/       @Solocorn-LLC/security @Solocorn-LLC/backend
+
+# --- Frontend: components, hooks, stores, landing site ---
+/tutorme-app/src/components/          @Solocorn-LLC/frontend
+/tutorme-app/src/hooks/               @Solocorn-LLC/frontend
+/tutorme-app/src/stores/              @Solocorn-LLC/frontend
+/landing-page/                        @Solocorn-LLC/frontend
+
+# NOTE: Next.js locale pages live under tutorme-app/src/app/[locale]/. The
+# brackets are a glob character-class in CODEOWNERS, so that path isn't matched
+# here — assign it explicitly (with the escaped form) once verified in GitHub.

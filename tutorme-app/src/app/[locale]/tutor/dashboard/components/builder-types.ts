@@ -158,6 +158,9 @@ export interface Task extends WithDifficultyVariants {
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
   activeDmiVersionId?: string
+  /** How the DMI was sourced — persisted so the PCI-chat study-material variant
+   *  works for a returning tutor (not just in the DMI-generation session). */
+  documentKind?: 'question_paper' | 'study_material'
   estimatedMinutes: number
   points: number
   submissionType: 'text' | 'file' | 'link' | 'none' | 'questions'
@@ -188,6 +191,9 @@ export interface Assessment extends WithDifficultyVariants {
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
   activeDmiVersionId?: string
+  /** How the DMI was sourced — persisted so the PCI-chat study-material variant
+   *  works for a returning tutor (not just in the DMI-generation session). */
+  documentKind?: 'question_paper' | 'study_material'
   category?: 'assessment' | 'homework'
   difficulty?: string
   dueDate?: string

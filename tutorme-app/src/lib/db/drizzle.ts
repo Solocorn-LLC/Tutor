@@ -22,22 +22,32 @@ export function getPool(): Pool {
     )
   }
 
-  const isPgBouncer = connectionString.includes('pgbouncer') || process.env.PGBOUNCER === 'true'
-  const pool =
-    globalForDrizzle.drizzlePool ??
-    new Pool({
-      connectionString,
-      max: process.env.NODE_ENV === 'production' ? 50 : 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-      allowExitOnIdle: true,
-      ...(isPgBouncer && { prepare: false }),
-    })
-
-  if (process.env.NODE_ENV !== 'production') {
-    globalForDrizzle.drizzlePool = pool
+  // Reuse the cached pool in ALL environments. This must be cached in production
+  // too: any code path that calls getPool() directly (not via the memoized
+  // getDrizzleDb) would otherwise construct a brand-new Pool — each up to `max`
+  // connections — on every call, exhausting Postgres/PgBouncer under load.
+  if (globalForDrizzle.drizzlePool) {
+    return globalForDrizzle.drizzlePool
   }
 
+  const isPgBouncer = connectionString.includes('pgbouncer') || process.env.PGBOUNCER === 'true'
+  const pool = new Pool({
+    connectionString,
+    max: process.env.NODE_ENV === 'production' ? 50 : 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    allowExitOnIdle: true,
+    ...(isPgBouncer && { prepare: false }),
+  })
+
+  // An idle client can emit 'error' (e.g. DB restart, network blip). Without a
+  // listener, pg re-emits it as an uncaught exception that crashes the process —
+  // a single transient blip would take down the whole instance under load.
+  pool.on('error', (err) => {
+    console.error('[db] idle pool client error:', err.message)
+  })
+
+  globalForDrizzle.drizzlePool = pool
   return pool
 }
 

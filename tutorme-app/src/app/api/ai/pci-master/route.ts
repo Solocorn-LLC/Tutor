@@ -74,6 +74,16 @@ const PciMasterRequestSchema = z.object({
       // Assessment DMI digest (per-question marks + rubric, no answers) so the
       // marking policy is built with the real questions/marks/rubrics in view.
       markingScheme: z.string().max(16000).optional(),
+      // The resolved PCI-chat variant (derived client-side). Selects per-type
+      // steering appended to the domain prompt: assessments use `composition`
+      // (from the DMI question mix) + `documentKind`; tasks use `documentKind`
+      // only (`composition` is ignored for tasks).
+      variant: z
+        .object({
+          composition: z.enum(['objective', 'free_response', 'mixed']).optional(),
+          documentKind: z.enum(['question_paper', 'study_material']).optional(),
+        })
+        .optional(),
     })
     .optional(),
   // Rendered page images (data URLs) of an attached PDF, so the model can SEE the
@@ -82,7 +92,7 @@ const PciMasterRequestSchema = z.object({
   pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
 })
 
-const SYSTEM_PROMPT = `You are a PCI (Pedagogically Correct Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
+const SYSTEM_PROMPT = `You are a PCI (Programmatic Curriculum Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
 
 Your role:
 1. Help students discover answers through guided questioning (never give direct answers)
@@ -145,6 +155,10 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Tutor-only course-builder PCI chat.
+    if (session.user.role !== 'TUTOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     // Rate-limit per authenticated user, not per IP, so co-located tutors behind
     // one NAT/proxy don't share a single AI quota.
@@ -169,9 +183,17 @@ export async function POST(request: NextRequest) {
     // Socratic prompt. Enforcement is warn-only — see the validator pass below.
     const guardrailDomain = context?.type
     const activeSystemPrompt = guardrailDomain
-      ? guardrailSystemPrompt(guardrailDomain)
+      ? guardrailSystemPrompt(guardrailDomain, context?.variant)
       : SYSTEM_PROMPT
     const activeTemperature = guardrailDomain ? GUARDRAILED_TEMPERATURE : 0.7
+
+    // Observability: record which per-type variant actually fired, so the
+    // composition thresholds / addendum wording can be tuned from real usage.
+    if (guardrailDomain) {
+      console.log(
+        `[pci-master] domain=${guardrailDomain} composition=${context?.variant?.composition ?? '-'} documentKind=${context?.variant?.documentKind ?? '-'}`
+      )
+    }
 
     const safeMessage = AISecurityManager.sanitizeAiInput(message)
     if (!safeMessage) {

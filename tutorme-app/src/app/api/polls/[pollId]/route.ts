@@ -54,10 +54,15 @@ export async function GET(
       .from(pollResponse)
       .where(eq(pollResponse.pollId, pollId))
 
+    // Only the poll's owning tutor (or an admin) may see who answered. For anyone
+    // else, drop per-respondent studentIds so this endpoint can't be used to
+    // enumerate which students responded (IDOR / PII leak).
+    const isPollOwner = pollRow.tutorId === session.user.id || session.user.role === 'ADMIN'
+    const hideStudentIds = pollRow.isAnonymous || !isPollOwner
     const formattedPoll = {
       ...pollRow,
       options,
-      responses: pollRow.isAnonymous
+      responses: hideStudentIds
         ? responses.map(r => ({ ...r, studentId: undefined }))
         : responses,
       totalResponses: responses.length,
@@ -93,6 +98,22 @@ export async function PATCH(
     if (!pollId) {
       return NextResponse.json({ error: 'Poll ID required' }, { status: 400 })
     }
+    // Ownership: a tutor may only mutate their own poll (was gated on role only,
+    // letting any tutor edit any poll by id).
+    const [ownerRow] = await drizzleDb
+      .select({ tutorId: poll.tutorId })
+      .from(poll)
+      .where(eq(poll.pollId, pollId))
+      .limit(1)
+    if (!ownerRow) {
+      return NextResponse.json({ error: 'Poll not found' }, { status: 404 })
+    }
+    // The handler already returns 401 for any non-TUTOR, so ownership is the only
+    // remaining check here (admins are intentionally not poll managers).
+    if (ownerRow.tutorId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await request.json()
     const validated = UpdatePollSchema.parse(body)
 
@@ -181,6 +202,21 @@ export async function DELETE(
     const pollId = await getParamAsync(context.params, 'pollId')
     if (!pollId) {
       return NextResponse.json({ error: 'Poll ID required' }, { status: 400 })
+    }
+
+    // Ownership: a tutor may only delete their own poll (was gated on role only).
+    const [ownerRow] = await drizzleDb
+      .select({ tutorId: poll.tutorId })
+      .from(poll)
+      .where(eq(poll.pollId, pollId))
+      .limit(1)
+    if (!ownerRow) {
+      return NextResponse.json({ error: 'Poll not found' }, { status: 404 })
+    }
+    // The handler already returns 401 for any non-TUTOR, so ownership is the only
+    // remaining check here (admins are intentionally not poll managers).
+    if (ownerRow.tutorId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     await drizzleDb.delete(pollResponse).where(eq(pollResponse.pollId, pollId))

@@ -203,10 +203,13 @@ import {
 } from '@/lib/assessment/question-types'
 import { deriveExamContext } from '@/lib/assessment/marking-scheme'
 import { getAllCourseCategoryOptions } from '@/lib/data/all-categories'
-import { reverifyAssessment } from '@/lib/assessment/assessment-gates'
 import { deriveSections, deriveTotalMarks } from '@/lib/assessment/sections'
+import { reverifyAssessment, type ReverifyItem } from '@/lib/assessment/assessment-gates'
 import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
-import { findEvaluationLeaks } from '@/lib/ai/guardrails'
+import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
+import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
+import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
+import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -515,31 +518,21 @@ const pdfPageCache = new Map<string, string[]>()
 // Collapsible explainer at the top of a PCI tab. PCI ("how to mark this") is easy
 // to confuse with the question content, so this spells out what it is, the flow,
 // and concrete things worth telling the assistant — to point tutors the right way.
-// --- MCQ answer-key helpers (DMI editor) ------------------------------------
-// Choice options are labelled A, B, C… and the answer key stores those letters.
-// These map an option index to its letter and read which letters an item's
-// free-text `answer` currently marks as correct (tolerant of "A", "A, C",
-// "A C", or the option's exact text).
-function dmiOptionLetter(index: number): string {
-  return String.fromCharCode(65 + index)
+// Remember the tutor's assessment DMI response-format choice per course, so the
+// chooser doesn't re-prompt on every paper in a course that's all one format.
+type DmiFormat = 'free_response' | 'multiple_choice'
+function readDmiFormatPref(courseKey: string): DmiFormat | null {
+  if (typeof window === 'undefined' || !courseKey) return null
+  const v = window.localStorage.getItem(`tutor-dmi-format:${courseKey}`)
+  return v === 'free_response' || v === 'multiple_choice' ? v : null
 }
-function dmiSelectedOptionLetters(
-  answer: string | undefined,
-  options: readonly string[]
-): Set<string> {
-  const selected = new Set<string>()
-  const ans = (answer ?? '').trim()
-  if (!ans) return selected
-  const tokens = ans
-    .toUpperCase()
-    .split(/[^A-Z0-9]+/)
-    .filter(Boolean)
-  options.forEach((opt, i) => {
-    const letter = dmiOptionLetter(i)
-    const text = (opt ?? '').trim().toLowerCase()
-    if (tokens.includes(letter) || (text && ans.toLowerCase() === text)) selected.add(letter)
-  })
-  return selected
+function writeDmiFormatPref(courseKey: string, value: DmiFormat): void {
+  if (typeof window === 'undefined' || !courseKey) return
+  try {
+    window.localStorage.setItem(`tutor-dmi-format:${courseKey}`, value)
+  } catch {
+    // ignore storage failures (private mode, quota)
+  }
 }
 
 function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
@@ -1405,8 +1398,48 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
           if (srcLessonId) break
         }
+        // Deploy-safety: strip the answer key out of the student-facing dmiItems
+        // and carry it separately as `answerKey` (server-only, for grading). Every
+        // deploy path routes through here, so this is the single guarantee that
+        // answers/rubrics never reach students. Block if anything still leaks.
+
+        // ASMT-12 gradability gate (assessment-only): the assessment must be
+        // internally consistent and fully gradable before deploy — no duplicate
+        // question numbers, every open (short/long) question has a rubric
+        // pathway, and every closed (mcq/…) question has an answer key. Runs on
+        // the RAW items (which still carry answers/rubrics). This blocks, e.g.,
+        // deploying a configured MCQ paper before all correct options are set.
+        if (payload.source === 'assessment') {
+          const issues = reverifyAssessment((payload.dmiItems ?? []) as unknown as ReverifyItem[])
+          if (issues.length > 0) {
+            const shown = issues
+              .slice(0, 3)
+              .map(i => i.message)
+              .join(' ')
+            const more = issues.length > 3 ? ` (+${issues.length - 3} more)` : ''
+            toast.error(`Cannot deploy — ${shown}${more}`)
+            return
+          }
+        }
+
+        const {
+          dmiItems: safeDmiItems,
+          answerKey,
+          leaks,
+        } = buildStudentDeployPayload(
+          payload.dmiItems as unknown as RawDeployDmiItem[] | undefined,
+          payload.answerKey
+        )
+        if (leaks.length > 0) {
+          console.error('[deploy] evaluation-layer leak blocked:', leaks)
+          toast.error('Answer data was present in the student view. Deploy blocked.')
+          return
+        }
+
         const enriched: LiveTask = {
           ...payload,
+          dmiItems: safeDmiItems,
+          answerKey,
           pci:
             payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined),
           pciSpec: payload.pciSpec ?? src?.pciSpec,
@@ -1984,6 +2017,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           activeExtensionId,
         })
         setTaskDmiItems(task.dmiItems || [])
+        // Rehydrate the DMI source kind so the PCI-chat study-material variant
+        // applies for a returning tutor, not just in the generation session.
+        setDmiDocumentKind(prev => ({
+          ...prev,
+          // Backfill pre-fix DMIs (no saved kind) from answer provenance.
+          task:
+            task.documentKind ??
+            inferDocumentKindFromProvenance((task.dmiItems ?? []).map(i => i.answerProvenance)),
+        }))
         // Normalize persisted versions so `items` is always an array — a legacy /
         // partially-saved version with a missing items array would otherwise crash
         // the DMI version-list / preview dialogs (rendered at the root, outside the
@@ -2031,6 +2073,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
       })
       setAssessmentDmiItems(assessment.dmiItems || [])
+      // Rehydrate the DMI source kind so the PCI-chat study-material variant
+      // applies for a returning tutor, not just in the generation session.
+      setDmiDocumentKind(prev => ({
+        ...prev,
+        // Backfill pre-fix DMIs (no saved kind) from answer provenance.
+        assessment:
+          assessment.documentKind ??
+          inferDocumentKindFromProvenance((assessment.dmiItems ?? []).map(i => i.answerProvenance)),
+      }))
       // Normalize so every version's `items` is an array (see task note above).
       setAssessmentDmiVersions(
         (assessment.dmiVersions || []).map(v => ({
@@ -2206,6 +2257,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   task.instructions === taskBuilder.taskPci &&
                   task.extensions === taskBuilder.extensions &&
                   task.dmiItems === taskDmiItems &&
+                  task.documentKind === (dmiDocumentKind.task ?? task.documentKind) &&
                   task.dmiVersions === taskDmiVersions &&
                   task.activeDmiVersionId === nextActiveDmiVersionId &&
                   task.sourceDocument === taskBuilder.sourceDocument
@@ -2225,6 +2277,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   pciSpec: taskBuilder.pciSpec,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
+                  // Preserve the persisted kind when the session hasn't set one.
+                  documentKind: dmiDocumentKind.task ?? task.documentKind,
                   dmiVersions: taskDmiVersions,
                   activeDmiVersionId: nextActiveDmiVersionId,
                   sourceDocument: taskBuilder.sourceDocument,
@@ -2246,6 +2300,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.sourceDocument,
       taskDmiItems,
       taskDmiVersions,
+      dmiDocumentKind.task,
       testPciSource,
       testPciViewMode,
       loadedTaskId,
@@ -2279,6 +2334,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.instructions === assessmentBuilder.taskPci &&
                   hw.pciSpec === assessmentBuilder.pciSpec &&
                   hw.dmiItems === assessmentDmiItems &&
+                  hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
                   hw.dmiVersions === assessmentDmiVersions &&
                   hw.activeDmiVersionId === nextActiveDmiVersionId &&
                   hw.sourceDocument === assessmentBuilder.sourceDocument
@@ -2293,6 +2349,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   instructions: assessmentBuilder.taskPci,
                   pciSpec: assessmentBuilder.pciSpec,
                   dmiItems: assessmentDmiItems,
+                  // Preserve the persisted kind when the session hasn't set one.
+                  documentKind: dmiDocumentKind.assessment ?? hw.documentKind,
                   dmiVersions: assessmentDmiVersions,
                   activeDmiVersionId: nextActiveDmiVersionId,
                   sourceDocument: assessmentBuilder.sourceDocument,
@@ -2313,6 +2371,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.sourceDocument,
       assessmentDmiItems,
       assessmentDmiVersions,
+      dmiDocumentKind.assessment,
       testPciSource,
       testPciViewMode,
       loadedAssessmentId,
@@ -3679,101 +3738,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setAssessmentDmiVersions(prev => prev.filter(v => v.id !== versionId))
       }
     }
-
-    const handleDeployAssessmentDmi = useCallback(
-      (revealArg?: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => {
-        const reveal = revealArg ?? deployAnswerReveal
-        if (!loadedAssessmentId) {
-          toast.error('Select an assessment to deploy')
-          return
-        }
-        if (!insightsProps?.sessionId) {
-          toast.error('Select a course session for insights')
-          return
-        }
-
-        // ASMT-12: re-verify the assessment is internally consistent and fully
-        // gradable before generating the final/deployed DMI. Covers ASMT-8
-        // (open-question rubric), numbering integrity, and answer-key mapping;
-        // blocks deploy on any issue.
-        const reverifyIssues = reverifyAssessment(assessmentDmiItems)
-        if (reverifyIssues.length > 0) {
-          const shown = reverifyIssues
-            .slice(0, 3)
-            .map(i => i.message)
-            .join(' ')
-          const more = reverifyIssues.length > 3 ? ` (+${reverifyIssues.length - 3} more)` : ''
-          toast.error(`Cannot deploy — ${shown}${more}`)
-          return
-        }
-
-        // Student-safe DMI: strips the answer key, including matching `pairs`
-        // and hotspot `regions` (which ARE the answer). See toStudentDmiItem.
-        const studentDmiItems = assessmentDmiItems.map(toStudentDmiItem)
-        // ASMT-10/13: deterministic guarantee the student payload carries no
-        // evaluation data — block deploy if anything leaks through.
-        const leaks = findEvaluationLeaks(studentDmiItems)
-        if (leaks.length > 0) {
-          console.error('[assessment] evaluation-layer leak in student payload:', leaks)
-          toast.error(
-            'Internal error: answer data was present in the student view. Deploy blocked.'
-          )
-          return
-        }
-
-        const task: LiveTask = {
-          id: loadedAssessmentId,
-          title: assessmentBuilder.title || 'Assessment',
-          content: assessmentBuilder.taskContent,
-          source: 'assessment',
-          dmiItems: studentDmiItems,
-          // Answer key + marks for server-side auto-grading. Sent to the server
-          // only — never broadcast to students.
-          answerKey: assessmentDmiItems.map(item => ({
-            id: item.id,
-            answer: item.answer,
-            acceptableVariants: item.acceptableVariants,
-            marks: item.marks,
-          })),
-          answerReveal: reveal,
-          // Tutor's PCI (free-text + structured spec) for server-side use by the
-          // live tutor + grader. Deploy-only; never broadcast to students. The
-          // server persists pciSpec to BuilderTask.pciSpec, mirroring tasks.
-          pci: assessmentBuilder.taskPci || undefined,
-          pciSpec: assessmentBuilder.pciSpec,
-          // The lesson this assessment was deployed from (real lesson, not
-          // "Lesson 1").
-          lessonId: findLessonIdForItem(loadedAssessmentId),
-          deployedAt: Date.now(),
-          polls: [],
-          questions: [],
-          // Reference-only (study-material-derived) documents stay in the
-          // builder for the tutor but are NOT sent to students — they receive
-          // the generated questions as Classroom content instead.
-          sourceDocument:
-            currentAssessmentDocument && !assessmentSourceReferenceOnly
-              ? {
-                  fileName: currentAssessmentDocument.fileName,
-                  fileUrl: currentAssessmentDocument.fileUrl,
-                  fileKey: currentAssessmentDocument.fileKey,
-                  mimeType: currentAssessmentDocument.mimeType,
-                }
-              : undefined,
-        }
-
-        // Success is confirmed by the server's task:deployed broadcast (handled in
-        // insights/page.tsx), not optimistically here.
-        insightsProps.onDeployTask?.(task)
-      },
-      [
-        assessmentBuilder,
-        assessmentDmiItems,
-        assessmentSourceReferenceOnly,
-        insightsProps,
-        loadedAssessmentId,
-        deployAnswerReveal,
-      ]
-    )
 
     useEffect(() => {
       return () => {
@@ -7092,6 +7056,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           return `${label}:${text}${marks}${rubric}`
         })
         .join('\n'),
+      // Per-type steering for the assessment PCI chat: composition from the DMI
+      // question mix, source from the resolved documentKind. Forwarded as
+      // context.variant; undefined fields simply fall back to the base prompt.
+      assessmentPciVariant: {
+        composition: resolvePciComposition(assessmentDmiItems.map(q => q.questionType)),
+        documentKind: dmiDocumentKind.assessment,
+      },
+      // Task steering: source only (task answering is free-form, no composition).
+      taskPciVariant: {
+        documentKind: dmiDocumentKind.task,
+      },
     })
     const { pci, handlePciSend, applyTaskPciDraft, applyAssessmentPciDraft, setPciInput } = pciApi
     const editSpecSoFar = pciApi.editSpecSoFar

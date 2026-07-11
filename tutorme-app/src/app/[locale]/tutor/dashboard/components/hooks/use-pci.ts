@@ -45,6 +45,24 @@ interface UsePciDeps {
    * questions/marks/rubrics in view. Empty when there's no DMI.
    */
   assessmentMarkingScheme?: string
+  /**
+   * Assessment-only per-type steering for the PCI chat, derived from the DMI
+   * question mix + documentKind. Forwarded to the server as `context.variant`
+   * to tailor the marking-policy interview (objective / free-response / mixed,
+   * plus a study-material note). Omitted/undefined → base prompt, unchanged.
+   */
+  assessmentPciVariant?: {
+    composition?: 'objective' | 'free_response' | 'mixed'
+    documentKind?: 'question_paper' | 'study_material'
+  }
+  /**
+   * Task equivalent — task answering is free-form, so only the source
+   * (`documentKind`) modifies the prompt (a study-material note). Undefined →
+   * base task prompt, unchanged.
+   */
+  taskPciVariant?: {
+    documentKind?: 'question_paper' | 'study_material'
+  }
   /** Writes the finalized rubric to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
@@ -234,6 +252,10 @@ export function usePci(deps: UsePciDeps) {
                 !isTask && deps.assessmentMarkingScheme
                   ? deps.assessmentMarkingScheme.slice(0, 12000)
                   : undefined,
+              // Per-type steering — selects the prompt addendum for this
+              // item's type/source (assessment: question mix + source; task:
+              // source only).
+              variant: isTask ? deps.taskPciVariant : deps.assessmentPciVariant,
             },
             pdfPages,
           }),

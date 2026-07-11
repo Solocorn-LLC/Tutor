@@ -20,11 +20,11 @@ enforced (warn-only) by `validateAssessmentOutput` and `stripEvaluationLayer` in
 
 ## Enforcement model
 
-| Layer | Mechanism | Status |
-| --- | --- | --- |
-| Prompt | `ASSESSMENT_SYSTEM_PROMPT` (full) / a condensed guardrail block injected into `api/ai/generate-dmi` for the tutor-facing Draft DMI; temperature lowered to 0.2. | **Active** |
-| Validator | `validateAssessmentOutput` checks wording fidelity, provenance, rubric presence/sum, layer separation — returns `guardrailWarnings`. | **Active (warn-only)** |
-| Code (deterministic) | `stripEvaluationLayer` removes answers/rubrics from any student-facing payload; `canTransition` enforces the state machine. | **Active** |
+| Layer                | Mechanism                                                                                                                                                       | Status                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Prompt               | `ASSESSMENT_SYSTEM_PROMPT` (full) / a condensed guardrail block injected into `api/ai/generate-dmi` for the tutor-facing Draft DMI; temperature lowered to 0.2. | **Active**             |
+| Validator            | `validateAssessmentOutput` checks wording fidelity, provenance, rubric presence/sum, layer separation — returns `guardrailWarnings`.                            | **Active (warn-only)** |
+| Code (deterministic) | `stripEvaluationLayer` removes answers/rubrics from any student-facing payload; `canTransition` enforces the state machine.                                     | **Active**             |
 
 The single guarantee that is **not** warn-only is `stripEvaluationLayer` — student payloads must
 always be run through it so the evaluation layer can never leak (ASMT-10/13/15).
@@ -61,3 +61,36 @@ illegal — it must pass through `Re-Verified`. Wire any code that advances asse
 - **ASMT-8** — Open-ended question with no rubric pathway.
 - **ASMT-9** — Rubric criteria that don't sum to the question's marks.
 - **ASMT-10 (error)** — Evaluation data (rubric/answer/provenance) present on a student-facing payload.
+
+## Prompt variants (per-type steering)
+
+The **PCI chat** tailors its marking-policy interview to what's being marked, by
+appending a short addendum to `ASSESSMENT_SYSTEM_PROMPT`. This is **prompt-layer
+steering only** — the addendum is added AFTER the full base prompt (which embeds
+all 15 rules), so no guardrail is ever dropped or relaxed; the validators and
+state machine are unchanged. Implementation: `src/lib/ai/guardrails/variants.ts`
+(`resolvePciComposition`, `assessmentVariantAddendum`), selected in
+`guardrailSystemPrompt('assessment', variant)`.
+
+The variant is derived client-side from the DMI and passed as `context.variant`:
+
+- **Composition** (from the DMI question mix; open = `short`/`long`):
+  - `objective` — ≥ 80% closed → short interview: partial credit for
+    multiple-response, negative marking, numeric/fill-in tolerance, blanks. No
+    rubric walk-throughs for auto-graded questions.
+  - `free_response` — ≥ 60% open → rubric-centric: method vs answer, partial-
+    credit bands, equivalent reasoning, key points, feedback tone; enforce the
+    ASMT-8 rubric pathway and ASMT-9 mark-sum.
+  - `mixed` — otherwise → ask whether one policy covers all, or closed vs written
+    parts differ, then branch.
+- **Source** (`documentKind`): a `study_material` note tells the model the
+  questions were generated (provenance `llm_inferred`) and to confirm coverage /
+  difficulty before building the policy. `documentKind` is persisted with the DMI
+  (survives reload); for DMIs generated before it was persisted,
+  `inferDocumentKindFromProvenance` backfills it conservatively at load time
+  (only all-`llm_inferred` answers → `study_material`; any answer-sheet/tutor
+  source → left unset, so a real paper is never mislabelled).
+
+Tasks use the same mechanism but only the **source** modifier: a `study_material`
+note (composition does not apply — task answering is free-form chat). See
+[`tasks-pci.md`](./tasks-pci.md) → "Prompt variants".

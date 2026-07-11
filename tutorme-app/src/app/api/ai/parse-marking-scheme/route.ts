@@ -122,6 +122,12 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Tutor-only: this returns model-extracted answer keys / rubrics. Do not fall
+    // back to a generic session role — the realm cookie only selects which token
+    // is read, it does not enforce that the caller is actually a tutor.
+    if (session.user.role !== 'TUTOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json().catch(() => null)
     const parsed = RequestSchema.safeParse(body)

@@ -61,7 +61,7 @@ const baseBody = {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.withRateLimitPreset.mockResolvedValue({ response: null })
-  mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+  mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
   mocks.getServerSession.mockResolvedValue(null)
   mocks.validateAiResponse.mockResolvedValue({ isValid: true, severity: 'LOW' })
   mocks.runAssessmentGuardrails.mockReturnValue({ violations: [] })

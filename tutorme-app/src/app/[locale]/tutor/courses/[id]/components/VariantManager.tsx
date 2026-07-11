@@ -151,7 +151,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       schedule: ScheduleItem[]
       weeksToSchedule: number
     } | null>(null)
-    const [globalDefaultsOpen, setGlobalDefaultsOpen] = useState(true)
     const [generatedVariantsOpen, setGeneratedVariantsOpen] = useState(true)
 
     // Load existing variants on mount
@@ -455,7 +454,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     }, [variants.length, publishedCount, onStatsChange])
 
     const setPanelsOpen = useCallback((open: boolean) => {
-      setGlobalDefaultsOpen(open)
       setGeneratedVariantsOpen(open)
     }, [])
 
@@ -505,107 +503,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         >
           <button
             type="button"
-            onClick={() => setGlobalDefaultsOpen(o => !o)}
-            className="panel-header panel-header-metallic w-full text-left"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="panel-header-icon">
-                  <SlidersHorizontal className="h-5 w-5 text-slate-900" />
-                </div>
-                <div>
-                  <div className="panel-header-title">Defaults</div>
-                  <div className="panel-header-subtext">
-                    Set default pricing, currency, and language for all variants.
-                  </div>
-                </div>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                {globalDefaultsOpen ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
-              </div>
-            </div>
-          </button>
-          {globalDefaultsOpen ? (
-            <CardContent spacing="default" className="bg-white text-slate-900">
-              <div className="grid gap-6 sm:grid-cols-5">
-                <div className="form-group space-y-2 sm:col-span-2">
-                  <Label className="form-label font-semibold text-slate-700">Free course</Label>
-                  <div className="border-input flex h-10 items-center justify-between rounded-xl border bg-white px-4">
-                    <span className="text-sm font-medium text-slate-600">
-                      {globalIsFree ? 'Enabled' : 'Disabled'}
-                    </span>
-                    <Switch checked={globalIsFree} onCheckedChange={setGlobalIsFree} />
-                  </div>
-                </div>
-                <div className="form-group space-y-2">
-                  <Label className="form-label font-semibold text-slate-700">Price</Label>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-slate-400" />
-                    <Input
-                      type="number"
-                      min={0}
-                      value={globalPrice}
-                      onChange={e => setGlobalPrice(e.target.value)}
-                      placeholder="0.00"
-                      disabled={globalIsFree}
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
-                <div className="form-group space-y-2">
-                  <Label className="form-label font-semibold text-slate-700">Currency</Label>
-                  <Select value={globalCurrency} onValueChange={setGlobalCurrency}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(c => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="form-group space-y-2">
-                  <Label className="form-label font-semibold text-slate-700">Language</Label>
-                  <div className="flex items-center gap-2">
-                    <Languages className="h-4 w-4 text-slate-400" />
-                    <Input
-                      value={globalLanguage}
-                      onChange={e => setGlobalLanguage(e.target.value)}
-                      placeholder="e.g. English"
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={applyGlobalsToAll}
-                    className="w-full border-slate-200 bg-white hover:border-[#1F2933] hover:bg-[#1F2933] hover:text-white"
-                  >
-                    Apply to all
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          ) : null}
-        </Card>
-
-        <Card
-          variant="floating"
-          elevation={2}
-          padding="none"
-          className="overflow-hidden rounded-[16px] bg-white"
-        >
-          <button
-            type="button"
             onClick={() => setGeneratedVariantsOpen(o => !o)}
             className="panel-header panel-header-metallic w-full text-left"
           >
@@ -615,12 +512,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                   <Calendar className="h-5 w-5 text-slate-900" />
                 </div>
                 <div>
-                  <div className="panel-header-title">Courses</div>
-                  <div className="panel-header-subtext">
-                    {templateCourseName
-                      ? `${templateCourseName} — Edit schedule, pricing, currency, and language for your course(s).`
-                      : 'Edit the schedule, pricing, currency, and language for your course(s).'}
-                  </div>
+                  <div className="panel-header-title">Price and Schedule</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">

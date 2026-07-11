@@ -54,6 +54,10 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Tutor-only course-builder tooling.
+    if (session.user.role !== 'TUTOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const { response: rateLimitResponse } = await withRateLimitPreset(
       request,

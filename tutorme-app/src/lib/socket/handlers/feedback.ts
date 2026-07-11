@@ -13,16 +13,22 @@ import {
 import { deployedTasks, feedbackPolls, feedbackQuestions } from '@/lib/socket'
 
 export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
-  // Student joins feedback room
-  socket.on('student_feedback_join', (data: { studentId: string }) => {
-    socket.join(`feedback:student:${data.studentId}`)
-    socket.data.feedbackStudentId = data.studentId
+  // Student joins their OWN feedback room. The room id is derived from the
+  // authenticated socket, never a client-supplied studentId — otherwise any user
+  // could subscribe to another student's private feedback stream.
+  socket.on('student_feedback_join', () => {
+    const studentId = socket.data.userId
+    if (!studentId) return
+    socket.join(`feedback:student:${studentId}`)
+    socket.data.feedbackStudentId = studentId
   })
 
-  // Tutor joins insights room
-  socket.on('tutor_insights_join', (data: { tutorId: string }) => {
-    socket.join(`insights:tutor:${data.tutorId}`)
-    socket.data.insightsTutorId = data.tutorId
+  // Tutor joins their OWN insights room (tutors only, id from the session).
+  socket.on('tutor_insights_join', () => {
+    if (socket.data.role !== 'tutor' || !socket.data.userId) return
+    const tutorId = socket.data.userId
+    socket.join(`insights:tutor:${tutorId}`)
+    socket.data.insightsTutorId = tutorId
   })
 
   // Tutor deploys a task
@@ -81,7 +87,10 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
       tutorId: string
       tutorName: string
     }) => {
-      if (socket.data.role !== 'tutor') return
+      if (socket.data.role !== 'tutor' || !socket.data.userId) return
+      // Attribute the poll to the authenticated tutor, not a client-supplied id
+      // (which was previously written straight into the DB poll row).
+      const tutorId = socket.data.userId
 
       const poll = {
         id: data.id,
@@ -91,7 +100,7 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
         responses: new Map<string, number>(),
         isActive: true,
         sentAt: data.sentAt,
-        tutorId: data.tutorId,
+        tutorId,
       }
 
       feedbackPolls.set(data.id, poll)
@@ -116,7 +125,7 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
             await db.insert(dbPoll).values({
               pollId: data.id,
               sessionId: roomId,
-              tutorId: data.tutorId,
+              tutorId,
               question: data.question,
               type: 'RATING',
               isAnonymous: false,
@@ -187,19 +196,22 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
   socket.on(
     'poll_response',
     (data: { pollId: string; studentId: string; option: number; taskId?: string }) => {
-      if (socket.data.role !== 'student') return
+      if (socket.data.role !== 'student' || !socket.data.userId) return
+      // Identity comes from the authenticated socket, not the client payload,
+      // which could otherwise submit or overwrite another student's response.
+      const studentId = socket.data.userId
 
       const poll = feedbackPolls.get(data.pollId)
       if (!poll || !poll.isActive) return
 
       // Store response
-      poll.responses.set(data.studentId, data.option)
+      poll.responses.set(studentId, data.option)
 
       // Notify tutor
       io.to(`insights:tutor:${poll.tutorId}`).emit('poll_response_received', {
         pollId: data.pollId,
         response: {
-          studentId: data.studentId,
+          studentId,
           option: data.option,
           respondedAt: new Date().toISOString(),
         },
@@ -225,13 +237,13 @@ export function initFeedbackHandlers(io: SocketIOServer, socket: Socket) {
             .where(
               and(
                 eq(dbPollResponse.pollId, data.pollId),
-                eq(dbPollResponse.studentId, data.studentId)
+                eq(dbPollResponse.studentId, studentId)
               )
             )
           await db.insert(dbPollResponse).values({
             responseId: crypto.randomUUID(),
             pollId: data.pollId,
-            studentId: data.studentId,
+            studentId,
             optionIds: [],
             rating: data.option,
           })
