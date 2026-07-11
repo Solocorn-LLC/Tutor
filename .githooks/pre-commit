@@ -1,0 +1,27 @@
+#!/bin/sh
+# Auto-format staged tutorme-app TS/JS before each commit, so nobody has to
+# remember `npm run format`. The Format CI check is a required merge gate; this
+# hook keeps commits already-formatted so that check stays green.
+#
+# Enabled automatically by tutorme-app's `prepare` script, which runs on
+# `npm install` and sets:  git config core.hooksPath .githooks
+#
+# Bypass for one commit with `git commit --no-verify` (CI will still catch it).
+
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^tutorme-app/.*\.(ts|tsx|js)$' || true)
+[ -z "$files" ] && exit 0
+
+if [ ! -x tutorme-app/node_modules/.bin/prettier ]; then
+  echo "pre-commit: prettier not installed in tutorme-app — skipping auto-format (run 'npm install' there)"
+  exit 0
+fi
+
+# Format the staged files (paths are relative to tutorme-app once the prefix is stripped).
+printf '%s\n' "$files" | sed 's#^tutorme-app/##' | ( cd tutorme-app && xargs ./node_modules/.bin/prettier --write ) || {
+  echo "pre-commit: prettier could not format some files (parse error?) — leaving them; the Format CI check will flag it"
+}
+
+# Re-stage the now-formatted versions.
+printf '%s\n' "$files" | xargs git add
+echo "pre-commit: auto-formatted $(printf '%s\n' "$files" | grep -c .) staged file(s)"
+exit 0
