@@ -67,7 +67,7 @@ describe('/api/ai/pci-master', () => {
   })
 
   it('uses tutor realm session when available', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.getServerSession.mockResolvedValue(null)
 
     const req = new Request('http://localhost/api/ai/pci-master', {
@@ -110,7 +110,7 @@ describe('/api/ai/pci-master', () => {
   }
 
   it('task domain: extracts {reply,pci,spec} — reply, finalized rubric, and structured spec (on approval)', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response:
         '{"reply":"What counts as a correct answer?","pci":"FINAL RUBRIC TEXT","spec":{"evaluationLogic":"Exact match","retryPolicy":"unspecified","instructionalTone":"Encouraging"}}',
@@ -135,7 +135,7 @@ describe('/api/ai/pci-master', () => {
   })
 
   it('task domain: offers the rubric but flags it unconfirmed until the tutor applies (TASK-5)', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: '{"reply":"Here is the finalized rubric.","pci":"FINAL RUBRIC TEXT"}',
       conversationId: 'c1',
@@ -153,7 +153,7 @@ describe('/api/ai/pci-master', () => {
   })
 
   it('task domain: empty pci until finalized (no draft surfaced)', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: '{"reply":"Here is the summary, is it right?","pci":""}',
       conversationId: 'c1',
@@ -168,7 +168,7 @@ describe('/api/ai/pci-master', () => {
   })
 
   it('task domain: falls back gracefully when the model ignores the envelope', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: 'Just plain prose, no JSON at all.',
       conversationId: 'c1',
@@ -183,7 +183,7 @@ describe('/api/ai/pci-master', () => {
   })
 
   it('non-guardrail domain: no pciDraft extraction', async () => {
-    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1' } })
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({
       response: 'ok',
       conversationId: 'c1',
