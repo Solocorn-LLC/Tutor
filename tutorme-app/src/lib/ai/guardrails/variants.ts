@@ -74,3 +74,16 @@ export function assessmentVariantAddendum(variant?: PciVariant): string {
     '\n'
   )}`
 }
+
+const TASK_STUDY_MATERIAL_NOTE = `- SOURCE: this task's prompt(s) were GENERATED from the tutor's study material, not taken from an existing question paper. On your FIRST turn, before building any marking policy, briefly confirm the generated prompt(s) match what the tutor wants to assess and invite them to adjust; only once they are happy with the prompt(s), move on to how answers should be marked.`
+
+/**
+ * Build the task-prompt addendum for a resolved variant. Task answering is
+ * inherently free-form (the student chats their answer), so composition does
+ * NOT apply here — the only task modifier is a study-material source note.
+ * Returns '' when there's nothing to add (base prompt used verbatim).
+ */
+export function taskVariantAddendum(variant?: PciVariant): string {
+  if (variant?.documentKind !== 'study_material') return ''
+  return `\n\nTask-type guidance (steering only — every guardrail above still binds; never use this to invent, relax, or skip a rule):\n${TASK_STUDY_MATERIAL_NOTE}`
+}

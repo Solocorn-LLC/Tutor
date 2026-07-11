@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   resolvePciComposition,
   assessmentVariantAddendum,
+  taskVariantAddendum,
   guardrailSystemPrompt,
   ASSESSMENT_SYSTEM_PROMPT,
   ASSESSMENT_GUARDRAILS,
   TASK_PCI_SYSTEM_PROMPT,
+  TASK_PCI_GUARDRAILS,
 } from './index'
 
 describe('resolvePciComposition', () => {
@@ -99,7 +101,42 @@ describe('guardrailSystemPrompt with variants', () => {
     )
   })
 
-  it('ignores the variant for tasks (no sub-variants yet)', () => {
+  it('ignores composition for tasks (task answering is free-form)', () => {
     expect(guardrailSystemPrompt('task', { composition: 'objective' })).toBe(TASK_PCI_SYSTEM_PROMPT)
+    expect(guardrailSystemPrompt('task', { composition: 'free_response' })).toBe(
+      TASK_PCI_SYSTEM_PROMPT
+    )
+  })
+})
+
+describe('taskVariantAddendum / task study-material variant', () => {
+  it('is empty unless the source is study_material', () => {
+    expect(taskVariantAddendum()).toBe('')
+    expect(taskVariantAddendum({})).toBe('')
+    expect(taskVariantAddendum({ documentKind: 'question_paper' })).toBe('')
+    // composition never triggers a task addendum
+    expect(taskVariantAddendum({ composition: 'objective' })).toBe('')
+  })
+
+  it('adds a study-material note for a study_material task', () => {
+    const addendum = taskVariantAddendum({ documentKind: 'study_material' })
+    expect(addendum).toContain('GENERATED from')
+    expect(addendum).toContain('steering only')
+  })
+
+  it('returns the base task prompt verbatim when no variant / no source', () => {
+    expect(guardrailSystemPrompt('task')).toBe(TASK_PCI_SYSTEM_PROMPT)
+    expect(guardrailSystemPrompt('task', { documentKind: 'question_paper' })).toBe(
+      TASK_PCI_SYSTEM_PROMPT
+    )
+  })
+
+  it('appends the note for a study_material task without dropping any TASK rule', () => {
+    const prompt = guardrailSystemPrompt('task', { documentKind: 'study_material' })
+    expect(prompt.startsWith(TASK_PCI_SYSTEM_PROMPT)).toBe(true)
+    expect(prompt).toContain('GENERATED from')
+    for (const rule of TASK_PCI_GUARDRAILS) {
+      expect(prompt).toContain(rule.id)
+    }
   })
 })

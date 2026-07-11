@@ -74,9 +74,10 @@ const PciMasterRequestSchema = z.object({
       // Assessment DMI digest (per-question marks + rubric, no answers) so the
       // marking policy is built with the real questions/marks/rubrics in view.
       markingScheme: z.string().max(16000).optional(),
-      // Assessment-only: the resolved PCI-chat variant (derived client-side from
-      // the DMI question mix + documentKind). Selects per-type steering appended
-      // to the assessment prompt. Ignored for tasks.
+      // The resolved PCI-chat variant (derived client-side). Selects per-type
+      // steering appended to the domain prompt: assessments use `composition`
+      // (from the DMI question mix) + `documentKind`; tasks use `documentKind`
+      // only (`composition` is ignored for tasks).
       variant: z
         .object({
           composition: z.enum(['objective', 'free_response', 'mixed']).optional(),
@@ -91,7 +92,7 @@ const PciMasterRequestSchema = z.object({
   pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
 })
 
-const SYSTEM_PROMPT = `You are a PCI (Pedagogically Correct Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
+const SYSTEM_PROMPT = `You are a PCI (Programmatic Curriculum Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
 
 Your role:
 1. Help students discover answers through guided questioning (never give direct answers)
