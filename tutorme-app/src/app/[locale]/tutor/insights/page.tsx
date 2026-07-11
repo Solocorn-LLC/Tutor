@@ -137,20 +137,13 @@ function TutorInsightsPageInner() {
     // Otherwise detect from which list the course belongs to
     const isLive = courses.some(c => c.id === courseId)
     const isDraft = draftCourses.some(c => c.id === courseId)
-    // If mode=edit was explicitly passed (from Course Builder nav), prefer draft
-    // mode for editing. For live DB courses, this keeps dataMode as 'default' (not
-    // 'detached') so content loads from the DB safely rather than empty localStorage.
-    if (searchParams.get('mode') === 'edit') {
-      setSaveMode('draft')
-      return
-    }
     if (isLive && !isDraft) {
       setSaveMode('live')
     } else if (isDraft && !isLive) {
       setSaveMode('draft')
     }
     // If both or neither (e.g., during loading), leave current value
-  }, [courseId, courses, draftCourses, searchParams])
+  }, [courseId, courses, draftCourses])
 
   // Migrate legacy draft data saved under `modules` in lesson-bank-courses-v1
   // to the new `insights-course-builder:${courseId}` key with `lessons`
