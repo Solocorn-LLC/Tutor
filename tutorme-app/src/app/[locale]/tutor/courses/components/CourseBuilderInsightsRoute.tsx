@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
+import { getCategoryBoard } from '@/lib/data/category-board'
 import {
   Select,
   SelectContent,
@@ -134,6 +135,9 @@ type Props = UseCourseBuilderContentArgs & {
   newCourseCategories?: string[]
   setNewCourseCategories?: (v: string[]) => void
   createStorageUserId?: string
+  /** Persist an edited course name/categories (from the control-panel Edit button). */
+  onUpdateCourse?: (id: string, patch: { name: string; categories: string[] }) => void
+  editStorageUserId?: string
   onCreateNewCourse?: () => void
   isDeleteDialogOpen?: boolean
   setIsDeleteDialogOpen?: (v: boolean) => void
@@ -178,6 +182,7 @@ interface TutorControlsPanelProps {
   onVideo: () => void
   onSync: () => void
   onCreateCourse?: () => void
+  onEditCourse?: () => void
   canDelete: boolean
   canSchedule: boolean
   canGoLive: boolean
@@ -200,6 +205,7 @@ function TutorControlsPanel({
   onVideo,
   onSync,
   onCreateCourse,
+  onEditCourse,
   canDelete,
   canSchedule,
   canGoLive,
@@ -354,6 +360,19 @@ function TutorControlsPanel({
                       <Trash2 className="h-4 w-4" />
                       Delete
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !onEditCourse}
+                      onClick={onEditCourse}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+                      )}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      Edit Course
+                    </button>
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -453,6 +472,8 @@ function CourseBuilderInsightsRouteInner({
   newCourseCategories,
   setNewCourseCategories,
   createStorageUserId,
+  onUpdateCourse,
+  editStorageUserId,
   onCreateNewCourse,
   isDeleteDialogOpen,
   setIsDeleteDialogOpen,
@@ -497,6 +518,21 @@ function CourseBuilderInsightsRouteInner({
     setNewCourseName?.('')
     setNewCourseCategories?.([])
     setIsCreateDialogOpen?.(false)
+  }
+  // Edit-course dialog (control-panel Edit button): edit name + category of the
+  // current course. Prefilled from currentCourse; persisted via onUpdateCourse.
+  const [isEditCourseOpen, setIsEditCourseOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editCategories, setEditCategories] = useState<string[]>([])
+  const openEditCourse = () => {
+    setEditName(currentCourse?.name ?? '')
+    setEditCategories(((currentCourse as { categories?: string[] })?.categories ?? []).slice())
+    setIsEditCourseOpen(true)
+  }
+  const saveEditCourse = () => {
+    if (!courseId || !editName.trim() || editCategories.length === 0) return
+    onUpdateCourse?.(courseId, { name: editName.trim(), categories: editCategories })
+    setIsEditCourseOpen(false)
   }
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
@@ -981,7 +1017,15 @@ function CourseBuilderInsightsRouteInner({
                   currentCourse &&
                   (currentCourse as any).categories?.length > 0 ? (
                     <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                      {(currentCourse as any).categories.join(', ')}
+                      {/* Full identity: Board (derived) · category · country
+                          (country appears once published, from the variant). */}
+                      {[
+                        getCategoryBoard((currentCourse as any).categories[0]),
+                        (currentCourse as any).categories.join(', '),
+                        (currentCourse as any).nationality,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </span>
                   ) : null}
                 </div>
@@ -1139,6 +1183,7 @@ function CourseBuilderInsightsRouteInner({
               ref?.triggerSync?.()
             }}
             onCreateCourse={onCreateCourse}
+            onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
             canSchedule={
               !!(
@@ -1258,6 +1303,51 @@ function CourseBuilderInsightsRouteInner({
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Course Dialog — control-panel "Edit Course" (name + category) */}
+      <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
+        <DialogContent
+          className="max-h-[90vh] max-w-3xl overflow-hidden border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Edit Course</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 px-2 py-2">
+            <div className="space-y-2 px-4">
+              <Label className="text-sm font-medium text-slate-700">Course name</Label>
+              <Input
+                value={editName}
+                onChange={e => e.target.value.length <= 25 && setEditName(e.target.value)}
+                placeholder="Course name"
+                maxLength={25}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400"
+              />
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
+              <CourseCategoryPicker
+                value={editCategories}
+                onChange={setEditCategories}
+                storageUserId={editStorageUserId}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3">
+            <Button variant="modal-secondary-dark" onClick={() => setIsEditCourseOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="modal-primary-dark"
+              onClick={saveEditCourse}
+              disabled={!editName.trim() || editCategories.length === 0}
+            >
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

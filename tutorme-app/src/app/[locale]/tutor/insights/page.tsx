@@ -491,6 +491,57 @@ function TutorInsightsPageInner() {
     }
   }, [newCourseName, newCourseCategories, saveMode])
 
+  // Persist an edited course name/categories from the control-panel Edit button.
+  const handleUpdateCourse = useCallback(
+    async (id: string, patch: { name: string; categories: string[] }) => {
+      // Optimistic local update so the builder header reflects it immediately.
+      setCourses(prev =>
+        prev.map(c => (c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c))
+      )
+      setDraftCourses(prev =>
+        prev.map(c => (c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c))
+      )
+      if (id === courseId) setDetachedCourseName(patch.name)
+
+      // Drafts live only in localStorage; DB courses persist via PATCH.
+      const isDraft = draftCourses.some(c => c.id === id)
+      if (isDraft) {
+        try {
+          const raw = localStorage.getItem(draftStorageKey)
+          const parsed = raw ? JSON.parse(raw) : []
+          localStorage.setItem(
+            draftStorageKey,
+            JSON.stringify(
+              parsed.map((c: any) =>
+                c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c
+              )
+            )
+          )
+        } catch {
+          // ignore
+        }
+        toast.success('Course updated')
+        return
+      }
+      try {
+        const res = await fetchWithCsrf(`/api/tutor/courses/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: patch.name, categories: patch.categories }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error || 'Failed to update course')
+          return
+        }
+        toast.success('Course updated')
+      } catch {
+        toast.error('Failed to update course')
+      }
+    },
+    [courseId, draftCourses, draftStorageKey]
+  )
+
   const handleDeleteCourse = useCallback(async () => {
     if (!courseId || courseId === 'insights-draft') return
 
@@ -1322,6 +1373,8 @@ function TutorInsightsPageInner() {
           newCourseCategories={newCourseCategories}
           setNewCourseCategories={setNewCourseCategories}
           createStorageUserId={session?.user?.id}
+          onUpdateCourse={handleUpdateCourse}
+          editStorageUserId={session?.user?.id}
           onCreateNewCourse={handleCreateNewCourse}
           isDeleteDialogOpen={isDeleteDialogOpen}
           setIsDeleteDialogOpen={setIsDeleteDialogOpen}
