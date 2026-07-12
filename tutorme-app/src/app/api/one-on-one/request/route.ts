@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
 import { requestedDateFromString } from '@/lib/one-on-one/time'
+import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -74,6 +75,7 @@ export const POST = withCsrf(
           eq(oneOnOneBookingRequest.status, 'ACCEPTED')
         )
       ),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (existingRequest) {
@@ -142,7 +144,7 @@ export const POST = withCsrf(
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .returning()
+      .returning(CORE_BOOKING_RETURNING)
 
     // Send notification to tutor
     notify({
@@ -173,6 +175,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
   if (requestId) {
     const requestRow = await drizzleDb.query.oneOnOneBookingRequest.findFirst({
       where: eq(oneOnOneBookingRequest.requestId, requestId),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (!requestRow) throw new NotFoundError('Request not found')
@@ -208,6 +211,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.studentId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         tutor: {
           columns: {
@@ -224,6 +228,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.tutorId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         student: {
           columns: {

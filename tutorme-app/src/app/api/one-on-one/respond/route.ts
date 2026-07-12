@@ -14,6 +14,7 @@ import {
   studentHasAvailabilityConfigured,
 } from '@/lib/student-availability'
 import { slotInstants } from '@/lib/one-on-one/time'
+import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 
 const respondSchema = z.object({
   requestId: z.string().min(1),
@@ -49,6 +50,7 @@ export async function PATCH(request: NextRequest) {
         eq(oneOnOneBookingRequest.requestId, validated.requestId),
         eq(oneOnOneBookingRequest.tutorId, session.user.id)
       ),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (!existingRequest) {
@@ -186,7 +188,7 @@ export async function PATCH(request: NextRequest) {
             updatedAt: new Date(),
           })
           .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
-          .returning()
+          .returning(CORE_BOOKING_RETURNING)
 
         return { updatedRequest, newEvent }
       })
@@ -217,7 +219,7 @@ export async function PATCH(request: NextRequest) {
           updatedAt: new Date(),
         })
         .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
-        .returning()
+        .returning(CORE_BOOKING_RETURNING)
 
       // Send notification to student that request was rejected
       notify({
