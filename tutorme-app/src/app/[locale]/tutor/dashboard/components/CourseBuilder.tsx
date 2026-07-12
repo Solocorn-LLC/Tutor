@@ -3579,6 +3579,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
         const nextVersionNumber = existingVersions.length + 1
+        // Seed the Board/Subject onto the new version from the course category so
+        // the DMI carries them as real data (not just a derived-on-the-fly badge).
+        // Board is assessment-only; honour a manual Board override; both are
+        // derived from the tutor's own category — never fabricated.
+        const seedExam = deriveExamContext(pciCategory || null, courseName)
         const newVersion: DMIVersion = {
           id: `dmi-version-${Date.now()}`,
           versionNumber: nextVersionNumber,
@@ -3586,6 +3591,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           createdAt: Date.now(),
           taskId: isTask ? loadedTaskId || undefined : undefined,
           assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+          examBody: !isTask ? pciBoardOverride || seedExam.examBody || undefined : undefined,
+          subject: seedExam.subject || pciCategory || undefined,
           // ASMT-4: section grouping + total marks derived from the questions.
           sections: deriveSections(dmiItems),
           totalMarks: deriveTotalMarks(dmiItems),
