@@ -16,21 +16,29 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
 import { BookOpen, Loader2 } from 'lucide-react'
 import { BackButton } from '@/components/navigation'
+import { CourseCategoryPicker } from '../components/CourseCategoryPicker'
 
 const DESCRIPTION_LIMIT = 500
 
 export default function CreateCoursePage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [creating, setCreating] = useState(false)
   const [courseName, setCourseName] = useState('')
   const [description, setDescription] = useState('')
+  const [categories, setCategories] = useState<string[]>([])
   const descriptionCount = useMemo(() => description.length, [description])
 
   const validateDetailsStep = () => {
     if (!courseName.trim()) {
       toast.error('Course name is required')
+      return false
+    }
+    if (categories.length === 0) {
+      toast.error('Please select a category')
       return false
     }
     if (descriptionCount > DESCRIPTION_LIMIT) {
@@ -58,6 +66,7 @@ export default function CreateCoursePage() {
         body: JSON.stringify({
           title: courseName.trim(),
           description: description.trim() || undefined,
+          categories,
           isLiveOnline: false,
         }),
       })
@@ -111,6 +120,17 @@ export default function CreateCoursePage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-gray-700">Category *</Label>
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <CourseCategoryPicker
+                      value={categories}
+                      onChange={setCategories}
+                      storageUserId={session?.user?.id}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
                       Course Description
@@ -145,7 +165,7 @@ export default function CreateCoursePage() {
                 <Button
                   className="h-11 flex-1 bg-blue-600 font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700"
                   onClick={handleConfirm}
-                  disabled={creating || !courseName.trim()}
+                  disabled={creating || !courseName.trim() || categories.length === 0}
                 >
                   {creating ? (
                     <>
