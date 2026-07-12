@@ -191,14 +191,13 @@ export function TestTaskChat({
   const accentColor = isClassroom ? 'text-[#F17623]' : 'text-violet-600'
   const accentBg = isClassroom ? 'bg-orange-50/60' : 'bg-violet-50/60'
   const accentBorder = isClassroom ? 'border-orange-100' : 'border-violet-100'
-  const accentBorderStrong = isClassroom ? 'border-[rgba(241,118,35,0.4)]' : 'border-violet-300'
   const sendButtonBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
 
   return (
     <div
-      className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl border ${accentBorderStrong} bg-white`}
+      className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white`}
     >
       {/* Header bar */}
       <div className={`flex items-center gap-2 border-b ${accentBorder} ${accentBg} px-4 py-2`}>
