@@ -97,6 +97,7 @@ interface BillingRecord {
 function OneOnOneSettingsCard() {
   const [settings, setSettings] = useState({
     oneOnOneEnabled: true,
+    oneOnOneFree: false,
     hourlyRate: 50,
     sessionDuration: 60,
     bufferMinutes: 0,
@@ -117,6 +118,7 @@ function OneOnOneSettingsCard() {
         const data = await res.json()
         setSettings({
           oneOnOneEnabled: data.oneOnOneEnabled ?? true,
+          oneOnOneFree: data.oneOnOneFree ?? false,
           hourlyRate: data.hourlyRate ?? 50,
           sessionDuration: data.sessionDuration ?? 60,
           bufferMinutes: data.bufferMinutes ?? 0,
@@ -138,6 +140,7 @@ function OneOnOneSettingsCard() {
         credentials: 'include',
         body: JSON.stringify({
           oneOnOneEnabled: settings.oneOnOneEnabled,
+          oneOnOneFree: settings.oneOnOneFree,
           hourlyRate: settings.hourlyRate,
           bufferMinutes: settings.bufferMinutes,
         }),
@@ -197,37 +200,57 @@ function OneOnOneSettingsCard() {
           <>
             <Separator />
 
-            {/* Hourly Rate */}
-            <div className="space-y-2">
-              <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
-              <div className="flex items-center justify-start gap-2">
-                <span className="text-lg text-gray-500">$</span>
-                <Input
-                  id="hourlyRate"
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={settings.hourlyRate}
-                  onChange={e =>
-                    setSettings(prev => ({
-                      ...prev,
-                      hourlyRate: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-32"
-                />
-                <span className="whitespace-nowrap text-sm text-gray-500">per hour</span>
+            {/* Free sessions toggle */}
+            <div className="flex items-center justify-between rounded-[12px] border p-4 transition-all hover:bg-slate-50 hover:shadow-sm">
+              <div>
+                <p className="font-medium">Offer sessions for free</p>
+                <p className="text-sm text-gray-500">
+                  Skip payment entirely — an accepted request is confirmed instantly. Handy for free
+                  intro sessions or testing the booking flow end-to-end.
+                </p>
               </div>
-              <p className="text-xs text-gray-500">
-                Students will see this rate when booking a session
-              </p>
-              {(!settings.hourlyRate || settings.hourlyRate <= 0) && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  <span className="font-medium">⚠️ Rate Required:</span> You must set an hourly rate
-                  above $0 for students to be able to book one-on-one sessions with you.
-                </div>
-              )}
+              <Switch
+                checked={settings.oneOnOneFree}
+                onCheckedChange={checked =>
+                  setSettings(prev => ({ ...prev, oneOnOneFree: checked }))
+                }
+              />
             </div>
+
+            {/* Hourly Rate — only relevant for paid sessions */}
+            {!settings.oneOnOneFree && (
+              <div className="space-y-2">
+                <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
+                <div className="flex items-center justify-start gap-2">
+                  <span className="text-lg text-gray-500">$</span>
+                  <Input
+                    id="hourlyRate"
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={settings.hourlyRate}
+                    onChange={e =>
+                      setSettings(prev => ({
+                        ...prev,
+                        hourlyRate: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-32"
+                  />
+                  <span className="whitespace-nowrap text-sm text-gray-500">per hour</span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Students will see this rate when booking a session
+                </p>
+                {(!settings.hourlyRate || settings.hourlyRate <= 0) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <span className="font-medium">⚠️ Rate Required:</span> You must set an hourly
+                    rate above $0 (or turn on “Offer sessions for free”) for students to be able to
+                    book one-on-one sessions with you.
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Session Duration */}
             <div className="space-y-2">

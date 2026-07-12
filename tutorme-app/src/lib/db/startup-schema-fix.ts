@@ -274,6 +274,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS "OneOnOneWaitlist_tutor_student_key"
   ON "OneOnOneWaitlist" ("tutorId", "studentId");
 CREATE INDEX IF NOT EXISTS "OneOnOneWaitlist_tutorId_idx" ON "OneOnOneWaitlist" ("tutorId");
 CREATE INDEX IF NOT EXISTS "OneOnOneWaitlist_studentId_idx" ON "OneOnOneWaitlist" ("studentId");
+
+-- 0074: tutors can offer 1-on-1 sessions for free (booking skips payment).
+ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "oneOnOneFree" boolean NOT NULL DEFAULT false;
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

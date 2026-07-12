@@ -512,6 +512,13 @@
       "when": 1781900000072,
       "tag": "0072_one_on_one_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1781900000074,
+      "tag": "0074_profile_one_on_one_free",
+      "breakpoints": true
     }
   ]
 }

@@ -50,6 +50,7 @@ export const POST = withCsrf(
       columns: {
         hourlyRate: true,
         oneOnOneEnabled: true,
+        oneOnOneFree: true,
         currency: true,
         timezone: true,
       },
@@ -61,7 +62,8 @@ export const POST = withCsrf(
       throw new ValidationError('Tutor does not offer one-on-one sessions')
     }
 
-    if (!tutorProfile.hourlyRate || tutorProfile.hourlyRate <= 0) {
+    // Free tutors need no rate; paid tutors must have one set.
+    if (!tutorProfile.oneOnOneFree && (!tutorProfile.hourlyRate || tutorProfile.hourlyRate <= 0)) {
       throw new ValidationError('Tutor has not set an hourly rate yet. Please check back later.')
     }
 
@@ -117,7 +119,9 @@ export const POST = withCsrf(
     // Store remaining slots in tutorNotes as JSON
     const [primarySlot, ...additionalSlots] = validated.proposedSlots
     const durationHours = validated.duration / 60
-    const costPerSession = Math.round(tutorProfile.hourlyRate * durationHours * 100) / 100
+    const costPerSession = tutorProfile.oneOnOneFree
+      ? 0
+      : Math.round((tutorProfile.hourlyRate ?? 0) * durationHours * 100) / 100
 
     // Store the calendar date as midnight-UTC so it round-trips regardless of
     // the server's own timezone (wall-clock times live in `timezone` below).

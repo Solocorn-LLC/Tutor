@@ -264,12 +264,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
     }
 
+    const isFree = !!tutorProfile.oneOnOneFree
     const hasHourlyRate = typeof tutorProfile.hourlyRate === 'number' && tutorProfile.hourlyRate > 0
 
     return NextResponse.json({
       available: true,
-      hourlyRate: hasHourlyRate ? tutorProfile.hourlyRate : 0,
-      pricingIncomplete: !hasHourlyRate,
+      free: isFree,
+      // Free sessions cost 0 and are never "pricing incomplete".
+      hourlyRate: isFree ? 0 : hasHourlyRate ? tutorProfile.hourlyRate : 0,
+      pricingIncomplete: !isFree && !hasHourlyRate,
       currency: tutorProfile.currency || 'USD',
       timezone: tutorProfile.timezone || 'UTC',
       slots,

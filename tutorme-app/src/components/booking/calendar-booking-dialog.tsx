@@ -81,6 +81,7 @@ interface TimeSlot {
 interface AvailabilityData {
   available: boolean
   hourlyRate: number
+  free?: boolean
   pricingIncomplete?: boolean
   reason?: string
   currency: string
@@ -566,7 +567,9 @@ export function CalendarBookingDialog({
                 <DialogPanel className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-gray-900">
-                    {availability?.currency} {availability?.hourlyRate} per session (1 hour)
+                    {availability?.free
+                      ? 'Free session — no payment needed'
+                      : `${availability?.currency} ${availability?.hourlyRate} per session (1 hour)`}
                   </span>
                 </DialogPanel>
               </div>
@@ -875,8 +878,9 @@ export function CalendarBookingDialog({
                           Price
                         </span>
                         <span className="text-sm font-semibold">
-                          {availability?.currency}{' '}
-                          {(availability?.hourlyRate ?? 0) * summaryData.sessionCount}
+                          {availability?.free
+                            ? 'Free'
+                            : `${availability?.currency} ${(availability?.hourlyRate ?? 0) * summaryData.sessionCount}`}
                         </span>
                       </div>
                     </div>
