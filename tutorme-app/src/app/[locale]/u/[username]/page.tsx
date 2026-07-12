@@ -74,6 +74,8 @@ interface PublicTutorResponse {
     specialties: string[]
     credentials: string
     hourlyRate: number | null
+    oneOnOneRating?: number | null
+    oneOnOneReviewCount?: number | null
     tutorSince?: string | null
     country?: string | null
     activeCourses?: number | null
@@ -1294,6 +1296,13 @@ export default function PublicTutorPage() {
               </div>
 
               <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/10 lg:w-auto">
+                {tutor.oneOnOneRating != null && (tutor.oneOnOneReviewCount ?? 0) > 0 && (
+                  <StarRating
+                    rating={tutor.oneOnOneRating}
+                    count={tutor.oneOnOneReviewCount ?? 0}
+                    className="text-white/90"
+                  />
+                )}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Button
                     size="lg"

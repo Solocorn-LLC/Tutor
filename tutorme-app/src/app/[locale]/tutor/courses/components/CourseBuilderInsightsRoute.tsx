@@ -964,6 +964,19 @@ function CourseBuilderInsightsRouteInner({
                           {currentCourse.name}
                         </span>
                       )}
+                      {/* Full identity next to the name: Board (derived) · category ·
+                          country (country appears once published, from the variant). */}
+                      {(currentCourse as any)?.categories?.length > 0 && (
+                        <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
+                          {[
+                            getCategoryBoard((currentCourse as any).categories[0]),
+                            (currentCourse as any).categories.join(', '),
+                            (currentCourse as any).nationality,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      )}
                     </h1>
                   )}
                   {activeMainTab === 'live' && (
@@ -1012,22 +1025,6 @@ function CourseBuilderInsightsRouteInner({
                             : sessionCategory || sessionNationality}
                       </span>
                     )}
-                  {activeMainTab !== 'live' &&
-                  activeMainTab !== 'test-pci' &&
-                  currentCourse &&
-                  (currentCourse as any).categories?.length > 0 ? (
-                    <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                      {/* Full identity: Board (derived) · category · country
-                          (country appears once published, from the variant). */}
-                      {[
-                        getCategoryBoard((currentCourse as any).categories[0]),
-                        (currentCourse as any).categories.join(', '),
-                        (currentCourse as any).nationality,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             </div>

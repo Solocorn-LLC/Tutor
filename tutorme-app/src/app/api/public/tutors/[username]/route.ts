@@ -14,6 +14,7 @@ import {
   tutorApplication,
 } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
+import { getTutorRating } from '@/lib/one-on-one/reviews'
 
 export async function GET(
   request: NextRequest,
@@ -180,6 +181,7 @@ export async function GET(
     }
 
     // Build tutor response
+    const oneOnOneRating = await getTutorRating(tutorId)
     const tutorResponse = {
       id: tutorId,
       name: profileData.name || 'Anonymous Tutor',
@@ -190,6 +192,8 @@ export async function GET(
       credentials: profileData.credentials || '',
       hourlyRate: profileData.hourlyRate,
       oneOnOneEnabled: profileData.oneOnOneEnabled ?? true,
+      oneOnOneRating: oneOnOneRating.average,
+      oneOnOneReviewCount: oneOnOneRating.count,
       tutorSince: tutorUser[0].createdAt?.toISOString() || null,
       country: tutorApp?.countryOfResidence || null,
       activeCourses: publishedCourses.length,

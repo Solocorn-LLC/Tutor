@@ -29,7 +29,7 @@ const requestSchema = z.object({
       })
     )
     .min(1)
-    .max(5),
+    .max(20),
   duration: z.number().min(30).max(180), // minutes: 30-180
   studentNotes: z.string().max(1000).optional(),
 })

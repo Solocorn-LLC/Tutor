@@ -263,3 +263,35 @@ export const oneOnOneBookingRequest = pgTable(
     ).on(table.tutorId, table.studentId, table.status),
   })
 )
+
+/**
+ * A student's review of a completed 1-on-1 session — one per booking. Drives the
+ * tutor's average rating shown on their public profile.
+ */
+export const oneOnOneReview = pgTable(
+  'OneOnOneReview',
+  {
+    reviewId: text('id').primaryKey().notNull(),
+    requestId: text('requestId')
+      .notNull()
+      .references(() => oneOnOneBookingRequest.requestId, { onDelete: 'cascade' }),
+    tutorId: text('tutorId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(), // 1–5
+    comment: text('comment'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    // One review per booking (a student can edit theirs, not create duplicates).
+    OneOnOneReview_requestId_key: uniqueIndex('OneOnOneReview_requestId_key').on(table.requestId),
+    OneOnOneReview_tutorId_idx: index('OneOnOneReview_tutorId_idx').on(table.tutorId),
+  })
+)

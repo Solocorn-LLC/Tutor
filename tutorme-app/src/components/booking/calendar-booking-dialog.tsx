@@ -118,6 +118,9 @@ export function CalendarBookingDialog({
   const [hasPendingRequest, setHasPendingRequest] = useState(false)
   const [activeRequest, setActiveRequest] = useState<{ id: string; status: string } | null>(null)
 
+  // Recurring booking: how many weeks to repeat the selected slot
+  const [recurringWeeks, setRecurringWeeks] = useState(1)
+
   // Calendar week navigation
   const [weekOffset, setWeekOffset] = useState(0)
   const calendarScrollRef = useRef<HTMLDivElement>(null)
@@ -238,14 +241,64 @@ export function CalendarBookingDialog({
     [availableSlotKeys]
   )
 
-  // Check if slot is in the past
-  const isSlotInPast = useCallback((dateKey: string, timeStr: string) => {
-    const now = new Date()
-    const slotDate = parseISO(dateKey)
-    const [h, m] = timeStr.split(':').map(Number)
-    slotDate.setHours(h, m, 0, 0)
-    return isBefore(slotDate, now)
-  }, [])
+  // Check if slot is in the past (in the tutor's timezone)
+  const isSlotInPast = useCallback(
+    (dateKey: string, timeStr: string) => {
+      const now = new Date()
+      const tutorTz = availability?.timezone ?? 'UTC'
+
+      // Parse the dateKey (YYYY-MM-DD) and timeStr (HH:MM) as wall-clock time in tutor's timezone
+      const [year, month, day] = dateKey.split('-').map(Number)
+      const [hour, minute] = timeStr.split(':').map(Number)
+
+      // Build the UTC instant for this wall-clock time in the tutor's timezone
+      // using the same logic as zonedWallClockToUtc
+      const guess = new Date(Date.UTC(year, month - 1, day, hour, minute))
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: tutorTz,
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const parts: Record<string, string> = {}
+      for (const p of dtf.formatToParts(guess)) {
+        if (p.type !== 'literal') parts[p.type] = p.value
+      }
+      const pYear = Number(parts.year)
+      const pMonth = Number(parts.month)
+      const pDay = Number(parts.day)
+      const pHour = parts.hour === '24' ? 0 : Number(parts.hour)
+      const pMinute = Number(parts.minute)
+      const pSecond = Number(parts.second)
+      const asIfUtc = Date.UTC(pYear, pMonth - 1, pDay, pHour, pMinute, pSecond)
+      const offsetMs = asIfUtc - guess.getTime()
+      let slotUtc = new Date(guess.getTime() - offsetMs)
+      // Re-check offset at result for DST
+      const m2: Record<string, string> = {}
+      for (const p of dtf.formatToParts(slotUtc)) {
+        if (p.type !== 'literal') m2[p.type] = p.value
+      }
+      const asIfUtc2 = Date.UTC(
+        Number(m2.year),
+        Number(m2.month) - 1,
+        Number(m2.day),
+        m2.hour === '24' ? 0 : Number(m2.hour),
+        Number(m2.minute),
+        Number(m2.second)
+      )
+      const offsetMs2 = asIfUtc2 - slotUtc.getTime()
+      if (offsetMs2 !== offsetMs) {
+        slotUtc = new Date(guess.getTime() - offsetMs2)
+      }
+
+      return isBefore(slotUtc, now)
+    },
+    [availability?.timezone]
+  )
 
   // Handle slot selection
   const toggleSlot = (dateKey: string, timeStr: string) => {
@@ -277,6 +330,22 @@ export function CalendarBookingDialog({
       const csrfData = await csrfRes.json().catch(() => ({}))
       const csrfToken = csrfData?.token ?? null
 
+      // Generate recurring slots: same day-of-week and time, N weeks apart
+      const proposedSlots = []
+      const baseDate = parseISO(selectedSlot.date)
+      for (let w = 0; w < recurringWeeks; w += 1) {
+        const d = new Date(baseDate)
+        d.setDate(d.getDate() + w * 7)
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        proposedSlots.push({
+          date: `${y}-${m}-${day}`,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+        })
+      }
+
       const res = await fetch('/api/one-on-one/request', {
         method: 'POST',
         headers: {
@@ -286,13 +355,7 @@ export function CalendarBookingDialog({
         credentials: 'include',
         body: JSON.stringify({
           tutorId: tutor.id,
-          proposedSlots: [
-            {
-              date: selectedSlot.date,
-              startTime: selectedSlot.startTime,
-              endTime: selectedSlot.endTime,
-            },
-          ],
+          proposedSlots,
           duration: 60,
         }),
       })
@@ -323,18 +386,33 @@ export function CalendarBookingDialog({
     }
   }
 
+  // Generate all recurring dates for display
+  const recurringDates = useMemo(() => {
+    if (!selectedSlot) return []
+    const dates = []
+    const baseDate = parseISO(selectedSlot.date)
+    for (let w = 0; w < recurringWeeks; w += 1) {
+      const d = new Date(baseDate)
+      d.setDate(d.getDate() + w * 7)
+      dates.push(d)
+    }
+    return dates
+  }, [selectedSlot, recurringWeeks])
+
   // Summary data
   const summaryData = useMemo(() => {
     if (!selectedSlot) return null
     return {
-      date: selectedSlot.date,
+      dates: recurringDates,
       startTime: selectedSlot.startTime,
       endTime: selectedSlot.endTime,
       durationMinutes: 60,
       dayOfWeek: DAYS[selectedSlot.dayOfWeek === 0 ? 6 : selectedSlot.dayOfWeek - 1],
       timezone: availability?.timezone ?? 'UTC',
+      sessionCount: recurringWeeks,
+      totalHours: recurringWeeks,
     }
-  }, [selectedSlot, availability])
+  }, [selectedSlot, availability, recurringDates, recurringWeeks])
 
   // Not logged in state
   if (!session?.user) {
@@ -446,7 +524,7 @@ export function CalendarBookingDialog({
                 </DialogPanel>
               </div>
 
-              {loading ? (
+              {loading && !availability ? (
                 <div className="flex flex-1 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 </div>
@@ -474,9 +552,27 @@ export function CalendarBookingDialog({
                 </div>
               ) : (
                 <>
-                  {/* Legend container */}
+                  {/* Legend + recurring weeks container */}
                   <div className="shrink-0 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-                    <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm font-semibold text-[#1F2933]">
+                        Book recurring sessions for
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={recurringWeeks}
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10)
+                          const v = Math.max(1, Math.min(20, Number.isNaN(val) ? 1 : val))
+                          setRecurringWeeks(v)
+                        }}
+                        className="border-input h-9 w-12 rounded-lg border bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm font-semibold text-[#1F2933]">weeks.</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
                       <span className="flex items-center gap-1">
                         <span className="inline-block h-3 w-3 rounded-sm border border-blue-600 bg-blue-600" />
                         Selected
@@ -493,7 +589,14 @@ export function CalendarBookingDialog({
                   </div>
 
                   {/* Calendar container */}
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                  <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                    {/* Loading overlay for week navigation */}
+                    {loading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                      </div>
+                    )}
+
                     {/* Calendar header with navigation */}
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-[14px] border-b border-[rgba(209,213,219,0.85)] bg-[#1D4ED8] px-4 py-2 text-white">
                       <div className="flex items-center gap-1">
@@ -648,6 +751,11 @@ export function CalendarBookingDialog({
                             {format(parseISO(selectedSlot.date), 'EEEE, MMMM d, yyyy')} at{' '}
                             {formatTime(selectedSlot.startTime)} –{' '}
                             {formatTime(selectedSlot.endTime)}
+                            {recurringWeeks > 1 && (
+                              <span className="ml-1 font-medium text-blue-600">
+                                (+{recurringWeeks - 1} more weekly{recurringWeeks > 2 ? 's' : ''})
+                              </span>
+                            )}
                           </p>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => setSelectedSlot(null)}>
@@ -687,40 +795,46 @@ export function CalendarBookingDialog({
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Sessions
                         </span>
-                        <span className="text-sm font-semibold">1</span>
+                        <span className="text-sm font-semibold">{summaryData.sessionCount}</span>
                       </div>
                       <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Total Duration
                         </span>
-                        <span className="text-sm font-semibold">1.0 h</span>
+                        <span className="text-sm font-semibold">{summaryData.totalHours}.0 h</span>
                       </div>
                     </div>
 
                     {/* Session details */}
                     <div className="mt-4 space-y-2">
                       <div className="text-sm font-semibold text-white">Session Details</div>
-                      <div className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]">
-                        <div className="flex min-w-0 items-center gap-4">
-                          <div className="w-[92px] shrink-0 font-semibold">
-                            {summaryData.dayOfWeek}
+                      {summaryData.dates.map((date, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]"
+                        >
+                          <div className="flex min-w-0 items-center gap-4">
+                            <div className="w-[92px] shrink-0 font-semibold">
+                              {summaryData.dayOfWeek}
+                            </div>
+                            <div className="min-w-0 text-sm text-slate-700">
+                              <span className="font-medium">{format(date, 'MMM d')}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="font-medium">
+                                {formatTimeRange(
+                                  summaryData.startTime,
+                                  summaryData.durationMinutes
+                                )}
+                              </span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="text-slate-600">{summaryData.durationMinutes}m</span>
+                            </div>
                           </div>
-                          <div className="min-w-0 text-sm text-slate-700">
-                            <span className="font-medium">
-                              {format(parseISO(summaryData.date), 'MMM d')}
-                            </span>
-                            <span className="mx-2 text-slate-400">•</span>
-                            <span className="font-medium">
-                              {formatTimeRange(summaryData.startTime, summaryData.durationMinutes)}
-                            </span>
-                            <span className="mx-2 text-slate-400">•</span>
-                            <span className="text-slate-600">{summaryData.durationMinutes}m</span>
-                          </div>
+                          <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                            Session {idx + 1}
+                          </span>
                         </div>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                          1 session
-                        </span>
-                      </div>
+                      ))}
                     </div>
 
                     {/* Price */}
@@ -730,7 +844,8 @@ export function CalendarBookingDialog({
                           Price
                         </span>
                         <span className="text-sm font-semibold">
-                          {availability?.currency} {availability?.hourlyRate}
+                          {availability?.currency}{' '}
+                          {(availability?.hourlyRate ?? 0) * summaryData.sessionCount}
                         </span>
                       </div>
                     </div>
