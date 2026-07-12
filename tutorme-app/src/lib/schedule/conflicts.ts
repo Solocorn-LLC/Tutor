@@ -33,15 +33,23 @@ export interface AlternativeSlot {
  */
 export async function findConflicts(
   tutorId: string,
-  start: Date,
-  end: Date,
+  startArg: Date,
+  endArg: Date,
   options: {
     excludeEventId?: string
     excludeSessionId?: string
     excludeOneOnOneId?: string
+    /** Minutes of gap to require around the slot: an existing session within
+     *  this many minutes of [startArg, endArg] counts as a conflict. */
+    bufferMinutes?: number
   } = {}
 ): Promise<ConflictResult[]> {
   const conflicts: ConflictResult[] = []
+  // Expand the window by the buffer so back-to-back / too-close bookings are
+  // caught as conflicts (buffer 0 = exact overlap only).
+  const bufferMs = Math.max(0, options.bufferMinutes ?? 0) * 60_000
+  const start = new Date(startArg.getTime() - bufferMs)
+  const end = new Date(endArg.getTime() + bufferMs)
 
   // 1. Overlapping live sessions
   const liveSessionConditions = [

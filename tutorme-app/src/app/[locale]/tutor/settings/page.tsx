@@ -99,6 +99,7 @@ function OneOnOneSettingsCard() {
     oneOnOneEnabled: true,
     hourlyRate: 50,
     sessionDuration: 60,
+    bufferMinutes: 0,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -118,6 +119,7 @@ function OneOnOneSettingsCard() {
           oneOnOneEnabled: data.oneOnOneEnabled ?? true,
           hourlyRate: data.hourlyRate ?? 50,
           sessionDuration: data.sessionDuration ?? 60,
+          bufferMinutes: data.bufferMinutes ?? 0,
         })
       }
     } catch (error) {
@@ -137,6 +139,7 @@ function OneOnOneSettingsCard() {
         body: JSON.stringify({
           oneOnOneEnabled: settings.oneOnOneEnabled,
           hourlyRate: settings.hourlyRate,
+          bufferMinutes: settings.bufferMinutes,
         }),
       })
       if (res.ok) {
@@ -249,6 +252,31 @@ function OneOnOneSettingsCard() {
                   <SelectItem value="120">2 hours</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Buffer between bookings */}
+            <div className="space-y-2">
+              <Label htmlFor="bufferMinutes">Buffer between sessions</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="bufferMinutes"
+                  type="number"
+                  min={0}
+                  max={120}
+                  step={5}
+                  className="w-24"
+                  value={settings.bufferMinutes}
+                  onChange={e =>
+                    setSettings(prev => ({
+                      ...prev,
+                      bufferMinutes: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)),
+                    }))
+                  }
+                />
+                <span className="whitespace-nowrap text-sm text-gray-500">
+                  minutes of gap kept around each 1-on-1 booking
+                </span>
+              </div>
             </div>
           </>
         )}

@@ -43,6 +43,15 @@ export async function getStudentFreeHourSet(studentId: string): Promise<Set<stri
  * Returns true when the student has no availability configured (not enforced),
  * or when every clock hour the session overlaps is marked free; false otherwise.
  */
+/**
+ * Whether the student has ANY availability configured at all. Used to enforce
+ * that a 1-on-1 can't be requested/accepted for a student whose availability is
+ * unset (which would otherwise skip the slot check entirely).
+ */
+export async function studentHasAvailabilityConfigured(studentId: string): Promise<boolean> {
+  return (await getStudentFreeHourSet(studentId)) !== null
+}
+
 export async function isSlotWithinStudentAvailability(
   studentId: string,
   date: string,

@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { eq, and, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest } from '@/lib/db/schema'
+import { oneOnOneBookingRequest, profile } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
-import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
+import {
+  isSlotWithinStudentAvailability,
+  studentHasAvailabilityConfigured,
+} from '@/lib/student-availability'
 
 const respondSchema = z.object({
   requestId: z.string().min(1),
@@ -67,8 +70,20 @@ export async function PATCH(request: NextRequest) {
       const slotStartTime = validated.selectedSlot?.startTime || existingRequest.startTime
       const slotEndTime = validated.selectedSlot?.endTime || existingRequest.endTime
 
+      // The student must have availability configured — otherwise the slot
+      // check below is skipped and the tutor could accept an out-of-hours time.
+      if (!(await studentHasAvailabilityConfigured(existingRequest.studentId))) {
+        return NextResponse.json(
+          {
+            error:
+              'This student has no availability set. Ask them (or their parent) to add their available hours before accepting.',
+          },
+          { status: 400 }
+        )
+      }
+
       // The accepted time must fall within the student's availability (managed
-      // by their parent). Not enforced when no availability is configured yet.
+      // by their parent).
       const withinAvailability = await isSlotWithinStudentAvailability(
         existingRequest.studentId,
         slotDate,
@@ -90,9 +105,16 @@ export async function PATCH(request: NextRequest) {
       const eventEnd = new Date(`${slotDate}T${slotEndTime}:00`)
       const durationMinutes = existingRequest.durationMinutes || 60
 
-      // CHECK FOR CONFLICTS using unified conflict detector
+      // CHECK FOR CONFLICTS using unified conflict detector, expanded by the
+      // tutor's configured buffer so bookings can't be scheduled too close.
+      const [tutorProfileRow] = await drizzleDb
+        .select({ bufferMinutes: profile.bufferMinutes })
+        .from(profile)
+        .where(eq(profile.userId, session.user.id))
+        .limit(1)
       const conflicts = await findConflicts(session.user.id, eventStart, eventEnd, {
         excludeOneOnOneId: validated.requestId,
+        bufferMinutes: tutorProfileRow?.bufferMinutes ?? 0,
       })
 
       if (conflicts.length > 0) {

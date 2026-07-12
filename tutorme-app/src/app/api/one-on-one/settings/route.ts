@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         profileId: profile.profileId,
         hourlyRate: profile.hourlyRate,
         oneOnOneEnabled: profile.oneOnOneEnabled,
+        bufferMinutes: profile.bufferMinutes,
       })
       .from(profile)
       .where(eq(profile.userId, tutorId))
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
       hourlyRate: tutorProfile[0].hourlyRate || 50, // Default $50/hour
       oneOnOneEnabled: tutorProfile[0].oneOnOneEnabled ?? true,
       sessionDuration: 60, // Default 1 hour
+      bufferMinutes: tutorProfile[0].bufferMinutes ?? 0, // gap around bookings
     })
   } catch (error) {
     console.error('Error fetching one-on-one settings:', error)
@@ -60,8 +62,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { hourlyRate, oneOnOneEnabled } = body
+    const { hourlyRate, oneOnOneEnabled, bufferMinutes } = body
     const tutorId = session.user.id
+
+    // Clamp the buffer to a sane 0–120 minute range when provided.
+    const buffer =
+      bufferMinutes !== undefined
+        ? Math.max(0, Math.min(120, Math.round(Number(bufferMinutes) || 0)))
+        : undefined
 
     // Update profile
     await drizzleDb
@@ -69,6 +77,7 @@ export async function PATCH(req: NextRequest) {
       .set({
         hourlyRate: hourlyRate !== undefined ? hourlyRate : undefined,
         oneOnOneEnabled: oneOnOneEnabled !== undefined ? oneOnOneEnabled : undefined,
+        bufferMinutes: buffer,
         updatedAt: new Date(),
       })
       .where(eq(profile.userId, tutorId))

@@ -13,7 +13,10 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
-import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
+import {
+  isSlotWithinStudentAvailability,
+  studentHasAvailabilityConfigured,
+} from '@/lib/student-availability'
 
 const requestSchema = z.object({
   tutorId: z.string().min(1),
@@ -83,8 +86,16 @@ export const POST = withCsrf(
       )
     }
 
+    // A student with no availability configured can't book — otherwise the
+    // per-slot check below is skipped and a tutor could be booked out of hours.
+    if (!(await studentHasAvailabilityConfigured(session.user.id))) {
+      throw new ValidationError(
+        'Set your availability before requesting a 1-on-1 — ask your parent to add your available hours.'
+      )
+    }
+
     // Every proposed time must fall within the student's availability (managed
-    // by their parent). Not enforced when no availability is configured yet.
+    // by their parent).
     for (const slot of validated.proposedSlots) {
       const withinAvailability = await isSlotWithinStudentAvailability(
         session.user.id,
