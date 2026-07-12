@@ -274,8 +274,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       timezone: tutorProfile.timezone || 'UTC',
       slots,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch availability error:', error)
-    return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
+    const message = error?.message || String(error) || 'Unknown error'
+    return NextResponse.json(
+      { error: 'Failed to fetch availability', details: message },
+      { status: 500 }
+    )
   }
 }

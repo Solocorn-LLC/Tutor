@@ -237,10 +237,14 @@ export function CalendarBookingDialog({
         }
       } else {
         const error = await res.json().catch(() => ({}))
-        setAvailabilityError(error.error || 'Failed to load availability')
+        const msg = error.error || 'Failed to load availability'
+        setAvailabilityError(msg)
+        toast.error(msg)
       }
-    } catch {
-      setAvailabilityError('Failed to load availability')
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load availability'
+      setAvailabilityError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -571,28 +575,6 @@ export function CalendarBookingDialog({
                 <div className="flex flex-1 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                 </div>
-              ) : availabilityError ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <DialogPanel className="py-6 text-center">
-                    {availabilityError === 'Pricing not set' ? (
-                      <div className="space-y-2">
-                        <p className="font-medium text-gray-900">
-                          This tutor is available for one-on-one sessions but has not set a price
-                          yet.
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Please check back later or contact the tutor directly.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-600">
-                        {availability?.reason === 'disabled'
-                          ? 'This tutor is not currently offering one-on-one sessions.'
-                          : availabilityError}
-                      </p>
-                    )}
-                  </DialogPanel>
-                </div>
               ) : (
                 <>
                   {/* Legend + recurring weeks container */}
@@ -633,6 +615,12 @@ export function CalendarBookingDialog({
 
                   {/* Calendar container */}
                   <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                    {/* Error banner */}
+                    {availabilityError && availabilityError !== 'Pricing not set' && (
+                      <div className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-center text-xs text-red-600">
+                        {availabilityError}
+                      </div>
+                    )}
                     {/* Loading overlay for week navigation */}
                     {loading && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
