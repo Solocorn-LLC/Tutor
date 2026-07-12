@@ -12,6 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { REGIONS } from '@/lib/data/tutor-categories'
 import { ArrowLeft, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
@@ -89,6 +98,40 @@ export default function TutorCoursePage() {
   )
   const [infoOpen, setInfoOpen] = useState(true)
   const [publishingVariants, setPublishingVariants] = useState(false)
+
+  // Country selection for publishing. Each selected country becomes its own
+  // variant (category × country); 'GL' publishes worldwide as a single variant.
+  const [selectedRegion, setSelectedRegion] = useState<string>('global')
+  const [selectedCountryCodes, setSelectedCountryCodes] = useState<string[]>(['GL'])
+
+  const regionCountries = useMemo(() => {
+    const region = REGIONS.find(r => r.id === selectedRegion)
+    return region ? region.countries : []
+  }, [selectedRegion])
+
+  const handleRegionChange = useCallback((regionId: string) => {
+    setSelectedRegion(regionId)
+    if (regionId === 'global') setSelectedCountryCodes(['GL'])
+  }, [])
+
+  const toggleCountry = useCallback((code: string) => {
+    setSelectedCountryCodes(prev => {
+      const next = prev.includes(code)
+        ? prev.filter(c => c !== code)
+        : // drop the Global stand-in as soon as a real country is chosen
+          [...prev.filter(c => c !== 'GL'), code]
+      return next.length > 0 ? next : ['GL']
+    })
+  }, [])
+
+  const countryLabel = useCallback((code: string): string => {
+    if (code === 'GL') return 'Global'
+    for (const region of REGIONS) {
+      const match = region.countries.find(c => c.code === code)
+      if (match) return match.name
+    }
+    return code
+  }, [])
 
   const loadCourse = useCallback(async () => {
     if (!id) return
@@ -367,12 +410,69 @@ export default function TutorCoursePage() {
             ) : null}
           </Card>
 
+          <Card
+            variant="floating"
+            elevation={2}
+            padding="none"
+            className="overflow-hidden rounded-[16px] bg-white"
+          >
+            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+              <h2 className="text-sm font-semibold text-slate-800">Publish to countries</h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Pick a region, then the countries to publish this course to — each becomes its own
+                variant. Leave it as Global to publish once, worldwide.
+              </p>
+            </div>
+            <CardContent className="space-y-4 bg-white p-6 text-slate-900">
+              <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-700">Region</Label>
+                  <Select value={selectedRegion} onValueChange={handleRegionChange}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Select a region" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REGIONS.map(r => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-700">Countries</Label>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
+                    {regionCountries.map(c => (
+                      <label
+                        key={c.code}
+                        className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+                      >
+                        <Checkbox
+                          checked={selectedCountryCodes.includes(c.code)}
+                          onCheckedChange={() => toggleCountry(c.code)}
+                        />
+                        {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Publishing to:{' '}
+                <span className="font-medium text-slate-700">
+                  {selectedCountryCodes.map(countryLabel).join(', ')}
+                </span>
+              </p>
+            </CardContent>
+          </Card>
+
           <VariantManager
             ref={variantManagerRef}
             templateCourseId={id}
             templateCourseName={courseName}
             selectedCategories={selectedCategories}
-            selectedCountryCodes={['GL']}
+            selectedCountryCodes={selectedCountryCodes}
             defaultPrice={price === '' ? null : Number(price)}
             defaultCurrency="USD"
             defaultLanguage={languageOfInstruction || 'English'}
