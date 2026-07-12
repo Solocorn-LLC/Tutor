@@ -19,11 +19,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Clock,
   DollarSign,
   Video,
   Loader2,
-  Globe,
   Check,
   X,
 } from 'lucide-react'
@@ -38,15 +36,6 @@ const TIME_SLOT_OPTIONS = Array.from({ length: 24 }, (_, i) => {
   const hour = i
   return `${hour.toString().padStart(2, '0')}:00`
 })
-
-function timeToMinutes(time: string) {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
-}
-
-function timesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
-  return timeToMinutes(startA) < timeToMinutes(endB) && timeToMinutes(endA) > timeToMinutes(startB)
-}
 
 function formatTime(time: string) {
   if (!time || typeof time !== 'string') return '–'
@@ -133,25 +122,8 @@ export function CalendarBookingDialog({
   const [weekOffset, setWeekOffset] = useState(0)
   const calendarScrollRef = useRef<HTMLDivElement>(null)
 
-  // Student's timezone preference
-  const [studentTimezone, setStudentTimezone] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('user-timezone')
-      if (stored) return stored
-    }
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone
-    } catch {
-      return 'UTC'
-    }
-  })
-
-  // Show in student timezone or tutor timezone
-  const [showInStudentTimezone, setShowInStudentTimezone] = useState(true)
-
-  const displayTimezone = showInStudentTimezone
-    ? studentTimezone
-    : (availability?.timezone ?? 'UTC')
+  // Active tab tracking
+  const [activeTab, setActiveTab] = useState('schedule')
 
   // Week start calculation (Monday-based)
   const weekStart = useMemo(() => {
@@ -170,7 +142,7 @@ export function CalendarBookingDialog({
   const weekLabel = useMemo(() => {
     const start = weekStart
     const end = weekEnd
-    return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`
+    return `${format(start, 'EEE, MMM d')} – ${format(end, 'MMM d')}`
   }, [weekStart, weekEnd])
 
   const monthLabel = useMemo(() => {
@@ -192,6 +164,12 @@ export function CalendarBookingDialog({
       checkExistingRequest()
     }
   }, [open, tutor.id, weekOffset])
+
+  // Reset selected slot when week changes
+  useEffect(() => {
+    setSelectedSlot(null)
+    setActiveTab('schedule')
+  }, [weekOffset])
 
   const loadAvailability = async () => {
     setLoading(true)
@@ -354,9 +332,9 @@ export function CalendarBookingDialog({
       endTime: selectedSlot.endTime,
       durationMinutes: 60,
       dayOfWeek: DAYS[selectedSlot.dayOfWeek === 0 ? 6 : selectedSlot.dayOfWeek - 1],
-      timezone: displayTimezone,
+      timezone: availability?.timezone ?? 'UTC',
     }
-  }, [selectedSlot, displayTimezone])
+  }, [selectedSlot, availability])
 
   // Not logged in state
   if (!session?.user) {
@@ -430,8 +408,8 @@ export function CalendarBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6">
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle className="flex items-center gap-2">
             <Video className="h-5 w-5" />
             Book 1 on 1 Session with {tutor.name}
@@ -441,83 +419,77 @@ export function CalendarBookingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="schedule" className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="mx-6 grid w-auto grid-cols-2">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <TabsList className="mx-6 mb-2 grid w-auto shrink-0 grid-cols-2">
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="summary" disabled={!selectedSlot}>
               Summary
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="schedule" className="mt-0 flex flex-1 flex-col overflow-hidden">
-            <div className="space-y-4 overflow-auto px-6 py-4">
-              {/* Price & Timezone info */}
-              <div className="flex flex-wrap items-center gap-4">
+          <TabsContent
+            value="schedule"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+          >
+            <div className="flex min-h-0 flex-1 flex-col space-y-4 overflow-hidden px-6 pb-4">
+              {/* Price info */}
+              <div className="shrink-0">
                 <DialogPanel className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-gray-900">
                     {availability?.currency} {availability?.hourlyRate} per session (1 hour)
                   </span>
                 </DialogPanel>
-
-                <DialogPanel className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  <span>Times shown in: {displayTimezone}</span>
-                </DialogPanel>
-
-                {/* Timezone toggle */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowInStudentTimezone(!showInStudentTimezone)}
-                  className="gap-1.5"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  {showInStudentTimezone ? 'Show tutor timezone' : 'Show my timezone'}
-                </Button>
               </div>
 
               {loading ? (
-                <DialogPanel>
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                  </div>
-                </DialogPanel>
+                <div className="flex flex-1 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
               ) : availabilityError ? (
-                <DialogPanel className="py-6 text-center">
-                  {availabilityError === 'Pricing not set' ? (
-                    <div className="space-y-2">
-                      <p className="font-medium text-gray-900">
-                        This tutor is available for one-on-one sessions but has not set a price yet.
+                <div className="flex flex-1 items-center justify-center">
+                  <DialogPanel className="py-6 text-center">
+                    {availabilityError === 'Pricing not set' ? (
+                      <div className="space-y-2">
+                        <p className="font-medium text-gray-900">
+                          This tutor is available for one-on-one sessions but has not set a price
+                          yet.
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Please check back later or contact the tutor directly.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600">
+                        {availability?.reason === 'disabled'
+                          ? 'This tutor is not currently offering one-on-one sessions.'
+                          : availabilityError}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        Please check back later or contact the tutor directly.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">
-                      {availability?.reason === 'disabled'
-                        ? 'This tutor is not currently offering one-on-one sessions.'
-                        : availabilityError}
-                    </p>
-                  )}
-                </DialogPanel>
+                    )}
+                  </DialogPanel>
+                </div>
               ) : (
                 <>
-                  {/* Calendar legend */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block h-3 w-3 rounded-sm border border-blue-600 bg-blue-600" />
-                      Selected
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
-                      Available
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
-                      Unavailable
-                    </span>
+                  {/* Legend container */}
+                  <div className="shrink-0 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border border-blue-600 bg-blue-600" />
+                        Selected
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                        Available
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
+                        Unavailable
+                      </span>
+                    </div>
                   </div>
 
                   {/* Calendar container */}
@@ -549,11 +521,34 @@ export function CalendarBookingDialog({
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
-                      <span className="text-xs font-semibold text-white/70">{monthLabel}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-semibold text-white/70">{monthLabel}</span>
+                        <span className="mx-1 text-[10px] font-semibold text-white/60">Month:</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white"
+                          onClick={() => setWeekOffset(o => o - 4)}
+                          aria-label="Previous month"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white"
+                          onClick={() => setWeekOffset(o => o + 4)}
+                          aria-label="Next month"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Day headers */}
-                    <div className="grid grid-cols-[100px_repeat(7,_1fr)] border-b border-[rgba(209,213,219,0.85)] bg-white">
+                    <div className="grid shrink-0 grid-cols-[150px_repeat(7,_1fr)] border-b border-[rgba(209,213,219,0.85)] bg-white">
                       <div className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700">
                         Time
                       </div>
@@ -575,172 +570,178 @@ export function CalendarBookingDialog({
                       })}
                     </div>
 
-                    {/* Calendar grid */}
-                    <div className="relative min-h-0 flex-1 overflow-hidden">
-                      <div
-                        ref={calendarScrollRef}
-                        className="scrollbar-hide absolute inset-0 touch-pan-y overflow-y-auto overscroll-contain"
-                      >
-                        <div className="grid grid-cols-[100px_repeat(7,_1fr)]">
-                          {TIME_SLOT_OPTIONS.map(timeStr => {
-                            const hour = parseInt(timeStr.slice(0, 2), 10)
-                            const endHour = hour + 1
-                            const startLabel = `${hour % 12 || 12} ${hour >= 12 ? 'PM' : 'AM'}`
-                            const endLabel = `${endHour % 12 || 12} ${endHour >= 12 ? 'PM' : 'AM'}`
-                            const displayTime = `${startLabel} – ${endLabel}`
+                    {/* Calendar grid — scrollable body */}
+                    <div
+                      ref={calendarScrollRef}
+                      className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                    >
+                      <div className="grid grid-cols-[150px_repeat(7,_1fr)]">
+                        {TIME_SLOT_OPTIONS.map(timeStr => {
+                          const hour = parseInt(timeStr.slice(0, 2), 10)
+                          const endHour = hour + 1
+                          const startLabel = `${hour % 12 || 12} ${hour >= 12 ? 'PM' : 'AM'}`
+                          const endLabel = `${endHour % 12 || 12} ${endHour >= 12 ? 'PM' : 'AM'}`
+                          const displayTime = `${startLabel} – ${endLabel}`
 
-                            return (
-                              <div key={timeStr} className="contents">
-                                {/* Time label cell */}
-                                <div className="flex h-12 items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-[11px] font-semibold text-slate-600">
-                                  {displayTime}
-                                </div>
-                                {/* Day cells */}
-                                {DAYS.map((day, dayIndex) => {
-                                  const dateKey = formatDateKey(weekDates[dayIndex])
-                                  const available = isSlotAvailable(dateKey, timeStr)
-                                  const inPast = isSlotInPast(dateKey, timeStr)
-                                  const isSelected =
-                                    selectedSlot?.date === dateKey &&
-                                    selectedSlot?.startTime === timeStr
-
-                                  const isUnavailable = !available || inPast
-
-                                  const cellClass = isSelected
-                                    ? 'bg-[#1D4ED8] font-semibold text-white'
-                                    : isUnavailable
-                                      ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
-                                      : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
-
-                                  return (
-                                    <div
-                                      key={`${day}-${timeStr}`}
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={() => {
-                                        if (!isUnavailable) toggleSlot(dateKey, timeStr)
-                                      }}
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                          e.preventDefault()
-                                          if (!isUnavailable) toggleSlot(dateKey, timeStr)
-                                        }
-                                      }}
-                                      className={cn(
-                                        'flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors',
-                                        cellClass
-                                      )}
-                                      aria-pressed={isSelected}
-                                      aria-label={`${day} ${displayTime}${isSelected ? ', selected' : ''}`}
-                                    >
-                                      {isSelected && <Check className="h-4 w-4" />}
-                                    </div>
-                                  )
-                                })}
+                          return (
+                            <div key={timeStr} className="contents">
+                              {/* Time label cell */}
+                              <div className="flex h-12 items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-[11px] font-semibold text-slate-600">
+                                {displayTime}
                               </div>
-                            )
-                          })}
-                        </div>
+                              {/* Day cells */}
+                              {DAYS.map((day, dayIndex) => {
+                                const dateKey = formatDateKey(weekDates[dayIndex])
+                                const available = isSlotAvailable(dateKey, timeStr)
+                                const inPast = isSlotInPast(dateKey, timeStr)
+                                const isSelected =
+                                  selectedSlot?.date === dateKey &&
+                                  selectedSlot?.startTime === timeStr
+
+                                const isUnavailable = !available || inPast
+
+                                const cellClass = isSelected
+                                  ? 'bg-[#1D4ED8] font-semibold text-white'
+                                  : isUnavailable
+                                    ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
+                                    : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+
+                                return (
+                                  <div
+                                    key={`${day}-${timeStr}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
+                                      if (!isUnavailable) toggleSlot(dateKey, timeStr)
+                                    }}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        if (!isUnavailable) toggleSlot(dateKey, timeStr)
+                                      }
+                                    }}
+                                    className={cn(
+                                      'flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors',
+                                      cellClass
+                                    )}
+                                    aria-pressed={isSelected}
+                                    aria-label={`${day} ${displayTime}${isSelected ? ', selected' : ''}`}
+                                  >
+                                    {isSelected && <Check className="h-4 w-4" />}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
 
                   {/* Selected slot info */}
                   {selectedSlot && (
-                    <DialogPanel className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">Selected:</p>
-                        <p className="text-sm text-gray-600">
-                          {format(parseISO(selectedSlot.date), 'EEEE, MMMM d, yyyy')} at{' '}
-                          {formatTime(selectedSlot.startTime)} – {formatTime(selectedSlot.endTime)}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedSlot(null)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </DialogPanel>
+                    <div className="shrink-0">
+                      <DialogPanel className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">Selected:</p>
+                          <p className="text-sm text-gray-600">
+                            {format(parseISO(selectedSlot.date), 'EEEE, MMMM d, yyyy')} at{' '}
+                            {formatTime(selectedSlot.startTime)} –{' '}
+                            {formatTime(selectedSlot.endTime)}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedSlot(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </DialogPanel>
+                    </div>
                   )}
                 </>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="summary" className="mt-0 overflow-auto px-6 py-4">
-            {summaryData && (
-              <div className="space-y-4">
-                <div className="rounded-[18px] border border-white/10 bg-[rgba(39,43,50,0.72)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.28)] backdrop-blur-[18px]">
-                  <div className="flex items-start justify-between gap-4 border-b border-white/15 pb-4">
-                    <div>
-                      <div className="flex items-center gap-2 text-base font-semibold text-white">
-                        <Calendar className="h-5 w-5 text-white/80" />
-                        Booking Summary
-                      </div>
-                      <div className="mt-1 text-xs font-medium text-white/70">
-                        Times in {displayTimezone}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats cards */}
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                        Sessions
-                      </span>
-                      <span className="text-sm font-semibold">1</span>
-                    </div>
-                    <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                        Total Duration
-                      </span>
-                      <span className="text-sm font-semibold">1.0 h</span>
-                    </div>
-                  </div>
-
-                  {/* Session details */}
-                  <div className="mt-4 space-y-2">
-                    <div className="text-sm font-semibold text-white">Session Details</div>
-                    <div className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]">
-                      <div className="flex min-w-0 items-center gap-4">
-                        <div className="w-[92px] shrink-0 font-semibold">
-                          {summaryData.dayOfWeek}
+          <TabsContent
+            value="summary"
+            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+          >
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto px-6 pb-4">
+              {summaryData && (
+                <div className="space-y-4">
+                  <div className="rounded-[18px] border border-white/10 bg-[rgba(39,43,50,0.72)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.28)] backdrop-blur-[18px]">
+                    <div className="flex items-start justify-between gap-4 border-b border-white/15 pb-4">
+                      <div>
+                        <div className="flex items-center gap-2 text-base font-semibold text-white">
+                          <Calendar className="h-5 w-5 text-white/80" />
+                          Booking Summary
                         </div>
-                        <div className="min-w-0 text-sm text-slate-700">
-                          <span className="font-medium">
-                            {format(parseISO(summaryData.date), 'MMM d')}
-                          </span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span className="font-medium">
-                            {formatTimeRange(summaryData.startTime, summaryData.durationMinutes)}
-                          </span>
-                          <span className="mx-2 text-slate-400">•</span>
-                          <span className="text-slate-600">{summaryData.durationMinutes}m</span>
+                        <div className="mt-1 text-xs font-medium text-white/70">
+                          Times in {summaryData.timezone}
                         </div>
                       </div>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        1 session
-                      </span>
                     </div>
-                  </div>
 
-                  {/* Price */}
-                  <div className="mt-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                        Price
-                      </span>
-                      <span className="text-sm font-semibold">
-                        {availability?.currency} {availability?.hourlyRate}
-                      </span>
+                    {/* Stats cards */}
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Sessions
+                        </span>
+                        <span className="text-sm font-semibold">1</span>
+                      </div>
+                      <div className="flex min-h-12 items-center justify-between gap-3 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Total Duration
+                        </span>
+                        <span className="text-sm font-semibold">1.0 h</span>
+                      </div>
+                    </div>
+
+                    {/* Session details */}
+                    <div className="mt-4 space-y-2">
+                      <div className="text-sm font-semibold text-white">Session Details</div>
+                      <div className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]">
+                        <div className="flex min-w-0 items-center gap-4">
+                          <div className="w-[92px] shrink-0 font-semibold">
+                            {summaryData.dayOfWeek}
+                          </div>
+                          <div className="min-w-0 text-sm text-slate-700">
+                            <span className="font-medium">
+                              {format(parseISO(summaryData.date), 'MMM d')}
+                            </span>
+                            <span className="mx-2 text-slate-400">•</span>
+                            <span className="font-medium">
+                              {formatTimeRange(summaryData.startTime, summaryData.durationMinutes)}
+                            </span>
+                            <span className="mx-2 text-slate-400">•</span>
+                            <span className="text-slate-600">{summaryData.durationMinutes}m</span>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                          1 session
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Price */}
+                    <div className="mt-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-3 text-[#1F2933]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          Price
+                        </span>
+                        <span className="text-sm font-semibold">
+                          {availability?.currency} {availability?.hourlyRate}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="gap-3 px-6 pb-6">
+        <DialogFooter className="shrink-0 gap-3 px-6 pb-6">
           <Button
             variant="modal-secondary-dark"
             onClick={() => onOpenChange(false)}
