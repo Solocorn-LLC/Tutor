@@ -205,6 +205,16 @@ export async function saveCourse(options: SaveCourseOptions): Promise<SaveCourse
     return { success: false, error: 'No course ID available' }
   }
 
+  // A course we just created already carries the default lesson added by the
+  // POST above. Sending an empty lessons array to the content PUT would wipe it
+  // and trip the server's floor guard ("refusing to delete all N lessons"), so
+  // when publishing a brand-new course with no lessons, keep the default and
+  // return the new id instead of clearing it.
+  const createdNew = isDraftCourseId(courseId) || (mode === 'publish' && !isExistingDbCourse)
+  if (createdNew && (!Array.isArray(lessons) || lessons.length === 0)) {
+    return { success: true, courseId: targetCourseId }
+  }
+
   try {
     const saveRes = await fetchWithCsrf(`/api/tutor/courses/${targetCourseId}/course`, {
       method: 'PUT',

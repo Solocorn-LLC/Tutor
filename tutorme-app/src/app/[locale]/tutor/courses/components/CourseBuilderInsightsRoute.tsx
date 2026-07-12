@@ -725,30 +725,43 @@ function CourseBuilderInsightsRouteInner({
   const handlePublishDraft = async () => {
     if (!courseId || courseId === 'insights-draft') return
 
-    // 1. Read the current lesson tree FIRST. An empty tree is the signature of
-    //    an editor that hasn't finished hydrating — publishing it would trip the
-    //    server's floor guard on a course that already has lessons ("refusing to
-    //    delete all N lessons") or create an empty course. Bail before any save
-    //    so nothing is wiped: an already-persisted course is safe (its content
-    //    lives in the DB) so go straight to scheduling; an unmaterialized draft
-    //    just needs a moment to finish loading.
+    // 1. Read the editor's current tree. If it hasn't hydrated it can come back
+    //    empty — fall back to the draft's persisted builder content so we never
+    //    publish an empty tree over real draft lessons.
     const getLessonsCb = (model.courseBuilderRef.current as any)?.getLessons
-    const rawLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
+    const editorLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
+    let rawLessons = editorLessons
+    if ((!Array.isArray(rawLessons) || rawLessons.length === 0) && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(`insights-course-builder:${courseId}`)
+        const parsed = stored ? JSON.parse(stored) : null
+        if (Array.isArray(parsed?.lessons) && parsed.lessons.length > 0) {
+          rawLessons = parsed.lessons
+        }
+      } catch {
+        // ignore a malformed draft cache
+      }
+    }
     const { lessons, hasMissingDmis } = resolveLessonDmis(rawLessons)
 
-    if (lessons.length === 0) {
-      const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
-      if (isLocalDraft) {
-        toast.error('The course is still loading. Please wait a moment, then click Schedule again.')
-      } else {
-        model.router.push(`/tutor/courses/${courseId}`)
-      }
+    const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
+
+    // An empty tree on a course that already exists in the DB means the editor
+    // never loaded — its content is safe there, so just open scheduling instead
+    // of a destructive empty publish. A local draft with no lessons still
+    // materializes fine: saveCourse keeps the default lesson created on POST.
+    if (lessons.length === 0 && !isLocalDraft) {
+      model.router.push(`/tutor/courses/${courseId}`)
       return
     }
 
-    // 2. Persist the latest builder edits before publishing.
-    const saveCb = (model.courseBuilderRef.current as any)?.saveAll
-    if (typeof saveCb === 'function') await saveCb()
+    // 2. Persist the latest editor edits before publishing — but only if the
+    //    editor actually had content, so an unhydrated (empty) editor can't
+    //    clobber the draft's stored lessons.
+    if (editorLessons.length > 0) {
+      const saveCb = (model.courseBuilderRef.current as any)?.saveAll
+      if (typeof saveCb === 'function') await saveCb()
+    }
 
     if (hasMissingDmis) {
       if (
