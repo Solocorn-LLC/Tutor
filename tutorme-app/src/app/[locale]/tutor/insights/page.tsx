@@ -367,9 +367,15 @@ function TutorInsightsPageInner() {
         // If a new course was created (draft sentinel → real DB course),
         // update state + URL so refresh loads the persisted course
         if (result.courseId && result.courseId !== courseId) {
+          // Carry the draft's categories onto the persisted course so the builder
+          // header keeps showing the full name (name + category), not just the name.
+          const draftCategories = [...courses, ...draftCourses].find(
+            c => c.id === courseId
+          )?.categories
           const newCourse = {
             id: result.courseId,
             name: options?.courseName || detachedCourseName || 'Untitled Course',
+            categories: draftCategories,
             updatedAt: new Date().toISOString(),
           }
           setCourses(prev => {
@@ -476,7 +482,16 @@ function TutorInsightsPageInner() {
       const data = await res.json()
       const createdCourse = data.courses?.[0]
       if (res.ok && createdCourse?.id) {
-        setCourses(prev => [...prev, createdCourse])
+        // Ensure the new course carries its category into state so the builder
+        // header shows the full name (name + category) immediately.
+        const withCategories = {
+          ...createdCourse,
+          categories:
+            Array.isArray(createdCourse.categories) && createdCourse.categories.length > 0
+              ? createdCourse.categories
+              : newCourseCategories,
+        }
+        setCourses(prev => [...prev, withCategories])
         setCourseId(createdCourse.id)
         setDetachedCourseName(createdCourse.name)
         setNewCourseName('')
