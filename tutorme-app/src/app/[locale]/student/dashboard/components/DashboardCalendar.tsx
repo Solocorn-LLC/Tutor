@@ -12,7 +12,9 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2 } from 'lucide-react'
+import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star } from 'lucide-react'
+import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
+import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -29,6 +31,7 @@ export interface CalendarEvent {
   courseDescription?: string | null
   meetingUrl?: string | null
   status?: string
+  requestId?: string | null
 }
 
 interface DashboardCalendarProps {
@@ -101,6 +104,8 @@ export function DashboardCalendar({
   const [month, setMonth] = useState<Date>(() => new Date())
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
+  const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -218,218 +223,260 @@ export function DashboardCalendar({
   )
 
   return (
-    <SessionCalendarPanel
-      value={activeTab}
-      onValueChange={setActiveTab}
-      tabs={[
-        { value: 'classes', label: 'Sessions' },
-        { value: 'calendar', label: 'Calendar' },
-        { value: 'bookings', label: 'Bookings' },
-      ]}
-      showCalendarControls={activeTab === 'calendar'}
-      calendarView={calendarView}
-      onCalendarViewChange={setCalendarView}
-      timezone={timezone}
-      onTimezoneChange={setTimezone}
-      variant="orange"
-    >
-      {/* My Calendar Tab */}
-      <TabsContent value="calendar" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <InteractiveCalendar
-          events={interactiveEvents}
-          loading={loading}
-          mode="student"
-          embedded
-          initialView="day"
-          timezone={timezone}
-          onTimezoneChange={setTimezone}
-          view={calendarView}
-          onViewChange={setCalendarView}
-        />
-      </TabsContent>
+    <>
+      <SessionCalendarPanel
+        value={activeTab}
+        onValueChange={setActiveTab}
+        tabs={[
+          { value: 'classes', label: 'Sessions' },
+          { value: 'calendar', label: 'Calendar' },
+          { value: 'bookings', label: 'Bookings' },
+        ]}
+        showCalendarControls={activeTab === 'calendar'}
+        calendarView={calendarView}
+        onCalendarViewChange={setCalendarView}
+        timezone={timezone}
+        onTimezoneChange={setTimezone}
+        variant="orange"
+      >
+        {/* My Calendar Tab */}
+        <TabsContent value="calendar" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <InteractiveCalendar
+            events={interactiveEvents}
+            loading={loading}
+            mode="student"
+            embedded
+            initialView="day"
+            timezone={timezone}
+            onTimezoneChange={setTimezone}
+            view={calendarView}
+            onViewChange={setCalendarView}
+          />
+        </TabsContent>
 
-      {/* Bookings Tab */}
-      <TabsContent value="bookings" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
-          {/* Left column - 1 on 1 Sessions */}
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-            <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
-            <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
-            <div className="flex-1 overflow-y-auto pr-1">
-              {oneOnOneSessions.length === 0 ? (
+        {/* Bookings Tab */}
+        <TabsContent value="bookings" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
+            {/* Left column - 1 on 1 Sessions */}
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+              <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
+              <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
+              <div className="flex-1 overflow-y-auto pr-1">
+                {oneOnOneSessions.length === 0 ? (
+                  <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
+                    <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
+                    <p className="text-muted-foreground text-sm">No 1-on-1 sessions booked yet.</p>
+                    <p className="text-muted-foreground/70 mt-1 text-xs">
+                      Your upcoming private sessions will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {oneOnOneSessions.map(s => {
+                      const isLive = s.status === 'live' || s.status === 'active'
+                      return (
+                        <li
+                          key={s.id}
+                          className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-[#1F2933]">
+                              {s.title}
+                              {s.tutorName ? (
+                                <span className="font-normal text-gray-400"> · {s.tutorName}</span>
+                              ) : null}
+                            </p>
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {formatDate(s.start)} · {formatEventTime(s.start)}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {s.type === 'one-on-one' &&
+                              s.requestId &&
+                              new Date(s.end).getTime() >= Date.now() && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  Reschedule
+                                </button>
+                              )}
+                            {s.type === 'one-on-one' &&
+                            s.requestId &&
+                            new Date(s.end).getTime() < Date.now() ? (
+                              <button
+                                type="button"
+                                onClick={() => setReviewRequestId(s.requestId ?? null)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                              >
+                                <Star className="h-3.5 w-3.5" />
+                                Rate
+                              </button>
+                            ) : s.meetingUrl ? (
+                              <a
+                                href={s.meetingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  isLive
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                )}
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {isLive ? 'Join now' : 'Join'}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">Scheduled</span>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Right column - Tutor Info */}
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+              <h3 className="mb-1 text-base font-semibold text-[#1F2933]">Tutor Info</h3>
+              <p className="mb-4 text-xs text-gray-500">Details about your assigned tutor.</p>
+              <div className="flex-1 overflow-y-auto pr-1">
                 <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
-                  <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
-                  <p className="text-muted-foreground text-sm">No 1-on-1 sessions booked yet.</p>
+                  <Users className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
+                  <p className="text-muted-foreground text-sm">No tutor selected.</p>
                   <p className="text-muted-foreground/70 mt-1 text-xs">
-                    Your upcoming private sessions will appear here.
+                    Tutor information will appear here once a session is booked.
                   </p>
                 </div>
-              ) : (
-                <ul className="space-y-2">
-                  {oneOnOneSessions.map(s => {
-                    const isLive = s.status === 'live' || s.status === 'active'
-                    return (
-                      <li
-                        key={s.id}
-                        className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#1F2933]">
-                            {s.title}
-                            {s.tutorName ? (
-                              <span className="font-normal text-gray-400"> · {s.tutorName}</span>
-                            ) : null}
-                          </p>
-                          <p className="mt-0.5 text-xs text-gray-500">
-                            {formatDate(s.start)} · {formatEventTime(s.start)}
-                          </p>
-                        </div>
-                        {s.meetingUrl ? (
-                          <a
-                            href={s.meetingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(
-                              'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                              isLive
-                                ? 'bg-emerald-600 hover:bg-emerald-700'
-                                : 'bg-blue-600 hover:bg-blue-700'
-                            )}
-                          >
-                            <Video className="h-3.5 w-3.5" />
-                            {isLive ? 'Join now' : 'Join'}
-                          </a>
-                        ) : (
-                          <span className="shrink-0 text-xs text-gray-400">Scheduled</span>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Right column - Tutor Info */}
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-            <h3 className="mb-1 text-base font-semibold text-[#1F2933]">Tutor Info</h3>
-            <p className="mb-4 text-xs text-gray-500">Details about your assigned tutor.</p>
-            <div className="flex-1 overflow-y-auto pr-1">
-              <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
-                <Users className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
-                <p className="text-muted-foreground text-sm">No tutor selected.</p>
-                <p className="text-muted-foreground/70 mt-1 text-xs">
-                  Tutor information will appear here once a session is booked.
-                </p>
               </div>
             </div>
           </div>
-        </div>
-      </TabsContent>
+        </TabsContent>
 
-      {/* My Classes Tab */}
-      <TabsContent value="classes" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="h-full overflow-y-auto">
-          {loading ? (
-            <div className="py-8 text-center">
-              <p className="text-muted-foreground text-sm">Loading your classes...</p>
-            </div>
-          ) : classes.length === 0 ? (
-            <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-              <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
-              <p className="text-muted-foreground">There are no upcoming sessions.</p>
-            </div>
-          ) : (
-            <div className="space-y-3 pr-2">
-              {classes.map(cls => (
-                <div
-                  key={cls.id}
-                  className="flex items-center gap-3 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
-                >
-                  {cls.tutorAvatarUrl ? (
-                    <img
-                      src={cls.tutorAvatarUrl}
-                      alt={cls.tutorName}
-                      className="h-10 w-10 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-500">
-                      {cls.tutorName.charAt(0).toUpperCase()}
+        {/* My Classes Tab */}
+        <TabsContent value="classes" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            {loading ? (
+              <div className="py-8 text-center">
+                <p className="text-muted-foreground text-sm">Loading your classes...</p>
+              </div>
+            ) : classes.length === 0 ? (
+              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+                <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
+                <p className="text-muted-foreground">There are no upcoming sessions.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 pr-2">
+                {classes.map(cls => (
+                  <div
+                    key={cls.id}
+                    className="flex items-center gap-3 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
+                  >
+                    {cls.tutorAvatarUrl ? (
+                      <img
+                        src={cls.tutorAvatarUrl}
+                        alt={cls.tutorName}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-500">
+                        {cls.tutorName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="truncate font-medium text-gray-900">
+                          {cls.courseName || cls.title}
+                        </h4>
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'text-[10px]',
+                            cls.status === 'live'
+                              ? 'animate-pulse gap-1 bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                          )}
+                        >
+                          {cls.status === 'live' && (
+                            <span className="inline-block h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
+                          )}
+                          {cls.status === 'live' ? 'Live' : 'Scheduled'}
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {cls.courseName ? cls.title : cls.subject}
+                      </p>
+
+                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          {formatDate(cls.scheduledAt)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatEventTime(cls.scheduledAt)}
+                        </span>
+                        <span className={cn('flex items-center gap-1', 'text-primary')}>
+                          {cls.type === 'online' ? (
+                            <Video className="h-3 w-3" />
+                          ) : (
+                            <MapPin className="h-3 w-3" />
+                          )}
+                          {cls.type === 'online' ? 'Online' : 'In-Person'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {cls.students}/{cls.maxStudents} students
+                        </span>
+                        <span>Tutor: {cls.tutorName}</span>
+                      </div>
                     </div>
-                  )}
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="truncate font-medium text-gray-900">
-                        {cls.courseName || cls.title}
-                      </h4>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          'text-[10px]',
-                          cls.status === 'live'
-                            ? 'animate-pulse gap-1 bg-emerald-100 text-emerald-700'
-                            : 'bg-blue-100 text-blue-700'
-                        )}
+                    <div className="line-clamp-3 hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 sm:block">
+                      {cls.courseDescription || 'No description available.'}
+                    </div>
+
+                    {cls.sessionId ? (
+                      <Button
+                        size="sm"
+                        className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
+                        onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
                       >
-                        {cls.status === 'live' && (
-                          <span className="inline-block h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
-                        )}
-                        {cls.status === 'live' ? 'Live' : 'Scheduled'}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      {cls.courseName ? cls.title : cls.subject}
-                    </p>
-
-                    <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        {formatDate(cls.scheduledAt)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatEventTime(cls.scheduledAt)}
-                      </span>
-                      <span className={cn('flex items-center gap-1', 'text-primary')}>
-                        {cls.type === 'online' ? (
-                          <Video className="h-3 w-3" />
-                        ) : (
-                          <MapPin className="h-3 w-3" />
-                        )}
-                        {cls.type === 'online' ? 'Online' : 'In-Person'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {cls.students}/{cls.maxStudents} students
-                      </span>
-                      <span>Tutor: {cls.tutorName}</span>
-                    </div>
+                        {cls.status === 'live' ? 'Join' : 'Enter'}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="shrink-0" asChild>
+                        <Link href={`/student/courses/${cls.id}`}>Details</Link>
+                      </Button>
+                    )}
                   </div>
-
-                  <div className="line-clamp-3 hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 sm:block">
-                    {cls.courseDescription || 'No description available.'}
-                  </div>
-
-                  {cls.sessionId ? (
-                    <Button
-                      size="sm"
-                      className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
-                      onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
-                    >
-                      {cls.status === 'live' ? 'Join' : 'Enter'}
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" className="shrink-0" asChild>
-                      <Link href={`/student/courses/${cls.id}`}>Details</Link>
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </TabsContent>
-    </SessionCalendarPanel>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </SessionCalendarPanel>
+      {reviewRequestId && (
+        <OneOnOneReviewDialog
+          requestId={reviewRequestId}
+          open
+          onOpenChange={o => !o && setReviewRequestId(null)}
+        />
+      )}
+      {rescheduleRequestId && (
+        <OneOnOneRescheduleDialog
+          requestId={rescheduleRequestId}
+          open
+          onOpenChange={o => !o && setRescheduleRequestId(null)}
+          onChanged={onRefresh}
+        />
+      )}
+    </>
   )
 }

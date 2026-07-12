@@ -18,7 +18,14 @@
 
 import { and, eq, gte, lte, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession, courseEnrollment, course, profile } from '@/lib/db/schema'
+import {
+  liveSession,
+  courseEnrollment,
+  course,
+  profile,
+  calendarEvent,
+  oneOnOneBookingRequest,
+} from '@/lib/db/schema'
 import { notify, notifyMany } from './notify'
 
 /** How far ahead of a session's start to send the reminder. */
@@ -135,6 +142,42 @@ export async function runSessionReminderScan(): Promise<void> {
         }
       } catch (err) {
         console.error('[session-reminders] student notify failed for session', s.sessionId, err)
+      }
+    } else {
+      // 1-on-1 session (no course): remind the PAID student, linked via the
+      // calendar event that projects this live session. Only paid bookings are
+      // reminded — an accepted-but-unpaid session isn't confirmed.
+      try {
+        const [oneOnOne] = await drizzleDb
+          .select({ studentId: calendarEvent.studentId })
+          .from(calendarEvent)
+          .innerJoin(
+            oneOnOneBookingRequest,
+            eq(oneOnOneBookingRequest.calendarEventId, calendarEvent.eventId)
+          )
+          .where(
+            and(
+              eq(calendarEvent.externalId, s.sessionId),
+              eq(oneOnOneBookingRequest.status, 'PAID')
+            )
+          )
+          .limit(1)
+        if (oneOnOne?.studentId && oneOnOne.studentId !== s.tutorId) {
+          await notify({
+            userId: oneOnOne.studentId,
+            type: 'reminder',
+            title: 'Upcoming session',
+            message,
+            actionUrl: `/student/live/${encodeURIComponent(s.sessionId)}`,
+            data,
+          })
+        }
+      } catch (err) {
+        console.error(
+          '[session-reminders] 1-on-1 student notify failed for session',
+          s.sessionId,
+          err
+        )
       }
     }
   }

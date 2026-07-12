@@ -228,16 +228,19 @@ export default function App() {
   // Lock background scrolling while the How It Works panel is open
   useEffect(() => {
     if (isHowItWorksOpen) {
-      const originalBodyOverflow = document.body.style.overflow;
-      const originalHtmlOverflow = document.documentElement.style.overflow;
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
+      const originalBodyOverflow = document.body.style.overflow
+      const originalHtmlOverflow = document.documentElement.style.overflow
+      const originalBodyTouchAction = document.body.style.touchAction
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
       return () => {
-        document.body.style.overflow = originalBodyOverflow;
-        document.documentElement.style.overflow = originalHtmlOverflow;
-      };
+        document.body.style.overflow = originalBodyOverflow
+        document.documentElement.style.overflow = originalHtmlOverflow
+        document.body.style.touchAction = originalBodyTouchAction
+      }
     }
-  }, [isHowItWorksOpen]);
+  }, [isHowItWorksOpen])
 
   const handleRegistration = (data: any) => {
     setUserProfile({ ...data, isVerified: true });
@@ -398,6 +401,10 @@ export default function App() {
               className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent px-6"
               style={{ willChange: 'opacity' }}
               onClick={() => setIsHowItWorksOpen(false)}
+              onWheel={(e) => {
+                // Prevent wheel events from bubbling to the background page
+                e.stopPropagation()
+              }}
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -441,7 +448,7 @@ export default function App() {
                   </div>
 
                   {/* Scrollable rows */}
-                  <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1">
+                  <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1" style={{ overscrollBehaviorY: 'contain' }}>
                     {Object.entries(HOW_IT_WORKS_VIDEOS).map(([section, videos], sectionIndex, sections) => (
                       <div key={section}>
                         <HowItWorksRow

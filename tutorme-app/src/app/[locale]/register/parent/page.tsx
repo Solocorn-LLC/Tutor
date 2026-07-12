@@ -48,7 +48,8 @@ export default function ParentRegistrationPage() {
     lastName: '',
     phoneNumber: '',
     relationship: 'parent',
-    timezone: 'Asia/Shanghai',
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
     preferredLanguage: 'zh-CN',
     students: [
       { name: '', childEmail: '', childUniqueId: '', grade: '', subjects: [] },
@@ -65,6 +66,25 @@ export default function ParentRegistrationPage() {
     },
     tosAccepted: false,
   })
+
+  // Auto-detect timezone on mount (fallback to IP-based detection if browser API unavailable)
+  useEffect(() => {
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) {
+      // Browser supports timezone detection, already set in initial state
+      return
+    }
+    // Fallback: detect via IP API
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json().catch(() => ({})))
+      .then((data: { timezone?: string }) => {
+        if (data.timezone) {
+          setFormData((prev: any) => ({ ...prev, timezone: data.timezone }))
+        }
+      })
+      .catch(() => {
+        // Silently fail — UTC default is acceptable
+      })
+  }, [])
 
   const handleAddStudent = () => {
     setFormData(prev => ({

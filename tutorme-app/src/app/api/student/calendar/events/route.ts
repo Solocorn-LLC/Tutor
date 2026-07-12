@@ -139,6 +139,7 @@ export const GET = withAuth(
         tutorId: calendarEvent.tutorId,
         externalId: calendarEvent.externalId,
         sessionStatus: liveSession.status,
+        requestId: oneOnOneBookingRequest.requestId,
       })
       .from(calendarEvent)
       .innerJoin(
@@ -199,6 +200,7 @@ export const GET = withAuth(
         id: e.eventId,
         sessionId: e.externalId,
         bookingId: e.eventId,
+        requestId: e.requestId as string | null,
         title: e.title || '1-on-1 Session',
         subject: e.description || '1-on-1 tutoring session',
         start: e.startTime?.toISOString() ?? new Date().toISOString(),

@@ -204,6 +204,76 @@ CREATE INDEX IF NOT EXISTS "PushSubscription_userId_idx" ON "PushSubscription" (
 
 -- Account status (admins can suspend accounts to block sign-in).
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'active';
+
+-- ---------------------------------------------------------------------------
+-- 1-on-1 schema (drizzle/0069–0072). The drizzle journal is frozen at 0068, so
+-- the journal-based migrator ignores these files entirely — they only reach a
+-- prod DB through this idempotent boot-time block. Without it, the shipped
+-- buffer/reschedule/review/waitlist features silently degrade (queries hit
+-- missing columns/tables and fall back via try/catch).
+-- ---------------------------------------------------------------------------
+
+-- 0069: per-tutor buffer (minutes) enforced around 1-on-1 bookings.
+ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "bufferMinutes" integer;
+
+-- 0070: pending reschedule proposal fields (propose → accept/decline).
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedDate" timestamptz;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedStart" text;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedEnd" text;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedBy" text;
+
+-- 0071: student reviews of completed 1-on-1 sessions (one per booking).
+CREATE TABLE IF NOT EXISTS "OneOnOneReview" (
+  "id" text PRIMARY KEY NOT NULL,
+  "requestId" text NOT NULL,
+  "tutorId" text NOT NULL,
+  "studentId" text NOT NULL,
+  "rating" integer NOT NULL,
+  "comment" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OneOnOneReview_requestId_fkey') THEN
+    ALTER TABLE "OneOnOneReview" ADD CONSTRAINT "OneOnOneReview_requestId_fkey"
+      FOREIGN KEY ("requestId") REFERENCES "OneOnOneBookingRequest"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OneOnOneReview_tutorId_fkey') THEN
+    ALTER TABLE "OneOnOneReview" ADD CONSTRAINT "OneOnOneReview_tutorId_fkey"
+      FOREIGN KEY ("tutorId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OneOnOneReview_studentId_fkey') THEN
+    ALTER TABLE "OneOnOneReview" ADD CONSTRAINT "OneOnOneReview_studentId_fkey"
+      FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS "OneOnOneReview_requestId_key" ON "OneOnOneReview" ("requestId");
+CREATE INDEX IF NOT EXISTS "OneOnOneReview_tutorId_idx" ON "OneOnOneReview" ("tutorId");
+
+-- 0072: students waiting for a 1-on-1 opening with a tutor.
+CREATE TABLE IF NOT EXISTS "OneOnOneWaitlist" (
+  "id" text PRIMARY KEY NOT NULL,
+  "tutorId" text NOT NULL,
+  "studentId" text NOT NULL,
+  "note" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OneOnOneWaitlist_tutorId_fkey') THEN
+    ALTER TABLE "OneOnOneWaitlist" ADD CONSTRAINT "OneOnOneWaitlist_tutorId_fkey"
+      FOREIGN KEY ("tutorId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OneOnOneWaitlist_studentId_fkey') THEN
+    ALTER TABLE "OneOnOneWaitlist" ADD CONSTRAINT "OneOnOneWaitlist_studentId_fkey"
+      FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS "OneOnOneWaitlist_tutor_student_key"
+  ON "OneOnOneWaitlist" ("tutorId", "studentId");
+CREATE INDEX IF NOT EXISTS "OneOnOneWaitlist_tutorId_idx" ON "OneOnOneWaitlist" ("tutorId");
+CREATE INDEX IF NOT EXISTS "OneOnOneWaitlist_studentId_idx" ON "OneOnOneWaitlist" ("studentId");
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

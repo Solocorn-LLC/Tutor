@@ -347,7 +347,8 @@ export default function TutorRegistrationPage() {
       youtube: '',
       facebook: '',
     } as SocialLinks,
-    timezone: 'Asia/Shanghai',
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
     preferredLanguage: 'en',
     agreeToTerms: false,
     // New fields for category selection
@@ -371,9 +372,24 @@ export default function TutorRegistrationPage() {
     return availableCountries.find(c => c.code === countryCode)?.name ?? ''
   }, [countryCode, availableCountries])
 
+  // Auto-detect timezone on mount (fallback to IP-based detection if browser API unavailable)
   useEffect(() => {
-    setFormData(prev => ({ ...prev, nationality: selectedCountryName }))
-  }, [selectedCountryName])
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) {
+      // Browser supports timezone detection
+      return
+    }
+    // Fallback: detect via IP API
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json().catch(() => ({})))
+      .then((data: { timezone?: string }) => {
+        if (data.timezone) {
+          setFormData((prev: any) => ({ ...prev, timezone: data.timezone }))
+        }
+      })
+      .catch(() => {
+        // Silently fail — UTC default is acceptable
+      })
+  }, [])
 
   const passwordMismatch =
     formData.password.length > 0 &&

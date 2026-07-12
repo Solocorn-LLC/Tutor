@@ -3,6 +3,7 @@ import { getServerSession, authOptions } from '@/lib/auth'
 import { eq, and, or } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, profile } from '@/lib/db/schema'
+import { CORE_BOOKING_COLUMNS } from '@/lib/one-on-one/columns'
 
 // Check if there's an active request between student and tutor
 export async function GET(request: NextRequest) {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
           eq(oneOnOneBookingRequest.status, 'PAID')
         )
       ),
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         tutor: {
           columns: {

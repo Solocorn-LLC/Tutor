@@ -22,6 +22,7 @@ import {
 import { HitpayGateway } from '@/lib/payments'
 import { sendPaymentConfirmation } from '@/lib/notifications/payment-email'
 import { notify } from '@/lib/notifications/notify'
+import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { eq, and, or, sql } from 'drizzle-orm'
 
 export async function POST(req: NextRequest) {
@@ -217,6 +218,9 @@ export async function POST(req: NextRequest) {
               data: { requestId: meta.requestId as string, type: 'one-on-one-paid' },
               actionUrl: '/tutor/dashboard',
             }).catch(() => {})
+            // Open a direct-message thread so the student and tutor now appear in
+            // each other's chat list on the communications page.
+            getOrCreateConversation(requestRow.studentId, requestRow.tutorId).catch(() => {})
           }
         } else if (paymentRow.bookingId) {
           // Clinics removed: no booking notifications.

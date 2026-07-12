@@ -43,6 +43,15 @@ export async function getStudentFreeHourSet(studentId: string): Promise<Set<stri
  * Returns true when the student has no availability configured (not enforced),
  * or when every clock hour the session overlaps is marked free; false otherwise.
  */
+/**
+ * Whether the student has ANY availability configured at all. Used to enforce
+ * that a 1-on-1 can't be requested/accepted for a student whose availability is
+ * unset (which would otherwise skip the slot check entirely).
+ */
+export async function studentHasAvailabilityConfigured(studentId: string): Promise<boolean> {
+  return (await getStudentFreeHourSet(studentId)) !== null
+}
+
 export async function isSlotWithinStudentAvailability(
   studentId: string,
   date: string,
@@ -52,7 +61,9 @@ export async function isSlotWithinStudentAvailability(
   const free = await getStudentFreeHourSet(studentId)
   if (free === null) return true // no availability configured → don't block
 
-  const day = new Date(`${date}T00:00:00`).getDay()
+  // Day-of-week of the calendar date itself — parse as UTC so it doesn't shift
+  // with the server's timezone (a plain YYYY-MM-DD has a fixed weekday).
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay()
   const [sh, sm] = startTime.split(':').map(Number)
   const [eh, em] = endTime.split(':').map(Number)
   const startMin = sh * 60 + (sm || 0)

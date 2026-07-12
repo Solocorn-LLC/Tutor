@@ -1829,13 +1829,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setShowAIQuestion = (val: boolean) =>
       setShowAIQuestionMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
-    const pollPrompt = pollPromptMap[currentInsightsId] ?? 'Did you find this task difficult'
-    const setPollPrompt = (val: string) =>
-      setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
-
     const pollOptionMode = pollOptionModeMap[currentInsightsId] ?? '1-10'
     const setPollOptionMode = (val: '1-10' | 'likert' | 'ae' | 'tf' | 'yn') =>
       setPollOptionModeMap(prev => ({ ...prev, [currentInsightsId]: val }))
+
+    const pollPrompt = pollPromptMap[currentInsightsId] ?? getPollPlaceholder(pollOptionMode)
+    const setPollPrompt = (val: string) =>
+      setPollPromptMap(prev => ({ ...prev, [currentInsightsId]: val }))
     const pollCustomOptions = pollCustomOptionsMap[currentInsightsId] ?? ''
     const setPollCustomOptions = (val: string) =>
       setPollCustomOptionsMap(prev => ({ ...prev, [currentInsightsId]: val }))
@@ -10134,6 +10134,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   onPersist={s => {
                                                     testTaskChatStore.current[previewKey] = s
                                                   }}
+                                                  mode={
+                                                    tab.id === 'classroom'
+                                                      ? 'classroom'
+                                                      : 'test-student'
+                                                  }
                                                 />
                                               </div>
                                             )

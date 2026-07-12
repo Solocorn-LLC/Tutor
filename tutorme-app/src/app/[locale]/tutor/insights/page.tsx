@@ -105,6 +105,7 @@ function TutorInsightsPageInner() {
 
   const [courseName, setCourseName] = useState('')
   const [newCourseName, setNewCourseName] = useState('')
+  const [newCourseCategories, setNewCourseCategories] = useState<string[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [propagationDialogOpen, setPropagationDialogOpen] = useState(false)
@@ -349,6 +350,9 @@ function TutorInsightsPageInner() {
         draftListStorageKey: draftStorageKey,
         courseName: options?.courseName,
         courseDescription: options?.courseDescription,
+        // When a draft is first persisted to the DB, carry the category chosen
+        // at creation (drafts hold it locally) so it isn't lost.
+        categories: [...courses, ...draftCourses].find(c => c.id === courseId)?.categories,
         detachedCourseName,
         isAutoSave: options?.isAutoSave,
         propagateToVariants,
@@ -363,9 +367,15 @@ function TutorInsightsPageInner() {
         // If a new course was created (draft sentinel → real DB course),
         // update state + URL so refresh loads the persisted course
         if (result.courseId && result.courseId !== courseId) {
+          // Carry the draft's categories onto the persisted course so the builder
+          // header keeps showing the full name (name + category), not just the name.
+          const draftCategories = [...courses, ...draftCourses].find(
+            c => c.id === courseId
+          )?.categories
           const newCourse = {
             id: result.courseId,
             name: options?.courseName || detachedCourseName || 'Untitled Course',
+            categories: draftCategories,
             updatedAt: new Date().toISOString(),
           }
           setCourses(prev => {
@@ -384,7 +394,16 @@ function TutorInsightsPageInner() {
         )
       }
     },
-    [courseId, saveMode, draftStorageKey, isPublishedVariant, detachedCourseName, router]
+    [
+      courseId,
+      saveMode,
+      draftStorageKey,
+      isPublishedVariant,
+      detachedCourseName,
+      router,
+      courses,
+      draftCourses,
+    ]
   )
 
   const handleSave = useCallback(
@@ -406,10 +425,15 @@ function TutorInsightsPageInner() {
       toast.error('Please enter a course name')
       return
     }
+    if (newCourseCategories.length === 0) {
+      toast.error('Please select a category')
+      return
+    }
     if (saveMode === 'draft') {
       const newCourse = {
         id: `course-${Date.now()}`,
         name: newCourseName.trim(),
+        categories: newCourseCategories,
         modules: [],
         updatedAt: new Date().toISOString(),
       }
@@ -425,11 +449,20 @@ function TutorInsightsPageInner() {
         )
         setDraftCourses(prev => [
           ...prev,
-          { id: newCourse.id, name: newCourse.name, updatedAt: newCourse.updatedAt },
+          {
+            id: newCourse.id,
+            name: newCourse.name,
+            categories: newCourseCategories,
+            updatedAt: newCourse.updatedAt,
+          },
         ])
         setCourseId(newCourse.id)
         setDetachedCourseName(newCourse.name)
+        // Point the URL at the new course so the courseId<-URL sync effect keeps
+        // it selected instead of snapping back to the previous ?courseId= value.
+        router.replace(`/tutor/insights?tab=builder&courseId=${newCourse.id}`)
         setNewCourseName('')
+        setNewCourseCategories([])
         setIsCreateDialogOpen(false)
         toast.success(`Created draft "${newCourse.name}"`)
       } catch {
@@ -443,7 +476,7 @@ function TutorInsightsPageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newCourseName.trim(),
-          categories: [],
+          categories: newCourseCategories,
           schedule: [],
           isLiveOnline: false,
         }),
@@ -452,10 +485,23 @@ function TutorInsightsPageInner() {
       const data = await res.json()
       const createdCourse = data.courses?.[0]
       if (res.ok && createdCourse?.id) {
-        setCourses(prev => [...prev, createdCourse])
+        // Ensure the new course carries its category into state so the builder
+        // header shows the full name (name + category) immediately.
+        const withCategories = {
+          ...createdCourse,
+          categories:
+            Array.isArray(createdCourse.categories) && createdCourse.categories.length > 0
+              ? createdCourse.categories
+              : newCourseCategories,
+        }
+        setCourses(prev => [...prev, withCategories])
         setCourseId(createdCourse.id)
         setDetachedCourseName(createdCourse.name)
+        // Point the URL at the new course so the courseId<-URL sync effect keeps
+        // it selected instead of snapping back to the previous ?courseId= value.
+        router.replace(`/tutor/insights?tab=builder&courseId=${createdCourse.id}`)
         setNewCourseName('')
+        setNewCourseCategories([])
         setIsCreateDialogOpen(false)
         toast.success(`Created course "${createdCourse.name}"`)
       } else {
@@ -464,7 +510,58 @@ function TutorInsightsPageInner() {
     } catch {
       toast.error('Failed to create course')
     }
-  }, [newCourseName, saveMode])
+  }, [newCourseName, newCourseCategories, saveMode, router, draftStorageKey])
+
+  // Persist an edited course name/categories from the control-panel Edit button.
+  const handleUpdateCourse = useCallback(
+    async (id: string, patch: { name: string; categories: string[] }) => {
+      // Optimistic local update so the builder header reflects it immediately.
+      setCourses(prev =>
+        prev.map(c => (c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c))
+      )
+      setDraftCourses(prev =>
+        prev.map(c => (c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c))
+      )
+      if (id === courseId) setDetachedCourseName(patch.name)
+
+      // Drafts live only in localStorage; DB courses persist via PATCH.
+      const isDraft = draftCourses.some(c => c.id === id)
+      if (isDraft) {
+        try {
+          const raw = localStorage.getItem(draftStorageKey)
+          const parsed = raw ? JSON.parse(raw) : []
+          localStorage.setItem(
+            draftStorageKey,
+            JSON.stringify(
+              parsed.map((c: any) =>
+                c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c
+              )
+            )
+          )
+        } catch {
+          // ignore
+        }
+        toast.success('Course updated')
+        return
+      }
+      try {
+        const res = await fetchWithCsrf(`/api/tutor/courses/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: patch.name, categories: patch.categories }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error || 'Failed to update course')
+          return
+        }
+        toast.success('Course updated')
+      } catch {
+        toast.error('Failed to update course')
+      }
+    },
+    [courseId, draftCourses, draftStorageKey]
+  )
 
   const handleDeleteCourse = useCallback(async () => {
     if (!courseId || courseId === 'insights-draft') return
@@ -1294,6 +1391,11 @@ function TutorInsightsPageInner() {
           setIsCreateDialogOpen={setIsCreateDialogOpen}
           newCourseName={newCourseName}
           setNewCourseName={setNewCourseName}
+          newCourseCategories={newCourseCategories}
+          setNewCourseCategories={setNewCourseCategories}
+          createStorageUserId={session?.user?.id}
+          onUpdateCourse={handleUpdateCourse}
+          editStorageUserId={session?.user?.id}
           onCreateNewCourse={handleCreateNewCourse}
           isDeleteDialogOpen={isDeleteDialogOpen}
           setIsDeleteDialogOpen={setIsDeleteDialogOpen}

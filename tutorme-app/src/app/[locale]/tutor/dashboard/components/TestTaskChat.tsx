@@ -6,21 +6,28 @@
  * student gets: chat answers → "Task complete" → the AI responds to each answer
  * per the PCI → ask follow-ups.
  *
+ * The task document (PDF/image) is shown as a thumbnail card inside the chat
+ * stream. Clicking it opens a popup overlay within the chat panel showing the
+ * PDF fit-to-screen with an X close button in the top-right corner.
+ *
  * State can be persisted by the parent: pass `initialState` to seed the chat and
  * `onPersist` to mirror every change into a store, so switching Test-tab
  * students (which remounts this component) doesn't lose the conversation.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
+import { Send, Loader2, CheckCircle2, Sparkles, FileText, X, ImageIcon } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
-import { TaskDocumentCard, type TaskDocumentSource } from '@/components/task/TaskDocumentCard'
+import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
+import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import { toast } from 'sonner'
 
 export interface TestTaskChatMsg {
-  role: 'student' | 'ai'
+  role: 'student' | 'ai' | 'tutor'
   content: string
   re?: string
+  timestamp?: number
 }
 
 export interface TestTaskChatState {
@@ -31,6 +38,13 @@ export interface TestTaskChatState {
 
 type ChatMsg = TestTaskChatMsg
 
+export interface TaskDocumentSource {
+  fileName?: string | null
+  fileUrl?: string | null
+  fileKey?: string | null
+  mimeType?: string | null
+}
+
 export function TestTaskChat({
   pci,
   pciSpec,
@@ -38,20 +52,23 @@ export function TestTaskChat({
   sourceDocument,
   initialState,
   onPersist,
+  mode = 'test-student',
 }: {
   pci?: string
   pciSpec?: unknown
   questionText?: string
-  /** The task's document — previewed inline exactly as students see it (full
-   *  until the first sample answer, then a collapsed, re-expandable card). */
+  /** The task's document — shown as a thumbnail in the chat stream. */
   sourceDocument?: TaskDocumentSource | null
   initialState?: TestTaskChatState
   onPersist?: (state: TestTaskChatState) => void
+  /** Which preview mode this is rendering in. */
+  mode?: 'classroom' | 'test-student'
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
   const [completed, setCompleted] = useState(initialState?.completed ?? false)
   const [busy, setBusy] = useState(false)
+  const [pdfPopupOpen, setPdfPopupOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,6 +84,19 @@ export function TestTaskChat({
 
   const studentAnswers = messages.filter(m => m.role === 'student').map(m => m.content)
 
+  // Build the proxied document URL (same logic as TaskDocumentCard)
+  const rawUrl = sourceDocument?.fileUrl || ''
+  const docUrl = sourceDocument?.fileKey
+    ? `/api/proxy-file?key=${encodeURIComponent(sourceDocument.fileKey)}`
+    : rawUrl
+  const loadable =
+    !!sourceDocument?.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:') && rawUrl.length > 0)
+  const docName = sourceDocument?.fileName || 'Task document'
+  const isPdf =
+    sourceDocument?.mimeType === 'application/pdf' ||
+    (!sourceDocument?.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument?.fileName || rawUrl))
+  const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
+
   const post = (extra: Record<string, unknown>) =>
     fetchWithCsrf('/api/tutor/test-grade', {
       method: 'POST',
@@ -77,7 +107,7 @@ export function TestTaskChat({
   const addAnswer = () => {
     const a = draft.trim()
     if (!a || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: a }])
+    setMessages(prev => [...prev, { role: 'student', content: a, timestamp: Date.now() }])
     setDraft('')
   }
 
@@ -90,7 +120,7 @@ export function TestTaskChat({
       return
     }
     if (pending) {
-      setMessages(prev => [...prev, { role: 'student', content: pending }])
+      setMessages(prev => [...prev, { role: 'student', content: pending, timestamp: Date.now() }])
       setDraft('')
     }
     setBusy(true)
@@ -103,7 +133,12 @@ export function TestTaskChat({
         : []
       setMessages(prev => [
         ...prev,
-        ...responses.map(r => ({ role: 'ai' as const, content: r.response, re: r.answer })),
+        ...responses.map(r => ({
+          role: 'ai' as const,
+          content: r.response,
+          re: r.answer,
+          timestamp: Date.now(),
+        })),
       ])
       setCompleted(true)
     } catch (e) {
@@ -116,7 +151,7 @@ export function TestTaskChat({
   const ask = async () => {
     const q = draft.trim()
     if (!q || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: q }])
+    setMessages(prev => [...prev, { role: 'student', content: q, timestamp: Date.now() }])
     setDraft('')
     setBusy(true)
     try {
@@ -126,11 +161,18 @@ export function TestTaskChat({
       const res = await post({ question: q, history, answers: studentAnswers })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to answer')
-      setMessages(prev => [...prev, { role: 'ai', content: data.answer || '…' }])
+      setMessages(prev => [
+        ...prev,
+        { role: 'ai', content: data.answer || '…', timestamp: Date.now() },
+      ])
     } catch {
       setMessages(prev => [
         ...prev,
-        { role: 'ai', content: 'Sorry — I could not answer that. Please try again.' },
+        {
+          role: 'ai',
+          content: 'Sorry — I could not answer that. Please try again.',
+          timestamp: Date.now(),
+        },
       ])
     } finally {
       setBusy(false)
@@ -145,12 +187,23 @@ export function TestTaskChat({
     setCompleted(false)
   }
 
+  const isClassroom = mode === 'classroom'
+  const accentColor = isClassroom ? 'text-[#F17623]' : 'text-violet-600'
+  const accentBg = isClassroom ? 'bg-orange-50/60' : 'bg-violet-50/60'
+  const accentBorder = isClassroom ? 'border-orange-100' : 'border-violet-100'
+  const sendButtonBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
+  const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
+  const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
+
   return (
-    <div className="flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl border border-violet-300 bg-white">
-      <div className="flex items-center gap-2 border-b border-violet-100 bg-violet-50/60 px-4 py-2">
-        <Sparkles className="h-4 w-4 text-violet-600" />
+    <div
+      className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white`}
+    >
+      {/* Header bar */}
+      <div className={`flex items-center gap-2 border-b ${accentBorder} ${accentBg} px-4 py-2`}>
+        <Sparkles className={`h-4 w-4 ${accentColor}`} />
         <span className="text-sm font-semibold text-gray-800">
-          Preview: {completed ? 'ask about this task' : 'answer by chat'}
+          {completed ? 'Ask about this task' : 'Answer by chat'}
         </span>
         <span className="ml-auto flex items-center gap-2">
           {completed && (
@@ -162,7 +215,7 @@ export function TestTaskChat({
             <button
               type="button"
               onClick={reset}
-              className="text-xs font-medium text-violet-600 hover:text-violet-700"
+              className={`text-xs font-medium ${accentColor} hover:opacity-80`}
             >
               Restart
             </button>
@@ -170,42 +223,83 @@ export function TestTaskChat({
         </span>
       </div>
 
-      {/* Document preview — mirrors the student flow: full until the first sample
-          answer, then a pinned, re-expandable card. */}
-      <TaskDocumentCard
-        sourceDocument={sourceDocument}
-        autoOpen={!studentAnswers.length}
-        accent="violet"
-      />
+      {/* Unified chat stream — document thumbnail + messages scroll together */}
+      <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        {/* Document as first tutor message */}
+        {sourceDocument && !pdfPopupOpen && (
+          <ChatMessageBubble
+            sender="tutor"
+            name="Tutor"
+            content=""
+            isDocument
+            document={sourceDocument}
+            onDocumentClick={() => loadable && setPdfPopupOpen(true)}
+            isClassroom={isClassroom}
+          />
+        )}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <p className="text-sm leading-relaxed text-gray-500">
-            This is exactly what students see for a task. Chat sample answers, click{' '}
-            <span className="font-medium text-violet-700">Task complete</span>, and the AI responds
-            to each answer using your PCI — then ask a follow-up to check how it explains mistakes.
-          </p>
-        )}
-        {messages.map((m, i) =>
-          m.role === 'student' ? (
-            <div key={i} className="flex justify-end">
-              <span className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet-600 px-3 py-2 text-sm text-white">
-                {m.content}
-              </span>
+        {/* PDF Popup — overlay within chat panel, no header, X on right */}
+        {pdfPopupOpen && loadable && (
+          <div className="absolute inset-0 z-10 flex flex-col bg-white">
+            {/* X close button — top right, no header bar */}
+            <div className="flex justify-end px-3 py-2">
+              <button
+                type="button"
+                onClick={() => setPdfPopupOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100"
+                aria-label="Close document"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          ) : (
-            <div key={i} className="flex flex-col items-start">
-              {m.re && (
-                <span className="mb-0.5 max-w-[85%] truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
-                  Re: {m.re}
-                </span>
+            {/* PDF viewer — fit to screen, no scrolling needed */}
+            <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
+              {isPdf ? (
+                <PDFViewer
+                  fileUrl={docUrl}
+                  fileKey={sourceDocument?.fileKey ?? undefined}
+                  fitToScreen
+                  className="h-full w-full"
+                />
+              ) : isImage ? (
+                <div className="flex h-full items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={docUrl}
+                    alt={docName}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-3">
+                  <FileText className="h-12 w-12 text-blue-600" />
+                  <a
+                    href={docUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-blue-600 underline"
+                  >
+                    Open document
+                  </a>
+                </div>
               )}
-              <span className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-800">
-                {m.content}
-              </span>
             </div>
-          )
+          </div>
         )}
+
+        {/* Chat messages */}
+        {messages.map((m, i) => (
+          <ChatMessageBubble
+            key={i}
+            sender={m.role}
+            name={m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor'}
+            content={m.content}
+            re={m.re}
+            timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
+            isClassroom={isClassroom}
+          />
+        ))}
+
         {busy && (
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -214,6 +308,7 @@ export function TestTaskChat({
         )}
       </div>
 
+      {/* Input area */}
       <div className="border-t border-gray-100 p-2">
         <div className="flex items-end gap-2">
           <textarea
@@ -240,12 +335,13 @@ export function TestTaskChat({
             <Send className="h-4 w-4" />
           </button>
         </div>
-        {!completed && (
+        {/* Task Complete button — only shown in test-student mode, not classroom */}
+        {!completed && !isClassroom && (
           <button
             type="button"
             onClick={complete}
             disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
-            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+            className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />

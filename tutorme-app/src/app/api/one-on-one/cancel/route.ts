@@ -4,6 +4,8 @@ import { eq, and, ne } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, calendarEvent, liveSession } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
+import { refundPaidOneOnOne, type RefundOutcome } from '@/lib/payments/refund-one-on-one'
+import { notifyWaitlistOfOpening } from '@/lib/one-on-one/waitlist'
 import { z } from 'zod'
 
 const cancelSchema = z.object({
@@ -103,27 +105,64 @@ export async function PATCH(request: NextRequest) {
       actionUrl: isStudent ? '/tutor/dashboard' : '/student/dashboard',
     }).catch(console.error)
 
-    // A paid booking that's cancelled owes the student a refund. Flag the tutor
-    // to process it via the standard refund flow (automated gateway refunds for
-    // 1-on-1 are not yet wired, so this stays a deliberate human step).
+    // A paid booking cancelled at any time is refunded automatically through the
+    // original gateway, minus a fixed 15% cancellation fee (student gets 85%).
+    let refundResult: RefundOutcome | null = null
     if (wasPaid) {
-      notify({
-        userId: existingRequest.tutorId,
-        type: 'class',
-        title: 'Refund required — 1-on-1 cancelled',
-        message: `A paid 1-on-1 session was cancelled. Please issue a refund of ${existingRequest.costPerSession} to the student.`,
-        data: {
-          requestId: updatedRequest[0].requestId,
-          type: 'one-on-one-refund-required',
-          amount: existingRequest.costPerSession,
-        },
-        actionUrl: '/tutor/dashboard',
-      }).catch(console.error)
+      refundResult = await refundPaidOneOnOne(
+        existingRequest.requestId,
+        `Cancelled by ${isStudent ? 'student' : 'tutor'}`
+      )
+      if (refundResult.refunded) {
+        const amt = `${refundResult.amount}${refundResult.currency ? ' ' + refundResult.currency : ''}`
+        notify({
+          userId: existingRequest.studentId,
+          type: 'class',
+          title: 'Refund issued',
+          message: `Your 1-on-1 was cancelled — ${amt} has been refunded (a 15% cancellation fee of ${refundResult.fee} was applied).`,
+          data: {
+            requestId: updatedRequest[0].requestId,
+            type: 'one-on-one-refunded',
+            amount: refundResult.amount,
+            fee: refundResult.fee,
+          },
+        }).catch(console.error)
+        notify({
+          userId: existingRequest.tutorId,
+          type: 'class',
+          title: '1-on-1 refunded',
+          message: `The cancelled session was refunded to the student (${amt}, after a 15% fee).`,
+          data: { requestId: updatedRequest[0].requestId, type: 'one-on-one-refunded' },
+        }).catch(console.error)
+      } else {
+        // Automated refund failed — flag it so the owed amount isn't lost.
+        notify({
+          userId: existingRequest.tutorId,
+          type: 'class',
+          title: 'Refund needs attention — 1-on-1 cancelled',
+          message: `The automatic refund failed (${refundResult.error ?? 'unknown error'}). Please refund ${refundResult.amount ?? existingRequest.costPerSession} to the student manually.`,
+          data: {
+            requestId: updatedRequest[0].requestId,
+            type: 'one-on-one-refund-required',
+            amount: refundResult.amount ?? existingRequest.costPerSession,
+          },
+          actionUrl: '/tutor/dashboard',
+        }).catch(console.error)
+      }
+    }
+
+    // Cancelling a confirmed booking frees a slot — let this tutor's waitlist
+    // know they may have new availability.
+    if (existingRequest.status === 'ACCEPTED' || existingRequest.status === 'PAID') {
+      void notifyWaitlistOfOpening(existingRequest.tutorId)
     }
 
     return NextResponse.json({
       success: true,
-      refundRequired: wasPaid,
+      refunded: refundResult?.refunded ?? false,
+      refundAmount: refundResult?.amount,
+      refundFee: refundResult?.fee,
+      refundRequired: wasPaid && !refundResult?.refunded,
       request: updatedRequest[0],
     })
   } catch (error) {

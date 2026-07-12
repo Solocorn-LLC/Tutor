@@ -237,6 +237,13 @@ export const oneOnOneBookingRequest = pgTable(
     calendarEventId: text('calendarEventId').references(() => calendarEvent.eventId, {
       onDelete: 'set null',
     }),
+    // Pending reschedule proposal (one party proposes a new time; the other
+    // accepts to move the session, or declines to keep it). Cleared once
+    // resolved. `rescheduleProposedBy` is the proposer's userId.
+    rescheduleProposedDate: timestamp('rescheduleProposedDate', { withTimezone: true }),
+    rescheduleProposedStart: text('rescheduleProposedStart'),
+    rescheduleProposedEnd: text('rescheduleProposedEnd'),
+    rescheduleProposedBy: text('rescheduleProposedBy'),
     createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updatedAt', { withTimezone: true })
       .notNull()
@@ -254,5 +261,65 @@ export const oneOnOneBookingRequest = pgTable(
     OneOnOneBookingRequest_tutorId_studentId_status_idx: index(
       'OneOnOneBookingRequest_tutorId_studentId_status_idx'
     ).on(table.tutorId, table.studentId, table.status),
+  })
+)
+
+/**
+ * A student's review of a completed 1-on-1 session — one per booking. Drives the
+ * tutor's average rating shown on their public profile.
+ */
+export const oneOnOneReview = pgTable(
+  'OneOnOneReview',
+  {
+    reviewId: text('id').primaryKey().notNull(),
+    requestId: text('requestId')
+      .notNull()
+      .references(() => oneOnOneBookingRequest.requestId, { onDelete: 'cascade' }),
+    tutorId: text('tutorId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(), // 1–5
+    comment: text('comment'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    // One review per booking (a student can edit theirs, not create duplicates).
+    OneOnOneReview_requestId_key: uniqueIndex('OneOnOneReview_requestId_key').on(table.requestId),
+    OneOnOneReview_tutorId_idx: index('OneOnOneReview_tutorId_idx').on(table.tutorId),
+  })
+)
+
+/**
+ * A student waiting for a 1-on-1 opening with a tutor who has no bookable slots.
+ * When a confirmed booking is cancelled, everyone on that tutor's waitlist is
+ * notified that a slot may have opened.
+ */
+export const oneOnOneWaitlist = pgTable(
+  'OneOnOneWaitlist',
+  {
+    waitlistId: text('id').primaryKey().notNull(),
+    tutorId: text('tutorId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    note: text('note'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    OneOnOneWaitlist_tutor_student_key: uniqueIndex('OneOnOneWaitlist_tutor_student_key').on(
+      table.tutorId,
+      table.studentId
+    ),
+    OneOnOneWaitlist_tutorId_idx: index('OneOnOneWaitlist_tutorId_idx').on(table.tutorId),
+    OneOnOneWaitlist_studentId_idx: index('OneOnOneWaitlist_studentId_idx').on(table.studentId),
   })
 )

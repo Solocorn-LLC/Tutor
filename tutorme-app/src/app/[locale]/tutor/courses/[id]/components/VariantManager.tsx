@@ -300,7 +300,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           `${a.category} - ${a.nationality}`.localeCompare(`${b.category} - ${b.nationality}`)
         )
       })
-    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule])
+      // `loading` is a dependency so this re-runs once the async publish fetch
+      // above settles. Without it, a fresh/unpublished course hits a race: the
+      // fetch resolves with `{ variants: [] }` and overwrites the desired
+      // variant this effect already added, and since `desiredKeys` never
+      // changes again the scheduler would stay empty. Re-running here re-adds
+      // the desired variant on top of whatever the fetch loaded.
+    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule, loading])
 
     const applyGlobalsToAll = useCallback(() => {
       const price = globalPrice ? parseFloat(globalPrice) : null
@@ -537,9 +543,94 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
 
           {generatedVariantsOpen ? (
             <CardContent spacing="default" className="bg-white text-slate-900">
+              {/* Global defaults: set price/currency/language once, then apply to every variant */}
+              <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+                  <h3 className="text-sm font-semibold text-slate-700">
+                    Default price &amp; language
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    Set once, then apply to every variant below
+                  </span>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-4">
+                  <div className="form-group space-y-2">
+                    <Label className="form-label font-semibold text-slate-700">Free</Label>
+                    <div className="border-input flex h-10 items-center justify-between rounded-xl border bg-white px-4">
+                      <span className="text-sm font-medium text-slate-600">
+                        {globalIsFree ? 'Yes' : 'No'}
+                      </span>
+                      <Switch
+                        checked={globalIsFree}
+                        onCheckedChange={checked => {
+                          setGlobalIsFree(checked)
+                          if (checked) setGlobalPrice('0')
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group space-y-2">
+                    <Label className="form-label font-semibold text-slate-700">Price</Label>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-slate-400" />
+                      <Input
+                        type="number"
+                        min={0}
+                        value={globalPrice}
+                        onChange={e => setGlobalPrice(e.target.value)}
+                        placeholder="0.00"
+                        disabled={globalIsFree}
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group space-y-2">
+                    <Label className="form-label font-semibold text-slate-700">Currency</Label>
+                    <Select value={globalCurrency} onValueChange={setGlobalCurrency}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(c => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="form-group space-y-2">
+                    <Label className="form-label font-semibold text-slate-700">Language</Label>
+                    <div className="flex items-center gap-2">
+                      <Languages className="h-4 w-4 text-slate-400" />
+                      <Input
+                        value={globalLanguage}
+                        onChange={e => setGlobalLanguage(e.target.value)}
+                        placeholder="e.g. English"
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={applyGlobalsToAll}
+                    disabled={variants.length === 0}
+                  >
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                    Apply to all variants
+                  </Button>
+                </div>
+              </div>
+
               {variants.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500">
-                  Select categories and countries above to generate variant courses.
+                  This course has no category yet. Set one from the course builder (Edit Course) to
+                  generate a schedulable variant.
                 </div>
               )}
 
@@ -553,7 +644,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                       <div className="flex items-center gap-3">
                         <Badge
                           variant="outline"
-                          className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                          className="whitespace-nowrap border-indigo-200 bg-indigo-50 text-indigo-700"
                         >
                           <span className="inline-flex items-center gap-1">
                             {variant.category} ·{' '}
@@ -818,7 +909,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               <DialogHeader className="p-0">
                 <DialogTitle>
                   {dialogVariant && dialogSchedule ? (
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       {`Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for `}
                       {dialogVariant.category} —{' '}
                       <CountryFlag countryName={dialogVariant.nationality} size="xs" showLabel />

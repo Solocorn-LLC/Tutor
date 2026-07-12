@@ -12,6 +12,7 @@ import {
   calendarException,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, lt, gt, isNull, inArray, ne } from 'drizzle-orm'
+import { bookingInstants } from '@/lib/one-on-one/time'
 
 export interface ConflictResult {
   type: 'live_session' | 'calendar_event' | 'one_on_one'
@@ -33,15 +34,23 @@ export interface AlternativeSlot {
  */
 export async function findConflicts(
   tutorId: string,
-  start: Date,
-  end: Date,
+  startArg: Date,
+  endArg: Date,
   options: {
     excludeEventId?: string
     excludeSessionId?: string
     excludeOneOnOneId?: string
+    /** Minutes of gap to require around the slot: an existing session within
+     *  this many minutes of [startArg, endArg] counts as a conflict. */
+    bufferMinutes?: number
   } = {}
 ): Promise<ConflictResult[]> {
   const conflicts: ConflictResult[] = []
+  // Expand the window by the buffer so back-to-back / too-close bookings are
+  // caught as conflicts (buffer 0 = exact overlap only).
+  const bufferMs = Math.max(0, options.bufferMinutes ?? 0) * 60_000
+  const start = new Date(startArg.getTime() - bufferMs)
+  const end = new Date(endArg.getTime() + bufferMs)
 
   // 1. Overlapping live sessions
   const liveSessionConditions = [
@@ -112,13 +121,19 @@ export async function findConflicts(
     })
   }
 
-  // 3. Overlapping one-on-one bookings
+  // 3. Overlapping one-on-one bookings.
+  // requestedDate is midnight-UTC of the booking's calendar date, but the real
+  // instant depends on the booking's own timezone — so a booking whose UTC date
+  // sits just outside [start, end] can still overlap once its wall-clock time is
+  // resolved in a far-off zone. Pre-filter by UTC date widened ±1 day, then do
+  // exact instant overlap in JS via bookingInstants().
+  const rangeStartDay = new Date(new Date(start.toISOString().split('T')[0]).getTime() - 86_400_000)
+  const rangeEndDay = new Date(new Date(end.toISOString().split('T')[0]).getTime() + 86_400_000)
   const oneOnOneConditions = [
     eq(oneOnOneBookingRequest.tutorId, tutorId),
     inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
-    // requestedDate is a date; we approximate by checking if the booking date is within the range
-    gte(oneOnOneBookingRequest.requestedDate, new Date(start.toISOString().split('T')[0])),
-    lte(oneOnOneBookingRequest.requestedDate, new Date(end.toISOString().split('T')[0])),
+    gte(oneOnOneBookingRequest.requestedDate, rangeStartDay),
+    lte(oneOnOneBookingRequest.requestedDate, rangeEndDay),
   ]
   if (options.excludeOneOnOneId) {
     oneOnOneConditions.push(ne(oneOnOneBookingRequest.requestId, options.excludeOneOnOneId))
@@ -130,14 +145,13 @@ export async function findConflicts(
       requestedDate: oneOnOneBookingRequest.requestedDate,
       startTime: oneOnOneBookingRequest.startTime,
       endTime: oneOnOneBookingRequest.endTime,
+      timezone: oneOnOneBookingRequest.timezone,
     })
     .from(oneOnOneBookingRequest)
     .where(and(...oneOnOneConditions))
 
   for (const oo of oneOnOnes) {
-    const dateStr = oo.requestedDate.toISOString().split('T')[0]
-    const ooStart = new Date(`${dateStr}T${oo.startTime}:00`)
-    const ooEnd = new Date(`${dateStr}T${oo.endTime}:00`)
+    const { start: ooStart, end: ooEnd } = bookingInstants(oo)
     if (ooStart < end && ooEnd > start) {
       conflicts.push({
         type: 'one_on_one',

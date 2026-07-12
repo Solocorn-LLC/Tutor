@@ -36,6 +36,8 @@ import {
   PhoneOff,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
+import { CourseCategoryPicker } from './CourseCategoryPicker'
+import { getCategoryBoard } from '@/lib/data/category-board'
 import {
   Select,
   SelectContent,
@@ -130,6 +132,12 @@ type Props = UseCourseBuilderContentArgs & {
   setIsCreateDialogOpen?: (v: boolean) => void
   newCourseName?: string
   setNewCourseName?: (v: string) => void
+  newCourseCategories?: string[]
+  setNewCourseCategories?: (v: string[]) => void
+  createStorageUserId?: string
+  /** Persist an edited course name/categories (from the control-panel Edit button). */
+  onUpdateCourse?: (id: string, patch: { name: string; categories: string[] }) => void
+  editStorageUserId?: string
   onCreateNewCourse?: () => void
   isDeleteDialogOpen?: boolean
   setIsDeleteDialogOpen?: (v: boolean) => void
@@ -174,6 +182,7 @@ interface TutorControlsPanelProps {
   onVideo: () => void
   onSync: () => void
   onCreateCourse?: () => void
+  onEditCourse?: () => void
   canDelete: boolean
   canSchedule: boolean
   canGoLive: boolean
@@ -196,6 +205,7 @@ function TutorControlsPanel({
   onVideo,
   onSync,
   onCreateCourse,
+  onEditCourse,
   canDelete,
   canSchedule,
   canGoLive,
@@ -350,6 +360,19 @@ function TutorControlsPanel({
                       <Trash2 className="h-4 w-4" />
                       Delete
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={panelDisabled || mode !== 'build' || !onEditCourse}
+                      onClick={onEditCourse}
+                      className={cn(
+                        actionButtonBase,
+                        'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+                      )}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      Edit Course
+                    </button>
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -446,6 +469,11 @@ function CourseBuilderInsightsRouteInner({
   setIsCreateDialogOpen,
   newCourseName,
   setNewCourseName,
+  newCourseCategories,
+  setNewCourseCategories,
+  createStorageUserId,
+  onUpdateCourse,
+  editStorageUserId,
   onCreateNewCourse,
   isDeleteDialogOpen,
   setIsDeleteDialogOpen,
@@ -481,6 +509,31 @@ function CourseBuilderInsightsRouteInner({
   )
   const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  // Two-step create flow: name → category (category is required at creation).
+  const [createStep, setCreateStep] = useState<'name' | 'category'>('name')
+  // Close + clear the create dialog so a cancelled attempt doesn't leave a stale
+  // name/category on the next open. (Successful create clears via its own handler.)
+  const closeCreateDialog = () => {
+    setCreateStep('name')
+    setNewCourseName?.('')
+    setNewCourseCategories?.([])
+    setIsCreateDialogOpen?.(false)
+  }
+  // Edit-course dialog (control-panel Edit button): edit name + category of the
+  // current course. Prefilled from currentCourse; persisted via onUpdateCourse.
+  const [isEditCourseOpen, setIsEditCourseOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editCategories, setEditCategories] = useState<string[]>([])
+  const openEditCourse = () => {
+    setEditName(currentCourse?.name ?? '')
+    setEditCategories(((currentCourse as { categories?: string[] })?.categories ?? []).slice())
+    setIsEditCourseOpen(true)
+  }
+  const saveEditCourse = () => {
+    if (!courseId || !editName.trim() || editCategories.length === 0) return
+    onUpdateCourse?.(courseId, { name: editName.trim(), categories: editCategories })
+    setIsEditCourseOpen(false)
+  }
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
@@ -672,16 +725,30 @@ function CourseBuilderInsightsRouteInner({
   const handlePublishDraft = async () => {
     if (!courseId || courseId === 'insights-draft') return
 
-    // 1. Trigger save to ensure latest data is persisted
-    const saveCb = (model.courseBuilderRef.current as any)?.saveAll
-    if (typeof saveCb === 'function') await saveCb()
-
-    // 2. Get current lessons from the builder ref
+    // 1. Read the current lesson tree FIRST. An empty tree is the signature of
+    //    an editor that hasn't finished hydrating — publishing it would trip the
+    //    server's floor guard on a course that already has lessons ("refusing to
+    //    delete all N lessons") or create an empty course. Bail before any save
+    //    so nothing is wiped: an already-persisted course is safe (its content
+    //    lives in the DB) so go straight to scheduling; an unmaterialized draft
+    //    just needs a moment to finish loading.
     const getLessonsCb = (model.courseBuilderRef.current as any)?.getLessons
     const rawLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
-
-    // 3. Resolve active DMI versions
     const { lessons, hasMissingDmis } = resolveLessonDmis(rawLessons)
+
+    if (lessons.length === 0) {
+      const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
+      if (isLocalDraft) {
+        toast.error('The course is still loading. Please wait a moment, then click Schedule again.')
+      } else {
+        model.router.push(`/tutor/courses/${courseId}`)
+      }
+      return
+    }
+
+    // 2. Persist the latest builder edits before publishing.
+    const saveCb = (model.courseBuilderRef.current as any)?.saveAll
+    if (typeof saveCb === 'function') await saveCb()
 
     if (hasMissingDmis) {
       if (
@@ -695,6 +762,14 @@ function CourseBuilderInsightsRouteInner({
 
     const isExistingDbCourse = courses?.some((c: any) => c.id === courseId)
 
+    // Carry the category chosen at creation. Drafts hold it locally, so when
+    // this first persists the draft to the DB we must pass it through — else
+    // the new course row gets categories:[] and the Course Details page shows
+    // no variant and no scheduler. (executeSave threads it the same way.)
+    const draftCategories = [...(courses || []), ...(draftCourses || [])].find(
+      (c: any) => c.id === courseId
+    )?.categories
+
     // 4. Publish via shared save function
     const result = await saveCourse({
       courseId,
@@ -702,6 +777,7 @@ function CourseBuilderInsightsRouteInner({
       mode: 'publish',
       courseName,
       detachedCourseName,
+      categories: draftCategories,
       developmentMode: 'single',
       previewDifficulty: 'all',
       isExistingDbCourse,
@@ -716,8 +792,6 @@ function CourseBuilderInsightsRouteInner({
 
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
-  const isCoursePublished = currentCourse?.isPublished === true
-  const isCourseVariant = currentCourse?.isVariant === true
   const originalSchedule = currentCourse?.schedule || []
 
   // Reschedule handlers
@@ -911,6 +985,19 @@ function CourseBuilderInsightsRouteInner({
                           {currentCourse.name}
                         </span>
                       )}
+                      {/* Full identity next to the name: Board (derived) · category ·
+                          country (country appears once published, from the variant). */}
+                      {(currentCourse as any)?.categories?.length > 0 && (
+                        <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
+                          {[
+                            getCategoryBoard((currentCourse as any).categories[0]),
+                            (currentCourse as any).categories.join(', '),
+                            (currentCourse as any).nationality,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      )}
                     </h1>
                   )}
                   {activeMainTab === 'live' && (
@@ -959,14 +1046,6 @@ function CourseBuilderInsightsRouteInner({
                             : sessionCategory || sessionNationality}
                       </span>
                     )}
-                  {activeMainTab !== 'live' &&
-                  activeMainTab !== 'test-pci' &&
-                  currentCourse &&
-                  (currentCourse as any).categories?.length > 0 ? (
-                    <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                      {(currentCourse as any).categories.join(', ')}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -1070,7 +1149,7 @@ function CourseBuilderInsightsRouteInner({
             <CourseBuilder
               ref={model.courseBuilderRef}
               courseId={courseId ?? ''}
-              courseName={courseName || model.course?.name}
+              courseName={courseName || model.course?.name || currentCourse?.name}
               courseDescription={model.course?.description ?? undefined}
               initialLessons={model.loadedLessons ?? undefined}
               hideDirectorySearch
@@ -1122,14 +1201,12 @@ function CourseBuilderInsightsRouteInner({
               ref?.triggerSync?.()
             }}
             onCreateCourse={onCreateCourse}
+            onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            canSchedule={
-              !!(
-                courseId &&
-                courseId !== 'insights-draft' &&
-                (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant))
-              )
-            }
+            // Schedule stays available for any real selected course, published
+            // or not — a draft materializes + schedules, a live course opens
+            // the reschedule dialog. (Was gated to drafts / live variants only.)
+            canSchedule={!!(courseId && courseId !== 'insights-draft')}
             canGoLive={
               !!(
                 courseId &&
@@ -1147,62 +1224,144 @@ function CourseBuilderInsightsRouteInner({
           />
         )}
       </div>
-      {/* Create Course Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      {/* Create Course Dialog — step 1: name, step 2: category (required) */}
+      <Dialog
+        open={isCreateDialogOpen}
+        onOpenChange={next => (next ? setIsCreateDialogOpen?.(true) : closeCreateDialog())}
+      >
         <DialogContent
-          className="max-w-md border border-slate-200 shadow-2xl"
+          className={
+            createStep === 'category'
+              ? 'max-h-[90vh] max-w-3xl overflow-hidden border border-slate-200 shadow-2xl'
+              : 'max-w-md border border-slate-200 shadow-2xl'
+          }
           aria-describedby={undefined}
         >
           <DialogHeader className="text-center">
-            <DialogTitle className="mx-auto text-center text-white">Create New Course</DialogTitle>
+            <DialogTitle className="mx-auto text-center text-white">
+              {createStep === 'category' ? 'Choose a Category' : 'Create New Course'}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 px-6 py-4">
-            <div className="space-y-2">
+          {createStep === 'name' ? (
+            <div className="space-y-4 px-6 py-4">
+              <div className="space-y-2">
+                <Input
+                  value={newCourseName}
+                  onChange={e => {
+                    const value = e.target.value
+                    if (value.length <= 25) {
+                      setNewCourseName?.(value)
+                    }
+                  }}
+                  placeholder="Course name"
+                  maxLength={25}
+                  autoFocus
+                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newCourseName?.trim()) {
+                      e.preventDefault()
+                      setCreateStep('category')
+                    }
+                  }}
+                />
+                <div className="flex justify-end">
+                  <span
+                    className={`text-xs font-medium ${
+                      (newCourseName?.length || 0) >= 25
+                        ? 'text-red-500'
+                        : (newCourseName?.length || 0) >= 20
+                          ? 'text-orange-500'
+                          : 'text-gray-600'
+                    }`}
+                  >
+                    {newCourseName?.length || 0}/25
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
+              <CourseCategoryPicker
+                value={newCourseCategories ?? []}
+                onChange={v => setNewCourseCategories?.(v)}
+                storageUserId={createStorageUserId}
+              />
+            </div>
+          )}
+
+          <DialogFooter className="gap-3">
+            {createStep === 'name' ? (
+              <>
+                <Button variant="modal-secondary-dark" onClick={closeCreateDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="modal-primary-dark"
+                  onClick={() => setCreateStep('category')}
+                  disabled={!newCourseName?.trim()}
+                >
+                  Next
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="modal-secondary-dark" onClick={() => setCreateStep('name')}>
+                  Back
+                </Button>
+                <Button
+                  variant="modal-primary-dark"
+                  onClick={onCreateNewCourse}
+                  disabled={!newCourseName?.trim() || (newCourseCategories?.length ?? 0) === 0}
+                >
+                  Create
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Course Dialog — control-panel "Edit Course" (name + category) */}
+      <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
+        <DialogContent
+          className="max-h-[90vh] max-w-3xl overflow-hidden border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Edit Course</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 px-2 py-2">
+            <div className="space-y-2 px-4">
+              <Label className="text-sm font-medium text-slate-700">Course name</Label>
               <Input
-                value={newCourseName}
-                onChange={e => {
-                  const value = e.target.value
-                  if (value.length <= 25) {
-                    setNewCourseName?.(value)
-                  }
-                }}
+                value={editName}
+                onChange={e => e.target.value.length <= 25 && setEditName(e.target.value)}
                 placeholder="Course name"
                 maxLength={25}
-                className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && newCourseName?.trim()) {
-                    e.preventDefault()
-                    onCreateNewCourse?.()
-                  }
-                }}
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400"
               />
-              <div className="flex justify-end">
-                <span
-                  className={`text-xs font-medium ${
-                    (newCourseName?.length || 0) >= 25
-                      ? 'text-red-500'
-                      : (newCourseName?.length || 0) >= 20
-                        ? 'text-orange-500'
-                        : 'text-gray-600'
-                  }`}
-                >
-                  {newCourseName?.length || 0}/25
-                </span>
-              </div>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
+              <CourseCategoryPicker
+                value={editCategories}
+                onChange={setEditCategories}
+                storageUserId={editStorageUserId}
+              />
             </div>
           </div>
 
           <DialogFooter className="gap-3">
-            <Button variant="modal-secondary-dark" onClick={() => setIsCreateDialogOpen?.(false)}>
+            <Button variant="modal-secondary-dark" onClick={() => setIsEditCourseOpen(false)}>
               Cancel
             </Button>
             <Button
               variant="modal-primary-dark"
-              onClick={onCreateNewCourse}
-              disabled={!newCourseName?.trim()}
+              onClick={saveEditCourse}
+              disabled={!editName.trim() || editCategories.length === 0}
             >
-              Create
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

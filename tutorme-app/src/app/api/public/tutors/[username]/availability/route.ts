@@ -13,6 +13,7 @@ import {
   calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, asc, isNull } from 'drizzle-orm'
+import { formatInZone, zonedWeekday, zonedWallClockToUtc, zonedDateParts } from '@/lib/time/tz'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   const { searchParams } = new URL(req.url)
@@ -160,7 +161,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
         )
       )
 
-    // Generate available slots
+    // Generate available slots — all calculations are done in the tutor's timezone
+    // so that a "Monday 9:00" slot means Monday 9:00 in the tutor's zone, not UTC.
     const slots: Array<{
       date: string
       startTime: string
@@ -169,19 +171,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       timezone: string
     }> = []
 
-    const currentDate = new Date(startDate)
+    const tutorTz = baseTimezone
 
+    // Helpers to convert UTC instants to tutor-local wall-clock for comparison
+    const normalizeDate = (d: Date) => formatInZone(d, tutorTz).date
+    const normalizeTime = (d: Date) => formatInZone(d, tutorTz).time
+
+    // Pre-normalize existing events to tutor-local date/time for conflict checking
+    const normalizedEvents = existingEvents.map((event: any) => ({
+      date: normalizeDate(event.startTime),
+      startTime: normalizeTime(event.startTime),
+      endTime: normalizeTime(event.endTime),
+    }))
+
+    // Pre-normalize exceptions to tutor-local date
+    const normalizedExceptions = exceptions.map((e: any) => ({
+      date: normalizeDate(e.date),
+      isAvailable: e.isAvailable,
+      startTime: e.startTime,
+      endTime: e.endTime,
+    }))
+
+    // Iterate through each date in the requested range
+    let currentDate = new Date(startDate)
     while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay()
-      const dateStr = currentDate.toISOString().split('T')[0]
+      // Get the day-of-week and date string as seen in the tutor's timezone
+      const dayOfWeek = zonedWeekday(currentDate, tutorTz)
+      const { year, month, day } = zonedDateParts(currentDate, tutorTz)
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
       // Check if there's an exception for this date
-      const dayException = exceptions.find(
-        e => e.date.toISOString().split('T')[0] === dateStr && !e.isAvailable
-      )
+      const dayException = normalizedExceptions.find(e => e.date === dateStr && !e.isAvailable)
 
       if (dayException) {
-        currentDate.setDate(currentDate.getDate() + 1)
+        currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
         continue
       }
 
@@ -190,25 +213,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
 
       for (const slot of dayAvailability) {
         if (!slot.isAvailable) continue
-        const slotStart = new Date(`${dateStr}T${slot.startTime}`)
-        const slotEnd = new Date(`${dateStr}T${slot.endTime}`)
 
-        // Check if slot is in the past
-        if (slotEnd <= new Date()) continue
+        // Build UTC instants for the slot's wall-clock time in the tutor's timezone
+        const slotStart = zonedWallClockToUtc(
+          year,
+          month,
+          day,
+          parseInt(slot.startTime.slice(0, 2), 10),
+          parseInt(slot.startTime.slice(3, 5), 10),
+          tutorTz
+        )
+        const slotEnd = zonedWallClockToUtc(
+          year,
+          month,
+          day,
+          parseInt(slot.endTime.slice(0, 2), 10),
+          parseInt(slot.endTime.slice(3, 5), 10),
+          tutorTz
+        )
 
-        // Check for conflicts with existing events
-        const hasConflict = existingEvents.some((event: any) => {
-          return slotStart < event.endTime && slotEnd > event.startTime
+        // Check if slot is in the past (compare UTC instants)
+        if (slotEnd <= now) continue
+
+        // Check for conflicts with existing events (compare normalized local times)
+        const hasConflict = normalizedEvents.some((event: any) => {
+          if (event.date !== dateStr) return false
+          return slot.startTime < event.endTime && slot.endTime > event.startTime
         })
 
         if (!hasConflict) {
           // Check exception time ranges
-          const timeException = exceptions.find(e => {
-            if (e.date.toISOString().split('T')[0] !== dateStr) return false
+          const timeException = normalizedExceptions.find(e => {
+            if (e.date !== dateStr) return false
             if (!e.startTime || !e.endTime) return false
-            const exStart = new Date(`${dateStr}T${e.startTime}`)
-            const exEnd = new Date(`${dateStr}T${e.endTime}`)
-            return slotStart < exEnd && slotEnd > exStart
+            return slot.startTime < e.endTime && slot.endTime > e.startTime
           })
 
           if (!timeException) {
@@ -223,7 +261,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
         }
       }
 
-      currentDate.setDate(currentDate.getDate() + 1)
+      currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
     }
 
     const hasHourlyRate = typeof tutorProfile.hourlyRate === 'number' && tutorProfile.hourlyRate > 0
@@ -236,8 +274,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       timezone: tutorProfile.timezone || 'UTC',
       slots,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch availability error:', error)
-    return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
+    const message = error?.message || String(error) || 'Unknown error'
+    return NextResponse.json(
+      { error: 'Failed to fetch availability', details: message },
+      { status: 500 }
+    )
   }
 }

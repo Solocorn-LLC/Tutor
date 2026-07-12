@@ -13,7 +13,12 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
-import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
+import { requestedDateFromString } from '@/lib/one-on-one/time'
+import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
+import {
+  isSlotWithinStudentAvailability,
+  studentHasAvailabilityConfigured,
+} from '@/lib/student-availability'
 
 const requestSchema = z.object({
   tutorId: z.string().min(1),
@@ -26,7 +31,7 @@ const requestSchema = z.object({
       })
     )
     .min(1)
-    .max(5),
+    .max(20),
   duration: z.number().min(30).max(180), // minutes: 30-180
   studentNotes: z.string().max(1000).optional(),
 })
@@ -70,6 +75,7 @@ export const POST = withCsrf(
           eq(oneOnOneBookingRequest.status, 'ACCEPTED')
         )
       ),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (existingRequest) {
@@ -83,8 +89,16 @@ export const POST = withCsrf(
       )
     }
 
+    // A student with no availability configured can't book — otherwise the
+    // per-slot check below is skipped and a tutor could be booked out of hours.
+    if (!(await studentHasAvailabilityConfigured(session.user.id))) {
+      throw new ValidationError(
+        'Set your availability before requesting a 1-on-1 — ask your parent to add your available hours.'
+      )
+    }
+
     // Every proposed time must fall within the student's availability (managed
-    // by their parent). Not enforced when no availability is configured yet.
+    // by their parent).
     for (const slot of validated.proposedSlots) {
       const withinAvailability = await isSlotWithinStudentAvailability(
         session.user.id,
@@ -105,8 +119,9 @@ export const POST = withCsrf(
     const durationHours = validated.duration / 60
     const costPerSession = Math.round(tutorProfile.hourlyRate * durationHours * 100) / 100
 
-    // Parse the date and time
-    const requestedDate = new Date(`${primarySlot.date}T00:00:00`)
+    // Store the calendar date as midnight-UTC so it round-trips regardless of
+    // the server's own timezone (wall-clock times live in `timezone` below).
+    const requestedDate = requestedDateFromString(primarySlot.date)
 
     // Create the request
     const newRequest = await drizzleDb
@@ -129,7 +144,7 @@ export const POST = withCsrf(
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .returning()
+      .returning(CORE_BOOKING_RETURNING)
 
     // Send notification to tutor
     notify({
@@ -160,6 +175,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
   if (requestId) {
     const requestRow = await drizzleDb.query.oneOnOneBookingRequest.findFirst({
       where: eq(oneOnOneBookingRequest.requestId, requestId),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (!requestRow) throw new NotFoundError('Request not found')
@@ -195,6 +211,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.studentId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         tutor: {
           columns: {
@@ -211,6 +228,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.tutorId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         student: {
           columns: {

@@ -10,6 +10,9 @@ export interface SaveCourseOptions {
   draftListStorageKey?: string
   courseName?: string
   courseDescription?: string
+  /** Categories to set when creating a DB course from a draft (chosen at
+   *  creation and held on the local draft). Ignored for updates. */
+  categories?: string[]
   developmentMode?: 'single' | 'multi'
   previewDifficulty?: 'all' | 'beginner' | 'intermediate' | 'advanced'
   isAutoSave?: boolean
@@ -110,6 +113,7 @@ export async function saveCourse(options: SaveCourseOptions): Promise<SaveCourse
     draftListStorageKey,
     courseName,
     courseDescription,
+    categories,
     developmentMode = 'single',
     previewDifficulty = 'all',
     isExistingDbCourse = false,
@@ -171,7 +175,7 @@ export async function saveCourse(options: SaveCourseOptions): Promise<SaveCourse
         body: safeStringify({
           title,
           description: courseDescription || '',
-          categories: [],
+          categories: categories ?? [],
           schedule: [],
           isLiveOnline: false,
         }),

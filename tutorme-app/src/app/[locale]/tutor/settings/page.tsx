@@ -57,6 +57,7 @@ import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 import { AvatarUploader } from '@/components/avatar-uploader'
+import { TimezoneSelector } from '@/components/timezone-selector'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
 import SessionLog from '@/components/session-log'
@@ -98,6 +99,7 @@ function OneOnOneSettingsCard() {
     oneOnOneEnabled: true,
     hourlyRate: 50,
     sessionDuration: 60,
+    bufferMinutes: 0,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -117,6 +119,7 @@ function OneOnOneSettingsCard() {
           oneOnOneEnabled: data.oneOnOneEnabled ?? true,
           hourlyRate: data.hourlyRate ?? 50,
           sessionDuration: data.sessionDuration ?? 60,
+          bufferMinutes: data.bufferMinutes ?? 0,
         })
       }
     } catch (error) {
@@ -136,6 +139,7 @@ function OneOnOneSettingsCard() {
         body: JSON.stringify({
           oneOnOneEnabled: settings.oneOnOneEnabled,
           hourlyRate: settings.hourlyRate,
+          bufferMinutes: settings.bufferMinutes,
         }),
       })
       if (res.ok) {
@@ -249,6 +253,31 @@ function OneOnOneSettingsCard() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Buffer between bookings */}
+            <div className="space-y-2">
+              <Label htmlFor="bufferMinutes">Buffer between sessions</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="bufferMinutes"
+                  type="number"
+                  min={0}
+                  max={120}
+                  step={5}
+                  className="w-24"
+                  value={settings.bufferMinutes}
+                  onChange={e =>
+                    setSettings(prev => ({
+                      ...prev,
+                      bufferMinutes: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)),
+                    }))
+                  }
+                />
+                <span className="whitespace-nowrap text-sm text-gray-500">
+                  minutes of gap kept around each 1-on-1 booking
+                </span>
+              </div>
+            </div>
           </>
         )}
 
@@ -323,7 +352,8 @@ export default function TutorSettings() {
     email: session?.user?.email || '',
     avatarUrl: '',
     language: 'en',
-    timezone: 'Asia/Shanghai',
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
     nationality: '',
     countryOfResidence: '',
     specialties: [] as string[],
@@ -535,6 +565,12 @@ export default function TutorSettings() {
       })
 
       if (response.ok) {
+        // Store timezone preference in localStorage for client-side timezone
+        try {
+          localStorage.setItem('user-timezone', formData.timezone)
+        } catch {
+          // Ignore localStorage errors
+        }
         toast.success('Profile updated successfully')
       } else {
         throw new Error('Failed to update profile')
@@ -758,8 +794,11 @@ export default function TutorSettings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Input id="timezone" value={formData.timezone} disabled className="bg-white" />
-                    <p className="text-xs text-gray-500">Automatically detected</p>
+                    <TimezoneSelector
+                      id="timezone"
+                      value={formData.timezone}
+                      onChange={value => setFormData(prev => ({ ...prev, timezone: value }))}
+                    />
                   </div>
                 </div>
 
