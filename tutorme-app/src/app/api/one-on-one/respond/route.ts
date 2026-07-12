@@ -199,10 +199,13 @@ export async function PATCH(request: NextRequest) {
         return { updatedRequest, newEvent }
       })
 
+      // Open the student↔tutor direct-message thread as soon as the booking is
+      // accepted, so each shows up in the other's chat contact list right away
+      // (for a paid booking the payment webhook also ensures this).
+      getOrCreateConversation(existingRequest.studentId, existingRequest.tutorId).catch(() => {})
+
       if (isFree) {
-        // Free booking: confirmed immediately — mirror the paid webhook's side
-        // effects (open the student↔tutor chat) and skip the payment prompt.
-        getOrCreateConversation(existingRequest.studentId, existingRequest.tutorId).catch(() => {})
+        // Free booking: confirmed immediately — skip the payment prompt.
         notify({
           userId: existingRequest.studentId,
           type: 'class',

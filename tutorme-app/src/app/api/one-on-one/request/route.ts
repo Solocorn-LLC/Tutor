@@ -15,6 +15,7 @@ import {
 import { parseJson } from '@/lib/api/parse'
 import { requestedDateFromString } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
+import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -149,6 +150,11 @@ export const POST = withCsrf(
         updatedAt: new Date(),
       })
       .returning(CORE_BOOKING_RETURNING)
+
+    // Open the student↔tutor direct-message thread on booking, so each appears
+    // in the other's chat contact list right away (idempotent — re-accept/pay
+    // just reuse this thread).
+    getOrCreateConversation(session.user.id, validated.tutorId).catch(() => {})
 
     // Send notification to tutor
     notify({

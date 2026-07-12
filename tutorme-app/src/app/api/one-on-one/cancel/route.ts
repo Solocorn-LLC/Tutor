@@ -52,7 +52,9 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
-    const wasPaid = existingRequest.status === 'PAID'
+    // Only a genuinely paid booking (positive cost) triggers a refund. Free
+    // sessions are PAID with a 0 cost and have no payment to refund.
+    const wasPaid = existingRequest.status === 'PAID' && (existingRequest.costPerSession ?? 0) > 0
 
     // If there's a calendar event, mark it as cancelled and end the linked live session
     if (existingRequest.calendarEventId) {

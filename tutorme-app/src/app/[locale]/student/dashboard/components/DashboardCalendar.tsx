@@ -12,7 +12,8 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star } from 'lucide-react'
+import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
 import { cn } from '@/lib/utils'
@@ -106,6 +107,8 @@ export function DashboardCalendar({
   const [loading, setLoading] = useState(!initialEvents?.length)
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -137,7 +140,41 @@ export function DashboardCalendar({
     return () => {
       cancelled = true
     }
-  }, [monthStart, monthEnd, onRefresh])
+  }, [monthStart, monthEnd, onRefresh, refreshTick])
+
+  const handleCancelBooking = async (requestId: string) => {
+    if (
+      !window.confirm(
+        'Cancel this 1-on-1 booking? If you already paid, a refund (minus the 15% fee) is issued automatically.'
+      )
+    ) {
+      return
+    }
+    setCancellingId(requestId)
+    try {
+      const res = await fetch('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(
+          data.refunded
+            ? `Booking cancelled — ${data.refundAmount} refunded (15% fee applied).`
+            : 'Booking cancelled.'
+        )
+        setRefreshTick(t => t + 1)
+      } else {
+        toast.error(data.error || 'Could not cancel the booking')
+      }
+    } catch {
+      toast.error('Could not cancel the booking')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   // Derive classes list from calendar events for the Sessions tab.
   // Exclude completed/ended sessions and sort chronologically so the next session is on top.
@@ -294,14 +331,29 @@ export function DashboardCalendar({
                             {s.type === 'one-on-one' &&
                               s.requestId &&
                               new Date(s.end).getTime() >= Date.now() && (
-                                <button
-                                  type="button"
-                                  onClick={() => setRescheduleRequestId(s.requestId ?? null)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                >
-                                  <CalendarDays className="h-3.5 w-3.5" />
-                                  Reschedule
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCancelBooking(s.requestId as string)}
+                                    disabled={cancellingId === s.requestId}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                  >
+                                    {cancellingId === s.requestId ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" />
+                                    )}
+                                    Cancel
+                                  </button>
+                                </>
                               )}
                             {s.type === 'one-on-one' &&
                             s.requestId &&
