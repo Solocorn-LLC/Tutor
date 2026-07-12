@@ -7,8 +7,8 @@
  * per the PCI → ask follow-ups.
  *
  * The task document (PDF/image) is shown as a thumbnail card inside the chat
- * stream. Clicking it expands an inline PDF viewer contained within the chat
- * panel (using the same padding as the Task Builder slide view).
+ * stream. Clicking it opens a popup overlay within the chat panel showing the
+ * PDF fit-to-screen with an X close button in the top-right corner.
  *
  * State can be persisted by the parent: pass `initialState` to seed the chat and
  * `onPersist` to mirror every change into a store, so switching Test-tab
@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Send, Loader2, CheckCircle2, Sparkles, FileText, X, ImageIcon } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
 import { toast } from 'sonner'
 
 export interface TestTaskChatMsg {
@@ -65,13 +66,13 @@ export function TestTaskChat({
   const [draft, setDraft] = useState(initialState?.draft ?? '')
   const [completed, setCompleted] = useState(initialState?.completed ?? false)
   const [busy, setBusy] = useState(false)
-  const [pdfExpanded, setPdfExpanded] = useState(false)
+  const [pdfPopupOpen, setPdfPopupOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages, busy, pdfExpanded])
+  }, [messages, busy])
 
   // Mirror state to the parent's store so a remount (switching Test students)
   // can rehydrate it. Cheap; runs only when the persisted fields change.
@@ -178,13 +179,12 @@ export function TestTaskChat({
   const accentBorder = isClassroom ? 'border-orange-100' : 'border-violet-100'
   const accentBorderStrong = isClassroom ? 'border-[rgba(241,118,35,0.4)]' : 'border-violet-300'
   const sendButtonBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
-  const sendButtonHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
   const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
 
   return (
     <div
-      className={`flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl border ${accentBorderStrong} bg-white`}
+      className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl border ${accentBorderStrong} bg-white`}
     >
       {/* Header bar */}
       <div className={`flex items-center gap-2 border-b ${accentBorder} ${accentBg} px-4 py-2`}>
@@ -211,21 +211,34 @@ export function TestTaskChat({
       </div>
 
       {/* Unified chat stream — document thumbnail + messages scroll together */}
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {/* Document thumbnail — persistent first message in the stream */}
-        {sourceDocument && !pdfExpanded && (
+        {sourceDocument && !pdfPopupOpen && (
           <div className="flex items-start">
             <button
               type="button"
-              onClick={() => loadable && setPdfExpanded(true)}
+              onClick={() => loadable && setPdfPopupOpen(true)}
               disabled={!loadable}
-              className="max-w-[85%] cursor-pointer rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3 text-left transition-colors hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="max-w-[85%] cursor-pointer rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-3 text-left transition-colors hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <div className="flex items-center gap-2.5">
-                {isImage ? (
-                  <ImageIcon className="h-5 w-5 shrink-0 text-violet-600" />
+              <div className="flex items-center gap-3">
+                {/* PDF Thumbnail preview */}
+                {isPdf && loadable ? (
+                  <div className="shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
+                    <PDFThumbnail
+                      fileUrl={docUrl}
+                      fileKey={sourceDocument?.fileKey ?? undefined}
+                      width={100}
+                    />
+                  </div>
+                ) : isImage ? (
+                  <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
+                    <ImageIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                 ) : (
-                  <FileText className="h-5 w-5 shrink-0 text-violet-600" />
+                  <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
+                    <FileText className="h-5 w-5 text-gray-400" />
+                  </div>
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-800">{docName}</p>
@@ -240,35 +253,31 @@ export function TestTaskChat({
           </div>
         )}
 
-        {/* Inline PDF viewer — contained within the chat panel */}
-        {pdfExpanded && loadable && (
-          <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            {/* Viewer header */}
-            <div className="flex items-center gap-2 border-b px-3 py-2">
+        {/* PDF Popup — overlay within chat panel, no header, X on right */}
+        {pdfPopupOpen && loadable && (
+          <div className="absolute inset-0 z-10 flex flex-col bg-white">
+            {/* X close button — top right, no header bar */}
+            <div className="flex justify-end px-3 py-2">
               <button
                 type="button"
-                onClick={() => setPdfExpanded(false)}
-                className="grid h-7 w-7 place-items-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100"
-                aria-label="Close document viewer"
+                onClick={() => setPdfPopupOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100"
+                aria-label="Close document"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
-              <FileText className="h-4 w-4 text-violet-600" />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
-                {docName}
-              </span>
             </div>
-            {/* PDF viewer — same padding as Task Builder slide view (px-4, py-4) */}
-            <div className="h-[50vh] min-h-[280px] w-full">
+            {/* PDF viewer — fit to screen, no scrolling needed */}
+            <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
               {isPdf ? (
                 <PDFViewer
                   fileUrl={docUrl}
                   fileKey={sourceDocument?.fileKey ?? undefined}
-                  fitToWidth
+                  fitToScreen
                   className="h-full w-full"
                 />
               ) : isImage ? (
-                <div className="flex h-full items-center justify-center bg-gray-100 p-4">
+                <div className="flex h-full items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={docUrl}
