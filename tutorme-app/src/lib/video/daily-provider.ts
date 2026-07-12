@@ -122,6 +122,9 @@ export class DailyCoProvider implements VideoProvider {
     options?: {
       isOwner?: boolean
       durationMinutes?: number
+      /** 1-on-1 session: the non-owner (student) also transmits video, so don't
+       *  force their camera off. Group classes keep students camera-off. */
+      twoWay?: boolean
     }
   ): Promise<string> {
     if (!this.apiKey) {
@@ -151,7 +154,9 @@ export class DailyCoProvider implements VideoProvider {
           // call rejected it (400), token creation threw, and students were
           // handed a null token for a PRIVATE room → every join failed ("Try
           // again"). `start_video_off` covers the camera-off intent on its own.
-          ...(isOwner ? {} : { start_video_off: true }),
+          // In a two-way (1-on-1) session the student transmits too, so their
+          // camera is NOT forced off.
+          ...(isOwner || options?.twoWay ? {} : { start_video_off: true }),
           exp: expiry,
         },
       }),

@@ -168,7 +168,13 @@ interface ClassroomControlsPanelProps {
   error: string | Error | null
   roomUrl: string | null | undefined
   token: string | null | undefined
-  openVideoOverlay: (opts: { roomUrl: string; token?: string | null; autoRecord: boolean }) => void
+  twoWay?: boolean
+  openVideoOverlay: (opts: {
+    roomUrl: string
+    token?: string | null
+    autoRecord: boolean
+    twoWay?: boolean
+  }) => void
   setShowDirectoryPanel: (value: boolean) => void
 }
 
@@ -179,6 +185,7 @@ function ClassroomControlsPanel({
   error,
   roomUrl,
   token,
+  twoWay,
   openVideoOverlay,
   setShowDirectoryPanel,
 }: ClassroomControlsPanelProps) {
@@ -269,7 +276,7 @@ function ClassroomControlsPanel({
                       disabled={!roomUrl}
                       onClick={() => {
                         if (!roomUrl) return
-                        openVideoOverlay({ roomUrl, token, autoRecord: false })
+                        openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
                       }}
                       className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -940,6 +947,7 @@ function StudentFeedbackContent() {
     objectives: string[] | null
     roomUrl: string | null
     token: string | null
+    twoWay: boolean
     tutorId: string | null
     tutorUsername: string
     courseCategory: string
@@ -1290,6 +1298,7 @@ function StudentFeedbackContent() {
               : null,
           roomUrl: data?.roomUrl ?? null,
           token: data?.token ?? null,
+          twoWay: !!data?.twoWay || (data?.session?.maxStudents ?? 0) <= 2,
           tutorId: data?.session?.tutorId ?? null,
           tutorUsername: data?.session?.tutor?.profile?.name || 'Tutor',
           courseCategory: data?.session?.category || 'General',
@@ -1921,6 +1930,7 @@ function StudentFeedbackContent() {
           error={error}
           roomUrl={sessionContext?.roomUrl}
           token={sessionContext?.token}
+          twoWay={sessionContext?.twoWay}
           openVideoOverlay={openVideoOverlay}
           setShowDirectoryPanel={setShowDirectoryPanel}
         />

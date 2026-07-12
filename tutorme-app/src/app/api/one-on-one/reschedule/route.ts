@@ -20,6 +20,7 @@ import {
   studentHasAvailabilityConfigured,
 } from '@/lib/student-availability'
 import { notify } from '@/lib/notifications/notify'
+import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
 
 const proposeSchema = z.object({
   requestId: z.string().min(1),
@@ -43,6 +44,39 @@ async function loadOwnedBooking(requestId: string, userId: string): Promise<Book
   return row
 }
 
+// Current reschedule state for the dialog: the session's current time, any
+// pending proposal (and whether the caller made it), and whether it can still
+// be rescheduled.
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions, req)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const requestId = new URL(req.url).searchParams.get('requestId')
+  if (!requestId) return NextResponse.json({ error: 'requestId required' }, { status: 400 })
+
+  const booking = await loadOwnedBooking(requestId, session.user.id)
+  if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+
+  const proposal = booking.rescheduleProposedBy
+    ? {
+        date: booking.rescheduleProposedDate?.toISOString().split('T')[0] ?? null,
+        startTime: booking.rescheduleProposedStart,
+        endTime: booking.rescheduleProposedEnd,
+        proposedByMe: booking.rescheduleProposedBy === session.user.id,
+      }
+    : null
+
+  return NextResponse.json({
+    current: {
+      date: booking.requestedDate.toISOString().split('T')[0],
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    },
+    proposal,
+    canReschedule: booking.status === 'ACCEPTED' || booking.status === 'PAID',
+  })
+}
+
 /** Availability + conflict + buffer checks for moving `booking` to a new slot.
  *  Returns an error message, or null when the slot is bookable. */
 async function validateSlot(
@@ -57,9 +91,14 @@ async function validateSlot(
   if (!(await isSlotWithinStudentAvailability(booking.studentId, date, startTime, endTime))) {
     return "That time is outside the student's available hours."
   }
-  const eventStart = new Date(`${date}T${startTime}:00`)
-  const eventEnd = new Date(`${date}T${endTime}:00`)
-  if (!(eventEnd > eventStart)) return 'The end time must be after the start time.'
+  if (endTime <= startTime) return 'The end time must be after the start time.'
+  // Resolve the proposed wall-clock slot in the booking's own timezone.
+  const { start: eventStart, end: eventEnd } = slotInstants(
+    date,
+    startTime,
+    endTime,
+    booking.timezone
+  )
 
   const [tutorProfile] = await drizzleDb
     .select({ bufferMinutes: profile.bufferMinutes })
@@ -105,7 +144,7 @@ export async function POST(req: NextRequest) {
     await drizzleDb
       .update(oneOnOneBookingRequest)
       .set({
-        rescheduleProposedDate: new Date(`${date}T00:00:00.000Z`),
+        rescheduleProposedDate: requestedDateFromString(date),
         rescheduleProposedStart: startTime,
         rescheduleProposedEnd: endTime,
         rescheduleProposedBy: session.user.id,
@@ -193,8 +232,12 @@ export async function PATCH(req: NextRequest) {
       )
     }
 
-    const eventStart = new Date(`${date}T${startTime}:00`)
-    const eventEnd = new Date(`${date}T${endTime}:00`)
+    const { start: eventStart, end: eventEnd } = slotInstants(
+      date,
+      startTime,
+      endTime,
+      booking.timezone
+    )
 
     await drizzleDb.transaction(async tx => {
       if (booking.calendarEventId) {
@@ -216,7 +259,7 @@ export async function PATCH(req: NextRequest) {
       await tx
         .update(oneOnOneBookingRequest)
         .set({
-          requestedDate: new Date(`${date}T00:00:00.000Z`),
+          requestedDate: requestedDateFromString(date),
           startTime,
           endTime,
           ...clearProposal,

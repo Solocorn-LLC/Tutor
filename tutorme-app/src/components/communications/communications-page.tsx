@@ -7,7 +7,7 @@ import { TabsContent } from '@/components/ui/tabs'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { CollapsibleCard } from '@/components/collapsible-card'
 import { cn } from '@/lib/utils'
-import MessagingPanel, { type CommSection } from './messaging-panel'
+import Messenger from './messenger'
 import NotificationsPanel from './notifications-panel'
 import type { AppNotification, CommsRole } from './types'
 
@@ -17,7 +17,6 @@ interface CommunicationsPageProps {
 
 export default function CommunicationsPage({ role }: CommunicationsPageProps) {
   const [activeTab, setActiveTab] = useState('messaging')
-  const [activeSection, setActiveSection] = useState<CommSection>('chats')
 
   // Notifications state
   const [notifications, setNotifications] = useState<AppNotification[]>([])
@@ -220,7 +219,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               className="flex-1"
               contentClassName="pt-3"
             >
-              <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
+              <Messenger />
             </CollapsibleCard>
           </TabsContent>
 

@@ -264,18 +264,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
     }
 
+    const isFree = !!tutorProfile.oneOnOneFree
     const hasHourlyRate = typeof tutorProfile.hourlyRate === 'number' && tutorProfile.hourlyRate > 0
 
     return NextResponse.json({
       available: true,
-      hourlyRate: hasHourlyRate ? tutorProfile.hourlyRate : 0,
-      pricingIncomplete: !hasHourlyRate,
+      free: isFree,
+      // Free sessions cost 0 and are never "pricing incomplete".
+      hourlyRate: isFree ? 0 : hasHourlyRate ? tutorProfile.hourlyRate : 0,
+      pricingIncomplete: !isFree && !hasHourlyRate,
       currency: tutorProfile.currency || 'USD',
       timezone: tutorProfile.timezone || 'UTC',
       slots,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch availability error:', error)
-    return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
+    const message = error?.message || String(error) || 'Unknown error'
+    return NextResponse.json(
+      { error: 'Failed to fetch availability', details: message },
+      { status: 500 }
+    )
   }
 }

@@ -408,9 +408,12 @@ function TutorInsightsPageInner() {
 
   const handleSave = useCallback(
     async (lessons: any[], options?: any) => {
-      // For published variants on manual save, auto-propagate to sibling variants
-      // (variants published with this course, NOT all tutor courses)
-      if (isPublishedVariant && !options?.isAutoSave) {
+      // For published variants, auto-propagate edits to sibling variants (those
+      // published with this course, NOT all tutor courses). This runs on autosave
+      // too — autosave is debounced (~2s after edits settle), so siblings stay in
+      // sync without the tutor needing a manual Save. Independent variants are
+      // still excluded server-side.
+      if (isPublishedVariant) {
         await executeSave(lessons, options, true, false)
         return
       }
@@ -458,6 +461,9 @@ function TutorInsightsPageInner() {
         ])
         setCourseId(newCourse.id)
         setDetachedCourseName(newCourse.name)
+        // Point the URL at the new course so the courseId<-URL sync effect keeps
+        // it selected instead of snapping back to the previous ?courseId= value.
+        router.replace(`/tutor/insights?tab=builder&courseId=${newCourse.id}`)
         setNewCourseName('')
         setNewCourseCategories([])
         setIsCreateDialogOpen(false)
@@ -494,6 +500,9 @@ function TutorInsightsPageInner() {
         setCourses(prev => [...prev, withCategories])
         setCourseId(createdCourse.id)
         setDetachedCourseName(createdCourse.name)
+        // Point the URL at the new course so the courseId<-URL sync effect keeps
+        // it selected instead of snapping back to the previous ?courseId= value.
+        router.replace(`/tutor/insights?tab=builder&courseId=${createdCourse.id}`)
         setNewCourseName('')
         setNewCourseCategories([])
         setIsCreateDialogOpen(false)
@@ -504,7 +513,7 @@ function TutorInsightsPageInner() {
     } catch {
       toast.error('Failed to create course')
     }
-  }, [newCourseName, newCourseCategories, saveMode])
+  }, [newCourseName, newCourseCategories, saveMode, router, draftStorageKey])
 
   // Persist an edited course name/categories from the control-panel Edit button.
   const handleUpdateCourse = useCallback(

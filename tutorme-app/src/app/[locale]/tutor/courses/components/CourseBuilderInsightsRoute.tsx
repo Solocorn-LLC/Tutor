@@ -726,16 +726,43 @@ function CourseBuilderInsightsRouteInner({
   const handlePublishDraft = async () => {
     if (!courseId || courseId === 'insights-draft') return
 
-    // 1. Trigger save to ensure latest data is persisted
-    const saveCb = (model.courseBuilderRef.current as any)?.saveAll
-    if (typeof saveCb === 'function') await saveCb()
-
-    // 2. Get current lessons from the builder ref
+    // 1. Read the editor's current tree. If it hasn't hydrated it can come back
+    //    empty — fall back to the draft's persisted builder content so we never
+    //    publish an empty tree over real draft lessons.
     const getLessonsCb = (model.courseBuilderRef.current as any)?.getLessons
-    const rawLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
-
-    // 3. Resolve active DMI versions
+    const editorLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
+    let rawLessons = editorLessons
+    if ((!Array.isArray(rawLessons) || rawLessons.length === 0) && typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(`insights-course-builder:${courseId}`)
+        const parsed = stored ? JSON.parse(stored) : null
+        if (Array.isArray(parsed?.lessons) && parsed.lessons.length > 0) {
+          rawLessons = parsed.lessons
+        }
+      } catch {
+        // ignore a malformed draft cache
+      }
+    }
     const { lessons, hasMissingDmis } = resolveLessonDmis(rawLessons)
+
+    const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
+
+    // An empty tree on a course that already exists in the DB means the editor
+    // never loaded — its content is safe there, so just open scheduling instead
+    // of a destructive empty publish. A local draft with no lessons still
+    // materializes fine: saveCourse keeps the default lesson created on POST.
+    if (lessons.length === 0 && !isLocalDraft) {
+      model.router.push(`/tutor/courses/${courseId}`)
+      return
+    }
+
+    // 2. Persist the latest editor edits before publishing — but only if the
+    //    editor actually had content, so an unhydrated (empty) editor can't
+    //    clobber the draft's stored lessons.
+    if (editorLessons.length > 0) {
+      const saveCb = (model.courseBuilderRef.current as any)?.saveAll
+      if (typeof saveCb === 'function') await saveCb()
+    }
 
     if (hasMissingDmis) {
       if (
@@ -749,6 +776,14 @@ function CourseBuilderInsightsRouteInner({
 
     const isExistingDbCourse = courses?.some((c: any) => c.id === courseId)
 
+    // Carry the category chosen at creation. Drafts hold it locally, so when
+    // this first persists the draft to the DB we must pass it through — else
+    // the new course row gets categories:[] and the Course Details page shows
+    // no variant and no scheduler. (executeSave threads it the same way.)
+    const draftCategories = [...(courses || []), ...(draftCourses || [])].find(
+      (c: any) => c.id === courseId
+    )?.categories
+
     // 4. Publish via shared save function
     const result = await saveCourse({
       courseId,
@@ -756,6 +791,7 @@ function CourseBuilderInsightsRouteInner({
       mode: 'publish',
       courseName,
       detachedCourseName,
+      categories: draftCategories,
       developmentMode: 'single',
       previewDifficulty: 'all',
       isExistingDbCourse,
@@ -770,8 +806,6 @@ function CourseBuilderInsightsRouteInner({
 
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
-  const isCoursePublished = currentCourse?.isPublished === true
-  const isCourseVariant = currentCourse?.isVariant === true
   const originalSchedule = currentCourse?.schedule || []
 
   // Reschedule handlers
@@ -1133,7 +1167,7 @@ function CourseBuilderInsightsRouteInner({
             <CourseBuilder
               ref={model.courseBuilderRef}
               courseId={courseId ?? ''}
-              courseName={courseName || model.course?.name}
+              courseName={courseName || model.course?.name || currentCourse?.name}
               courseDescription={model.course?.description ?? undefined}
               initialLessons={model.loadedLessons ?? undefined}
               hideDirectorySearch
@@ -1141,6 +1175,10 @@ function CourseBuilderInsightsRouteInner({
               onSave={onSaveCourse}
               insightsProps={{
                 ...insightsProps,
+                // Expose drafts too so the builder can resolve the course's
+                // category (Board/Subject) before it's published — drafts hold
+                // the category chosen at creation.
+                draftCourses,
                 onEndSession: insightsProps.sessionId ? handleEndSession : undefined,
                 onStartSession: handleStartSessionClick,
                 endingSession,
@@ -1187,13 +1225,10 @@ function CourseBuilderInsightsRouteInner({
             onCreateCourse={onCreateCourse}
             onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            canSchedule={
-              !!(
-                courseId &&
-                courseId !== 'insights-draft' &&
-                (saveMode === 'draft' || (saveMode === 'live' && isCourseVariant))
-              )
-            }
+            // Schedule stays available for any real selected course, published
+            // or not — a draft materializes + schedules, a live course opens
+            // the reschedule dialog. (Was gated to drafts / live variants only.)
+            canSchedule={!!(courseId && courseId !== 'insights-draft')}
             canGoLive={
               !!(
                 courseId &&

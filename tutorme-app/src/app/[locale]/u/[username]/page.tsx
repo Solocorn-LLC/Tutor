@@ -62,6 +62,7 @@ import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns'
 import { CalendarBookingDialog } from '@/components/booking/calendar-booking-dialog'
+import { GroupSessionsList } from '@/components/booking/group-sessions-list'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 
 interface PublicTutorResponse {
@@ -634,6 +635,19 @@ export default function PublicTutorPage() {
     } finally {
       setStudentJoiningCourseId(null)
     }
+  }
+
+  // Only students can request a 1-on-1 (the API rejects other roles). Logged-out
+  // visitors are sent to sign in; logged-in non-students don't see the button.
+  const canBookOneOnOne = !session?.user || session.user.role === 'STUDENT'
+
+  const handleBookClick = () => {
+    if (!session?.user) {
+      toast.info('Please log in as a student to book a session')
+      router.push(`/${locale}/login`)
+      return
+    }
+    setBookDialogOpen(true)
   }
 
   const handleEnrollClick = (course: PublicTutorResponse['courses'][number]) => {
@@ -1304,15 +1318,17 @@ export default function PublicTutorPage() {
                   />
                 )}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Button
-                    size="lg"
-                    variant="solocorn-book"
-                    className="w-full sm:w-auto"
-                    onClick={() => setBookDialogOpen(true)}
-                  >
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    Book 1-on-1
-                  </Button>
+                  {canBookOneOnOne && (
+                    <Button
+                      size="lg"
+                      variant="solocorn-book"
+                      className="w-full sm:w-auto"
+                      onClick={handleBookClick}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      Book 1-on-1
+                    </Button>
+                  )}
                   <Button
                     size="lg"
                     variant="solocorn-follow"
@@ -1328,6 +1344,8 @@ export default function PublicTutorPage() {
             </div>
           </div>
         </section>
+
+        <GroupSessionsList tutorId={tutor.id} />
 
         <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}>

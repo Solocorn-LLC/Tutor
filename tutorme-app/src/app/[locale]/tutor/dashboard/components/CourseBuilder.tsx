@@ -823,12 +823,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       })
     }, [insightsProps?.socket, insightsProps?.sessionId])
     const designatedFolder = useMemo(() => {
-      const liveCourse = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
+      // Search published courses AND drafts — a course still in draft holds the
+      // category chosen at creation, and the Board/Subject must resolve from it.
+      const allCourses = [
+        ...((insightsProps as any)?.courses ?? []),
+        ...((insightsProps as any)?.draftCourses ?? []),
+      ]
+      const liveCourse = allCourses.find((c: any) => c.id === courseId)
       if (liveCourse && (liveCourse as any).categories?.length > 0) {
         return (liveCourse as any).categories[0]
       }
       return courseName?.trim() || 'Uncategorized'
-    }, [(insightsProps as any)?.courses, courseId, courseName])
+    }, [
+      (insightsProps as any)?.courses,
+      (insightsProps as any)?.draftCourses,
+      courseId,
+      courseName,
+    ])
 
     // Auto-select the designated folder when course changes so users immediately see their relevant assets
     useEffect(() => {
@@ -840,9 +851,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // tutor makes here immediately, before the `courses` prop refetches; the
     // change is also persisted back to the course so Course details picks it up.
     const liveCourseCategories = useMemo(() => {
-      const lc = (insightsProps as any)?.courses?.find((c: any) => c.id === courseId)
+      const allCourses = [
+        ...((insightsProps as any)?.courses ?? []),
+        ...((insightsProps as any)?.draftCourses ?? []),
+      ]
+      const lc = allCourses.find((c: any) => c.id === courseId)
       return Array.isArray(lc?.categories) ? (lc.categories as string[]) : []
-    }, [(insightsProps as any)?.courses, courseId])
+    }, [(insightsProps as any)?.courses, (insightsProps as any)?.draftCourses, courseId])
     const [courseCategoryOverride, setCourseCategoryOverride] = useState<string | null>(null)
     const [pciBoardOverride, setPciBoardOverride] = useState<string | null>(null)
     const pciCategory =
@@ -3415,6 +3430,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pdfPages,
             questionSpec,
             documentKindOverride,
+            // Board/subject context from the course category so generation
+            // follows the right exam conventions (a hint, not a source override).
+            // Honour the tutor's manual Board override if they set one.
+            examBody:
+              pciBoardOverride ||
+              deriveExamContext(pciCategory || null, courseName).examBody ||
+              undefined,
+            subject:
+              deriveExamContext(pciCategory || null, courseName).subject ||
+              pciCategory ||
+              undefined,
           }),
         })
 
@@ -3553,6 +3579,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
         const nextVersionNumber = existingVersions.length + 1
+        // Seed the Board/Subject onto the new version from the course category so
+        // the DMI carries them as real data (not just a derived-on-the-fly badge).
+        // Board is assessment-only; honour a manual Board override; both are
+        // derived from the tutor's own category — never fabricated.
+        const seedExam = deriveExamContext(pciCategory || null, courseName)
         const newVersion: DMIVersion = {
           id: `dmi-version-${Date.now()}`,
           versionNumber: nextVersionNumber,
@@ -3560,6 +3591,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           createdAt: Date.now(),
           taskId: isTask ? loadedTaskId || undefined : undefined,
           assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
+          examBody: !isTask ? pciBoardOverride || seedExam.examBody || undefined : undefined,
+          subject: seedExam.subject || pciCategory || undefined,
           // ASMT-4: section grouping + total marks derived from the questions.
           sections: deriveSections(dmiItems),
           totalMarks: deriveTotalMarks(dmiItems),

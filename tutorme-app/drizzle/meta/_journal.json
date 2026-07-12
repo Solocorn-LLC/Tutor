@@ -484,6 +484,41 @@
       "when": 1781900000068,
       "tag": "0068_tasksubmission_worked_solutions",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1781900000069,
+      "tag": "0069_profile_buffer_minutes",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1781900000070,
+      "tag": "0070_one_on_one_reschedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1781900000071,
+      "tag": "0071_one_on_one_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1781900000072,
+      "tag": "0072_one_on_one_waitlist",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1781900000074,
+      "tag": "0074_profile_one_on_one_free",
+      "breakpoints": true
     }
   ]
 }

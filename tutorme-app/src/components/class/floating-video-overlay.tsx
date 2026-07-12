@@ -6,7 +6,7 @@ import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 
 export function FloatingVideoOverlay() {
-  const { open, roomUrl, token, autoRecord, isTutor, closeOverlay } = useVideoOverlayStore()
+  const { open, roomUrl, token, autoRecord, isTutor, twoWay, closeOverlay } = useVideoOverlayStore()
   const [frame, setFrame] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const dragRef = useRef<{
     pointerId: number
@@ -139,6 +139,7 @@ export function FloatingVideoOverlay() {
             autoRecord={autoRecord}
             floating={false}
             isTutor={isTutor}
+            twoWay={twoWay}
             className="h-full w-full rounded-none border-0"
           />
         </div>

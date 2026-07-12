@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, oneOnOneReview } from '@/lib/db/schema'
 import { nanoid } from 'nanoid'
+import { bookingInstants } from '@/lib/one-on-one/time'
 
 const postSchema = z.object({
   requestId: z.string().min(1),
@@ -22,10 +23,15 @@ const postSchema = z.object({
 })
 
 /** A booking is reviewable once it's paid and its scheduled end has passed. */
-function isReviewable(booking: { status: string; requestedDate: Date; endTime: string }): boolean {
+function isReviewable(booking: {
+  status: string
+  requestedDate: Date
+  startTime: string
+  endTime: string
+  timezone: string | null
+}): boolean {
   if (booking.status !== 'PAID') return false
-  const date = booking.requestedDate.toISOString().split('T')[0]
-  const end = new Date(`${date}T${booking.endTime}:00`)
+  const { end } = bookingInstants(booking)
   return Number.isFinite(end.getTime()) && end.getTime() < Date.now()
 }
 

@@ -12,8 +12,10 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star } from 'lucide-react'
+import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
+import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -31,6 +33,9 @@ export interface CalendarEvent {
   meetingUrl?: string | null
   status?: string
   requestId?: string | null
+  /** LiveSession id (from the calendar event's externalId) — used to open the
+   *  in-app two-way call room for a 1-on-1. */
+  sessionId?: string | null
 }
 
 interface DashboardCalendarProps {
@@ -104,6 +109,9 @@ export function DashboardCalendar({
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
+  const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -135,7 +143,41 @@ export function DashboardCalendar({
     return () => {
       cancelled = true
     }
-  }, [monthStart, monthEnd, onRefresh])
+  }, [monthStart, monthEnd, onRefresh, refreshTick])
+
+  const handleCancelBooking = async (requestId: string) => {
+    if (
+      !window.confirm(
+        'Cancel this 1-on-1 booking? If you already paid, a refund (minus the 15% fee) is issued automatically.'
+      )
+    ) {
+      return
+    }
+    setCancellingId(requestId)
+    try {
+      const res = await fetch('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(
+          data.refunded
+            ? `Booking cancelled — ${data.refundAmount} refunded (15% fee applied).`
+            : 'Booking cancelled.'
+        )
+        setRefreshTick(t => t + 1)
+      } else {
+        toast.error(data.error || 'Could not cancel the booking')
+      }
+    } catch {
+      toast.error('Could not cancel the booking')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   // Derive classes list from calendar events for the Sessions tab.
   // Exclude completed/ended sessions and sort chronologically so the next session is on top.
@@ -288,35 +330,79 @@ export function DashboardCalendar({
                               {formatDate(s.start)} · {formatEventTime(s.start)}
                             </p>
                           </div>
-                          {s.type === 'one-on-one' &&
-                          s.requestId &&
-                          new Date(s.end).getTime() < Date.now() ? (
-                            <button
-                              type="button"
-                              onClick={() => setReviewRequestId(s.requestId ?? null)}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                            >
-                              <Star className="h-3.5 w-3.5" />
-                              Rate
-                            </button>
-                          ) : s.meetingUrl ? (
-                            <a
-                              href={s.meetingUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={cn(
-                                'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                isLive
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-blue-600 hover:bg-blue-700'
+                          <div className="flex shrink-0 items-center gap-2">
+                            {s.type === 'one-on-one' &&
+                              s.requestId &&
+                              new Date(s.end).getTime() >= Date.now() && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCancelBooking(s.requestId as string)}
+                                    disabled={cancellingId === s.requestId}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                  >
+                                    {cancellingId === s.requestId ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" />
+                                    )}
+                                    Cancel
+                                  </button>
+                                </>
                               )}
-                            >
-                              <Video className="h-3.5 w-3.5" />
-                              {isLive ? 'Join now' : 'Join'}
-                            </a>
-                          ) : (
-                            <span className="shrink-0 text-xs text-gray-400">Scheduled</span>
-                          )}
+                            {s.type === 'one-on-one' &&
+                            s.requestId &&
+                            new Date(s.end).getTime() < Date.now() ? (
+                              <button
+                                type="button"
+                                onClick={() => setReviewRequestId(s.requestId ?? null)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                              >
+                                <Star className="h-3.5 w-3.5" />
+                                Rate
+                              </button>
+                            ) : s.sessionId ? (
+                              // Two-way in-app call room (both student and tutor).
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/call/${s.sessionId}`)}
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  isLive
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                )}
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {isLive ? 'Join now' : 'Join'}
+                              </button>
+                            ) : s.meetingUrl ? (
+                              <a
+                                href={s.meetingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  isLive
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                )}
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {isLive ? 'Join now' : 'Join'}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">Scheduled</span>
+                            )}
+                          </div>
                         </li>
                       )
                     })}
@@ -451,6 +537,14 @@ export function DashboardCalendar({
           requestId={reviewRequestId}
           open
           onOpenChange={o => !o && setReviewRequestId(null)}
+        />
+      )}
+      {rescheduleRequestId && (
+        <OneOnOneRescheduleDialog
+          requestId={rescheduleRequestId}
+          open
+          onOpenChange={o => !o && setRescheduleRequestId(null)}
+          onChanged={onRefresh}
         />
       )}
     </>

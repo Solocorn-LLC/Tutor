@@ -13,6 +13,9 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
+import { requestedDateFromString } from '@/lib/one-on-one/time'
+import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
+import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -48,6 +51,7 @@ export const POST = withCsrf(
       columns: {
         hourlyRate: true,
         oneOnOneEnabled: true,
+        oneOnOneFree: true,
         currency: true,
         timezone: true,
       },
@@ -59,7 +63,8 @@ export const POST = withCsrf(
       throw new ValidationError('Tutor does not offer one-on-one sessions')
     }
 
-    if (!tutorProfile.hourlyRate || tutorProfile.hourlyRate <= 0) {
+    // Free tutors need no rate; paid tutors must have one set.
+    if (!tutorProfile.oneOnOneFree && (!tutorProfile.hourlyRate || tutorProfile.hourlyRate <= 0)) {
       throw new ValidationError('Tutor has not set an hourly rate yet. Please check back later.')
     }
 
@@ -73,6 +78,7 @@ export const POST = withCsrf(
           eq(oneOnOneBookingRequest.status, 'ACCEPTED')
         )
       ),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (existingRequest) {
@@ -114,10 +120,13 @@ export const POST = withCsrf(
     // Store remaining slots in tutorNotes as JSON
     const [primarySlot, ...additionalSlots] = validated.proposedSlots
     const durationHours = validated.duration / 60
-    const costPerSession = Math.round(tutorProfile.hourlyRate * durationHours * 100) / 100
+    const costPerSession = tutorProfile.oneOnOneFree
+      ? 0
+      : Math.round((tutorProfile.hourlyRate ?? 0) * durationHours * 100) / 100
 
-    // Parse the date and time
-    const requestedDate = new Date(`${primarySlot.date}T00:00:00`)
+    // Store the calendar date as midnight-UTC so it round-trips regardless of
+    // the server's own timezone (wall-clock times live in `timezone` below).
+    const requestedDate = requestedDateFromString(primarySlot.date)
 
     // Create the request
     const newRequest = await drizzleDb
@@ -140,7 +149,12 @@ export const POST = withCsrf(
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .returning()
+      .returning(CORE_BOOKING_RETURNING)
+
+    // Open the student↔tutor direct-message thread on booking, so each appears
+    // in the other's chat contact list right away (idempotent — re-accept/pay
+    // just reuse this thread).
+    getOrCreateConversation(session.user.id, validated.tutorId).catch(() => {})
 
     // Send notification to tutor
     notify({
@@ -171,6 +185,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
   if (requestId) {
     const requestRow = await drizzleDb.query.oneOnOneBookingRequest.findFirst({
       where: eq(oneOnOneBookingRequest.requestId, requestId),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (!requestRow) throw new NotFoundError('Request not found')
@@ -206,6 +221,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.studentId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         tutor: {
           columns: {
@@ -222,6 +238,7 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     requests = await drizzleDb.query.oneOnOneBookingRequest.findMany({
       where: eq(oneOnOneBookingRequest.tutorId, session.user.id),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
+      columns: CORE_BOOKING_COLUMNS,
       with: {
         student: {
           columns: {

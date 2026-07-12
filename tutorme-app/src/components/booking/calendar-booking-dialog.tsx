@@ -81,6 +81,7 @@ interface TimeSlot {
 interface AvailabilityData {
   available: boolean
   hourlyRate: number
+  free?: boolean
   pricingIncomplete?: boolean
   reason?: string
   currency: string
@@ -117,6 +118,9 @@ export function CalendarBookingDialog({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [hasPendingRequest, setHasPendingRequest] = useState(false)
   const [activeRequest, setActiveRequest] = useState<{ id: string; status: string } | null>(null)
+  const [onWaitlist, setOnWaitlist] = useState(false)
+  const [waitlistBusy, setWaitlistBusy] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   // Recurring booking: how many weeks to repeat the selected slot
   const [recurringWeeks, setRecurringWeeks] = useState(1)
@@ -168,6 +172,84 @@ export function CalendarBookingDialog({
     }
   }, [open, tutor.id, weekOffset])
 
+  // Waitlist status (so the button reads Join vs Leave).
+  useEffect(() => {
+    if (!open || !tutor.id) return
+    fetch(`/api/one-on-one/waitlist?tutorId=${encodeURIComponent(tutor.id)}`, {
+      credentials: 'include',
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setOnWaitlist(!!d?.onWaitlist))
+      .catch(() => {})
+  }, [open, tutor.id])
+
+  const toggleWaitlist = async () => {
+    setWaitlistBusy(true)
+    try {
+      const res = onWaitlist
+        ? await fetch(`/api/one-on-one/waitlist?tutorId=${encodeURIComponent(tutor.id)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
+        : await fetch('/api/one-on-one/waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ tutorId: tutor.id }),
+          })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setOnWaitlist(!!d.onWaitlist)
+        toast.success(
+          d.onWaitlist ? "You're on the waitlist — we'll notify you." : 'Left the waitlist.'
+        )
+      } else {
+        toast.error(d.error || 'Could not update the waitlist')
+      }
+    } catch {
+      toast.error('Could not update the waitlist')
+    } finally {
+      setWaitlistBusy(false)
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!activeRequest?.id) return
+    if (
+      !window.confirm(
+        'Cancel this 1-on-1 booking? If you already paid, a refund (minus the 15% fee) is issued automatically.'
+      )
+    ) {
+      return
+    }
+    setCancelling(true)
+    try {
+      const res = await fetch('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId: activeRequest.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(
+          data.refunded
+            ? `Booking cancelled — ${data.refundAmount} refunded (15% fee applied).`
+            : 'Booking cancelled.'
+        )
+        setHasPendingRequest(false)
+        setActiveRequest(null)
+        onOpenChange(false)
+      } else {
+        toast.error(data.error || 'Could not cancel the booking')
+      }
+    } catch {
+      toast.error('Could not cancel the booking')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   // Reset selected slot when week changes
   useEffect(() => {
     setSelectedSlot(null)
@@ -194,10 +276,14 @@ export function CalendarBookingDialog({
         }
       } else {
         const error = await res.json().catch(() => ({}))
-        setAvailabilityError(error.error || 'Failed to load availability')
+        const msg = error.error || 'Failed to load availability'
+        setAvailabilityError(msg)
+        toast.error(msg)
       }
-    } catch {
-      setAvailabilityError('Failed to load availability')
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load availability'
+      setAvailabilityError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -473,6 +559,15 @@ export function CalendarBookingDialog({
             )}
             <Button
               variant="modal-secondary-dark"
+              onClick={handleCancelRequest}
+              disabled={cancelling}
+              className="h-10 border-red-300 text-red-600 hover:bg-red-50"
+            >
+              {cancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Cancel booking
+            </Button>
+            <Button
+              variant="modal-secondary-dark"
               onClick={() => onOpenChange(false)}
               className="h-10"
             >
@@ -519,7 +614,9 @@ export function CalendarBookingDialog({
                 <DialogPanel className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-blue-600" />
                   <span className="font-medium text-gray-900">
-                    {availability?.currency} {availability?.hourlyRate} per session (1 hour)
+                    {availability?.free
+                      ? 'Free session — no payment needed'
+                      : `${availability?.currency} ${availability?.hourlyRate} per session (1 hour)`}
                   </span>
                 </DialogPanel>
               </div>
@@ -527,28 +624,6 @@ export function CalendarBookingDialog({
               {loading && !availability ? (
                 <div className="flex flex-1 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                </div>
-              ) : availabilityError ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <DialogPanel className="py-6 text-center">
-                    {availabilityError === 'Pricing not set' ? (
-                      <div className="space-y-2">
-                        <p className="font-medium text-gray-900">
-                          This tutor is available for one-on-one sessions but has not set a price
-                          yet.
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Please check back later or contact the tutor directly.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-600">
-                        {availability?.reason === 'disabled'
-                          ? 'This tutor is not currently offering one-on-one sessions.'
-                          : availabilityError}
-                      </p>
-                    )}
-                  </DialogPanel>
                 </div>
               ) : (
                 <>
@@ -590,6 +665,12 @@ export function CalendarBookingDialog({
 
                   {/* Calendar container */}
                   <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
+                    {/* Error banner */}
+                    {availabilityError && availabilityError !== 'Pricing not set' && (
+                      <div className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-center text-xs text-red-600">
+                        {availabilityError}
+                      </div>
+                    )}
                     {/* Loading overlay for week navigation */}
                     {loading && (
                       <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
@@ -844,8 +925,9 @@ export function CalendarBookingDialog({
                           Price
                         </span>
                         <span className="text-sm font-semibold">
-                          {availability?.currency}{' '}
-                          {(availability?.hourlyRate ?? 0) * summaryData.sessionCount}
+                          {availability?.free
+                            ? 'Free'
+                            : `${availability?.currency} ${(availability?.hourlyRate ?? 0) * summaryData.sessionCount}`}
                         </span>
                       </div>
                     </div>
@@ -857,6 +939,21 @@ export function CalendarBookingDialog({
         </Tabs>
 
         <DialogFooter className="shrink-0 gap-3 px-6 pb-6">
+          <Button
+            variant="modal-secondary-dark"
+            onClick={toggleWaitlist}
+            disabled={waitlistBusy}
+            className="h-10"
+            title="Get notified when this tutor has a new opening"
+          >
+            {waitlistBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : onWaitlist ? (
+              'Leave waitlist'
+            ) : (
+              'Join waitlist'
+            )}
+          </Button>
           <Button
             variant="modal-secondary-dark"
             onClick={() => onOpenChange(false)}

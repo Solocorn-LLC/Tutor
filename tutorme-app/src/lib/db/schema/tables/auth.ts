@@ -90,6 +90,9 @@ export const profile = pgTable(
     isOnboarded: boolean('isOnboarded').notNull().default(false),
     hourlyRate: doublePrecision('hourlyRate'),
     oneOnOneEnabled: boolean('oneOnOneEnabled'),
+    // When true, 1-on-1 sessions are offered free: booking skips payment and a
+    // tutor-accepted request is confirmed immediately (no gateway needed).
+    oneOnOneFree: boolean('oneOnOneFree').notNull().default(false),
     // Minutes of gap the tutor wants around 1-on-1 bookings, enforced in
     // conflict detection so back-to-back sessions can't be double-booked.
     bufferMinutes: integer('bufferMinutes'),

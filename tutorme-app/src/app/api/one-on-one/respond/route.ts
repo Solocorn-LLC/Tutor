@@ -13,6 +13,9 @@ import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
 } from '@/lib/student-availability'
+import { slotInstants } from '@/lib/one-on-one/time'
+import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
+import { getOrCreateConversation } from '@/lib/messaging/conversation'
 
 const respondSchema = z.object({
   requestId: z.string().min(1),
@@ -48,6 +51,7 @@ export async function PATCH(request: NextRequest) {
         eq(oneOnOneBookingRequest.requestId, validated.requestId),
         eq(oneOnOneBookingRequest.tutorId, session.user.id)
       ),
+      columns: CORE_BOOKING_COLUMNS,
     })
 
     if (!existingRequest) {
@@ -100,18 +104,26 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
-      // Create event timestamps
-      const eventStart = new Date(`${slotDate}T${slotStartTime}:00`)
-      const eventEnd = new Date(`${slotDate}T${slotEndTime}:00`)
+      // Resolve the picked wall-clock slot to true UTC instants in the
+      // booking's own timezone (not the server's).
+      const { start: eventStart, end: eventEnd } = slotInstants(
+        slotDate,
+        slotStartTime,
+        slotEndTime,
+        existingRequest.timezone
+      )
       const durationMinutes = existingRequest.durationMinutes || 60
 
       // CHECK FOR CONFLICTS using unified conflict detector, expanded by the
       // tutor's configured buffer so bookings can't be scheduled too close.
       const [tutorProfileRow] = await drizzleDb
-        .select({ bufferMinutes: profile.bufferMinutes })
+        .select({ bufferMinutes: profile.bufferMinutes, oneOnOneFree: profile.oneOnOneFree })
         .from(profile)
         .where(eq(profile.userId, session.user.id))
         .limit(1)
+      // Free sessions (or a zero-cost request) skip payment: accepting confirms
+      // the booking immediately instead of opening a payment window.
+      const isFree = !!tutorProfileRow?.oneOnOneFree || (existingRequest.costPerSession ?? 0) <= 0
       const conflicts = await findConflicts(session.user.id, eventStart, eventEnd, {
         excludeOneOnOneId: validated.requestId,
         bufferMinutes: tutorProfileRow?.bufferMinutes ?? 0,
@@ -171,29 +183,48 @@ export async function PATCH(request: NextRequest) {
         const [updatedRequest] = await tx
           .update(oneOnOneBookingRequest)
           .set({
-            status: 'ACCEPTED',
+            // Free bookings are confirmed on accept (no payment step); paid ones
+            // wait in ACCEPTED until the student pays within the 48h window.
+            status: isFree ? 'PAID' : 'ACCEPTED',
+            paidAt: isFree ? new Date() : undefined,
             tutorNotes: validated.tutorNotes || existingRequest.tutorNotes,
             tutorResponseAt: new Date(),
-            // Payment window: the student has 48h to pay before the hold lapses.
-            paymentDueAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            paymentDueAt: isFree ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
             calendarEventId: newEvent.eventId,
             updatedAt: new Date(),
           })
           .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
-          .returning()
+          .returning(CORE_BOOKING_RETURNING)
 
         return { updatedRequest, newEvent }
       })
 
-      // Send notification to student that request was accepted
-      notify({
-        userId: existingRequest.studentId,
-        type: 'class',
-        title: '1-on-1 Request Accepted!',
-        message: `Your tutor has accepted your 1-on-1 session request. Please complete payment to confirm your booking.`,
-        data: { requestId: txResult.updatedRequest.requestId, type: 'one-on-one-accepted' },
-        actionUrl: `/payment?requestId=${txResult.updatedRequest.requestId}`,
-      }).catch(console.error)
+      // Open the student↔tutor direct-message thread as soon as the booking is
+      // accepted, so each shows up in the other's chat contact list right away
+      // (for a paid booking the payment webhook also ensures this).
+      getOrCreateConversation(existingRequest.studentId, existingRequest.tutorId).catch(() => {})
+
+      if (isFree) {
+        // Free booking: confirmed immediately — skip the payment prompt.
+        notify({
+          userId: existingRequest.studentId,
+          type: 'class',
+          title: '1-on-1 Confirmed!',
+          message: `Your tutor accepted your free 1-on-1 session — you're all set. It's on your schedule.`,
+          data: { requestId: txResult.updatedRequest.requestId, type: 'one-on-one-confirmed' },
+          actionUrl: '/student/dashboard',
+        }).catch(console.error)
+      } else {
+        // Paid booking: prompt the student to complete payment.
+        notify({
+          userId: existingRequest.studentId,
+          type: 'class',
+          title: '1-on-1 Request Accepted!',
+          message: `Your tutor has accepted your 1-on-1 session request. Please complete payment to confirm your booking.`,
+          data: { requestId: txResult.updatedRequest.requestId, type: 'one-on-one-accepted' },
+          actionUrl: `/payment?requestId=${txResult.updatedRequest.requestId}`,
+        }).catch(console.error)
+      }
 
       return NextResponse.json({
         success: true,
@@ -211,7 +242,7 @@ export async function PATCH(request: NextRequest) {
           updatedAt: new Date(),
         })
         .where(eq(oneOnOneBookingRequest.requestId, validated.requestId))
-        .returning()
+        .returning(CORE_BOOKING_RETURNING)
 
       // Send notification to student that request was rejected
       notify({

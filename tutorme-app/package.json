@@ -10,6 +10,7 @@
     "not IE 11"
   ],
   "scripts": {
+    "prepare": "cd .. && git config core.hooksPath .githooks 2>/dev/null || true",
     "dev": "NODE_ENV=production tsx server.ts",
     "dev:next": "next dev --port 3003",
     "dev:all": "npm run dev",

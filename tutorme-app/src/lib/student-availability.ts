@@ -61,7 +61,9 @@ export async function isSlotWithinStudentAvailability(
   const free = await getStudentFreeHourSet(studentId)
   if (free === null) return true // no availability configured → don't block
 
-  const day = new Date(`${date}T00:00:00`).getDay()
+  // Day-of-week of the calendar date itself — parse as UTC so it doesn't shift
+  // with the server's timezone (a plain YYYY-MM-DD has a fixed weekday).
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay()
   const [sh, sm] = startTime.split(':').map(Number)
   const [eh, em] = endTime.split(':').map(Number)
   const startMin = sh * 60 + (sm || 0)
