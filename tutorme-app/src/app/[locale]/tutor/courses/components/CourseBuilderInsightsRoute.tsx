@@ -49,7 +49,7 @@ import {
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
@@ -545,8 +545,9 @@ function CourseBuilderInsightsRouteInner({
 
   // Reschedule dialog state
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [wizardTab, setWizardTab] = useState<'details' | 'category' | 'schedule'>('details')
   const [rescheduleName, setRescheduleName] = useState('')
-  const [rescheduleCategory, setRescheduleCategory] = useState('')
+  const [rescheduleCategories, setRescheduleCategories] = useState<string[]>([])
   const [reschedulePrice, setReschedulePrice] = useState<string>('')
   const [rescheduleCurrency, setRescheduleCurrency] = useState('USD')
   const [rescheduleIsFree, setRescheduleIsFree] = useState(false)
@@ -811,7 +812,10 @@ function CourseBuilderInsightsRouteInner({
   const openRescheduleDialog = useCallback(() => {
     if (!currentCourse) return
     setRescheduleName(`${currentCourse.name} — Rescheduled`)
-    setRescheduleCategory(currentCourse.variantCategory || currentCourse.categories?.[0] || '')
+    setRescheduleCategories(
+      currentCourse.categories || ([currentCourse.variantCategory].filter(Boolean) as string[])
+    )
+    setWizardTab('details')
     setReschedulePrice('')
     setRescheduleCurrency('USD')
     setRescheduleIsFree(false)
@@ -822,8 +826,9 @@ function CourseBuilderInsightsRouteInner({
 
   const closeRescheduleDialog = useCallback(() => {
     setRescheduleDialogOpen(false)
+    setWizardTab('details')
     setRescheduleName('')
-    setRescheduleCategory('')
+    setRescheduleCategories([])
     setReschedulePrice('')
     setRescheduleCurrency('USD')
     setRescheduleIsFree(false)
@@ -840,7 +845,7 @@ function CourseBuilderInsightsRouteInner({
     try {
       const payload = {
         name: rescheduleName,
-        category: rescheduleCategory,
+        categories: rescheduleCategories,
         price: rescheduleIsFree ? 0 : reschedulePrice ? parseFloat(reschedulePrice) : null,
         currency: rescheduleCurrency,
         isFree: rescheduleIsFree,
@@ -872,7 +877,7 @@ function CourseBuilderInsightsRouteInner({
   }, [
     courseId,
     rescheduleName,
-    rescheduleCategory,
+    rescheduleCategories,
     reschedulePrice,
     rescheduleCurrency,
     rescheduleIsFree,
@@ -1439,130 +1444,222 @@ function CourseBuilderInsightsRouteInner({
         </DialogContent>
       </Dialog>
 
-      {/* Reschedule Dialog */}
+      {/* Reschedule Dialog — 3-step wizard: Course Details → Category → Schedule */}
       <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]">
+        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-5xl">
           <div className="flex h-full flex-col p-7 sm:p-8">
             <DialogHeader className="p-0">
-              <DialogTitle>Reschedule as Independent Course</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-white">Reschedule as Independent Course</DialogTitle>
+              <DialogDescription className="text-white/70">
                 Create a new independent course with a different schedule. Original schedule slots
                 are greyed out.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="scrollbar-hide mt-6 flex flex-1 flex-col overflow-hidden pr-2">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-white">Course Name</Label>
-                  <Input
-                    value={rescheduleName}
-                    onChange={e => setRescheduleName(e.target.value)}
-                    placeholder="Course name"
-                    className="mt-1 border-slate-200 bg-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-white">Category</Label>
-                  <Input
-                    value={rescheduleCategory}
-                    onChange={e => setRescheduleCategory(e.target.value)}
-                    placeholder="Category"
-                    className="mt-1 border-slate-200 bg-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-white">Free</Label>
-                    <div className="mt-1 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-4">
-                      <span className="text-sm font-medium text-slate-600">
-                        {rescheduleIsFree ? 'Yes' : 'No'}
-                      </span>
-                      <Switch checked={rescheduleIsFree} onCheckedChange={setRescheduleIsFree} />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-white">Price</Label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-slate-600" />
+            {/* Wizard Tabs */}
+            <Tabs
+              value={wizardTab}
+              onValueChange={v => setWizardTab(v as 'details' | 'category' | 'schedule')}
+              className="mt-6 flex min-h-0 flex-1 flex-col"
+            >
+              <TabsList className="relative grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-1">
+                <TabsTrigger
+                  value="details"
+                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
+                >
+                  Course Details
+                </TabsTrigger>
+                <TabsTrigger
+                  value="category"
+                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
+                >
+                  Category
+                </TabsTrigger>
+                <TabsTrigger
+                  value="schedule"
+                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
+                >
+                  Schedule
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Tab: Course Details */}
+              <TabsContent value="details" className="mt-4 flex flex-1 flex-col overflow-hidden">
+                <div className="scrollbar-hide flex flex-1 flex-col overflow-y-auto pr-2">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-white">Course Name</Label>
                       <Input
-                        type="number"
-                        min={0}
-                        value={reschedulePrice}
-                        onChange={e => setReschedulePrice(e.target.value)}
-                        placeholder="0.00"
-                        disabled={rescheduleIsFree}
-                        className="border-slate-200 bg-white"
+                        value={rescheduleName}
+                        onChange={e => setRescheduleName(e.target.value)}
+                        placeholder="Course name"
+                        className="mt-1 border-slate-200 bg-white"
                       />
                     </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-white">Currency</Label>
-                    <Select value={rescheduleCurrency} onValueChange={setRescheduleCurrency}>
-                      <SelectTrigger className="mt-1 border-slate-200 bg-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(c => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-white">Language</Label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Languages className="h-4 w-4 text-slate-600" />
-                      <Input
-                        value={rescheduleLanguage}
-                        onChange={e => setRescheduleLanguage(e.target.value)}
-                        placeholder="e.g. English"
-                        className="border-slate-200 bg-white"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-white">Free</Label>
+                        <div className="mt-1 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-4">
+                          <span className="text-sm font-medium text-slate-600">
+                            {rescheduleIsFree ? 'Yes' : 'No'}
+                          </span>
+                          <Switch
+                            checked={rescheduleIsFree}
+                            onCheckedChange={setRescheduleIsFree}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-white">Price</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-slate-600" />
+                          <Input
+                            type="number"
+                            min={0}
+                            value={reschedulePrice}
+                            onChange={e => setReschedulePrice(e.target.value)}
+                            placeholder="0.00"
+                            disabled={rescheduleIsFree}
+                            className="border-slate-200 bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-white">Currency</Label>
+                        <Select value={rescheduleCurrency} onValueChange={setRescheduleCurrency}>
+                          <SelectTrigger className="mt-1 border-slate-200 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(
+                              c => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-white">Language</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Languages className="h-4 w-4 text-slate-600" />
+                          <Input
+                            value={rescheduleLanguage}
+                            onChange={e => setRescheduleLanguage(e.target.value)}
+                            placeholder="e.g. English"
+                            className="border-slate-200 bg-white"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
-                <p className="mb-2 text-sm font-medium text-white">Schedule</p>
-                <p className="mb-3 text-xs text-white/60">
-                  Select a new schedule. Original course slots are greyed out and cannot be
-                  selected.
-                </p>
-                <VariantScheduleEditor
-                  schedule={rescheduleSchedule}
-                  onScheduleChange={updater => setRescheduleSchedule(prev => updater(prev))}
-                  price={rescheduleIsFree ? 0 : parseFloat(reschedulePrice) || 0}
-                  weeksToSchedule={8}
-                  excludedSchedules={originalSchedule.length > 0 ? [originalSchedule] : undefined}
-                />
-              </div>
-            </div>
+                <div className="mt-4 flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeRescheduleDialog}
+                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (!rescheduleName.trim()) {
+                        toast.error('Please enter a course name')
+                        return
+                      }
+                      setWizardTab('category')
+                    }}
+                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
+                  >
+                    Next →
+                  </Button>
+                </div>
+              </TabsContent>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeRescheduleDialog}
-                className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleRescheduleSave}
-                disabled={rescheduleSaving || !rescheduleName.trim()}
-                className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
-              >
-                {rescheduleSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {rescheduleSaving ? 'Creating...' : 'Create Independent Course'}
-              </Button>
-            </div>
+              {/* Tab: Category */}
+              <TabsContent value="category" className="mt-4 flex flex-1 flex-col overflow-hidden">
+                <div className="scrollbar-hide flex flex-1 flex-col overflow-y-auto pr-2">
+                  <div className="max-h-[55vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
+                    <CourseCategoryPicker
+                      value={rescheduleCategories}
+                      onChange={setRescheduleCategories}
+                      storageUserId={undefined}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWizardTab('details')}
+                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
+                  >
+                    ← Back
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (rescheduleCategories.length === 0) {
+                        toast.error('Please select at least one category')
+                        return
+                      }
+                      setWizardTab('schedule')
+                    }}
+                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
+                  >
+                    Next →
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* Tab: Schedule */}
+              <TabsContent value="schedule" className="mt-4 flex flex-1 flex-col overflow-hidden">
+                <div className="scrollbar-hide flex flex-1 flex-col overflow-hidden pr-2">
+                  <p className="mb-2 text-sm font-medium text-white">Schedule</p>
+                  <p className="mb-3 text-xs text-white/60">
+                    Select a new schedule. Original course slots are greyed out and cannot be
+                    selected.
+                  </p>
+                  <VariantScheduleEditor
+                    schedule={rescheduleSchedule}
+                    onScheduleChange={updater => setRescheduleSchedule(prev => updater(prev))}
+                    price={rescheduleIsFree ? 0 : parseFloat(reschedulePrice) || 0}
+                    weeksToSchedule={8}
+                    excludedSchedules={originalSchedule.length > 0 ? [originalSchedule] : undefined}
+                    showTabs={false}
+                  />
+                </div>
+
+                <div className="mt-4 flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWizardTab('category')}
+                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
+                  >
+                    ← Back
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleRescheduleSave}
+                    disabled={rescheduleSaving || !rescheduleName.trim()}
+                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
+                  >
+                    {rescheduleSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {rescheduleSaving ? 'Publishing...' : 'Publish'}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </DialogContent>
       </Dialog>
