@@ -120,6 +120,7 @@ export function CalendarBookingDialog({
   const [activeRequest, setActiveRequest] = useState<{ id: string; status: string } | null>(null)
   const [onWaitlist, setOnWaitlist] = useState(false)
   const [waitlistBusy, setWaitlistBusy] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   // Recurring booking: how many weeks to repeat the selected slot
   const [recurringWeeks, setRecurringWeeks] = useState(1)
@@ -209,6 +210,43 @@ export function CalendarBookingDialog({
       toast.error('Could not update the waitlist')
     } finally {
       setWaitlistBusy(false)
+    }
+  }
+
+  const handleCancelRequest = async () => {
+    if (!activeRequest?.id) return
+    if (
+      !window.confirm(
+        'Cancel this 1-on-1 booking? If you already paid, a refund (minus the 15% fee) is issued automatically.'
+      )
+    ) {
+      return
+    }
+    setCancelling(true)
+    try {
+      const res = await fetch('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId: activeRequest.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(
+          data.refunded
+            ? `Booking cancelled — ${data.refundAmount} refunded (15% fee applied).`
+            : 'Booking cancelled.'
+        )
+        setHasPendingRequest(false)
+        setActiveRequest(null)
+        onOpenChange(false)
+      } else {
+        toast.error(data.error || 'Could not cancel the booking')
+      }
+    } catch {
+      toast.error('Could not cancel the booking')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -519,6 +557,15 @@ export function CalendarBookingDialog({
                 Complete Payment
               </Button>
             )}
+            <Button
+              variant="modal-secondary-dark"
+              onClick={handleCancelRequest}
+              disabled={cancelling}
+              className="h-10 border-red-300 text-red-600 hover:bg-red-50"
+            >
+              {cancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Cancel booking
+            </Button>
             <Button
               variant="modal-secondary-dark"
               onClick={() => onOpenChange(false)}
