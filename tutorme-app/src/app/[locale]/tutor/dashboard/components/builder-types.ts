@@ -373,6 +373,9 @@ export interface InsightsSessionOption {
 export interface CourseBuilderInsightsProps {
   courseId?: string | null
   courses?: Array<{ id: string; name: string; categories?: string[]; isPublished?: boolean }>
+  /** Local drafts (not yet published). Carries the category chosen at creation
+   *  so the builder can resolve Board/Subject before the course is published. */
+  draftCourses?: Array<{ id: string; name: string; categories?: string[] }>
   onCourseChange?: (courseId: string) => void
   sessionId: string | null
   sessions: InsightsSessionOption[]

@@ -36,6 +36,11 @@ export const maxDuration = 60
 const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
+  // Board/subject context carried from the course category (e.g. "AP",
+  // "Biology"). A hint so generation follows the right exam conventions — it
+  // never overrides the source paper's wording, marks, or answers.
+  examBody: z.string().max(60).optional(),
+  subject: z.string().max(120).optional(),
   // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
   // after front matter is trimmed client-side; still well under the model limit.
   content: z.string().max(80000).optional(),
@@ -465,7 +470,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { type, title, content, pdfPages, questionSpec, documentKindOverride } = parsed.data
+    const {
+      type,
+      title,
+      content,
+      pdfPages,
+      questionSpec,
+      documentKindOverride,
+      examBody,
+      subject,
+    } = parsed.data
 
     if (!content?.trim() && (!pdfPages || pdfPages.length === 0)) {
       return NextResponse.json({ error: 'No content or PDF pages provided' }, { status: 400 })
@@ -503,6 +517,18 @@ export async function POST(request: NextRequest) {
           ? `\n\nThe tutor has confirmed this document is study material (not a question paper). Set documentKind to "study_material".`
           : ''
 
+    // Board/Subject context from the course category. A hint only — the source
+    // paper still governs wording, marks, and answers; never invent policy from
+    // this. Mirrors the pattern parse-marking-scheme already uses.
+    const examContextInstruction =
+      examBody || subject
+        ? `\n\nThe tutor indicates this ${type} is ${[examBody, subject]
+            .filter(Boolean)
+            .join(
+              ' '
+            )} — follow that board's conventions where relevant, but do NOT change question wording or invent marks/answers that the source doesn't support.`
+        : ''
+
     let aiResponse: string
 
     if (pdfPages && pdfPages.length > 0) {
@@ -511,7 +537,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}`,
+          text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
         },
         ...pdfPages.map(page => ({
           type: 'image_url' as const,
@@ -526,7 +552,7 @@ export async function POST(request: NextRequest) {
         timeoutMs: 60000,
       })
     } else {
-      const prompt = `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}\n\n${content}`
+      const prompt = `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}${examContextInstruction}\n\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,

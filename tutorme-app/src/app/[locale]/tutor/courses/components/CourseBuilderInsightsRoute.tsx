@@ -1170,6 +1170,10 @@ function CourseBuilderInsightsRouteInner({
               onSave={onSaveCourse}
               insightsProps={{
                 ...insightsProps,
+                // Expose drafts too so the builder can resolve the course's
+                // category (Board/Subject) before it's published — drafts hold
+                // the category chosen at creation.
+                draftCourses,
                 onEndSession: insightsProps.sessionId ? handleEndSession : undefined,
                 onStartSession: handleStartSessionClick,
                 endingSession,
