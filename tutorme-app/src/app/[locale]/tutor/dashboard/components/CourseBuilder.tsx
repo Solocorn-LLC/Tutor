@@ -3432,7 +3432,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             documentKindOverride,
             // Board/subject context from the course category so generation
             // follows the right exam conventions (a hint, not a source override).
-            examBody: deriveExamContext(pciCategory || null, courseName).examBody || undefined,
+            // Honour the tutor's manual Board override if they set one.
+            examBody:
+              pciBoardOverride ||
+              deriveExamContext(pciCategory || null, courseName).examBody ||
+              undefined,
             subject:
               deriveExamContext(pciCategory || null, courseName).subject ||
               pciCategory ||
