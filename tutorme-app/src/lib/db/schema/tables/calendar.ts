@@ -295,3 +295,31 @@ export const oneOnOneReview = pgTable(
     OneOnOneReview_tutorId_idx: index('OneOnOneReview_tutorId_idx').on(table.tutorId),
   })
 )
+
+/**
+ * A student waiting for a 1-on-1 opening with a tutor who has no bookable slots.
+ * When a confirmed booking is cancelled, everyone on that tutor's waitlist is
+ * notified that a slot may have opened.
+ */
+export const oneOnOneWaitlist = pgTable(
+  'OneOnOneWaitlist',
+  {
+    waitlistId: text('id').primaryKey().notNull(),
+    tutorId: text('tutorId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    note: text('note'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    OneOnOneWaitlist_tutor_student_key: uniqueIndex('OneOnOneWaitlist_tutor_student_key').on(
+      table.tutorId,
+      table.studentId
+    ),
+    OneOnOneWaitlist_tutorId_idx: index('OneOnOneWaitlist_tutorId_idx').on(table.tutorId),
+    OneOnOneWaitlist_studentId_idx: index('OneOnOneWaitlist_studentId_idx').on(table.studentId),
+  })
+)

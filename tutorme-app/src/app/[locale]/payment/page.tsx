@@ -253,6 +253,11 @@ function PaymentPageInner() {
               <p className="text-4xl font-bold text-gray-900">
                 {formatCurrency(displayAmount, displayCurrency)}
               </p>
+              {requestId && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Cancellations are refundable at any time, minus a 15% cancellation fee.
+                </p>
+              )}
             </div>
 
             {/* Payment Method Selection */}

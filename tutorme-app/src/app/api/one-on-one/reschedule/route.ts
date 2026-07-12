@@ -43,6 +43,39 @@ async function loadOwnedBooking(requestId: string, userId: string): Promise<Book
   return row
 }
 
+// Current reschedule state for the dialog: the session's current time, any
+// pending proposal (and whether the caller made it), and whether it can still
+// be rescheduled.
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions, req)
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const requestId = new URL(req.url).searchParams.get('requestId')
+  if (!requestId) return NextResponse.json({ error: 'requestId required' }, { status: 400 })
+
+  const booking = await loadOwnedBooking(requestId, session.user.id)
+  if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+
+  const proposal = booking.rescheduleProposedBy
+    ? {
+        date: booking.rescheduleProposedDate?.toISOString().split('T')[0] ?? null,
+        startTime: booking.rescheduleProposedStart,
+        endTime: booking.rescheduleProposedEnd,
+        proposedByMe: booking.rescheduleProposedBy === session.user.id,
+      }
+    : null
+
+  return NextResponse.json({
+    current: {
+      date: booking.requestedDate.toISOString().split('T')[0],
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    },
+    proposal,
+    canReschedule: booking.status === 'ACCEPTED' || booking.status === 'PAID',
+  })
+}
+
 /** Availability + conflict + buffer checks for moving `booking` to a new slot.
  *  Returns an error message, or null when the slot is bookable. */
 async function validateSlot(
