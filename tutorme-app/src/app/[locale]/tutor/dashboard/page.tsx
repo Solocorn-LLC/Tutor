@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
 import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
@@ -236,6 +237,7 @@ function TutorDashboardContent() {
   const [launchingCourseId, setLaunchingCourseId] = useState<string | null>(null)
   const [oneAccountTipDismissed, setOneAccountTipDismissed] = useState(true)
   const [oneOnOneRequests, setOneOnOneRequests] = useState<OneOnOneRequest[]>([])
+  const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null)
 
   const [classroomDialogOpen, setClassroomDialogOpen] = useState(false)
@@ -334,10 +336,12 @@ function TutorDashboardContent() {
 
       if (oneOnOneRes.status === 'fulfilled' && oneOnOneRes.value.ok) {
         const d = await oneOnOneRes.value.json()
-        const pending = (d.requests ?? []).filter(
-          (req: OneOnOneRequest) => req.status === 'PENDING'
+        // Show pending requests (accept/reject) plus confirmed bookings
+        // (accept/paid) so the tutor can reschedule them.
+        const relevant = (d.requests ?? []).filter((req: OneOnOneRequest) =>
+          ['PENDING', 'ACCEPTED', 'PAID'].includes(req.status)
         )
-        setOneOnOneRequests(pending)
+        setOneOnOneRequests(relevant)
       }
 
       if (failures.length >= 2) {
@@ -1021,24 +1025,37 @@ function TutorDashboardContent() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={respondingRequestId === request.requestId}
-                            onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
-                            className="transition-all duration-200"
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:bg-destructive/10 transition-all duration-200"
-                            disabled={respondingRequestId === request.requestId}
-                            onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
-                          >
-                            Reject
-                          </Button>
+                          {request.status === 'PENDING' ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={respondingRequestId === request.requestId}
+                                onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
+                                className="transition-all duration-200"
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:bg-destructive/10 transition-all duration-200"
+                                disabled={respondingRequestId === request.requestId}
+                                onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setRescheduleRequestId(request.requestId)}
+                              className="transition-all duration-200"
+                            >
+                              Reschedule
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -1447,6 +1464,14 @@ function TutorDashboardContent() {
         canCreate
         onClose={() => setScheduleCourse(null)}
       />
+      {rescheduleRequestId && (
+        <OneOnOneRescheduleDialog
+          requestId={rescheduleRequestId}
+          open
+          onOpenChange={o => !o && setRescheduleRequestId(null)}
+          onChanged={fetchData}
+        />
+      )}
     </div>
   )
 }

@@ -13,15 +13,22 @@ export interface TutorRating {
 }
 
 export async function getTutorRating(tutorId: string): Promise<TutorRating> {
-  const [row] = await drizzleDb
-    .select({
-      avg: sql<number>`avg(${oneOnOneReview.rating})`,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(oneOnOneReview)
-    .where(eq(oneOnOneReview.tutorId, tutorId))
+  try {
+    const [row] = await drizzleDb
+      .select({
+        avg: sql<number>`avg(${oneOnOneReview.rating})`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(oneOnOneReview)
+      .where(eq(oneOnOneReview.tutorId, tutorId))
 
-  const count = Number(row?.count ?? 0)
-  if (count === 0) return { average: null, count: 0 }
-  return { average: Math.round(Number(row.avg) * 10) / 10, count }
+    const count = Number(row?.count ?? 0)
+    if (count === 0) return { average: null, count: 0 }
+    return { average: Math.round(Number(row.avg) * 10) / 10, count }
+  } catch (error) {
+    // Graceful degradation: if the OneOnOneReview table doesn't exist yet
+    // (migration not applied), return null rating instead of crashing.
+    console.warn('[getTutorRating] Table not ready, returning null rating:', error)
+    return { average: null, count: 0 }
+  }
 }

@@ -621,16 +621,7 @@ export default function TutorCoursePage() {
               className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] px-8 text-white shadow-[0_6px_16px_rgba(124,58,237,0.18),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:translate-y-0 hover:border-[#7c3aed] hover:bg-white hover:text-[#7c3aed] hover:shadow-[0_8px_18px_rgba(124,58,237,0.20)] hover:[background-image:none] active:bg-gradient-to-r active:from-[#6d28d9] active:to-[#7c3aed] active:shadow-[0_4px_10px_rgba(124,58,237,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
             >
               {publishingVariants ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {/* Once a course is published, re-running publish updates the
-                  existing variants in place (no duplicate course), so the button
-                  reads "Update" to avoid implying a second publish. */}
-              {publishingVariants
-                ? variantStats.published > 0
-                  ? 'Updating…'
-                  : 'Publishing…'
-                : variantStats.published > 0
-                  ? 'Update'
-                  : 'Publish'}
+              {publishingVariants ? 'Publishing…' : 'Publish'}
             </Button>
           </div>
         </div>

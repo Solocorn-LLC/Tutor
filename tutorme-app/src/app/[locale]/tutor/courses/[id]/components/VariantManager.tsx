@@ -553,7 +553,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                       <div className="flex items-center gap-3">
                         <Badge
                           variant="outline"
-                          className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                          className="whitespace-nowrap border-indigo-200 bg-indigo-50 text-indigo-700"
                         >
                           <span className="inline-flex items-center gap-1">
                             {variant.category} ·{' '}
@@ -818,7 +818,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               <DialogHeader className="p-0">
                 <DialogTitle>
                   {dialogVariant && dialogSchedule ? (
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       {`Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for `}
                       {dialogVariant.category} —{' '}
                       <CountryFlag countryName={dialogVariant.nationality} size="xs" showLabel />
