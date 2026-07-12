@@ -748,6 +748,14 @@ function CourseBuilderInsightsRouteInner({
 
     const isExistingDbCourse = courses?.some((c: any) => c.id === courseId)
 
+    // Carry the category chosen at creation. Drafts hold it locally, so when
+    // this first persists the draft to the DB we must pass it through — else
+    // the new course row gets categories:[] and the Course Details page shows
+    // no variant and no scheduler. (executeSave threads it the same way.)
+    const draftCategories = [...(courses || []), ...(draftCourses || [])].find(
+      (c: any) => c.id === courseId
+    )?.categories
+
     // 4. Publish via shared save function
     const result = await saveCourse({
       courseId,
@@ -755,6 +763,7 @@ function CourseBuilderInsightsRouteInner({
       mode: 'publish',
       courseName,
       detachedCourseName,
+      categories: draftCategories,
       developmentMode: 'single',
       previewDifficulty: 'all',
       isExistingDbCourse,
