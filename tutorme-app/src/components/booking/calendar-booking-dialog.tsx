@@ -117,6 +117,8 @@ export function CalendarBookingDialog({
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [hasPendingRequest, setHasPendingRequest] = useState(false)
   const [activeRequest, setActiveRequest] = useState<{ id: string; status: string } | null>(null)
+  const [onWaitlist, setOnWaitlist] = useState(false)
+  const [waitlistBusy, setWaitlistBusy] = useState(false)
 
   // Recurring booking: how many weeks to repeat the selected slot
   const [recurringWeeks, setRecurringWeeks] = useState(1)
@@ -167,6 +169,47 @@ export function CalendarBookingDialog({
       checkExistingRequest()
     }
   }, [open, tutor.id, weekOffset])
+
+  // Waitlist status (so the button reads Join vs Leave).
+  useEffect(() => {
+    if (!open || !tutor.id) return
+    fetch(`/api/one-on-one/waitlist?tutorId=${encodeURIComponent(tutor.id)}`, {
+      credentials: 'include',
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setOnWaitlist(!!d?.onWaitlist))
+      .catch(() => {})
+  }, [open, tutor.id])
+
+  const toggleWaitlist = async () => {
+    setWaitlistBusy(true)
+    try {
+      const res = onWaitlist
+        ? await fetch(`/api/one-on-one/waitlist?tutorId=${encodeURIComponent(tutor.id)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
+        : await fetch('/api/one-on-one/waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ tutorId: tutor.id }),
+          })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setOnWaitlist(!!d.onWaitlist)
+        toast.success(
+          d.onWaitlist ? "You're on the waitlist — we'll notify you." : 'Left the waitlist.'
+        )
+      } else {
+        toast.error(d.error || 'Could not update the waitlist')
+      }
+    } catch {
+      toast.error('Could not update the waitlist')
+    } finally {
+      setWaitlistBusy(false)
+    }
+  }
 
   // Reset selected slot when week changes
   useEffect(() => {
@@ -857,6 +900,21 @@ export function CalendarBookingDialog({
         </Tabs>
 
         <DialogFooter className="shrink-0 gap-3 px-6 pb-6">
+          <Button
+            variant="modal-secondary-dark"
+            onClick={toggleWaitlist}
+            disabled={waitlistBusy}
+            className="h-10"
+            title="Get notified when this tutor has a new opening"
+          >
+            {waitlistBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : onWaitlist ? (
+              'Leave waitlist'
+            ) : (
+              'Join waitlist'
+            )}
+          </Button>
           <Button
             variant="modal-secondary-dark"
             onClick={() => onOpenChange(false)}
