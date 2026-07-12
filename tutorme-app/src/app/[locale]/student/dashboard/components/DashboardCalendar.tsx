@@ -14,6 +14,7 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
 import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star } from 'lucide-react'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
+import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -104,6 +105,7 @@ export function DashboardCalendar({
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? [])
   const [loading, setLoading] = useState(!initialEvents?.length)
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
+  const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -288,35 +290,49 @@ export function DashboardCalendar({
                               {formatDate(s.start)} · {formatEventTime(s.start)}
                             </p>
                           </div>
-                          {s.type === 'one-on-one' &&
-                          s.requestId &&
-                          new Date(s.end).getTime() < Date.now() ? (
-                            <button
-                              type="button"
-                              onClick={() => setReviewRequestId(s.requestId ?? null)}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                            >
-                              <Star className="h-3.5 w-3.5" />
-                              Rate
-                            </button>
-                          ) : s.meetingUrl ? (
-                            <a
-                              href={s.meetingUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={cn(
-                                'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                isLive
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-blue-600 hover:bg-blue-700'
+                          <div className="flex shrink-0 items-center gap-2">
+                            {s.type === 'one-on-one' &&
+                              s.requestId &&
+                              new Date(s.end).getTime() >= Date.now() && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                >
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  Reschedule
+                                </button>
                               )}
-                            >
-                              <Video className="h-3.5 w-3.5" />
-                              {isLive ? 'Join now' : 'Join'}
-                            </a>
-                          ) : (
-                            <span className="shrink-0 text-xs text-gray-400">Scheduled</span>
-                          )}
+                            {s.type === 'one-on-one' &&
+                            s.requestId &&
+                            new Date(s.end).getTime() < Date.now() ? (
+                              <button
+                                type="button"
+                                onClick={() => setReviewRequestId(s.requestId ?? null)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                              >
+                                <Star className="h-3.5 w-3.5" />
+                                Rate
+                              </button>
+                            ) : s.meetingUrl ? (
+                              <a
+                                href={s.meetingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  isLive
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                )}
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {isLive ? 'Join now' : 'Join'}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">Scheduled</span>
+                            )}
+                          </div>
                         </li>
                       )
                     })}
@@ -451,6 +467,14 @@ export function DashboardCalendar({
           requestId={reviewRequestId}
           open
           onOpenChange={o => !o && setReviewRequestId(null)}
+        />
+      )}
+      {rescheduleRequestId && (
+        <OneOnOneRescheduleDialog
+          requestId={rescheduleRequestId}
+          open
+          onOpenChange={o => !o && setRescheduleRequestId(null)}
+          onChanged={onRefresh}
         />
       )}
     </>
