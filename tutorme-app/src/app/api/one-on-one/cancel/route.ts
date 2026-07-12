@@ -5,6 +5,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, calendarEvent, liveSession } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { refundPaidOneOnOne, type RefundOutcome } from '@/lib/payments/refund-one-on-one'
+import { notifyWaitlistOfOpening } from '@/lib/one-on-one/waitlist'
 import { z } from 'zod'
 
 const cancelSchema = z.object({
@@ -148,6 +149,12 @@ export async function PATCH(request: NextRequest) {
           actionUrl: '/tutor/dashboard',
         }).catch(console.error)
       }
+    }
+
+    // Cancelling a confirmed booking frees a slot — let this tutor's waitlist
+    // know they may have new availability.
+    if (existingRequest.status === 'ACCEPTED' || existingRequest.status === 'PAID') {
+      void notifyWaitlistOfOpening(existingRequest.tutorId)
     }
 
     return NextResponse.json({
