@@ -490,6 +490,14 @@ function CourseBuilderInsightsRouteInner({
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   // Two-step create flow: name → category (category is required at creation).
   const [createStep, setCreateStep] = useState<'name' | 'category'>('name')
+  // Close + clear the create dialog so a cancelled attempt doesn't leave a stale
+  // name/category on the next open. (Successful create clears via its own handler.)
+  const closeCreateDialog = () => {
+    setCreateStep('name')
+    setNewCourseName?.('')
+    setNewCourseCategories?.([])
+    setIsCreateDialogOpen?.(false)
+  }
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
@@ -1159,10 +1167,7 @@ function CourseBuilderInsightsRouteInner({
       {/* Create Course Dialog — step 1: name, step 2: category (required) */}
       <Dialog
         open={isCreateDialogOpen}
-        onOpenChange={next => {
-          setCreateStep('name')
-          setIsCreateDialogOpen?.(next)
-        }}
+        onOpenChange={next => (next ? setIsCreateDialogOpen?.(true) : closeCreateDialog())}
       >
         <DialogContent
           className={
@@ -1228,10 +1233,7 @@ function CourseBuilderInsightsRouteInner({
           <DialogFooter className="gap-3">
             {createStep === 'name' ? (
               <>
-                <Button
-                  variant="modal-secondary-dark"
-                  onClick={() => setIsCreateDialogOpen?.(false)}
-                >
+                <Button variant="modal-secondary-dark" onClick={closeCreateDialog}>
                   Cancel
                 </Button>
                 <Button
