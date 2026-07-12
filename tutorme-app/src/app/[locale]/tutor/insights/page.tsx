@@ -350,6 +350,9 @@ function TutorInsightsPageInner() {
         draftListStorageKey: draftStorageKey,
         courseName: options?.courseName,
         courseDescription: options?.courseDescription,
+        // When a draft is first persisted to the DB, carry the category chosen
+        // at creation (drafts hold it locally) so it isn't lost.
+        categories: [...courses, ...draftCourses].find(c => c.id === courseId)?.categories,
         detachedCourseName,
         isAutoSave: options?.isAutoSave,
         propagateToVariants,
@@ -385,7 +388,16 @@ function TutorInsightsPageInner() {
         )
       }
     },
-    [courseId, saveMode, draftStorageKey, isPublishedVariant, detachedCourseName, router]
+    [
+      courseId,
+      saveMode,
+      draftStorageKey,
+      isPublishedVariant,
+      detachedCourseName,
+      router,
+      courses,
+      draftCourses,
+    ]
   )
 
   const handleSave = useCallback(
@@ -415,6 +427,7 @@ function TutorInsightsPageInner() {
       const newCourse = {
         id: `course-${Date.now()}`,
         name: newCourseName.trim(),
+        categories: newCourseCategories,
         modules: [],
         updatedAt: new Date().toISOString(),
       }
@@ -430,7 +443,12 @@ function TutorInsightsPageInner() {
         )
         setDraftCourses(prev => [
           ...prev,
-          { id: newCourse.id, name: newCourse.name, updatedAt: newCourse.updatedAt },
+          {
+            id: newCourse.id,
+            name: newCourse.name,
+            categories: newCourseCategories,
+            updatedAt: newCourse.updatedAt,
+          },
         ])
         setCourseId(newCourse.id)
         setDetachedCourseName(newCourse.name)
