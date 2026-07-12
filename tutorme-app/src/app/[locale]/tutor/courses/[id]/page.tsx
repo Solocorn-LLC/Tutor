@@ -133,6 +133,47 @@ export default function TutorCoursePage() {
     return code
   }, [])
 
+  // Prefill the country picker from the course's already-published variants so a
+  // re-published course reflects its real countries instead of defaulting to
+  // Global (which would otherwise add a spurious Global variant next to them).
+  useEffect(() => {
+    if (!id) return
+    let active = true
+    fetch(`/api/tutor/courses/${id}/publish`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { variants: [] }))
+      .then((data: { variants?: Array<{ nationality?: string }> }) => {
+        if (!active) return
+        const nationalities = [
+          ...new Set((data.variants ?? []).map(v => v.nationality).filter(Boolean)),
+        ] as string[]
+        if (nationalities.length === 0) return // no variants yet → keep Global default
+        const codes: string[] = []
+        let regionId = ''
+        for (const nat of nationalities) {
+          if (nat === 'Global') {
+            codes.push('GL')
+            continue
+          }
+          for (const region of REGIONS) {
+            const match = region.countries.find(c => c.name === nat)
+            if (match) {
+              codes.push(match.code)
+              if (region.id !== 'global') regionId = region.id
+              break
+            }
+          }
+        }
+        if (codes.length > 0) {
+          setSelectedCountryCodes(codes)
+          if (regionId) setSelectedRegion(regionId)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [id])
+
   const loadCourse = useCallback(async () => {
     if (!id) return
     setLoading(true)
