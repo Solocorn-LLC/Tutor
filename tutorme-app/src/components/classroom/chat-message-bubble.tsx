@@ -45,8 +45,9 @@ export function ChatMessageBubble({
   const resolvedAvatar = resolvePublicUrl(avatarUrl)
   const initial = name.charAt(0).toUpperCase()
 
-  // Document card rendering
-  if (isDocument && document) {
+  // Document card rendering — wrapped in the same avatar+bubble layout as messages
+  const documentCard = (() => {
+    if (!isDocument || !document) return null
     const rawUrl = document.fileUrl || ''
     const docUrl = document.fileKey
       ? `/api/proxy-file?key=${encodeURIComponent(document.fileKey)}`
@@ -60,49 +61,41 @@ export function ChatMessageBubble({
     const isImage = !!document.mimeType?.startsWith('image/')
 
     return (
-      <div className="flex items-start">
-        <button
-          type="button"
-          onClick={() => loadable && onDocumentClick?.()}
-          disabled={!loadable}
-          className={cn(
-            'max-w-[85%] cursor-pointer rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-            isClassroom
-              ? 'border-orange-200 bg-orange-50/50 hover:border-orange-300 hover:bg-orange-50'
-              : 'border-violet-200 bg-violet-50/50 hover:border-violet-300 hover:bg-violet-50'
-          )}
-        >
-          <div className="flex items-center gap-3">
-            {isPdf && loadable ? (
-              <div className="shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
-                <PDFThumbnail
-                  fileUrl={docUrl}
-                  fileKey={document.fileKey ?? undefined}
-                  width={100}
-                />
-              </div>
-            ) : isImage ? (
-              <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
-                <ImageIcon className="h-5 w-5 text-gray-400" />
-              </div>
-            ) : (
-              <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
-                <FileText className="h-5 w-5 text-gray-400" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-gray-800">{docName}</p>
-              <p className="text-xs text-gray-500">
-                {loadable
-                  ? 'Click to view document'
-                  : 'This document is unavailable. Re-upload it.'}
-              </p>
+      <button
+        type="button"
+        onClick={() => loadable && onDocumentClick?.()}
+        disabled={!loadable}
+        className={cn(
+          'max-w-[85%] cursor-pointer rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+          isClassroom
+            ? 'border-orange-200 bg-orange-50/50 hover:border-orange-300 hover:bg-orange-50'
+            : 'border-violet-200 bg-violet-50/50 hover:border-violet-300 hover:bg-violet-50'
+        )}
+      >
+        <div className="flex items-center gap-3">
+          {isPdf && loadable ? (
+            <div className="shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
+              <PDFThumbnail fileUrl={docUrl} fileKey={document.fileKey ?? undefined} width={100} />
             </div>
+          ) : isImage ? (
+            <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
+              <ImageIcon className="h-5 w-5 text-gray-400" />
+            </div>
+          ) : (
+            <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
+              <FileText className="h-5 w-5 text-gray-400" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-gray-800">{docName}</p>
+            <p className="text-xs text-gray-500">
+              {loadable ? 'Click to view document' : 'This document is unavailable. Re-upload it.'}
+            </p>
           </div>
-        </button>
-      </div>
+        </div>
+      </button>
     )
-  }
+  })()
 
   return (
     <div
@@ -145,19 +138,23 @@ export function ChatMessageBubble({
           </span>
         )}
 
-        {/* Message bubble */}
-        <div
-          className={cn(
-            'whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
-            isStudent
-              ? 'rounded-tl-sm border border-slate-200 bg-white text-slate-800 shadow-sm'
-              : isClassroom
-                ? 'rounded-br-sm bg-[#F17623] text-white'
-                : 'rounded-br-sm bg-violet-600 text-white'
-          )}
-        >
-          {content}
-        </div>
+        {/* Message bubble or document card */}
+        {documentCard ? (
+          documentCard
+        ) : (
+          <div
+            className={cn(
+              'whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
+              isStudent
+                ? 'rounded-tl-sm border border-slate-200 bg-white text-slate-800 shadow-sm'
+                : isClassroom
+                  ? 'rounded-br-sm bg-[#F17623] text-white'
+                  : 'rounded-br-sm bg-violet-600 text-white'
+            )}
+          >
+            {content}
+          </div>
+        )}
 
         {/* Timestamp */}
         {timestamp && (
