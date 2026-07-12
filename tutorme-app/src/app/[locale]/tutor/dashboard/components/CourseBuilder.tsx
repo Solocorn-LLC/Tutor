@@ -10134,6 +10134,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   onPersist={s => {
                                                     testTaskChatStore.current[previewKey] = s
                                                   }}
+                                                  mode={
+                                                    tab.id === 'classroom'
+                                                      ? 'classroom'
+                                                      : 'test-student'
+                                                  }
                                                 />
                                               </div>
                                             )
