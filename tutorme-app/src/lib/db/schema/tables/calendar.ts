@@ -323,3 +323,86 @@ export const oneOnOneWaitlist = pgTable(
     OneOnOneWaitlist_studentId_idx: index('OneOnOneWaitlist_studentId_idx').on(table.studentId),
   })
 )
+
+/**
+ * A tutor-hosted group 1-on-1: an open session at a set time with a fixed seat
+ * capacity and a per-seat price. Multiple students each book (and pay for) their
+ * own seat; the session is shared. Times follow the same absolute-UTC convention
+ * as OneOnOneBookingRequest (requestedDate = midnight-UTC calendar date; the
+ * wall-clock startTime/endTime are interpreted in `timezone`).
+ */
+export const groupSession = pgTable(
+  'GroupSession',
+  {
+    groupSessionId: text('id').primaryKey().notNull(),
+    tutorId: text('tutorId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    requestedDate: timestamp('requestedDate', { withTimezone: true }).notNull(),
+    startTime: text('startTime').notNull(),
+    endTime: text('endTime').notNull(),
+    timezone: text('timezone').notNull(),
+    durationMinutes: integer('durationMinutes').notNull().default(60),
+    capacity: integer('capacity').notNull(),
+    pricePerSeat: doublePrecision('pricePerSeat').notNull(),
+    currency: text('currency').notNull().default('USD'),
+    // OPEN | FULL | CANCELLED | COMPLETED (plain text — no new enum migration).
+    status: text('status').notNull().default('OPEN'),
+    calendarEventId: text('calendarEventId').references(() => calendarEvent.eventId, {
+      onDelete: 'set null',
+    }),
+    liveSessionId: text('liveSessionId'),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    GroupSession_tutorId_idx: index('GroupSession_tutorId_idx').on(table.tutorId),
+    GroupSession_status_idx: index('GroupSession_status_idx').on(table.status),
+    GroupSession_requestedDate_idx: index('GroupSession_requestedDate_idx').on(table.requestedDate),
+  })
+)
+
+/**
+ * One seat in a GroupSession. A seat is RESERVED when a student claims it and
+ * flips to PAID once their per-seat payment clears (a webhook then also inserts a
+ * SessionParticipant so they can enter the room). CANCELLED seats free capacity.
+ */
+export const groupSessionParticipant = pgTable(
+  'GroupSessionParticipant',
+  {
+    participantId: text('id').primaryKey().notNull(),
+    groupSessionId: text('groupSessionId')
+      .notNull()
+      .references(() => groupSession.groupSessionId, { onDelete: 'cascade' }),
+    studentId: text('studentId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    // RESERVED | PAID | CANCELLED
+    status: text('status').notNull().default('RESERVED'),
+    paymentId: text('paymentId'),
+    reservedAt: timestamp('reservedAt', { withTimezone: true }).notNull().defaultNow(),
+    paidAt: timestamp('paidAt', { withTimezone: true }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  table => ({
+    // A student can hold at most one seat per group session.
+    GroupSessionParticipant_session_student_key: uniqueIndex(
+      'GroupSessionParticipant_session_student_key'
+    ).on(table.groupSessionId, table.studentId),
+    GroupSessionParticipant_groupSessionId_idx: index(
+      'GroupSessionParticipant_groupSessionId_idx'
+    ).on(table.groupSessionId),
+    GroupSessionParticipant_studentId_idx: index('GroupSessionParticipant_studentId_idx').on(
+      table.studentId
+    ),
+  })
+)

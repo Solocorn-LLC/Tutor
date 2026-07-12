@@ -277,6 +277,71 @@ CREATE INDEX IF NOT EXISTS "OneOnOneWaitlist_studentId_idx" ON "OneOnOneWaitlist
 
 -- 0074: tutors can offer 1-on-1 sessions for free (booking skips payment).
 ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "oneOnOneFree" boolean NOT NULL DEFAULT false;
+
+-- Group 1-on-1 sessions (drizzle/0073): tutor-hosted, per-seat.
+CREATE TABLE IF NOT EXISTS "GroupSession" (
+  "id" text PRIMARY KEY NOT NULL,
+  "tutorId" text NOT NULL,
+  "title" text NOT NULL,
+  "description" text,
+  "requestedDate" timestamptz NOT NULL,
+  "startTime" text NOT NULL,
+  "endTime" text NOT NULL,
+  "timezone" text NOT NULL,
+  "durationMinutes" integer NOT NULL DEFAULT 60,
+  "capacity" integer NOT NULL,
+  "pricePerSeat" double precision NOT NULL,
+  "currency" text NOT NULL DEFAULT 'USD',
+  "status" text NOT NULL DEFAULT 'OPEN',
+  "calendarEventId" text,
+  "liveSessionId" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'GroupSession_tutorId_fkey') THEN
+    ALTER TABLE "GroupSession" ADD CONSTRAINT "GroupSession_tutorId_fkey"
+      FOREIGN KEY ("tutorId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'GroupSession_calendarEventId_fkey')
+     AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'CalendarEvent') THEN
+    ALTER TABLE "GroupSession" ADD CONSTRAINT "GroupSession_calendarEventId_fkey"
+      FOREIGN KEY ("calendarEventId") REFERENCES "CalendarEvent"("id") ON DELETE SET NULL;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS "GroupSession_tutorId_idx" ON "GroupSession" ("tutorId");
+CREATE INDEX IF NOT EXISTS "GroupSession_status_idx" ON "GroupSession" ("status");
+CREATE INDEX IF NOT EXISTS "GroupSession_requestedDate_idx" ON "GroupSession" ("requestedDate");
+
+CREATE TABLE IF NOT EXISTS "GroupSessionParticipant" (
+  "id" text PRIMARY KEY NOT NULL,
+  "groupSessionId" text NOT NULL,
+  "studentId" text NOT NULL,
+  "status" text NOT NULL DEFAULT 'RESERVED',
+  "paymentId" text,
+  "reservedAt" timestamptz NOT NULL DEFAULT now(),
+  "paidAt" timestamptz,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'GroupSessionParticipant_groupSessionId_fkey') THEN
+    ALTER TABLE "GroupSessionParticipant" ADD CONSTRAINT "GroupSessionParticipant_groupSessionId_fkey"
+      FOREIGN KEY ("groupSessionId") REFERENCES "GroupSession"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'GroupSessionParticipant_studentId_fkey') THEN
+    ALTER TABLE "GroupSessionParticipant" ADD CONSTRAINT "GroupSessionParticipant_studentId_fkey"
+      FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS "GroupSessionParticipant_session_student_key"
+  ON "GroupSessionParticipant" ("groupSessionId", "studentId");
+CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_groupSessionId_idx"
+  ON "GroupSessionParticipant" ("groupSessionId");
+CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_studentId_idx"
+  ON "GroupSessionParticipant" ("studentId");
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

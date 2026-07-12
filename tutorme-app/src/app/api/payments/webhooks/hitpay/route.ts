@@ -23,6 +23,7 @@ import { HitpayGateway } from '@/lib/payments'
 import { sendPaymentConfirmation } from '@/lib/notifications/payment-email'
 import { notify } from '@/lib/notifications/notify'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
+import { admitPaidSeat } from '@/lib/group-session/seats'
 import { eq, and, or, sql } from 'drizzle-orm'
 
 export async function POST(req: NextRequest) {
@@ -221,6 +222,29 @@ export async function POST(req: NextRequest) {
             // Open a direct-message thread so the student and tutor now appear in
             // each other's chat list on the communications page.
             getOrCreateConversation(requestRow.studentId, requestRow.tutorId).catch(() => {})
+          }
+        } else if (meta?.type === 'group-session' && typeof meta.participantId === 'string') {
+          // Confirm the seat: flip it to PAID, admit the student to the shared
+          // room, and flip the session to FULL if this was the last seat.
+          await admitPaidSeat(meta.participantId as string, paymentRow.paymentId)
+          if (typeof meta.tutorId === 'string') {
+            notify({
+              userId: meta.tutorId as string,
+              type: 'class',
+              title: 'Group session seat booked',
+              message: 'A student paid for a seat in your group session.',
+              data: {
+                groupSessionId: meta.groupSessionId,
+                participantId: meta.participantId,
+                type: 'group-seat-paid',
+              },
+              actionUrl: '/tutor/dashboard',
+            }).catch(() => {})
+            if (typeof meta.studentId === 'string') {
+              getOrCreateConversation(meta.studentId as string, meta.tutorId as string).catch(
+                () => {}
+              )
+            }
           }
         } else if (paymentRow.bookingId) {
           // Clinics removed: no booking notifications.

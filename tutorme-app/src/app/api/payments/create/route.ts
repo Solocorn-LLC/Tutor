@@ -22,6 +22,8 @@ import {
   profile,
   payment,
   oneOnOneBookingRequest,
+  groupSession,
+  groupSessionParticipant,
 } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
 import { eq, and, sql } from 'drizzle-orm'
@@ -40,13 +42,18 @@ const createPaymentSchema = z
     bookingId: z.string().optional(),
     courseId: z.string().optional(),
     oneOnOneRequestId: z.string().optional(),
+    groupSessionParticipantId: z.string().optional(),
     studentId: z.string().optional(),
     gateway: z.enum(['HITPAY', 'AIRWALLEX']).optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })
-  .refine(data => data.bookingId || data.courseId || data.oneOnOneRequestId, {
-    message: 'bookingId, courseId, or oneOnOneRequestId is required',
-  })
+  .refine(
+    data =>
+      data.bookingId || data.courseId || data.oneOnOneRequestId || data.groupSessionParticipantId,
+    {
+      message: 'bookingId, courseId, oneOnOneRequestId, or groupSessionParticipantId is required',
+    }
+  )
 
 export const POST = withCsrf(
   withAuth(async (req: NextRequest, session) => {
@@ -69,6 +76,7 @@ export const POST = withCsrf(
       bookingId,
       courseId,
       oneOnOneRequestId,
+      groupSessionParticipantId,
       studentId,
       gateway: requestedGateway,
       metadata: customMetadata,
@@ -339,6 +347,123 @@ export const POST = withCsrf(
         checkoutUrl: paymentResponse.checkoutUrl,
         paymentId,
       })
+    }
+
+    // --- Group session seat payment (per-seat) ---
+    if (groupSessionParticipantId) {
+      const [row] = await drizzleDb
+        .select({
+          seat: groupSessionParticipant,
+          gs: groupSession,
+          tutorPaymentGateway: profile.paymentGatewayPreference,
+        })
+        .from(groupSessionParticipant)
+        .innerJoin(
+          groupSession,
+          eq(groupSession.groupSessionId, groupSessionParticipant.groupSessionId)
+        )
+        .leftJoin(profile, eq(profile.userId, groupSession.tutorId))
+        .where(eq(groupSessionParticipant.participantId, groupSessionParticipantId))
+        .limit(1)
+
+      if (!row) throw new NotFoundError('Group session seat not found')
+      if (row.seat.studentId !== payerStudentId) {
+        throw new ForbiddenError('You can only pay for your own seat')
+      }
+      if (row.seat.status === 'PAID') {
+        throw new ValidationError('This seat is already paid')
+      }
+      if (row.seat.status !== 'RESERVED') {
+        throw new ValidationError('This seat is no longer held')
+      }
+      if (row.gs.status === 'CANCELLED') {
+        throw new ValidationError('This session was cancelled')
+      }
+
+      const amount = Number(row.gs.pricePerSeat || 0)
+      if (amount <= 0) throw new ValidationError('Invalid payment amount')
+      const currency = row.gs.currency || 'USD'
+
+      const [payerUser] = await drizzleDb
+        .select({
+          email: user.email,
+          paymentGatewayPreference: profile.paymentGatewayPreference,
+        })
+        .from(user)
+        .leftJoin(profile, eq(profile.userId, user.userId))
+        .where(eq(user.userId, payerStudentId))
+        .limit(1)
+      const studentEmail = payerUser?.email ?? ''
+
+      let gatewayName: GatewayName
+      if (requestedGateway && (requestedGateway === 'HITPAY' || requestedGateway === 'AIRWALLEX')) {
+        gatewayName = requestedGateway
+      } else if (payerUser?.paymentGatewayPreference) {
+        gatewayName = payerUser.paymentGatewayPreference as GatewayName
+      } else {
+        gatewayName = (process.env.PAYMENT_DEFAULT_GATEWAY || 'HITPAY') as GatewayName
+      }
+      const gateway = getPaymentGateway(gatewayName)
+
+      const groupIdempotencyKey = createHash('sha256')
+        .update(`${payerStudentId}:group-session:${groupSessionParticipantId}`)
+        .digest('hex')
+      const [existingGroupPayment] = await drizzleDb
+        .select()
+        .from(payment)
+        .where(
+          and(
+            eq(payment.status, 'PENDING'),
+            sql`${payment.metadata}->>'idempotencyKey' = ${groupIdempotencyKey}`
+          )
+        )
+        .limit(1)
+      if (existingGroupPayment?.gatewayCheckoutUrl) {
+        return NextResponse.json({
+          checkoutUrl: existingGroupPayment.gatewayCheckoutUrl,
+          paymentId: existingGroupPayment.paymentId,
+        })
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+      const meta = {
+        type: 'group-session',
+        groupSessionId: row.gs.groupSessionId,
+        participantId: groupSessionParticipantId,
+        tutorId: row.gs.tutorId,
+        studentId: payerStudentId,
+        payerId: session.user.id,
+        payerRole: session.user.role,
+      }
+      const paymentResponse = await gateway.createPayment({
+        amount,
+        currency,
+        studentEmail,
+        description: `Group session seat — ${row.gs.title}`,
+        metadata: meta,
+        successUrl: `${baseUrl}/payment/success?type=group-session&groupSessionId=${encodeURIComponent(
+          row.gs.groupSessionId
+        )}`,
+        cancelUrl: `${baseUrl}/payment/cancel?type=group-session&groupSessionId=${encodeURIComponent(
+          row.gs.groupSessionId
+        )}`,
+      })
+
+      const paymentId = crypto.randomUUID()
+      await drizzleDb.insert(payment).values({
+        paymentId,
+        bookingId: null,
+        amount,
+        currency,
+        status: 'PENDING',
+        gateway: gatewayName,
+        tutorId: row.gs.tutorId,
+        gatewayPaymentId: paymentResponse.paymentId,
+        gatewayCheckoutUrl: paymentResponse.checkoutUrl,
+        metadata: { ...meta, idempotencyKey: groupIdempotencyKey },
+      })
+
+      return NextResponse.json({ checkoutUrl: paymentResponse.checkoutUrl, paymentId })
     }
 
     // --- Booking payment ---
