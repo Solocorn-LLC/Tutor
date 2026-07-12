@@ -20,12 +20,14 @@ import { Send, Loader2, CheckCircle2, Sparkles, FileText, X, ImageIcon } from 'l
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
+import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import { toast } from 'sonner'
 
 export interface TestTaskChatMsg {
-  role: 'student' | 'ai'
+  role: 'student' | 'ai' | 'tutor'
   content: string
   re?: string
+  timestamp?: number
 }
 
 export interface TestTaskChatState {
@@ -105,7 +107,7 @@ export function TestTaskChat({
   const addAnswer = () => {
     const a = draft.trim()
     if (!a || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: a }])
+    setMessages(prev => [...prev, { role: 'student', content: a, timestamp: Date.now() }])
     setDraft('')
   }
 
@@ -118,7 +120,7 @@ export function TestTaskChat({
       return
     }
     if (pending) {
-      setMessages(prev => [...prev, { role: 'student', content: pending }])
+      setMessages(prev => [...prev, { role: 'student', content: pending, timestamp: Date.now() }])
       setDraft('')
     }
     setBusy(true)
@@ -131,7 +133,12 @@ export function TestTaskChat({
         : []
       setMessages(prev => [
         ...prev,
-        ...responses.map(r => ({ role: 'ai' as const, content: r.response, re: r.answer })),
+        ...responses.map(r => ({
+          role: 'ai' as const,
+          content: r.response,
+          re: r.answer,
+          timestamp: Date.now(),
+        })),
       ])
       setCompleted(true)
     } catch (e) {
@@ -144,7 +151,7 @@ export function TestTaskChat({
   const ask = async () => {
     const q = draft.trim()
     if (!q || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: q }])
+    setMessages(prev => [...prev, { role: 'student', content: q, timestamp: Date.now() }])
     setDraft('')
     setBusy(true)
     try {
@@ -154,11 +161,18 @@ export function TestTaskChat({
       const res = await post({ question: q, history, answers: studentAnswers })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to answer')
-      setMessages(prev => [...prev, { role: 'ai', content: data.answer || '…' }])
+      setMessages(prev => [
+        ...prev,
+        { role: 'ai', content: data.answer || '…', timestamp: Date.now() },
+      ])
     } catch {
       setMessages(prev => [
         ...prev,
-        { role: 'ai', content: 'Sorry — I could not answer that. Please try again.' },
+        {
+          role: 'ai',
+          content: 'Sorry — I could not answer that. Please try again.',
+          timestamp: Date.now(),
+        },
       ])
     } finally {
       setBusy(false)
@@ -211,46 +225,18 @@ export function TestTaskChat({
       </div>
 
       {/* Unified chat stream — document thumbnail + messages scroll together */}
-      <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {/* Document thumbnail — persistent first message in the stream */}
+      <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        {/* Document as first tutor message */}
         {sourceDocument && !pdfPopupOpen && (
-          <div className="flex items-start">
-            <button
-              type="button"
-              onClick={() => loadable && setPdfPopupOpen(true)}
-              disabled={!loadable}
-              className="max-w-[85%] cursor-pointer rounded-xl border border-violet-200 bg-violet-50/50 px-3 py-3 text-left transition-colors hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                {/* PDF Thumbnail preview */}
-                {isPdf && loadable ? (
-                  <div className="shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
-                    <PDFThumbnail
-                      fileUrl={docUrl}
-                      fileKey={sourceDocument?.fileKey ?? undefined}
-                      width={100}
-                    />
-                  </div>
-                ) : isImage ? (
-                  <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
-                    <ImageIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                ) : (
-                  <div className="flex h-[70px] w-[100px] shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-100">
-                    <FileText className="h-5 w-5 text-gray-400" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-800">{docName}</p>
-                  <p className="text-xs text-gray-500">
-                    {loadable
-                      ? 'Click to view document'
-                      : 'This document is unavailable. Re-upload it.'}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
+          <ChatMessageBubble
+            sender="tutor"
+            name="Tutor"
+            content=""
+            isDocument
+            document={sourceDocument}
+            onDocumentClick={() => loadable && setPdfPopupOpen(true)}
+            isClassroom={isClassroom}
+          />
         )}
 
         {/* PDF Popup — overlay within chat panel, no header, X on right */}
@@ -303,28 +289,17 @@ export function TestTaskChat({
         )}
 
         {/* Chat messages */}
-        {messages.map((m, i) =>
-          m.role === 'student' ? (
-            <div key={i} className="flex justify-end">
-              <span
-                className={`max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm ${sendButtonBg} px-3 py-2 text-sm text-white`}
-              >
-                {m.content}
-              </span>
-            </div>
-          ) : (
-            <div key={i} className="flex flex-col items-start">
-              {m.re && (
-                <span className="mb-0.5 max-w-[85%] truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
-                  Re: {m.re}
-                </span>
-              )}
-              <span className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm border border-gray-200 bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-800">
-                {m.content}
-              </span>
-            </div>
-          )
-        )}
+        {messages.map((m, i) => (
+          <ChatMessageBubble
+            key={i}
+            sender={m.role}
+            name={m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor'}
+            content={m.content}
+            re={m.re}
+            timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
+            isClassroom={isClassroom}
+          />
+        ))}
 
         {busy && (
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
