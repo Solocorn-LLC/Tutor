@@ -11,46 +11,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  ArrowLeft,
-  BookOpen,
-  FileText,
-  ListOrdered,
-  Loader2,
-  Radio,
-  DollarSign,
-  X,
-  Plus,
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react'
+import { ArrowLeft, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { sanitizeHtmlWithMax } from '@/lib/security/sanitize'
 import { cn } from '@/lib/utils'
-import { BackButton } from '@/components/navigation'
 
 import type { ScheduleItem } from './constants'
-import { DAYS, TIME_SLOT_OPTIONS } from './constants'
 import { VariantManager, type VariantManagerHandle } from './components/VariantManager'
-
-interface OutlineItem {
-  title: string
-  durationMinutes: number
-}
-
-interface OutlineModuleItem {
-  title: string
-  description?: string
-  notes?: string
-  tasks?: { title: string }[]
-  lessons: { title: string; durationMinutes: number }[]
-}
 
 // CourseMaterials interface removed - using simplified course model
 
@@ -105,7 +74,6 @@ export default function TutorCoursePage() {
   const [languageOfInstruction, setLanguageOfInstruction] = useState<string>('')
   const [price, setPrice] = useState<string>('')
   const [isFree, setIsFree] = useState(false)
-  const [currency, setCurrency] = useState<string>('SGD')
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
   const [tutorProfile, setTutorProfile] = useState<{
     userId?: string
@@ -119,42 +87,8 @@ export default function TutorCoursePage() {
     () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
     [course?.modules]
   )
-  const [scheduleSummary, setScheduleSummary] = useState<ScheduleItem[]>([])
   const [infoOpen, setInfoOpen] = useState(true)
-  const [allCollapsed, setAllCollapsed] = useState(false)
   const [publishingVariants, setPublishingVariants] = useState(false)
-  const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
-  const [scheduleRepeatWeekly, setScheduleRepeatWeekly] = useState(false)
-  const [numberOfWeeks, setNumberOfWeeks] = useState(4)
-  const [totalSessionsDesired, setTotalSessionsDesired] = useState<number | ''>('')
-
-  const scheduleWeekStart = (() => {
-    const d = new Date()
-    const day = d.getDay()
-    const mon = d.getDate() - (day === 0 ? 6 : day - 1) + scheduleWeekOffset * 7
-    const start = new Date(d.getFullYear(), d.getMonth(), mon)
-    return start
-  })()
-
-  const scheduleWeekLabel = (() => {
-    const end = new Date(scheduleWeekStart)
-    end.setDate(end.getDate() + 6)
-    return `${scheduleWeekStart.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
-  })()
-
-  const scheduleMonthLabel = scheduleWeekStart.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  })
-
-  /** For the grid: date for each day of the displayed week (Mon = index 0, Sun = index 6) */
-  const weekDates = DAYS.map((_, i) => {
-    const d = new Date(scheduleWeekStart)
-    d.setDate(scheduleWeekStart.getDate() + i)
-    return d
-  })
-
-  const formatDateKey = (date: Date) => date.toLocaleDateString('en-CA')
 
   const loadCourse = useCallback(async () => {
     if (!id) return
@@ -206,7 +140,6 @@ export default function TutorCoursePage() {
     setLanguageOfInstruction(course.languageOfInstruction ?? '')
     setIsFree(course.isFree ?? false)
     setPrice(course.isFree ? '' : course.price != null ? String(course.price) : '')
-    setCurrency('USD') // Fixed to USD
     setSchedule(Array.isArray(course.schedule) ? [...course.schedule] : [])
     // Load categories from course if available (single category only)
     if (course.categories && Array.isArray(course.categories) && course.categories.length > 0) {
@@ -222,54 +155,6 @@ export default function TutorCoursePage() {
     }
     // Course catalog loading removed - using simplified course model
   }, [course?.categories])
-
-  // Schedule summary: generate + sync (hooks must run unconditionally before any early return)
-  const generateScheduleSummary = useCallback(() => {
-    if (schedule.length === 0) {
-      toast.error('Please add schedule items first')
-      return
-    }
-    if (scheduleRepeatWeekly) {
-      const requestedSessions = totalSessionsDesired !== '' ? Number(totalSessionsDesired) : null
-      const weeks =
-        requestedSessions != null
-          ? Math.max(1, Math.ceil(requestedSessions / schedule.length))
-          : numberOfWeeks
-      const expanded: ScheduleItem[] = []
-      for (let w = 0; w < weeks; w++) {
-        schedule.forEach(slot => expanded.push({ ...slot }))
-      }
-      setScheduleSummary(
-        requestedSessions != null ? expanded.slice(0, requestedSessions) : expanded
-      )
-    } else {
-      setScheduleSummary([...schedule])
-    }
-    toast.success('Schedule summary generated')
-  }, [schedule, scheduleRepeatWeekly, numberOfWeeks, totalSessionsDesired])
-
-  useEffect(() => {
-    if (schedule.length === 0) {
-      setScheduleSummary([])
-      return
-    }
-    if (scheduleRepeatWeekly) {
-      const MAX_WEEKS = 52
-      const weeks = Math.min(
-        MAX_WEEKS,
-        totalSessionsDesired !== ''
-          ? Math.max(1, Math.ceil(Number(totalSessionsDesired) / schedule.length))
-          : numberOfWeeks
-      )
-      const expanded: ScheduleItem[] = []
-      for (let w = 0; w < weeks; w++) {
-        schedule.forEach(slot => expanded.push({ ...slot }))
-      }
-      setScheduleSummary(expanded)
-    } else {
-      setScheduleSummary([...schedule])
-    }
-  }, [schedule, scheduleRepeatWeekly, numberOfWeeks, totalSessionsDesired])
 
   // Materials upload removed - using simplified course model
   // (Ad-hoc "Open in Live Class" retired — sessions come from the schedule, and
@@ -355,26 +240,6 @@ export default function TutorCoursePage() {
     }
   }
 
-  const handleCourseSelect = async (name: string) => {
-    setCourseName(name)
-    try {
-      const res = await fetchWithCsrf(`/api/tutor/courses/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-      if (res.ok) {
-        setCourse(prev => (prev ? { ...prev, name } : null))
-        toast.success('Course name updated')
-      } else {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data.error ?? 'Failed to update name')
-      }
-    } catch {
-      toast.error('Failed to update course name')
-    }
-  }
-
   // Materials, outline, and course upload functions removed - using simplified course model
 
   if (loading || !course) {
@@ -384,70 +249,6 @@ export default function TutorCoursePage() {
       </div>
     )
   }
-
-  /** Effective number of weeks when "repeat weekly" is on: from numberOfWeeks or derived from totalSessionsDesired */
-  const effectiveWeeks =
-    schedule.length > 0 && scheduleRepeatWeekly
-      ? totalSessionsDesired !== ''
-        ? Math.max(1, Math.ceil(Number(totalSessionsDesired) / schedule.length))
-        : numberOfWeeks
-      : 1
-
-  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  const formatTime = (time: string) => {
-    if (!time || typeof time !== 'string') return '–'
-    const parts = time.split(':')
-    const hour = Number(parts[0])
-    const minute = Number(parts[1] ?? 0)
-    if (Number.isNaN(hour)) return '–'
-    const displayHour = hour % 12 === 0 ? 12 : hour % 12
-    const period = hour >= 12 ? 'PM' : 'AM'
-    return `${displayHour}:${minute.toString().padStart(2, '0')}${period}`
-  }
-  const formatTimeRange = (startTime: string, durationMinutes: number) => {
-    if (!startTime || typeof startTime !== 'string') return '–'
-    const parts = startTime.split(':')
-    const startHour = Number(parts[0])
-    const startMinute = Number(parts[1] ?? 0)
-    if (Number.isNaN(startHour)) return '–'
-    const startTotal = startHour * 60 + startMinute
-    const dur = Number(durationMinutes) || 0
-    const endTotal = startTotal + dur
-    const endHour = Math.floor((endTotal / 60) % 24)
-    const endMinute = endTotal % 60
-    const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
-    return `${formatTime(startTime)}–${formatTime(endTime)}`
-  }
-  const timezoneLabel = (() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time'
-    } catch {
-      return 'Local time'
-    }
-  })()
-  const scheduleByDay = scheduleSummary.reduce(
-    (acc, slot) => {
-      const day = slot?.dayOfWeek
-      if (!day) return acc
-      if (!acc[day]) acc[day] = []
-      acc[day].push(slot)
-      return acc
-    },
-    {} as Record<string, ScheduleItem[]>
-  )
-  const priceNumber = Number(price)
-  const scheduleCost = scheduleSummary.reduce((sum, slot) => {
-    if (!priceNumber || Number.isNaN(priceNumber)) return sum
-    const dur = slot?.durationMinutes ?? 0
-    return sum + (dur / 60) * priceNumber
-  }, 0)
-  const totalRevenue = scheduleCost * 0.7
-  const totalSessions = scheduleSummary.length
-  const totalDurationMinutes = scheduleSummary.reduce(
-    (sum, slot) => sum + (slot.durationMinutes ?? 0),
-    0
-  )
-  const totalDurationHours = (totalDurationMinutes / 60).toFixed(1)
 
   if (!id) {
     return (
