@@ -300,7 +300,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           `${a.category} - ${a.nationality}`.localeCompare(`${b.category} - ${b.nationality}`)
         )
       })
-    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule])
+      // `loading` is a dependency so this re-runs once the async publish fetch
+      // above settles. Without it, a fresh/unpublished course hits a race: the
+      // fetch resolves with `{ variants: [] }` and overwrites the desired
+      // variant this effect already added, and since `desiredKeys` never
+      // changes again the scheduler would stay empty. Re-running here re-adds
+      // the desired variant on top of whatever the fetch loaded.
+    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule, loading])
 
     const applyGlobalsToAll = useCallback(() => {
       const price = globalPrice ? parseFloat(globalPrice) : null
@@ -539,7 +545,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             <CardContent spacing="default" className="bg-white text-slate-900">
               {variants.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500">
-                  Select categories and countries above to generate variant courses.
+                  This course has no category yet. Set one from the course builder
+                  (Edit Course) to generate a schedulable variant.
                 </div>
               )}
 
