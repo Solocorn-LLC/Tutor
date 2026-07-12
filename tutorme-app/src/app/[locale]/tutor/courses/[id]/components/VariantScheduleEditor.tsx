@@ -40,6 +40,7 @@ interface VariantScheduleEditorProps {
   allVariantsSchedules?: ScheduleItem[][]
   excludedSchedules?: ScheduleItem[][]
   siblingSchedules?: ScheduleItem[][]
+  showTabs?: boolean
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -106,6 +107,7 @@ export function VariantScheduleEditor({
   allVariantsSchedules,
   excludedSchedules,
   siblingSchedules,
+  showTabs = true,
 }: VariantScheduleEditorProps) {
   const calendarScrollRef = useRef<HTMLDivElement>(null)
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
