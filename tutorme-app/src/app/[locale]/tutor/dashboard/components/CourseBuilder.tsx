@@ -218,7 +218,7 @@ import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
-import { TestTaskChat, type TestTaskChatState } from './TestTaskChat'
+import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './TestTaskChat'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
 import { Separator } from '@/components/ui/separator'
@@ -1298,6 +1298,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // tab) across the remounts that happen when switching Test students, so the
     // conversation isn't lost. A ref: writing it must not trigger a re-render.
     const testTaskChatStore = useRef<Record<string, TestTaskChatState>>({})
+    // Shared state for the Classroom tab — aggregates messages from all student tabs
+    // plus tutor messages sent from the classroom view. Keyed by extension id.
+    // Must be useState (not ref) so changes trigger re-renders of the Classroom tab.
+    const [classroomMessages, setClassroomMessages] = useState<Record<string, TestTaskChatMsg[]>>(
+      {}
+    )
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -10144,6 +10150,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 )
                                               : null
                                             const previewKey = `${previewExt ? previewExt.id : 'base'}:${tab.id}`
+                                            const extKey = previewExt ? previewExt.id : 'base'
+                                            const isClassroomTab = tab.id === 'classroom'
+                                            const studentTabName =
+                                              tab.id === 'student1'
+                                                ? 'Test Student 1'
+                                                : tab.id === 'student2'
+                                                  ? 'Test Student 2'
+                                                  : 'Student'
+
                                             return (
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
@@ -10162,15 +10177,62 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       : currentTaskDocument
                                                   }
                                                   initialState={
-                                                    testTaskChatStore.current[previewKey]
+                                                    isClassroomTab
+                                                      ? undefined
+                                                      : testTaskChatStore.current[previewKey]
+                                                  }
+                                                  incomingMessages={
+                                                    isClassroomTab
+                                                      ? classroomMessages[extKey]
+                                                      : undefined
                                                   }
                                                   onPersist={s => {
-                                                    testTaskChatStore.current[previewKey] = s
+                                                    if (!isClassroomTab) {
+                                                      testTaskChatStore.current[previewKey] = s
+                                                    }
+                                                  }}
+                                                  onBroadcast={msg => {
+                                                    if (isClassroomTab) {
+                                                      // Tutor message from classroom → broadcast to all student tabs
+                                                      const tutorMsg = { ...msg, name: 'Tutor' }
+                                                      ;['student1', 'student2'].forEach(st => {
+                                                        const sk = `${extKey}:${st}`
+                                                        const existing =
+                                                          testTaskChatStore.current[sk]
+                                                        testTaskChatStore.current[sk] = {
+                                                          messages: [
+                                                            ...(existing?.messages ?? []),
+                                                            tutorMsg,
+                                                          ],
+                                                          draft: existing?.draft ?? '',
+                                                          completed: existing?.completed ?? false,
+                                                        }
+                                                      })
+                                                      // Also append to classroom state so it appears in the classroom view
+                                                      setClassroomMessages(prev => ({
+                                                        ...prev,
+                                                        [extKey]: [
+                                                          ...(prev[extKey] ?? []),
+                                                          tutorMsg,
+                                                        ],
+                                                      }))
+                                                    } else {
+                                                      // Student message → add to classroom view with student name
+                                                      const studentMsg = {
+                                                        ...msg,
+                                                        name: studentTabName,
+                                                      }
+                                                      setClassroomMessages(prev => ({
+                                                        ...prev,
+                                                        [extKey]: [
+                                                          ...(prev[extKey] ?? []),
+                                                          studentMsg,
+                                                        ],
+                                                      }))
+                                                    }
                                                   }}
                                                   mode={
-                                                    tab.id === 'classroom'
-                                                      ? 'classroom'
-                                                      : 'test-student'
+                                                    isClassroomTab ? 'classroom' : 'test-student'
                                                   }
                                                 />
                                               </div>

@@ -28,6 +28,8 @@ export interface TestTaskChatMsg {
   content: string
   re?: string
   timestamp?: number
+  /** Display name for this message sender (e.g. "Test Student 1" in classroom view). */
+  name?: string
 }
 
 export interface TestTaskChatState {
@@ -52,6 +54,8 @@ export function TestTaskChat({
   sourceDocument,
   initialState,
   onPersist,
+  onBroadcast,
+  incomingMessages,
   mode = 'test-student',
 }: {
   pci?: string
@@ -61,6 +65,10 @@ export function TestTaskChat({
   sourceDocument?: TaskDocumentSource | null
   initialState?: TestTaskChatState
   onPersist?: (state: TestTaskChatState) => void
+  /** Called when a new message is sent from this tab so the parent can relay it to other tabs. */
+  onBroadcast?: (msg: TestTaskChatMsg) => void
+  /** Messages injected from outside (e.g. from other tabs via the parent). Appended to the chat. */
+  incomingMessages?: TestTaskChatMsg[]
   /** Which preview mode this is rendering in. */
   mode?: 'classroom' | 'test-student'
 }) {
@@ -70,11 +78,22 @@ export function TestTaskChat({
   const [busy, setBusy] = useState(false)
   const [pdfPopupOpen, setPdfPopupOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const lastIncomingLen = useRef(incomingMessages?.length ?? 0)
 
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, busy])
+
+  // Append any new incoming messages from the parent (cross-tab relay).
+  useEffect(() => {
+    const len = incomingMessages?.length ?? 0
+    if (len > lastIncomingLen.current) {
+      const newMsgs = incomingMessages!.slice(lastIncomingLen.current)
+      setMessages(prev => [...prev, ...newMsgs])
+      lastIncomingLen.current = len
+    }
+  }, [incomingMessages])
 
   // Mirror state to the parent's store so a remount (switching Test students)
   // can rehydrate it. Cheap; runs only when the persisted fields change.
@@ -107,8 +126,14 @@ export function TestTaskChat({
   const addAnswer = () => {
     const a = draft.trim()
     if (!a || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: a, timestamp: Date.now() }])
+    const msg: ChatMsg = {
+      role: isClassroom ? 'tutor' : 'student',
+      content: a,
+      timestamp: Date.now(),
+    }
+    setMessages(prev => [...prev, msg])
     setDraft('')
+    onBroadcast?.(msg)
   }
 
   const complete = async () => {
@@ -120,8 +145,14 @@ export function TestTaskChat({
       return
     }
     if (pending) {
-      setMessages(prev => [...prev, { role: 'student', content: pending, timestamp: Date.now() }])
+      const pendingMsg: ChatMsg = {
+        role: isClassroom ? 'tutor' : 'student',
+        content: pending,
+        timestamp: Date.now(),
+      }
+      setMessages(prev => [...prev, pendingMsg])
       setDraft('')
+      onBroadcast?.(pendingMsg)
     }
     setBusy(true)
     try {
@@ -131,15 +162,14 @@ export function TestTaskChat({
       const responses: Array<{ answer: string; response: string }> = Array.isArray(data.responses)
         ? data.responses
         : []
-      setMessages(prev => [
-        ...prev,
-        ...responses.map(r => ({
-          role: 'ai' as const,
-          content: r.response,
-          re: r.answer,
-          timestamp: Date.now(),
-        })),
-      ])
+      const aiMsgs: ChatMsg[] = responses.map(r => ({
+        role: 'ai' as const,
+        content: r.response,
+        re: r.answer,
+        timestamp: Date.now(),
+      }))
+      setMessages(prev => [...prev, ...aiMsgs])
+      aiMsgs.forEach(m => onBroadcast?.(m))
       setCompleted(true)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to grade')
@@ -151,8 +181,14 @@ export function TestTaskChat({
   const ask = async () => {
     const q = draft.trim()
     if (!q || busy) return
-    setMessages(prev => [...prev, { role: 'student', content: q, timestamp: Date.now() }])
+    const questionMsg: ChatMsg = {
+      role: isClassroom ? 'tutor' : 'student',
+      content: q,
+      timestamp: Date.now(),
+    }
+    setMessages(prev => [...prev, questionMsg])
     setDraft('')
+    onBroadcast?.(questionMsg)
     setBusy(true)
     try {
       const history = messages
@@ -161,10 +197,13 @@ export function TestTaskChat({
       const res = await post({ question: q, history, answers: studentAnswers })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to answer')
-      setMessages(prev => [
-        ...prev,
-        { role: 'ai', content: data.answer || '…', timestamp: Date.now() },
-      ])
+      const aiMsg: ChatMsg = {
+        role: 'ai',
+        content: data.answer || '…',
+        timestamp: Date.now(),
+      }
+      setMessages(prev => [...prev, aiMsg])
+      onBroadcast?.(aiMsg)
     } catch {
       setMessages(prev => [
         ...prev,
@@ -292,7 +331,9 @@ export function TestTaskChat({
           <ChatMessageBubble
             key={i}
             sender={m.role}
-            name={m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor'}
+            name={
+              m.name || (m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor')
+            }
             content={m.content}
             re={m.re}
             timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
