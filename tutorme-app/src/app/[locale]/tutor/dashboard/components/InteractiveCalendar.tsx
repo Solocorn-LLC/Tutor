@@ -1467,11 +1467,17 @@ export function InteractiveCalendar({
                         setSelectedEvent(null)
                         return
                       }
+                      // 1-on-1 (capacity ≤ 2) → the shared two-way call room, which
+                      // works for both roles (the course classrooms are role-specific
+                      // and can't host a course-less 1-on-1).
+                      const isOneOnOne = (selectedEvent.maxStudents ?? 50) <= 2
                       router.push(
                         withLocalePath(
-                          isStudent
-                            ? `/student/feedback?sessionId=${selectedEvent.sessionId}`
-                            : `/tutor/classroom?sessionId=${selectedEvent.sessionId}`
+                          isOneOnOne
+                            ? `/call/${selectedEvent.sessionId}`
+                            : isStudent
+                              ? `/student/feedback?sessionId=${selectedEvent.sessionId}`
+                              : `/tutor/classroom?sessionId=${selectedEvent.sessionId}`
                         )
                       )
                       setSelectedEvent(null)

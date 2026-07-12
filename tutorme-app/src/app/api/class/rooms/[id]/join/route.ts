@@ -22,6 +22,8 @@ import {
   course,
   courseSchedule,
   courseVariant,
+  oneOnOneBookingRequest,
+  calendarEvent,
 } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
@@ -94,6 +96,31 @@ export const POST = withCsrf(
           .limit(1)
 
         if (!existing) {
+          // If this session is a 1-on-1 (has 1-on-1 booking(s) linked to its
+          // calendar event), it's private — only its booked student may take a
+          // seat. Other session kinds (course classes, ad-hoc, group — where paid
+          // seats already inserted a participant row above) keep their existing
+          // join behaviour, so this can't lock anyone else out.
+          const bookings = await tx
+            .select({
+              studentId: oneOnOneBookingRequest.studentId,
+              status: oneOnOneBookingRequest.status,
+            })
+            .from(oneOnOneBookingRequest)
+            .innerJoin(
+              calendarEvent,
+              eq(calendarEvent.eventId, oneOnOneBookingRequest.calendarEventId)
+            )
+            .where(eq(calendarEvent.externalId, id))
+          if (bookings.length > 0) {
+            const allowed = bookings.some(
+              b => b.studentId === userId && ['ACCEPTED', 'PAID'].includes(b.status)
+            )
+            if (!allowed) {
+              throw new ValidationError('You are not a participant in this session.')
+            }
+          }
+
           const [{ count }] = await tx
             .select({ count: sql<number>`count(*)::int` })
             .from(sessionParticipant)
@@ -177,6 +204,8 @@ export const POST = withCsrf(
         token = await dailyProvider.createMeetingToken(activeRoomId, userId, {
           isOwner,
           durationMinutes: classSessionRow.durationMinutes ?? 120,
+          // 1-on-1 sessions (capacity 2) are two-way: the student transmits too.
+          twoWay: (classSessionRow.maxStudents ?? 0) <= 2,
         })
       } catch (err: any) {
         console.error('[Join] Daily.co token creation failed:', err?.message)
@@ -258,6 +287,8 @@ export const POST = withCsrf(
       token,
       roomUrl,
       videoError,
+      // 1-on-1 (capacity 2) → the client renders two-way video.
+      twoWay: (classSessionRow.maxStudents ?? 0) <= 2,
     })
   })
 )

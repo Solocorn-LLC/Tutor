@@ -33,6 +33,9 @@ export interface CalendarEvent {
   meetingUrl?: string | null
   status?: string
   requestId?: string | null
+  /** LiveSession id (from the calendar event's externalId) — used to open the
+   *  in-app two-way call room for a 1-on-1. */
+  sessionId?: string | null
 }
 
 interface DashboardCalendarProps {
@@ -365,6 +368,21 @@ export function DashboardCalendar({
                               >
                                 <Star className="h-3.5 w-3.5" />
                                 Rate
+                              </button>
+                            ) : s.sessionId ? (
+                              // Two-way in-app call room (both student and tutor).
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/call/${s.sessionId}`)}
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  isLive
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                                )}
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {isLive ? 'Join now' : 'Join'}
                               </button>
                             ) : s.meetingUrl ? (
                               <a

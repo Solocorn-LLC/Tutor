@@ -38,6 +38,10 @@ interface DailyVideoFrameProps {
   /** Tutor view: students don't broadcast video, so show them as avatar tiles
    *  (not video). Student view stays full-bleed video of the broadcaster. */
   isTutor?: boolean
+  /** 1-on-1 session: both people transmit, so render the OTHER participant's
+   *  video for both roles (symmetric two-way) instead of the tutor→students
+   *  broadcast layout, and let the student toggle their camera. */
+  twoWay?: boolean
 }
 
 export function DailyVideoFrame({
@@ -47,6 +51,7 @@ export function DailyVideoFrame({
   autoRecord,
   floating = false,
   isTutor = false,
+  twoWay = false,
 }: DailyVideoFrameProps) {
   const {
     call,
@@ -594,7 +599,7 @@ export function DailyVideoFrame({
             area, everything else overlays. Tutor: a grid of STUDENT AVATARS
             (students don't broadcast video), unless the tutor is screen-sharing. */}
         <div className="absolute inset-0 bg-slate-950">
-          {isTutor ? (
+          {isTutor && !twoWay ? (
             screenShareParticipant ? (
               <ParticipantMediaTile
                 participant={screenShareParticipant}
@@ -617,6 +622,8 @@ export function DailyVideoFrame({
               </div>
             )
           ) : mainTile ? (
+            // Student view, and both sides of a two-way 1-on-1: full-bleed video
+            // of the OTHER participant; your own camera is the self-view PiP.
             <ParticipantMediaTile
               participant={mainTile}
               mode={screenShareParticipant ? 'screen' : 'camera'}
@@ -624,7 +631,11 @@ export function DailyVideoFrame({
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-white/70">
-              Waiting for the tutor…
+              {twoWay
+                ? isTutor
+                  ? 'Waiting for the student…'
+                  : 'Waiting for the tutor…'
+                : 'Waiting for the tutor…'}
             </div>
           )}
         </div>
@@ -666,7 +677,9 @@ export function DailyVideoFrame({
               inactiveIcon={<VideoOff className="h-4 w-4" />}
               activeLabel="Cam"
               inactiveLabel="Cam"
-              disabled={!canSendVideo}
+              // Two-way (1-on-1): the student's token grants video, so always
+              // allow the camera toggle.
+              disabled={!canSendVideo && !twoWay}
             />
             <ControlButton
               onClick={() => (isScreenSharing ? stopScreenShare() : startScreenShare())}
