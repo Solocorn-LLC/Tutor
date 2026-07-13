@@ -112,7 +112,12 @@ export async function runSessionReminderScan(): Promise<void> {
         type: 'reminder',
         title: 'Upcoming session',
         message,
-        actionUrl: `/tutor/insights?sessionId=${encodeURIComponent(s.sessionId)}&view=classroom`,
+        // Course sessions open the course classroom; a course-less session
+        // (1-on-1 or group) opens the shared two-way call room, since the course
+        // classroom can't host it.
+        actionUrl: s.courseId
+          ? `/tutor/insights?sessionId=${encodeURIComponent(s.sessionId)}&view=classroom`
+          : `/call/${encodeURIComponent(s.sessionId)}`,
         data,
       })
     } catch (err) {
@@ -168,7 +173,8 @@ export async function runSessionReminderScan(): Promise<void> {
             type: 'reminder',
             title: 'Upcoming session',
             message,
-            actionUrl: `/student/live/${encodeURIComponent(s.sessionId)}`,
+            // Two-way call room (not the course classroom).
+            actionUrl: `/call/${encodeURIComponent(s.sessionId)}`,
             data,
           })
         }

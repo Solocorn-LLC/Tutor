@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Users, Loader2, Plus, CalendarDays, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Users, Loader2, Plus, CalendarDays, Trash2, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -18,6 +19,7 @@ interface GroupSessionItem {
   currency: string
   status: string
   seatsLeft: number
+  liveSessionId?: string | null
 }
 
 const emptyForm = {
@@ -41,6 +43,7 @@ function formatDate(iso: string): string {
 }
 
 export default function TutorGroupSessionsPage() {
+  const router = useRouter()
   const [sessions, setSessions] = useState<GroupSessionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
@@ -279,19 +282,30 @@ export default function TutorGroupSessionsPage() {
                   </div>
                 </div>
                 {!cancelled ? (
-                  <Button
-                    variant="outline"
-                    className="shrink-0 text-red-600 hover:bg-red-50"
-                    disabled={cancelId === gs.groupSessionId}
-                    onClick={() => cancel(gs.groupSessionId)}
-                  >
-                    {cancelId === gs.groupSessionId ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Cancel &amp; refund
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {gs.liveSessionId ? (
+                      <Button
+                        variant="solocorn-book"
+                        onClick={() => router.push(`/call/${gs.liveSessionId}`)}
+                      >
+                        <Video className="mr-2 h-4 w-4" />
+                        Join room
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="outline"
+                      className="text-red-600 hover:bg-red-50"
+                      disabled={cancelId === gs.groupSessionId}
+                      onClick={() => cancel(gs.groupSessionId)}
+                    >
+                      {cancelId === gs.groupSessionId ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Cancel &amp; refund
+                    </Button>
+                  </div>
                 ) : null}
               </li>
             )

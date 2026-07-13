@@ -16,8 +16,10 @@ import {
   course,
   sessionParticipant,
   oneOnOneBookingRequest,
+  groupSession,
+  groupSessionParticipant,
 } from '@/lib/db/schema'
-import { eq, and, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
+import { eq, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 export const GET = withAuth(
@@ -150,6 +152,34 @@ export const GET = withAuth(
       .where(and(...oneOnOneFilters))
       .orderBy(calendarEvent.startTime)
 
+    // --- Booked group sessions (student holds a paid seat) ---
+    // Surfaced so the student can find and join the shared room after booking.
+    const groupFilters = [
+      eq(groupSessionParticipant.studentId, studentId),
+      eq(groupSessionParticipant.status, 'PAID'),
+      ne(groupSession.status, 'CANCELLED'),
+    ]
+    if (startParam) groupFilters.push(gte(liveSession.scheduledAt, startDate))
+    if (endParam) groupFilters.push(lte(liveSession.scheduledAt, endDate))
+    const groupEvents = await drizzleDb
+      .select({
+        groupSessionId: groupSession.groupSessionId,
+        liveSessionId: groupSession.liveSessionId,
+        title: groupSession.title,
+        tutorId: groupSession.tutorId,
+        scheduledAt: liveSession.scheduledAt,
+        durationMinutes: liveSession.durationMinutes,
+        meetingUrl: liveSession.roomUrl,
+        sessionStatus: liveSession.status,
+      })
+      .from(groupSessionParticipant)
+      .innerJoin(
+        groupSession,
+        eq(groupSession.groupSessionId, groupSessionParticipant.groupSessionId)
+      )
+      .innerJoin(liveSession, eq(liveSession.sessionId, groupSession.liveSessionId))
+      .where(and(...groupFilters))
+
     // Build a set of externalIds already covered by CalendarEvent to avoid duplicates
     const coveredExternalIds = new Set(calEvents.map(e => e.externalId).filter(Boolean) as string[])
 
@@ -217,6 +247,28 @@ export const GET = withAuth(
         status: e.sessionStatus || e.status || 'scheduled',
         courseId: null as string | null,
       })),
+      ...groupEvents.map(e => {
+        const start = e.scheduledAt ?? new Date()
+        const dur = e.durationMinutes || 60
+        return {
+          id: e.groupSessionId,
+          sessionId: e.liveSessionId,
+          bookingId: e.groupSessionId,
+          requestId: null as string | null,
+          title: e.title || 'Group session',
+          subject: 'Group session',
+          start: start.toISOString(),
+          end: new Date(start.getTime() + dur * 60000).toISOString(),
+          duration: dur,
+          type: 'one-on-one' as const,
+          tutorId: e.tutorId,
+          meetingUrl: e.meetingUrl,
+          location: 'Online',
+          isVirtual: true,
+          status: e.sessionStatus || 'scheduled',
+          courseId: null as string | null,
+        }
+      }),
     ]
 
     // Sort by start time
