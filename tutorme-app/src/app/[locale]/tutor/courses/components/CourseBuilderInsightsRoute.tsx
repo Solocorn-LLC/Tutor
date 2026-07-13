@@ -50,6 +50,7 @@ import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
@@ -335,18 +336,28 @@ function TutorControlsPanel({
                       Save
                     </button>
 
-                    <button
-                      type="button"
-                      disabled={panelDisabled || mode !== 'build' || !canSchedule}
-                      onClick={onSchedule}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
-                      )}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      Schedule
-                    </button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={
+                              panelDisabled ||
+                              mode !== 'build' ||
+                              !canSchedule
+                            }
+                            onClick={onSchedule}
+                            className={cn(
+                              actionButtonBase,
+                              'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                            )}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            Schedule
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    </TooltipProvider>
 
                     <button
                       type="button"
@@ -534,12 +545,31 @@ function CourseBuilderInsightsRouteInner({
     onUpdateCourse?.(courseId, { name: editName.trim(), categories: editCategories })
     setIsEditCourseOpen(false)
   }
+  // Missing-category dialog: shown when user tries to schedule without a category.
+  const [isCategoryRequiredOpen, setIsCategoryRequiredOpen] = useState(false)
+  const openCategoryRequired = () => setIsCategoryRequiredOpen(true)
+  const closeCategoryRequired = () => setIsCategoryRequiredOpen(false)
+  const handleEditCourseFromCategoryRequired = () => {
+    closeCategoryRequired()
+    openEditCourse()
+  }
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [controlsMode, setControlsMode] = useState<ControlsMode>(
     initialMainTab === 'live' ? 'classroom' : initialMainTab === 'test-pci' ? 'test' : 'build'
   )
+  // Local saveMode that defaults to 'draft' (Editing) unless in an active live session.
+  // This ensures all courses open in Editing mode by default, requiring conscious
+  // switching to Live mode. Parent saveMode prop is ignored for initialization.
+  const [localSaveMode, setLocalSaveMode] = useState<'live' | 'draft'>(
+    insightsProps.sessionId ? 'live' : 'draft'
+  )
+  const effectiveSaveMode = localSaveMode
+  const handleSaveModeChange = (mode: 'live' | 'draft') => {
+    setLocalSaveMode(mode)
+    onSaveModeChange?.(mode)
+  }
   const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false)
   const router = useRouter()
 
@@ -725,6 +755,15 @@ function CourseBuilderInsightsRouteInner({
 
   const handlePublishDraft = async () => {
     if (!courseId || courseId === 'insights-draft') return
+
+    // 0. Validate category is selected before publishing.
+    const courseCategories = [...(courses || []), ...(draftCourses || [])].find(
+      (c: any) => c.id === courseId
+    )?.categories
+    if (!courseCategories || courseCategories.length === 0) {
+      openCategoryRequired()
+      return
+    }
 
     // 1. Read the editor's current tree. If it hasn't hydrated it can come back
     //    empty — fall back to the draft's persisted builder content so we never
@@ -1073,8 +1112,8 @@ function CourseBuilderInsightsRouteInner({
                 onSaveModeChange &&
                 !modeLocked && (
                   <Select
-                    value={saveMode}
-                    onValueChange={(val: 'live' | 'draft') => onSaveModeChange(val)}
+                    value={effectiveSaveMode}
+                    onValueChange={(val: 'live' | 'draft') => handleSaveModeChange(val)}
                   >
                     <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
                       <SelectValue />
@@ -1188,8 +1227,8 @@ function CourseBuilderInsightsRouteInner({
               mainTab={activeMainTab}
               leftPanelHidden={leftPanelHidden}
               onLeftPanelHiddenChange={setLeftPanelHidden}
-              saveMode={saveMode}
-              onSaveModeChange={onSaveModeChange}
+              saveMode={effectiveSaveMode}
+              onSaveModeChange={handleSaveModeChange}
               onSyncToLiveSession={onSyncToLiveSession}
               onUnsyncedChangesChange={setHasUnsyncedChanges}
               focusLessonId={
@@ -1211,7 +1250,7 @@ function CourseBuilderInsightsRouteInner({
                 toast.error('Builder not ready to save')
               }
             }}
-            onSchedule={saveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
+            onSchedule={effectiveSaveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
             onVideo={() => {
@@ -1225,15 +1264,14 @@ function CourseBuilderInsightsRouteInner({
             onCreateCourse={onCreateCourse}
             onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            // Schedule stays available for any real selected course, published
-            // or not — a draft materializes + schedules, a live course opens
-            // the reschedule dialog. (Was gated to drafts / live variants only.)
-            canSchedule={!!(courseId && courseId !== 'insights-draft')}
+            // Schedule is only available in Editing mode. In live state, scheduling
+            // is not allowed — publication is handled through the Course Details page.
+            canSchedule={!!(courseId && courseId !== 'insights-draft' && effectiveSaveMode === 'draft')}
             canGoLive={
               !!(
                 courseId &&
                 courseId !== 'insights-draft' &&
-                saveMode === 'draft' &&
+                effectiveSaveMode === 'draft' &&
                 !insightsProps.sessionId
               )
             }
@@ -1384,6 +1422,29 @@ function CourseBuilderInsightsRouteInner({
               disabled={!editName.trim() || editCategories.length === 0}
             >
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Required Dialog — shown when scheduling without a category */}
+      <Dialog open={isCategoryRequiredOpen} onOpenChange={setIsCategoryRequiredOpen}>
+        <DialogContent
+          className="max-w-md border border-slate-200 shadow-2xl"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Category Required</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4 text-center text-sm text-slate-600">
+            <p>Please select a category for your course.</p>
+          </div>
+          <DialogFooter className="gap-3">
+            <Button variant="modal-secondary-dark" onClick={closeCategoryRequired}>
+              Cancel
+            </Button>
+            <Button variant="modal-primary-dark" onClick={handleEditCourseFromCategoryRequired}>
+              Edit Course
             </Button>
           </DialogFooter>
         </DialogContent>
