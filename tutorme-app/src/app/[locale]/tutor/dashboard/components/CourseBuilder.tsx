@@ -10161,7 +10161,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           const version = versionId
                                             ? versions.find(v => v.id === versionId)
                                             : versions[0]
-                                          const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
+                                          const hasDoc = !!(
+                                            doc?.fileUrl ||
+                                            doc?.fileKey ||
+                                            doc?.extractedText
+                                          )
                                           const hasDmi = !!version
 
                                           if (!hasDoc && !hasDmi) {
@@ -10287,10 +10291,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           if (hasDoc && !hasDmi) {
                                             return (
                                               <div className="relative min-h-0 w-full flex-1">
-                                                {doc?.fileUrl ? (
+                                                {doc?.fileUrl || doc?.fileKey ? (
                                                   <PDFViewer
-                                                    key={doc.fileUrl}
-                                                    fileUrl={doc.fileUrl}
+                                                    key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                    fileUrl={doc.fileUrl || ''}
                                                     fileKey={doc.fileKey}
                                                     className="absolute inset-0 h-full w-full"
                                                     fitToWidth
@@ -10320,10 +10324,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 className="h-full"
                                               >
                                                 <div className="relative h-full w-full pr-1">
-                                                  {doc?.fileUrl ? (
+                                                  {doc?.fileUrl || doc?.fileKey ? (
                                                     <PDFViewer
-                                                      key={doc.fileUrl}
-                                                      fileUrl={doc.fileUrl}
+                                                      key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                      fileUrl={doc.fileUrl || ''}
                                                       fileKey={doc.fileKey}
                                                       className="absolute inset-0 h-full w-full"
                                                       fitToWidth
@@ -11179,10 +11183,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           >
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
                                               {currentTaskDocument?.mimeType ===
-                                              'application/pdf' ? (
+                                                'application/pdf' ||
+                                              (currentTaskDocument?.fileKey &&
+                                                (!currentTaskDocument?.mimeType ||
+                                                  currentTaskDocument?.mimeType ===
+                                                    'application/pdf')) ? (
                                                 <PDFViewer
-                                                  key={currentTaskDocument.fileUrl}
-                                                  fileUrl={currentTaskDocument.fileUrl}
+                                                  key={
+                                                    currentTaskDocument.fileUrl ||
+                                                    currentTaskDocument.fileKey ||
+                                                    'task-doc'
+                                                  }
+                                                  fileUrl={currentTaskDocument.fileUrl || ''}
                                                   fileKey={currentTaskDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   fitToScreen
@@ -11194,7 +11206,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ) : currentTaskDocument &&
                                                 currentTaskDocument.mimeType !==
                                                   'application/pdf' &&
-                                                currentTaskDocument.mimeType.startsWith(
+                                                currentTaskDocument.mimeType?.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
@@ -11581,10 +11593,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           >
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
                                               {currentAssessmentDocument?.mimeType ===
-                                              'application/pdf' ? (
+                                                'application/pdf' ||
+                                              (currentAssessmentDocument?.fileKey &&
+                                                (!currentAssessmentDocument?.mimeType ||
+                                                  currentAssessmentDocument?.mimeType ===
+                                                    'application/pdf')) ? (
                                                 <PDFViewer
-                                                  key={currentAssessmentDocument.fileUrl}
-                                                  fileUrl={currentAssessmentDocument.fileUrl}
+                                                  key={
+                                                    currentAssessmentDocument.fileUrl ||
+                                                    currentAssessmentDocument.fileKey ||
+                                                    'assessment-doc'
+                                                  }
+                                                  fileUrl={currentAssessmentDocument.fileUrl || ''}
                                                   fileKey={currentAssessmentDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   defaultScale={0.75}
@@ -11597,7 +11617,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ) : currentAssessmentDocument &&
                                                 currentAssessmentDocument.mimeType !==
                                                   'application/pdf' &&
-                                                currentAssessmentDocument.mimeType.startsWith(
+                                                currentAssessmentDocument.mimeType?.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">

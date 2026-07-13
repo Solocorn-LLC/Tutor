@@ -336,25 +336,6 @@ function TutorControlsPanel({
                       Save
                     </button>
 
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            disabled={panelDisabled || mode !== 'build' || !canSchedule}
-                            onClick={onSchedule}
-                            className={cn(
-                              actionButtonBase,
-                              'bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
-                            )}
-                          >
-                            <Calendar className="h-4 w-4" />
-                            Schedule
-                          </button>
-                        </TooltipTrigger>
-                      </Tooltip>
-                    </TooltipProvider>
-
                     <button
                       type="button"
                       disabled={panelDisabled || mode !== 'build' || !canDelete}
@@ -378,7 +359,7 @@ function TutorControlsPanel({
                       )}
                     >
                       <Edit3 className="h-4 w-4" />
-                      Edit Course
+                      Edit Category
                     </button>
                   </div>
 
@@ -429,6 +410,26 @@ function TutorControlsPanel({
                     </button>
                   </div>
                 </div>
+
+                {/* Schedule & Publish — full width, below the grid */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                        onClick={onSchedule}
+                        className={cn(
+                          actionButtonBase,
+                          'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                        )}
+                      >
+                        <Calendar className="h-4 w-4" />
+                        Schedule & Publish
+                      </button>
+                    </TooltipTrigger>
+                  </Tooltip>
+                </TooltipProvider>
 
                 {/* End the live session — finalizes recording + analytics. Only
                     shown while a session is active. */}
