@@ -7,15 +7,8 @@ export const AGENT_METADATA = {
     primaryFunction: 'Teaching through questioning',
     dataAccess: 'READ: Student, Conversation, Course, Progress | WRITE: Conversation',
   },
-  contentGenerator: {
-    name: 'Content Generator Agent',
-    description: 'Generates quizzes, lessons, and educational content',
-    uiLocations: ['/tutor/insights?tab=builder&courseId=[id]', '/admin/content'],
-    primaryFunction: 'Content creation',
-    dataAccess: 'READ: Course, Student | WRITE: Quiz, Question, Lesson',
-  },
-  // grading, briefing and liveMonitor entries removed — those agents are deleted
-  // or dead code (their UI locations here were stale/fabricated). Only live agents
-  // are listed. Live grading = lib/grading/pci-grader; live-class assist =
-  // /api/ai/monitor-assistant.
+  // Removed entries (deleted / dead agents, stale UI locations): contentGenerator
+  // (only fed the unrendered quiz UI), grading, briefing, liveMonitor. Live
+  // grading = lib/grading/pci-grader; live-class assist = /api/ai/monitor-assistant;
+  // PCI/marking = the agent-kit pci-master. Only the tutor agent is listed here.
 } as const
