@@ -13536,7 +13536,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
             <DialogHeader className="text-center">
               <DialogTitle className="mx-auto text-center text-white">
-                How should this assessment be marked?
+                How are the questions answered?
               </DialogTitle>
               <DialogDescription className="text-white/80">
                 Choose the response format. Multiple-choice papers are configured directly — no need
