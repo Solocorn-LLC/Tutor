@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 
 // DnD Kit imports
@@ -85,6 +86,8 @@ interface CalendarEvent {
   type: 'class' | 'office_hours' | 'personal' | 'deadline'
   status: 'scheduled' | 'live' | 'completed' | 'cancelled'
   sessionId?: string
+  /** 1-on-1 booking request id — used to self-heal a missing session link. */
+  requestId?: string
   studentCount?: number
   maxStudents?: number
   subject?: string
@@ -411,6 +414,7 @@ export function InteractiveCalendar({
     [onViewChange]
   )
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [joiningSession, setJoiningSession] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [subjectFilter, setSubjectFilter] = useState<string>('all')
   const [typeFilter] = useState<string>('all')
@@ -1460,25 +1464,58 @@ export function InteractiveCalendar({
                   </Button>
                   <Button
                     variant="modal-primary-dark"
-                    disabled={selectedEvent.status === 'cancelled'}
-                    onClick={() => {
-                      if (!selectedEvent.sessionId) {
-                        toast.error('This event is not linked to a TutorMekimi session.')
+                    disabled={selectedEvent.status === 'cancelled' || joiningSession}
+                    onClick={async () => {
+                      const isOneOnOne = (selectedEvent.maxStudents ?? 50) <= 2
+                      // 1-on-1 (capacity ≤ 2) → the shared two-way call room, which
+                      // works for both roles (course classrooms are role-specific and
+                      // can't host a course-less 1-on-1).
+                      const routeToSession = (sessionId: string) => {
+                        router.push(
+                          withLocalePath(
+                            isOneOnOne
+                              ? `/call/${sessionId}`
+                              : isStudent
+                                ? `/student/feedback?sessionId=${sessionId}`
+                                : `/tutor/classroom?sessionId=${sessionId}`
+                          )
+                        )
                         setSelectedEvent(null)
+                      }
+
+                      if (selectedEvent.sessionId) {
+                        routeToSession(selectedEvent.sessionId)
                         return
                       }
-                      // 1-on-1 (capacity ≤ 2) → the shared two-way call room, which
-                      // works for both roles (the course classrooms are role-specific
-                      // and can't host a course-less 1-on-1).
-                      const isOneOnOne = (selectedEvent.maxStudents ?? 50) <= 2
-                      router.push(
-                        withLocalePath(
-                          isOneOnOne
-                            ? `/call/${selectedEvent.sessionId}`
-                            : isStudent
-                              ? `/student/feedback?sessionId=${selectedEvent.sessionId}`
-                              : `/tutor/classroom?sessionId=${selectedEvent.sessionId}`
-                        )
+
+                      // No linked session. For a 1-on-1 booking we can self-heal:
+                      // ask the server to (re)link/create the session, then join.
+                      if (isOneOnOne && selectedEvent.requestId) {
+                        setJoiningSession(true)
+                        try {
+                          const res = await fetchWithCsrf('/api/one-on-one/ensure-session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ requestId: selectedEvent.requestId }),
+                          })
+                          const data = await res.json().catch(() => ({}))
+                          if (res.ok && data?.sessionId) {
+                            routeToSession(data.sessionId)
+                            return
+                          }
+                          toast.error(
+                            data?.error || 'This session isn’t ready to join yet. Please try again.'
+                          )
+                        } catch {
+                          toast.error('Could not open the session. Please try again.')
+                        } finally {
+                          setJoiningSession(false)
+                        }
+                        return
+                      }
+
+                      toast.error(
+                        'This session isn’t ready to join yet — please refresh in a moment or contact your tutor.'
                       )
                       setSelectedEvent(null)
                     }}

@@ -233,6 +233,7 @@ export function DashboardCalendar({
           : evStatus === 'ended' || evStatus === 'completed'
             ? 'completed'
             : 'scheduled'
+      const isOneOnOne = (ev as any).type === 'one-on-one'
       return {
         id: ev.id,
         title: ev.title,
@@ -242,6 +243,12 @@ export function DashboardCalendar({
         status,
         subject: ev.subject,
         isOnline: true,
+        // Carry the join keys through: without sessionId the Join button
+        // always reported "not linked"; requestId lets a missing 1-on-1 session
+        // self-heal; maxStudents (2 for a 1-on-1) routes to the shared call room.
+        sessionId: (ev as any).sessionId ?? undefined,
+        requestId: (ev as any).requestId ?? undefined,
+        maxStudents: isOneOnOne ? 2 : ((ev as any).maxStudents ?? undefined),
         description:
           (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
         color:
