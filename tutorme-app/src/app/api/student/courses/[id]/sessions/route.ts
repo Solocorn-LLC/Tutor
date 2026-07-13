@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { eq, and, asc } from 'drizzle-orm'
+import { eq, and, asc, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -52,10 +53,13 @@ export const GET = withAuth(
       // they have one (a switch then cascades to which sessions they see).
       // One-time/ad-hoc sessions (scheduleId null) are shown to everyone.
       // Lesson titles so each session can show which lesson it covers.
+      // The student enrolls in the published variant, but lessons/sessions may be
+      // stored under the template id — match the whole variant family.
+      const familyIds = await expandToCourseFamily([courseId])
       const lessonRows = await drizzleDb
         .select({ id: courseLesson.lessonId, title: courseLesson.title, order: courseLesson.order })
         .from(courseLesson)
-        .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
+        .where(and(inArray(courseLesson.courseId, familyIds), isNull(courseLesson.deletedAt)))
         .orderBy(asc(courseLesson.order))
       const lessonTitleById = new Map(lessonRows.map(l => [l.id, l.title]))
       const lessonNumberById = new Map(lessonRows.map((l, i) => [l.id, i + 1]))
@@ -64,13 +68,13 @@ export const GET = withAuth(
       const realSessions = await drizzleDb.query.liveSession.findMany({
         where: enrolledScheduleId
           ? and(
-              eq(liveSessionTable.courseId, courseId),
+              inArray(liveSessionTable.courseId, familyIds),
               or(
                 eq(liveSessionTable.scheduleId, enrolledScheduleId),
                 isNull(liveSessionTable.scheduleId)
               )
             )
-          : eq(liveSessionTable.courseId, courseId),
+          : inArray(liveSessionTable.courseId, familyIds),
         orderBy: [asc(liveSessionTable.scheduledAt)],
       })
 

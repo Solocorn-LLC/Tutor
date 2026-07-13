@@ -11,7 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { randomUUID } from 'crypto'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
@@ -102,12 +103,18 @@ export async function POST(
       return NextResponse.json({ error: 'Task not available' }, { status: 404 })
     }
 
-    // Student must be enrolled in the task's course
+    // Student must be enrolled in the task's course. The task can be scoped to
+    // the template id while the student enrolled in a published variant, so match
+    // the whole variant family.
+    const taskCourseFamily = await expandToCourseFamily(task.courseId ? [task.courseId] : [])
     const [enrollment] = await drizzleDb
       .select({ enrollmentId: courseEnrollment.enrollmentId })
       .from(courseEnrollment)
       .where(
-        and(eq(courseEnrollment.studentId, studentId), eq(courseEnrollment.courseId, task.courseId))
+        and(
+          eq(courseEnrollment.studentId, studentId),
+          inArray(courseEnrollment.courseId, taskCourseFamily)
+        )
       )
       .limit(1)
 

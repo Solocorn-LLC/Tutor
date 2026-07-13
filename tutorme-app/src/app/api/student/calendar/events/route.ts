@@ -18,9 +18,9 @@ import {
   oneOnOneBookingRequest,
   groupSession,
   groupSessionParticipant,
-  courseVariant,
 } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
+import { eq, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 export const GET = withAuth(
@@ -46,32 +46,9 @@ export const GET = withAuth(
     const enrolledIds = enrollments.map(e => e.courseId).filter(Boolean) as string[]
 
     // A student enrolls in the PUBLISHED variant, but the tutor's sessions and
-    // schedules may be stored under the TEMPLATE course id (or a sibling published
-    // variant). Expand each enrolled id to its whole variant family so we match
-    // sessions regardless of which id in the family they carry — otherwise
-    // `calendarEvent.courseId IN (publishedIds)` never matches a template-scoped
-    // session and the student sees nothing.
-    let courseIds = enrolledIds
-    if (enrolledIds.length > 0) {
-      const variants = await drizzleDb
-        .select({
-          templateCourseId: courseVariant.templateCourseId,
-          publishedCourseId: courseVariant.publishedCourseId,
-        })
-        .from(courseVariant)
-        .where(
-          or(
-            inArray(courseVariant.publishedCourseId, enrolledIds),
-            inArray(courseVariant.templateCourseId, enrolledIds)
-          )
-        )
-      courseIds = Array.from(
-        new Set([
-          ...enrolledIds,
-          ...variants.flatMap(v => [v.templateCourseId, v.publishedCourseId]),
-        ])
-      )
-    }
+    // schedules may be stored under the TEMPLATE course id — expand to the whole
+    // variant family so a template-scoped session still matches.
+    const courseIds = await expandToCourseFamily(enrolledIds)
 
     // --- Primary source: CalendarEvent (course sessions) ---
     // Only queried when the student is enrolled in courses; 1-on-1 sessions

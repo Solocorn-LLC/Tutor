@@ -1,4 +1,5 @@
 import { eq, inArray, desc, isNull, and } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   contentProgress,
@@ -57,7 +58,7 @@ export async function fetchLessonProgress(studentId: string): Promise<ProgressIt
     .from(courseEnrollment)
     .where(eq(courseEnrollment.studentId, studentId))
 
-  const courseIds = enrollments.map(e => e.courseId)
+  const courseIds = await expandToCourseFamily(enrollments.map(e => e.courseId))
   if (courseIds.length === 0) return []
 
   const lessons = await drizzleDb
@@ -120,7 +121,7 @@ export async function fetchCourseProgress(studentId: string): Promise<ProgressIt
     .from(courseEnrollment)
     .where(eq(courseEnrollment.studentId, studentId))
 
-  const courseIds = enrollments.map(e => e.courseId)
+  const courseIds = await expandToCourseFamily(enrollments.map(e => e.courseId))
   if (courseIds.length === 0) return []
 
   const coursesData =

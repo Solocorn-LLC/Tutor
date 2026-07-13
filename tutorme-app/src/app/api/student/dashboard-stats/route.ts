@@ -25,6 +25,7 @@ import {
   type LiveSessionStatus,
 } from '@/lib/db/schema'
 import { eq, and, inArray, isNull, gte } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 // A booking that was rejected by the tutor or expired never became a booking, so
@@ -64,7 +65,11 @@ export const GET = withAuth(
         .where(eq(courseEnrollment.studentId, studentId))
 
       const activeEnrollments = enrollmentRows.filter(e => !e.courseDeletedAt)
-      const courseIds = [...new Set(activeEnrollments.map(e => e.courseId).filter(Boolean))]
+      // Expand enrolled (published) ids to the variant family so template-scoped
+      // sessions are counted too (see @/lib/courses/variant-family).
+      const courseIds = await expandToCourseFamily([
+        ...new Set(activeEnrollments.map(e => e.courseId).filter(Boolean)),
+      ] as string[])
 
       // --- 2. Counts that don't depend on sessions ---
       const coursesEnrolled = activeEnrollments.length
