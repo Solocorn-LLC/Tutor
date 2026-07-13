@@ -17,6 +17,8 @@ import {
   runAssessmentGuardrails,
   GUARDRAILED_TEMPERATURE,
   type GuardrailRunResult,
+  type GuardrailDomain,
+  type PciVariant,
 } from '@/lib/ai/guardrails'
 import type { AgentDefinition, AgentInput, AgentResult, GenerateFn, Tool } from './types'
 import { defaultGenerate } from './provider-adapter'
@@ -32,10 +34,30 @@ function resolveBasePrompt(def: AgentDefinition, input: AgentInput): string {
   return typeof def.systemPrompt === 'function' ? def.systemPrompt(input) : def.systemPrompt
 }
 
+/**
+ * Resolve the effective guardrail domain/variant for THIS call: a per-request
+ * override on `input.context` wins over the agent's static definition. This is
+ * what lets one agent (e.g. pci-master) serve requests whose domain varies.
+ */
+function resolveGuardrail(
+  def: AgentDefinition,
+  input: AgentInput
+): { domain?: GuardrailDomain; variant?: PciVariant } {
+  return {
+    domain: input.context?.guardrailDomain ?? def.guardrailDomain,
+    variant: input.context?.variant ?? def.variant,
+  }
+}
+
 /** Guardrail prompt (if guarded) + base prompt + active skill instructions. */
-function composeSystemPrompt(def: AgentDefinition, input: AgentInput): string {
+function composeSystemPrompt(
+  def: AgentDefinition,
+  input: AgentInput,
+  domain: GuardrailDomain | undefined,
+  variant: PciVariant | undefined
+): string {
   const parts: string[] = []
-  if (def.guardrailDomain) parts.push(guardrailSystemPrompt(def.guardrailDomain, def.variant))
+  if (domain) parts.push(guardrailSystemPrompt(domain, variant))
   parts.push(resolveBasePrompt(def, input))
   for (const skill of def.skills ?? []) parts.push(skill.instructions)
   return parts.join('\n\n')
@@ -124,9 +146,12 @@ async function runToolLoop(
 }
 
 /** Post-response guardrails, applied to the final answer regardless of tool use. */
-function runPostGuardrails(def: AgentDefinition, text: string): GuardrailRunResult | undefined {
-  if (def.guardrailDomain === 'task') return runTaskGuardrails(text)
-  if (def.guardrailDomain === 'assessment') {
+function runPostGuardrails(
+  domain: GuardrailDomain | undefined,
+  text: string
+): GuardrailRunResult | undefined {
+  if (domain === 'task') return runTaskGuardrails(text)
+  if (domain === 'assessment') {
     // Assessment/DMI output is structured — parse it and run the leak validator.
     const parsed = tryParseJson(text)
     if (!parsed) return undefined
@@ -146,8 +171,9 @@ export async function runAgent(
   input: AgentInput,
   deps: RunnerDeps = DEFAULT_DEPS
 ): Promise<AgentResult> {
-  const system = composeSystemPrompt(def, input)
-  const temperature = def.guardrailDomain ? GUARDRAILED_TEMPERATURE : (def.temperature ?? 0.7)
+  const { domain, variant } = resolveGuardrail(def, input)
+  const system = composeSystemPrompt(def, input, domain, variant)
+  const temperature = domain ? GUARDRAILED_TEMPERATURE : (def.temperature ?? 0.7)
 
   const text =
     collectTools(def).length > 0
@@ -161,5 +187,5 @@ export async function runAgent(
           })
         ).text
 
-  return { agentId: def.id, text, guardrail: runPostGuardrails(def, text) }
+  return { agentId: def.id, text, guardrail: runPostGuardrails(domain, text) }
 }

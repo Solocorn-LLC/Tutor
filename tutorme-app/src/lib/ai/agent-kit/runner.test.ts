@@ -53,6 +53,54 @@ describe('agent-kit runner', () => {
     expect(typeof result.guardrail?.hasBlocking).toBe('boolean')
   })
 
+  it('applies a PER-REQUEST guardrail domain (from context) on an otherwise-unguarded agent', async () => {
+    const { fn, calls } = mockGenerate()
+    // No static guardrailDomain — the domain arrives per request (like pci-master,
+    // whose domain is context.type: task | assessment | none).
+    const def: AgentDefinition = { id: 'pci-master', description: '', systemPrompt: 'BASE' }
+
+    const result = await runAgent(
+      def,
+      { message: 'hi', context: { guardrailDomain: 'task' } },
+      { generate: fn }
+    )
+
+    // the request-supplied domain drives the guardrail prompt, temperature, and validator
+    expect(calls[0].system.startsWith(guardrailSystemPrompt('task'))).toBe(true)
+    expect(calls[0].system).toContain('BASE')
+    expect(calls[0].temperature).toBe(GUARDRAILED_TEMPERATURE)
+    expect(result.guardrail).toBeDefined()
+  })
+
+  it('runs UNGUARDED when neither the agent nor the request supplies a domain', async () => {
+    const { fn, calls } = mockGenerate()
+    const def: AgentDefinition = { id: 'pci-master', description: '', systemPrompt: 'BASE' }
+
+    const result = await runAgent(def, { message: 'hi', context: {} }, { generate: fn })
+
+    expect(calls[0].system).toBe('BASE') // no guardrail prompt prepended
+    expect(result.guardrail).toBeUndefined() // no post-validation
+  })
+
+  it('lets a per-request domain OVERRIDE the agent default', async () => {
+    const { fn, calls } = mockGenerate()
+    const def: AgentDefinition = {
+      id: 'x',
+      description: '',
+      systemPrompt: 'BASE',
+      guardrailDomain: 'task',
+    }
+
+    await runAgent(
+      def,
+      { message: 'hi', context: { guardrailDomain: 'assessment' } },
+      { generate: fn }
+    )
+
+    // the request's 'assessment' wins over the agent's static 'task'
+    expect(calls[0].system.startsWith(guardrailSystemPrompt('assessment'))).toBe(true)
+  })
+
   it('supports a function systemPrompt derived from the input', async () => {
     const { fn, calls } = mockGenerate()
     const def: AgentDefinition = {
