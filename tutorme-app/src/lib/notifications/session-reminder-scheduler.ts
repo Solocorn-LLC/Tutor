@@ -25,6 +25,8 @@ import {
   profile,
   calendarEvent,
   oneOnOneBookingRequest,
+  groupSession,
+  groupSessionParticipant,
 } from '@/lib/db/schema'
 import { notify, notifyMany } from './notify'
 
@@ -184,6 +186,41 @@ export async function runSessionReminderScan(): Promise<void> {
           s.sessionId,
           err
         )
+      }
+
+      // Group session (no course): remind every paid participant.
+      try {
+        const [gs] = await drizzleDb
+          .select({ groupSessionId: groupSession.groupSessionId })
+          .from(groupSession)
+          .where(eq(groupSession.liveSessionId, s.sessionId))
+          .limit(1)
+        if (gs) {
+          const seats = await drizzleDb
+            .select({ studentId: groupSessionParticipant.studentId })
+            .from(groupSessionParticipant)
+            .where(
+              and(
+                eq(groupSessionParticipant.groupSessionId, gs.groupSessionId),
+                eq(groupSessionParticipant.status, 'PAID')
+              )
+            )
+          const studentIds = Array.from(
+            new Set(seats.map(x => x.studentId).filter(id => id && id !== s.tutorId))
+          )
+          if (studentIds.length > 0) {
+            await notifyMany({
+              userIds: studentIds,
+              type: 'reminder',
+              title: 'Upcoming session',
+              message,
+              actionUrl: `/call/${encodeURIComponent(s.sessionId)}`,
+              data,
+            })
+          }
+        }
+      } catch (err) {
+        console.error('[session-reminders] group notify failed for session', s.sessionId, err)
       }
     }
   }
