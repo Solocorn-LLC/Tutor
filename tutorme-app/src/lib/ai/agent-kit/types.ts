@@ -21,6 +21,16 @@ export interface AgentContext {
   sessionId?: string
   courseId?: string
   /**
+   * Per-request guardrail override. When set, the runner uses THIS domain (and
+   * `variant`) for the guardrail system prompt, the guardrailed temperature, and
+   * the post-response validators — overriding the agent's STATIC `guardrailDomain`.
+   * This lets one agent serve a route whose domain varies per request (e.g.
+   * pci-master: `task` | `assessment` | none). Falls back to the agent default
+   * when absent, so existing agents are unaffected.
+   */
+  guardrailDomain?: GuardrailDomain
+  variant?: PciVariant
+  /**
    * Agent-specific context rides along here (e.g. a ported agent's own
    * `TutorContext`/`GradingRequest`), so a `systemPrompt` function can delegate
    * to the existing prompt builder without a bespoke input type per agent.
