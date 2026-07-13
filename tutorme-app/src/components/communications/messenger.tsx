@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MentionInput } from '@/components/mentions/MentionInput'
 import { renderMentions } from '@/lib/mentions/render-mentions'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -114,7 +115,7 @@ export default function Messenger() {
     const content = inputMessage
     setInputMessage('')
     try {
-      const res = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
+      const res = await fetchWithCsrf(`/api/conversations/${selectedConversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
