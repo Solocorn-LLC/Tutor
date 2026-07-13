@@ -58,16 +58,25 @@ agent-kit/
 ## Status
 **Phases 1–2 landed.** `runAgent` does guardrailed generation *and* executes tools via a
 provider-agnostic ReAct/JSON loop, with structured assessment/DMI post-validation.
-**Phase 3 in progress:** the **tutor** agent is ported **faithfully** — `agents/tutor.ts` mirrors
-the LIVE `runTutorChat` prompt chain (`buildCompletePrompt` → `withTaskPci` (TASK-6) →
-`withAssessmentIntegrity` (ASMT-15)). The first port pointed at a *different, older* builder
-(`buildSystemPrompt`), which **conflicts** with the live prompt; per single-source-of-truth we keep
-the live chain and dropped the stale one from the kit, and a test now guards that the
-assessment-integrity constraint survives.
 
-**Cutover note:** `runTutorChat` is *already* a clean canonical entrypoint (sanitization, integrity,
-rich output extraction) and uses a **single baked prompt**, which doesn't map onto the runner's
-system/user split. So the tutor is a poor *first* cutover candidate — churn with regression risk.
-The better first real cutover is a **guardrailed PCI/assessment agent** (system/user separation +
-`guardrailDomain` — exactly what the runner is built for). grader/content-generator/pci-master and
-the flag-gated cutover follow, one PR each.
+**Phase 3 — pci-master cut over, and that's the right stopping point.** `pci-master` is fully on the
+kit in prod (behind `AGENT_KIT_PCI_MASTER`, canary-validated, flag persisted in `deploy-gcp.yml`).
+Getting there added the runner's **per-request guardrail domain** (its domain is `context.type`),
+which is the kit's whole value proposition — uniform, un-bypassable guardrails on interactive
+generation.
+
+### Cutover decisions (why pci-master is the only cutover — read before porting more)
+We assessed every candidate. The kit only *helps* an agent that is **interactive + guarded +
+system/user-shaped**. Most aren't:
+
+| Agent | Verdict | Why |
+|-------|---------|-----|
+| **pci-master** | ✅ **cut over** | interactive, per-request guardrail domain, system/user — exact fit |
+| **tutor** | faithful config only, **not** cut over | `runTutorChat` is already clean; a single **baked prompt** (`buildCompletePrompt`→`withTaskPci`→`withAssessmentIntegrity`) doesn't map onto the runner's system/user split. NB the live prompt is `buildCompletePrompt`, **not** the older `buildSystemPrompt` — those conflicted; a test guards the ASMT-15 layer survives. |
+| **grader** (`lib/agents/grading`) | **deleted** | dead legacy module — every fn threw "Legacy … removed", no live callers |
+| grader (live `pci-grader`) | leave | already clean; **post-only** `runTaskGuardrails` and *must not* prepend the anti-leak prompt (the grader needs the rubric/answer). Doesn't fit the runner's PRE+POST coupling. |
+| **content-generator** | leave | **unguarded** quiz/lesson generation — the runner's uniform-guardrail value adds nothing; porting is churn |
+
+Force-porting the "leave" rows would be reshaping prompts for no benefit (and real regression risk).
+Revisit only if one of them gains a genuine need for **tools/skills** or **provider-swap** — that's
+when the kit earns its keep beyond guardrails.
