@@ -1086,38 +1086,49 @@ function TutorDashboardContent() {
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-white">
-                <Calendar className="text-primary h-5 w-5" />
-                Course Sessions
-              </DialogTitle>
-              <DialogDescription className="text-white/80">
-                {selectedCourseForCancel && (
+                {sessionsView === 'create' ? (
                   <>
-                    Manage sessions for{' '}
-                    <strong>
-                      {selectedCourseForCancel.nationality &&
-                      selectedCourseForCancel.nationality !== 'Global' ? (
-                        <span className="inline-flex items-center gap-1">
-                          {selectedCourseForCancel.name} —{' '}
-                          {selectedCourseForCancel.variantCategory ||
-                            (selectedCourseForCancel.categories || [])[0] ||
-                            'General'}{' '}
-                          —{' '}
-                          <CountryFlag
-                            countryName={selectedCourseForCancel.nationality}
-                            size="xs"
-                            showLabel
-                          />
-                        </span>
-                      ) : (
-                        selectedCourseForCancel.name
-                      )}
-                    </strong>
+                    <Video className="text-primary h-5 w-5" />
+                    Create Class
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="text-primary h-5 w-5" />
+                    Course Sessions
                   </>
                 )}
+              </DialogTitle>
+              <DialogDescription className="text-white/80">
+                {sessionsView === 'create'
+                  ? 'Schedule a single session using this course curriculum'
+                  : selectedCourseForCancel && (
+                      <>
+                        Manage sessions for{' '}
+                        <strong>
+                          {selectedCourseForCancel.nationality &&
+                          selectedCourseForCancel.nationality !== 'Global' ? (
+                            <span className="inline-flex items-center gap-1">
+                              {selectedCourseForCancel.name} —{' '}
+                              {selectedCourseForCancel.variantCategory ||
+                                (selectedCourseForCancel.categories || [])[0] ||
+                                'General'}{' '}
+                              —{' '}
+                              <CountryFlag
+                                countryName={selectedCourseForCancel.nationality}
+                                size="xs"
+                                showLabel
+                              />
+                            </span>
+                          ) : (
+                            selectedCourseForCancel.name
+                          )}
+                        </strong>
+                      </>
+                    )}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="relative mt-4 min-h-[460px]">
+            <div className="relative mt-4 h-[520px]">
               {/* Create Class view */}
               <div
                 className={cn(
@@ -1126,15 +1137,8 @@ function TutorDashboardContent() {
                 )}
               >
                 {sessionsView === 'create' && selectedCourseForCancel && (
-                  <div className="flex h-full flex-col">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Video className="text-primary h-5 w-5" />
-                      <h3 className="text-lg font-semibold text-white">Create Class</h3>
-                    </div>
-                    <p className="mb-3 text-sm text-white/70">
-                      Schedule a single session using this course curriculum
-                    </p>
-                    <div className="flex-1">
+                  <div className="flex h-full flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto">
                       <CreateSessionForm
                         courseId={selectedCourseForCancel.id}
                         courseName={selectedCourseForCancel.name}
@@ -1164,7 +1168,7 @@ function TutorDashboardContent() {
                     : 'pointer-events-none absolute inset-0 opacity-0'
                 )}
               >
-                <div className="mt-4 text-white">
+                <div className="h-[520px] text-white">
                   {loadingSessions ? (
                     <div className="flex items-center justify-center py-8">
                       <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
@@ -1207,7 +1211,7 @@ function TutorDashboardContent() {
                       )}
                     </div>
                   ) : (
-                    <div className="scrollbar-hide h-[460px] space-y-3 overflow-y-auto pr-2">
+                    <div className="scrollbar-hide h-[520px] space-y-3 overflow-y-auto pr-2">
                       {courseSessions.length > 6 && (
                         <p className="text-muted-foreground pb-1 text-xs">
                           {courseSessions.length} sessions — scroll to see all
