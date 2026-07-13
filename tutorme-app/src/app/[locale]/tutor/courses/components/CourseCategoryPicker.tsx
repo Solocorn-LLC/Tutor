@@ -303,84 +303,89 @@ export function CourseCategoryPicker({
     >
       <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
       <div className="relative z-10 flex flex-col gap-6">
-        {/* Region + Country */}
-        <div className="flex flex-wrap gap-3">
-          <Select
-            value={selectedRegion}
-            onValueChange={v => {
-              setSelectedRegion(v)
-              setSelectedCountryCode('')
-            }}
-          >
-            <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
-              <SelectValue placeholder="Region" />
-            </SelectTrigger>
-            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-              {REGIONS.filter(r => r.id !== 'global').map(region => (
-                <SelectItem
-                  key={region.id}
-                  value={region.id}
-                  className="mx-1.5 rounded-md text-white hover:bg-white/20"
-                >
-                  {region.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={!selectedRegion}
-                className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
-              >
-                <span className="truncate">
-                  {selectedCountryCode
-                    ? availableCountries.find(c => c.code === selectedCountryCode)?.name ||
-                      'Country'
-                    : 'Country'}
-                </span>
-                <svg
-                  className="h-4 w-4 opacity-50"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
-              align="start"
+        {/* Region + Country — only for the country-specific tabs (National +
+            Universities); hidden on the global-board tabs where a country is
+            meaningless and picking one caused the "choose country twice?"
+            confusion. */}
+        {(categoryTab === 'national' || categoryTab === 'universities') && (
+          <div className="flex flex-wrap gap-3">
+            <Select
+              value={selectedRegion}
+              onValueChange={v => {
+                setSelectedRegion(v)
+                setSelectedCountryCode('')
+              }}
             >
-              <div className="flex flex-col gap-1">
-                {availableCountries.map(country => (
-                  <button
-                    key={country.code}
-                    onClick={() => setSelectedCountryCode(country.code)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
+              <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+                <SelectValue placeholder="Region" />
+              </SelectTrigger>
+              <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                {REGIONS.filter(r => r.id !== 'global').map(region => (
+                  <SelectItem
+                    key={region.id}
+                    value={region.id}
+                    className="mx-1.5 rounded-md text-white hover:bg-white/20"
                   >
-                    <div
-                      className={cn(
-                        'h-4 w-4 rounded-full border-2 transition-colors',
-                        selectedCountryCode === country.code
-                          ? 'border-white bg-white'
-                          : 'border-white/50 bg-transparent'
-                      )}
-                    />
-                    <span>{country.name}</span>
-                  </button>
+                    {region.name}
+                  </SelectItem>
                 ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+              </SelectContent>
+            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!selectedRegion}
+                  className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
+                >
+                  <span className="truncate">
+                    {selectedCountryCode
+                      ? availableCountries.find(c => c.code === selectedCountryCode)?.name ||
+                        'Country'
+                      : 'Country'}
+                  </span>
+                  <svg
+                    className="h-4 w-4 opacity-50"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
+                align="start"
+              >
+                <div className="flex flex-col gap-1">
+                  {availableCountries.map(country => (
+                    <button
+                      key={country.code}
+                      onClick={() => setSelectedCountryCode(country.code)}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
+                    >
+                      <div
+                        className={cn(
+                          'h-4 w-4 rounded-full border-2 transition-colors',
+                          selectedCountryCode === country.code
+                            ? 'border-white bg-white'
+                            : 'border-white/50 bg-transparent'
+                        )}
+                      />
+                      <span>{country.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
 
         {/* Search + selected badges */}
         <div className="mb-1 flex items-start gap-3">
