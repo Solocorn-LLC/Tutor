@@ -9,6 +9,7 @@ import {
   studentTaskReport,
 } from '@/lib/db/schema'
 import { eq, inArray, and } from 'drizzle-orm'
+import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
 
 export const dynamic = 'force-dynamic'
@@ -107,7 +108,12 @@ export const GET = withAuth(
       return NextResponse.json({ directory: {}, errors })
     }
 
-    const courseIds = enrollments.map(e => e.courseId).filter((id): id is string => id != null)
+    // Expand enrolled (published) ids to the variant family (so template-scoped
+    // materials/reports are fetched) with a map back to the enrolled id for
+    // attributing each item to the right course node in the tree.
+    const { ids: courseIds, toEnrolled } = await expandFamilyWithMap(
+      enrollments.map(e => e.courseId).filter((id): id is string => id != null)
+    )
 
     // --- 2. Fetch deployed materials ---
     let deployedMaterials: any[] = []
@@ -162,7 +168,8 @@ export const GET = withAuth(
     // Populate individual reports
     studentReports.forEach(report => {
       if (!report.courseId) return
-      const en = enrollments.find(e => e.courseId === report.courseId)
+      const ownerId = toEnrolled.get(report.courseId) ?? report.courseId
+      const en = enrollments.find(e => e.courseId === ownerId)
       if (!en) return
 
       const tutorKey = en.tutorName ? `Tutor@${en.tutorName.replace(/\s+/g, '')}` : 'Tutor@Unknown'
@@ -199,7 +206,8 @@ export const GET = withAuth(
     })
 
     for (const material of sortedMaterials) {
-      const en = enrollments.find(e => e.courseId === material.courseId)
+      const ownerId = toEnrolled.get(material.courseId) ?? material.courseId
+      const en = enrollments.find(e => e.courseId === ownerId)
       if (!en) continue
 
       const tutorKey = en.tutorName ? `Tutor@${en.tutorName.replace(/\s+/g, '')}` : 'Tutor@Unknown'

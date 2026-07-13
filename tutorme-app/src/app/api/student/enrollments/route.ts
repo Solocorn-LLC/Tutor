@@ -21,6 +21,7 @@ import {
   profile,
 } from '@/lib/db/schema'
 import { and, eq, inArray, desc } from 'drizzle-orm'
+import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
 
@@ -86,8 +87,12 @@ export const GET = withAuth(
       .where(eq(courseEnrollment.studentId, session.user.id))
       .orderBy(desc(courseEnrollment.enrolledAt))
 
-    // Batch query lesson counts to avoid N+1
-    const courseIds = enrollmentsRows.map(row => row.courseId)
+    // Batch query lesson/session counts. Expand enrolled (published) ids to the
+    // variant family (so template-scoped content is counted) and keep a map back
+    // to the enrolled id so counts roll up to the right enrollment card.
+    const { ids: courseIds, toEnrolled } = await expandFamilyWithMap(
+      enrollmentsRows.map(row => row.courseId)
+    )
     const lessonCounts =
       courseIds.length > 0
         ? await drizzleDb
@@ -99,7 +104,11 @@ export const GET = withAuth(
             .where(inArray(courseLesson.courseId, courseIds))
             .groupBy(courseLesson.courseId)
         : []
-    const lessonCountByCourse = new Map(lessonCounts.map(m => [m.courseId, m.count ?? 0]))
+    const lessonCountByCourse = new Map<string, number>()
+    for (const m of lessonCounts) {
+      const owner = toEnrolled.get(m.courseId) ?? m.courseId
+      lessonCountByCourse.set(owner, (lessonCountByCourse.get(owner) ?? 0) + (m.count ?? 0))
+    }
 
     // Real per-course progress for this student. Completion mirrors dashboard-stats:
     // courseProgress.isCompleted OR enrollment.completedAt is set.
@@ -121,7 +130,9 @@ export const GET = withAuth(
               )
             )
         : []
-    const progressByCourse = new Map(progressRows.map(p => [p.courseId, p]))
+    const progressByCourse = new Map(
+      progressRows.map(p => [toEnrolled.get(p.courseId) ?? p.courseId, p])
+    )
 
     // Real session counts: a "session" is a materialized liveSession (one per
     // scheduled time slot, expanded over the schedule's weeks) — NOT a content
@@ -141,9 +152,13 @@ export const GET = withAuth(
     const sessionCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
     const sessionCountByCourse = new Map<string, number>() // course-wide total
     for (const r of sessionRows) {
-      const cid = r.courseId ?? ''
+      // Roll a template-scoped session up under the enrolled (published) id.
+      const cid = toEnrolled.get(r.courseId ?? '') ?? r.courseId ?? ''
       sessionCountByCourse.set(cid, (sessionCountByCourse.get(cid) ?? 0) + (r.count ?? 0))
-      if (r.scheduleId) sessionCountBySchedule.set(`${cid}:${r.scheduleId}`, r.count ?? 0)
+      if (r.scheduleId) {
+        const key = `${cid}:${r.scheduleId}`
+        sessionCountBySchedule.set(key, (sessionCountBySchedule.get(key) ?? 0) + (r.count ?? 0))
+      }
     }
 
     // The chosen schedule per enrollment (name/index for display + slots/weeks

@@ -20,6 +20,7 @@ import {
   studentPerformance,
 } from '@/lib/db/schema'
 import { eq, inArray, and, asc } from 'drizzle-orm'
+import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions, req)
@@ -57,19 +58,23 @@ export async function GET(req: NextRequest) {
 
     const courseMap = new Map(curricula.map(c => [c.courseId, c]))
 
-    // Lessons now directly reference courses (no modules)
+    // Lessons may be authored under the template id while the student enrolled in
+    // a published variant — fetch across the variant family and roll each lesson
+    // up under the ENROLLED id so `lessonsByCourse.get(enrollment.courseId)` finds
+    // them.
+    const { ids: lessonCourseIds, toEnrolled } = await expandFamilyWithMap(courseIds)
     const lessons =
-      courseIds.length > 0
+      lessonCourseIds.length > 0
         ? await drizzleDb
             .select()
             .from(courseLesson)
-            .where(inArray(courseLesson.courseId, courseIds))
+            .where(inArray(courseLesson.courseId, lessonCourseIds))
             .orderBy(asc(courseLesson.order))
         : []
 
     const lessonsByCourse = new Map<string, typeof lessons>()
     for (const l of lessons) {
-      const courseId = l.courseId ?? 'default'
+      const courseId = toEnrolled.get(l.courseId ?? '') ?? l.courseId ?? 'default'
       const list = lessonsByCourse.get(courseId) ?? []
       list.push(l)
       lessonsByCourse.set(courseId, list)

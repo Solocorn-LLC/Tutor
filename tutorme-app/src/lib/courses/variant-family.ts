@@ -44,3 +44,46 @@ export async function expandToCourseFamily(ids: readonly string[]): Promise<stri
     new Set([...input, ...rows.flatMap(r => [r.templateCourseId, r.publishedCourseId])])
   )
 }
+
+/**
+ * Like `expandToCourseFamily`, but also returns a map from every id in the
+ * expanded set back to the ENROLLED id it belongs to. Use this when a read
+ * aggregates content per-course keyed by the enrolled id (e.g. per-enrollment
+ * lesson/session counts, a materials tree, lesson grouping): fetch content with
+ * `ids`, then attribute each row via `toEnrolled.get(row.courseId) ?? row.courseId`
+ * so template-scoped rows roll up under the enrolled (published) id.
+ *
+ * If a student is enrolled in two published variants of the same template, the
+ * shared template maps to whichever enrolled id is seen first (rare; the common
+ * one-enrollment-per-family case is exact).
+ */
+export async function expandFamilyWithMap(
+  enrolledIds: readonly string[]
+): Promise<{ ids: string[]; toEnrolled: Map<string, string> }> {
+  const input = enrolledIds.filter(Boolean)
+  const toEnrolled = new Map<string, string>()
+  input.forEach(id => toEnrolled.set(id, id))
+  if (input.length === 0) return { ids: [...input], toEnrolled }
+  const rows = await drizzleDb
+    .select({
+      templateCourseId: courseVariant.templateCourseId,
+      publishedCourseId: courseVariant.publishedCourseId,
+    })
+    .from(courseVariant)
+    .where(
+      or(
+        inArray(courseVariant.publishedCourseId, input),
+        inArray(courseVariant.templateCourseId, input)
+      )
+    )
+  const ids = new Set<string>(input)
+  for (const r of rows) {
+    const owner = toEnrolled.get(r.publishedCourseId) ?? toEnrolled.get(r.templateCourseId)
+    if (!owner) continue
+    for (const id of [r.templateCourseId, r.publishedCourseId]) {
+      ids.add(id)
+      if (!toEnrolled.has(id)) toEnrolled.set(id, owner)
+    }
+  }
+  return { ids: [...ids], toEnrolled }
+}
