@@ -124,6 +124,7 @@ export const GET = withAuth(async (req: NextRequest, session, context) => {
 
   const messagesWithSender = messages.map(m => ({
     ...m,
+    id: m.directMessageId, // client reads `message.id` (row exposes `directMessageId`)
     sender: userById[m.senderId]
       ? {
           id: userById[m.senderId].userId,
@@ -243,6 +244,7 @@ export const POST = withAuth(async (req: NextRequest, session, context) => {
     const messageResponse = message
       ? {
           ...message,
+          id: message.directMessageId, // client reads `message.id`
           sender: sender
             ? {
                 id: sender.userId,

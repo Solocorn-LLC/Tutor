@@ -79,6 +79,10 @@ export const GET = withAuth(async (req: NextRequest, session) => {
       const lastMsg = lastMessageByConvId[conv.conversationId]
       return {
         ...conv,
+        // The DB row exposes `conversationId` (column `id`); the client reads
+        // `conversation.id` (used to build /api/conversations/:id/messages URLs).
+        // Without this, that id was `undefined` → 404 on load and send.
+        id: conv.conversationId,
         participant1: p1
           ? {
               id: p1?.userId,
