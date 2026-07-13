@@ -110,7 +110,11 @@ Each object must match this interface:
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: promptText }),
+        body: JSON.stringify({
+          message: promptText,
+          assistant: 'tutor_assist',
+          assistKind: 'teaching',
+        }),
       })
 
       if (res.ok) {

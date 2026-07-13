@@ -1380,48 +1380,39 @@ function CourseBuilderInsightsRouteInner({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Course Dialog — control-panel "Edit Course" (name + category) */}
+      {/* Edit Category Dialog */}
       <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
         <DialogContent
-          className="max-h-[90vh] max-w-3xl overflow-hidden border border-slate-200 shadow-2xl"
+          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
           aria-describedby={undefined}
         >
-          <DialogHeader className="text-center">
-            <DialogTitle className="mx-auto text-center text-white">Edit Course</DialogTitle>
-          </DialogHeader>
+          <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
+          <div className="relative z-10 flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0 pb-4 pt-4 text-center">
+              <DialogTitle className="mx-auto text-center text-white">Edit Category</DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-4 px-2 py-2">
-            <div className="space-y-2 px-4">
-              <Label className="text-sm font-medium text-slate-700">Course name</Label>
-              <Input
-                value={editName}
-                onChange={e => e.target.value.length <= 25 && setEditName(e.target.value)}
-                placeholder="Course name"
-                maxLength={25}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400"
-              />
-            </div>
-            <div className="max-h-[55vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
+            <div className="flex-1 overflow-y-auto px-6 pb-4">
               <CourseCategoryPicker
                 value={editCategories}
                 onChange={setEditCategories}
                 storageUserId={editStorageUserId}
               />
             </div>
-          </div>
 
-          <DialogFooter className="gap-3">
-            <Button variant="modal-secondary-dark" onClick={() => setIsEditCourseOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="modal-primary-dark"
-              onClick={saveEditCourse}
-              disabled={!editName.trim() || editCategories.length === 0}
-            >
-              Save
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="shrink-0 gap-3 px-6 pb-4">
+              <Button variant="modal-secondary-dark" onClick={() => setIsEditCourseOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="modal-primary-dark"
+                onClick={saveEditCourse}
+                disabled={editCategories.length === 0}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

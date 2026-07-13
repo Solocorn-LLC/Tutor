@@ -94,8 +94,9 @@ Format your response clearly and concisely.`
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
+          message: prompt,
+          assistant: 'tutor_assist',
+          assistKind: 'builder',
         }),
       })
 
@@ -106,7 +107,7 @@ Format your response clearly and concisely.`
         ...prev,
         {
           role: 'assistant',
-          content: data.content || 'I apologize, but I was unable to process your request.',
+          content: data.response || 'I apologize, but I was unable to process your request.',
         },
       ])
     } catch (error) {

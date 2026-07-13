@@ -12,6 +12,7 @@ import { withRateLimitPreset, handleApiError } from '@/lib/api/middleware'
 import { z } from 'zod'
 import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { runTutorChat } from '@/lib/agents/tutor-chat-service'
+import { runTutorAssistChat } from '@/lib/agents/tutor-assist-service'
 import { hasActiveAssessment } from '@/lib/assessment/active-assessment'
 
 const AIChatRequestSchema = z.object({
@@ -19,6 +20,11 @@ const AIChatRequestSchema = z.object({
   subject: z.string().max(80).default('general'),
   context: z.record(z.string(), z.unknown()).default({}),
   conversationId: z.string().max(128).optional(),
+  // 'tutor' (default) = the student Socratic tutor. 'tutor_assist' = a DIRECT
+  // assistant for the tutor's own tools; only honoured for TUTOR/ADMIN sessions.
+  assistant: z.enum(['tutor', 'tutor_assist']).default('tutor'),
+  // Which tutor tool is asking, so the assistant uses the right specialised prompt.
+  assistKind: z.enum(['general', 'teaching', 'builder', 'analytics']).default('general'),
 })
 
 export async function POST(request: NextRequest) {
@@ -35,7 +41,14 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
-    const { message, subject, context: _context, conversationId } = parsed.data
+    const {
+      message,
+      subject,
+      context: _context,
+      conversationId,
+      assistant,
+      assistKind,
+    } = parsed.data
 
     const safeMessage = AISecurityManager.sanitizeAiInput(message)
     if (!safeMessage) {
@@ -54,6 +67,26 @@ export async function POST(request: NextRequest) {
       Array.isArray((_context as any).previousMessages)
         ? (_context as any).previousMessages
         : []
+
+    // Tutor-facing assistant path: the tutor's own tools (teaching-suggestion
+    // generator, course-builder assist, reports analytics) want DIRECT help, not
+    // the student Socratic prompt. GATED to TUTOR/ADMIN — a student requesting
+    // this mode falls through to the Socratic tutor below, so the direct path
+    // can never bypass the pedagogy or the ASMT-15 assessment guardrail.
+    const isTutor = session.user.role === 'TUTOR' || session.user.role === 'ADMIN'
+    if (assistant === 'tutor_assist' && isTutor) {
+      const assist = await runTutorAssistChat({
+        message: safeMessage,
+        kind: assistKind,
+        previousMessages,
+      })
+      return NextResponse.json({
+        response: assist.response,
+        conversationId: convoKey,
+        provider: assist.provider,
+        latencyMs: assist.latencyMs,
+      })
+    }
 
     // ASMT-15: refuse to solve assessment questions while one is in progress.
     const assessmentActive = await hasActiveAssessment(session.user.id)
