@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { REGIONS } from '@/lib/data/tutor-categories'
+import { getCategoryCountryCode, getRegionIdForCountry } from '@/lib/data/category-country'
 import { ArrowLeft, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
@@ -133,9 +134,10 @@ export default function TutorCoursePage() {
     return code
   }, [])
 
-  // Prefill the country picker from the course's already-published variants so a
-  // re-published course reflects its real countries instead of defaulting to
-  // Global (which would otherwise add a spurious Global variant next to them).
+  // Prefill the country picker. Priority: existing published variants win;
+  // otherwise, if the category is a national exam (country-bound), prefill to
+  // that country (still editable); otherwise leave the Global default.
+  const prefillCategory = course?.categories?.[0] ?? ''
   useEffect(() => {
     if (!id) return
     let active = true
@@ -146,25 +148,35 @@ export default function TutorCoursePage() {
         const nationalities = [
           ...new Set((data.variants ?? []).map(v => v.nationality).filter(Boolean)),
         ] as string[]
-        if (nationalities.length === 0) return // no variants yet → keep Global default
-        const codes: string[] = []
-        let regionId = ''
-        for (const nat of nationalities) {
-          if (nat === 'Global') {
-            codes.push('GL')
-            continue
-          }
-          for (const region of REGIONS) {
-            const match = region.countries.find(c => c.name === nat)
-            if (match) {
-              codes.push(match.code)
-              if (region.id !== 'global') regionId = region.id
-              break
+        if (nationalities.length > 0) {
+          const codes: string[] = []
+          let regionId = ''
+          for (const nat of nationalities) {
+            if (nat === 'Global') {
+              codes.push('GL')
+              continue
+            }
+            for (const region of REGIONS) {
+              const match = region.countries.find(c => c.name === nat)
+              if (match) {
+                codes.push(match.code)
+                if (region.id !== 'global') regionId = region.id
+                break
+              }
             }
           }
+          if (codes.length > 0) {
+            setSelectedCountryCodes(codes)
+            if (regionId) setSelectedRegion(regionId)
+          }
+          return
         }
-        if (codes.length > 0) {
-          setSelectedCountryCodes(codes)
+        // No published variants yet. A national exam is bound to one country —
+        // prefill to it (still editable) instead of defaulting to Global.
+        const code = prefillCategory ? getCategoryCountryCode(prefillCategory) : null
+        if (code) {
+          setSelectedCountryCodes([code])
+          const regionId = getRegionIdForCountry(code)
           if (regionId) setSelectedRegion(regionId)
         }
       })
@@ -172,7 +184,7 @@ export default function TutorCoursePage() {
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, prefillCategory])
 
   const loadCourse = useCallback(async () => {
     if (!id) return
