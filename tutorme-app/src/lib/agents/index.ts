@@ -9,7 +9,8 @@
 // Export all agent functions
 export * from './tutor'
 export * from './content-generator'
-export * from './grading'
+// './grading' removed — it was a dead legacy module (every fn threw "Legacy
+// grading system removed"). Live grading is lib/grading/pci-grader.
 export * from './briefing'
 export * from './live-monitor'
 
