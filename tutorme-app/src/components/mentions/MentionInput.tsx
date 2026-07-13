@@ -1,13 +1,8 @@
 'use client'
 
-import type { ChangeEvent, KeyboardEventHandler, ReactNode } from 'react'
-import { useCallback } from 'react'
-import { MentionsInput, Mention, SuggestionDataItem } from 'react-mentions'
-
-interface MentionSuggestion extends SuggestionDataItem {
-  handle?: string | null
-  avatarUrl?: string | null
-}
+import type { ChangeEvent, KeyboardEventHandler } from 'react'
+import { AutoTextarea } from '@/components/ui/auto-textarea'
+import { cn } from '@/lib/utils'
 
 interface MentionInputProps {
   value: string
@@ -19,61 +14,16 @@ interface MentionInputProps {
   variant?: 'default' | 'dark'
 }
 
-const baseStyle = {
-  control: {
-    fontSize: 14,
-    fontWeight: 400,
-    border: '1px solid hsl(var(--input))',
-    borderRadius: 6,
-    backgroundColor: 'hsl(var(--background))',
-    color: 'hsl(var(--foreground))',
-  },
-  highlighter: {
-    overflow: 'hidden',
-    padding: '8px 12px',
-  },
-  input: {
-    margin: 0,
-    padding: '8px 12px',
-    outline: 'none',
-    border: 'none',
-  },
-  suggestions: {
-    list: {
-      backgroundColor: 'white',
-      border: '1px solid #e2e8f0',
-      borderRadius: 8,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      fontSize: 14,
-      zIndex: 9999,
-      maxHeight: 280,
-      overflowY: 'auto',
-    },
-    item: {
-      padding: '8px 12px',
-      borderBottom: '1px solid #f1f5f9',
-    },
-  },
-}
-
-const darkStyle = {
-  ...baseStyle,
-  control: {
-    ...baseStyle.control,
-    backgroundColor: '#374151',
-    border: '1px solid #4b5563',
-    color: '#f9fafb',
-  },
-  input: {
-    ...baseStyle.input,
-    color: '#f9fafb',
-  },
-  highlighter: {
-    ...baseStyle.highlighter,
-    color: '#f9fafb',
-  },
-}
-
+/**
+ * Message compose input.
+ *
+ * Previously wrapped `react-mentions`, which threw a client-side exception on
+ * interaction in this React 18 / Next 16 setup — crashing the 1-on-1 chat and the
+ * student/tutor message pages the moment a user typed a message. These are
+ * two-person threads where @-mentions add nothing, so this now renders the app's
+ * plain auto-sizing textarea with the same props. Any existing `@[name](id)`
+ * markup still renders on the read side via `renderMentions()`.
+ */
 export function MentionInput({
   value,
   onChange,
@@ -83,63 +33,19 @@ export function MentionInput({
   onKeyDown,
   variant = 'default',
 }: MentionInputProps) {
-  const fetchSuggestions = useCallback(
-    (query: string, callback: (data: MentionSuggestion[]) => void) => {
-      const q = (query || '').trim().replace(/^@+/, '')
-      fetch(`/api/users/search?query=${encodeURIComponent(q)}`, { credentials: 'include' })
-        .then(res => (res.ok ? res.json() : { results: [] }))
-        .then(data => {
-          const suggestions = (data.results || []).map(
-            (user: { id: string; displayName?: string; handle?: string; avatarUrl?: string }) => ({
-              id: user.id,
-              display: user.displayName || user.handle || 'User',
-              handle: user.handle,
-              avatarUrl: user.avatarUrl,
-            })
-          )
-          callback(suggestions)
-        })
-        .catch(() => callback([]))
-    },
-    []
-  )
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const MentionsInputComponent = MentionsInput as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const MentionComponent = Mention as any
-
   return (
-    <MentionsInputComponent
+    <AutoTextarea
       value={value}
-      onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        onChange(event.target.value)
-      }
+      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       disabled={disabled}
-      className={className}
-      onKeyDown={onKeyDown}
-      style={variant === 'dark' ? darkStyle : baseStyle}
-    >
-      <MentionComponent
-        trigger="@"
-        data={fetchSuggestions}
-        markup="@[__display__](__id__)"
-        displayTransform={(_id: string, display: string) => `@${display}`}
-        allowSpaceInQuery
-        renderSuggestion={(
-          suggestion: MentionSuggestion,
-          _search: string,
-          highlightedDisplay: ReactNode
-        ) => (
-          <div className="flex items-center justify-between gap-2">
-            <span>{highlightedDisplay}</span>
-            {suggestion.handle ? (
-              <span className="text-xs text-slate-500">@{suggestion.handle}</span>
-            ) : null}
-          </div>
-        )}
-      />
-    </MentionsInputComponent>
+      maxRows={6}
+      className={cn(
+        'border-input bg-background placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-none rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50',
+        variant === 'dark' && 'border-gray-600 bg-gray-700 text-gray-50 placeholder:text-gray-400',
+        className
+      )}
+    />
   )
 }
