@@ -20,6 +20,7 @@ import {
   GUARDRAILED_TEMPERATURE,
   type GuardrailViolation,
 } from '@/lib/ai/guardrails'
+import { PCI_MASTER_SYSTEM_PROMPT } from '@/lib/ai/agent-kit/agents/pci-master'
 import { z } from 'zod'
 
 /**
@@ -91,23 +92,6 @@ const PciMasterRequestSchema = z.object({
   // source document is attached.
   pdfPages: z.array(z.string().max(5_000_000)).max(5).optional(),
 })
-
-const SYSTEM_PROMPT = `You are a PCI (Programmatic Curriculum Instruction) Master - an expert educational AI that crafts and refines Socratic-style instructions.
-
-Your role:
-1. Help students discover answers through guided questioning (never give direct answers)
-2. Adapt your approach based on the content type (task, assessment, or concept)
-3. Use the conversation history to maintain context
-4. Provide clear, encouraging, and thought-provoking guidance
-
-Respond in JSON format with this structure:
-{
-  "response": "your Socratic response here",
-  "followUpQuestions": ["question 1", "question 2"],
-  "suggestedResources": ["resource 1", "resource 2"],
-  "difficulty": "easy|medium|hard",
-  "confidence": 0.8
-}`
 
 function truncate(value: string | undefined, max: number): string | undefined {
   if (!value) return value
@@ -184,7 +168,7 @@ export async function POST(request: NextRequest) {
     const guardrailDomain = context?.type
     const activeSystemPrompt = guardrailDomain
       ? guardrailSystemPrompt(guardrailDomain, context?.variant)
-      : SYSTEM_PROMPT
+      : PCI_MASTER_SYSTEM_PROMPT
     const activeTemperature = guardrailDomain ? GUARDRAILED_TEMPERATURE : 0.7
 
     // Observability: record which per-type variant actually fired, so the

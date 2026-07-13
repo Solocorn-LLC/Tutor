@@ -60,7 +60,10 @@ function composeSystemPrompt(
   if (domain) parts.push(guardrailSystemPrompt(domain, variant))
   parts.push(resolveBasePrompt(def, input))
   for (const skill of def.skills ?? []) parts.push(skill.instructions)
-  return parts.join('\n\n')
+  // Drop empty parts so an agent that returns an empty base when guarded (e.g.
+  // pci-master, whose guardrail prompt fully replaces its generic prompt) yields
+  // exactly the guardrail prompt, not "guardrail\n\n".
+  return parts.filter(Boolean).join('\n\n')
 }
 
 function collectTools(def: AgentDefinition): Tool[] {
