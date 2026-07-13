@@ -33,14 +33,23 @@ export default function OneOnOneCallPage() {
   useEffect(() => {
     if (!sessionId) return
     let cancelled = false
+    // Bound the whole join so a stuck request (e.g. an unresponsive video
+    // provider) can't spin forever — abort after 30s and surface a retryable
+    // error instead of an endless loader.
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     ;(async () => {
       try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+        const csrfRes = await fetch('/api/csrf', {
+          credentials: 'include',
+          signal: controller.signal,
+        })
         const csrfToken = (await csrfRes.json().catch(() => ({})))?.token ?? null
         const res = await fetch(`/api/class/rooms/${sessionId}/join`, {
           method: 'POST',
           credentials: 'include',
           headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+          signal: controller.signal,
         })
         const data = await res.json().catch(() => ({}))
         if (cancelled) return
@@ -62,12 +71,23 @@ export default function OneOnOneCallPage() {
           twoWay: data?.twoWay ?? true,
           error: data?.videoError || undefined,
         })
-      } catch {
-        if (!cancelled) setState({ loading: false, error: 'Could not join the session.' })
+      } catch (err) {
+        if (cancelled) return
+        const timedOut = err instanceof DOMException && err.name === 'AbortError'
+        setState({
+          loading: false,
+          error: timedOut
+            ? 'Joining is taking too long. Please check your connection and try again.'
+            : 'Could not join the session.',
+        })
+      } finally {
+        clearTimeout(timeoutId)
       }
     })()
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
+      controller.abort()
     }
   }, [sessionId, session?.user?.id, session?.user?.role])
 
