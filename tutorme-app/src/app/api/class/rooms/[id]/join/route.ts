@@ -31,6 +31,19 @@ import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000 // students may enter 20 min before scheduledAt
 
+// Bound a video-provider call so an unresponsive Daily.co API can't hang the
+// whole join request (which left /call spinning forever). On timeout this
+// rejects, and the existing try/catch around each call recovers gracefully
+// (recreate the room, or surface videoError while chat/whiteboard still work).
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ])
+}
+
 export const POST = withCsrf(
   withAuth(async (req: NextRequest, session, context) => {
     const id = await getParamAsync(context?.params, 'id')
@@ -159,12 +172,20 @@ export const POST = withCsrf(
       // recreating it more than once.
       let activeRoomId = classSessionRow.roomId
       try {
-        const roomLive = await dailyProvider.isRoomActive(classSessionRow.roomId)
+        const roomLive = await withTimeout(
+          dailyProvider.isRoomActive(classSessionRow.roomId),
+          10000,
+          'isRoomActive'
+        )
         if (!roomLive) {
-          const fresh = await dailyProvider.createRoom(classSessionRow.tutorId, {
-            maxParticipants: Math.min((classSessionRow.maxStudents ?? 9) + 1, 50),
-            durationMinutes: classSessionRow.durationMinutes ?? 120,
-          })
+          const fresh = await withTimeout(
+            dailyProvider.createRoom(classSessionRow.tutorId, {
+              maxParticipants: Math.min((classSessionRow.maxStudents ?? 9) + 1, 50),
+              durationMinutes: classSessionRow.durationMinutes ?? 120,
+            }),
+            15000,
+            'createRoom'
+          )
           const updated = await drizzleDb
             .update(liveSession)
             .set({ roomId: fresh.id, roomUrl: fresh.url })
@@ -201,12 +222,16 @@ export const POST = withCsrf(
       }
 
       try {
-        token = await dailyProvider.createMeetingToken(activeRoomId, userId, {
-          isOwner,
-          durationMinutes: classSessionRow.durationMinutes ?? 120,
-          // 1-on-1 sessions (capacity 2) are two-way: the student transmits too.
-          twoWay: (classSessionRow.maxStudents ?? 0) <= 2,
-        })
+        token = await withTimeout(
+          dailyProvider.createMeetingToken(activeRoomId, userId, {
+            isOwner,
+            durationMinutes: classSessionRow.durationMinutes ?? 120,
+            // 1-on-1 sessions (capacity 2) are two-way: the student transmits too.
+            twoWay: (classSessionRow.maxStudents ?? 0) <= 2,
+          }),
+          10000,
+          'createMeetingToken'
+        )
       } catch (err: any) {
         console.error('[Join] Daily.co token creation failed:', err?.message)
         Sentry.captureException(err instanceof Error ? err : new Error(String(err?.message)), {
