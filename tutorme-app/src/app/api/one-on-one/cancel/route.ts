@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { eq, and, ne } from 'drizzle-orm'
+import { eq, and, ne, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, calendarEvent, liveSession } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
@@ -52,12 +52,29 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       )
     }
-    // Only a genuinely paid booking (positive cost) triggers a refund. Free
-    // sessions are PAID with a 0 cost and have no payment to refund.
-    const wasPaid = existingRequest.status === 'PAID' && (existingRequest.costPerSession ?? 0) > 0
+    // A recurring booking cancels as a whole unit: it was booked — and paid, in a
+    // single transaction covering every session — as one series, so a partial
+    // cancel would over-refund. Gather every still-cancellable session in it.
+    const targets = existingRequest.seriesId
+      ? await drizzleDb.query.oneOnOneBookingRequest.findMany({
+          where: and(
+            eq(oneOnOneBookingRequest.seriesId, existingRequest.seriesId),
+            inArray(oneOnOneBookingRequest.status, ['PENDING', 'ACCEPTED', 'PAID'])
+          ),
+        })
+      : [existingRequest]
 
-    // If there's a calendar event, mark it as cancelled and end the linked live session
-    if (existingRequest.calendarEventId) {
+    // Only a genuinely paid booking (positive cost) triggers a refund. Free
+    // sessions are PAID with a 0 cost and have no payment to refund. The single
+    // series payment is keyed to the head (seriesIndex 0) request.
+    const wasPaid = targets.some(t => t.status === 'PAID' && (t.costPerSession ?? 0) > 0)
+    const refundKeyId = existingRequest.seriesId
+      ? (targets.find(t => (t.seriesIndex ?? 0) === 0)?.requestId ?? existingRequest.requestId)
+      : existingRequest.requestId
+
+    // Cancel each session's calendar event and end its linked live session.
+    for (const t of targets) {
+      if (!t.calendarEventId) continue
       const [updatedEvent] = await drizzleDb
         .update(calendarEvent)
         .set({
@@ -65,7 +82,7 @@ export async function PATCH(request: NextRequest) {
           isCancelled: true,
           updatedAt: new Date(),
         })
-        .where(eq(calendarEvent.eventId, existingRequest.calendarEventId))
+        .where(eq(calendarEvent.eventId, t.calendarEventId))
         .returning({ externalId: calendarEvent.externalId })
 
       if (updatedEvent?.externalId) {
@@ -78,11 +95,21 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Update request status
+    // Flip every target session to CANCELLED, then append the cancellation reason
+    // to the specific request the user acted on.
+    await drizzleDb
+      .update(oneOnOneBookingRequest)
+      .set({ status: 'CANCELLED', updatedAt: new Date() })
+      .where(
+        inArray(
+          oneOnOneBookingRequest.requestId,
+          targets.map(t => t.requestId)
+        )
+      )
+
     const updatedRequest = await drizzleDb
       .update(oneOnOneBookingRequest)
       .set({
-        status: 'CANCELLED',
         tutorNotes:
           validated.reason && isStudent
             ? `${existingRequest.tutorNotes || ''}\nCancellation reason (from student): ${validated.reason}`.trim()
@@ -111,8 +138,9 @@ export async function PATCH(request: NextRequest) {
     // original gateway, minus a fixed 15% cancellation fee (student gets 85%).
     let refundResult: RefundOutcome | null = null
     if (wasPaid) {
+      // One refund for the whole series — the payment covers all its sessions.
       refundResult = await refundPaidOneOnOne(
-        existingRequest.requestId,
+        refundKeyId,
         `Cancelled by ${isStudent ? 'student' : 'tutor'}`
       )
       if (refundResult.refunded) {

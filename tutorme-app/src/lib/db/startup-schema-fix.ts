@@ -226,6 +226,11 @@ ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "reschedulePropose
 -- tutor's request card. Long accepted by the API but previously never persisted.
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "studentNotes" text;
 
+-- Recurring bookings: the N weekly sessions requested together share one seriesId.
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "seriesId" text;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "seriesIndex" integer;
+CREATE INDEX IF NOT EXISTS "OneOnOneBookingRequest_seriesId_idx" ON "OneOnOneBookingRequest" ("seriesId");
+
 -- 0071: student reviews of completed 1-on-1 sessions (one per booking).
 CREATE TABLE IF NOT EXISTS "OneOnOneReview" (
   "id" text PRIMARY KEY NOT NULL,

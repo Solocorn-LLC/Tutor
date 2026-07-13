@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import {
   OneOnOneRequestCard,
+  groupIntoSeries,
   type OneOnOneRequestSummary,
 } from '@/components/one-on-one/one-on-one-request-card'
 
@@ -81,15 +82,19 @@ export default function StudentRequestsPanel() {
 
   return (
     <div className="flex flex-col gap-3">
-      {requests.map(r => {
+      {groupIntoSeries(requests).map(group => {
+        // Actions target the series head; the API derives the whole series from it
+        // (one payment covers all sessions, cancel cancels the series).
+        const r = group.head
         const status = (r.status || '').toUpperCase()
         const cancellable = status === 'PENDING' || status === 'ACCEPTED'
         return (
           <OneOnOneRequestCard
-            key={r.requestId}
+            key={r.seriesId ?? r.requestId}
             request={r}
             perspective="student"
             variant="light"
+            series={group.series}
             actions={
               status === 'ACCEPTED' || cancellable ? (
                 <>
