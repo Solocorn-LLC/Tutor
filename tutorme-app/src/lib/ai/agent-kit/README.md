@@ -75,7 +75,7 @@ system/user-shaped**. Most aren't:
 | **tutor** | faithful config only, **not** cut over | `runTutorChat` is already clean; a single **baked prompt** (`buildCompletePrompt`→`withTaskPci`→`withAssessmentIntegrity`) doesn't map onto the runner's system/user split. NB the live prompt is `buildCompletePrompt`, **not** the older `buildSystemPrompt` — those conflicted; a test guards the ASMT-15 layer survives. |
 | **grader** (`lib/agents/grading`) | **deleted** | dead legacy module — every fn threw "Legacy … removed", no live callers |
 | grader (live `pci-grader`) | leave | already clean; **post-only** `runTaskGuardrails` and *must not* prepend the anti-leak prompt (the grader needs the rubric/answer). Doesn't fit the runner's PRE+POST coupling. |
-| **content-generator** | leave | **unguarded** quiz/lesson generation — the runner's uniform-guardrail value adds nothing; porting is churn |
+| **content-generator** | deleted | was **unguarded** quiz/lesson generation that only fed an unrendered quiz UI — removed as a dead island, not ported |
 
 Force-porting the "leave" rows would be reshaping prompts for no benefit (and real regression risk).
 Revisit only if one of them gains a genuine need for **tools/skills** or **provider-swap** — that's
