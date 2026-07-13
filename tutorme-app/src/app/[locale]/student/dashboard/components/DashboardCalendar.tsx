@@ -26,7 +26,7 @@ export interface CalendarEvent {
   start: string
   end: string
   duration: number
-  type: 'class' | 'one-on-one'
+  type: 'class' | 'one-on-one' | 'group'
   tutorName: string | null
   tutorAvatarUrl?: string | null
   courseDescription?: string | null
@@ -183,8 +183,9 @@ export function DashboardCalendar({
   // Exclude completed/ended sessions and sort chronologically so the next session is on top.
   const classes = useMemo<ClassItem[]>(() => {
     const mapped = events
-      // 1-on-1 sessions have their own Bookings tab, so keep them out of Sessions.
-      .filter(ev => ev.type !== 'one-on-one')
+      // 1-on-1 and group sessions have their own Bookings tab, so keep them out
+      // of the Sessions (course classes) list.
+      .filter(ev => ev.type !== 'one-on-one' && ev.type !== 'group')
       .map(ev => {
         const evStatus = (ev as any).status as string | undefined
         const status: ClassItem['status'] =
@@ -262,6 +263,15 @@ export function DashboardCalendar({
     [events]
   )
 
+  // Paid group-session seats the student holds.
+  const groupSessions = useMemo(
+    () =>
+      events
+        .filter(ev => ev.type === 'group')
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
+    [events]
+  )
+
   return (
     <>
       <SessionCalendarPanel
@@ -297,85 +307,165 @@ export function DashboardCalendar({
         {/* Bookings Tab */}
         <TabsContent value="bookings" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
-            {/* Left column - 1 on 1 Sessions */}
-            <div className="flex min-h-0 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-              <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
-              <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
-              <div className="flex-1 overflow-y-auto pr-1">
-                {oneOnOneSessions.length === 0 ? (
-                  <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
-                    <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
-                    <p className="text-muted-foreground text-sm">No 1-on-1 sessions booked yet.</p>
-                    <p className="text-muted-foreground/70 mt-1 text-xs">
-                      Your upcoming private sessions will appear here.
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="space-y-2">
-                    {oneOnOneSessions.map(s => {
-                      const isLive = s.status === 'live' || s.status === 'active'
-                      return (
-                        <li
-                          key={s.id}
-                          className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#1F2933]">
-                              {s.title}
-                              {s.tutorName ? (
-                                <span className="font-normal text-gray-400"> · {s.tutorName}</span>
-                              ) : null}
-                            </p>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {formatDate(s.start)} · {formatEventTime(s.start)}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            {s.type === 'one-on-one' &&
+            {/* Left column - 1-on-1 + Group Sessions, stacked */}
+            <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+                <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
+                <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
+                <div className="flex-1 overflow-y-auto pr-1">
+                  {oneOnOneSessions.length === 0 ? (
+                    <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
+                      <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
+                      <p className="text-muted-foreground text-sm">
+                        No 1-on-1 sessions booked yet.
+                      </p>
+                      <p className="text-muted-foreground/70 mt-1 text-xs">
+                        Your upcoming private sessions will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {oneOnOneSessions.map(s => {
+                        const isLive = s.status === 'live' || s.status === 'active'
+                        return (
+                          <li
+                            key={s.id}
+                            className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[#1F2933]">
+                                {s.title}
+                                {s.tutorName ? (
+                                  <span className="font-normal text-gray-400">
+                                    {' '}
+                                    · {s.tutorName}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="mt-0.5 text-xs text-gray-500">
+                                {formatDate(s.start)} · {formatEventTime(s.start)}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {s.type === 'one-on-one' &&
+                                s.requestId &&
+                                new Date(s.end).getTime() >= Date.now() && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                    >
+                                      <CalendarDays className="h-3.5 w-3.5" />
+                                      Reschedule
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelBooking(s.requestId as string)}
+                                      disabled={cancellingId === s.requestId}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                    >
+                                      {cancellingId === s.requestId ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <X className="h-3.5 w-3.5" />
+                                      )}
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                              {s.type === 'one-on-one' &&
                               s.requestId &&
-                              new Date(s.end).getTime() >= Date.now() && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => setRescheduleRequestId(s.requestId ?? null)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                  >
-                                    <CalendarDays className="h-3.5 w-3.5" />
-                                    Reschedule
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCancelBooking(s.requestId as string)}
-                                    disabled={cancellingId === s.requestId}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                                  >
-                                    {cancellingId === s.requestId ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <X className="h-3.5 w-3.5" />
-                                    )}
-                                    Cancel
-                                  </button>
-                                </>
+                              new Date(s.end).getTime() < Date.now() ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewRequestId(s.requestId ?? null)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                >
+                                  <Star className="h-3.5 w-3.5" />
+                                  Rate
+                                </button>
+                              ) : s.sessionId ? (
+                                // Two-way in-app call room (both student and tutor).
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/call/${s.sessionId}`)}
+                                  className={cn(
+                                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                    isLive
+                                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                                      : 'bg-blue-600 hover:bg-blue-700'
+                                  )}
+                                >
+                                  <Video className="h-3.5 w-3.5" />
+                                  {isLive ? 'Join now' : 'Join'}
+                                </button>
+                              ) : s.meetingUrl ? (
+                                <a
+                                  href={s.meetingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={cn(
+                                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                    isLive
+                                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                                      : 'bg-blue-600 hover:bg-blue-700'
+                                  )}
+                                >
+                                  <Video className="h-3.5 w-3.5" />
+                                  {isLive ? 'Join now' : 'Join'}
+                                </a>
+                              ) : (
+                                <span className="text-xs text-gray-400">Scheduled</span>
                               )}
-                            {s.type === 'one-on-one' &&
-                            s.requestId &&
-                            new Date(s.end).getTime() < Date.now() ? (
-                              <button
-                                type="button"
-                                onClick={() => setReviewRequestId(s.requestId ?? null)}
-                                className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                              >
-                                <Star className="h-3.5 w-3.5" />
-                                Rate
-                              </button>
-                            ) : s.sessionId ? (
-                              // Two-way in-app call room (both student and tutor).
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Group Sessions card */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-gray-400 bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+                <h3 className="mb-1 text-base font-semibold text-[#1F2933]">Group Sessions</h3>
+                <p className="mb-4 text-xs text-gray-500">Sessions you&apos;ve booked a seat in.</p>
+                <div className="flex-1 overflow-y-auto pr-1">
+                  {groupSessions.length === 0 ? (
+                    <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-8 text-center">
+                      <Users className="text-muted-foreground/60 mx-auto mb-3 h-9 w-9" />
+                      <p className="text-muted-foreground text-sm">No group sessions booked yet.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {groupSessions.map(s => {
+                        const isLive = s.status === 'live' || s.status === 'active'
+                        return (
+                          <li
+                            key={s.id}
+                            className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-[#1F2933]">
+                                {s.title}
+                                {s.tutorName ? (
+                                  <span className="font-normal text-gray-400">
+                                    {' '}
+                                    · {s.tutorName}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="mt-0.5 text-xs text-gray-500">
+                                {formatDate(s.start)} · {formatEventTime(s.start)}
+                              </p>
+                            </div>
+                            {s.sessionId ? (
                               <button
                                 type="button"
                                 onClick={() => router.push(`/call/${s.sessionId}`)}
                                 className={cn(
-                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                  'inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
                                   isLive
                                     ? 'bg-emerald-600 hover:bg-emerald-700'
                                     : 'bg-blue-600 hover:bg-blue-700'
@@ -384,30 +474,15 @@ export function DashboardCalendar({
                                 <Video className="h-3.5 w-3.5" />
                                 {isLive ? 'Join now' : 'Join'}
                               </button>
-                            ) : s.meetingUrl ? (
-                              <a
-                                href={s.meetingUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={cn(
-                                  'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                  isLive
-                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                    : 'bg-blue-600 hover:bg-blue-700'
-                                )}
-                              >
-                                <Video className="h-3.5 w-3.5" />
-                                {isLive ? 'Join now' : 'Join'}
-                              </a>
                             ) : (
                               <span className="text-xs text-gray-400">Scheduled</span>
                             )}
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
 

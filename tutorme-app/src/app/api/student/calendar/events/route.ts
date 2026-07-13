@@ -260,7 +260,7 @@ export const GET = withAuth(
           start: start.toISOString(),
           end: new Date(start.getTime() + dur * 60000).toISOString(),
           duration: dur,
-          type: 'one-on-one' as const,
+          type: 'group' as const,
           tutorId: e.tutorId,
           meetingUrl: e.meetingUrl,
           location: 'Online',
