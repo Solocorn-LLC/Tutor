@@ -41,15 +41,23 @@ agent-kit/
 - **Phase 2 — tool execution + skills.** A ReAct-style tool loop; skill loading
   (SKILL.md + scripts); structured assessment/DMI post-validation via
   `findEvaluationLeaks`.
-- **Phase 3 — port agents.** Move tutor/grader/content-generator/pci-master to configs;
-  point the existing routes at `runAgent` behind a flag; delete duplicate prompts.
+- **Interim — restore or retire ADK (parallel track).** ADK is broken in prod (Kimi
+  adapter hit the wrong Moonshot endpoint — fixed in `adk-service` PR #1). Either
+  (a) merge that fix + set `KIMI_BASE_URL`/`KIMI_MODEL` + a valid key on adk-service +
+  redeploy, or (b) delete `ADK_BASE_URL` on `tutorme-app` to disable ADK and rely on the
+  direct/fallback path until Phase 4 rebuilds the live features. Not a blocker for the kit.
+- **Phase 3 — port agents (one per PR).** Each agent's prompt lives in a *context-specific
+  builder*, so port them individually, **delegating to the existing builder** (single
+  source of truth): tutor → grader → content-generator → pci-master. Then point each route
+  at `runAgent` behind a flag (default OFF); delete duplicates once the flag is proven.
 - **Phase 4 — background worker.** Live-monitor / transcription / recording-artifacts on
   the same kit, in a small worker — **with the fallback + logging those paths lack today**
   (they currently fail silently — see the ADK-in-prod findings).
 - **Phase 5 — retire ADK.** Remove `Solocorn-LLC/adk-service` once nothing calls it.
 
 ## Status
-**Phases 1–2 landed.** `runAgent` does guardrailed generation *and* executes tools via
-a provider-agnostic ReAct/JSON loop (`tools/mcq-score.ts` is a worked example), with
-structured assessment/DMI post-validation. Next: **Phase 3** — port the real agents to
-configs, point routes at `runAgent` behind a flag, and delete the duplicate prompts.
+**Phases 1–2 landed.** `runAgent` does guardrailed generation *and* executes tools via a
+provider-agnostic ReAct/JSON loop, with structured assessment/DMI post-validation.
+**Phase 3 in progress:** the **tutor** agent is ported (`agents/tutor.ts` delegates to the
+existing `buildSystemPrompt`); grader/content-generator/pci-master and the flag-gated route
+cutover follow, one PR each.

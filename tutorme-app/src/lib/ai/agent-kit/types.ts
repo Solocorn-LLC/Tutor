@@ -20,6 +20,12 @@ export interface AgentContext {
   role?: string
   sessionId?: string
   courseId?: string
+  /**
+   * Agent-specific context rides along here (e.g. a ported agent's own
+   * `TutorContext`/`GradingRequest`), so a `systemPrompt` function can delegate
+   * to the existing prompt builder without a bespoke input type per agent.
+   */
+  [key: string]: unknown
 }
 
 /**

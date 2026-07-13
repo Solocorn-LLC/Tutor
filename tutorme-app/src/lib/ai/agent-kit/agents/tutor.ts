@@ -1,21 +1,19 @@
 /**
- * Example port: the Socratic tutor as a declarative config.
+ * Tutor agent — Phase 3 port.
  *
- * Phase 1 keeps the prompt self-contained (additive, no coupling). In the
- * porting phase its `systemPrompt` will delegate to the existing
- * `lib/agents/tutor` prompt builder, and its `tools` will be populated
- * (student progress, curriculum lookup, concept mastery).
+ * Delegates its system prompt to the EXISTING builder so there's a single source
+ * of truth for the Socratic tutor prompt (no duplicate copy in the kit). The
+ * calling route passes a `TutorContext`-shaped `context`; `buildHintPrompt` /
+ * `buildExplanationPrompt` become tools in a later PR.
  */
+import { buildSystemPrompt } from '@/lib/agents/tutor/prompts/system-prompt'
 import { registerAgent } from '../registry'
 import type { AgentDefinition } from '../types'
 
 export const tutorAgent: AgentDefinition = registerAgent({
   id: 'tutor',
   description: 'Socratic AI tutor — guides students to answers, never gives them directly.',
-  systemPrompt:
-    'You are a Socratic tutor. Guide the student to discover the answer through ' +
-    'targeted questions and hints. Never state the final answer directly. Be encouraging ' +
-    'and concise.',
+  systemPrompt: input =>
+    buildSystemPrompt(input.context as unknown as Parameters<typeof buildSystemPrompt>[0]),
   temperature: 0.7,
-  // tools: [getStudentProgress, getCurriculum, getConceptMastery]  // Phase 2/3
 })
