@@ -6,6 +6,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
+import { OneOnOneRequestCard } from '@/components/one-on-one/one-on-one-request-card'
 import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
@@ -185,6 +186,11 @@ type OneOnOneRequest = {
   timezone: string
   costPerSession: number
   status: string
+  durationMinutes?: number | null
+  currency?: string | null
+  createdAt?: string | null
+  paymentDueAt?: string | null
+  paidAt?: string | null
   student?: {
     userId?: string | null
     handle?: string | null
@@ -1000,46 +1006,26 @@ function TutorDashboardContent() {
                     </div>
                   ) : (
                     oneOnOneRequests.map(request => (
-                      <div
+                      <OneOnOneRequestCard
                         key={request.requestId}
-                        className="border-border/20 bg-muted/30 hover:border-border/40 hover:bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 transition-all duration-200"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <p className="truncate font-semibold text-white">
-                            @{request.student?.handle || 'student'}
-                          </p>
-                          <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                            <span>
-                              {new Date(request.requestedDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {request.startTime} - {request.endTime}
-                            </span>
-                            <span>•</span>
-                            <span>{request.timezone}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {request.status === 'PENDING' ? (
+                        request={request}
+                        perspective="tutor"
+                        variant="dark"
+                        actions={
+                          request.status === 'PENDING' ? (
                             <>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 disabled={respondingRequestId === request.requestId}
                                 onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
-                                className="transition-all duration-200"
                               >
                                 Accept
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="text-destructive hover:bg-destructive/10 transition-all duration-200"
+                                className="text-destructive hover:bg-destructive/10"
                                 disabled={respondingRequestId === request.requestId}
                                 onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
                               >
@@ -1051,13 +1037,12 @@ function TutorDashboardContent() {
                               size="sm"
                               variant="outline"
                               onClick={() => setRescheduleRequestId(request.requestId)}
-                              className="transition-all duration-200"
                             >
                               Reschedule
                             </Button>
-                          )}
-                        </div>
-                      </div>
+                          )
+                        }
+                      />
                     ))
                   )}
                 </div>
