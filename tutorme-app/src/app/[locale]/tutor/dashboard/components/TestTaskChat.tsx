@@ -139,16 +139,12 @@ export function TestTaskChat({
       content: a,
       timestamp: Date.now(),
     }
-    // In classroom mode, the parent (CourseBuilder) manages the shared
-    // classroomMessages state and feeds it back via incomingMessages.
-    // Adding locally here would duplicate the message because onBroadcast
-    // causes the parent to append to classroomMessages, which then flows
-    // back through the incomingMessages useEffect. Only broadcast; let
-    // the incoming relay populate local messages.
+    const nextMessages = isClassroom ? messages : [...messages, msg]
     if (!isClassroom) {
-      setMessages(prev => [...prev, msg])
+      setMessages(nextMessages)
     }
     setDraft('')
+    onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(msg)
   }
 
@@ -160,17 +156,19 @@ export function TestTaskChat({
       toast.info('Type at least one answer first.')
       return
     }
+    let nextMessages = messages
     if (pending) {
       const pendingMsg: ChatMsg = {
         role: isClassroom ? 'tutor' : 'student',
         content: pending,
         timestamp: Date.now(),
       }
-      // In classroom mode, avoid local duplication — see addAnswer comment.
+      nextMessages = isClassroom ? messages : [...messages, pendingMsg]
       if (!isClassroom) {
-        setMessages(prev => [...prev, pendingMsg])
+        setMessages(nextMessages)
       }
       setDraft('')
+      onPersist?.({ messages: nextMessages, draft: '', completed })
       onBroadcast?.(pendingMsg)
     }
     setBusy(true)
@@ -187,9 +185,11 @@ export function TestTaskChat({
         re: r.answer,
         timestamp: Date.now(),
       }))
-      setMessages(prev => [...prev, ...aiMsgs])
+      const finalMessages = [...nextMessages, ...aiMsgs]
+      setMessages(finalMessages)
       aiMsgs.forEach(m => onBroadcast?.(m))
       setCompleted(true)
+      onPersist?.({ messages: finalMessages, draft: '', completed: true })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to grade')
     } finally {
@@ -205,11 +205,12 @@ export function TestTaskChat({
       content: q,
       timestamp: Date.now(),
     }
-    // In classroom mode, avoid local duplication — see addAnswer comment.
+    const nextMessages = isClassroom ? messages : [...messages, questionMsg]
     if (!isClassroom) {
-      setMessages(prev => [...prev, questionMsg])
+      setMessages(nextMessages)
     }
     setDraft('')
+    onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(questionMsg)
     setBusy(true)
     try {
@@ -224,8 +225,10 @@ export function TestTaskChat({
         content: data.answer || '…',
         timestamp: Date.now(),
       }
-      setMessages(prev => [...prev, aiMsg])
+      const finalMessages = [...nextMessages, aiMsg]
+      setMessages(finalMessages)
       onBroadcast?.(aiMsg)
+      onPersist?.({ messages: finalMessages, draft: '', completed })
     } catch {
       setMessages(prev => [
         ...prev,
@@ -243,9 +246,11 @@ export function TestTaskChat({
   const onSend = () => (completed ? ask() : addAnswer())
 
   const reset = () => {
+    const emptyState: TestTaskChatState = { messages: [], draft: '', completed: false }
     setMessages([])
     setDraft('')
     setCompleted(false)
+    onPersist?.(emptyState)
   }
 
   const isClassroom = mode === 'classroom'
@@ -290,22 +295,26 @@ export function TestTaskChat({
         ref={scrollRef}
         className="relative flex min-h-0 flex-1 flex-col-reverse gap-4 overflow-y-auto p-4"
       >
-        {/* Chat messages — render in reverse so flex-col-reverse shows newest at bottom */}
-        {[...messages].reverse().map((m, i) => (
-          <ChatMessageBubble
-            key={i}
-            sender={m.role}
-            name={
-              m.name || (m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor')
-            }
-            content={m.content}
-            avatarUrl={m.role === 'student' ? studentAvatarUrl : tutorAvatarUrl}
-            re={m.re}
-            timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
-            isClassroom={isClassroom}
-            studentOnRight
-          />
-        ))}
+        {/* Chat messages — render in reverse so flex-col-reverse shows newest at bottom.
+            In classroom mode, filter out student messages (tutor view only). */}
+        {[...messages]
+          .reverse()
+          .filter(m => !isClassroom || m.role !== 'student')
+          .map((m, i) => (
+            <ChatMessageBubble
+              key={i}
+              sender={m.role}
+              name={
+                m.name || (m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor')
+              }
+              content={m.content}
+              avatarUrl={m.role === 'student' ? studentAvatarUrl : tutorAvatarUrl}
+              re={m.re}
+              timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
+              isClassroom={isClassroom}
+              studentOnRight
+            />
+          ))}
 
         {busy && (
           <div className="flex items-center gap-1.5 text-xs text-gray-400">

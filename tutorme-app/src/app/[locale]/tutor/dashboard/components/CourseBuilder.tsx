@@ -1328,13 +1328,39 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Persists each Test-tab task-chat preview (keyed by task/extension + student
     // tab) across the remounts that happen when switching Test students, so the
     // conversation isn't lost. A ref: writing it must not trigger a re-render.
-    const testTaskChatStore = useRef<Record<string, TestTaskChatState>>({})
+    // Also backed by localStorage so test data survives mode switches (Test to Build).
+    const testTaskChatStore = useRef<Record<string, TestTaskChatState>>(
+      (() => {
+        try {
+          const saved = localStorage.getItem('tutor-test-chat-store-v1')
+          return saved ? JSON.parse(saved) : {}
+        } catch {
+          return {}
+        }
+      })()
+    )
     // Shared state for the Classroom tab — aggregates messages from all student tabs
     // plus tutor messages sent from the classroom view. Keyed by extension id.
     // Must be useState (not ref) so changes trigger re-renders of the Classroom tab.
+    // Also backed by localStorage for durability across mode switches.
     const [classroomMessages, setClassroomMessages] = useState<Record<string, TestTaskChatMsg[]>>(
-      {}
+      () => {
+        try {
+          const saved = localStorage.getItem('tutor-classroom-messages-v1')
+          return saved ? JSON.parse(saved) : {}
+        } catch {
+          return {}
+        }
+      }
     )
+    // Persist classroomMessages to localStorage whenever it changes
+    useEffect(() => {
+      try {
+        localStorage.setItem('tutor-classroom-messages-v1', JSON.stringify(classroomMessages))
+      } catch {
+        // ignore
+      }
+    }, [classroomMessages])
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -10228,6 +10254,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   onPersist={s => {
                                                     if (!isClassroomTab) {
                                                       testTaskChatStore.current[previewKey] = s
+                                                      try {
+                                                        localStorage.setItem(
+                                                          'tutor-test-chat-store-v1',
+                                                          JSON.stringify(testTaskChatStore.current)
+                                                        )
+                                                      } catch {
+                                                        // ignore
+                                                      }
                                                     }
                                                   }}
                                                   onBroadcast={msg => {
