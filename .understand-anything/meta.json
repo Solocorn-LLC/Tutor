@@ -1,6 +1,0 @@
-{
-  "lastAnalyzedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "gitCommitHash": "bb61ead0dfe1c997ab30d171ff019becca1502a3",
-  "version": "1.0.0",
-  "analyzedFiles": 1217
-}
