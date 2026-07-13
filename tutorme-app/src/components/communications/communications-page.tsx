@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Loader2, MessageSquare, Bell } from 'lucide-react'
+import { Loader2, MessageSquare, Bell, CalendarClock } from 'lucide-react'
 import { TabsContent } from '@/components/ui/tabs'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { CollapsibleCard } from '@/components/collapsible-card'
 import { cn } from '@/lib/utils'
 import Messenger from './messenger'
 import NotificationsPanel from './notifications-panel'
+import StudentRequestsPanel from './student-requests-panel'
 import type { AppNotification, CommsRole } from './types'
 
 interface CommunicationsPageProps {
@@ -207,6 +208,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
           variant="charcoal"
           tabs={[
             { value: 'messaging', label: 'Messaging' },
+            ...(role === 'student' ? [{ value: 'requests', label: 'Requests' }] : []),
             { value: 'notifications', label: 'Notifications' },
           ]}
         >
@@ -222,6 +224,21 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               <Messenger />
             </CollapsibleCard>
           </TabsContent>
+
+          {role === 'student' && (
+            <TabsContent value="requests" className="flex h-full flex-col">
+              <CollapsibleCard
+                title="1-on-1 Requests"
+                icon={<CalendarClock className="h-5 w-5 text-slate-900" />}
+                defaultOpen
+                fillHeight
+                className="flex-1"
+                contentClassName="pt-3"
+              >
+                <StudentRequestsPanel />
+              </CollapsibleCard>
+            </TabsContent>
+          )}
 
           <TabsContent value="notifications" className="flex h-full flex-col">
             <CollapsibleCard
