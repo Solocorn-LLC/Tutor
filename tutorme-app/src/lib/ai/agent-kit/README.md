@@ -58,6 +58,16 @@ agent-kit/
 ## Status
 **Phases 1–2 landed.** `runAgent` does guardrailed generation *and* executes tools via a
 provider-agnostic ReAct/JSON loop, with structured assessment/DMI post-validation.
-**Phase 3 in progress:** the **tutor** agent is ported (`agents/tutor.ts` delegates to the
-existing `buildSystemPrompt`); grader/content-generator/pci-master and the flag-gated route
-cutover follow, one PR each.
+**Phase 3 in progress:** the **tutor** agent is ported **faithfully** — `agents/tutor.ts` mirrors
+the LIVE `runTutorChat` prompt chain (`buildCompletePrompt` → `withTaskPci` (TASK-6) →
+`withAssessmentIntegrity` (ASMT-15)). The first port pointed at a *different, older* builder
+(`buildSystemPrompt`), which **conflicts** with the live prompt; per single-source-of-truth we keep
+the live chain and dropped the stale one from the kit, and a test now guards that the
+assessment-integrity constraint survives.
+
+**Cutover note:** `runTutorChat` is *already* a clean canonical entrypoint (sanitization, integrity,
+rich output extraction) and uses a **single baked prompt**, which doesn't map onto the runner's
+system/user split. So the tutor is a poor *first* cutover candidate — churn with regression risk.
+The better first real cutover is a **guardrailed PCI/assessment agent** (system/user separation +
+`guardrailDomain` — exactly what the runner is built for). grader/content-generator/pci-master and
+the flag-gated cutover follow, one PR each.
