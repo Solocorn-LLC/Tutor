@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { DialogPanel } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -261,21 +260,6 @@ export function CreateSessionForm({
           </div>
         </div>
       </DialogPanel>
-
-      <div className="flex items-center justify-end gap-3">
-        <Button variant="modal-secondary-dark" onClick={onCancel} disabled={creating}>
-          Cancel
-        </Button>
-        <Button
-          variant="modal-primary-dark"
-          onClick={handleSubmit}
-          disabled={creating}
-          aria-busy={creating}
-        >
-          {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Session
-        </Button>
-      </div>
     </div>
   )
 }
