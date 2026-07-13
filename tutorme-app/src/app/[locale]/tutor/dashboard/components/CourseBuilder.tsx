@@ -149,6 +149,7 @@ function EditableLikertItem({
 }
 
 import NextImage from 'next/image'
+import { useSession } from 'next-auth/react'
 import {
   DndContext,
   closestCenter,
@@ -605,6 +606,36 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     },
     ref
   ) {
+    const { data: session } = useSession()
+
+    // Tutor avatar from profile — fetched once on mount.
+    const [tutorAvatarUrl, setTutorAvatarUrl] = useState<string | null>(null)
+    useEffect(() => {
+      if (!session?.user?.id) return
+      fetch('/api/user/profile', { credentials: 'include' })
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+          if (data?.profile?.avatarUrl) {
+            setTutorAvatarUrl(data.profile.avatarUrl)
+          }
+        })
+        .catch(() => {})
+    }, [session?.user?.id])
+
+    // Random preset avatars for test students — assigned once per tab and persisted
+    // in a ref so Student 1 and Student 2 keep consistent avatars across remounts.
+    const studentAvatarPool = useRef<string[] | null>(null)
+    if (studentAvatarPool.current === null) {
+      // 20 preset avatars in public/avatars/
+      const all = Array.from({ length: 20 }, (_, i) => {
+        const num = String(i + 1).padStart(2, '0')
+        return `/avatars/avatar-${num}.${i < 10 ? 'jpg' : 'png'}`
+      })
+      // Shuffle and pick 2
+      const shuffled = [...all].sort(() => Math.random() - 0.5)
+      studentAvatarPool.current = [shuffled[0], shuffled[1]]
+    }
+
     // Main section tabs (Live, Test PCI vs Builder). Controllable: when the
     // parent passes `mainTab`, that prop is the single source of truth and we
     // never mirror it into local state. Mirroring it (and echoing local changes
@@ -10233,6 +10264,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   }}
                                                   mode={
                                                     isClassroomTab ? 'classroom' : 'test-student'
+                                                  }
+                                                  tutorAvatarUrl={tutorAvatarUrl}
+                                                  studentAvatarUrl={
+                                                    isClassroomTab
+                                                      ? undefined
+                                                      : (studentAvatarPool.current ?? [])[
+                                                          tab.id === 'student1' ? 0 : 1
+                                                        ]
                                                   }
                                                 />
                                               </div>

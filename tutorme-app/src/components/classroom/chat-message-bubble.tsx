@@ -24,6 +24,8 @@ export interface ChatMessageBubbleProps {
   onDocumentClick?: () => void
   re?: string
   isClassroom?: boolean
+  /** When true, student messages appear on the right (tutor/AI on left). */
+  studentOnRight?: boolean
 }
 
 export function ChatMessageBubble({
@@ -37,8 +39,11 @@ export function ChatMessageBubble({
   onDocumentClick,
   re,
   isClassroom = false,
+  studentOnRight = false,
 }: ChatMessageBubbleProps) {
-  const isRight = sender === 'tutor' || sender === 'ai'
+  // When studentOnRight is true, student messages are on the right (tutor/AI on left).
+  // Otherwise the legacy behavior: tutor/AI on right, student on left.
+  const isRight = studentOnRight ? sender === 'student' : sender === 'tutor' || sender === 'ai'
   const isStudent = sender === 'student'
   const showAvatar = !!avatarUrl || !!name
 
@@ -129,7 +134,14 @@ export function ChatMessageBubble({
       {/* Bubble + metadata */}
       <div className={cn('flex max-w-[80%] flex-col', isRight ? 'items-end' : 'items-start')}>
         {/* Name label */}
-        <span className="mb-0.5 text-[10px] font-medium text-gray-400">{name}</span>
+        <span
+          className={cn(
+            'mb-0.5 text-[10px] font-medium text-gray-400',
+            isRight ? 'text-right' : 'text-left'
+          )}
+        >
+          {name}
+        </span>
 
         {/* Re: reference */}
         {re && (

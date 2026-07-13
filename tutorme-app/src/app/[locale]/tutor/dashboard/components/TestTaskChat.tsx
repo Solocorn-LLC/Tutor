@@ -57,6 +57,8 @@ export function TestTaskChat({
   onBroadcast,
   incomingMessages,
   mode = 'test-student',
+  tutorAvatarUrl,
+  studentAvatarUrl,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -71,6 +73,10 @@ export function TestTaskChat({
   incomingMessages?: TestTaskChatMsg[]
   /** Which preview mode this is rendering in. */
   mode?: 'classroom' | 'test-student'
+  /** Tutor avatar URL — shown on tutor/AI messages. */
+  tutorAvatarUrl?: string | null
+  /** Student avatar URL — shown on student messages. */
+  studentAvatarUrl?: string | null
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -82,7 +88,9 @@ export function TestTaskChat({
 
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    // flex-col-reverse: scrollTop = 0 is the bottom (newest messages).
+    // Scroll to bottom on new messages by setting scrollTop to 0.
+    if (el) el.scrollTop = 0
   }, [messages, busy])
 
   // Append any new incoming messages from the parent (cross-tab relay).
@@ -131,7 +139,15 @@ export function TestTaskChat({
       content: a,
       timestamp: Date.now(),
     }
-    setMessages(prev => [...prev, msg])
+    // In classroom mode, the parent (CourseBuilder) manages the shared
+    // classroomMessages state and feeds it back via incomingMessages.
+    // Adding locally here would duplicate the message because onBroadcast
+    // causes the parent to append to classroomMessages, which then flows
+    // back through the incomingMessages useEffect. Only broadcast; let
+    // the incoming relay populate local messages.
+    if (!isClassroom) {
+      setMessages(prev => [...prev, msg])
+    }
     setDraft('')
     onBroadcast?.(msg)
   }
@@ -150,7 +166,10 @@ export function TestTaskChat({
         content: pending,
         timestamp: Date.now(),
       }
-      setMessages(prev => [...prev, pendingMsg])
+      // In classroom mode, avoid local duplication — see addAnswer comment.
+      if (!isClassroom) {
+        setMessages(prev => [...prev, pendingMsg])
+      }
       setDraft('')
       onBroadcast?.(pendingMsg)
     }
@@ -186,7 +205,10 @@ export function TestTaskChat({
       content: q,
       timestamp: Date.now(),
     }
-    setMessages(prev => [...prev, questionMsg])
+    // In classroom mode, avoid local duplication — see addAnswer comment.
+    if (!isClassroom) {
+      setMessages(prev => [...prev, questionMsg])
+    }
     setDraft('')
     onBroadcast?.(questionMsg)
     setBusy(true)
@@ -262,18 +284,48 @@ export function TestTaskChat({
         </span>
       </div>
 
-      {/* Unified chat stream — document thumbnail + messages scroll together */}
-      <div ref={scrollRef} className="relative min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {/* Document as first tutor message */}
+      {/* Unified chat stream — document thumbnail + messages scroll together.
+          flex-col-reverse so new messages appear at the bottom and push older ones up. */}
+      <div
+        ref={scrollRef}
+        className="relative flex min-h-0 flex-1 flex-col-reverse gap-4 overflow-y-auto p-4"
+      >
+        {/* Chat messages — render in reverse so flex-col-reverse shows newest at bottom */}
+        {[...messages].reverse().map((m, i) => (
+          <ChatMessageBubble
+            key={i}
+            sender={m.role}
+            name={
+              m.name || (m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor')
+            }
+            content={m.content}
+            avatarUrl={m.role === 'student' ? studentAvatarUrl : tutorAvatarUrl}
+            re={m.re}
+            timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
+            isClassroom={isClassroom}
+            studentOnRight
+          />
+        ))}
+
+        {busy && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            {completed ? 'Thinking…' : 'Checking the answers…'}
+          </div>
+        )}
+
+        {/* Document as first tutor message — rendered at the end so it appears at top */}
         {sourceDocument && !pdfPopupOpen && (
           <ChatMessageBubble
             sender="tutor"
             name="Tutor"
             content=""
+            avatarUrl={tutorAvatarUrl}
             isDocument
             document={sourceDocument}
             onDocumentClick={() => loadable && setPdfPopupOpen(true)}
             isClassroom={isClassroom}
+            studentOnRight
           />
         )}
 
@@ -323,28 +375,6 @@ export function TestTaskChat({
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Chat messages */}
-        {messages.map((m, i) => (
-          <ChatMessageBubble
-            key={i}
-            sender={m.role}
-            name={
-              m.name || (m.role === 'student' ? 'Student' : m.role === 'ai' ? 'Tutor' : 'Tutor')
-            }
-            content={m.content}
-            re={m.re}
-            timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
-            isClassroom={isClassroom}
-          />
-        ))}
-
-        {busy && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {completed ? 'Thinking…' : 'Checking the answers…'}
           </div>
         )}
       </div>

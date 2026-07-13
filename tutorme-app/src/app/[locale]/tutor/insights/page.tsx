@@ -135,6 +135,11 @@ function TutorInsightsPageInner() {
       setSaveMode('live')
       return
     }
+    // Respect explicit mode=edit query param — don't auto-detect away from draft
+    if (searchParams.get('mode') === 'edit') {
+      setSaveMode('draft')
+      return
+    }
     // Otherwise detect from which list the course belongs to
     const isLive = courses.some(c => c.id === courseId)
     const isDraft = draftCourses.some(c => c.id === courseId)
@@ -144,7 +149,7 @@ function TutorInsightsPageInner() {
       setSaveMode('draft')
     }
     // If both or neither (e.g., during loading), leave current value
-  }, [courseId, courses, draftCourses])
+  }, [courseId, courses, draftCourses, searchParams])
 
   // Migrate legacy draft data saved under `modules` in lesson-bank-courses-v1
   // to the new `insights-course-builder:${courseId}` key with `lessons`
