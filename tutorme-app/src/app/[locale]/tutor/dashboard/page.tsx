@@ -38,6 +38,7 @@ import {
   CalendarClock,
   Pencil,
   Presentation,
+  ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,7 @@ import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 import {
   CreateClassDialog,
+  CreateSessionForm,
   StatsCards,
   UpcomingClassesCard,
   InteractiveCalendar,
@@ -202,10 +204,8 @@ function TutorDashboardContent() {
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
-  // Course context for creating a one-time (non-schedule) session from the sessions modal.
-  const [oneTimeCourse, setOneTimeCourse] = useState<{ id: string; name: string } | null>(null)
-  // Controls fade-out of Course Sessions modal when creating one-time session
-  const [creatingOneTime, setCreatingOneTime] = useState(false)
+  // View state for the Course Sessions modal: 'list' or 'create'
+  const [sessionsView, setSessionsView] = useState<'list' | 'create'>('list')
   // Course name + variant for the sessions modal (from the sessions API).
   const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
     name: string | null
@@ -1078,30 +1078,6 @@ function TutorDashboardContent() {
           initialDate={scheduleDate}
         />
 
-        {/* One-time (non-schedule) session for a specific course */}
-        <CreateClassDialog
-          open={!!oneTimeCourse}
-          onOpenChange={open => {
-            if (!open) {
-              // Cancel clicked: close CreateClassDialog and fade Course Sessions modal back in
-              setOneTimeCourse(null)
-              setCreatingOneTime(false)
-            }
-          }}
-          courseId={oneTimeCourse?.id}
-          courseName={oneTimeCourse?.name}
-          redirectToClass={false}
-          onClassCreated={() => {
-            const course = oneTimeCourse
-            setOneTimeCourse(null)
-            setCreatingOneTime(false)
-            if (course) {
-              toast.success('One-time session created')
-              handleOpenSessionsModal({ id: course.id, name: course.name } as EnrolledCourse)
-            }
-          }}
-        />
-
         <ClassroomDialog
           open={classroomDialogOpen}
           onOpenChange={setClassroomDialogOpen}
@@ -1116,13 +1092,13 @@ function TutorDashboardContent() {
         <Dialog
           open={cancelModalOpen}
           onOpenChange={open => {
-            if (!open) setCreatingOneTime(false)
+            if (!open) {
+              setSessionsView('list')
+            }
             setCancelModalOpen(open)
           }}
         >
-          <DialogContent
-            className={`max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl transition-opacity duration-300 ${creatingOneTime ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
-          >
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-white">
                 <Calendar className="text-primary h-5 w-5" />
@@ -1156,296 +1132,312 @@ function TutorDashboardContent() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-4 text-white">
-              {loadingSessions ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
-                </div>
-              ) : sessionLoadError ? (
-                <div className="border-destructive/20 rounded-lg border border-dashed p-6 text-center text-sm">
-                  <AlertCircle className="text-destructive/50 mx-auto mb-2 h-8 w-8" />
-                  <p className="text-destructive font-medium">Failed to load sessions</p>
-                  <p className="text-muted-foreground mt-1 text-xs">{sessionLoadError}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 transition-all duration-200"
-                    onClick={() =>
-                      selectedCourseForCancel && handleOpenSessionsModal(selectedCourseForCancel)
+            {sessionsView === 'create' && selectedCourseForCancel ? (
+              <div className="mt-4">
+                <button
+                  onClick={() => setSessionsView('list')}
+                  className="mb-3 flex items-center gap-1 text-sm text-white/80 transition-colors hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to sessions
+                </button>
+                <CreateSessionForm
+                  courseId={selectedCourseForCancel.id}
+                  courseName={selectedCourseForCancel.name}
+                  onCancel={() => setSessionsView('list')}
+                  onSuccess={() => {
+                    setSessionsView('list')
+                    if (selectedCourseForCancel) {
+                      toast.success('One-time session created')
+                      handleOpenSessionsModal({
+                        id: selectedCourseForCancel.id,
+                        name: selectedCourseForCancel.name,
+                      } as EnrolledCourse)
                     }
-                  >
-                    Retry
-                  </Button>
-                </div>
-              ) : courseSessions.length === 0 ? (
-                <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                  <Calendar className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8" />
-                  <p>No sessions found for this course.</p>
-                  <p className="mt-1 text-xs">
-                    Sessions are created from the time slots in the course schedule.
-                  </p>
-                  {selectedCourseForCancel && (
-                    <Button asChild size="sm" className="mt-3 transition-all duration-200">
-                      <Link
-                        href={withLocalePath(
-                          `/tutor/courses/${selectedCourseForCancel.templateCourseId ?? selectedCourseForCancel.id}`
-                        )}
-                      >
-                        <CalendarClock className="mr-1 h-3 w-3" />
-                        Set up the schedule
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="scrollbar-hide h-[460px] space-y-3 overflow-y-auto pr-2">
-                  {courseSessions.length > 6 && (
-                    <p className="text-muted-foreground pb-1 text-xs">
-                      {courseSessions.length} sessions — scroll to see all
-                    </p>
-                  )}
-                  <div className="space-y-3">
-                    {courseSessions.map(session => {
-                      const isVirtual = session.isVirtual === true
-                      const _isPassedSession =
-                        !isVirtual &&
-                        session.scheduledAt &&
-                        new Date(session.scheduledAt).getTime() + 2 * 60 * 60 * 1000 < Date.now()
-                      const isScheduled = session.status === 'scheduled'
-                      const isActive = session.status === 'active'
-                      const isEnded = session.status === 'ended'
-                      const isPast =
-                        session.scheduledAt &&
-                        new Date(session.scheduledAt).getTime() < Date.now() - 5 * 60 * 1000
-                      const canCancel = !isVirtual && (isScheduled || isActive) && !isPast
-
-                      // For virtual sessions, compute dynamic status
-                      let displayStatus = session.status
-                      if (isVirtual && session.scheduledAt) {
-                        const diff = new Date(session.scheduledAt).getTime() - Date.now()
-                        if (diff <= 0) displayStatus = 'opening_soon'
-                        else if (diff <= 60 * 60 * 1000) displayStatus = 'opening_soon'
-                        else displayStatus = 'upcoming'
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="mt-4 text-white">
+                {loadingSessions ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
+                  </div>
+                ) : sessionLoadError ? (
+                  <div className="border-destructive/20 rounded-lg border border-dashed p-6 text-center text-sm">
+                    <AlertCircle className="text-destructive/50 mx-auto mb-2 h-8 w-8" />
+                    <p className="text-destructive font-medium">Failed to load sessions</p>
+                    <p className="text-muted-foreground mt-1 text-xs">{sessionLoadError}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 transition-all duration-200"
+                      onClick={() =>
+                        selectedCourseForCancel && handleOpenSessionsModal(selectedCourseForCancel)
                       }
-
-                      const badgeClass =
-                        isActive || displayStatus === 'active'
-                          ? 'bg-success/15 text-success border-success/25'
-                          : isEnded
-                            ? 'bg-muted text-muted-foreground border-border/30'
-                            : displayStatus === 'opening_soon'
-                              ? 'bg-warning/15 text-warning border-warning/25'
-                              : 'bg-info/15 text-info border-info/25'
-
-                      return (
-                        <div
-                          key={session.id}
-                          className="border-border/30 bg-card hover:border-border/50 flex items-center justify-between rounded-lg border p-3 transition-all duration-200 hover:bg-white"
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : courseSessions.length === 0 ? (
+                  <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                    <Calendar className="text-muted-foreground/50 mx-auto mb-2 h-8 w-8" />
+                    <p>No sessions found for this course.</p>
+                    <p className="mt-1 text-xs">
+                      Sessions are created from the time slots in the course schedule.
+                    </p>
+                    {selectedCourseForCancel && (
+                      <Button asChild size="sm" className="mt-3 transition-all duration-200">
+                        <Link
+                          href={withLocalePath(
+                            `/tutor/courses/${selectedCourseForCancel.templateCourseId ?? selectedCourseForCancel.id}`
+                          )}
                         >
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-medium text-gray-900">
-                                {sessionsCourseMeta?.name
-                                  ? (() => {
-                                      const [cat, nat] = sessionsCourseMeta.variantName
-                                        ? sessionsCourseMeta.variantName.split(' — ')
-                                        : []
-                                      if (nat && nat !== 'Global') {
-                                        return (
-                                          <span className="inline-flex items-center gap-1">
-                                            {sessionsCourseMeta.name} — {cat} —{' '}
-                                            <CountryFlag countryName={nat} size="xs" showLabel />
-                                          </span>
-                                        )
-                                      }
-                                      return `${sessionsCourseMeta.name}${cat ? ` — ${cat}` : ''}`
-                                    })()
-                                  : session.title}
-                              </p>
-                              <Badge
-                                variant="outline"
-                                className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
-                              >
-                                {displayStatus}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'text-[10px] uppercase tracking-wide',
-                                  isVirtual || session.scheduleId
-                                    ? 'bg-info/10 text-info border-info/25'
-                                    : 'bg-warning/10 text-warning border-warning/25'
-                                )}
-                              >
-                                {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
-                              </Badge>
-                              {session.scheduleName && (
+                          <CalendarClock className="mr-1 h-3 w-3" />
+                          Set up the schedule
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="scrollbar-hide h-[460px] space-y-3 overflow-y-auto pr-2">
+                    {courseSessions.length > 6 && (
+                      <p className="text-muted-foreground pb-1 text-xs">
+                        {courseSessions.length} sessions — scroll to see all
+                      </p>
+                    )}
+                    <div className="space-y-3">
+                      {courseSessions.map(session => {
+                        const isVirtual = session.isVirtual === true
+                        const _isPassedSession =
+                          !isVirtual &&
+                          session.scheduledAt &&
+                          new Date(session.scheduledAt).getTime() + 2 * 60 * 60 * 1000 < Date.now()
+                        const isScheduled = session.status === 'scheduled'
+                        const isActive = session.status === 'active'
+                        const isEnded = session.status === 'ended'
+                        const isPast =
+                          session.scheduledAt &&
+                          new Date(session.scheduledAt).getTime() < Date.now() - 5 * 60 * 1000
+                        const canCancel = !isVirtual && (isScheduled || isActive) && !isPast
+
+                        // For virtual sessions, compute dynamic status
+                        let displayStatus = session.status
+                        if (isVirtual && session.scheduledAt) {
+                          const diff = new Date(session.scheduledAt).getTime() - Date.now()
+                          if (diff <= 0) displayStatus = 'opening_soon'
+                          else if (diff <= 60 * 60 * 1000) displayStatus = 'opening_soon'
+                          else displayStatus = 'upcoming'
+                        }
+
+                        const badgeClass =
+                          isActive || displayStatus === 'active'
+                            ? 'bg-success/15 text-success border-success/25'
+                            : isEnded
+                              ? 'bg-muted text-muted-foreground border-border/30'
+                              : displayStatus === 'opening_soon'
+                                ? 'bg-warning/15 text-warning border-warning/25'
+                                : 'bg-info/15 text-info border-info/25'
+
+                        return (
+                          <div
+                            key={session.id}
+                            className="border-border/30 bg-card hover:border-border/50 flex items-center justify-between rounded-lg border p-3 transition-all duration-200 hover:bg-white"
+                          >
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate font-medium text-gray-900">
+                                  {sessionsCourseMeta?.name
+                                    ? (() => {
+                                        const [cat, nat] = sessionsCourseMeta.variantName
+                                          ? sessionsCourseMeta.variantName.split(' — ')
+                                          : []
+                                        if (nat && nat !== 'Global') {
+                                          return (
+                                            <span className="inline-flex items-center gap-1">
+                                              {sessionsCourseMeta.name} — {cat} —{' '}
+                                              <CountryFlag countryName={nat} size="xs" showLabel />
+                                            </span>
+                                          )
+                                        }
+                                        return `${sessionsCourseMeta.name}${cat ? ` — ${cat}` : ''}`
+                                      })()
+                                    : session.title}
+                                </p>
                                 <Badge
                                   variant="outline"
-                                  className="border-primary/25 bg-primary/10 text-primary text-[10px] uppercase tracking-wide"
+                                  className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
                                 >
-                                  {session.scheduleName}
+                                  {displayStatus}
                                 </Badge>
-                              )}
-                            </div>
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                              {session.scheduledAt && (
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(session.scheduledAt).toLocaleDateString('en-US', {
-                                    weekday: 'short',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                              )}
-                              {session.scheduledAt && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {new Date(session.scheduledAt).toLocaleTimeString('en-US', {
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              )}
-                              {!isVirtual && (
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
-                                </span>
-                              )}
-                              {isVirtual && session.durationMinutes && (
-                                <span>{session.durationMinutes} min</span>
-                              )}
-                            </div>
-                            {session.description && (
-                              <p className="text-muted-foreground truncate text-xs">
-                                {session.description}
-                              </p>
-                            )}
-                            {!isVirtual && courseLessonOptions.length > 0 && (
-                              <div className="flex items-center gap-2 pt-0.5">
-                                <BookOpen className="text-muted-foreground h-3 w-3 shrink-0" />
-                                <label className="sr-only" htmlFor={`lesson-${session.id}`}>
-                                  Lesson this session covers
-                                </label>
-                                <select
-                                  id={`lesson-${session.id}`}
-                                  value={session.lessonId ?? ''}
-                                  disabled={savingLessonSessionId === session.id}
-                                  onChange={e => handleAssignLesson(session.id, e.target.value)}
-                                  className="border-border/40 bg-background max-w-[220px] truncate rounded-md border px-2 py-1 text-xs text-gray-900 disabled:opacity-60"
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[10px] uppercase tracking-wide',
+                                    isVirtual || session.scheduleId
+                                      ? 'bg-info/10 text-info border-info/25'
+                                      : 'bg-warning/10 text-warning border-warning/25'
+                                  )}
                                 >
-                                  <option value="">No lesson assigned</option>
-                                  {courseLessonOptions.map((l, i) => (
-                                    <option key={l.id} value={l.id}>
-                                      {`Lesson ${i + 1}: ${l.title}`}
-                                    </option>
-                                  ))}
-                                </select>
-                                {savingLessonSessionId === session.id && (
-                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
+                                </Badge>
+                                {session.scheduleName && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-primary/25 bg-primary/10 text-primary text-[10px] uppercase tracking-wide"
+                                  >
+                                    {session.scheduleName}
+                                  </Badge>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          <div className="ml-4 flex items-center gap-2">
-                            {canCancel && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      'Are you sure you want to cancel this session? Students will be notified.'
+                              <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                {session.scheduledAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(session.scheduledAt).toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })}
+                                  </span>
+                                )}
+                                {session.scheduledAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {new Date(session.scheduledAt).toLocaleTimeString('en-US', {
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                )}
+                                {!isVirtual && (
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
+                                  </span>
+                                )}
+                                {isVirtual && session.durationMinutes && (
+                                  <span>{session.durationMinutes} min</span>
+                                )}
+                              </div>
+                              {session.description && (
+                                <p className="text-muted-foreground truncate text-xs">
+                                  {session.description}
+                                </p>
+                              )}
+                              {!isVirtual && courseLessonOptions.length > 0 && (
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  <BookOpen className="text-muted-foreground h-3 w-3 shrink-0" />
+                                  <label className="sr-only" htmlFor={`lesson-${session.id}`}>
+                                    Lesson this session covers
+                                  </label>
+                                  <select
+                                    id={`lesson-${session.id}`}
+                                    value={session.lessonId ?? ''}
+                                    disabled={savingLessonSessionId === session.id}
+                                    onChange={e => handleAssignLesson(session.id, e.target.value)}
+                                    className="border-border/40 bg-background max-w-[220px] truncate rounded-md border px-2 py-1 text-xs text-gray-900 disabled:opacity-60"
+                                  >
+                                    <option value="">No lesson assigned</option>
+                                    {courseLessonOptions.map((l, i) => (
+                                      <option key={l.id} value={l.id}>
+                                        {`Lesson ${i + 1}: ${l.title}`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {savingLessonSessionId === session.id && (
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4 flex items-center gap-2">
+                              {canCancel && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (
+                                      confirm(
+                                        'Are you sure you want to cancel this session? Students will be notified.'
+                                      )
+                                    ) {
+                                      handleCancelSession(session.id, 'Cancelled by tutor')
+                                    }
+                                  }}
+                                  disabled={cancellingSessionId === session.id}
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive/80 transition-all duration-200"
+                                >
+                                  {cancellingSessionId === session.id ? (
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  ) : (
+                                    <Ban className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              )}
+                              {isVirtual ? (
+                                // Upcoming slot from the schedule that isn't materialized yet.
+                                // It becomes startable automatically once published into range;
+                                // tutors add/extend slots via the scheduler (footer button), not
+                                // by creating an ad-hoc session here.
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled
+                                  title="This scheduled slot opens automatically — manage it from the course scheduler."
+                                >
+                                  Upcoming
+                                </Button>
+                              ) : isScheduled ? (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  disabled={launchingCourseId === session.id}
+                                  onClick={() => handleStartClass(session.id)}
+                                  className="transition-all duration-200"
+                                >
+                                  {launchingCourseId === session.id ? (
+                                    <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                  ) : (
+                                    <Video className="mr-1 h-3 w-3" />
+                                  )}
+                                  Start Session
+                                </Button>
+                              ) : isActive ? (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() =>
+                                    router.push(
+                                      withLocalePath(`/tutor/classroom?sessionId=${session.id}`)
                                     )
-                                  ) {
-                                    handleCancelSession(session.id, 'Cancelled by tutor')
                                   }
-                                }}
-                                disabled={cancellingSessionId === session.id}
-                                className="text-destructive hover:bg-destructive/10 hover:text-destructive/80 transition-all duration-200"
-                              >
-                                {cancellingSessionId === session.id ? (
-                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Ban className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                            {isVirtual ? (
-                              // Upcoming slot from the schedule that isn't materialized yet.
-                              // It becomes startable automatically once published into range;
-                              // tutors add/extend slots via the scheduler (footer button), not
-                              // by creating an ad-hoc session here.
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled
-                                title="This scheduled slot opens automatically — manage it from the course scheduler."
-                              >
-                                Upcoming
-                              </Button>
-                            ) : isScheduled ? (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                disabled={launchingCourseId === session.id}
-                                onClick={() => handleStartClass(session.id)}
-                                className="transition-all duration-200"
-                              >
-                                {launchingCourseId === session.id ? (
-                                  <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                ) : (
-                                  <Video className="mr-1 h-3 w-3" />
-                                )}
-                                Start Session
-                              </Button>
-                            ) : isActive ? (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() =>
-                                  router.push(
-                                    withLocalePath(`/tutor/classroom?sessionId=${session.id}`)
-                                  )
-                                }
-                                className="transition-all duration-200"
-                              >
-                                Join Session
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" disabled>
-                                {isEnded ? 'Ended' : 'N/A'}
-                              </Button>
-                            )}
+                                  className="transition-all duration-200"
+                                >
+                                  Join Session
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="sm" disabled>
+                                  {isEnded ? 'Ended' : 'N/A'}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             <Separator className="my-4" />
 
             <DialogFooter className="flex items-center justify-end sm:justify-end">
               <div className="flex flex-wrap items-center gap-2">
-                {selectedCourseForCancel && (
-                  <Button
-                    variant="modal-primary-dark"
-                    onClick={() => {
-                      setCreatingOneTime(true)
-                      setTimeout(() => {
-                        setOneTimeCourse({
-                          id: selectedCourseForCancel.id,
-                          name: selectedCourseForCancel.name,
-                        })
-                      }, 300)
-                    }}
-                  >
+                {selectedCourseForCancel && sessionsView === 'list' && (
+                  <Button variant="modal-primary-dark" onClick={() => setSessionsView('create')}>
                     <Video className="mr-1 h-4 w-4" />
                     Create Class
                   </Button>
