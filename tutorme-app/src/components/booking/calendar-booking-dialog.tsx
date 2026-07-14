@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { CourseCombobox, type CourseOption } from '@/components/course/course-combobox'
 
 // Time slot constants (same as VariantScheduleEditor)
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
@@ -101,6 +102,9 @@ interface CalendarBookingDialogProps {
   }
   username: string
   locale: string
+  /** The tutor's published courses, so the student can say which one this
+   *  session is about. Optional — the picker only shows when there are some. */
+  courses?: CourseOption[]
 }
 
 export function CalendarBookingDialog({
@@ -109,6 +113,7 @@ export function CalendarBookingDialog({
   tutor,
   username,
   locale,
+  courses = [],
 }: CalendarBookingDialogProps) {
   const { data: session } = useSession()
   const router = useRouter()
@@ -128,6 +133,8 @@ export function CalendarBookingDialog({
   const [recurringWeeks, setRecurringWeeks] = useState(1)
   // Optional note the student sends the tutor ("why I want this session").
   const [studentNotes, setStudentNotes] = useState('')
+  // Optional course the student wants this 1-on-1 to be about.
+  const [courseId, setCourseId] = useState<string | null>(null)
 
   // Calendar week navigation
   const [weekOffset, setWeekOffset] = useState(0)
@@ -448,6 +455,7 @@ export function CalendarBookingDialog({
           proposedSlots,
           duration: 60,
           ...(studentNotes.trim() ? { studentNotes: studentNotes.trim() } : {}),
+          ...(courseId ? { courseId } : {}),
         }),
       })
 
@@ -947,6 +955,24 @@ export function CalendarBookingDialog({
                         </span>
                       </div>
                     </div>
+
+                    {/* Optional course this session is about */}
+                    {courses.length > 0 ? (
+                      <div className="mt-4">
+                        <label className="mb-1.5 block text-sm font-semibold text-white">
+                          Course <span className="font-normal text-white/50">(optional)</span>
+                        </label>
+                        <CourseCombobox
+                          options={courses}
+                          value={courseId}
+                          onChange={setCourseId}
+                          placeholder="Which course is this about?"
+                        />
+                        <p className="mt-1 text-[11px] text-white/50">
+                          Lets your tutor line up the right lessons and tasks for your session.
+                        </p>
+                      </div>
+                    ) : null}
 
                     {/* Optional note to the tutor */}
                     <div className="mt-4">
