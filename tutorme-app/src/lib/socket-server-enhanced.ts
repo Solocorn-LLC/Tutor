@@ -32,6 +32,7 @@ import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
+import { ensureViewableSourceDocument } from '@/lib/documents/ensure-viewable'
 import type {
   StrokeDelta,
   ShapeDelta,
@@ -1158,14 +1159,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
 
       // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
-      // students get a live URL rather than a possibly-expired one. Never let a
-      // refresh failure block the deploy — fall back to the original document.
+      // students get a live URL rather than a possibly-expired one, and render a
+      // raw Office document to PDF so students get an inline viewer rather than a
+      // download-only link. Never let this block the deploy — on failure it falls
+      // back to the original document.
       let refreshedSourceDocument = task.sourceDocument
       if (task.sourceDocument) {
         try {
-          refreshedSourceDocument = await refreshDocumentUrls(task.sourceDocument)
+          refreshedSourceDocument = await ensureViewableSourceDocument(task.sourceDocument)
         } catch (err) {
-          console.warn('[task:deploy] document URL refresh failed:', err)
+          console.warn('[task:deploy] source-document prep failed:', err)
         }
       }
 
@@ -1465,11 +1468,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
             const raw = item as Record<string, unknown>
             const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
             const refreshedSourceDoc = rawSourceDoc
-              ? await refreshDocumentUrls({
+              ? await ensureViewableSourceDocument({
                   fileName: (rawSourceDoc.fileName as string) || '',
                   fileUrl: (rawSourceDoc.fileUrl as string) || '',
                   // Preserve fileKey so the URL is re-signed from the object key
-                  // (reliable) rather than regex-parsing a possibly-expired URL.
+                  // (reliable) rather than regex-parsing a possibly-expired URL,
+                  // and so a raw Office doc can be rendered to an inline PDF.
                   fileKey: (rawSourceDoc.fileKey as string) || undefined,
                   mimeType: (rawSourceDoc.mimeType as string) || '',
                 })
