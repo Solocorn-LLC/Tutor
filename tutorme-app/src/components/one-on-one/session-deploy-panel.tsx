@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import { toast } from 'sonner'
-import { Loader2, Send, X, FileText } from 'lucide-react'
+import { Loader2, Send, X, FileText, ListChecks } from 'lucide-react'
+import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 
 interface Deployable {
   taskId: string
@@ -11,6 +12,8 @@ interface Deployable {
   type: 'task' | 'assessment' | 'homework'
   content: string
   lessonId: string | null
+  /** Student-safe questions (answers already stripped server-side). */
+  dmiItems: StudentDmiItem[]
 }
 
 /**
@@ -53,8 +56,11 @@ export function SessionDeployPanel({
       return
     }
     setDeployingId(t.taskId)
-    // Same LiveTask shape the course classroom emits (answer key / PCI stay
-    // server-side; a plain deploy carries just the student-visible fields).
+    // Same LiveTask shape the course classroom emits. The student-safe dmiItems
+    // (answers already stripped by the deployables endpoint) ride along so the
+    // task is answerable in the live classroom; the answer key stays server-side
+    // in BuilderTaskDmi and the `task:complete` handler reloads it by taskId to
+    // auto-grade — it is never sent to the client here.
     socket.emit('task:deploy', {
       roomId: sessionId,
       task: {
@@ -63,6 +69,7 @@ export function SessionDeployPanel({
         content: t.content,
         source: t.type,
         lessonId: t.lessonId ?? undefined,
+        dmiItems: t.dmiItems,
         deployedAt: Date.now(),
         polls: [],
         questions: [],
@@ -104,7 +111,15 @@ export function SessionDeployPanel({
                   <FileText className="h-4 w-4 shrink-0 text-slate-400" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-900">{t.title}</p>
-                    <p className="text-[11px] capitalize text-slate-400">{t.type}</p>
+                    <p className="flex items-center gap-1 text-[11px] capitalize text-slate-400">
+                      {t.type}
+                      {t.dmiItems.length > 0 ? (
+                        <span className="inline-flex items-center gap-0.5 lowercase text-blue-500">
+                          <ListChecks className="h-3 w-3" />
+                          {t.dmiItems.length} q{t.dmiItems.length === 1 ? '' : 's'}
+                        </span>
+                      ) : null}
+                    </p>
                   </div>
                 </div>
                 <button

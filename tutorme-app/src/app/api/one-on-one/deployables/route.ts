@@ -4,13 +4,22 @@
  * The tutor's saved, published tasks that can be deployed into a live session's
  * classroom (the session-classroom deploy panel). Returns enough to build the
  * LiveTask the client emits over `task:deploy`.
+ *
+ * For assessment/homework tasks that carry structured DMI questions, we also
+ * return the *student-safe* `dmiItems` (answers stripped via
+ * `buildStudentDeployPayload`) so the deployed task is answerable in the live
+ * classroom. The answer key is NEVER returned here — it stays in
+ * `BuilderTaskDmi.items` server-side and the `task:complete` handler reloads it
+ * by taskId to auto-grade.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask } from '@/lib/db/schema'
+import { builderTask, builderTaskDmi } from '@/lib/db/schema'
+import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
+import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 
 export const GET = withAuth(
   async (_req: NextRequest, session) => {
@@ -33,6 +42,32 @@ export const GET = withAuth(
       .orderBy(desc(builderTask.updatedAt))
       .limit(100)
 
+    // Load the latest DMI item set per task in one query, then project each to
+    // its student-safe form. Answer-bearing fields (answer/rubric/pairs/regions)
+    // are dropped by `toStudentDmiItem`; only the prompts + option banks remain.
+    const taskIds = rows.map(r => r.taskId)
+    const safeItemsByTask = new Map<string, StudentDmiItem[]>()
+    if (taskIds.length > 0) {
+      const dmiRows = await drizzleDb
+        .select({
+          taskId: builderTaskDmi.taskId,
+          items: builderTaskDmi.items,
+          updatedAt: builderTaskDmi.updatedAt,
+        })
+        .from(builderTaskDmi)
+        .where(inArray(builderTaskDmi.taskId, taskIds))
+        .orderBy(desc(builderTaskDmi.updatedAt))
+
+      // Keep only the most-recent row per task (rows arrive newest-first).
+      for (const row of dmiRows) {
+        if (safeItemsByTask.has(row.taskId)) continue
+        const rawItems = Array.isArray(row.items) ? (row.items as RawDeployDmiItem[]) : []
+        if (rawItems.length === 0) continue
+        const { dmiItems } = buildStudentDeployPayload(rawItems)
+        safeItemsByTask.set(row.taskId, dmiItems)
+      }
+    }
+
     return NextResponse.json({
       tasks: rows.map(r => ({
         taskId: r.taskId,
@@ -40,6 +75,7 @@ export const GET = withAuth(
         type: (r.type as 'task' | 'assessment' | 'homework') || 'task',
         content: r.content || '',
         lessonId: r.lessonId || null,
+        dmiItems: safeItemsByTask.get(r.taskId) ?? [],
       })),
     })
   },

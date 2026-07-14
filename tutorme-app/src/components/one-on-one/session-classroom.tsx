@@ -125,7 +125,12 @@ export function SessionClassroom({
               />
             ) : null}
             {showMaterials ? (
-              <SessionDeployedPanel socket={socket} onClose={() => setShowMaterials(false)} />
+              <SessionDeployedPanel
+                sessionId={sessionId}
+                socket={socket}
+                isTutor={isTutor}
+                onClose={() => setShowMaterials(false)}
+              />
             ) : null}
           </div>
         </FallbackBoundary>
