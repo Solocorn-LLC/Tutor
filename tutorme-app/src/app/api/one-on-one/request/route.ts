@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, or, inArray, isNull } from 'drizzle-orm'
+import { eq, and, or, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, profile, user } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
@@ -19,6 +19,7 @@ import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { findConflicts } from '@/lib/schedule/conflicts'
 import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
 import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
+import { unpaidSeriesTotal } from '@/lib/one-on-one/series-total'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -269,20 +270,10 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     let seriesCount = 1
     let seriesTotal = Number(requestRow.costPerSession || 0)
     if (requestRow.seriesId) {
-      const seriesRows = await drizzleDb
-        .select({ costPerSession: oneOnOneBookingRequest.costPerSession })
-        .from(oneOnOneBookingRequest)
-        .where(
-          and(
-            eq(oneOnOneBookingRequest.seriesId, requestRow.seriesId),
-            eq(oneOnOneBookingRequest.status, 'ACCEPTED'),
-            isNull(oneOnOneBookingRequest.paidAt)
-          )
-        )
-      if (seriesRows.length > 0) {
-        seriesCount = seriesRows.length
-        seriesTotal =
-          Math.round(seriesRows.reduce((s, r) => s + Number(r.costPerSession || 0), 0) * 100) / 100
+      const series = await unpaidSeriesTotal(requestRow.seriesId)
+      if (series.count > 0) {
+        seriesCount = series.count
+        seriesTotal = series.total
       }
     }
 

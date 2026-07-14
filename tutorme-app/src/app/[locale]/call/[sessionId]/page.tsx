@@ -16,6 +16,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Loader2, ArrowLeft, Video, CalendarClock } from 'lucide-react'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
+import { formatCountdown } from '@/lib/one-on-one/format'
 
 type Phase = 'checking' | 'lobby' | 'joining' | 'inRoom' | 'ended' | 'error'
 
@@ -37,15 +38,6 @@ interface VideoInfo {
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000
 const LOBBY_POLL_MS = 20_000
-
-function countdown(toMs: number, now: number): string {
-  const s = Math.max(0, Math.round((toMs - now) / 1000))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
-}
 
 export default function OneOnOneCallPage() {
   const { data: session } = useSession()
@@ -210,7 +202,7 @@ export default function OneOnOneCallPage() {
               {now && Number.isFinite(startMs) && now >= startMs ? 'Room opens in' : 'Starts in'}
             </p>
             <p className="mt-1 font-mono text-3xl font-bold tabular-nums text-white">
-              {now && Number.isFinite(opensAtMs) ? countdown(opensAtMs, now) : '—:—'}
+              {now && Number.isFinite(opensAtMs) ? formatCountdown(opensAtMs, now) : '—:—'}
             </p>
             {startLabel ? <p className="mt-2 text-xs text-white/50">{startLabel}</p> : null}
           </div>

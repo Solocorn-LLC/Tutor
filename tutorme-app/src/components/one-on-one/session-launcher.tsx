@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Video, X } from 'lucide-react'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
+import { formatCountdown } from '@/lib/one-on-one/format'
 
 interface LiveSession {
   sessionId: string
@@ -30,15 +31,6 @@ interface LiveSession {
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000
 const POLL_MS = 45_000
-
-function countdown(toMs: number, now: number): string {
-  const s = Math.max(0, Math.round((toMs - now) / 1000))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
-}
 
 export function SessionLauncher() {
   const { status } = useSession()
@@ -111,7 +103,7 @@ export function SessionLauncher() {
             ) : joinable ? (
               <span className="font-medium text-blue-300">Ready to join</span>
             ) : (
-              <>Starts in {countdown(start, now)}</>
+              <>Starts in {formatCountdown(start, now)}</>
             )}
           </p>
         </div>
@@ -126,7 +118,7 @@ export function SessionLauncher() {
           </button>
         ) : (
           <span className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-medium text-white/70">
-            Opens in {countdown(opensAt, now)}
+            Opens in {formatCountdown(opensAt, now)}
           </span>
         )}
 

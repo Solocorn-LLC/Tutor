@@ -7,22 +7,17 @@ import { toast } from 'sonner'
 import { Loader2, CalendarClock, Video, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
-import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
+import {
+  resolveOneOnOneSession,
+  joinableRequestId,
+  latestCompletedRequestId,
+} from '@/lib/one-on-one/enter-classroom'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import {
   OneOnOneRequestCard,
   groupIntoSeries,
   type OneOnOneRequestSummary,
 } from '@/components/one-on-one/one-on-one-request-card'
-
-/** The most recent COMPLETED session in a group — the one a "Rate" click reviews. */
-function latestCompletedRequestId(members: OneOnOneRequestSummary[]): string | null {
-  const completed = members.filter(m => (m.status || '').toUpperCase() === 'COMPLETED')
-  if (completed.length === 0) return null
-  return completed.reduce((a, b) =>
-    new Date(a.requestedDate).getTime() >= new Date(b.requestedDate).getTime() ? a : b
-  ).requestId
-}
 
 /**
  * A student's own 1-on-1 booking requests (the `role=sent` view). Renders the
