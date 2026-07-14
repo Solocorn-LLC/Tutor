@@ -32,7 +32,12 @@ export async function splitPdfBufferIntoPages(
 
   let sourceDoc: PDFDocument
   try {
-    sourceDoc = await PDFDocument.load(buffer)
+    // ignoreEncryption: many real-world PDFs (exam papers, exported docs) carry
+    // owner-password encryption even when they open fine in a viewer. Without
+    // this, pdf-lib throws on load → the split fails → "load as Tasks" silently
+    // falls back to a single task. We only READ + copy pages here, so ignoring
+    // the (non-content) encryption is safe.
+    sourceDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   } catch {
     const err = new Error('File is not a valid PDF') as Error & { code?: string }
     err.code = 'INVALID_PDF'
