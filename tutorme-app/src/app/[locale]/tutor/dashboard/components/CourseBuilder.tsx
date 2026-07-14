@@ -7505,13 +7505,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       {}
     )
 
-    // We already defined hasTaskDocument above, so we don't redefine it here
-    const taskTextVisible = loadedTaskId
-      ? (taskTextVisibleMap[loadedTaskId] ?? !hasTaskDocument)
-      : !hasTaskDocument
-    const taskPdfVisible = loadedTaskId
-      ? (taskPdfVisibleMap[loadedTaskId] ?? hasTaskDocument)
-      : hasTaskDocument
+    // We already defined hasTaskDocument above, so we don't redefine it here.
+    // With no document there is nothing to preview, so the text editor is always
+    // shown and the document pane hidden — a stale per-item view preference (e.g.
+    // left over from a document that was since removed) must never hide the editor
+    // and strand the tutor with no way to type. Once a document is present, the
+    // saved preference applies, defaulting to the document view.
+    const taskTextVisible = !hasTaskDocument
+      ? true
+      : loadedTaskId
+        ? (taskTextVisibleMap[loadedTaskId] ?? false)
+        : false
+    const taskPdfVisible = !hasTaskDocument
+      ? false
+      : loadedTaskId
+        ? (taskPdfVisibleMap[loadedTaskId] ?? true)
+        : true
 
     const setTaskTextVisible = (val: boolean) => {
       if (loadedTaskId) setTaskTextVisibleMap(prev => ({ ...prev, [loadedTaskId]: val }))
@@ -7520,12 +7529,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (loadedTaskId) setTaskPdfVisibleMap(prev => ({ ...prev, [loadedTaskId]: val }))
     }
 
-    const assessmentTextVisible = loadedAssessmentId
-      ? (assessmentTextVisibleMap[loadedAssessmentId] ?? !hasAssessmentDocument)
-      : !hasAssessmentDocument
-    const assessmentPdfVisible = loadedAssessmentId
-      ? (assessmentPdfVisibleMap[loadedAssessmentId] ?? hasAssessmentDocument)
-      : hasAssessmentDocument
+    // Same as the task builder: with no document the text editor is always shown
+    // so a stale view preference can't strand the tutor with nothing to type into.
+    const assessmentTextVisible = !hasAssessmentDocument
+      ? true
+      : loadedAssessmentId
+        ? (assessmentTextVisibleMap[loadedAssessmentId] ?? false)
+        : false
+    const assessmentPdfVisible = !hasAssessmentDocument
+      ? false
+      : loadedAssessmentId
+        ? (assessmentPdfVisibleMap[loadedAssessmentId] ?? true)
+        : true
 
     const setAssessmentTextVisible = (val: boolean) => {
       if (loadedAssessmentId)
@@ -11243,6 +11258,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
                                               readOnly={!canEdit}
+                                              placeholder="Type the task content here — or load a document above to work from it."
                                               onDrop={(e: any) =>
                                                 handleDragFiles(
                                                   e,
@@ -11702,6 +11718,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               style={{ fontSize: `${extractedTextFontSize}px` }}
                                               disableAutoResize
                                               readOnly={!canEdit}
+                                              placeholder="Type your assessment questions here — or load a document above to work from it."
                                               onDrop={(e: any) =>
                                                 handleDragFiles(
                                                   e,
