@@ -124,7 +124,6 @@ export function CourseCategoryPicker({
   const [categorySearch, setCategorySearch] = useState('')
   const [customCategories, setCustomCategories] = useState<string[]>([])
   const [customCategoryInput, setCustomCategoryInput] = useState('')
-  const [globalContentHeight, setGlobalContentHeight] = useState<number>(480)
   const globalContentRef = useRef<HTMLDivElement>(null)
 
   // Load the tutor's saved custom categories (localStorage, per-user key).
@@ -187,12 +186,23 @@ export function CourseCategoryPicker({
   }, [nationalExams, filteredUniversityCategories])
 
   // Keep every tab the same height as the (tallest) Global tab.
+  // National and Universities tabs have extra region/country selectors
+  // above the scrollable area, so we deduct that offset to keep total
+  // picker height consistent across all tabs.
+  const SELECTOR_ROW_OFFSET = 50 // height of region/country selector row + gap
+  const [baseContentHeight, setBaseContentHeight] = useState<number>(480)
+
   useLayoutEffect(() => {
     if (categoryTab !== 'global') return
     if (globalContentRef.current) {
-      setGlobalContentHeight(globalContentRef.current.scrollHeight + 32)
+      setBaseContentHeight(globalContentRef.current.scrollHeight + 32)
     }
   }, [categoryTab])
+
+  const globalContentHeight =
+    categoryTab === 'national' || categoryTab === 'universities'
+      ? baseContentHeight - SELECTOR_ROW_OFFSET
+      : baseContentHeight
 
   const selectCategory = (category: string) => onChange([category])
 
@@ -475,7 +485,7 @@ export function CourseCategoryPicker({
           ))}
 
           {/* National (checkbox; needs a country) */}
-          <TabsContent value="national" className="mt-0 h-full">
+          <TabsContent value="national" className="mt-0 flex h-full flex-1 flex-col">
             {nationalExams.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
@@ -489,7 +499,7 @@ export function CourseCategoryPicker({
           </TabsContent>
 
           {/* Universities (needs a region/country) */}
-          <TabsContent value="universities" className="mt-0 h-full">
+          <TabsContent value="universities" className="mt-0 flex h-full flex-1 flex-col">
             {filteredUniversityCategories.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />

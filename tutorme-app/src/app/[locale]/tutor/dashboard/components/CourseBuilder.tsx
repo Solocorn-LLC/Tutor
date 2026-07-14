@@ -6307,7 +6307,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           }
                         }
 
-                        if (isPdf && (assetToLoad.url || assetToLoad.fileKey) && !pdfSplitSucceeded) {
+                        if (
+                          isPdf &&
+                          (assetToLoad.url || assetToLoad.fileKey) &&
+                          !pdfSplitSucceeded
+                        ) {
                           // Splitting the stored PDF into per-page files failed (e.g. the
                           // link is broken/expired or the object is unreadable). Don't
                           // abort — fall back to splitting the extracted text into
@@ -6348,7 +6352,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               const newTask = DEFAULT_TASK(startIndex + idx)
                               newTask.title = `Task ${groupNumber}.${existingTask ? idx + 1 : idx + 1}`
                               newTask.description = pageContent
-                              if ((assetToLoad.url || assetToLoad.fileKey) && assetToLoad.mimeType) {
+                              if (
+                                (assetToLoad.url || assetToLoad.fileKey) &&
+                                assetToLoad.mimeType
+                              ) {
                                 newTask.sourceDocument = {
                                   fileName: assetToLoad.name,
                                   fileUrl:
@@ -6546,7 +6553,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             uploadedAt: new Date().toISOString(),
                             extractedText: pages[0] || textToInsert,
                           }
-                        } else if ((assetToLoad.url || assetToLoad.fileKey) && assetToLoad.mimeType) {
+                        } else if (
+                          (assetToLoad.url || assetToLoad.fileKey) &&
+                          assetToLoad.mimeType
+                        ) {
                           newTask.sourceDocument = {
                             fileName: assetToLoad.name,
                             fileUrl:
