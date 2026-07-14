@@ -61,6 +61,7 @@ import {
 import { DEFAULT_TIMEZONE, type CalendarView } from './components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
+import { TutorPendingRescheduleBanner } from './components/TutorPendingRescheduleBanner'
 import { CountryFlag } from '@/components/country-flag'
 import { ClassroomDialog } from '@/components/classroom/ClassroomDialog'
 
@@ -725,6 +726,9 @@ function TutorDashboardContent() {
             nextSessionAt={getNextSessionTime() || undefined}
           />
         </div>
+
+        {/* Reschedule proposals awaiting student agreement */}
+        <TutorPendingRescheduleBanner />
 
         {error && (
           <div className="border-destructive/20 bg-destructive/10 text-destructive mb-4 flex-shrink-0 rounded-xl border p-3 text-sm">
