@@ -3315,22 +3315,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       mimeType?: string
       fileName?: string
     }): Promise<string[]> => {
-      const url = proxyFetchUrl(doc.fileUrl || '', doc.fileKey)
       const isImage = !!doc.mimeType?.startsWith('image/')
-      const isDocx =
+      const isOffice =
+        doc.mimeType === 'application/msword' ||
+        doc.mimeType === 'application/vnd.ms-powerpoint' ||
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        /\.docx$/i.test(doc.fileName || '')
-      const isPptx =
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-        /\.pptx$/i.test(doc.fileName || '')
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch document')
-      const blob = await response.blob()
+        /\.(docx?|pptx?)$/i.test(doc.fileName || '')
 
       if (isImage) {
-        const objectUrl = URL.createObjectURL(blob)
+        const response = await fetch(proxyFetchUrl(doc.fileUrl || '', doc.fileKey))
+        if (!response.ok) throw new Error('Failed to fetch image')
+        const objectUrl = URL.createObjectURL(await response.blob())
         try {
           return [await imageSrcToBoundedDataUrl(objectUrl)]
         } finally {
@@ -3338,30 +3336,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
       }
 
-      if (isDocx || isPptx) {
-        // OOXML (.docx/.pptx) is a zip; embedded raster figures live under
-        // word/media/ (Word) or ppt/media/ (PowerPoint). Pull those out as
-        // vision pages so the model can see diagrams the text extraction dropped.
-        const mediaDir = isPptx ? 'ppt/media/' : 'word/media/'
-        const mediaRe = new RegExp(`^${mediaDir}.+\\.(png|jpe?g|gif)$`, 'i')
-        const JSZip = (await import('jszip')).default
-        const zip = await JSZip.loadAsync(await blob.arrayBuffer())
-        const mediaNames = Object.keys(zip.files)
-          .filter(n => mediaRe.test(n))
-          .sort()
-          .slice(0, 8)
-        const images: string[] = []
-        for (const name of mediaNames) {
-          try {
-            const base64 = await zip.files[name].async('base64')
-            const ext = name.split('.').pop()?.toLowerCase()
-            const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg'
-            images.push(await imageSrcToBoundedDataUrl(`data:${mime};base64,${base64}`))
-          } catch (imgErr) {
-            console.warn('Skipping an unreadable embedded image:', name, imgErr)
-          }
+      // Word / PowerPoint (modern or legacy .doc/.ppt) — convert to PDF on the
+      // server via LibreOffice, which renders the TRUE document (text, raster
+      // images, AND vector shapes / hand-drawn diagrams, and reads legacy
+      // binaries), then rasterise the pages. This captures figures the OOXML
+      // media folder can't. Needs a durable fileKey to read from storage.
+      if (isOffice && doc.fileKey) {
+        const res = await fetchWithCsrf('/api/ai/office-to-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileKey: doc.fileKey, fileName: doc.fileName }),
+        })
+        if (!res.ok) throw new Error(`Office-to-PDF conversion failed (${res.status})`)
+        const objectUrl = URL.createObjectURL(await res.blob())
+        try {
+          return await renderPdfToImages(objectUrl, 8)
+        } finally {
+          URL.revokeObjectURL(objectUrl)
         }
-        return images
       }
 
       return []
@@ -7369,17 +7361,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
 
-    // An image scan or an OOXML Office file (.docx / .pptx) — documents whose
-    // figures text/OCR extraction drops, but that we can turn into images for the
-    // vision model.
+    // An image scan or an Office file (Word / PowerPoint, modern or legacy) —
+    // documents whose figures text/OCR extraction drops, but that we can turn
+    // into images for the vision model (Office files via server-side rendering).
     const isImageOrOfficeDoc = (doc?: { mimeType?: string; fileName?: string }): boolean =>
       !!doc &&
       (!!doc.mimeType?.startsWith('image/') ||
+        doc.mimeType === 'application/msword' ||
+        doc.mimeType === 'application/vnd.ms-powerpoint' ||
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-        /\.(docx|pptx)$/i.test(doc.fileName || ''))
+        /\.(docx?|pptx?)$/i.test(doc.fileName || ''))
     // Documents the "Analyze diagrams" toggle can send to the AI as images: PDFs
     // (page-rendered) plus image scans and Office files (Word / PowerPoint).
     const docSupportsFigureAnalysis = (doc?: { mimeType?: string; fileName?: string }): boolean =>
