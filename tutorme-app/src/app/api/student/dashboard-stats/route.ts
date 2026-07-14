@@ -31,7 +31,13 @@ import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 // A booking that was rejected by the tutor or expired never became a booking, so
 // it is excluded from "Total Bookings". Everything else (incl. cancelled) counts
 // as a booking the student actually placed.
-const BOOKED_STATUSES: BookingRequestStatus[] = ['PENDING', 'ACCEPTED', 'PAID', 'CANCELLED']
+const BOOKED_STATUSES: BookingRequestStatus[] = [
+  'PENDING',
+  'ACCEPTED',
+  'PAID',
+  'CANCELLED',
+  'COMPLETED',
+]
 const ACTIVE_LIVE_SESSION_STATUSES: LiveSessionStatus[] = LIVE_SESSION_OPEN_STATUSES
 
 export const dynamic = 'force-dynamic'

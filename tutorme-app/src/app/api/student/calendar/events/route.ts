@@ -122,11 +122,11 @@ export const GET = withAuth(
       : []
 
     // --- 1-on-1 sessions the student has PAID for (no courseId; keyed by
-    // studentId). Only PAID bookings are surfaced so a session becomes visible/
-    // joinable exactly when payment clears. ---
+    // studentId). Surfaced once payment clears (PAID) and kept after the session
+    // finishes (COMPLETED) so the past session stays on the calendar to review. ---
     const oneOnOneFilters = [
       eq(calendarEvent.studentId, studentId),
-      eq(oneOnOneBookingRequest.status, 'PAID'),
+      inArray(oneOnOneBookingRequest.status, ['PAID', 'COMPLETED']),
       eq(calendarEvent.isCancelled, false),
       isNull(calendarEvent.deletedAt),
     ]

@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
+import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
@@ -23,8 +24,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const expired = await expireOverdueOneOnOneBookings()
-    return NextResponse.json({ ok: true, expired })
+    const [expired, completed] = await Promise.all([
+      expireOverdueOneOnOneBookings(),
+      completeFinishedOneOnOneSessions(),
+    ])
+    return NextResponse.json({ ok: true, expired, completed })
   } catch (error) {
     console.error('[cron] expire-one-on-one failed:', error)
     return NextResponse.json({ error: 'Sweep failed' }, { status: 500 })

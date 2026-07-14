@@ -71,6 +71,9 @@ export const bookingRequestStatusEnum = pgEnum('BookingRequestStatus', [
   'EXPIRED',
   'PAID',
   'CANCELLED',
+  // A paid session whose scheduled time has passed (marked by the completion
+  // sweep). Distinguishes a finished session from an upcoming confirmed one.
+  'COMPLETED',
 ])
 export type BookingRequestStatus = (typeof bookingRequestStatusEnum.enumValues)[number]
 

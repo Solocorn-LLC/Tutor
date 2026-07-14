@@ -15,6 +15,7 @@
 import { drizzleDb } from './drizzle'
 import { sql } from 'drizzle-orm'
 import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
+import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
 
 const CLEANUP_SQL = sql.raw(`
 DELETE FROM "LiveSession"
@@ -81,6 +82,18 @@ export async function applyStartupDataCleanup(): Promise<void> {
   } catch (err) {
     console.error(
       '⚠️ [Server] 1-on-1 expiry sweep skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const count = await completeFinishedOneOnOneSessions()
+    if (count > 0) {
+      console.log(`[Server] Data cleanup: completed ${count} finished 1-on-1 session(s).`)
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] 1-on-1 completion sweep skipped:',
       err instanceof Error ? err.message : err
     )
   }

@@ -18,6 +18,7 @@ import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/c
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { findConflicts } from '@/lib/schedule/conflicts'
 import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
+import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -293,12 +294,15 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     })
   }
 
-  // Lazily expire the viewer's own overdue unpaid holds so the list they see is
-  // accurate and any freed slots are released (best-effort — never block the read).
+  // Lazily reconcile the viewer's own bookings so the list is accurate: expire
+  // overdue unpaid holds (freeing slots) and mark finished sessions completed
+  // (best-effort — never block the read).
   const asStudent = role === 'sent' || session.user.role === 'STUDENT'
-  await expireOverdueOneOnOneBookings(
-    asStudent ? { studentId: session.user.id } : { tutorId: session.user.id }
-  ).catch(() => {})
+  const scope = asStudent ? { studentId: session.user.id } : { tutorId: session.user.id }
+  await Promise.all([
+    expireOverdueOneOnOneBookings(scope).catch(() => {}),
+    completeFinishedOneOnOneSessions(scope).catch(() => {}),
+  ])
 
   let requests
   if (role === 'sent' || session.user.role === 'STUDENT') {

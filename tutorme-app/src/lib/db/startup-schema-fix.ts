@@ -365,6 +365,16 @@ export async function applyStartupSchemaFixes(): Promise<void> {
     console.error('[SchemaFix] ❌ Failed to ensure tables:', err?.message)
   }
 
+  // Add the COMPLETED booking status. ALTER TYPE ... ADD VALUE must run on its
+  // own (not inside the batched DDL above), so keep it in a separate statement.
+  try {
+    await drizzleDb.execute(
+      sql.raw(`ALTER TYPE "BookingRequestStatus" ADD VALUE IF NOT EXISTS 'COMPLETED'`)
+    )
+  } catch (err: any) {
+    console.error('[SchemaFix] ❌ Failed to add COMPLETED booking status:', err?.message)
+  }
+
   try {
     console.log('[SchemaFix] Checking for schema drift...')
 
