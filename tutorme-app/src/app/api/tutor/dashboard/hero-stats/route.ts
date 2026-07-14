@@ -53,9 +53,13 @@ export const GET = withAuth(
             .innerJoin(course, eq(courseEnrollment.courseId, course.courseId))
             .where(eq(course.creatorId, tutorId)),
 
-          // 4. Pending 1-on-1 requests
+          // 4. Pending 1-on-1 requests — count a recurring series as ONE request
+          // (its weeks share a seriesId and group into a single card), not one
+          // per week. Standalone requests fall back to their own id.
           drizzleDb
-            .select({ value: count() })
+            .select({
+              value: sql<number>`count(distinct coalesce(${oneOnOneBookingRequest.seriesId}, ${oneOnOneBookingRequest.requestId}))`,
+            })
             .from(oneOnOneBookingRequest)
             .where(
               and(
