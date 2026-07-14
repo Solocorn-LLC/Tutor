@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Users, Loader2, CalendarDays } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { bookGroupSeat } from '@/lib/group-session/book-seat'
 
 interface GroupSessionItem {
   groupSessionId: string
@@ -61,40 +60,10 @@ export function GroupSessionsList({ tutorId }: { tutorId: string }) {
 
   const bookSeat = async (gs: GroupSessionItem) => {
     setBusyId(gs.groupSessionId)
-    try {
-      // 1. Reserve a seat.
-      const joinRes = await fetch(`/api/group-sessions/${gs.groupSessionId}/join`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      const joinData = await joinRes.json().catch(() => ({}))
-      if (!joinRes.ok || !joinData.participantId) {
-        toast.error(joinData.error || 'Could not reserve a seat')
-        load()
-        return
-      }
-      // Free session: the seat is already confirmed — no checkout.
-      if (joinData.free || joinData.confirmed) {
-        toast.success("You're booked — this session is free. See you there!")
-        load()
-        return
-      }
-      // 2. Start checkout for that seat.
-      const payRes = await fetchWithCsrf('/api/payments/create', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupSessionParticipantId: joinData.participantId }),
-      })
-      const payData = await payRes.json().catch(() => ({}))
-      if (payRes.ok && payData.checkoutUrl) {
-        window.location.href = payData.checkoutUrl
-        return
-      }
-      toast.error(payData.error || 'Could not start checkout')
-    } catch {
-      toast.error('Something went wrong — please try again')
-    } finally {
+    const result = await bookGroupSeat(gs.groupSessionId)
+    // On redirect the page navigates away; otherwise refresh seat counts.
+    if (result !== 'redirecting') {
+      load()
       setBusyId(null)
     }
   }

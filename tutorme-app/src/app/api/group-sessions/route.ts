@@ -28,7 +28,8 @@ const createSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
-  capacity: z.number().int().min(2).max(50),
+  // 1 seat = a true 1-on-1 (only one student can sign up); up to 50 for a group.
+  capacity: z.number().int().min(1).max(50),
   pricePerSeat: z.number().min(0).max(100000),
 })
 

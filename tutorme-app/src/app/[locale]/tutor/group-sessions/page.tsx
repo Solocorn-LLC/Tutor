@@ -239,12 +239,15 @@ export default function TutorGroupSessionsPage() {
               Seats
               <input
                 type="number"
-                min={2}
+                min={1}
                 max={50}
                 className={field}
                 value={form.capacity}
                 onChange={e => setForm({ ...form, capacity: e.target.value })}
               />
+              <span className="mt-1 block text-xs font-normal text-slate-400">
+                Set 1 seat for a private 1-on-1.
+              </span>
             </label>
             <label className="text-sm font-medium text-slate-700">
               Price per seat
