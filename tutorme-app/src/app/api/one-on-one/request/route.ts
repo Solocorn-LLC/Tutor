@@ -17,6 +17,7 @@ import { requestedDateFromString, slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { findConflicts } from '@/lib/schedule/conflicts'
+import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -291,6 +292,13 @@ export const GET = withAuth(async (request: NextRequest, session) => {
       seriesTotal,
     })
   }
+
+  // Lazily expire the viewer's own overdue unpaid holds so the list they see is
+  // accurate and any freed slots are released (best-effort — never block the read).
+  const asStudent = role === 'sent' || session.user.role === 'STUDENT'
+  await expireOverdueOneOnOneBookings(
+    asStudent ? { studentId: session.user.id } : { tutorId: session.user.id }
+  ).catch(() => {})
 
   let requests
   if (role === 'sent' || session.user.role === 'STUDENT') {

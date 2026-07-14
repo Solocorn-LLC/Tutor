@@ -16,3 +16,12 @@ jobs:
             exit 0
           fi
           curl -fsS -m 30 "${{ secrets.SITE_URL }}/api/health" || true
+
+      - name: Sweep expired 1-on-1 holds
+        run: |
+          if [ -z "${{ secrets.SITE_URL }}" ] || [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "SITE_URL or CRON_SECRET not set. Skipping 1-on-1 expiry sweep."
+            exit 0
+          fi
+          curl -fsS -m 30 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/expire-one-on-one" || true
