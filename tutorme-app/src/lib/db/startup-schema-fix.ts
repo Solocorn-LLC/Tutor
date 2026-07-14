@@ -354,6 +354,60 @@ CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_groupSessionId_idx"
   ON "GroupSessionParticipant" ("groupSessionId");
 CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_studentId_idx"
   ON "GroupSessionParticipant" ("studentId");
+
+-- Reschedule consent gate (Phase 2): a proposed session-time change stays
+-- pending (session keeps its old time) until every rostered student agrees.
+-- Mirror of src/lib/db/schema/tables/reschedule.ts — keep in sync.
+CREATE TABLE IF NOT EXISTS "SessionRescheduleProposal" (
+  "id" text PRIMARY KEY NOT NULL,
+  "sessionId" text NOT NULL,
+  "courseId" text,
+  "proposedBy" text NOT NULL,
+  "currentStart" timestamptz,
+  "currentEnd" timestamptz,
+  "proposedStart" timestamptz NOT NULL,
+  "proposedEnd" timestamptz NOT NULL,
+  "status" text NOT NULL DEFAULT 'PENDING',
+  "resolvedReason" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now(),
+  "resolvedAt" timestamptz
+);
+CREATE TABLE IF NOT EXISTS "SessionRescheduleVote" (
+  "id" text PRIMARY KEY NOT NULL,
+  "proposalId" text NOT NULL,
+  "studentId" text NOT NULL,
+  "response" text NOT NULL DEFAULT 'PENDING',
+  "respondedAt" timestamptz,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleProposal_sessionId_fkey') THEN
+    ALTER TABLE "SessionRescheduleProposal" ADD CONSTRAINT "SessionRescheduleProposal_sessionId_fkey"
+      FOREIGN KEY ("sessionId") REFERENCES "LiveSession"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleProposal_proposedBy_fkey') THEN
+    ALTER TABLE "SessionRescheduleProposal" ADD CONSTRAINT "SessionRescheduleProposal_proposedBy_fkey"
+      FOREIGN KEY ("proposedBy") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleVote_proposalId_fkey') THEN
+    ALTER TABLE "SessionRescheduleVote" ADD CONSTRAINT "SessionRescheduleVote_proposalId_fkey"
+      FOREIGN KEY ("proposalId") REFERENCES "SessionRescheduleProposal"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleVote_studentId_fkey') THEN
+    ALTER TABLE "SessionRescheduleVote" ADD CONSTRAINT "SessionRescheduleVote_studentId_fkey"
+      FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS "SessionRescheduleProposal_sessionId_idx"
+  ON "SessionRescheduleProposal" ("sessionId");
+CREATE INDEX IF NOT EXISTS "SessionRescheduleProposal_status_idx"
+  ON "SessionRescheduleProposal" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "SessionRescheduleVote_proposal_student_key"
+  ON "SessionRescheduleVote" ("proposalId", "studentId");
+CREATE INDEX IF NOT EXISTS "SessionRescheduleVote_proposalId_idx"
+  ON "SessionRescheduleVote" ("proposalId");
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {
