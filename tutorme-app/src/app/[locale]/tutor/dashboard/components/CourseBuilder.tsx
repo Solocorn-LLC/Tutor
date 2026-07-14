@@ -210,6 +210,7 @@ import { toStudentDmiItem } from '@/lib/assessment/student-dmi'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
+import { nextDmiGate } from '@/lib/assessment/dmi-generate-gate'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
@@ -3456,26 +3457,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         dmiContentSourceRef.current = null
       }
 
-      // Assessment: choose the response format BEFORE spending any LLM tokens.
-      // A multiple-choice paper doesn't need the AI to read it — the tutor
-      // configures sections + counts and we build the DMI locally. Free-response
-      // uses the AI flow. (Re-runs that already carry a spec/override or the
-      // explicit skip flag bypass this.)
-      if (type === 'assessment' && !questionSpec && !documentKindOverride && !skipFormatPrompt) {
+      // Route the pre-generation dialog chain via the tested pure gate. Format
+      // BEFORE source: a multiple-choice paper is built locally and never reads
+      // the content, so it returns at the format step and is never asked which
+      // source to use. Free-response then asks the source chooser only when a PDF
+      // is attached AND the text box was edited away from the document's own
+      // extraction (the two genuinely disagree) and no pick has been made yet.
+      // The pick persists in a ref across the rest of the resolve chain
+      // (kind → spec). See dmi-generate-gate.ts + its tests for the invariants.
+      const contentSource = contentSourceOverride ?? dmiContentSourceRef.current ?? undefined
+      const dmiGate = nextDmiGate({
+        type,
+        hasQuestionSpec: !!questionSpec,
+        hasDocumentKindOverride: !!documentKindOverride,
+        skipFormatPrompt: !!skipFormatPrompt,
+        contentSource,
+        sourcesDisagree,
+      })
+      if (dmiGate === 'format') {
         setDmiFormatDialog({ type })
         return
       }
-
-      // Content-source chooser — reached only on the free-response / AI path.
-      // Multiple-choice returns at the format step above and never reads the
-      // content, so the tutor is never asked which source to use for it. When a
-      // PDF is attached AND the text box was edited away from the document's own
-      // extraction, the two sources genuinely disagree — ask which to generate
-      // from instead of silently preferring the PDF. Unedited (auto-filled) text
-      // isn't ambiguous, so we don't nag. The pick persists in a ref across the
-      // rest of the resolve chain (kind → spec).
-      const contentSource = contentSourceOverride ?? dmiContentSourceRef.current ?? undefined
-      if (sourcesDisagree && !contentSource) {
+      if (dmiGate === 'source') {
         setDmiSourceDialog({ type })
         return
       }
