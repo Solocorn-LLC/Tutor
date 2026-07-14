@@ -14,7 +14,7 @@
  * this can never make a deploy worse than before.
  */
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
-import { readFileBuffer, storeFile } from '@/lib/storage/service'
+import { readFileBuffer, storeFile, fileExists } from '@/lib/storage/service'
 import { convertOfficeToPdf } from './office-to-pdf'
 
 const OFFICE_MIMES = new Set([
@@ -55,8 +55,9 @@ export async function ensureViewableSourceDocument<T extends SourceDoc>(doc: T):
     if (isOfficeSourceMime(mimeType, fileName) && fileKey) {
       const convertedKey = officeToPdfKey(fileKey)
 
-      // Reuse a previously-rendered PDF if we already made one for this document.
-      let ready = (await readFileBuffer(convertedKey)) != null
+      // Reuse a previously-rendered PDF if we already made one for this document
+      // (cheap metadata check — never download the PDF just to test existence).
+      let ready = await fileExists(convertedKey)
       if (!ready) {
         const input = await readFileBuffer(fileKey)
         if (input) {
