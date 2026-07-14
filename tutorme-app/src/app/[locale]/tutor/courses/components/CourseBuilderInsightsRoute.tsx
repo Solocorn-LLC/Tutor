@@ -987,12 +987,12 @@ function CourseBuilderInsightsRouteInner({
                             })()}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[320px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
                           {courses && courses.length > 0 && (
                             <SelectItem
                               value="__live-header__"
                               disabled
-                              className="text-muted-foreground text-xs font-semibold"
+                              className="text-xs font-semibold text-white"
                             >
                               Live Courses
                             </SelectItem>
@@ -1015,7 +1015,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               value="__draft-header__"
                               disabled
-                              className="text-muted-foreground text-xs font-semibold"
+                              className="text-xs font-semibold text-white"
                             >
                               Draft Courses
                             </SelectItem>
