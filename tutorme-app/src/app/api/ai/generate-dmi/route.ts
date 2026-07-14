@@ -26,9 +26,11 @@ import {
 } from '@/lib/assessment/document-signals'
 import {
   runAssessmentGuardrails,
+  checkCurriculumMatch,
   GUARDRAILED_TEMPERATURE,
   type GuardrailViolation,
 } from '@/lib/ai/guardrails'
+import { classifyDocumentCurriculum } from '@/lib/assessment/curriculum-classify'
 import { z } from 'zod'
 
 export const maxDuration = 60
@@ -532,6 +534,14 @@ export async function POST(request: NextRequest) {
     let aiResponse: string
 
     if (pdfPages && pdfPages.length > 0) {
+      // When the caller sends BOTH the extracted text and page images (a digital
+      // PDF that also contains diagrams/figures), the text is authoritative for
+      // wording, question count, and marks — it covers every page, whereas the
+      // images are capped. The images are supplementary VISUAL context so the
+      // model can read any diagram/figure the text can't carry. When only images
+      // are sent (a scanned paper with no extractable text), this text item is
+      // simply omitted and the model reads the pages directly, as before.
+      const hasSourceText = !!content && content.trim().length > 0
       const promptItems: Array<
         { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
       > = [
@@ -539,6 +549,14 @@ export async function POST(request: NextRequest) {
           type: 'text',
           text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
         },
+        ...(hasSourceText
+          ? [
+              {
+                type: 'text' as const,
+                text: `Authoritative extracted text of the ${type} (use this for exact question wording, the number of questions, and marks — it covers every page). The images that follow show diagrams/figures referenced in this text; read them to understand any figure a question depends on, but do NOT invent questions the text does not contain:\n\n${content}`,
+              },
+            ]
+          : []),
         ...pdfPages.map(page => ({
           type: 'image_url' as const,
           image_url: { url: page },
@@ -602,6 +620,24 @@ export async function POST(request: NextRequest) {
         { title, questions: questions.map(q => ({ questionText: q.questionText })) },
         { sourceContent: content, confidence: confidence?.level }
       ).violations
+
+      // CURRIC-1/2: warn if the document's exam board or subject doesn't match
+      // the course (e.g. an A-Level past paper in an AP course). Layer 1 is a
+      // deterministic marker scan; layer 2 is a best-effort AI subject check that
+      // only runs when a board/subject hint is present, and never blocks.
+      if (content && (examBody || subject)) {
+        const classification = await classifyDocumentCurriculum(content)
+        const curriculumWarnings = checkCurriculumMatch({
+          extractedText: content,
+          expectedBoard: examBody,
+          expectedSubject: subject,
+          aiBoard: classification?.board,
+          aiSubject: classification?.subject,
+          aiConfidence: classification?.confidence,
+        })
+        guardrailWarnings = [...guardrailWarnings, ...curriculumWarnings]
+      }
+
       if (guardrailWarnings.length > 0) {
         console.warn(
           `[guardrails] generate-dmi assessment violations (${guardrailWarnings.length}):`,

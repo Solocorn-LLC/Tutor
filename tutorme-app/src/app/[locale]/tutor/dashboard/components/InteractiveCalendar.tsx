@@ -904,10 +904,29 @@ export function InteractiveCalendar({
             prev.map(e => (e.id === draggedEvent.id ? { ...draggedEvent, date: previousDate } : e))
           )
           if (res.status === 409) {
+            // Includes the consent gate for 1-on-1s (requiresConsent) as well as
+            // real time-slot conflicts — err.error carries the right message.
             toast.error(err.error || 'That time conflicts with another session.')
           } else {
             toast.error(err.error || 'Failed to reschedule')
           }
+          return
+        }
+
+        const data = await res.json().catch(() => ({}))
+        if (data.pendingConsent) {
+          // The session did NOT move — a proposal was created and it stays at its
+          // current time until every enrolled student agrees. Revert the
+          // optimistic move so the calendar reflects reality.
+          setEvents(prev =>
+            prev.map(e => (e.id === draggedEvent.id ? { ...draggedEvent, date: previousDate } : e))
+          )
+          const n = typeof data.voterCount === 'number' ? data.voterCount : 0
+          toast.info(
+            n > 0
+              ? `Reschedule proposed — waiting for ${n} student${n === 1 ? '' : 's'} to agree.`
+              : 'Reschedule proposed — waiting for students to agree.'
+          )
           return
         }
 
@@ -1902,7 +1921,22 @@ export function InteractiveCalendar({
                                                 const err = await res.json().catch(() => ({}))
                                                 throw new Error(err.error || 'Reschedule failed')
                                               }
-                                              toast.success(`${ev.title} rescheduled successfully`)
+                                              const patchData = await res.json().catch(() => ({}))
+                                              if (patchData.pendingConsent) {
+                                                const n =
+                                                  typeof patchData.voterCount === 'number'
+                                                    ? patchData.voterCount
+                                                    : 0
+                                                toast.info(
+                                                  n > 0
+                                                    ? `Reschedule proposed — waiting for ${n} student${n === 1 ? '' : 's'} to agree.`
+                                                    : 'Reschedule proposed — waiting for students to agree.'
+                                                )
+                                              } else {
+                                                toast.success(
+                                                  `${ev.title} rescheduled successfully`
+                                                )
+                                              }
                                               // Refresh events
                                               const refreshed = await fetch(
                                                 `/api/tutor/calendar/events?start=${encodeURIComponent(

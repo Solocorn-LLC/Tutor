@@ -403,6 +403,10 @@ export function EnhancedWhiteboard({
   const [showBackgroundPanel, setShowBackgroundPanel] = useState(false)
   const [showVideo, setShowVideo] = useState(true)
   const [videoPosition, setVideoPosition] = useState({ x: 0, y: 0 })
+  // The floating video's size — draggable via the grip handle and resizable via
+  // the bottom-left handle (16:9 locked). Both use self-contained window pointer
+  // listeners so they work regardless of the canvas hit-testing pipeline.
+  const [videoSize, setVideoSize] = useState({ width: 320, height: 180 })
   const [isDraggingVideo, setIsDraggingVideo] = useState(false)
   const [videoDragOffset, setVideoDragOffset] = useState({ x: 0, y: 0 })
   const [showTeachingAssistant, setShowTeachingAssistant] = useState(false)
@@ -1102,13 +1106,13 @@ export function EnhancedWhiteboard({
       const container = containerRef.current
       if (container) {
         const rect = container.getBoundingClientRect()
-        const videoX = rect.width - 320 - videoPosition.x
+        const videoX = rect.width - videoSize.width - videoPosition.x
         const videoY = 16 + videoPosition.y
         if (
           e.clientX - rect.left >= videoX &&
-          e.clientX - rect.left <= videoX + 320 &&
+          e.clientX - rect.left <= videoX + videoSize.width &&
           e.clientY - rect.top >= videoY &&
-          e.clientY - rect.top <= videoY + 180
+          e.clientY - rect.top <= videoY + videoSize.height
         ) {
           setIsDraggingVideo(true)
           setVideoDragOffset({ x: e.clientX - videoX, y: e.clientY - videoY })
@@ -1281,7 +1285,7 @@ export function EnhancedWhiteboard({
         const rect = container.getBoundingClientRect()
         const newVideoX = e.clientX - rect.left - videoDragOffset.x
         const newVideoY = e.clientY - rect.top - videoDragOffset.y
-        setVideoPosition({ x: rect.width - 320 - newVideoX, y: newVideoY - 16 })
+        setVideoPosition({ x: rect.width - videoSize.width - newVideoX, y: newVideoY - 16 })
       }
       return
     }
@@ -2712,8 +2716,8 @@ export function EnhancedWhiteboard({
               onMouseDown={e => e.stopPropagation()}
               className="absolute z-10 overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg"
               style={{
-                width: '320px',
-                height: '180px',
+                width: `${videoSize.width}px`,
+                height: `${videoSize.height}px`,
                 right: `${16 + videoPosition.x}px`,
                 top: `${16 + videoPosition.y}px`,
               }}
@@ -2721,8 +2725,52 @@ export function EnhancedWhiteboard({
               <div
                 className="absolute left-2 top-2 z-20 cursor-move rounded bg-slate-800/50 p-1 hover:bg-slate-700"
                 title="Drag to move"
+                onMouseDown={e => {
+                  e.stopPropagation()
+                  e.preventDefault()
+                  const startX = e.clientX
+                  const startY = e.clientY
+                  const start = { ...videoPosition }
+                  const onMove = (ev: MouseEvent) => {
+                    setVideoPosition({
+                      x: start.x - (ev.clientX - startX),
+                      y: start.y + (ev.clientY - startY),
+                    })
+                  }
+                  const onUp = () => {
+                    window.removeEventListener('mousemove', onMove)
+                    window.removeEventListener('mouseup', onUp)
+                  }
+                  window.addEventListener('mousemove', onMove)
+                  window.addEventListener('mouseup', onUp)
+                }}
               >
                 <GripVertical className="h-4 w-4 text-white" />
+              </div>
+              {/* Resize handle — bottom-left corner (the box is anchored top-right),
+                  keeps a 16:9 ratio. Self-contained window listeners. */}
+              <div
+                role="presentation"
+                title="Drag to resize"
+                className="absolute bottom-0 left-0 z-20 flex h-5 w-5 cursor-nesw-resize items-end justify-start p-1"
+                onMouseDown={e => {
+                  e.stopPropagation()
+                  e.preventDefault()
+                  const startX = e.clientX
+                  const startW = videoSize.width
+                  const onMove = (ev: MouseEvent) => {
+                    const w = Math.max(220, Math.min(560, startW - (ev.clientX - startX)))
+                    setVideoSize({ width: w, height: Math.round((w * 9) / 16) })
+                  }
+                  const onUp = () => {
+                    window.removeEventListener('mousemove', onMove)
+                    window.removeEventListener('mouseup', onUp)
+                  }
+                  window.addEventListener('mousemove', onMove)
+                  window.addEventListener('mouseup', onUp)
+                }}
+              >
+                <span className="h-2.5 w-2.5 border-b-2 border-l-2 border-white/70" />
               </div>
               <div className="absolute right-2 top-2 z-20 flex gap-1">
                 <Button

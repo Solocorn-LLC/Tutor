@@ -216,6 +216,9 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'acti
 -- 0069: per-tutor buffer (minutes) enforced around 1-on-1 bookings.
 ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "bufferMinutes" integer;
 
+-- Per-tutor toggle: allow students to book a recurring weekly series (default on).
+ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "oneOnOneRecurringEnabled" boolean NOT NULL DEFAULT true;
+
 -- 0070: pending reschedule proposal fields (propose → accept/decline).
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedDate" timestamptz;
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedStart" text;
@@ -225,6 +228,17 @@ ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "reschedulePropose
 -- The student's note to the tutor ("why I want this session"), shown on the
 -- tutor's request card. Long accepted by the API but previously never persisted.
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "studentNotes" text;
+
+-- Recurring bookings: the N weekly sessions requested together share one seriesId.
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "seriesId" text;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "seriesIndex" integer;
+CREATE INDEX IF NOT EXISTS "OneOnOneBookingRequest_seriesId_idx" ON "OneOnOneBookingRequest" ("seriesId");
+
+-- Course linkage: a group session or a student's 1-on-1 request can name the
+-- course it's built around, so the tutor can deploy that course in the live room.
+-- Nullable, FK-less text (drift-proof); the app validates ownership/publication.
+ALTER TABLE "GroupSession" ADD COLUMN IF NOT EXISTS "courseId" text;
+ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "courseId" text;
 
 -- 0071: student reviews of completed 1-on-1 sessions (one per booking).
 CREATE TABLE IF NOT EXISTS "OneOnOneReview" (
@@ -346,6 +360,60 @@ CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_groupSessionId_idx"
   ON "GroupSessionParticipant" ("groupSessionId");
 CREATE INDEX IF NOT EXISTS "GroupSessionParticipant_studentId_idx"
   ON "GroupSessionParticipant" ("studentId");
+
+-- Reschedule consent gate (Phase 2): a proposed session-time change stays
+-- pending (session keeps its old time) until every rostered student agrees.
+-- Mirror of src/lib/db/schema/tables/reschedule.ts — keep in sync.
+CREATE TABLE IF NOT EXISTS "SessionRescheduleProposal" (
+  "id" text PRIMARY KEY NOT NULL,
+  "sessionId" text NOT NULL,
+  "courseId" text,
+  "proposedBy" text NOT NULL,
+  "currentStart" timestamptz,
+  "currentEnd" timestamptz,
+  "proposedStart" timestamptz NOT NULL,
+  "proposedEnd" timestamptz NOT NULL,
+  "status" text NOT NULL DEFAULT 'PENDING',
+  "resolvedReason" text,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now(),
+  "resolvedAt" timestamptz
+);
+CREATE TABLE IF NOT EXISTS "SessionRescheduleVote" (
+  "id" text PRIMARY KEY NOT NULL,
+  "proposalId" text NOT NULL,
+  "studentId" text NOT NULL,
+  "response" text NOT NULL DEFAULT 'PENDING',
+  "respondedAt" timestamptz,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleProposal_sessionId_fkey') THEN
+    ALTER TABLE "SessionRescheduleProposal" ADD CONSTRAINT "SessionRescheduleProposal_sessionId_fkey"
+      FOREIGN KEY ("sessionId") REFERENCES "LiveSession"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleProposal_proposedBy_fkey') THEN
+    ALTER TABLE "SessionRescheduleProposal" ADD CONSTRAINT "SessionRescheduleProposal_proposedBy_fkey"
+      FOREIGN KEY ("proposedBy") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleVote_proposalId_fkey') THEN
+    ALTER TABLE "SessionRescheduleVote" ADD CONSTRAINT "SessionRescheduleVote_proposalId_fkey"
+      FOREIGN KEY ("proposalId") REFERENCES "SessionRescheduleProposal"("id") ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SessionRescheduleVote_studentId_fkey') THEN
+    ALTER TABLE "SessionRescheduleVote" ADD CONSTRAINT "SessionRescheduleVote_studentId_fkey"
+      FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS "SessionRescheduleProposal_sessionId_idx"
+  ON "SessionRescheduleProposal" ("sessionId");
+CREATE INDEX IF NOT EXISTS "SessionRescheduleProposal_status_idx"
+  ON "SessionRescheduleProposal" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "SessionRescheduleVote_proposal_student_key"
+  ON "SessionRescheduleVote" ("proposalId", "studentId");
+CREATE INDEX IF NOT EXISTS "SessionRescheduleVote_proposalId_idx"
+  ON "SessionRescheduleVote" ("proposalId");
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {
@@ -355,6 +423,16 @@ export async function applyStartupSchemaFixes(): Promise<void> {
     await drizzleDb.execute(ENSURE_TABLES_SQL)
   } catch (err: any) {
     console.error('[SchemaFix] ❌ Failed to ensure tables:', err?.message)
+  }
+
+  // Add the COMPLETED booking status. ALTER TYPE ... ADD VALUE must run on its
+  // own (not inside the batched DDL above), so keep it in a separate statement.
+  try {
+    await drizzleDb.execute(
+      sql.raw(`ALTER TYPE "BookingRequestStatus" ADD VALUE IF NOT EXISTS 'COMPLETED'`)
+    )
+  } catch (err: any) {
+    console.error('[SchemaFix] ❌ Failed to add COMPLETED booking status:', err?.message)
   }
 
   try {

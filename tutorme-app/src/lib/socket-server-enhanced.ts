@@ -32,6 +32,7 @@ import type { PollState } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
+import { ensureViewableSourceDocument } from '@/lib/documents/ensure-viewable'
 import type {
   StrokeDelta,
   ShapeDelta,
@@ -184,6 +185,20 @@ export interface LiveTask {
   completedBy?: string[]
   /** studentId -> { dmiItemId -> answer } captured when a student submits. */
   responses?: Record<string, Record<string, string>>
+}
+
+/**
+ * A room-broadcast-safe view of a task: strips the per-student answer map so
+ * peers in a GROUP session never receive each other's submitted answers over the
+ * wire. `responses` is the only sensitive field on the room task object — deploy
+ * already omits answerKey/pci/pciSpec from it — and the tutor gets answers via
+ * the targeted `task:completed` (live) + their own `room_state` (rejoin), so no
+ * room-wide consumer needs `responses`.
+ */
+function toPublicTask(task: LiveTask): LiveTask {
+  if (!task.responses) return task
+  const { responses: _omit, ...rest } = task
+  return rest
 }
 
 // Environment validation
@@ -806,6 +821,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
   io.on('connection', socket => {
     console.log(`Authenticated client connected: ${socket.id}`)
     setUserSocket(socket.data.userId, socket.id)
+    // Join a per-user room so `emitToUser` can fan a message out to ALL of a
+    // user's open tabs (userSocketMap only tracks the latest socket).
+    if (socket.data.userId) socket.join(`user:${socket.data.userId}`)
 
     // Apply token-bucket limiting to every incoming event packet.
     socket.use((_packet, next) => rateLimitMiddleware(socket, next))
@@ -863,6 +881,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
       setUserSocket(userId, socket.id)
+      socket.join(`user:${userId}`)
 
       if (name !== undefined) socket.data.name = name
       socket.join(roomId)
@@ -1158,14 +1177,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
 
       // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
-      // students get a live URL rather than a possibly-expired one. Never let a
-      // refresh failure block the deploy — fall back to the original document.
+      // students get a live URL rather than a possibly-expired one, and render a
+      // raw Office document to PDF so students get an inline viewer rather than a
+      // download-only link. Never let this block the deploy — on failure it falls
+      // back to the original document.
       let refreshedSourceDocument = task.sourceDocument
       if (task.sourceDocument) {
         try {
-          refreshedSourceDocument = await refreshDocumentUrls(task.sourceDocument)
+          refreshedSourceDocument = await ensureViewableSourceDocument(task.sourceDocument)
         } catch (err) {
-          console.warn('[task:deploy] document URL refresh failed:', err)
+          console.warn('[task:deploy] source-document prep failed:', err)
         }
       }
 
@@ -1226,20 +1247,26 @@ export async function initEnhancedSocketServer(server: NetServer) {
           columns: { courseId: true, sessionId: true },
         })
 
-        if (sessionRec?.courseId) {
-          // Find the chronological order of THIS session relative to all sessions in the course
-          const courseSessions = await drizzleDb.query.liveSession.findMany({
-            where: eq(liveSession.courseId, sessionRec.courseId),
-            orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
-          })
-
-          // Determine if this is session 1, session 2, etc. based on when it was created
-          const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
-          const sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+        // Course-less sessions (1-on-1 / group) persist under a hidden ad-hoc
+        // anchor course — mirroring the task:complete handler — so their deploys
+        // are recorded and gradable instead of silently dropped.
+        const effectiveCourseId = sessionRec?.courseId || (await ensureAdhocAnchorCourseId())
+        if (effectiveCourseId) {
+          // Sequence orders a deploy within its course's sessions; an ad-hoc
+          // session has no course to order within, so it is always 1.
+          let sessionSequence = 1
+          if (sessionRec?.courseId) {
+            const courseSessions = await drizzleDb.query.liveSession.findMany({
+              where: eq(liveSession.courseId, sessionRec.courseId),
+              orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
+            })
+            const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
+            sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+          }
 
           await drizzleDb.insert(deployedMaterial).values({
             sessionId: roomId,
-            courseId: sessionRec.courseId,
+            courseId: effectiveCourseId,
             type: normalizedTask.source,
             itemId: normalizedTask.id,
             title: normalizedTask.title,
@@ -1279,7 +1306,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   .where(
                     and(
                       eq(courseLesson.lessonId, task.lessonId),
-                      eq(courseLesson.courseId, sessionRec.courseId)
+                      eq(courseLesson.courseId, effectiveCourseId)
                     )
                   )
                   .limit(1)
@@ -1289,7 +1316,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 const [first] = await drizzleDb
                   .select({ lessonId: courseLesson.lessonId })
                   .from(courseLesson)
-                  .where(eq(courseLesson.courseId, sessionRec.courseId))
+                  .where(eq(courseLesson.courseId, effectiveCourseId))
                   .orderBy(courseLesson.order)
                   .limit(1)
                 lesson = first
@@ -1305,7 +1332,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 const newLessonId = crypto.randomUUID()
                 await drizzleDb.insert(courseLesson).values({
                   lessonId: newLessonId,
-                  courseId: sessionRec.courseId,
+                  courseId: effectiveCourseId,
                   title: 'Live Session',
                   order: 0,
                   createdAt: now,
@@ -1323,7 +1350,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .insert(builderTask)
                 .values({
                   taskId: normalizedTask.id,
-                  courseId: sessionRec.courseId,
+                  courseId: effectiveCourseId,
                   lessonId: lesson.lessonId,
                   tutorId,
                   title: normalizedTask.title || 'Untitled',
@@ -1459,11 +1486,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
             const raw = item as Record<string, unknown>
             const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
             const refreshedSourceDoc = rawSourceDoc
-              ? await refreshDocumentUrls({
+              ? await ensureViewableSourceDocument({
                   fileName: (rawSourceDoc.fileName as string) || '',
                   fileUrl: (rawSourceDoc.fileUrl as string) || '',
                   // Preserve fileKey so the URL is re-signed from the object key
-                  // (reliable) rather than regex-parsing a possibly-expired URL.
+                  // (reliable) rather than regex-parsing a possibly-expired URL,
+                  // and so a raw Office doc can be rendered to an inline PDF.
                   fileKey: (rawSourceDoc.fileKey as string) || undefined,
                   mimeType: (rawSourceDoc.mimeType as string) || '',
                 })
@@ -1534,7 +1562,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // already-deployed tasks, not new deployments, so they shouldn't trigger
         // the tutor's "Deployed to students" confirmation.
         for (const task of syncedTasks) {
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
         }
 
         socket.emit('course:sync:success', { count: syncedTasks.length })
@@ -1600,15 +1628,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         const studentName = room.students.get(studentId)?.name || 'A student'
-        io.to(roomId).emit('task:completed', {
+        // The completion event carries the student's answers, so it must NOT be
+        // broadcast to the room — in a group session that would hand every
+        // student their peers' answers. Send it only to the tutor (live grading
+        // + Insights) and the submitting student (their own). The room-wide
+        // completion COUNT still propagates via the answer-free task:updated
+        // below, so peers' progress indicators keep working.
+        const completedPayload = {
           taskId,
           studentId,
           studentName,
           completedAt: Date.now(),
           totalCompleted: task.completedBy.length,
           answers: answers ?? {},
-        })
-        io.to(roomId).emit('task:updated', { task })
+        }
+        if (room.tutorId) emitToUser(room.tutorId, 'task:completed', completedPayload)
+        emitToUser(studentId, 'task:completed', completedPayload)
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
 
         // The server received and accepted the submission — confirm to the
         // student. (DB persistence below is best-effort and self-healing.) If
@@ -1767,6 +1803,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // there's no answer key. This feeds the tutor's live Understanding.
             let autoScore: number | null = null
             let autoResults: ReturnType<typeof autoGradeDmi>['questionResults'] = null
+            let correctAnswers: Record<string, string> | null = null
             try {
               const [dmi] = await drizzleDb
                 .select({ items: builderTaskDmi.items })
@@ -1775,19 +1812,61 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .orderBy(desc(builderTaskDmi.updatedAt))
                 .limit(1)
               if (dmi?.items) {
-                const graded = autoGradeDmi(
-                  dmi.items as { id: string; answer?: string; marks?: number }[],
-                  (answers ?? {}) as Record<string, string>
-                )
+                const items = dmi.items as { id: string; answer?: string; marks?: number }[]
+                const graded = autoGradeDmi(items, (answers ?? {}) as Record<string, string>)
                 // score is the marks-weighted percentage (0–100); maxScore stays
                 // 100 to preserve the app-wide percentage contract. The raw marks
                 // total is surfaced in the tutor DMI view, not the submission row.
                 autoScore = graded.score
                 autoResults = graded.questionResults
+
+                // Answer reveal: once the student has submitted, expose the
+                // correct answers UNLESS the tutor set the policy to 'hidden'
+                // (unset defaults to reveal — matching the REST assignments
+                // contract's 'instant' default). These reach only the submitter +
+                // tutor via the private task:graded below, never peers.
+                const [bt] = await drizzleDb
+                  .select({ metadata: builderTask.metadata })
+                  .from(builderTask)
+                  .where(eq(builderTask.taskId, taskId))
+                  .limit(1)
+                const reveal = (bt?.metadata as { answerReveal?: string } | null)?.answerReveal
+                if (reveal !== 'hidden') {
+                  const key: Record<string, string> = {}
+                  for (const it of items) {
+                    if (
+                      it &&
+                      typeof it.id === 'string' &&
+                      typeof it.answer === 'string' &&
+                      it.answer.trim()
+                    ) {
+                      key[it.id] = it.answer
+                    }
+                  }
+                  if (Object.keys(key).length > 0) correctAnswers = key
+                }
               }
             } catch (gradeErr) {
               console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
             }
+
+            // Push the auto-grade outcome only to the tutor (live view) and the
+            // submitting student (their own score + per-question result) — never
+            // to peers, so a group session doesn't reveal one student's result to
+            // the others. `questionResults` is student-safe by design (correct/
+            // needs-review flags, never the answer key — see AutoGradeQuestionResult).
+            const gradedPayload = {
+              taskId,
+              studentId,
+              score: autoScore,
+              questionResults: autoResults,
+              // Correct answers per item when the reveal policy permits (null
+              // otherwise). Safe here: the tutor owns the key, and the student
+              // has already submitted. Never sent to peers (this event is private).
+              correctAnswers,
+            }
+            if (tutorId) emitToUser(tutorId, 'task:graded', gradedPayload)
+            emitToUser(studentId, 'task:graded', gradedPayload)
 
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(task,student) rule and never overwrites a graded row.
@@ -2297,7 +2376,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:sent', { taskId, type: 'poll', item: poll })
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
         }
 
@@ -2313,7 +2392,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:sent', { taskId, type: 'question', item: question })
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2352,7 +2431,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
         }
 
@@ -2372,7 +2451,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2401,7 +2480,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2529,9 +2608,12 @@ async function addStudentToRoom(socket: Socket, room: ClassRoom) {
     state: studentState,
   })
 
+  // Students hydrate from public tasks only — `toPublicTask` drops the
+  // per-student answer map so a group-session joiner never receives peers'
+  // answers on join. (The tutor path below keeps `responses` for grading.)
   const refreshedTasks = await Promise.all(
     room.tasks.map(async task => ({
-      ...task,
+      ...toPublicTask(task),
       sourceDocument: task.sourceDocument
         ? await refreshDocumentUrls(task.sourceDocument)
         : undefined,
@@ -2640,11 +2722,10 @@ export function getUserSocketId(userId: string): string | undefined {
 }
 
 export function emitToUser(userId: string, event: string, data: unknown) {
-  if (!ioRef) return
-  const socketId = userSocketMap.get(userId)
-  if (socketId) {
-    ioRef.to(socketId).emit(event, data)
-  }
+  if (!ioRef || !userId) return
+  // Emit to the user's room (every open tab), not just the latest socket, so a
+  // tutor with the classroom in one tab and Insights in another both update.
+  ioRef.to(`user:${userId}`).emit(event, data)
 }
 
 /**

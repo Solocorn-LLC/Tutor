@@ -1,113 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  calendarEvent,
-  liveSession,
-  courseEnrollment,
-  sessionParticipant,
-  profile,
-} from '@/lib/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { calendarEvent, liveSession } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
-import { notify } from '@/lib/notifications/notify'
+import { notifyStudentsOfReschedule } from '@/lib/notifications/reschedule'
+import { classifySessionForReschedule, proposeReschedule } from '@/lib/schedule/reschedule-consent'
 
-/** Format an instant in a specific IANA timezone, with the zone labelled. */
-function formatInZone(date: Date, tz: string): string {
-  try {
-    // NB: timeZoneName can't be combined with dateStyle/timeStyle (throws),
-    // so spell out the fields explicitly.
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZone: tz,
-      timeZoneName: 'short',
-    }).format(date)
-  } catch {
-    // Invalid/unknown tz → fall back to UTC, still labelled.
-    try {
-      return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZone: 'UTC',
-        timeZoneName: 'short',
-      }).format(date)
-    } catch {
-      return `${date.toISOString().replace('T', ' ').slice(0, 16)} UTC`
-    }
-  }
+/** 409 response steering the tutor to the 1-on-1 propose/accept flow. */
+const ONE_ON_ONE_GATE = {
+  requiresConsent: true,
+  kind: 'one-on-one',
+  error:
+    'This 1-on-1 can’t be moved directly — use “Reschedule” to propose a new time. The student must agree before it changes.',
 }
-
-/**
- * Notify every student of a rescheduled session (in-app + SSE + web push +
- * email, via notify.ts). Students come from the course enrollment (the
- * reliable roster) plus anyone already added as a session participant. The new
- * time is formatted in EACH student's own profile timezone so it reads as their
- * local time; the session's timezone (or UTC) is the fallback.
- * Best-effort: never throws into the reschedule request.
- */
-async function notifyStudentsOfReschedule(opts: {
-  sessionId: string
-  courseId: string | null
-  title: string | null
-  newStart: Date
-  timezone?: string | null
-}): Promise<void> {
-  try {
-    const { sessionId, courseId, title, newStart, timezone } = opts
-    const ids = new Set<string>()
-    if (courseId) {
-      const enrolled = await drizzleDb
-        .select({ studentId: courseEnrollment.studentId })
-        .from(courseEnrollment)
-        .where(eq(courseEnrollment.courseId, courseId))
-      for (const r of enrolled) if (r.studentId) ids.add(r.studentId)
-    }
-    const participants = await drizzleDb
-      .select({ studentId: sessionParticipant.studentId })
-      .from(sessionParticipant)
-      .where(eq(sessionParticipant.sessionId, sessionId))
-    for (const r of participants) if (r.studentId) ids.add(r.studentId)
-
-    const userIds = Array.from(ids)
-    if (userIds.length === 0) return
-
-    // Each student's own timezone (default 'UTC' in schema) → localize per user.
-    const tzRows = await drizzleDb
-      .select({ userId: profile.userId, timezone: profile.timezone })
-      .from(profile)
-      .where(inArray(profile.userId, userIds))
-    const tzByUser = new Map(tzRows.map(r => [r.userId, r.timezone]))
-    const fallbackTz = timezone || 'UTC'
-
-    const name = title || 'Your session'
-    const actionUrl = courseId ? `/student/classroom/${courseId}` : '/student/schedule'
-
-    await Promise.allSettled(
-      userIds.map(userId => {
-        const when = formatInZone(newStart, tzByUser.get(userId) || fallbackTz)
-        return notify({
-          userId,
-          type: 'class',
-          title: 'Session rescheduled',
-          message: `"${name}" has been moved to ${when}.`,
-          data: { sessionId, scheduledAt: newStart.toISOString() },
-          actionUrl,
-        })
-      })
-    )
-  } catch (err) {
-    console.warn('[reschedule] student notification failed (non-critical):', err)
-  }
-}
-
 export const GET = withAuth(async () => {
   return NextResponse.json(
     {
@@ -198,6 +105,40 @@ export const PATCH = withCsrf(
           )
         }
 
+        // Consent gate: a session with rostered students can't be moved
+        // directly — propose the change and hold the old time until everyone
+        // agrees. Only audience-free sessions move immediately.
+        const gate = await classifySessionForReschedule({
+          sessionId: eventId,
+          courseId: sess.courseId,
+          calendarEventId: null,
+        })
+        if (gate.kind === 'one_on_one') {
+          return NextResponse.json(ONE_ON_ONE_GATE, { status: 409 })
+        }
+        if (gate.kind === 'consent') {
+          const currentEnd = sess.scheduledAt
+            ? new Date(sess.scheduledAt.getTime() + (sess.durationMinutes ?? sessDuration) * 60000)
+            : null
+          const result = await proposeReschedule({
+            session: {
+              sessionId: eventId,
+              courseId: sess.courseId,
+              tutorId,
+              title: sess.title,
+            },
+            currentStart: sess.scheduledAt ?? null,
+            currentEnd,
+            proposedStart: newStart,
+            proposedEnd: sessEnd,
+          })
+          return NextResponse.json({
+            pendingConsent: result.kind === 'proposed',
+            proposalId: result.kind === 'proposed' ? result.proposalId : undefined,
+            voterCount: result.kind === 'proposed' ? result.voterCount : 0,
+          })
+        }
+
         await drizzleDb
           .update(liveSession)
           .set({ scheduledAt: newStart, durationMinutes: sessDuration })
@@ -263,6 +204,39 @@ export const PATCH = withCsrf(
           },
           { status: 409 }
         )
+      }
+
+      // Consent gate (session-backed events only). A personal calendar event
+      // with no externalId has no roster — it moves directly, as before.
+      if (calEvent.externalId) {
+        const gate = await classifySessionForReschedule({
+          sessionId: calEvent.externalId,
+          courseId: calEvent.courseId,
+          calendarEventId: eventId,
+        })
+        if (gate.kind === 'one_on_one') {
+          return NextResponse.json(ONE_ON_ONE_GATE, { status: 409 })
+        }
+        if (gate.kind === 'consent') {
+          const result = await proposeReschedule({
+            session: {
+              sessionId: calEvent.externalId,
+              courseId: calEvent.courseId,
+              tutorId,
+              title: calEvent.title,
+            },
+            currentStart: calEvent.startTime ?? null,
+            currentEnd: calEvent.endTime ?? null,
+            proposedStart: newStart,
+            proposedEnd: newEnd,
+            timezone: calEvent.timezone,
+          })
+          return NextResponse.json({
+            pendingConsent: result.kind === 'proposed',
+            proposalId: result.kind === 'proposed' ? result.proposalId : undefined,
+            voterCount: result.kind === 'proposed' ? result.voterCount : 0,
+          })
+        }
       }
 
       await drizzleDb

@@ -30,7 +30,8 @@ function isReviewable(booking: {
   endTime: string
   timezone: string | null
 }): boolean {
-  if (booking.status !== 'PAID') return false
+  // A finished session may be PAID (not yet swept) or already COMPLETED.
+  if (booking.status !== 'PAID' && booking.status !== 'COMPLETED') return false
   const { end } = bookingInstants(booking)
   return Number.isFinite(end.getTime()) && end.getTime() < Date.now()
 }

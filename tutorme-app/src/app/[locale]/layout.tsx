@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/ui/theme-provider'
 import { Toaster } from 'sonner'
 import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt'
 import { FloatingVideoOverlay } from '@/components/class/floating-video-overlay'
+import { SessionLauncher } from '@/components/one-on-one/session-launcher'
 import { NavigationOverlayProvider } from '@/components/navigation/NavigationOverlay'
 
 type Props = {
@@ -30,6 +31,7 @@ export default async function LocaleLayout({ children, params }: Props) {
     <ThemeProvider defaultTheme="aura" defaultMode="system">
       <NavigationOverlayProvider>{children}</NavigationOverlayProvider>
       <FloatingVideoOverlay />
+      <SessionLauncher />
       <PWAInstallPrompt />
       <Toaster position="top-right" />
     </ThemeProvider>

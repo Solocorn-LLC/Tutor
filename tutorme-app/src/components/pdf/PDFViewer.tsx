@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
 import { FloatingZoomPill } from './FloatingZoomPill'
+import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -27,17 +28,11 @@ interface PDFViewerProps {
 }
 
 function getProxiedPdfUrl(fileUrl: string, fileKey?: string): string {
-  // Prefer by-key: the server streams the object using the service account's
-  // read access, so an expired/unsignable URL on an old document no longer
-  // breaks loading. Only known upload prefixes are allowed by the proxy.
-  if (fileKey && /^(documents|assets|resources)\//.test(fileKey)) {
-    return `/api/proxy-file?key=${encodeURIComponent(fileKey)}`
-  }
-  // Otherwise use the proxy for external URLs so the server can refresh expired GCS signatures
-  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-    return `/api/proxy-file?url=${encodeURIComponent(fileUrl)}`
-  }
-  return fileUrl
+  // Resolve to a durable same-origin URL — streams by object key (via the
+  // service account, no signed URL), recovering the key from the stored URL when
+  // no fileKey was persisted, so old documents still load after their signature
+  // expires. See resolveDocDisplayUrl.
+  return resolveDocDisplayUrl({ fileUrl, fileKey })
 }
 
 export function PDFViewer({

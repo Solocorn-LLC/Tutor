@@ -14,6 +14,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, asc, isNull } from 'drizzle-orm'
 import { formatInZone, zonedWeekday, zonedWallClockToUtc, zonedDateParts } from '@/lib/time/tz'
+import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
   const { searchParams } = new URL(req.url)
@@ -65,6 +66,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
         { status: 200 }
       )
     }
+
+    // Release any of this tutor's overdue unpaid holds first, so a slot that was
+    // held by a lapsed booking shows as open. Awaited (scoped + cheap) so the
+    // freed slot is reflected in the availability we return below.
+    await expireOverdueOneOnOneBookings({ tutorId }).catch(() => {})
 
     const now = new Date()
     const startDate = start ? new Date(start) : now
@@ -275,6 +281,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       pricingIncomplete: !isFree && !hasHourlyRate,
       currency: tutorProfile.currency || 'USD',
       timezone: tutorProfile.timezone || 'UTC',
+      // Whether this tutor lets students book a recurring weekly series.
+      recurringEnabled: tutorProfile.oneOnOneRecurringEnabled ?? true,
       slots,
     })
   } catch (error: any) {

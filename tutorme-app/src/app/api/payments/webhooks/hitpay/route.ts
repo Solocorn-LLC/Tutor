@@ -179,10 +179,20 @@ export async function POST(req: NextRequest) {
             }).catch(() => {})
           }
         } else if (meta?.type === 'one-on-one' && typeof meta.requestId === 'string') {
+          // A recurring booking is paid in one transaction covering the whole
+          // series — mark every accepted session in it paid, not just the head.
+          const seriesId = typeof meta.seriesId === 'string' ? meta.seriesId : null
           await drizzleDb
             .update(oneOnOneBookingRequest)
             .set({ status: 'PAID', paidAt: new Date() })
-            .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
+            .where(
+              seriesId
+                ? and(
+                    eq(oneOnOneBookingRequest.seriesId, seriesId),
+                    eq(oneOnOneBookingRequest.status, 'ACCEPTED')
+                  )
+                : eq(oneOnOneBookingRequest.requestId, meta.requestId as string)
+            )
 
           const [requestRow] = await drizzleDb
             .select({

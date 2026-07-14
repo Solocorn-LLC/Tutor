@@ -27,6 +27,7 @@ import {
 } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
 import { eq, and, sql } from 'drizzle-orm'
+import { unpaidSeriesTotal } from '@/lib/one-on-one/series-total'
 import { z } from 'zod'
 import { createHash } from 'crypto'
 
@@ -247,7 +248,15 @@ export const POST = withCsrf(
         throw new ValidationError('This request has already been paid')
       }
 
-      const amount = Number(requestRow.request.costPerSession || 0)
+      // A recurring booking is paid in a single transaction that covers every
+      // ACCEPTED, still-unpaid session in the series; a standalone request pays
+      // for just itself.
+      const seriesId = requestRow.request.seriesId
+      let amount = Number(requestRow.request.costPerSession || 0)
+      if (seriesId) {
+        const series = await unpaidSeriesTotal(seriesId)
+        if (series.count > 0) amount = series.total
+      }
       if (amount <= 0) {
         throw new ValidationError('Invalid payment amount')
       }
@@ -306,6 +315,7 @@ export const POST = withCsrf(
         metadata: {
           type: 'one-on-one',
           requestId: oneOnOneRequestId,
+          seriesId: seriesId ?? undefined,
           tutorId: requestRow.request.tutorId,
           studentId: payerStudentId,
           payerId: session.user.id,
@@ -334,6 +344,7 @@ export const POST = withCsrf(
           metadata: {
             type: 'one-on-one',
             requestId: oneOnOneRequestId,
+            seriesId: seriesId ?? undefined,
             tutorId: requestRow.request.tutorId,
             studentId: payerStudentId,
             payerId: session.user.id,

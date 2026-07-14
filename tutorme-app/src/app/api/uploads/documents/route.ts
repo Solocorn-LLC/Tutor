@@ -9,6 +9,7 @@ import { promisify } from 'util'
 import { Buffer } from 'buffer'
 import { isGcsConfigured, uploadLocalFile, refreshGcsUrl } from '@/lib/storage/gcs'
 import { storeFile } from '@/lib/storage/service'
+import { withConversionSlot } from '@/lib/documents/conversion-limiter'
 
 const execAsync = promisify(exec)
 
@@ -99,17 +100,21 @@ async function convertToPdf(inputPath: string, outputDir: string): Promise<strin
       inputPath,
     ]
 
-    try {
-      await execAsync(`soffice ${baseArgs.map(a => `"${a}"`).join(' ')}`, {
-        timeout: 120000,
-        env: { ...process.env, HOME: outputDir },
-      })
-    } catch {
-      await execAsync(`libreoffice ${baseArgs.map(a => `"${a}"`).join(' ')}`, {
-        timeout: 120000,
-        env: { ...process.env, HOME: outputDir },
-      })
-    }
+    // Share the process-wide conversion gate so an upload conversion and an
+    // on-demand diagram conversion can't run soffice simultaneously and OOM.
+    await withConversionSlot(async () => {
+      try {
+        await execAsync(`soffice ${baseArgs.map(a => `"${a}"`).join(' ')}`, {
+          timeout: 120000,
+          env: { ...process.env, HOME: outputDir },
+        })
+      } catch {
+        await execAsync(`libreoffice ${baseArgs.map(a => `"${a}"`).join(' ')}`, {
+          timeout: 120000,
+          env: { ...process.env, HOME: outputDir },
+        })
+      }
+    })
 
     const baseName = path.basename(inputPath, path.extname(inputPath))
     const pdfPath = path.join(outputDir, `${baseName}.pdf`)

@@ -53,6 +53,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { CollapsibleCard } from '@/components/collapsible-card'
+import { TutorReviewsCard } from '@/components/one-on-one/tutor-reviews-card'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
@@ -98,6 +99,7 @@ function OneOnOneSettingsCard() {
   const [settings, setSettings] = useState({
     oneOnOneEnabled: true,
     oneOnOneFree: false,
+    oneOnOneRecurringEnabled: true,
     hourlyRate: 50,
     sessionDuration: 60,
     bufferMinutes: 0,
@@ -119,6 +121,7 @@ function OneOnOneSettingsCard() {
         setSettings({
           oneOnOneEnabled: data.oneOnOneEnabled ?? true,
           oneOnOneFree: data.oneOnOneFree ?? false,
+          oneOnOneRecurringEnabled: data.oneOnOneRecurringEnabled ?? true,
           hourlyRate: data.hourlyRate ?? 50,
           sessionDuration: data.sessionDuration ?? 60,
           bufferMinutes: data.bufferMinutes ?? 0,
@@ -141,6 +144,7 @@ function OneOnOneSettingsCard() {
         body: JSON.stringify({
           oneOnOneEnabled: settings.oneOnOneEnabled,
           oneOnOneFree: settings.oneOnOneFree,
+          oneOnOneRecurringEnabled: settings.oneOnOneRecurringEnabled,
           hourlyRate: settings.hourlyRate,
           bufferMinutes: settings.bufferMinutes,
         }),
@@ -213,6 +217,23 @@ function OneOnOneSettingsCard() {
                 checked={settings.oneOnOneFree}
                 onCheckedChange={checked =>
                   setSettings(prev => ({ ...prev, oneOnOneFree: checked }))
+                }
+              />
+            </div>
+
+            {/* Recurring bookings toggle */}
+            <div className="flex items-center justify-between rounded-[12px] border p-4 transition-all hover:bg-slate-50 hover:shadow-sm">
+              <div>
+                <p className="font-medium">Allow recurring bookings</p>
+                <p className="text-sm text-gray-500">
+                  Let students book a weekly series (several sessions at once) instead of a single
+                  session. When off, students can only book one session at a time.
+                </p>
+              </div>
+              <Switch
+                checked={settings.oneOnOneRecurringEnabled}
+                onCheckedChange={checked =>
+                  setSettings(prev => ({ ...prev, oneOnOneRecurringEnabled: checked }))
                 }
               />
             </div>
@@ -1003,6 +1024,7 @@ export default function TutorSettings() {
             className="scrollbar-hide mt-0 flex h-full flex-col gap-4 overflow-y-auto px-6 pb-4"
           >
             <OneOnOneSettingsCard />
+            <TutorReviewsCard className={SECTION_CARD_CLASS} />
           </TabsContent>
 
           {/* Billing & Payment */}

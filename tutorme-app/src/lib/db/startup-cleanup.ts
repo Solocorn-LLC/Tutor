@@ -14,6 +14,10 @@
 
 import { drizzleDb } from './drizzle'
 import { sql } from 'drizzle-orm'
+import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
+import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
+import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
+import { completeFinishedGroupSessions } from '@/lib/group-session/complete'
 
 const CLEANUP_SQL = sql.raw(`
 DELETE FROM "LiveSession"
@@ -68,6 +72,46 @@ export async function applyStartupDataCleanup(): Promise<void> {
   } catch (err) {
     console.error(
       '⚠️ [Server] sourceLessonId backfill skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const count = await expireOverdueOneOnOneBookings()
+    if (count > 0) {
+      console.log(`[Server] Data cleanup: expired ${count} overdue unpaid 1-on-1 booking(s).`)
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] 1-on-1 expiry sweep skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const count = await completeFinishedOneOnOneSessions()
+    if (count > 0) {
+      console.log(`[Server] Data cleanup: completed ${count} finished 1-on-1 session(s).`)
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] 1-on-1 completion sweep skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const released = await expireStaleGroupSeats()
+    if (released > 0) {
+      console.log(`[Server] Data cleanup: released ${released} stale group seat reservation(s).`)
+    }
+    const completed = await completeFinishedGroupSessions()
+    if (completed > 0) {
+      console.log(`[Server] Data cleanup: completed ${completed} finished group session(s).`)
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] group-session sweep skipped:',
       err instanceof Error ? err.message : err
     )
   }

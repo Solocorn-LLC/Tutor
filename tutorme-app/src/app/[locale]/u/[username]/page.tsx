@@ -1695,6 +1695,7 @@ export default function PublicTutorPage() {
         tutor={tutor}
         username={normalizedUsername}
         locale={locale}
+        courses={(data?.courses ?? []).map(c => ({ id: c.id, name: c.name }))}
       />
 
       <Dialog

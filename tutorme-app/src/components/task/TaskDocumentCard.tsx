@@ -17,6 +17,7 @@
 import { useId, useState } from 'react'
 import { FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
 
 export interface TaskDocumentSource {
@@ -54,16 +55,13 @@ export function TaskDocumentCard({
   if (!sourceDocument) return null
 
   const rawUrl = sourceDocument.fileUrl || ''
-  // Prefer streaming by object key through our same-origin proxy: it reads from
-  // storage server-side (no signed/public URL needed), so it works even when GCS
-  // URL signing is misconfigured or a stored URL has expired. Fall back to the
-  // direct URL only when there's no key.
-  const url = sourceDocument.fileKey
-    ? `/api/proxy-file?key=${encodeURIComponent(sourceDocument.fileKey)}`
-    : rawUrl
-  // Without a key, a blob: URL only resolves in the tutor's browser and an empty
-  // URL never reached storage — those are unavailable to the viewer.
-  const loadable = !!sourceDocument.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:'))
+  // Always resolve to a durable same-origin URL: streams by object key through
+  // our proxy (no signed/public URL, so it never expires), recovering the key
+  // from the stored URL when no fileKey was persisted. See resolveDocDisplayUrl.
+  const url = resolveDocDisplayUrl(sourceDocument)
+  // A blob: URL only resolves in the uploader's browser and an empty URL never
+  // reached storage — those are unavailable to the viewer.
+  const loadable = isDocDisplayable(sourceDocument)
   const name = sourceDocument.fileName || 'Task document'
   const isPdf =
     sourceDocument.mimeType === 'application/pdf' ||

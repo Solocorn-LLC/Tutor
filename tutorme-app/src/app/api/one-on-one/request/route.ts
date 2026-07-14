@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, or, inArray } from 'drizzle-orm'
+import { eq, and, or, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest, profile, user } from '@/lib/db/schema'
+import { oneOnOneBookingRequest, profile, user, course } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
@@ -13,9 +13,13 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
-import { requestedDateFromString } from '@/lib/one-on-one/time'
+import { requestedDateFromString, slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
+import { findConflicts } from '@/lib/schedule/conflicts'
+import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
+import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
+import { unpaidSeriesTotal } from '@/lib/one-on-one/series-total'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -35,6 +39,8 @@ const requestSchema = z.object({
     .max(20),
   duration: z.number().min(30).max(180), // minutes: 30-180
   studentNotes: z.string().max(1000).optional(),
+  // Optional: a published course of the tutor this session is about.
+  courseId: z.string().min(1).optional(),
 })
 
 export const POST = withCsrf(
@@ -52,6 +58,8 @@ export const POST = withCsrf(
         hourlyRate: true,
         oneOnOneEnabled: true,
         oneOnOneFree: true,
+        oneOnOneRecurringEnabled: true,
+        bufferMinutes: true,
         currency: true,
         timezone: true,
       },
@@ -61,6 +69,11 @@ export const POST = withCsrf(
 
     if (!tutorProfile.oneOnOneEnabled) {
       throw new ValidationError('Tutor does not offer one-on-one sessions')
+    }
+
+    // Recurring series are only allowed when the tutor opts in.
+    if (tutorProfile.oneOnOneRecurringEnabled === false && validated.proposedSlots.length > 1) {
+      throw new ValidationError('This tutor only accepts single-session bookings.')
     }
 
     // Free tutors need no rate; paid tutors must have one set.
@@ -100,8 +113,15 @@ export const POST = withCsrf(
       )
     }
 
-    // Every proposed time must fall within the student's availability (managed
-    // by their parent).
+    const tutorTimezone = tutorProfile.timezone || 'UTC'
+    const tutorBuffer = tutorProfile.bufferMinutes ?? 0
+    const isSeriesRequest = validated.proposedSlots.length > 1
+
+    // Every proposed time must (a) fall within the student's availability (managed
+    // by their parent) and (b) not clash with the tutor's already-confirmed
+    // schedule. The tutor-conflict check uses the SAME detector the tutor's accept
+    // runs, so a time that passes here won't be un-acceptable later — a student
+    // can no longer propose a slot (or a series week) the tutor can never accept.
     for (const slot of validated.proposedSlots) {
       const withinAvailability = await isSlotWithinStudentAvailability(
         session.user.id,
@@ -114,56 +134,99 @@ export const POST = withCsrf(
           'One or more of your proposed times are outside your available hours. Ask your parent to update your availability, or choose a different time.'
         )
       }
+
+      const { start: slotStart, end: slotEnd } = slotInstants(
+        slot.date,
+        slot.startTime,
+        slot.endTime,
+        tutorTimezone
+      )
+      const conflicts = await findConflicts(validated.tutorId, slotStart, slotEnd, {
+        bufferMinutes: tutorBuffer,
+      })
+      if (conflicts.length > 0) {
+        const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
+        throw new ValidationError(
+          `${which} is no longer available — it clashes with the tutor's schedule. Please pick a different time.`
+        )
+      }
     }
 
-    // For the existing table, use the first proposed slot as the primary request
-    // Store remaining slots in tutorNotes as JSON
-    const [primarySlot, ...additionalSlots] = validated.proposedSlots
     const durationHours = validated.duration / 60
     const costPerSession = tutorProfile.oneOnOneFree
       ? 0
       : Math.round((tutorProfile.hourlyRate ?? 0) * durationHours * 100) / 100
 
-    // Store the calendar date as midnight-UTC so it round-trips regardless of
-    // the server's own timezone (wall-clock times live in `timezone` below).
-    const requestedDate = requestedDateFromString(primarySlot.date)
+    // One booking request per proposed weekly slot. When the student books more
+    // than one week, the rows form a recurring series sharing a `seriesId`, so
+    // accept / pay / cancel act on the whole set. `seriesIndex` keeps week order.
+    // Dates are stored midnight-UTC so they round-trip regardless of server tz.
+    const slots = validated.proposedSlots
+    const isSeries = slots.length > 1
+    const seriesId = isSeries ? nanoid() : null
+    const studentNotes = validated.studentNotes?.trim() || null
 
-    // Create the request
-    const newRequest = await drizzleDb
+    // Validate the optional course: it must be a published course of THIS tutor.
+    // A mismatch silently drops the linkage rather than failing the booking.
+    let courseId: string | null = null
+    if (validated.courseId) {
+      const [c] = await drizzleDb
+        .select({ courseId: course.courseId })
+        .from(course)
+        .where(
+          and(
+            eq(course.courseId, validated.courseId),
+            eq(course.creatorId, validated.tutorId),
+            eq(course.isPublished, true),
+            isNull(course.deletedAt)
+          )
+        )
+        .limit(1)
+      courseId = c?.courseId ?? null
+    }
+
+    const rows = slots.map((slot, i) => ({
+      requestId: nanoid(),
+      tutorId: validated.tutorId,
+      studentId: session.user.id,
+      requestedDate: requestedDateFromString(slot.date),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      timezone: tutorProfile.timezone || 'UTC',
+      durationMinutes: validated.duration,
+      costPerSession,
+      status: 'PENDING' as const,
+      studentNotes,
+      courseId,
+      seriesId,
+      seriesIndex: isSeries ? i : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }))
+
+    const inserted = await drizzleDb
       .insert(oneOnOneBookingRequest)
-      .values({
-        requestId: nanoid(),
-        tutorId: validated.tutorId,
-        studentId: session.user.id,
-        requestedDate,
-        startTime: primarySlot.startTime,
-        endTime: primarySlot.endTime,
-        timezone: tutorProfile.timezone || 'UTC',
-        durationMinutes: validated.duration,
-        costPerSession,
-        status: 'PENDING',
-        tutorNotes:
-          additionalSlots.length > 0
-            ? `Alternative slots: ${JSON.stringify(additionalSlots)}`
-            : null,
-        studentNotes: validated.studentNotes?.trim() || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .values(rows)
       .returning(CORE_BOOKING_RETURNING)
+
+    // The first week (seriesIndex 0) is the "head" that represents the series in
+    // notifications and payment links. `.returning()` order isn't guaranteed.
+    const newRequest = [...inserted].sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0))
 
     // Open the student↔tutor direct-message thread on booking, so each appears
     // in the other's chat contact list right away (idempotent — re-accept/pay
     // just reuse this thread).
     getOrCreateConversation(session.user.id, validated.tutorId).catch(() => {})
 
-    // Send notification to tutor
+    // Send notification to tutor (one per series, not per session).
     notify({
       userId: validated.tutorId,
       type: 'class',
       title: 'New 1-on-1 Booking Request',
-      message: `A student has requested a 1-on-1 session. Please review and accept or reject.`,
-      data: { requestId: newRequest[0].requestId, type: 'one-on-one-request' },
+      message: isSeries
+        ? `A student has requested a ${slots.length}-session weekly series. Please review and accept or reject.`
+        : `A student has requested a 1-on-1 session. Please review and accept or reject.`,
+      data: { requestId: newRequest[0].requestId, seriesId, type: 'one-on-one-request' },
       actionUrl: '/tutor/dashboard',
     }).catch(() => {})
 
@@ -171,6 +234,8 @@ export const POST = withCsrf(
       {
         success: true,
         request: newRequest[0],
+        seriesId,
+        sessionCount: newRequest.length,
       },
       { status: 201 }
     )
@@ -221,11 +286,36 @@ export const GET = withAuth(async (request: NextRequest, session) => {
       .where(eq(user.userId, requestRow.tutorId))
       .limit(1)
 
+    // For a recurring series, the amount payable is the sum of every ACCEPTED,
+    // still-unpaid session (one payment covers the whole series). Mirrors the
+    // charge computed in /api/payments/create.
+    let seriesCount = 1
+    let seriesTotal = Number(requestRow.costPerSession || 0)
+    if (requestRow.seriesId) {
+      const series = await unpaidSeriesTotal(requestRow.seriesId)
+      if (series.count > 0) {
+        seriesCount = series.count
+        seriesTotal = series.total
+      }
+    }
+
     return NextResponse.json({
       request: requestRow,
       tutor: tutorRow ?? null,
+      seriesCount,
+      seriesTotal,
     })
   }
+
+  // Lazily reconcile the viewer's own bookings so the list is accurate: expire
+  // overdue unpaid holds (freeing slots) and mark finished sessions completed
+  // (best-effort — never block the read).
+  const asStudent = role === 'sent' || session.user.role === 'STUDENT'
+  const scope = asStudent ? { studentId: session.user.id } : { tutorId: session.user.id }
+  await Promise.all([
+    expireOverdueOneOnOneBookings(scope).catch(() => {}),
+    completeFinishedOneOnOneSessions(scope).catch(() => {}),
+  ])
 
   let requests
   if (role === 'sent' || session.user.role === 'STUDENT') {

@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { CourseCombobox, type CourseOption } from '@/components/course/course-combobox'
 
 interface GroupSessionItem {
   groupSessionId: string
@@ -60,6 +61,31 @@ export default function TutorGroupSessionsPage() {
   const [form, setForm] = useState(emptyForm)
   const [creating, setCreating] = useState(false)
   const [cancelId, setCancelId] = useState<string | null>(null)
+  const [courses, setCourses] = useState<CourseOption[]>([])
+  const [coursesLoading, setCoursesLoading] = useState(true)
+  const [courseId, setCourseId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/tutor/courses', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!active) return
+        const list = Array.isArray(d?.courses) ? d.courses : []
+        setCourses(
+          list.map((c: { id: string; name: string; isPublished?: boolean }) => ({
+            id: c.id,
+            name: c.name,
+            isPublished: !!c.isPublished,
+          }))
+        )
+      })
+      .catch(() => active && setCourses([]))
+      .finally(() => active && setCoursesLoading(false))
+    return () => {
+      active = false
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -96,12 +122,14 @@ export default function TutorGroupSessionsPage() {
           endTime: form.endTime,
           capacity: Number(form.capacity),
           pricePerSeat: form.free ? 0 : Number(form.pricePerSeat),
+          courseId: courseId || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
         toast.success('Group session created')
         setForm(emptyForm)
+        setCourseId(null)
         load()
       } else {
         toast.error(data.error || 'Could not create the session')
@@ -206,6 +234,22 @@ export default function TutorGroupSessionsPage() {
                 onChange={e => setForm({ ...form, description: e.target.value })}
               />
             </label>
+            <div className="text-sm font-medium text-slate-700 sm:col-span-2">
+              Course (optional)
+              <div className="mt-1">
+                <CourseCombobox
+                  options={courses}
+                  value={courseId}
+                  onChange={setCourseId}
+                  loading={coursesLoading}
+                  placeholder="Build this session around a course…"
+                />
+              </div>
+              <p className="mt-1 text-xs font-normal text-slate-400">
+                Linking a course lets you deploy its lessons, tasks and assessments live in the
+                room. Published and draft courses are both available.
+              </p>
+            </div>
             <label className="text-sm font-medium text-slate-700">
               Date
               <input
@@ -239,12 +283,15 @@ export default function TutorGroupSessionsPage() {
               Seats
               <input
                 type="number"
-                min={2}
+                min={1}
                 max={50}
                 className={field}
                 value={form.capacity}
                 onChange={e => setForm({ ...form, capacity: e.target.value })}
               />
+              <span className="mt-1 block text-xs font-normal text-slate-400">
+                Set 1 seat for a private 1-on-1.
+              </span>
             </label>
             <label className="text-sm font-medium text-slate-700">
               Price per seat

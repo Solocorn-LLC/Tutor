@@ -6,7 +6,11 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
-import { OneOnOneRequestCard } from '@/components/one-on-one/one-on-one-request-card'
+import {
+  OneOnOneRequestCard,
+  groupIntoSeries,
+} from '@/components/one-on-one/one-on-one-request-card'
+import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
 import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
@@ -57,6 +61,7 @@ import {
 import { DEFAULT_TIMEZONE, type CalendarView } from './components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
+import { TutorPendingRescheduleBanner } from './components/TutorPendingRescheduleBanner'
 import { CountryFlag } from '@/components/country-flag'
 import { ClassroomDialog } from '@/components/classroom/ClassroomDialog'
 
@@ -189,6 +194,8 @@ type OneOnOneRequest = {
   status: string
   durationMinutes?: number | null
   currency?: string | null
+  seriesId?: string | null
+  seriesIndex?: number | null
   createdAt?: string | null
   paymentDueAt?: string | null
   paidAt?: string | null
@@ -247,6 +254,7 @@ function TutorDashboardContent() {
   const [oneOnOneRequests, setOneOnOneRequests] = useState<OneOnOneRequest[]>([])
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null)
+  const [joiningRequestId, setJoiningRequestId] = useState<string | null>(null)
 
   const [classroomDialogOpen, setClassroomDialogOpen] = useState(false)
   const [classroomCourse, setClassroomCourse] = useState<EnrolledCourse | null>(null)
@@ -480,7 +488,13 @@ function TutorDashboardContent() {
           body: JSON.stringify({ requestId, action }),
         })
         if (res.ok) {
-          setOneOnOneRequests(prev => prev.filter(r => r.requestId !== requestId))
+          // Accepting/rejecting a series resolves ALL its rows — drop every
+          // sibling that shares the seriesId, not just the head that was clicked.
+          setOneOnOneRequests(prev => {
+            const responded = prev.find(r => r.requestId === requestId)
+            const sid = responded?.seriesId
+            return prev.filter(r => (sid ? r.seriesId !== sid : r.requestId !== requestId))
+          })
           toast.success(`Request ${action === 'accept' ? 'accepted' : 'rejected'}`)
         } else {
           const data = await res.json().catch(() => ({}))
@@ -493,6 +507,16 @@ function TutorDashboardContent() {
       }
     },
     []
+  )
+
+  const handleJoinOneOnOne = useCallback(
+    async (requestId: string) => {
+      setJoiningRequestId(requestId)
+      const sessionId = await resolveOneOnOneSession(requestId)
+      if (sessionId) router.push(`/call/${sessionId}`)
+      setJoiningRequestId(null)
+    },
+    [router]
   )
 
   const handleOpenSessionsModal = useCallback(async (course: EnrolledCourse) => {
@@ -702,6 +726,9 @@ function TutorDashboardContent() {
             nextSessionAt={getNextSessionTime() || undefined}
           />
         </div>
+
+        {/* Reschedule proposals awaiting student agreement */}
+        <TutorPendingRescheduleBanner />
 
         {error && (
           <div className="border-destructive/20 bg-destructive/10 text-destructive mb-4 flex-shrink-0 rounded-xl border p-3 text-sm">
@@ -1007,45 +1034,73 @@ function TutorDashboardContent() {
                       No pending 1 on 1 requests.
                     </div>
                   ) : (
-                    oneOnOneRequests.map(request => (
-                      <OneOnOneRequestCard
-                        key={request.requestId}
-                        request={request}
-                        perspective="tutor"
-                        variant="dark"
-                        actions={
-                          request.status === 'PENDING' ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:bg-destructive/10"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setRescheduleRequestId(request.requestId)}
-                            >
-                              Reschedule
-                            </Button>
-                          )
-                        }
-                      />
-                    ))
+                    groupIntoSeries(oneOnOneRequests).map(group => {
+                      // Accept/reject/reschedule target the series head; the API
+                      // applies the action to the whole series.
+                      const request = group.head
+                      return (
+                        <OneOnOneRequestCard
+                          key={request.seriesId ?? request.requestId}
+                          request={request}
+                          perspective="tutor"
+                          variant="light"
+                          series={group.series}
+                          actions={
+                            request.status === 'PENDING' ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={respondingRequestId === request.requestId}
+                                  onClick={() =>
+                                    handleOneOnOneResponse(request.requestId, 'accept')
+                                  }
+                                >
+                                  {group.series ? 'Accept all' : 'Accept'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  disabled={respondingRequestId === request.requestId}
+                                  onClick={() =>
+                                    handleOneOnOneResponse(request.requestId, 'reject')
+                                  }
+                                >
+                                  {group.series ? 'Reject all' : 'Reject'}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                {(() => {
+                                  const joinId =
+                                    request.status === 'PAID'
+                                      ? joinableRequestId(group.members)
+                                      : null
+                                  return joinId ? (
+                                    <Button
+                                      size="sm"
+                                      disabled={joiningRequestId === joinId}
+                                      onClick={() => handleJoinOneOnOne(joinId)}
+                                    >
+                                      <Video className="mr-1.5 h-3.5 w-3.5" />
+                                      {joiningRequestId === joinId ? 'Opening…' : 'Join session'}
+                                    </Button>
+                                  ) : null
+                                })()}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setRescheduleRequestId(request.requestId)}
+                                >
+                                  Reschedule
+                                </Button>
+                              </>
+                            )
+                          }
+                        />
+                      )
+                    })
                   )}
                 </div>
               </div>

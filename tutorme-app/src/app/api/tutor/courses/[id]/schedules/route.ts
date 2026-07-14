@@ -10,8 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseSchedule, courseEnrollment } from '@/lib/db/schema'
+import { courseSchedule, course } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { notifyStudentsOfScheduleChange } from '@/lib/notifications/reschedule'
 import crypto from 'crypto'
 
 // GET all schedules for a course
@@ -140,6 +141,16 @@ export const PUT = withCsrf(
         if (body.weeksToSchedule !== undefined) updateData.weeksToSchedule = body.weeksToSchedule
         if (body.maxStudents !== undefined) updateData.maxStudents = body.maxStudents
 
+        // Snapshot the current schedule so we only notify students when the
+        // actual times change (not on a maxStudents rename or a no-op save).
+        const [before] = await drizzleDb
+          .select({ schedule: courseSchedule.schedule })
+          .from(courseSchedule)
+          .where(
+            and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId))
+          )
+          .limit(1)
+
         const updated = await drizzleDb
           .update(courseSchedule)
           .set(updateData)
@@ -160,6 +171,20 @@ export const PUT = withCsrf(
 
         if (updated.length === 0) {
           return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
+        }
+
+        // Notify enrolled students when the schedule times actually changed.
+        // Best-effort — never blocks the save.
+        const scheduleChanged =
+          body.schedule !== undefined &&
+          JSON.stringify(before?.schedule ?? null) !== JSON.stringify(body.schedule)
+        if (scheduleChanged) {
+          const [row] = await drizzleDb
+            .select({ name: course.name })
+            .from(course)
+            .where(eq(course.courseId, courseId))
+            .limit(1)
+          await notifyStudentsOfScheduleChange({ courseId, courseName: row?.name })
         }
 
         return NextResponse.json({ schedule: updated[0] })
