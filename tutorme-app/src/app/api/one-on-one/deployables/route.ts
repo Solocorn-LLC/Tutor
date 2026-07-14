@@ -2,8 +2,9 @@
  * GET /api/one-on-one/deployables  (tutor only)
  *
  * The tutor's saved, published tasks that can be deployed into a live session's
- * classroom (the session-classroom deploy panel). Returns enough to build the
- * LiveTask the client emits over `task:deploy`.
+ * classroom (the session-classroom deploy panel), grouped by the course + lesson
+ * they belong to so the tutor knows exactly what they're deploying. Returns
+ * enough to build the LiveTask the client emits over `task:deploy`.
  *
  * For assessment/homework tasks that carry structured DMI questions, we also
  * return the *student-safe* `dmiItems` (answers stripped via
@@ -14,12 +15,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask, builderTaskDmi } from '@/lib/db/schema'
+import { builderTask, builderTaskDmi, course, courseLesson } from '@/lib/db/schema'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
+
+// The hidden system course that anchors course-less (ad-hoc) session deploys.
+// Tasks under it are prior live deploys, not authored course content — keep them
+// out of the deployable list. Mirrors ADHOC_ANCHOR_COURSE_ID in the socket server.
+const ADHOC_ANCHOR_COURSE_ID = '__system_adhoc_course__'
 
 export const GET = withAuth(
   async (_req: NextRequest, session) => {
@@ -30,17 +36,25 @@ export const GET = withAuth(
         type: builderTask.type,
         content: builderTask.content,
         lessonId: builderTask.lessonId,
+        courseId: builderTask.courseId,
+        courseName: course.name,
+        coursePublished: course.isPublished,
+        lessonTitle: courseLesson.title,
+        lessonOrder: courseLesson.order,
       })
       .from(builderTask)
+      .leftJoin(course, eq(builderTask.courseId, course.courseId))
+      .leftJoin(courseLesson, eq(builderTask.lessonId, courseLesson.lessonId))
       .where(
         and(
           eq(builderTask.tutorId, session.user.id),
           eq(builderTask.status, 'published'),
-          isNull(builderTask.deletedAt)
+          isNull(builderTask.deletedAt),
+          ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID)
         )
       )
       .orderBy(desc(builderTask.updatedAt))
-      .limit(100)
+      .limit(200)
 
     // Load the latest DMI item set per task in one query, then project each to
     // its student-safe form. Answer-bearing fields (answer/rubric/pairs/regions)
@@ -75,6 +89,11 @@ export const GET = withAuth(
         type: (r.type as 'task' | 'assessment' | 'homework') || 'task',
         content: r.content || '',
         lessonId: r.lessonId || null,
+        courseId: r.courseId || null,
+        courseName: r.courseName || 'Uncategorized',
+        coursePublished: r.coursePublished ?? false,
+        lessonTitle: r.lessonTitle || null,
+        lessonOrder: typeof r.lessonOrder === 'number' ? r.lessonOrder : null,
         dmiItems: safeItemsByTask.get(r.taskId) ?? [],
       })),
     })
