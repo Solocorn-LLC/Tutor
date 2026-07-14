@@ -13,9 +13,10 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
-import { requestedDateFromString } from '@/lib/one-on-one/time'
+import { requestedDateFromString, slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
+import { findConflicts } from '@/lib/schedule/conflicts'
 import {
   isSlotWithinStudentAvailability,
   studentHasAvailabilityConfigured,
@@ -53,6 +54,7 @@ export const POST = withCsrf(
         oneOnOneEnabled: true,
         oneOnOneFree: true,
         oneOnOneRecurringEnabled: true,
+        bufferMinutes: true,
         currency: true,
         timezone: true,
       },
@@ -106,8 +108,15 @@ export const POST = withCsrf(
       )
     }
 
-    // Every proposed time must fall within the student's availability (managed
-    // by their parent).
+    const tutorTimezone = tutorProfile.timezone || 'UTC'
+    const tutorBuffer = tutorProfile.bufferMinutes ?? 0
+    const isSeriesRequest = validated.proposedSlots.length > 1
+
+    // Every proposed time must (a) fall within the student's availability (managed
+    // by their parent) and (b) not clash with the tutor's already-confirmed
+    // schedule. The tutor-conflict check uses the SAME detector the tutor's accept
+    // runs, so a time that passes here won't be un-acceptable later — a student
+    // can no longer propose a slot (or a series week) the tutor can never accept.
     for (const slot of validated.proposedSlots) {
       const withinAvailability = await isSlotWithinStudentAvailability(
         session.user.id,
@@ -118,6 +127,22 @@ export const POST = withCsrf(
       if (!withinAvailability) {
         throw new ValidationError(
           'One or more of your proposed times are outside your available hours. Ask your parent to update your availability, or choose a different time.'
+        )
+      }
+
+      const { start: slotStart, end: slotEnd } = slotInstants(
+        slot.date,
+        slot.startTime,
+        slot.endTime,
+        tutorTimezone
+      )
+      const conflicts = await findConflicts(validated.tutorId, slotStart, slotEnd, {
+        bufferMinutes: tutorBuffer,
+      })
+      if (conflicts.length > 0) {
+        const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
+        throw new ValidationError(
+          `${which} is no longer available — it clashes with the tutor's schedule. Please pick a different time.`
         )
       }
     }
