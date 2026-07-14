@@ -42,6 +42,15 @@ export {
 export { stripEvaluationLayer, findEvaluationLeaks } from './serialize'
 
 export {
+  checkCurriculumMatch,
+  detectExamBoards,
+  normalizeBoard,
+  type ExamBoardFamily,
+  type DetectedBoard,
+  type CurriculumCheckInput,
+} from './curriculum'
+
+export {
   resolvePciComposition,
   inferDocumentKindFromProvenance,
   assessmentVariantAddendum,
@@ -61,6 +70,7 @@ import {
   type TaskValidationContext,
   type AssessmentValidationContext,
 } from './validate'
+import { checkCurriculumMatch, type CurriculumCheckInput } from './curriculum'
 
 export type GuardrailDomain = 'task' | 'assessment'
 
@@ -108,5 +118,11 @@ export function runAssessmentGuardrails(
   ctx?: AssessmentValidationContext
 ): GuardrailRunResult {
   const violations = validateAssessmentOutput(parsed, ctx)
+  return { violations, hasBlocking: violations.some(v => v.severity === 'error') }
+}
+
+/** Run the warn-only curriculum/subject mismatch check and summarize. */
+export function runCurriculumGuardrails(input: CurriculumCheckInput): GuardrailRunResult {
+  const violations = checkCurriculumMatch(input)
   return { violations, hasBlocking: violations.some(v => v.severity === 'error') }
 }

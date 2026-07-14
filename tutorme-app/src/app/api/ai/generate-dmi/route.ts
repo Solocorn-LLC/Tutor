@@ -26,9 +26,11 @@ import {
 } from '@/lib/assessment/document-signals'
 import {
   runAssessmentGuardrails,
+  checkCurriculumMatch,
   GUARDRAILED_TEMPERATURE,
   type GuardrailViolation,
 } from '@/lib/ai/guardrails'
+import { classifyDocumentCurriculum } from '@/lib/assessment/curriculum-classify'
 import { z } from 'zod'
 
 export const maxDuration = 60
@@ -602,6 +604,24 @@ export async function POST(request: NextRequest) {
         { title, questions: questions.map(q => ({ questionText: q.questionText })) },
         { sourceContent: content, confidence: confidence?.level }
       ).violations
+
+      // CURRIC-1/2: warn if the document's exam board or subject doesn't match
+      // the course (e.g. an A-Level past paper in an AP course). Layer 1 is a
+      // deterministic marker scan; layer 2 is a best-effort AI subject check that
+      // only runs when a board/subject hint is present, and never blocks.
+      if (content && (examBody || subject)) {
+        const classification = await classifyDocumentCurriculum(content)
+        const curriculumWarnings = checkCurriculumMatch({
+          extractedText: content,
+          expectedBoard: examBody,
+          expectedSubject: subject,
+          aiBoard: classification?.board,
+          aiSubject: classification?.subject,
+          aiConfidence: classification?.confidence,
+        })
+        guardrailWarnings = [...guardrailWarnings, ...curriculumWarnings]
+      }
+
       if (guardrailWarnings.length > 0) {
         console.warn(
           `[guardrails] generate-dmi assessment violations (${guardrailWarnings.length}):`,
