@@ -20,6 +20,7 @@ import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
+import { FallbackBoundary } from '@/components/ui/fallback-boundary'
 
 interface SessionClassroomProps {
   sessionId: string
@@ -68,14 +69,21 @@ export function SessionClassroom({
 
   return (
     <div className="relative h-screen w-full bg-slate-950">
-      <EnhancedWhiteboard
-        socket={socket}
-        roomId={sessionId}
-        userId={session?.user?.id}
-        userName={session?.user?.name || undefined}
-        videoOverlay
-        videoComponent={video}
-      />
+      {/* If the whiteboard ever throws, degrade to a plain (working) video call
+          rather than white-screening the join. */}
+      <FallbackBoundary
+        label="session classroom"
+        fallback={<div className="h-screen w-full bg-black">{video}</div>}
+      >
+        <EnhancedWhiteboard
+          socket={socket}
+          roomId={sessionId}
+          userId={session?.user?.id}
+          userName={session?.user?.name || undefined}
+          videoOverlay
+          videoComponent={video}
+        />
+      </FallbackBoundary>
 
       {/* Classroom toolbar: deploy (tutor) + materials (everyone). */}
       <div className="pointer-events-none absolute right-3 top-3 z-40 flex gap-2">
@@ -105,20 +113,22 @@ export function SessionClassroom({
         </button>
       </div>
 
-      {/* Side panels (fail independently of the whiteboard). */}
+      {/* Side panels — wrapped so a panel crash closes to nothing, never the room. */}
       {showDeploy || showMaterials ? (
-        <div className="pointer-events-none absolute bottom-3 right-3 top-16 z-40 flex">
-          {showDeploy && isTutor ? (
-            <SessionDeployPanel
-              sessionId={sessionId}
-              socket={socket}
-              onClose={() => setShowDeploy(false)}
-            />
-          ) : null}
-          {showMaterials ? (
-            <SessionDeployedPanel socket={socket} onClose={() => setShowMaterials(false)} />
-          ) : null}
-        </div>
+        <FallbackBoundary label="session panel" fallback={null}>
+          <div className="pointer-events-none absolute bottom-3 right-3 top-16 z-40 flex">
+            {showDeploy && isTutor ? (
+              <SessionDeployPanel
+                sessionId={sessionId}
+                socket={socket}
+                onClose={() => setShowDeploy(false)}
+              />
+            ) : null}
+            {showMaterials ? (
+              <SessionDeployedPanel socket={socket} onClose={() => setShowMaterials(false)} />
+            ) : null}
+          </div>
+        </FallbackBoundary>
       ) : null}
     </div>
   )
