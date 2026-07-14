@@ -181,7 +181,7 @@ const DialogContent = React.forwardRef<
                 'focus:outline-none',
                 'disabled:pointer-events-none',
                 theme === 'metallic'
-                  ? 'text-gray-400 hover:bg-white/10 hover:text-white'
+                  ? 'text-gray-400 hover:scale-105 hover:bg-white/20 hover:text-white'
                   : 'text-muted-foreground hover:bg-accent opacity-70 hover:opacity-100'
               )}
             >

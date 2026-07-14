@@ -225,7 +225,7 @@ function TutorControlsPanel({
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
 
   const actionButtonBase =
-    'flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
+    'flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
 
   const panelDisabled = disabled || false
 
@@ -234,6 +234,12 @@ function TutorControlsPanel({
       <div className="pointer-events-none absolute bottom-4 right-4">
         <motion.div
           drag
+          dragConstraints={{
+            left: -window.innerWidth + 384,
+            right: 0,
+            top: -window.innerHeight + 100,
+            bottom: 0,
+          }}
           dragControls={dragControls}
           dragListener={false}
           dragMomentum={false}
@@ -1384,7 +1390,7 @@ function CourseBuilderInsightsRouteInner({
       {/* Edit Category Dialog */}
       <Dialog open={isEditCourseOpen} onOpenChange={setIsEditCourseOpen}>
         <DialogContent
-          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-white/25 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
           aria-describedby={undefined}
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />

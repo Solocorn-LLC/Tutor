@@ -421,7 +421,7 @@ export function CourseCategoryPicker({
             placeholder="Search categories..."
             value={categorySearch}
             onChange={e => setCategorySearch(e.target.value)}
-            className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-10 border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
       </div>
@@ -475,9 +475,9 @@ export function CourseCategoryPicker({
           ))}
 
           {/* National (checkbox; needs a country) */}
-          <TabsContent value="national" className="mt-0">
+          <TabsContent value="national" className="mt-0 h-full">
             {nationalExams.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="flex h-full flex-col items-center justify-center text-center">
                 <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                 <p className="text-sm text-white/70">
                   Select a region or country to see national exams.
@@ -489,9 +489,9 @@ export function CourseCategoryPicker({
           </TabsContent>
 
           {/* Universities (needs a region/country) */}
-          <TabsContent value="universities" className="mt-0">
+          <TabsContent value="universities" className="mt-0 h-full">
             {filteredUniversityCategories.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="flex h-full flex-col items-center justify-center text-center">
                 <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                 <p className="text-sm text-white/70">Select a country to see universities</p>
               </div>
