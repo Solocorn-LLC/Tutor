@@ -534,6 +534,14 @@ export async function POST(request: NextRequest) {
     let aiResponse: string
 
     if (pdfPages && pdfPages.length > 0) {
+      // When the caller sends BOTH the extracted text and page images (a digital
+      // PDF that also contains diagrams/figures), the text is authoritative for
+      // wording, question count, and marks — it covers every page, whereas the
+      // images are capped. The images are supplementary VISUAL context so the
+      // model can read any diagram/figure the text can't carry. When only images
+      // are sent (a scanned paper with no extractable text), this text item is
+      // simply omitted and the model reads the pages directly, as before.
+      const hasSourceText = !!content && content.trim().length > 0
       const promptItems: Array<
         { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
       > = [
@@ -541,6 +549,14 @@ export async function POST(request: NextRequest) {
           type: 'text',
           text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
         },
+        ...(hasSourceText
+          ? [
+              {
+                type: 'text' as const,
+                text: `Authoritative extracted text of the ${type} (use this for exact question wording, the number of questions, and marks — it covers every page). The images that follow show diagrams/figures referenced in this text; read them to understand any figure a question depends on, but do NOT invent questions the text does not contain:\n\n${content}`,
+              },
+            ]
+          : []),
         ...pdfPages.map(page => ({
           type: 'image_url' as const,
           image_url: { url: page },

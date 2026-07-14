@@ -1405,6 +1405,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // during live, so reveal answers/rubrics only on explicit toggle.
     const [showLiveDmiAnswers, setShowLiveDmiAnswers] = useState(false)
     const [dmiGenerating, setDmiGenerating] = useState(false)
+    // Opt-in: when a PDF paper contains diagrams/figures, also send rendered page
+    // images to the vision model so it can SEE figures a question refers to (the
+    // extracted text can't carry them). Off by default — keeps text-only speed and
+    // cost unless the tutor turns it on for a diagram-heavy paper.
+    const [dmiAnalyzeFigures, setDmiAnalyzeFigures] = useState(false)
     // When generate-dmi detects study material (no explicit questions), we ask
     // the tutor which question types + counts to generate before continuing.
     const [dmiSpecDialog, setDmiSpecDialog] = useState<{ type: 'task' | 'assessment' } | null>(null)
@@ -3525,6 +3530,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               } else {
                 throw fetchErr
               }
+            }
+          }
+
+          // Diagram-aware generation: when the tutor has flagged that this paper
+          // contains figures/diagrams, ALSO render page images and send them with
+          // the extracted text. A text-only model can't see a geometry figure or
+          // graph a question refers to; the page images give the vision model that
+          // visual context, while the full text still guarantees complete question
+          // coverage. Skipped when we already fell back to images (scanned PDF) or
+          // have no text. Non-fatal: if rendering fails, generation proceeds on
+          // text alone.
+          if (dmiAnalyzeFigures && pdfText && !pdfPages) {
+            try {
+              toast.info('Rendering diagrams for analysis...')
+              pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8, sourceDoc.fileKey)
+            } catch (figErr) {
+              console.warn('Diagram rendering for DMI failed; using text only:', figErr)
             }
           }
         }
@@ -11144,56 +11166,75 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           or show both side by side. Only relevant
                                           once a document is present. */}
                                       {hasTaskDocument && (
-                                        <div className="mb-2 flex shrink-0 items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                                          {[
-                                            {
-                                              key: 'text',
-                                              label: 'Text',
-                                              icon: <Type className="h-3.5 w-3.5" />,
-                                              active: taskTextVisible && !taskPdfVisible,
-                                              onClick: () => {
-                                                setTaskTextVisible(true)
-                                                setTaskPdfVisible(false)
+                                        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
+                                          <div className="flex items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                                            {[
+                                              {
+                                                key: 'text',
+                                                label: 'Text',
+                                                icon: <Type className="h-3.5 w-3.5" />,
+                                                active: taskTextVisible && !taskPdfVisible,
+                                                onClick: () => {
+                                                  setTaskTextVisible(true)
+                                                  setTaskPdfVisible(false)
+                                                },
                                               },
-                                            },
-                                            {
-                                              key: 'split',
-                                              label: 'Split',
-                                              icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
-                                              active: taskTextVisible && taskPdfVisible,
-                                              onClick: () => {
-                                                setTaskTextVisible(true)
-                                                setTaskPdfVisible(true)
+                                              {
+                                                key: 'split',
+                                                label: 'Split',
+                                                icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
+                                                active: taskTextVisible && taskPdfVisible,
+                                                onClick: () => {
+                                                  setTaskTextVisible(true)
+                                                  setTaskPdfVisible(true)
+                                                },
                                               },
-                                            },
-                                            {
-                                              key: 'document',
-                                              label: 'Document',
-                                              icon: <FileText className="h-3.5 w-3.5" />,
-                                              active: !taskTextVisible && taskPdfVisible,
-                                              onClick: () => {
-                                                setTaskTextVisible(false)
-                                                setTaskPdfVisible(true)
+                                              {
+                                                key: 'document',
+                                                label: 'Document',
+                                                icon: <FileText className="h-3.5 w-3.5" />,
+                                                active: !taskTextVisible && taskPdfVisible,
+                                                onClick: () => {
+                                                  setTaskTextVisible(false)
+                                                  setTaskPdfVisible(true)
+                                                },
                                               },
-                                            },
-                                          ].map(view => (
-                                            <button
-                                              key={view.key}
-                                              type="button"
-                                              onClick={view.onClick}
-                                              title={`${view.label} view`}
-                                              aria-pressed={view.active}
-                                              className={cn(
-                                                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                                                view.active
-                                                  ? 'bg-[#EEF4FF] text-[#2B5FB8]'
-                                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                                              )}
+                                            ].map(view => (
+                                              <button
+                                                key={view.key}
+                                                type="button"
+                                                onClick={view.onClick}
+                                                title={`${view.label} view`}
+                                                aria-pressed={view.active}
+                                                className={cn(
+                                                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                                  view.active
+                                                    ? 'bg-[#EEF4FF] text-[#2B5FB8]'
+                                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                                )}
+                                              >
+                                                {view.icon}
+                                                {view.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                          {currentTaskDocument?.mimeType === 'application/pdf' && (
+                                            <label
+                                              className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+                                              title="Also send the page images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
                                             >
-                                              {view.icon}
-                                              {view.label}
-                                            </button>
-                                          ))}
+                                              <input
+                                                type="checkbox"
+                                                checked={dmiAnalyzeFigures}
+                                                onChange={e =>
+                                                  setDmiAnalyzeFigures(e.target.checked)
+                                                }
+                                                className="h-3.5 w-3.5 rounded border-slate-300 accent-[#2B5FB8]"
+                                              />
+                                              <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                                              Analyze diagrams
+                                            </label>
+                                          )}
                                         </div>
                                       )}
                                       <div
@@ -11625,58 +11666,79 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           or show both side by side. Only relevant
                                           once a document is present. */}
                                       {hasAssessmentDocument && (
-                                        <div className="mb-2 flex shrink-0 items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                                          {[
-                                            {
-                                              key: 'text',
-                                              label: 'Text',
-                                              icon: <Type className="h-3.5 w-3.5" />,
-                                              active:
-                                                assessmentTextVisible && !assessmentPdfVisible,
-                                              onClick: () => {
-                                                setAssessmentTextVisible(true)
-                                                setAssessmentPdfVisible(false)
+                                        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
+                                          <div className="flex items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+                                            {[
+                                              {
+                                                key: 'text',
+                                                label: 'Text',
+                                                icon: <Type className="h-3.5 w-3.5" />,
+                                                active:
+                                                  assessmentTextVisible && !assessmentPdfVisible,
+                                                onClick: () => {
+                                                  setAssessmentTextVisible(true)
+                                                  setAssessmentPdfVisible(false)
+                                                },
                                               },
-                                            },
-                                            {
-                                              key: 'split',
-                                              label: 'Split',
-                                              icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
-                                              active: assessmentTextVisible && assessmentPdfVisible,
-                                              onClick: () => {
-                                                setAssessmentTextVisible(true)
-                                                setAssessmentPdfVisible(true)
+                                              {
+                                                key: 'split',
+                                                label: 'Split',
+                                                icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
+                                                active:
+                                                  assessmentTextVisible && assessmentPdfVisible,
+                                                onClick: () => {
+                                                  setAssessmentTextVisible(true)
+                                                  setAssessmentPdfVisible(true)
+                                                },
                                               },
-                                            },
-                                            {
-                                              key: 'document',
-                                              label: 'Document',
-                                              icon: <FileText className="h-3.5 w-3.5" />,
-                                              active:
-                                                !assessmentTextVisible && assessmentPdfVisible,
-                                              onClick: () => {
-                                                setAssessmentTextVisible(false)
-                                                setAssessmentPdfVisible(true)
+                                              {
+                                                key: 'document',
+                                                label: 'Document',
+                                                icon: <FileText className="h-3.5 w-3.5" />,
+                                                active:
+                                                  !assessmentTextVisible && assessmentPdfVisible,
+                                                onClick: () => {
+                                                  setAssessmentTextVisible(false)
+                                                  setAssessmentPdfVisible(true)
+                                                },
                                               },
-                                            },
-                                          ].map(view => (
-                                            <button
-                                              key={view.key}
-                                              type="button"
-                                              onClick={view.onClick}
-                                              title={`${view.label} view`}
-                                              aria-pressed={view.active}
-                                              className={cn(
-                                                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                                                view.active
-                                                  ? 'bg-[#EEF4FF] text-[#2B5FB8]'
-                                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                                              )}
+                                            ].map(view => (
+                                              <button
+                                                key={view.key}
+                                                type="button"
+                                                onClick={view.onClick}
+                                                title={`${view.label} view`}
+                                                aria-pressed={view.active}
+                                                className={cn(
+                                                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                                                  view.active
+                                                    ? 'bg-[#EEF4FF] text-[#2B5FB8]'
+                                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                                )}
+                                              >
+                                                {view.icon}
+                                                {view.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                          {currentAssessmentDocument?.mimeType ===
+                                            'application/pdf' && (
+                                            <label
+                                              className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+                                              title="Also send the page images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
                                             >
-                                              {view.icon}
-                                              {view.label}
-                                            </button>
-                                          ))}
+                                              <input
+                                                type="checkbox"
+                                                checked={dmiAnalyzeFigures}
+                                                onChange={e =>
+                                                  setDmiAnalyzeFigures(e.target.checked)
+                                                }
+                                                className="h-3.5 w-3.5 rounded border-slate-300 accent-[#2B5FB8]"
+                                              />
+                                              <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                                              Analyze diagrams
+                                            </label>
+                                          )}
                                         </div>
                                       )}
                                       <div
