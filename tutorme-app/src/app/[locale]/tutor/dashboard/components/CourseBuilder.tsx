@@ -3321,6 +3321,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         /\.docx$/i.test(doc.fileName || '')
+      const isPptx =
+        doc.mimeType ===
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+        /\.pptx$/i.test(doc.fileName || '')
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch document')
       const blob = await response.blob()
@@ -3334,11 +3338,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
       }
 
-      if (isDocx) {
+      if (isDocx || isPptx) {
+        // OOXML (.docx/.pptx) is a zip; embedded raster figures live under
+        // word/media/ (Word) or ppt/media/ (PowerPoint). Pull those out as
+        // vision pages so the model can see diagrams the text extraction dropped.
+        const mediaDir = isPptx ? 'ppt/media/' : 'word/media/'
+        const mediaRe = new RegExp(`^${mediaDir}.+\\.(png|jpe?g|gif)$`, 'i')
         const JSZip = (await import('jszip')).default
         const zip = await JSZip.loadAsync(await blob.arrayBuffer())
         const mediaNames = Object.keys(zip.files)
-          .filter(n => /^word\/media\/.+\.(png|jpe?g|gif)$/i.test(n))
+          .filter(n => mediaRe.test(n))
           .sort()
           .slice(0, 8)
         const images: string[] = []
@@ -3626,9 +3635,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
         }
 
-        // Non-PDF documents (an image scan, a Word .docx) lose their figures to
-        // OCR/text extraction too. When opted in, attach the visual so the model
-        // can see them — the image itself, or a Word doc's embedded images —
+        // Non-PDF documents (an image scan, a Word or PowerPoint file) lose their
+        // figures to OCR/text extraction too. When opted in, attach the visual so
+        // the model can see them — the image itself, or a doc's embedded images —
         // alongside the extracted text (still sent as the authoritative content).
         // Non-fatal: on failure, generation proceeds on text alone.
         if (
@@ -3636,7 +3645,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           !effectiveHasPdf &&
           !pdfPages &&
           sourceDoc &&
-          isImageOrDocxDoc(sourceDoc)
+          isImageOrOfficeDoc(sourceDoc)
         ) {
           try {
             toast.info('Rendering diagrams for analysis...')
@@ -7360,18 +7369,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
 
-    // An image scan or a Word .docx — documents whose figures text/OCR extraction
-    // drops, but that we can turn into images for the vision model.
-    const isImageOrDocxDoc = (doc?: { mimeType?: string; fileName?: string }): boolean =>
+    // An image scan or an OOXML Office file (.docx / .pptx) — documents whose
+    // figures text/OCR extraction drops, but that we can turn into images for the
+    // vision model.
+    const isImageOrOfficeDoc = (doc?: { mimeType?: string; fileName?: string }): boolean =>
       !!doc &&
       (!!doc.mimeType?.startsWith('image/') ||
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        /\.docx$/i.test(doc.fileName || ''))
+        doc.mimeType ===
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+        /\.(docx|pptx)$/i.test(doc.fileName || ''))
     // Documents the "Analyze diagrams" toggle can send to the AI as images: PDFs
-    // (page-rendered) plus image scans and Word docs.
+    // (page-rendered) plus image scans and Office files (Word / PowerPoint).
     const docSupportsFigureAnalysis = (doc?: { mimeType?: string; fileName?: string }): boolean =>
-      !!doc && (doc.mimeType === 'application/pdf' || isImageOrDocxDoc(doc))
+      !!doc && (doc.mimeType === 'application/pdf' || isImageOrOfficeDoc(doc))
     const hasAssessmentDocument = !!currentAssessmentDocument
 
     // Auto-detect the exam Board from the ASSESSMENT itself — its file name,
