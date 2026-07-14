@@ -187,6 +187,20 @@ export interface LiveTask {
   responses?: Record<string, Record<string, string>>
 }
 
+/**
+ * A room-broadcast-safe view of a task: strips the per-student answer map so
+ * peers in a GROUP session never receive each other's submitted answers over the
+ * wire. `responses` is the only sensitive field on the room task object — deploy
+ * already omits answerKey/pci/pciSpec from it — and the tutor gets answers via
+ * the targeted `task:completed` (live) + their own `room_state` (rejoin), so no
+ * room-wide consumer needs `responses`.
+ */
+function toPublicTask(task: LiveTask): LiveTask {
+  if (!task.responses) return task
+  const { responses: _omit, ...rest } = task
+  return rest
+}
+
 // Environment validation
 function validateEnv() {
   const required = ['NEXTAUTH_SECRET']
@@ -1544,7 +1558,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // already-deployed tasks, not new deployments, so they shouldn't trigger
         // the tutor's "Deployed to students" confirmation.
         for (const task of syncedTasks) {
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
         }
 
         socket.emit('course:sync:success', { count: syncedTasks.length })
@@ -1610,15 +1624,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         const studentName = room.students.get(studentId)?.name || 'A student'
-        io.to(roomId).emit('task:completed', {
+        // The completion event carries the student's answers, so it must NOT be
+        // broadcast to the room — in a group session that would hand every
+        // student their peers' answers. Send it only to the tutor (live grading
+        // + Insights) and the submitting student (their own). The room-wide
+        // completion COUNT still propagates via the answer-free task:updated
+        // below, so peers' progress indicators keep working.
+        const completedPayload = {
           taskId,
           studentId,
           studentName,
           completedAt: Date.now(),
           totalCompleted: task.completedBy.length,
           answers: answers ?? {},
-        })
-        io.to(roomId).emit('task:updated', { task })
+        }
+        if (room.tutorId) emitToUser(room.tutorId, 'task:completed', completedPayload)
+        emitToUser(studentId, 'task:completed', completedPayload)
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
 
         // The server received and accepted the submission — confirm to the
         // student. (DB persistence below is best-effort and self-healing.) If
@@ -1799,18 +1821,19 @@ export async function initEnhancedSocketServer(server: NetServer) {
               console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
             }
 
-            // Push the auto-grade outcome to the room: the student sees their own
-            // score + per-question result, and the tutor's live view updates.
-            // This is deliberately student-safe — `questionResults` carries
-            // correct/needs-review flags but never the answer key (see
-            // AutoGradeQuestionResult), the same projection the REST quiz results
-            // use — so broadcasting it leaks nothing the student shouldn't see.
-            io.to(roomId).emit('task:graded', {
+            // Push the auto-grade outcome only to the tutor (live view) and the
+            // submitting student (their own score + per-question result) — never
+            // to peers, so a group session doesn't reveal one student's result to
+            // the others. `questionResults` is student-safe by design (correct/
+            // needs-review flags, never the answer key — see AutoGradeQuestionResult).
+            const gradedPayload = {
               taskId,
               studentId,
               score: autoScore,
               questionResults: autoResults,
-            })
+            }
+            if (tutorId) emitToUser(tutorId, 'task:graded', gradedPayload)
+            emitToUser(studentId, 'task:graded', gradedPayload)
 
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(task,student) rule and never overwrites a graded row.
@@ -2320,7 +2343,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:sent', { taskId, type: 'poll', item: poll })
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
         }
 
@@ -2336,7 +2359,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:sent', { taskId, type: 'question', item: question })
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2375,7 +2398,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
-          io.to(roomId).emit('task:updated', { task })
+          io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
         }
 
@@ -2395,7 +2418,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
         io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2424,7 +2447,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
-        io.to(roomId).emit('task:updated', { task })
+        io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
     )
 
@@ -2552,9 +2575,12 @@ async function addStudentToRoom(socket: Socket, room: ClassRoom) {
     state: studentState,
   })
 
+  // Students hydrate from public tasks only — `toPublicTask` drops the
+  // per-student answer map so a group-session joiner never receives peers'
+  // answers on join. (The tutor path below keeps `responses` for grading.)
   const refreshedTasks = await Promise.all(
     room.tasks.map(async task => ({
-      ...task,
+      ...toPublicTask(task),
       sourceDocument: task.sourceDocument
         ? await refreshDocumentUrls(task.sourceDocument)
         : undefined,
