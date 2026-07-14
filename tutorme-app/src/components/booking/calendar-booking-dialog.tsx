@@ -86,6 +86,8 @@ interface AvailabilityData {
   reason?: string
   currency: string
   timezone: string
+  /** Whether this tutor allows booking a recurring weekly series. */
+  recurringEnabled?: boolean
   slots: TimeSlot[]
 }
 
@@ -476,6 +478,13 @@ export function CalendarBookingDialog({
     }
   }
 
+  // If the tutor doesn't allow a recurring series, keep the booking to one week.
+  useEffect(() => {
+    if (availability?.recurringEnabled === false && recurringWeeks !== 1) {
+      setRecurringWeeks(1)
+    }
+  }, [availability?.recurringEnabled, recurringWeeks])
+
   // Generate all recurring dates for display
   const recurringDates = useMemo(() => {
     if (!selectedSlot) return []
@@ -633,24 +642,27 @@ export function CalendarBookingDialog({
                 <>
                   {/* Legend + recurring weeks container */}
                   <div className="shrink-0 rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-sm font-semibold text-[#1F2933]">
-                        Book recurring sessions for
-                      </span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={recurringWeeks}
-                        onChange={e => {
-                          const val = parseInt(e.target.value, 10)
-                          const v = Math.max(1, Math.min(20, Number.isNaN(val) ? 1 : val))
-                          setRecurringWeeks(v)
-                        }}
-                        className="border-input h-9 w-12 rounded-lg border bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <span className="text-sm font-semibold text-[#1F2933]">weeks.</span>
-                    </div>
+                    {/* Recurring-weeks picker — only when the tutor allows a series. */}
+                    {availability?.recurringEnabled !== false && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-sm font-semibold text-[#1F2933]">
+                          Book recurring sessions for
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={recurringWeeks}
+                          onChange={e => {
+                            const val = parseInt(e.target.value, 10)
+                            const v = Math.max(1, Math.min(20, Number.isNaN(val) ? 1 : val))
+                            setRecurringWeeks(v)
+                          }}
+                          className="border-input h-9 w-12 rounded-lg border bg-white px-1 text-center text-sm text-[#1F2933] [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <span className="text-sm font-semibold text-[#1F2933]">weeks.</span>
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
                       <span className="flex items-center gap-1">
                         <span className="inline-block h-3 w-3 rounded-sm border border-blue-600 bg-blue-600" />

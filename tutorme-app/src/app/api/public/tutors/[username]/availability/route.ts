@@ -275,6 +275,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
       pricingIncomplete: !isFree && !hasHourlyRate,
       currency: tutorProfile.currency || 'USD',
       timezone: tutorProfile.timezone || 'UTC',
+      // Whether this tutor lets students book a recurring weekly series.
+      recurringEnabled: tutorProfile.oneOnOneRecurringEnabled ?? true,
       slots,
     })
   } catch (error: any) {
