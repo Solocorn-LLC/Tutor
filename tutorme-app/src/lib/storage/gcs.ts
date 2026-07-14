@@ -264,10 +264,31 @@ export async function createPresignedDownloadUrl(
  */
 export async function deleteObject(key: string, bucketName?: string): Promise<void> {
   const storage = await getStorage()
-  await storage
-    .bucket(bucketName || BUCKET)
-    .file(key)
-    .delete({ ignoreNotFound: true })
+  const bucket = storage.bucket(bucketName || BUCKET)
+  await bucket.file(key).delete({ ignoreNotFound: true })
+  // Best-effort: also remove the PDF we may have rendered from a raw Office doc
+  // for inline student view (ensureViewableSourceDocument stores it at
+  // `<key>.pdf`), so deleting the source doesn't orphan the derived PDF.
+  if (!key.endsWith('.pdf')) {
+    await bucket
+      .file(`${key}.pdf`)
+      .delete({ ignoreNotFound: true })
+      .catch(() => {})
+  }
+}
+
+/** Cheap existence check (metadata only — no download). */
+export async function objectExists(key: string, bucketName?: string): Promise<boolean> {
+  try {
+    const storage = await getStorage()
+    const [exists] = await storage
+      .bucket(bucketName || BUCKET)
+      .file(key)
+      .exists()
+    return exists
+  } catch {
+    return false
+  }
 }
 
 // ─── Key Generation ───────────────────────────────────────────────────────────

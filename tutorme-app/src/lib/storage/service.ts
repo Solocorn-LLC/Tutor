@@ -13,7 +13,7 @@
  *                       (default: {cwd}/.local-storage)
  */
 
-import { writeFile, mkdir, readFile, unlink } from 'fs/promises'
+import { writeFile, mkdir, readFile, unlink, access } from 'fs/promises'
 import path from 'path'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -60,6 +60,15 @@ async function deleteLocal(key: string): Promise<void> {
     await unlink(getLocalPath(key))
   } catch {
     // ignore
+  }
+}
+
+async function existsLocal(key: string): Promise<boolean> {
+  try {
+    await access(getLocalPath(key))
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -122,10 +131,14 @@ export async function removeFile(key: string): Promise<void> {
   const { isGcsConfigured, deleteObject } = await getGcsHelpers()
 
   if (isGcsConfigured()) {
+    // deleteObject also removes the `<key>.pdf` sibling rendered from a raw
+    // Office doc (see gcs.ts), so the derived PDF doesn't orphan.
     await deleteObject(key).catch(() => {})
   }
 
   await deleteLocal(key)
+  // Mirror the sibling cleanup for local storage.
+  if (!key.endsWith('.pdf')) await deleteLocal(`${key}.pdf`)
 }
 
 /**
@@ -141,6 +154,18 @@ export async function readFileBuffer(key: string): Promise<Buffer | null> {
   }
 
   return readLocal(key)
+}
+
+/** Cheap existence check (metadata/stat — no download). GCS first, then local. */
+export async function fileExists(key: string): Promise<boolean> {
+  const { isGcsConfigured } = await getGcsHelpers()
+
+  if (isGcsConfigured()) {
+    const { objectExists } = await import('./gcs')
+    if (await objectExists(key)) return true
+  }
+
+  return existsLocal(key)
 }
 
 /**
