@@ -81,7 +81,11 @@ export function TaskDocumentCard({
       </p>
     </div>
   ) : isPdf ? (
-    <PDFViewer fileUrl={url} className="h-full w-full" />
+    <PDFViewer
+      fileUrl={url}
+      fileKey={sourceDocument?.fileKey ?? undefined}
+      className="h-full w-full"
+    />
   ) : isImage ? (
     <div className="flex h-full items-center justify-center bg-slate-50 p-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}

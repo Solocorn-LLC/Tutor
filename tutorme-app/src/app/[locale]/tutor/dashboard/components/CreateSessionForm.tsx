@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { DialogPanel } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,11 @@ import {
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { Loader2 } from 'lucide-react'
+
+export interface CreateSessionFormRef {
+  submit: () => void
+  isSubmitting: () => boolean
+}
 
 export interface CreateSessionFormProps {
   courseName?: string
@@ -44,254 +49,228 @@ function useTimeOptions() {
   }, [])
 }
 
-export function CreateSessionForm({
-  courseName,
-  initialDate,
-  courseId,
-  onSuccess,
-  onCancel,
-}: CreateSessionFormProps) {
-  const [creating, setCreating] = useState(false)
-  const [apiError, setApiError] = useState<string | null>(null)
-  const timeOptions = useTimeOptions()
-
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    maxStudents: 50,
-    durationMinutes: 60,
-    date: '',
-    time: '09:00',
-  })
-
-  // When launched from a course's sessions modal, prefill title from the
-  // course so the form is valid and the one-time session is clearly associated.
-  useEffect(() => {
-    if (!courseName) return
-    setForm(prev => ({
-      ...prev,
-      title: prev.title || `${courseName} — one-time session`,
+export const CreateSessionForm = React.forwardRef<CreateSessionFormRef, CreateSessionFormProps>(
+  function CreateSessionForm(
+    { courseName, initialDate, courseId, onSuccess, onCancel }: CreateSessionFormProps,
+    ref: React.ForwardedRef<CreateSessionFormRef>
+  ) {
+    const [creating, setCreating] = useState(false)
+    useImperativeHandle(ref, () => ({
+      submit: handleSubmit,
+      isSubmitting: () => creating,
     }))
-  }, [open, courseName])
+    const [apiError, setApiError] = useState<string | null>(null)
+    const timeOptions = useTimeOptions()
 
-  useEffect(() => {
-    if (!initialDate) return
-    const nextDate = new Date(initialDate)
-    nextDate.setHours(9, 0, 0, 0)
-    const datePart = format(nextDate, 'yyyy-MM-dd')
-    const timePart = format(nextDate, 'HH:mm')
-    setForm(prev => {
-      if (!prev.date || prev.date !== datePart) {
-        return { ...prev, date: datePart, time: timePart }
-      }
-      return prev
+    const [form, setForm] = useState({
+      title: '',
+      description: '',
+      maxStudents: 50,
+      durationMinutes: 60,
+      date: '',
+      time: '09:00',
     })
-  }, [open, initialDate])
 
-  const handleSubmit = async () => {
-    if (!form.title.trim()) {
-      toast.error('Please enter a session title')
-      return
-    }
-    if (!form.date) {
-      toast.error('Please select a date')
-      return
-    }
-    if (!form.time) {
-      toast.error('Please select a time')
-      return
-    }
+    // When launched from a course's sessions modal, prefill title from the
+    // course so the form is valid and the one-time session is clearly associated.
+    useEffect(() => {
+      if (!courseName) return
+      setForm(prev => ({
+        ...prev,
+        title: prev.title || `${courseName} — one-time session`,
+      }))
+    }, [open, courseName])
 
-    setCreating(true)
-    setApiError(null)
-    try {
-      const scheduledDate = new Date(`${form.date}T${form.time}`)
-      if (Number.isNaN(scheduledDate.getTime())) {
-        const message = 'Please provide a valid date and time.'
-        setApiError(message)
-        toast.error(message)
+    useEffect(() => {
+      if (!initialDate) return
+      const nextDate = new Date(initialDate)
+      nextDate.setHours(9, 0, 0, 0)
+      const datePart = format(nextDate, 'yyyy-MM-dd')
+      const timePart = format(nextDate, 'HH:mm')
+      setForm(prev => {
+        if (!prev.date || prev.date !== datePart) {
+          return { ...prev, date: datePart, time: timePart }
+        }
+        return prev
+      })
+    }, [open, initialDate])
+
+    const handleSubmit = async () => {
+      if (!form.title.trim()) {
+        toast.error('Please enter a session title')
+        return
+      }
+      if (!form.date) {
+        toast.error('Please select a date')
+        return
+      }
+      if (!form.time) {
+        toast.error('Please select a time')
         return
       }
 
-      // Use courseName as subject when available; otherwise fall back to title.
-      const subject = courseName?.trim() || form.title.trim()
-
-      const res = await fetchWithCsrf('/api/class/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: form.title,
-          subject,
-          description: form.description,
-          maxStudents: form.maxStudents,
-          durationMinutes: form.durationMinutes,
-          scheduledAt: scheduledDate.toISOString(),
-          ...(courseId ? { courseId } : {}),
-        }),
-      })
-
-      const raw = await res.text()
-      let data: { error?: string; session?: { id: string } } = {}
-      if (raw) {
-        try {
-          data = JSON.parse(raw) as { error?: string; session?: { id: string } }
-        } catch {
-          data = { error: `Request failed (${res.status}): ${raw.slice(0, 180)}` }
+      setCreating(true)
+      setApiError(null)
+      try {
+        const scheduledDate = new Date(`${form.date}T${form.time}`)
+        if (Number.isNaN(scheduledDate.getTime())) {
+          const message = 'Please provide a valid date and time.'
+          setApiError(message)
+          toast.error(message)
+          return
         }
-      }
-      if (res.ok) {
-        toast.success('Session created successfully!')
-        onSuccess?.(data.session)
-      } else {
-        const message = data.error || 'Room creation failed. Please try again.'
+
+        // Use courseName as subject when available; otherwise fall back to title.
+        const subject = courseName?.trim() || form.title.trim()
+
+        const res = await fetchWithCsrf('/api/class/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title,
+            subject,
+            description: form.description,
+            maxStudents: form.maxStudents,
+            durationMinutes: form.durationMinutes,
+            scheduledAt: scheduledDate.toISOString(),
+            ...(courseId ? { courseId } : {}),
+          }),
+        })
+
+        const raw = await res.text()
+        let data: { error?: string; session?: { id: string } } = {}
+        if (raw) {
+          try {
+            data = JSON.parse(raw) as { error?: string; session?: { id: string } }
+          } catch {
+            data = { error: `Request failed (${res.status}): ${raw.slice(0, 180)}` }
+          }
+        }
+        if (res.ok) {
+          toast.success('Session created successfully!')
+          onSuccess?.(data.session)
+        } else {
+          const message = data.error || 'Room creation failed. Please try again.'
+          setApiError(message)
+          toast.error(message)
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'An error occurred. Please check your connection and try again.'
         setApiError(message)
         toast.error(message)
+      } finally {
+        setCreating(false)
       }
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'An error occurred. Please check your connection and try again.'
-      setApiError(message)
-      toast.error(message)
-    } finally {
-      setCreating(false)
     }
-  }
 
-  return (
-    <div className="space-y-4">
-      <DialogPanel variant="default" className="space-y-4 p-6">
-        {apiError && (
-          <p
-            id="create-class-api-error"
-            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
-            role="alert"
-          >
-            {apiError}
-          </p>
-        )}
+    return (
+      <div className="space-y-4">
+        <DialogPanel variant="default" className="space-y-4 p-6">
+          {apiError && (
+            <p
+              id="create-class-api-error"
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+              role="alert"
+            >
+              {apiError}
+            </p>
+          )}
 
-        <div>
-          <Label className="text-gray-900">Class Title *</Label>
-          <Input
-            value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="e.g., AP Calculus - Limits"
-            disabled={creating}
-            aria-invalid={!!apiError}
-          />
-        </div>
-
-        <div>
-          <Label className="text-gray-900">Description</Label>
-          <Textarea
-            value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="What will you cover in this session?"
-            disabled={creating}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-gray-900">Date *</Label>
+            <Label className="text-gray-900">Class Title *</Label>
             <Input
-              type="date"
-              value={form.date}
-              onChange={e => setForm({ ...form, date: e.target.value })}
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g., AP Calculus - Limits"
+              disabled={creating}
+              aria-invalid={!!apiError}
+            />
+          </div>
+
+          <div>
+            <Label className="text-gray-900">Description</Label>
+            <Textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="What will you cover in this session?"
               disabled={creating}
             />
           </div>
-          <div>
-            <Label className="text-gray-900">Time *</Label>
-            <Select
-              value={form.time}
-              onValueChange={v => setForm({ ...form, time: v })}
-              disabled={creating}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select time" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-gray-900">Duration</Label>
-            <Select
-              value={form.durationMinutes.toString()}
-              onValueChange={v => setForm({ ...form, durationMinutes: parseInt(v) })}
-            >
-              <SelectTrigger disabled={creating}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30">30 minutes</SelectItem>
-                <SelectItem value="60">1 hour</SelectItem>
-                <SelectItem value="90">1.5 hours</SelectItem>
-                <SelectItem value="120">2 hours</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-900">Date *</Label>
+              <Input
+                type="date"
+                value={form.date}
+                onChange={e => setForm({ ...form, date: e.target.value })}
+                disabled={creating}
+              />
+            </div>
+            <div>
+              <Label className="text-gray-900">Time *</Label>
+              <Select
+                value={form.time}
+                onValueChange={v => setForm({ ...form, time: v })}
+                disabled={creating}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div>
-            <Label className="text-gray-900">Max Students</Label>
-            <Select
-              value={form.maxStudents.toString()}
-              onValueChange={v => setForm({ ...form, maxStudents: parseInt(v) })}
-            >
-              <SelectTrigger disabled={creating}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 students</SelectItem>
-                <SelectItem value="25">25 students</SelectItem>
-                <SelectItem value="50">50 students</SelectItem>
-                <SelectItem value="100">100 students</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
 
-        {/* Actions — the Publish button lives with the form that owns the
-            validation + submit, so it's actually wired (the parent dialog's
-            footer button was a disabled stub). */}
-        <div className="mt-5 flex items-center justify-end gap-2">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="modal-secondary-dark"
-              onClick={onCancel}
-              disabled={creating}
-            >
-              Cancel
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="modal-primary-dark"
-            onClick={handleSubmit}
-            disabled={creating || !form.title.trim() || !form.date || !form.time}
-          >
-            {creating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publishing…
-              </>
-            ) : (
-              'Publish Class'
-            )}
-          </Button>
-        </div>
-      </DialogPanel>
-    </div>
-  )
-}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-900">Duration</Label>
+              <Select
+                value={form.durationMinutes.toString()}
+                onValueChange={v => setForm({ ...form, durationMinutes: parseInt(v) })}
+              >
+                <SelectTrigger disabled={creating}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="90">1.5 hours</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-gray-900">Max Students</Label>
+              <Select
+                value={form.maxStudents.toString()}
+                onValueChange={v => setForm({ ...form, maxStudents: parseInt(v) })}
+              >
+                <SelectTrigger disabled={creating}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 students</SelectItem>
+                  <SelectItem value="25">25 students</SelectItem>
+                  <SelectItem value="50">50 students</SelectItem>
+                  <SelectItem value="100">100 students</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Buttons moved to parent DialogFooter */}
+        </DialogPanel>
+      </div>
+    )
+  }
+)

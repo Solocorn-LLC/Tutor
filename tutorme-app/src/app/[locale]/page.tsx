@@ -4065,11 +4065,88 @@ const CategorySearchModal = ({
             >
               <X className="h-4 w-4" />
             </button>
-            <h2 className="mb-1 text-2xl font-bold text-white">{t('browseCategories')}</h2>
-            <p className="mb-3 text-sm text-white/70">{t('selectCategoryPrompt')}</p>
+
+            {/* Region & Country dropdowns */}
+            <div className="flex flex-wrap gap-3">
+              <Select
+                value={selectedRegion}
+                onValueChange={v => {
+                  setSelectedRegion(v)
+                  setSelectedCountries([])
+                }}
+              >
+                <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+                  <SelectValue placeholder="Region" />
+                </SelectTrigger>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+                  {REGIONS.filter(r => r.id !== 'global').map(region => (
+                    <SelectItem
+                      key={region.id}
+                      value={region.id}
+                      className="mx-1.5 rounded-md text-white hover:bg-white/20"
+                    >
+                      {region.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={!selectedRegion}
+                    className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
+                  >
+                    <span className="truncate">
+                      {selectedCountries.length > 0
+                        ? `${selectedCountries.length} countr${selectedCountries.length === 1 ? 'y' : 'ies'}`
+                        : 'Country'}
+                    </span>
+                    <svg
+                      className="h-4 w-4 opacity-50"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  variant="panel"
+                  className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
+                  align="start"
+                >
+                  <div className="flex flex-col gap-1">
+                    {availableCountries.map(country => (
+                      <label
+                        key={country.code}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
+                        onClick={() => toggleCountry(country.code)}
+                      >
+                        <div
+                          className={cn(
+                            'h-4 w-4 rounded-full border-2 transition-colors',
+                            selectedCountries.includes(country.code)
+                              ? 'border-white bg-white'
+                              : 'border-white/50 bg-transparent'
+                          )}
+                        />
+                        <span>{country.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
 
             {/* Selected category badges container + Search */}
-            <div className="mb-1 flex items-start gap-3">
+            <div className="mb-1 mt-3 flex items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col">
                 <div
                   ref={badgeScrollRef}
@@ -4175,83 +4252,17 @@ const CategorySearchModal = ({
               </Button>
             </div>
 
-            {/* Region & Country dropdowns */}
-            <div className="flex flex-wrap gap-3">
-              <Select
-                value={selectedRegion}
-                onValueChange={v => {
-                  setSelectedRegion(v)
-                  setSelectedCountries([])
-                }}
-              >
-                <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-                  {REGIONS.filter(r => r.id !== 'global').map(region => (
-                    <SelectItem
-                      key={region.id}
-                      value={region.id}
-                      className="mx-1.5 rounded-md text-white hover:bg-white/20"
-                    >
-                      {region.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={!selectedRegion}
-                    className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
-                  >
-                    <span className="truncate">
-                      {selectedCountries.length > 0
-                        ? `${selectedCountries.length} countr${selectedCountries.length === 1 ? 'y' : 'ies'}`
-                        : 'Country'}
-                    </span>
-                    <svg
-                      className="h-4 w-4 opacity-50"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  variant="panel"
-                  className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
-                  align="start"
-                >
-                  <div className="flex flex-col gap-1">
-                    {availableCountries.map(country => (
-                      <label
-                        key={country.code}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
-                        onClick={() => toggleCountry(country.code)}
-                      >
-                        <div
-                          className={cn(
-                            'h-4 w-4 rounded-full border-2 transition-colors',
-                            selectedCountries.includes(country.code)
-                              ? 'border-white bg-white'
-                              : 'border-white/50 bg-transparent'
-                          )}
-                        />
-                        <span>{country.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+            {/* Search */}
+            <div className="relative z-10 pb-2 pt-[15px]">
+              <div className="relative mx-auto max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder={t('searchCategories')}
+                  value={categorySearch}
+                  onChange={e => setCategorySearch(e.target.value)}
+                  className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+              </div>
             </div>
           </div>
 
@@ -4320,19 +4331,6 @@ const CategorySearchModal = ({
                     <Award className="mr-1.5 h-4 w-4" /> Professional
                   </TabsTrigger>
                 </TabsList>
-              </div>
-
-              {/* Search — placed inside Tabs so it sits under the active tab */}
-              <div className="relative z-10 pb-2 pt-[15px]">
-                <div className="relative mx-auto max-w-md">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    placeholder={t('searchCategories')}
-                    value={categorySearch}
-                    onChange={e => setCategorySearch(e.target.value)}
-                    className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
               </div>
 
               <div

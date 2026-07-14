@@ -105,6 +105,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isSubmissionsPage = pathname?.includes('/tutor/submissions')
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
+  const isGroupSessionsPage = pathname?.includes('/tutor/group-sessions')
 
   // Use a robust pathname check for insights page detection that works across
   // SSR and client-side hydration, handling both prefixed and non-prefixed paths.
@@ -125,6 +126,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isAccountPage ||
     isMyPage ||
     isSupportPage ||
+    isGroupSessionsPage ||
     isInsightsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage &&
