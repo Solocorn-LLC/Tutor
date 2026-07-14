@@ -48,6 +48,7 @@ import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import {
   CreateClassDialog,
   CreateSessionForm,
+  type CreateSessionFormRef,
   StatsCards,
   UpcomingClassesCard,
   InteractiveCalendar,
@@ -210,6 +211,7 @@ function TutorDashboardContent() {
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  const createSessionFormRef = useRef<CreateSessionFormRef>(null)
   // View state for the Course Sessions modal: 'list' or 'create'
   const [sessionsView, setSessionsView] = useState<'list' | 'create'>('list')
   // Course name + variant for the sessions modal (from the sessions API).
@@ -1140,6 +1142,7 @@ function TutorDashboardContent() {
                   <div className="flex h-full flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto">
                       <CreateSessionForm
+                        ref={createSessionFormRef}
                         courseId={selectedCourseForCancel.id}
                         courseName={selectedCourseForCancel.name}
                         onCancel={() => setSessionsView('list')}
@@ -1462,8 +1465,20 @@ function TutorDashboardContent() {
                     Create Class
                   </Button>
                 )}
-                {/* The create view's Cancel/Publish actions are rendered by
-                    CreateSessionForm itself (which owns the form state + submit). */}
+                {sessionsView === 'create' && (
+                  <>
+                    <Button variant="modal-secondary-dark" onClick={() => setSessionsView('list')}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="modal-primary-dark"
+                      onClick={() => createSessionFormRef.current?.submit()}
+                    >
+                      <Video className="mr-1 h-4 w-4" />
+                      Publish Class
+                    </Button>
+                  </>
+                )}
                 {sessionsView === 'list' && (
                   <Button variant="modal-secondary-dark" onClick={() => setCancelModalOpen(false)}>
                     Close
