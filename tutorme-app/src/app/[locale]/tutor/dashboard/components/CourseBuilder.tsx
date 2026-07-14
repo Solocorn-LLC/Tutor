@@ -3443,29 +3443,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
       }
 
-      // When a PDF is attached AND the text box has been edited to something
-      // other than the document's own extraction, the two sources genuinely
-      // disagree — ask the tutor which to generate from instead of silently
-      // preferring the PDF. Text left as the auto-filled extraction isn't
-      // ambiguous, so we don't nag.
+      // Detect a source disagreement up front (used by the chooser below), and
+      // on a fresh, user-initiated generate (no in-flight dialog choices) clear
+      // any remembered content-source pick so a stale one can't leak into the new
+      // run. Every downstream re-invocation carries a spec/kind/skip/source arg,
+      // so the pick stays alive through the rest of the chain.
       const normalizeText = (s: string) => s.replace(/\s+/g, ' ').trim()
       const docExtractedText = normalizeText(sourceDoc?.extractedText || '')
       const typedText = normalizeText(content)
       const sourcesDisagree = !!hasPdf && typedText.length > 0 && typedText !== docExtractedText
-      // A fresh, user-initiated generate (no in-flight dialog choices) clears any
-      // remembered pick so a stale source can't leak into the new run. Every
-      // downstream re-invocation carries a spec/kind/skip/source arg, so it keeps
-      // the pick alive through the rest of the chain.
       if (!questionSpec && !documentKindOverride && !skipFormatPrompt && !contentSourceOverride) {
         dmiContentSourceRef.current = null
       }
-      const contentSource = contentSourceOverride ?? dmiContentSourceRef.current ?? undefined
-      if (sourcesDisagree && !contentSource) {
-        setDmiSourceDialog({ type })
-        return
-      }
-      // 'text' → generate from the typed text and skip the PDF file entirely.
-      const effectiveHasPdf = hasPdf && contentSource !== 'text'
 
       // Assessment: choose the response format BEFORE spending any LLM tokens.
       // A multiple-choice paper doesn't need the AI to read it — the tutor
@@ -3476,6 +3465,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setDmiFormatDialog({ type })
         return
       }
+
+      // Content-source chooser — reached only on the free-response / AI path.
+      // Multiple-choice returns at the format step above and never reads the
+      // content, so the tutor is never asked which source to use for it. When a
+      // PDF is attached AND the text box was edited away from the document's own
+      // extraction, the two sources genuinely disagree — ask which to generate
+      // from instead of silently preferring the PDF. Unedited (auto-filled) text
+      // isn't ambiguous, so we don't nag. The pick persists in a ref across the
+      // rest of the resolve chain (kind → spec).
+      const contentSource = contentSourceOverride ?? dmiContentSourceRef.current ?? undefined
+      if (sourcesDisagree && !contentSource) {
+        setDmiSourceDialog({ type })
+        return
+      }
+      // 'text' → generate from the typed text and skip the PDF file entirely.
+      const effectiveHasPdf = hasPdf && contentSource !== 'text'
 
       setDmiGenerating(true)
       try {
@@ -3748,17 +3753,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Content-source choice → re-run generation forcing the picked source.
+    // The source chooser is shown only after the format step is resolved, so
+    // re-run with skipFormatPrompt=true to avoid re-opening the format chooser.
     const handleChooseDmiDocument = () => {
       const type = dmiSourceDialog?.type
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'document'
-      if (type) void handleGenerateDMI(type, undefined, undefined, false, 'document')
+      if (type) void handleGenerateDMI(type, undefined, undefined, true, 'document')
     }
     const handleChooseDmiTypedText = () => {
       const type = dmiSourceDialog?.type
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'text'
-      if (type) void handleGenerateDMI(type, undefined, undefined, false, 'text')
+      if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
     }
 
     // Response-format choice → free-response runs the AI flow; multiple-choice
