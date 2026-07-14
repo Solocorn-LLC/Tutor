@@ -42,6 +42,7 @@ function PaymentPageInner() {
     timezone: string
     amount: number
     currency: string
+    sessionCount: number
   } | null>(null)
   const [oneOnOneLoading, setOneOnOneLoading] = useState(false)
   const [selectedGateway, setSelectedGateway] = useState<GatewayOption>('HITPAY')
@@ -79,6 +80,8 @@ function PaymentPageInner() {
         if (!data?.request) return
         const req = data.request
         const tutor = data.tutor
+        // A recurring series is paid once for all its sessions; the API returns
+        // the combined total + count.
         setOneOnOne({
           requestId,
           tutorName: tutor?.name || 'Tutor',
@@ -87,8 +90,9 @@ function PaymentPageInner() {
           startTime: req.startTime,
           endTime: req.endTime,
           timezone: req.timezone,
-          amount: Number(req.costPerSession || 0),
+          amount: Number(data.seriesTotal ?? req.costPerSession ?? 0),
           currency: tutor?.currency || 'USD',
+          sessionCount: Number(data.seriesCount ?? 1),
         })
       })
       .catch(err => console.error('[Payment] Failed to load 1-on-1 request:', err))
@@ -229,11 +233,17 @@ function PaymentPageInner() {
             {/* Course or Session Info */}
             {requestId && oneOnOne ? (
               <div className="rounded-lg bg-blue-50 p-4">
-                <p className="text-sm font-medium text-blue-600">1-on-1 Session</p>
+                <p className="text-sm font-medium text-blue-600">
+                  {oneOnOne.sessionCount > 1
+                    ? `1-on-1 Series · ${oneOnOne.sessionCount} weekly sessions`
+                    : '1-on-1 Session'}
+                </p>
                 <p className="text-lg font-semibold text-blue-900">{oneOnOne.tutorName}</p>
                 <p className="text-sm text-blue-700">
+                  {oneOnOne.sessionCount > 1 ? 'Starts ' : ''}
                   {new Date(oneOnOne.date).toLocaleDateString()} · {oneOnOne.startTime} -{' '}
                   {oneOnOne.endTime} ({oneOnOne.timezone})
+                  {oneOnOne.sessionCount > 1 ? ', weekly' : ''}
                 </p>
                 {oneOnOne.tutorHandle && (
                   <p className="text-xs text-blue-700">@{oneOnOne.tutorHandle}</p>

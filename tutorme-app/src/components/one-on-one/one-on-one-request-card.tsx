@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Calendar, Clock, CreditCard, Timer } from 'lucide-react'
+import { Calendar, Clock, CreditCard, Repeat, Timer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface OneOnOneParty {
@@ -23,11 +23,22 @@ export interface OneOnOneRequestSummary {
   durationMinutes?: number | null
   currency?: string | null
   studentNotes?: string | null
+  seriesId?: string | null
+  seriesIndex?: number | null
   createdAt?: string | null
   paymentDueAt?: string | null
   paidAt?: string | null
   student?: OneOnOneParty | null
   tutor?: OneOnOneParty | null
+}
+
+/** Summary of a recurring series, when this card heads one (count > 1). */
+export interface OneOnOneSeriesSummary {
+  count: number
+  /** Combined cost across all sessions in the series. */
+  totalCost: number
+  /** ISO date of the last session, for the "Jul 14 – Aug 4" range. */
+  lastDate: string
 }
 
 interface Props {
@@ -38,6 +49,8 @@ interface Props {
   variant?: 'dark' | 'light'
   /** Role-specific buttons (Accept/Reject/Reschedule, or Pay/Cancel). */
   actions?: ReactNode
+  /** When set (count > 1), render this as one card for the whole weekly series. */
+  series?: OneOnOneSeriesSummary | null
 }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -99,7 +112,62 @@ function untilLabel(iso?: string | null): string {
   return `in ${Math.round(hr / 24)}d`
 }
 
-export function OneOnOneRequestCard({ request, perspective, variant = 'light', actions }: Props) {
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+/** One display row: a single request, or a recurring series collapsed to its head. */
+export interface OneOnOneSeriesGroup {
+  head: OneOnOneRequestSummary
+  members: OneOnOneRequestSummary[]
+  series: OneOnOneSeriesSummary | null
+}
+
+/**
+ * Collapse a flat request list into display rows: standalone requests pass
+ * through untouched, while requests sharing a `seriesId` fold into one row headed
+ * by the first week (seriesIndex 0), with a combined-cost/date-range summary.
+ * Original list order is preserved (a series appears where its first row did).
+ */
+export function groupIntoSeries(requests: OneOnOneRequestSummary[]): OneOnOneSeriesGroup[] {
+  const groups: OneOnOneSeriesGroup[] = []
+  const posBySeries = new Map<string, number>()
+  for (const r of requests) {
+    if (!r.seriesId) {
+      groups.push({ head: r, members: [r], series: null })
+      continue
+    }
+    const pos = posBySeries.get(r.seriesId)
+    if (pos === undefined) {
+      posBySeries.set(r.seriesId, groups.length)
+      groups.push({ head: r, members: [r], series: null })
+    } else {
+      groups[pos].members.push(r)
+    }
+  }
+  for (const g of groups) {
+    if (g.members.length <= 1) continue
+    g.members.sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0))
+    g.head = g.members[0]
+    g.series = {
+      count: g.members.length,
+      totalCost: g.members.reduce((sum, m) => sum + (m.costPerSession || 0), 0),
+      lastDate: g.members.reduce(
+        (max, m) => (m.requestedDate > max ? m.requestedDate : max),
+        g.members[0].requestedDate
+      ),
+    }
+  }
+  return groups
+}
+
+export function OneOnOneRequestCard({
+  request,
+  perspective,
+  variant = 'light',
+  actions,
+  series,
+}: Props) {
   const dark = variant === 'dark'
   const other = perspective === 'tutor' ? request.student : request.tutor
   const name = partyName(other)
@@ -109,12 +177,14 @@ export function OneOnOneRequestCard({ request, perspective, variant = 'light', a
     className: 'bg-slate-500/15 text-slate-500 ring-slate-500/30',
   }
   const dur = durationLabel(request)
+  const isSeries = !!series && series.count > 1
   const dateLabel = new Date(request.requestedDate).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   })
-  const cost = money(request.costPerSession, request.currency)
+  // A series shows its combined cost; a single session shows its own.
+  const cost = money(isSeries ? series!.totalCost : request.costPerSession, request.currency)
 
   const detail = dark ? 'text-white/60' : 'text-slate-500'
   const strong = dark ? 'text-white' : 'text-slate-900'
@@ -159,16 +229,32 @@ export function OneOnOneRequestCard({ request, perspective, variant = 'light', a
         </span>
       </div>
 
+      {/* recurring-series banner */}
+      {isSeries ? (
+        <div
+          className={cn(
+            'inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset',
+            dark
+              ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-400/30'
+              : 'bg-indigo-500/10 text-indigo-600 ring-indigo-500/20'
+          )}
+        >
+          <Repeat className="h-3 w-3" />
+          Weekly series · {series!.count} sessions
+        </div>
+      ) : null}
+
       {/* session details */}
       <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs', detail)}>
         <span className="inline-flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5" />
-          {dateLabel}
+          {isSeries ? `${dateLabel} – ${shortDate(series!.lastDate)}` : dateLabel}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5" />
           {request.startTime}–{request.endTime}
           {dur ? ` · ${dur}` : ''}
+          {isSeries ? ' · weekly' : ''}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <Timer className="h-3.5 w-3.5" />
@@ -177,6 +263,11 @@ export function OneOnOneRequestCard({ request, perspective, variant = 'light', a
         <span className={cn('inline-flex items-center gap-1.5 font-medium', strong)}>
           <CreditCard className="h-3.5 w-3.5" />
           {cost}
+          {isSeries ? (
+            <span className={cn('font-normal', detail)}>
+              ({series!.count} × {money(request.costPerSession, request.currency)})
+            </span>
+          ) : null}
         </span>
       </div>
 

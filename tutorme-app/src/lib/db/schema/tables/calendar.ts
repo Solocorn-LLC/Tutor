@@ -234,6 +234,10 @@ export const oneOnOneBookingRequest = pgTable(
     tutorNotes: text('tutorNotes'),
     // The student's note to the tutor when requesting ("why I want this session").
     studentNotes: text('studentNotes'),
+    // Recurring bookings: N weekly sessions requested together share one seriesId
+    // (null = a standalone single session). seriesIndex is the 0-based week offset.
+    seriesId: text('seriesId'),
+    seriesIndex: integer('seriesIndex'),
     paymentDueAt: timestamp('paymentDueAt', { withTimezone: true }),
     paidAt: timestamp('paidAt', { withTimezone: true }),
     calendarEventId: text('calendarEventId').references(() => calendarEvent.eventId, {
@@ -263,6 +267,9 @@ export const oneOnOneBookingRequest = pgTable(
     OneOnOneBookingRequest_tutorId_studentId_status_idx: index(
       'OneOnOneBookingRequest_tutorId_studentId_status_idx'
     ).on(table.tutorId, table.studentId, table.status),
+    OneOnOneBookingRequest_seriesId_idx: index('OneOnOneBookingRequest_seriesId_idx').on(
+      table.seriesId
+    ),
   })
 )
 

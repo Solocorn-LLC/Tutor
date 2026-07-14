@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, or, inArray } from 'drizzle-orm'
+import { eq, and, or, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, profile, user } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
@@ -116,54 +116,61 @@ export const POST = withCsrf(
       }
     }
 
-    // For the existing table, use the first proposed slot as the primary request
-    // Store remaining slots in tutorNotes as JSON
-    const [primarySlot, ...additionalSlots] = validated.proposedSlots
     const durationHours = validated.duration / 60
     const costPerSession = tutorProfile.oneOnOneFree
       ? 0
       : Math.round((tutorProfile.hourlyRate ?? 0) * durationHours * 100) / 100
 
-    // Store the calendar date as midnight-UTC so it round-trips regardless of
-    // the server's own timezone (wall-clock times live in `timezone` below).
-    const requestedDate = requestedDateFromString(primarySlot.date)
+    // One booking request per proposed weekly slot. When the student books more
+    // than one week, the rows form a recurring series sharing a `seriesId`, so
+    // accept / pay / cancel act on the whole set. `seriesIndex` keeps week order.
+    // Dates are stored midnight-UTC so they round-trip regardless of server tz.
+    const slots = validated.proposedSlots
+    const isSeries = slots.length > 1
+    const seriesId = isSeries ? nanoid() : null
+    const studentNotes = validated.studentNotes?.trim() || null
 
-    // Create the request
-    const newRequest = await drizzleDb
+    const rows = slots.map((slot, i) => ({
+      requestId: nanoid(),
+      tutorId: validated.tutorId,
+      studentId: session.user.id,
+      requestedDate: requestedDateFromString(slot.date),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      timezone: tutorProfile.timezone || 'UTC',
+      durationMinutes: validated.duration,
+      costPerSession,
+      status: 'PENDING' as const,
+      studentNotes,
+      seriesId,
+      seriesIndex: isSeries ? i : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }))
+
+    const inserted = await drizzleDb
       .insert(oneOnOneBookingRequest)
-      .values({
-        requestId: nanoid(),
-        tutorId: validated.tutorId,
-        studentId: session.user.id,
-        requestedDate,
-        startTime: primarySlot.startTime,
-        endTime: primarySlot.endTime,
-        timezone: tutorProfile.timezone || 'UTC',
-        durationMinutes: validated.duration,
-        costPerSession,
-        status: 'PENDING',
-        tutorNotes:
-          additionalSlots.length > 0
-            ? `Alternative slots: ${JSON.stringify(additionalSlots)}`
-            : null,
-        studentNotes: validated.studentNotes?.trim() || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
+      .values(rows)
       .returning(CORE_BOOKING_RETURNING)
+
+    // The first week (seriesIndex 0) is the "head" that represents the series in
+    // notifications and payment links. `.returning()` order isn't guaranteed.
+    const newRequest = [...inserted].sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0))
 
     // Open the student↔tutor direct-message thread on booking, so each appears
     // in the other's chat contact list right away (idempotent — re-accept/pay
     // just reuse this thread).
     getOrCreateConversation(session.user.id, validated.tutorId).catch(() => {})
 
-    // Send notification to tutor
+    // Send notification to tutor (one per series, not per session).
     notify({
       userId: validated.tutorId,
       type: 'class',
       title: 'New 1-on-1 Booking Request',
-      message: `A student has requested a 1-on-1 session. Please review and accept or reject.`,
-      data: { requestId: newRequest[0].requestId, type: 'one-on-one-request' },
+      message: isSeries
+        ? `A student has requested a ${slots.length}-session weekly series. Please review and accept or reject.`
+        : `A student has requested a 1-on-1 session. Please review and accept or reject.`,
+      data: { requestId: newRequest[0].requestId, seriesId, type: 'one-on-one-request' },
       actionUrl: '/tutor/dashboard',
     }).catch(() => {})
 
@@ -171,6 +178,8 @@ export const POST = withCsrf(
       {
         success: true,
         request: newRequest[0],
+        seriesId,
+        sessionCount: newRequest.length,
       },
       { status: 201 }
     )
@@ -221,9 +230,34 @@ export const GET = withAuth(async (request: NextRequest, session) => {
       .where(eq(user.userId, requestRow.tutorId))
       .limit(1)
 
+    // For a recurring series, the amount payable is the sum of every ACCEPTED,
+    // still-unpaid session (one payment covers the whole series). Mirrors the
+    // charge computed in /api/payments/create.
+    let seriesCount = 1
+    let seriesTotal = Number(requestRow.costPerSession || 0)
+    if (requestRow.seriesId) {
+      const seriesRows = await drizzleDb
+        .select({ costPerSession: oneOnOneBookingRequest.costPerSession })
+        .from(oneOnOneBookingRequest)
+        .where(
+          and(
+            eq(oneOnOneBookingRequest.seriesId, requestRow.seriesId),
+            eq(oneOnOneBookingRequest.status, 'ACCEPTED'),
+            isNull(oneOnOneBookingRequest.paidAt)
+          )
+        )
+      if (seriesRows.length > 0) {
+        seriesCount = seriesRows.length
+        seriesTotal =
+          Math.round(seriesRows.reduce((s, r) => s + Number(r.costPerSession || 0), 0) * 100) / 100
+      }
+    }
+
     return NextResponse.json({
       request: requestRow,
       tutor: tutorRow ?? null,
+      seriesCount,
+      seriesTotal,
     })
   }
 

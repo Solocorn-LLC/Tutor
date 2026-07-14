@@ -6,7 +6,10 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
-import { OneOnOneRequestCard } from '@/components/one-on-one/one-on-one-request-card'
+import {
+  OneOnOneRequestCard,
+  groupIntoSeries,
+} from '@/components/one-on-one/one-on-one-request-card'
 import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
@@ -189,6 +192,8 @@ type OneOnOneRequest = {
   status: string
   durationMinutes?: number | null
   currency?: string | null
+  seriesId?: string | null
+  seriesIndex?: number | null
   createdAt?: string | null
   paymentDueAt?: string | null
   paidAt?: string | null
@@ -1007,45 +1012,55 @@ function TutorDashboardContent() {
                       No pending 1 on 1 requests.
                     </div>
                   ) : (
-                    oneOnOneRequests.map(request => (
-                      <OneOnOneRequestCard
-                        key={request.requestId}
-                        request={request}
-                        perspective="tutor"
-                        variant="dark"
-                        actions={
-                          request.status === 'PENDING' ? (
-                            <>
+                    groupIntoSeries(oneOnOneRequests).map(group => {
+                      // Accept/reject/reschedule target the series head; the API
+                      // applies the action to the whole series.
+                      const request = group.head
+                      return (
+                        <OneOnOneRequestCard
+                          key={request.seriesId ?? request.requestId}
+                          request={request}
+                          perspective="tutor"
+                          variant="dark"
+                          series={group.series}
+                          actions={
+                            request.status === 'PENDING' ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={respondingRequestId === request.requestId}
+                                  onClick={() =>
+                                    handleOneOnOneResponse(request.requestId, 'accept')
+                                  }
+                                >
+                                  {group.series ? 'Accept all' : 'Accept'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  disabled={respondingRequestId === request.requestId}
+                                  onClick={() =>
+                                    handleOneOnOneResponse(request.requestId, 'reject')
+                                  }
+                                >
+                                  {group.series ? 'Reject all' : 'Reject'}
+                                </Button>
+                              </>
+                            ) : (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'accept')}
+                                onClick={() => setRescheduleRequestId(request.requestId)}
                               >
-                                Accept
+                                Reschedule
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:bg-destructive/10"
-                                disabled={respondingRequestId === request.requestId}
-                                onClick={() => handleOneOnOneResponse(request.requestId, 'reject')}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setRescheduleRequestId(request.requestId)}
-                            >
-                              Reschedule
-                            </Button>
-                          )
-                        }
-                      />
-                    ))
+                            )
+                          }
+                        />
+                      )
+                    })
                   )}
                 </div>
               </div>
