@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, or, inArray } from 'drizzle-orm'
+import { eq, and, or, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest, profile, user } from '@/lib/db/schema'
+import { oneOnOneBookingRequest, profile, user, course } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
@@ -39,6 +39,8 @@ const requestSchema = z.object({
     .max(20),
   duration: z.number().min(30).max(180), // minutes: 30-180
   studentNotes: z.string().max(1000).optional(),
+  // Optional: a published course of the tutor this session is about.
+  courseId: z.string().min(1).optional(),
 })
 
 export const POST = withCsrf(
@@ -164,6 +166,25 @@ export const POST = withCsrf(
     const seriesId = isSeries ? nanoid() : null
     const studentNotes = validated.studentNotes?.trim() || null
 
+    // Validate the optional course: it must be a published course of THIS tutor.
+    // A mismatch silently drops the linkage rather than failing the booking.
+    let courseId: string | null = null
+    if (validated.courseId) {
+      const [c] = await drizzleDb
+        .select({ courseId: course.courseId })
+        .from(course)
+        .where(
+          and(
+            eq(course.courseId, validated.courseId),
+            eq(course.creatorId, validated.tutorId),
+            eq(course.isPublished, true),
+            isNull(course.deletedAt)
+          )
+        )
+        .limit(1)
+      courseId = c?.courseId ?? null
+    }
+
     const rows = slots.map((slot, i) => ({
       requestId: nanoid(),
       tutorId: validated.tutorId,
@@ -176,6 +197,7 @@ export const POST = withCsrf(
       costPerSession,
       status: 'PENDING' as const,
       studentNotes,
+      courseId,
       seriesId,
       seriesIndex: isSeries ? i : null,
       createdAt: new Date(),

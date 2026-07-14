@@ -234,6 +234,9 @@ export const oneOnOneBookingRequest = pgTable(
     tutorNotes: text('tutorNotes'),
     // The student's note to the tutor when requesting ("why I want this session").
     studentNotes: text('studentNotes'),
+    // Optional course the student wants this session to be about (a published
+    // course of the tutor). Nullable; helps the tutor prepare + deploy material.
+    courseId: text('courseId').references(() => course.courseId, { onDelete: 'set null' }),
     // Recurring bookings: N weekly sessions requested together share one seriesId
     // (null = a standalone single session). seriesIndex is the 0-based week offset.
     seriesId: text('seriesId'),
