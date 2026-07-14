@@ -821,6 +821,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
   io.on('connection', socket => {
     console.log(`Authenticated client connected: ${socket.id}`)
     setUserSocket(socket.data.userId, socket.id)
+    // Join a per-user room so `emitToUser` can fan a message out to ALL of a
+    // user's open tabs (userSocketMap only tracks the latest socket).
+    if (socket.data.userId) socket.join(`user:${socket.data.userId}`)
 
     // Apply token-bucket limiting to every incoming event packet.
     socket.use((_packet, next) => rateLimitMiddleware(socket, next))
@@ -878,6 +881,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
       setUserSocket(userId, socket.id)
+      socket.join(`user:${userId}`)
 
       if (name !== undefined) socket.data.name = name
       socket.join(roomId)
@@ -1799,6 +1803,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // there's no answer key. This feeds the tutor's live Understanding.
             let autoScore: number | null = null
             let autoResults: ReturnType<typeof autoGradeDmi>['questionResults'] = null
+            let correctAnswers: Record<string, string> | null = null
             try {
               const [dmi] = await drizzleDb
                 .select({ items: builderTaskDmi.items })
@@ -1807,15 +1812,39 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .orderBy(desc(builderTaskDmi.updatedAt))
                 .limit(1)
               if (dmi?.items) {
-                const graded = autoGradeDmi(
-                  dmi.items as { id: string; answer?: string; marks?: number }[],
-                  (answers ?? {}) as Record<string, string>
-                )
+                const items = dmi.items as { id: string; answer?: string; marks?: number }[]
+                const graded = autoGradeDmi(items, (answers ?? {}) as Record<string, string>)
                 // score is the marks-weighted percentage (0–100); maxScore stays
                 // 100 to preserve the app-wide percentage contract. The raw marks
                 // total is surfaced in the tutor DMI view, not the submission row.
                 autoScore = graded.score
                 autoResults = graded.questionResults
+
+                // Answer reveal: once the student has submitted, expose the
+                // correct answers UNLESS the tutor set the policy to 'hidden'
+                // (unset defaults to reveal — matching the REST assignments
+                // contract's 'instant' default). These reach only the submitter +
+                // tutor via the private task:graded below, never peers.
+                const [bt] = await drizzleDb
+                  .select({ metadata: builderTask.metadata })
+                  .from(builderTask)
+                  .where(eq(builderTask.taskId, taskId))
+                  .limit(1)
+                const reveal = (bt?.metadata as { answerReveal?: string } | null)?.answerReveal
+                if (reveal !== 'hidden') {
+                  const key: Record<string, string> = {}
+                  for (const it of items) {
+                    if (
+                      it &&
+                      typeof it.id === 'string' &&
+                      typeof it.answer === 'string' &&
+                      it.answer.trim()
+                    ) {
+                      key[it.id] = it.answer
+                    }
+                  }
+                  if (Object.keys(key).length > 0) correctAnswers = key
+                }
               }
             } catch (gradeErr) {
               console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
@@ -1831,6 +1860,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
               studentId,
               score: autoScore,
               questionResults: autoResults,
+              // Correct answers per item when the reveal policy permits (null
+              // otherwise). Safe here: the tutor owns the key, and the student
+              // has already submitted. Never sent to peers (this event is private).
+              correctAnswers,
             }
             if (tutorId) emitToUser(tutorId, 'task:graded', gradedPayload)
             emitToUser(studentId, 'task:graded', gradedPayload)
@@ -2689,11 +2722,10 @@ export function getUserSocketId(userId: string): string | undefined {
 }
 
 export function emitToUser(userId: string, event: string, data: unknown) {
-  if (!ioRef) return
-  const socketId = userSocketMap.get(userId)
-  if (socketId) {
-    ioRef.to(socketId).emit(event, data)
-  }
+  if (!ioRef || !userId) return
+  // Emit to the user's room (every open tab), not just the latest socket, so a
+  // tutor with the classroom in one tab and Insights in another both update.
+  ioRef.to(`user:${userId}`).emit(event, data)
 }
 
 /**

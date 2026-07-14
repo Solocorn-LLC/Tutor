@@ -250,10 +250,35 @@ function DeployedQuestions({
 }
 
 /**
+ * Present a stored answer-key value readably. mcq keys are often a bare letter
+ * ("B") — expand to "B. <option>" using the item's options; multiple_response
+ * keys may be a JSON array — join them; everything else shows as-is.
+ */
+function formatCorrectAnswer(item: StudentDmiItem, raw: string | undefined): string | null {
+  if (raw == null || raw.trim().length === 0) return null
+  const type = normalizeDmiQuestionType(item.questionType)
+  if (type === 'mcq' && item.options && item.options.length > 0 && /^[A-Za-z]$/.test(raw.trim())) {
+    const idx = raw.trim().toUpperCase().charCodeAt(0) - 65
+    if (idx >= 0 && idx < item.options.length)
+      return `${raw.trim().toUpperCase()}. ${item.options[idx]}`
+  }
+  if (type === 'multiple_response') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter(v => typeof v === 'string').join(', ') || raw
+    } catch {
+      // fall through
+    }
+  }
+  return raw
+}
+
+/**
  * The student's post-submit view. Shows their auto-grade score and a per-question
  * outcome once the grade lands (via task:graded), degrading to a plain "submitted"
- * acknowledgement while it's pending or when the task can't be auto-scored. Never
- * shows the correct answer — only the student's own right/wrong/needs-review.
+ * acknowledgement while it's pending or when the task can't be auto-scored. When
+ * the tutor's answer-reveal policy permits it, `result.correctAnswers` is present
+ * and the correct answer is shown under each question.
  */
 function SubmittedResult({
   items,
@@ -270,6 +295,7 @@ function SubmittedResult({
     return map
   }, [result])
 
+  const correctAnswers = result?.correctAnswers ?? null
   const hasScore = result && typeof result.score === 'number'
   const graded = (result?.questionResults?.length ?? 0) > 0
 
@@ -291,6 +317,10 @@ function SubmittedResult({
         <ol className="space-y-1.5">
           {items.map((it, idx) => {
             const r = resultById.get(it.id)
+            // Only reveal the correct answer where it adds something — i.e. the
+            // student didn't already get it right.
+            const reveal =
+              correctAnswers && !r?.correct ? formatCorrectAnswer(it, correctAnswers[it.id]) : null
             return (
               <li
                 key={it.id}
@@ -312,6 +342,9 @@ function SubmittedResult({
                     : r?.correct
                       ? 'Correct'
                       : 'Incorrect'}
+                  {reveal ? (
+                    <span className="mt-0.5 block text-emerald-700">Answer: {reveal}</span>
+                  ) : null}
                 </span>
               </li>
             )

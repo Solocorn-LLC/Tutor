@@ -5,10 +5,13 @@ import type { Socket } from 'socket.io-client'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 import type { AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
 
-/** The student-safe auto-grade outcome for one submission (no answer key). */
+/** The auto-grade outcome for one submission. `correctAnswers` is present only
+ *  when the tutor's answer-reveal policy permits it and the student has
+ *  submitted; it reaches the submitter + tutor only, never peers. */
 export interface SessionGradeResult {
   score: number | null
   questionResults: AutoGradeQuestionResult[] | null
+  correctAnswers?: Record<string, string> | null
 }
 
 export interface SessionSourceDocument {
@@ -37,6 +40,7 @@ export interface SessionStudentResponse {
   /** The auto-grade outcome, once it lands (via task:graded). */
   score?: number | null
   questionResults?: AutoGradeQuestionResult[] | null
+  correctAnswers?: Record<string, string> | null
 }
 
 interface RoomStatePayload {
@@ -57,6 +61,7 @@ interface TaskGradedEvent {
   studentId: string
   score?: number | null
   questionResults?: AutoGradeQuestionResult[] | null
+  correctAnswers?: Record<string, string> | null
 }
 
 /**
@@ -170,6 +175,7 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
               answers: existing?.answers ?? {},
               score: evt.score ?? null,
               questionResults: evt.questionResults ?? null,
+              correctAnswers: evt.correctAnswers ?? null,
             },
           },
         }
@@ -205,7 +211,11 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     for (const [taskId, byStudent] of Object.entries(responsesByTask)) {
       const mine = byStudent[myUserId]
       if (mine && (mine.score != null || mine.questionResults != null)) {
-        out[taskId] = { score: mine.score ?? null, questionResults: mine.questionResults ?? null }
+        out[taskId] = {
+          score: mine.score ?? null,
+          questionResults: mine.questionResults ?? null,
+          correctAnswers: mine.correctAnswers ?? null,
+        }
       }
     }
     return out
