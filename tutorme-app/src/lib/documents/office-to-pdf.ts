@@ -26,6 +26,7 @@ export async function convertOfficeToPdf(input: Buffer, fileName: string): Promi
   const safeName = (path.basename(fileName) || 'document').replace(/[^a-zA-Z0-9._-]/g, '_')
   const workDir = await mkdtemp(path.join(os.tmpdir(), 'off2pdf-'))
   const inputPath = path.join(workDir, safeName)
+  const startedAt = Date.now()
 
   try {
     await writeFile(inputPath, input)
@@ -47,20 +48,49 @@ export async function convertOfficeToPdf(input: Buffer, fileName: string): Promi
     // `soffice` on Debian; fall back to the `libreoffice` alias. HOME is pointed
     // at the temp dir so LibreOffice writes its profile there, not into $HOME.
     const opts = { timeout: CONVERT_TIMEOUT_MS, env: { ...process.env, HOME: workDir } }
+    // Grab a short tail of the failure output — soffice reports unsupported
+    // formats / crashes there, which is otherwise invisible in production.
+    const detail = (e: unknown): string => {
+      const err = e as { message?: string; stderr?: string }
+      return (err?.stderr || err?.message || String(e)).slice(0, 300).replace(/\s+/g, ' ').trim()
+    }
+    let binary = 'soffice'
     try {
       await execAsync(cmd('soffice'), opts)
-    } catch {
-      await execAsync(cmd('libreoffice'), opts)
+    } catch (sofficeErr) {
+      console.warn(
+        `[office-to-pdf] soffice failed for ${safeName}, retrying via libreoffice: ${detail(sofficeErr)}`
+      )
+      binary = 'libreoffice'
+      try {
+        await execAsync(cmd('libreoffice'), opts)
+      } catch (libreErr) {
+        console.error(
+          `[office-to-pdf] LibreOffice conversion FAILED for ${safeName} (${input.length} bytes): ${detail(libreErr)}`
+        )
+        return null
+      }
     }
 
     const pdfPath = path.join(workDir, `${path.basename(inputPath, path.extname(inputPath))}.pdf`)
     try {
       await access(pdfPath)
     } catch {
+      console.error(
+        `[office-to-pdf] ${binary} ran but produced no PDF for ${safeName} (${input.length} bytes)`
+      )
       return null
     }
-    return await readFile(pdfPath)
-  } catch {
+    const pdf = await readFile(pdfPath)
+    console.info(
+      `[office-to-pdf] converted ${safeName} via ${binary}: ${input.length} → ${pdf.length} bytes in ${Date.now() - startedAt}ms`
+    )
+    return pdf
+  } catch (err) {
+    console.error(
+      `[office-to-pdf] unexpected error converting ${safeName}:`,
+      err instanceof Error ? err.message : err
+    )
     return null
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
