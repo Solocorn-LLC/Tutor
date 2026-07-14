@@ -17,6 +17,7 @@ import {
   Bell,
   ArrowLeft,
   CalendarDays,
+  Users,
   User,
   ChevronRight,
   ChevronLeft,
@@ -40,6 +41,12 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     iconColor: 'text-[#2563EB]',
+  },
+  {
+    href: '/student/group-sessions',
+    label: 'Group Sessions',
+    icon: Users,
+    iconColor: 'text-[#0891B2]',
   },
   {
     href: '/student/tutors',
