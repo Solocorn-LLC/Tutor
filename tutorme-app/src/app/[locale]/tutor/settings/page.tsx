@@ -98,6 +98,7 @@ function OneOnOneSettingsCard() {
   const [settings, setSettings] = useState({
     oneOnOneEnabled: true,
     oneOnOneFree: false,
+    oneOnOneRecurringEnabled: true,
     hourlyRate: 50,
     sessionDuration: 60,
     bufferMinutes: 0,
@@ -119,6 +120,7 @@ function OneOnOneSettingsCard() {
         setSettings({
           oneOnOneEnabled: data.oneOnOneEnabled ?? true,
           oneOnOneFree: data.oneOnOneFree ?? false,
+          oneOnOneRecurringEnabled: data.oneOnOneRecurringEnabled ?? true,
           hourlyRate: data.hourlyRate ?? 50,
           sessionDuration: data.sessionDuration ?? 60,
           bufferMinutes: data.bufferMinutes ?? 0,
@@ -141,6 +143,7 @@ function OneOnOneSettingsCard() {
         body: JSON.stringify({
           oneOnOneEnabled: settings.oneOnOneEnabled,
           oneOnOneFree: settings.oneOnOneFree,
+          oneOnOneRecurringEnabled: settings.oneOnOneRecurringEnabled,
           hourlyRate: settings.hourlyRate,
           bufferMinutes: settings.bufferMinutes,
         }),
@@ -213,6 +216,23 @@ function OneOnOneSettingsCard() {
                 checked={settings.oneOnOneFree}
                 onCheckedChange={checked =>
                   setSettings(prev => ({ ...prev, oneOnOneFree: checked }))
+                }
+              />
+            </div>
+
+            {/* Recurring bookings toggle */}
+            <div className="flex items-center justify-between rounded-[12px] border p-4 transition-all hover:bg-slate-50 hover:shadow-sm">
+              <div>
+                <p className="font-medium">Allow recurring bookings</p>
+                <p className="text-sm text-gray-500">
+                  Let students book a weekly series (several sessions at once) instead of a single
+                  session. When off, students can only book one session at a time.
+                </p>
+              </div>
+              <Switch
+                checked={settings.oneOnOneRecurringEnabled}
+                onCheckedChange={checked =>
+                  setSettings(prev => ({ ...prev, oneOnOneRecurringEnabled: checked }))
                 }
               />
             </div>

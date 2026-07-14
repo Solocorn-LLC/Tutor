@@ -216,6 +216,9 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'acti
 -- 0069: per-tutor buffer (minutes) enforced around 1-on-1 bookings.
 ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "bufferMinutes" integer;
 
+-- Per-tutor toggle: allow students to book a recurring weekly series (default on).
+ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "oneOnOneRecurringEnabled" boolean NOT NULL DEFAULT true;
+
 -- 0070: pending reschedule proposal fields (propose → accept/decline).
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedDate" timestamptz;
 ALTER TABLE "OneOnOneBookingRequest" ADD COLUMN IF NOT EXISTS "rescheduleProposedStart" text;

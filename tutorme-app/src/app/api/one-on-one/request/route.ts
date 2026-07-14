@@ -52,6 +52,7 @@ export const POST = withCsrf(
         hourlyRate: true,
         oneOnOneEnabled: true,
         oneOnOneFree: true,
+        oneOnOneRecurringEnabled: true,
         currency: true,
         timezone: true,
       },
@@ -61,6 +62,11 @@ export const POST = withCsrf(
 
     if (!tutorProfile.oneOnOneEnabled) {
       throw new ValidationError('Tutor does not offer one-on-one sessions')
+    }
+
+    // Recurring series are only allowed when the tutor opts in.
+    if (tutorProfile.oneOnOneRecurringEnabled === false && validated.proposedSlots.length > 1) {
+      throw new ValidationError('This tutor only accepts single-session bookings.')
     }
 
     // Free tutors need no rate; paid tutors must have one set.

@@ -93,6 +93,9 @@ export const profile = pgTable(
     // When true, 1-on-1 sessions are offered free: booking skips payment and a
     // tutor-accepted request is confirmed immediately (no gateway needed).
     oneOnOneFree: boolean('oneOnOneFree').notNull().default(false),
+    // When true, students may book a recurring weekly series (N sessions at once);
+    // when false, only single sessions are allowed.
+    oneOnOneRecurringEnabled: boolean('oneOnOneRecurringEnabled').notNull().default(true),
     // Minutes of gap the tutor wants around 1-on-1 bookings, enforced in
     // conflict detection so back-to-back sessions can't be double-booked.
     bufferMinutes: integer('bufferMinutes'),

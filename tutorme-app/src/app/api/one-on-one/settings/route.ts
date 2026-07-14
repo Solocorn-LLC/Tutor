@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
         hourlyRate: profile.hourlyRate,
         oneOnOneEnabled: profile.oneOnOneEnabled,
         oneOnOneFree: profile.oneOnOneFree,
+        oneOnOneRecurringEnabled: profile.oneOnOneRecurringEnabled,
         bufferMinutes: profile.bufferMinutes,
       })
       .from(profile)
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
       hourlyRate: tutorProfile[0].hourlyRate || 50, // Default $50/hour
       oneOnOneEnabled: tutorProfile[0].oneOnOneEnabled ?? true,
       oneOnOneFree: tutorProfile[0].oneOnOneFree ?? false,
+      oneOnOneRecurringEnabled: tutorProfile[0].oneOnOneRecurringEnabled ?? true,
       sessionDuration: 60, // Default 1 hour
       bufferMinutes: tutorProfile[0].bufferMinutes ?? 0, // gap around bookings
     })
@@ -64,7 +66,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { hourlyRate, oneOnOneEnabled, oneOnOneFree, bufferMinutes } = body
+    const { hourlyRate, oneOnOneEnabled, oneOnOneFree, oneOnOneRecurringEnabled, bufferMinutes } =
+      body
     const tutorId = session.user.id
 
     // Clamp the buffer to a sane 0–120 minute range when provided.
@@ -80,6 +83,8 @@ export async function PATCH(req: NextRequest) {
         hourlyRate: hourlyRate !== undefined ? hourlyRate : undefined,
         oneOnOneEnabled: oneOnOneEnabled !== undefined ? oneOnOneEnabled : undefined,
         oneOnOneFree: oneOnOneFree !== undefined ? !!oneOnOneFree : undefined,
+        oneOnOneRecurringEnabled:
+          oneOnOneRecurringEnabled !== undefined ? !!oneOnOneRecurringEnabled : undefined,
         bufferMinutes: buffer,
         updatedAt: new Date(),
       })
