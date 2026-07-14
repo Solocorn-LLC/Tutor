@@ -4743,6 +4743,39 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }
 
+    // Reset the task / assessment builder panels. Used when the open item — or a
+    // lesson/module that contains it — is deleted, so its content doesn't linger
+    // in the editor after removal.
+    const resetTaskBuilderState = useCallback(() => {
+      setLoadedTaskId(null)
+      setTaskBuilder({
+        title: '',
+        taskContent: '',
+        taskPci: '',
+        details: '',
+        extensions: [],
+        activeExtensionId: null,
+      })
+      setTaskDmiItems([])
+      setTaskDmiVersions([])
+      setTaskSourceDocument(undefined)
+    }, [])
+    const resetAssessmentBuilderState = useCallback(() => {
+      setLoadedAssessmentId(null)
+      setAssessmentBuilder({
+        title: '',
+        taskContent: '',
+        taskPci: '',
+        details: '',
+        extensions: [],
+        activeExtensionId: null,
+      })
+      setAssessmentDmiItems([])
+      setAssessmentDmiVersions([])
+      setAssessmentSourceDocument(undefined)
+      setAssessmentSourceReferenceOnly(false)
+    }, [])
+
     const deleteCourseBuilderNode = async (nodeId: string) => {
       const nodeToDelete = nodes.find(m => m.id === nodeId)
       const lessonIds = nodeToDelete?.lessons.map(l => l.id) ?? []
@@ -4754,6 +4787,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const nextNodes = nodes.filter(m => m.id !== nodeId)
       setCourseBuilderNodes(nextNodes)
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
+      // If the open task/assessment lived in this module, clear the editor too.
+      if (nodeToDelete?.lessons.some(l => l.tasks?.some(t => t.id === loadedTaskId))) {
+        resetTaskBuilderState()
+        setSelectedItem(null)
+      }
+      if (nodeToDelete?.lessons.some(l => l.homework?.some(h => h.id === loadedAssessmentId))) {
+        resetAssessmentBuilderState()
+        setSelectedItem(null)
+      }
       toast.success('Lesson deleted')
     }
 
@@ -4769,6 +4811,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       )
       setCourseBuilderNodes(nextNodes)
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
+      // If the open task/assessment lived in this lesson, clear the editor too.
+      if (lessonToDelete?.tasks?.some(t => t.id === loadedTaskId)) {
+        resetTaskBuilderState()
+        setSelectedItem(null)
+      }
+      if (lessonToDelete?.homework?.some(h => h.id === loadedAssessmentId)) {
+        resetAssessmentBuilderState()
+        setSelectedItem(null)
+      }
       toast.success('Lesson deleted')
     }
 
@@ -4797,20 +4848,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
       // If the deleted task is the one currently open in the builder, clear it so
       // its content doesn't stay displayed after removal.
-      if (taskId === loadedTaskId) {
-        setLoadedTaskId(null)
-        setTaskBuilder({
-          title: '',
-          taskContent: '',
-          taskPci: '',
-          details: '',
-          extensions: [],
-          activeExtensionId: null,
-        })
-        setTaskDmiItems([])
-        setTaskDmiVersions([])
-        setTaskSourceDocument(undefined)
-      }
+      if (taskId === loadedTaskId) resetTaskBuilderState()
       setSelectedItem(null)
       toast.success('Task removed')
     }
@@ -4840,21 +4878,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
       // If the deleted assessment is the one currently open in the builder, clear
       // it so its content doesn't stay displayed after removal.
-      if (hwId === loadedAssessmentId) {
-        setLoadedAssessmentId(null)
-        setAssessmentBuilder({
-          title: '',
-          taskContent: '',
-          taskPci: '',
-          details: '',
-          extensions: [],
-          activeExtensionId: null,
-        })
-        setAssessmentDmiItems([])
-        setAssessmentDmiVersions([])
-        setAssessmentSourceDocument(undefined)
-        setAssessmentSourceReferenceOnly(false)
-      }
+      if (hwId === loadedAssessmentId) resetAssessmentBuilderState()
       setSelectedItem(null)
       toast.success('Assessment removed')
     }
