@@ -4795,6 +4795,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       )
       setCourseBuilderNodes(nextNodes)
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
+      // If the deleted task is the one currently open in the builder, clear it so
+      // its content doesn't stay displayed after removal.
+      if (taskId === loadedTaskId) {
+        setLoadedTaskId(null)
+        setTaskBuilder({
+          title: '',
+          taskContent: '',
+          taskPci: '',
+          details: '',
+          extensions: [],
+          activeExtensionId: null,
+        })
+        setTaskDmiItems([])
+        setTaskDmiVersions([])
+        setTaskSourceDocument(undefined)
+      }
       setSelectedItem(null)
       toast.success('Task removed')
     }
@@ -4822,6 +4838,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       )
       setCourseBuilderNodes(nextNodes)
       if (mainTab !== 'live') await saveNodesIfPossible(nextNodes)
+      // If the deleted assessment is the one currently open in the builder, clear
+      // it so its content doesn't stay displayed after removal.
+      if (hwId === loadedAssessmentId) {
+        setLoadedAssessmentId(null)
+        setAssessmentBuilder({
+          title: '',
+          taskContent: '',
+          taskPci: '',
+          details: '',
+          extensions: [],
+          activeExtensionId: null,
+        })
+        setAssessmentDmiItems([])
+        setAssessmentDmiVersions([])
+        setAssessmentSourceDocument(undefined)
+        setAssessmentSourceReferenceOnly(false)
+      }
       setSelectedItem(null)
       toast.success('Assessment removed')
     }
@@ -5789,7 +5822,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       let lessonIndex = -1
       let existingAssess: Assessment | undefined
 
-      if (loadedAssessmentId) {
+      if (loadedAssessmentId && !assetLoadTarget) {
         for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
           for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
             const hw = nodes[nIdx].lessons[lIdx].homework.find(h => h.id === loadedAssessmentId)
@@ -5913,6 +5946,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
 
       setAssetToLoad(asset)
+      // Start every load flow with no explicit target. The kebab "Load" picker
+      // sets it later (to the chosen lesson); the task/assessment "+" flows leave
+      // it null so resolveAssetLoadTarget() falls back to the open item / Lesson 1.
+      setAssetLoadTarget(null)
 
       // If we came from an assessment/task "+" picker, the target context is known,
       // so skip the 'main' choice and go straight to options.
@@ -6199,7 +6236,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       let existingTaskIndex = -1
                       let existingTask: Task | null = null
 
-                      if (loadedTaskId) {
+                      if (loadedTaskId && !assetLoadTarget) {
                         for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
                           for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
                             const t = nodes[nIdx].lessons[lIdx].tasks.find(
@@ -6250,7 +6287,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         let pdfSplitSucceeded = false
                         let pdfSplitError: string | null = null
 
-                        if (isPdf && assetToLoad.url) {
+                        if (isPdf && (assetToLoad.url || assetToLoad.fileKey)) {
                           // Split + store every page in ONE server request (avoids the
                           // per-page upload burst that tripped the rate limiter).
                           try {
@@ -6307,7 +6344,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           }
                         }
 
-                        if (isPdf && assetToLoad.url && !pdfSplitSucceeded) {
+                        if (
+                          isPdf &&
+                          (assetToLoad.url || assetToLoad.fileKey) &&
+                          !pdfSplitSucceeded
+                        ) {
                           // Splitting the stored PDF into per-page files failed (e.g. the
                           // link is broken/expired or the object is unreadable). Don't
                           // abort — fall back to splitting the extracted text into
@@ -6447,7 +6488,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
                         let pdfSplitSucceeded = false
 
-                        if (isPdf && assetToLoad.url) {
+                        if (isPdf && (assetToLoad.url || assetToLoad.fileKey)) {
                           // Split + store every page in ONE server request (avoids the
                           // per-page upload burst that tripped the rate limiter).
                           try {
@@ -6496,7 +6537,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         let existingTaskIndex = -1
                         let existingTask: Task | null = null
 
-                        if (loadedTaskId) {
+                        if (loadedTaskId && !assetLoadTarget) {
                           for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
                             for (let lIdx = 0; lIdx < nodes[nIdx].lessons.length; lIdx++) {
                               const t = nodes[nIdx].lessons[lIdx].tasks.find(
