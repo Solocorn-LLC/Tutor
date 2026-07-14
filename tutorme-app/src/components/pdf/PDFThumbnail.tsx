@@ -5,6 +5,8 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
 
+import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
+
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 interface PDFThumbnailProps {
@@ -17,13 +19,9 @@ interface PDFThumbnailProps {
 }
 
 function getProxiedPdfUrl(fileUrl: string, fileKey?: string): string {
-  if (fileKey && /^(documents|assets|resources)\//.test(fileKey)) {
-    return `/api/proxy-file?key=${encodeURIComponent(fileKey)}`
-  }
-  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-    return `/api/proxy-file?url=${encodeURIComponent(fileUrl)}`
-  }
-  return fileUrl
+  // Durable same-origin URL (streams by key, recovers key from a stored GCS URL
+  // when no fileKey was persisted). See resolveDocDisplayUrl.
+  return resolveDocDisplayUrl({ fileUrl, fileKey })
 }
 
 export function PDFThumbnail({

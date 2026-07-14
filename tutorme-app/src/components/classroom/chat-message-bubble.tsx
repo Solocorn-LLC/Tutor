@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { resolvePublicUrl } from '@/lib/utils'
 import { FileText, ImageIcon } from 'lucide-react'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
+import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
 
 export type ChatMessageSender = 'tutor' | 'ai' | 'student'
@@ -54,11 +55,9 @@ export function ChatMessageBubble({
   const documentCard = (() => {
     if (!isDocument || !document) return null
     const rawUrl = document.fileUrl || ''
-    const docUrl = document.fileKey
-      ? `/api/proxy-file?key=${encodeURIComponent(document.fileKey)}`
-      : rawUrl
-    const loadable =
-      !!document.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:') && rawUrl.length > 0)
+    // Durable same-origin URL (streams by key, no expiry). See resolveDocDisplayUrl.
+    const docUrl = resolveDocDisplayUrl(document)
+    const loadable = isDocDisplayable(document)
     const docName = document.fileName || 'Task document'
     const isPdf =
       document.mimeType === 'application/pdf' ||

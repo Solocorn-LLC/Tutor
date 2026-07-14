@@ -114,7 +114,7 @@ export const GET = withAuth(async (req: NextRequest) => {
   if (objectKey) {
     // Restrict to known upload prefixes and block path traversal so this can't
     // be used to read arbitrary objects.
-    if (!/^(documents|assets|resources)\//.test(objectKey) || objectKey.includes('..')) {
+    if (!/^(documents|assets|resources|messages)\//.test(objectKey) || objectKey.includes('..')) {
       return NextResponse.json({ error: 'Invalid key' }, { status: 400 })
     }
     if (!isGcsConfigured()) {

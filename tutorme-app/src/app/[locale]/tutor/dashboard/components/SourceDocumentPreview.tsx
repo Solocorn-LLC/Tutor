@@ -1,19 +1,14 @@
 import { FileText } from 'lucide-react'
+import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
 
 export interface ImportedLearningResource {
   fileName: string
   mimeType: string
   fileUrl: string
+  /** Durable GCS object key; when absent the key is recovered from fileUrl. */
+  fileKey?: string
   extractedText?: string
   uploadedAt: string
-}
-
-function getProxiedFileUrl(fileUrl: string): string {
-  // Proxy external URLs so the server can refresh expired GCS signatures
-  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-    return `/api/proxy-file?url=${encodeURIComponent(fileUrl)}`
-  }
-  return fileUrl
 }
 
 export function SourceDocumentPreview({
@@ -23,7 +18,9 @@ export function SourceDocumentPreview({
 }) {
   if (!sourceDocument) return null
 
-  const proxiedUrl = getProxiedFileUrl(sourceDocument.fileUrl)
+  // Durable same-origin URL — streams by key (no signed URL, never expires),
+  // recovering the key from fileUrl when none was persisted. See resolveDocDisplayUrl.
+  const proxiedUrl = resolveDocDisplayUrl(sourceDocument)
 
   if (sourceDocument.mimeType === 'application/pdf') {
     return (
