@@ -1226,20 +1226,26 @@ export async function initEnhancedSocketServer(server: NetServer) {
           columns: { courseId: true, sessionId: true },
         })
 
-        if (sessionRec?.courseId) {
-          // Find the chronological order of THIS session relative to all sessions in the course
-          const courseSessions = await drizzleDb.query.liveSession.findMany({
-            where: eq(liveSession.courseId, sessionRec.courseId),
-            orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
-          })
-
-          // Determine if this is session 1, session 2, etc. based on when it was created
-          const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
-          const sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+        // Course-less sessions (1-on-1 / group) persist under a hidden ad-hoc
+        // anchor course — mirroring the task:complete handler — so their deploys
+        // are recorded and gradable instead of silently dropped.
+        const effectiveCourseId = sessionRec?.courseId || (await ensureAdhocAnchorCourseId())
+        if (effectiveCourseId) {
+          // Sequence orders a deploy within its course's sessions; an ad-hoc
+          // session has no course to order within, so it is always 1.
+          let sessionSequence = 1
+          if (sessionRec?.courseId) {
+            const courseSessions = await drizzleDb.query.liveSession.findMany({
+              where: eq(liveSession.courseId, sessionRec.courseId),
+              orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
+            })
+            const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
+            sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+          }
 
           await drizzleDb.insert(deployedMaterial).values({
             sessionId: roomId,
-            courseId: sessionRec.courseId,
+            courseId: effectiveCourseId,
             type: normalizedTask.source,
             itemId: normalizedTask.id,
             title: normalizedTask.title,
@@ -1279,7 +1285,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   .where(
                     and(
                       eq(courseLesson.lessonId, task.lessonId),
-                      eq(courseLesson.courseId, sessionRec.courseId)
+                      eq(courseLesson.courseId, effectiveCourseId)
                     )
                   )
                   .limit(1)
@@ -1289,7 +1295,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 const [first] = await drizzleDb
                   .select({ lessonId: courseLesson.lessonId })
                   .from(courseLesson)
-                  .where(eq(courseLesson.courseId, sessionRec.courseId))
+                  .where(eq(courseLesson.courseId, effectiveCourseId))
                   .orderBy(courseLesson.order)
                   .limit(1)
                 lesson = first
@@ -1305,7 +1311,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 const newLessonId = crypto.randomUUID()
                 await drizzleDb.insert(courseLesson).values({
                   lessonId: newLessonId,
-                  courseId: sessionRec.courseId,
+                  courseId: effectiveCourseId,
                   title: 'Live Session',
                   order: 0,
                   createdAt: now,
@@ -1323,7 +1329,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 .insert(builderTask)
                 .values({
                   taskId: normalizedTask.id,
-                  courseId: sessionRec.courseId,
+                  courseId: effectiveCourseId,
                   lessonId: lesson.lessonId,
                   tutorId,
                   title: normalizedTask.title || 'Untitled',
