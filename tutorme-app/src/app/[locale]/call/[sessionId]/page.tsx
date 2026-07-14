@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Loader2, ArrowLeft, Video, CalendarClock } from 'lucide-react'
-import { DailyVideoFrame } from '@/components/class/daily-video-frame'
+import { SessionClassroom } from '@/components/one-on-one/session-classroom'
 import { formatCountdown } from '@/lib/one-on-one/format'
 
 type Phase = 'checking' | 'lobby' | 'joining' | 'inRoom' | 'ended' | 'error'
@@ -36,7 +36,6 @@ interface VideoInfo {
   error?: string
 }
 
-const EARLY_ENTRY_MS = 20 * 60 * 1000
 const LOBBY_POLL_MS = 20_000
 
 export default function OneOnOneCallPage() {
@@ -261,14 +260,12 @@ export default function OneOnOneCallPage() {
   }
 
   return (
-    <div className="h-screen w-full bg-black">
-      <DailyVideoFrame
-        roomUrl={video.roomUrl}
-        token={video.token}
-        isTutor={video.isTutor}
-        twoWay={video.twoWay}
-        className="h-full w-full rounded-none border-0"
-      />
-    </div>
+    <SessionClassroom
+      sessionId={sessionId}
+      roomUrl={video.roomUrl}
+      token={video.token}
+      isTutor={video.isTutor}
+      twoWay={video.twoWay}
+    />
   )
 }
