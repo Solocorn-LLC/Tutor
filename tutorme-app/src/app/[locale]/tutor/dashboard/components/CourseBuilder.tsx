@@ -3283,6 +3283,81 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }
 
+    // Downscale an image (data / object URL) to a bounded JPEG data URL so a
+    // high-resolution scan or embedded figure stays well under the payload/token
+    // budget. Uses window.Image because the bare `Image` identifier is a type in
+    // this module.
+    const imageSrcToBoundedDataUrl = (src: string, maxDim = 2000): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const img = new window.Image()
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.round(img.width * scale))
+          canvas.height = Math.max(1, Math.round(img.height * scale))
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return reject(new Error('Canvas context not available'))
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/jpeg', 0.8))
+        }
+        img.onerror = () => reject(new Error('Image could not be loaded'))
+        img.src = src
+      })
+
+    // Figure images for a NON-PDF document, so the vision model can see diagrams
+    // that text/OCR extraction drops:
+    //   • image document → the image itself (one page), downscaled
+    //   • Word .docx     → the raster images embedded in it (word/media/*)
+    // Returns [] for anything we can't render, leaving generation on text alone.
+    const renderNonPdfFigures = async (doc: {
+      fileUrl?: string
+      fileKey?: string
+      mimeType?: string
+      fileName?: string
+    }): Promise<string[]> => {
+      const url = proxyFetchUrl(doc.fileUrl || '', doc.fileKey)
+      const isImage = !!doc.mimeType?.startsWith('image/')
+      const isDocx =
+        doc.mimeType ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        /\.docx$/i.test(doc.fileName || '')
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch document')
+      const blob = await response.blob()
+
+      if (isImage) {
+        const objectUrl = URL.createObjectURL(blob)
+        try {
+          return [await imageSrcToBoundedDataUrl(objectUrl)]
+        } finally {
+          URL.revokeObjectURL(objectUrl)
+        }
+      }
+
+      if (isDocx) {
+        const JSZip = (await import('jszip')).default
+        const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+        const mediaNames = Object.keys(zip.files)
+          .filter(n => /^word\/media\/.+\.(png|jpe?g|gif)$/i.test(n))
+          .sort()
+          .slice(0, 8)
+        const images: string[] = []
+        for (const name of mediaNames) {
+          try {
+            const base64 = await zip.files[name].async('base64')
+            const ext = name.split('.').pop()?.toLowerCase()
+            const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg'
+            images.push(await imageSrcToBoundedDataUrl(`data:${mime};base64,${base64}`))
+          } catch (imgErr) {
+            console.warn('Skipping an unreadable embedded image:', name, imgErr)
+          }
+        }
+        return images
+      }
+
+      return []
+    }
+
     // Extract the selectable text of EVERY page of a PDF. Used in preference to
     // page-images for digital papers so a long multi-page question paper is fully
     // captured (image analysis is capped at a few pages). Returns '' if the PDF
@@ -3548,6 +3623,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             } catch (figErr) {
               console.warn('Diagram rendering for DMI failed; using text only:', figErr)
             }
+          }
+        }
+
+        // Non-PDF documents (an image scan, a Word .docx) lose their figures to
+        // OCR/text extraction too. When opted in, attach the visual so the model
+        // can see them — the image itself, or a Word doc's embedded images —
+        // alongside the extracted text (still sent as the authoritative content).
+        // Non-fatal: on failure, generation proceeds on text alone.
+        if (
+          dmiAnalyzeFigures &&
+          !effectiveHasPdf &&
+          !pdfPages &&
+          sourceDoc &&
+          isImageOrDocxDoc(sourceDoc)
+        ) {
+          try {
+            toast.info('Rendering diagrams for analysis...')
+            const figures = await renderNonPdfFigures(sourceDoc)
+            if (figures.length > 0) pdfPages = figures
+          } catch (figErr) {
+            console.warn('Diagram rendering for DMI failed; using text only:', figErr)
           }
         }
 
@@ -7263,6 +7359,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const hasTaskDocument = !!currentTaskDocument
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
+
+    // An image scan or a Word .docx — documents whose figures text/OCR extraction
+    // drops, but that we can turn into images for the vision model.
+    const isImageOrDocxDoc = (doc?: { mimeType?: string; fileName?: string }): boolean =>
+      !!doc &&
+      (!!doc.mimeType?.startsWith('image/') ||
+        doc.mimeType ===
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        /\.docx$/i.test(doc.fileName || ''))
+    // Documents the "Analyze diagrams" toggle can send to the AI as images: PDFs
+    // (page-rendered) plus image scans and Word docs.
+    const docSupportsFigureAnalysis = (doc?: { mimeType?: string; fileName?: string }): boolean =>
+      !!doc && (doc.mimeType === 'application/pdf' || isImageOrDocxDoc(doc))
     const hasAssessmentDocument = !!currentAssessmentDocument
 
     // Auto-detect the exam Board from the ASSESSMENT itself — its file name,
@@ -11218,10 +11327,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               </button>
                                             ))}
                                           </div>
-                                          {currentTaskDocument?.mimeType === 'application/pdf' && (
+                                          {docSupportsFigureAnalysis(currentTaskDocument) && (
                                             <label
                                               className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-                                              title="Also send the page images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
+                                              title="Also send the document's images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
                                             >
                                               <input
                                                 type="checkbox"
@@ -11721,11 +11830,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               </button>
                                             ))}
                                           </div>
-                                          {currentAssessmentDocument?.mimeType ===
-                                            'application/pdf' && (
+                                          {docSupportsFigureAnalysis(currentAssessmentDocument) && (
                                             <label
                                               className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-                                              title="Also send the page images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
+                                              title="Also send the document's images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
                                             >
                                               <input
                                                 type="checkbox"
