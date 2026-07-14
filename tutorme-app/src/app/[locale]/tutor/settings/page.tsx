@@ -53,6 +53,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { CollapsibleCard } from '@/components/collapsible-card'
+import { TutorReviewsCard } from '@/components/one-on-one/tutor-reviews-card'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { CountryFlag } from '@/components/country-flag'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
@@ -1023,6 +1024,7 @@ export default function TutorSettings() {
             className="scrollbar-hide mt-0 flex h-full flex-col gap-4 overflow-y-auto px-6 pb-4"
           >
             <OneOnOneSettingsCard />
+            <TutorReviewsCard className={SECTION_CARD_CLASS} />
           </TabsContent>
 
           {/* Billing & Payment */}

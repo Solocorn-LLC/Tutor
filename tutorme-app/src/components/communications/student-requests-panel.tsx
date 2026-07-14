@@ -4,15 +4,25 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Loader2, CalendarClock, Video } from 'lucide-react'
+import { Loader2, CalendarClock, Video, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
+import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import {
   OneOnOneRequestCard,
   groupIntoSeries,
   type OneOnOneRequestSummary,
 } from '@/components/one-on-one/one-on-one-request-card'
+
+/** The most recent COMPLETED session in a group — the one a "Rate" click reviews. */
+function latestCompletedRequestId(members: OneOnOneRequestSummary[]): string | null {
+  const completed = members.filter(m => (m.status || '').toUpperCase() === 'COMPLETED')
+  if (completed.length === 0) return null
+  return completed.reduce((a, b) =>
+    new Date(a.requestedDate).getTime() >= new Date(b.requestedDate).getTime() ? a : b
+  ).requestId
+}
 
 /**
  * A student's own 1-on-1 booking requests (the `role=sent` view). Renders the
@@ -27,6 +37,7 @@ export default function StudentRequestsPanel() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [joiningId, setJoiningId] = useState<string | null>(null)
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
 
   const join = useCallback(
     async (requestId: string) => {
@@ -103,6 +114,8 @@ export default function StudentRequestsPanel() {
         const cancellable = status === 'PENDING' || status === 'ACCEPTED'
         // Confirmed (paid) bookings are joinable — open the next upcoming session.
         const joinId = status === 'PAID' ? joinableRequestId(group.members) : null
+        // Finished sessions are reviewable — rate the most recent completed one.
+        const reviewId = status === 'COMPLETED' ? latestCompletedRequestId(group.members) : null
         return (
           <OneOnOneRequestCard
             key={r.seriesId ?? r.requestId}
@@ -111,12 +124,22 @@ export default function StudentRequestsPanel() {
             variant="light"
             series={group.series}
             actions={
-              joinId || status === 'ACCEPTED' || cancellable ? (
+              joinId || reviewId || status === 'ACCEPTED' || cancellable ? (
                 <>
                   {joinId ? (
                     <Button size="sm" disabled={joiningId === joinId} onClick={() => join(joinId)}>
                       <Video className="mr-1.5 h-3.5 w-3.5" />
                       {joiningId === joinId ? 'Opening…' : 'Join session'}
+                    </Button>
+                  ) : null}
+                  {reviewId ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewRequestId(reviewId)}
+                    >
+                      <Star className="mr-1.5 h-3.5 w-3.5" />
+                      Rate
                     </Button>
                   ) : null}
                   {status === 'ACCEPTED' ? (
@@ -145,6 +168,17 @@ export default function StudentRequestsPanel() {
           />
         )
       })}
+
+      {reviewRequestId ? (
+        <OneOnOneReviewDialog
+          requestId={reviewRequestId}
+          open={!!reviewRequestId}
+          onOpenChange={open => {
+            if (!open) setReviewRequestId(null)
+          }}
+          onSubmitted={load}
+        />
+      ) : null}
     </div>
   )
 }
