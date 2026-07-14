@@ -296,7 +296,7 @@ export default function StudentAccount() {
   }
 
   const sectionCardClass =
-    'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-elevation-3'
+    'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
 
   if (loading) {
     return (
@@ -310,9 +310,9 @@ export default function StudentAccount() {
   }
 
   return (
-    <div className="flex h-full min-h-full flex-col bg-white px-6 pb-0 pt-2 lg:pt-0">
+    <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero */}
-      <section className="shadow-elevation-3 relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="text-center">
           <h1 className="text-xl font-bold text-white">Account Settings</h1>
           <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
@@ -320,7 +320,7 @@ export default function StudentAccount() {
       </section>
 
       {/* Content */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-0.5">
+      <div className="flex min-h-0 flex-1 flex-col pb-0.5">
         <SessionCalendarPanel
           variant="charcoal"
           value={activeTab}

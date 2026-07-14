@@ -295,302 +295,291 @@ export function CourseCategoryPicker({
   const tabs = CATEGORY_TAB_CONFIG.filter(config => config.value !== 'specialties')
 
   return (
-    <div
-      className={cn(
-        'relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] p-6 shadow-2xl backdrop-blur-xl',
-        className
-      )}
-    >
-      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
-      <div className="relative z-10 flex flex-col gap-6">
-        {/* Region + Country — only for the country-specific tabs (National +
+    <div className={cn('flex flex-col gap-6', className)}>
+      {/* Region + Country — only for the country-specific tabs (National +
             Universities); hidden on the global-board tabs where a country is
             meaningless and picking one caused the "choose country twice?"
             confusion. */}
-        {(categoryTab === 'national' || categoryTab === 'universities') && (
-          <div className="flex flex-wrap gap-3">
-            <Select
-              value={selectedRegion}
-              onValueChange={v => {
-                setSelectedRegion(v)
-                setSelectedCountryCode('')
-              }}
-            >
-              <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
-                <SelectValue placeholder="Region" />
-              </SelectTrigger>
-              <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
-                {REGIONS.filter(r => r.id !== 'global').map(region => (
-                  <SelectItem
-                    key={region.id}
-                    value={region.id}
-                    className="mx-1.5 rounded-md text-white hover:bg-white/20"
-                  >
-                    {region.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  disabled={!selectedRegion}
-                  className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
+      {(categoryTab === 'national' || categoryTab === 'universities') && (
+        <div className="flex flex-wrap gap-3">
+          <Select
+            value={selectedRegion}
+            onValueChange={v => {
+              setSelectedRegion(v)
+              setSelectedCountryCode('')
+            }}
+          >
+            <SelectTrigger className="h-[30px] w-[160px] rounded-sm border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+              <SelectValue placeholder="Region" />
+            </SelectTrigger>
+            <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 bg-none p-1.5 shadow-lg backdrop-blur-xl">
+              {REGIONS.filter(r => r.id !== 'global').map(region => (
+                <SelectItem
+                  key={region.id}
+                  value={region.id}
+                  className="mx-1.5 rounded-md text-white hover:bg-white/20"
                 >
-                  <span className="truncate">
-                    {selectedCountryCode
-                      ? availableCountries.find(c => c.code === selectedCountryCode)?.name ||
-                        'Country'
-                      : 'Country'}
-                  </span>
-                  <svg
-                    className="h-4 w-4 opacity-50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
-                align="start"
+                  {region.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={!selectedRegion}
+                className="inline-flex h-[30px] w-[160px] items-center justify-between rounded-sm border border-slate-700/25 bg-white/30 px-3 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:border-slate-400/20 disabled:bg-slate-100/20 disabled:text-slate-400 disabled:opacity-50 disabled:backdrop-blur-none disabled:hover:border-slate-400/20 disabled:hover:bg-slate-100/20 disabled:hover:shadow-none"
               >
-                <div className="flex flex-col gap-1">
-                  {availableCountries.map(country => (
-                    <button
-                      key={country.code}
-                      onClick={() => setSelectedCountryCode(country.code)}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
-                    >
-                      <div
-                        className={cn(
-                          'h-4 w-4 rounded-full border-2 transition-colors',
-                          selectedCountryCode === country.code
-                            ? 'border-white bg-white'
-                            : 'border-white/50 bg-transparent'
-                        )}
-                      />
-                      <span>{country.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-
-        {/* Search + selected badges */}
-        <div className="mb-1 flex items-start gap-3">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <div className="scrollbar-hide flex h-10 min-w-0 items-center overflow-x-auto rounded-md border border-slate-200 bg-white px-6 py-1">
-              <div className="flex min-w-0 flex-nowrap items-center gap-2">
-                {value.length === 0 && (
-                  <span className="select-none text-sm text-slate-400">
-                    Select a category below
-                  </span>
-                )}
-                {value.map(cat => {
-                  const tabKey = examToTabKey.get(cat) || 'diy'
-                  const colors = TAB_COLORS[tabKey] || {
-                    bg: 'bg-blue-50',
-                    text: 'text-[#0A84FF]',
-                    close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]',
-                  }
-                  return (
-                    <span
-                      key={cat}
-                      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
-                    >
-                      {cat} - {selectedCountryName || 'Global'}
-                      <button
-                        type="button"
-                        onClick={() => onChange([])}
-                        className={`ml-0.5 ${colors.close}`}
-                        aria-label={`Remove ${cat}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="relative z-10 max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Search categories..."
-              value={categorySearch}
-              onChange={e => setCategorySearch(e.target.value)}
-              className="h-[34px] border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={categoryTab} onValueChange={setCategoryTab} className="flex w-full flex-col">
-          <div>
-            <TabsList className="flex w-full flex-wrap justify-between bg-transparent p-0">
-              {tabs.map(config => {
-                const Icon = config.icon
-                const isActive = categoryTab === config.value
-                return (
-                  <TabsTrigger
-                    key={config.value}
-                    value={config.value}
-                    // National stays clickable even before a country is chosen —
-                    // its country selects only appear once the tab is active, so
-                    // gating the tab on nationalExams would deadlock it (can't
-                    // pick a country to unlock the tab you need to pick it in).
-                    // The tab's own empty state prompts for a region/country.
-                    className={cn(
-                      'rounded-none border-b-2 border-transparent px-3 py-3 text-[16px] font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
-                    )}
-                    style={{
-                      color: isActive ? config.color : config.color + '80',
-                      borderBottomColor: isActive ? config.color : 'transparent',
-                    }}
+                <span className="truncate">
+                  {selectedCountryCode
+                    ? availableCountries.find(c => c.code === selectedCountryCode)?.name ||
+                      'Country'
+                    : 'Country'}
+                </span>
+                <svg
+                  className="h-4 w-4 opacity-50"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[160px] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 text-white shadow-lg backdrop-blur-xl"
+              align="start"
+            >
+              <div className="flex flex-col gap-1">
+                {availableCountries.map(country => (
+                  <button
+                    key={country.code}
+                    onClick={() => setSelectedCountryCode(country.code)}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/20"
                   >
-                    <Icon className="mr-1.5 h-4 w-4" style={{ color: config.color }} />
-                    {config.label}
-                  </TabsTrigger>
+                    <div
+                      className={cn(
+                        'h-4 w-4 rounded-full border-2 transition-colors',
+                        selectedCountryCode === country.code
+                          ? 'border-white bg-white'
+                          : 'border-white/50 bg-transparent'
+                      )}
+                    />
+                    <span>{country.name}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Search + selected badges */}
+      <div className="mb-1 flex items-start gap-3">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="scrollbar-hide flex h-10 min-w-0 items-center overflow-x-auto rounded-md border border-slate-200 bg-white px-6 py-1">
+            <div className="flex min-w-0 flex-nowrap items-center gap-2">
+              {value.length === 0 && (
+                <span className="select-none text-sm text-slate-400">Select a category below</span>
+              )}
+              {value.map(cat => {
+                const tabKey = examToTabKey.get(cat) || 'diy'
+                const colors = TAB_COLORS[tabKey] || {
+                  bg: 'bg-blue-50',
+                  text: 'text-[#0A84FF]',
+                  close: 'text-[#0A84FF]/60 hover:text-[#0A84FF]',
+                }
+                return (
+                  <span
+                    key={cat}
+                    className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${colors.bg} px-3 py-1 text-xs font-medium ${colors.text}`}
+                  >
+                    {cat} - {selectedCountryName || 'Global'}
+                    <button
+                      type="button"
+                      onClick={() => onChange([])}
+                      className={`ml-0.5 ${colors.close}`}
+                      aria-label={`Remove ${cat}`}
+                    >
+                      ×
+                    </button>
+                  </span>
                 )
               })}
-            </TabsList>
+            </div>
           </div>
-
-          <div
-            className={cn(
-              'scrollbar-no-arrows overscroll-contain border-t border-white/10 pb-4 pt-2',
-              categoryTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
-            )}
-            style={{ height: globalContentHeight, maxHeight: globalContentHeight }}
-          >
-            {/* Fixed-dataset board tabs */}
-            {Object.keys(BOARD_DATASETS).map(tabValue => (
-              <TabsContent key={tabValue} value={tabValue} className="mt-0">
-                {renderCategoryList(BOARD_DATASETS[tabValue], tabValue, {
-                  contentRef: tabValue === 'global' ? globalContentRef : undefined,
-                })}
-              </TabsContent>
-            ))}
-
-            {/* National (checkbox; needs a country) */}
-            <TabsContent value="national" className="mt-0">
-              {nationalExams.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                  <p className="text-sm text-white/70">
-                    Select a region or country to see national exams.
-                  </p>
-                </div>
-              ) : (
-                renderCategoryList(nationalExams, 'national', { multi: true })
-              )}
-            </TabsContent>
-
-            {/* Universities (needs a region/country) */}
-            <TabsContent value="universities" className="mt-0">
-              {filteredUniversityCategories.length === 0 ? (
-                <div className="py-12 text-center">
-                  <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                  <p className="text-sm text-white/70">Select a country to see universities</p>
-                </div>
-              ) : (
-                renderCategoryList(filteredUniversityCategories, 'universities')
-              )}
-            </TabsContent>
-
-            {/* DIY / custom categories */}
-            <TabsContent value="diy" className="mt-0">
-              <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="relative max-w-md flex-1">
-                    <Input
-                      placeholder="Enter custom category name..."
-                      value={customCategoryInput}
-                      onChange={e => setCustomCategoryInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addCustomCategory()
-                        }
-                      }}
-                      className="h-10 border-slate-200 bg-white text-slate-900"
-                      maxLength={100}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addCustomCategory}
-                    disabled={!customCategoryInput.trim()}
-                    className="h-10 gap-1 rounded-md border border-white bg-blue-700 text-white hover:border-blue-700 hover:bg-blue-600"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Button>
-                </div>
-
-                {customCategories.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <Wrench className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                    <p className="text-white/70">No custom categories yet.</p>
-                    <p className="text-sm text-white/50">Create your own category above.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <CategoryHeading config={getTabConfig('diy')!} label="Your Custom Categories" />
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                      {customCategories.filter(matchesSearch).map(exam => (
-                        <label
-                          key={exam}
-                          className="group flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-white/90 transition-colors hover:bg-white/10"
-                        >
-                          <div className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                            <input
-                              type="radio"
-                              name="category"
-                              checked={value[0] === exam}
-                              onChange={() => selectCategory(exam)}
-                              className="h-3.5 w-3.5 appearance-none rounded-full border border-white/50 transition-colors"
-                              style={{
-                                borderColor:
-                                  value[0] === exam ? '#FF9500' : 'rgba(255,255,255,0.5)',
-                                backgroundColor: value[0] === exam ? '#FF9500' : 'transparent',
-                              }}
-                            />
-                          </div>
-                          <span className="line-clamp-2 flex-1">{exam}</span>
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.preventDefault()
-                              removeCustomCategory(exam)
-                            }}
-                            className="text-white/40 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
-                            aria-label={`Remove ${exam}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </div>
-        </Tabs>
+        </div>
+        <div className="relative z-10 max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search categories..."
+            value={categorySearch}
+            onChange={e => setCategorySearch(e.target.value)}
+            className="h-10 border-slate-200 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus-visible:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={categoryTab} onValueChange={setCategoryTab} className="flex w-full flex-col">
+        <div>
+          <TabsList className="scrollbar-hide flex w-full flex-nowrap justify-between overflow-x-auto bg-transparent p-0">
+            {tabs.map(config => {
+              const Icon = config.icon
+              const isActive = categoryTab === config.value
+              return (
+                <TabsTrigger
+                  key={config.value}
+                  value={config.value}
+                  // National stays clickable even before a country is chosen —
+                  // its country selects only appear once the tab is active, so
+                  // gating the tab on nationalExams would deadlock it (can't
+                  // pick a country to unlock the tab you need to pick it in).
+                  // The tab's own empty state prompts for a region/country.
+                  className={cn(
+                    'rounded-none border-b-2 border-transparent px-2 py-2 text-[14px] font-medium text-slate-500 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:shadow-none'
+                  )}
+                  style={{
+                    color: isActive ? config.color : config.color + '80',
+                    borderBottomColor: isActive ? config.color : 'transparent',
+                  }}
+                >
+                  <Icon className="mr-1.5 h-4 w-4" style={{ color: config.color }} />
+                  {config.label}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </div>
+
+        <div
+          className={cn(
+            'scrollbar-no-arrows flex flex-col overscroll-contain border-t border-white/10 pb-4 pt-2',
+            categoryTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
+          )}
+          style={{ height: globalContentHeight, maxHeight: globalContentHeight }}
+        >
+          {/* Fixed-dataset board tabs */}
+          {Object.keys(BOARD_DATASETS).map(tabValue => (
+            <TabsContent key={tabValue} value={tabValue} className="mt-0">
+              {renderCategoryList(BOARD_DATASETS[tabValue], tabValue, {
+                contentRef: tabValue === 'global' ? globalContentRef : undefined,
+              })}
+            </TabsContent>
+          ))}
+
+          {/* National (checkbox; needs a country) */}
+          <TabsContent value="national" className="mt-0 h-full">
+            {nationalExams.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                <p className="text-sm text-white/70">
+                  Select a region or country to see national exams.
+                </p>
+              </div>
+            ) : (
+              renderCategoryList(nationalExams, 'national', { multi: true })
+            )}
+          </TabsContent>
+
+          {/* Universities (needs a region/country) */}
+          <TabsContent value="universities" className="mt-0 h-full">
+            {filteredUniversityCategories.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                <p className="text-sm text-white/70">Select a country to see universities</p>
+              </div>
+            ) : (
+              renderCategoryList(filteredUniversityCategories, 'universities')
+            )}
+          </TabsContent>
+
+          {/* DIY / custom categories */}
+          <TabsContent value="diy" className="mt-0">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="relative max-w-md flex-1">
+                  <Input
+                    placeholder="Enter custom category name..."
+                    value={customCategoryInput}
+                    onChange={e => setCustomCategoryInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomCategory()
+                      }
+                    }}
+                    className="h-10 border-slate-200 bg-white text-slate-900"
+                    maxLength={100}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={addCustomCategory}
+                  disabled={!customCategoryInput.trim()}
+                  className="h-10 gap-1 rounded-md border border-white bg-blue-700 text-white hover:border-blue-700 hover:bg-blue-600"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+
+              {customCategories.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Wrench className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                  <p className="text-white/70">No custom categories yet.</p>
+                  <p className="text-sm text-white/50">Create your own category above.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <CategoryHeading config={getTabConfig('diy')!} label="Your Custom Categories" />
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                    {customCategories.filter(matchesSearch).map(exam => (
+                      <label
+                        key={exam}
+                        className="group flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-white/90 transition-colors hover:bg-white/10"
+                      >
+                        <div className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                          <input
+                            type="radio"
+                            name="category"
+                            checked={value[0] === exam}
+                            onChange={() => selectCategory(exam)}
+                            className="h-3.5 w-3.5 appearance-none rounded-full border border-white/50 transition-colors"
+                            style={{
+                              borderColor: value[0] === exam ? '#FF9500' : 'rgba(255,255,255,0.5)',
+                              backgroundColor: value[0] === exam ? '#FF9500' : 'transparent',
+                            }}
+                          />
+                        </div>
+                        <span className="line-clamp-2 flex-1">{exam}</span>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.preventDefault()
+                            removeCustomCategory(exam)
+                          }}
+                          className="text-white/40 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                          aria-label={`Remove ${exam}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   )
 }

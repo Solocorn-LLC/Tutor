@@ -1328,13 +1328,39 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Persists each Test-tab task-chat preview (keyed by task/extension + student
     // tab) across the remounts that happen when switching Test students, so the
     // conversation isn't lost. A ref: writing it must not trigger a re-render.
-    const testTaskChatStore = useRef<Record<string, TestTaskChatState>>({})
+    // Also backed by localStorage so test data survives mode switches (Test to Build).
+    const testTaskChatStore = useRef<Record<string, TestTaskChatState>>(
+      (() => {
+        try {
+          const saved = localStorage.getItem('tutor-test-chat-store-v1')
+          return saved ? JSON.parse(saved) : {}
+        } catch {
+          return {}
+        }
+      })()
+    )
     // Shared state for the Classroom tab — aggregates messages from all student tabs
     // plus tutor messages sent from the classroom view. Keyed by extension id.
     // Must be useState (not ref) so changes trigger re-renders of the Classroom tab.
+    // Also backed by localStorage for durability across mode switches.
     const [classroomMessages, setClassroomMessages] = useState<Record<string, TestTaskChatMsg[]>>(
-      {}
+      () => {
+        try {
+          const saved = localStorage.getItem('tutor-classroom-messages-v1')
+          return saved ? JSON.parse(saved) : {}
+        } catch {
+          return {}
+        }
+      }
     )
+    // Persist classroomMessages to localStorage whenever it changes
+    useEffect(() => {
+      try {
+        localStorage.setItem('tutor-classroom-messages-v1', JSON.stringify(classroomMessages))
+      } catch {
+        // ignore
+      }
+    }, [classroomMessages])
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -10161,7 +10187,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           const version = versionId
                                             ? versions.find(v => v.id === versionId)
                                             : versions[0]
-                                          const hasDoc = !!(doc?.fileUrl || doc?.extractedText)
+                                          const hasDoc = !!(
+                                            doc?.fileUrl ||
+                                            doc?.fileKey ||
+                                            doc?.extractedText
+                                          )
                                           const hasDmi = !!version
 
                                           if (!hasDoc && !hasDmi) {
@@ -10224,6 +10254,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   onPersist={s => {
                                                     if (!isClassroomTab) {
                                                       testTaskChatStore.current[previewKey] = s
+                                                      try {
+                                                        localStorage.setItem(
+                                                          'tutor-test-chat-store-v1',
+                                                          JSON.stringify(testTaskChatStore.current)
+                                                        )
+                                                      } catch {
+                                                        // ignore
+                                                      }
                                                     }
                                                   }}
                                                   onBroadcast={msg => {
@@ -10287,10 +10325,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           if (hasDoc && !hasDmi) {
                                             return (
                                               <div className="relative min-h-0 w-full flex-1">
-                                                {doc?.fileUrl ? (
+                                                {doc?.fileUrl || doc?.fileKey ? (
                                                   <PDFViewer
-                                                    key={doc.fileUrl}
-                                                    fileUrl={doc.fileUrl}
+                                                    key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                    fileUrl={doc.fileUrl || ''}
                                                     fileKey={doc.fileKey}
                                                     className="absolute inset-0 h-full w-full"
                                                     fitToWidth
@@ -10320,10 +10358,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 className="h-full"
                                               >
                                                 <div className="relative h-full w-full pr-1">
-                                                  {doc?.fileUrl ? (
+                                                  {doc?.fileUrl || doc?.fileKey ? (
                                                     <PDFViewer
-                                                      key={doc.fileUrl}
-                                                      fileUrl={doc.fileUrl}
+                                                      key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                      fileUrl={doc.fileUrl || ''}
                                                       fileKey={doc.fileKey}
                                                       className="absolute inset-0 h-full w-full"
                                                       fitToWidth
@@ -11179,10 +11217,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           >
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
                                               {currentTaskDocument?.mimeType ===
-                                              'application/pdf' ? (
+                                                'application/pdf' ||
+                                              (currentTaskDocument?.fileKey &&
+                                                (!currentTaskDocument?.mimeType ||
+                                                  currentTaskDocument?.mimeType ===
+                                                    'application/pdf')) ? (
                                                 <PDFViewer
-                                                  key={currentTaskDocument.fileUrl}
-                                                  fileUrl={currentTaskDocument.fileUrl}
+                                                  key={
+                                                    currentTaskDocument.fileUrl ||
+                                                    currentTaskDocument.fileKey ||
+                                                    'task-doc'
+                                                  }
+                                                  fileUrl={currentTaskDocument.fileUrl || ''}
                                                   fileKey={currentTaskDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   fitToScreen
@@ -11194,13 +11240,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ) : currentTaskDocument &&
                                                 currentTaskDocument.mimeType !==
                                                   'application/pdf' &&
-                                                currentTaskDocument.mimeType.startsWith(
+                                                currentTaskDocument.mimeType?.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
                                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                                   <img
-                                                    src={currentTaskDocument.fileUrl}
+                                                    src={
+                                                      currentTaskDocument.fileKey
+                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                        : currentTaskDocument.fileUrl
+                                                    }
                                                     alt={currentTaskDocument.fileName}
                                                     className="max-h-full max-w-full object-contain"
                                                   />
@@ -11208,13 +11258,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ) : currentTaskDocument &&
                                                 currentTaskDocument.mimeType !==
                                                   'application/pdf' &&
-                                                !currentTaskDocument.mimeType.startsWith(
+                                                !currentTaskDocument.mimeType?.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
                                                   <FileText className="mb-4 h-16 w-16 text-blue-500" />
                                                   <a
-                                                    href={currentTaskDocument.fileUrl}
+                                                    href={
+                                                      currentTaskDocument.fileKey
+                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                        : currentTaskDocument.fileUrl
+                                                    }
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="text-center text-sm font-medium text-blue-600 hover:underline"
@@ -11581,10 +11635,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           >
                                             <div className="relative min-h-0 flex-1 overflow-hidden">
                                               {currentAssessmentDocument?.mimeType ===
-                                              'application/pdf' ? (
+                                                'application/pdf' ||
+                                              (currentAssessmentDocument?.fileKey &&
+                                                (!currentAssessmentDocument?.mimeType ||
+                                                  currentAssessmentDocument?.mimeType ===
+                                                    'application/pdf')) ? (
                                                 <PDFViewer
-                                                  key={currentAssessmentDocument.fileUrl}
-                                                  fileUrl={currentAssessmentDocument.fileUrl}
+                                                  key={
+                                                    currentAssessmentDocument.fileUrl ||
+                                                    currentAssessmentDocument.fileKey ||
+                                                    'assessment-doc'
+                                                  }
+                                                  fileUrl={currentAssessmentDocument.fileUrl || ''}
                                                   fileKey={currentAssessmentDocument.fileKey}
                                                   className="absolute inset-0 h-full w-full"
                                                   defaultScale={0.75}
@@ -11597,13 +11659,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ) : currentAssessmentDocument &&
                                                 currentAssessmentDocument.mimeType !==
                                                   'application/pdf' &&
-                                                currentAssessmentDocument.mimeType.startsWith(
+                                                currentAssessmentDocument.mimeType?.startsWith(
                                                   'image/'
                                                 ) ? (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
                                                   <div className="relative h-full w-full">
                                                     <NextImage
-                                                      src={currentAssessmentDocument.fileUrl}
+                                                      src={
+                                                        currentAssessmentDocument.fileKey
+                                                          ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
+                                                          : currentAssessmentDocument.fileUrl
+                                                      }
                                                       alt={currentAssessmentDocument.fileName}
                                                       fill
                                                       className="object-contain"
@@ -11616,7 +11682,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
                                                   <FileText className="mb-4 h-16 w-16 text-blue-500" />
                                                   <a
-                                                    href={currentAssessmentDocument.fileUrl}
+                                                    href={
+                                                      currentAssessmentDocument.fileKey
+                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
+                                                        : currentAssessmentDocument.fileUrl
+                                                    }
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="text-center text-sm font-medium text-blue-600 hover:underline"
