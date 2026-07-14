@@ -1428,6 +1428,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [dmiSourceDialog, setDmiSourceDialog] = useState<{
       type: 'task' | 'assessment'
     } | null>(null)
+    // The tutor's content-source pick has to survive the whole DMI resolve chain
+    // (source → format → kind → spec), every stage of which re-invokes
+    // handleGenerateDMI. Threading it as a param alone fails: each downstream
+    // dialog handler drops the arg, which re-opens the source chooser in an
+    // endless loop. So we hold it in a ref and reset it only when a fresh,
+    // user-initiated generate begins.
+    const dmiContentSourceRef = useRef<'document' | 'text' | null>(null)
     const [mcqConfigDialog, setMcqConfigDialog] = useState<{
       type: 'task' | 'assessment'
     } | null>(null)
@@ -3445,12 +3452,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const docExtractedText = normalizeText(sourceDoc?.extractedText || '')
       const typedText = normalizeText(content)
       const sourcesDisagree = !!hasPdf && typedText.length > 0 && typedText !== docExtractedText
-      if (sourcesDisagree && !contentSourceOverride) {
+      // A fresh, user-initiated generate (no in-flight dialog choices) clears any
+      // remembered pick so a stale source can't leak into the new run. Every
+      // downstream re-invocation carries a spec/kind/skip/source arg, so it keeps
+      // the pick alive through the rest of the chain.
+      if (!questionSpec && !documentKindOverride && !skipFormatPrompt && !contentSourceOverride) {
+        dmiContentSourceRef.current = null
+      }
+      const contentSource = contentSourceOverride ?? dmiContentSourceRef.current ?? undefined
+      if (sourcesDisagree && !contentSource) {
         setDmiSourceDialog({ type })
         return
       }
       // 'text' → generate from the typed text and skip the PDF file entirely.
-      const effectiveHasPdf = hasPdf && contentSourceOverride !== 'text'
+      const effectiveHasPdf = hasPdf && contentSource !== 'text'
 
       // Assessment: choose the response format BEFORE spending any LLM tokens.
       // A multiple-choice paper doesn't need the AI to read it — the tutor
@@ -3736,11 +3751,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const handleChooseDmiDocument = () => {
       const type = dmiSourceDialog?.type
       setDmiSourceDialog(null)
+      dmiContentSourceRef.current = 'document'
       if (type) void handleGenerateDMI(type, undefined, undefined, false, 'document')
     }
     const handleChooseDmiTypedText = () => {
       const type = dmiSourceDialog?.type
       setDmiSourceDialog(null)
+      dmiContentSourceRef.current = 'text'
       if (type) void handleGenerateDMI(type, undefined, undefined, false, 'text')
     }
 
