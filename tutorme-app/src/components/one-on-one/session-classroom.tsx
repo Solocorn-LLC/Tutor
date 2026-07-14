@@ -12,7 +12,7 @@
  * task deployment) are intentionally absent — a course-less session has none.
  */
 
-import { useState, type ComponentProps } from 'react'
+import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Send, FolderOpen } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
@@ -20,8 +20,6 @@ import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
-
-type Pages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 
 interface SessionClassroomProps {
   sessionId: string
@@ -39,8 +37,6 @@ export function SessionClassroom({
   twoWay,
 }: SessionClassroomProps) {
   const { data: session } = useSession()
-  const [pages, setPages] = useState<Pages>([])
-  const [pageIndex, setPageIndex] = useState(0)
   const [showDeploy, setShowDeploy] = useState(false)
   const [showMaterials, setShowMaterials] = useState(false)
 
@@ -77,10 +73,6 @@ export function SessionClassroom({
         roomId={sessionId}
         userId={session?.user?.id}
         userName={session?.user?.name || undefined}
-        pages={pages}
-        currentPageIndex={pageIndex}
-        onPagesChange={setPages}
-        onPageIndexChange={setPageIndex}
         videoOverlay
         videoComponent={video}
       />
