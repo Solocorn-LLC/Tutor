@@ -475,7 +475,7 @@ export function CourseCategoryPicker({
           ))}
 
           {/* National (checkbox; needs a country) */}
-          <TabsContent value="national" className="mt-0 h-full">
+          <TabsContent value="national" className="mt-0 flex h-full flex-1 flex-col">
             {nationalExams.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <Flag className="mx-auto mb-3 h-12 w-12 text-slate-300" />
@@ -489,7 +489,7 @@ export function CourseCategoryPicker({
           </TabsContent>
 
           {/* Universities (needs a region/country) */}
-          <TabsContent value="universities" className="mt-0 h-full">
+          <TabsContent value="universities" className="mt-0 flex h-full flex-1 flex-col">
             {filteredUniversityCategories.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <GraduationCap className="mx-auto mb-3 h-12 w-12 text-slate-300" />
