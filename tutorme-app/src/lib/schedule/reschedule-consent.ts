@@ -27,6 +27,7 @@ import {
   sessionParticipant,
   groupSession,
   groupSessionParticipant,
+  oneOnOneBookingRequest,
   profile,
   type RescheduleVoteResponse,
 } from '@/lib/db/schema'
@@ -34,6 +35,35 @@ import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { notify } from '@/lib/notifications/notify'
 import { formatInZone } from '@/lib/notifications/reschedule'
 import { findConflicts } from '@/lib/schedule/conflicts'
+
+/**
+ * Decide how a reschedule of this session must be handled:
+ *  - 'one_on_one' — a confirmed 1-on-1 booking; it has its own propose/accept
+ *    flow, so a direct calendar move is refused and the tutor is routed there.
+ *  - 'consent'    — group/course session with a roster; a proposal is required.
+ *  - 'direct'     — no audience (personal/solo event); move immediately.
+ */
+export async function classifySessionForReschedule(opts: {
+  sessionId: string
+  courseId: string | null
+  calendarEventId?: string | null
+}): Promise<{ kind: 'one_on_one' } | { kind: 'consent'; roster: string[] } | { kind: 'direct' }> {
+  if (opts.calendarEventId) {
+    const [booking] = await drizzleDb
+      .select({ requestId: oneOnOneBookingRequest.requestId })
+      .from(oneOnOneBookingRequest)
+      .where(
+        and(
+          eq(oneOnOneBookingRequest.calendarEventId, opts.calendarEventId),
+          inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID'])
+        )
+      )
+      .limit(1)
+    if (booking) return { kind: 'one_on_one' }
+  }
+  const roster = await resolveVoterRoster(opts.sessionId, opts.courseId)
+  return roster.length > 0 ? { kind: 'consent', roster } : { kind: 'direct' }
+}
 
 /** Confirmed/paid students who must agree to move this session. */
 export async function resolveVoterRoster(
