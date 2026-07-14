@@ -60,6 +60,7 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: 'Completed', className: 'bg-slate-500/15 text-slate-500 ring-slate-500/30' },
   REJECTED: { label: 'Declined', className: 'bg-rose-500/15 text-rose-600 ring-rose-500/30' },
   CANCELLED: { label: 'Cancelled', className: 'bg-slate-500/15 text-slate-500 ring-slate-500/30' },
+  EXPIRED: { label: 'Expired', className: 'bg-slate-500/15 text-slate-500 ring-slate-500/30' },
 }
 
 function partyName(p?: OneOnOneParty | null): string {
