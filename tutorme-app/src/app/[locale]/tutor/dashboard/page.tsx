@@ -10,6 +10,7 @@ import {
   OneOnOneRequestCard,
   groupIntoSeries,
 } from '@/components/one-on-one/one-on-one-request-card'
+import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
 import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
@@ -252,6 +253,7 @@ function TutorDashboardContent() {
   const [oneOnOneRequests, setOneOnOneRequests] = useState<OneOnOneRequest[]>([])
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null)
+  const [joiningRequestId, setJoiningRequestId] = useState<string | null>(null)
 
   const [classroomDialogOpen, setClassroomDialogOpen] = useState(false)
   const [classroomCourse, setClassroomCourse] = useState<EnrolledCourse | null>(null)
@@ -485,7 +487,13 @@ function TutorDashboardContent() {
           body: JSON.stringify({ requestId, action }),
         })
         if (res.ok) {
-          setOneOnOneRequests(prev => prev.filter(r => r.requestId !== requestId))
+          // Accepting/rejecting a series resolves ALL its rows — drop every
+          // sibling that shares the seriesId, not just the head that was clicked.
+          setOneOnOneRequests(prev => {
+            const responded = prev.find(r => r.requestId === requestId)
+            const sid = responded?.seriesId
+            return prev.filter(r => (sid ? r.seriesId !== sid : r.requestId !== requestId))
+          })
           toast.success(`Request ${action === 'accept' ? 'accepted' : 'rejected'}`)
         } else {
           const data = await res.json().catch(() => ({}))
@@ -498,6 +506,16 @@ function TutorDashboardContent() {
       }
     },
     []
+  )
+
+  const handleJoinOneOnOne = useCallback(
+    async (requestId: string) => {
+      setJoiningRequestId(requestId)
+      const sessionId = await resolveOneOnOneSession(requestId)
+      if (sessionId) router.push(`/call/${sessionId}`)
+      setJoiningRequestId(null)
+    },
+    [router]
   )
 
   const handleOpenSessionsModal = useCallback(async (course: EnrolledCourse) => {
@@ -1021,7 +1039,7 @@ function TutorDashboardContent() {
                           key={request.seriesId ?? request.requestId}
                           request={request}
                           perspective="tutor"
-                          variant="dark"
+                          variant="light"
                           series={group.series}
                           actions={
                             request.status === 'PENDING' ? (
@@ -1049,13 +1067,31 @@ function TutorDashboardContent() {
                                 </Button>
                               </>
                             ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setRescheduleRequestId(request.requestId)}
-                              >
-                                Reschedule
-                              </Button>
+                              <>
+                                {(() => {
+                                  const joinId =
+                                    request.status === 'PAID'
+                                      ? joinableRequestId(group.members)
+                                      : null
+                                  return joinId ? (
+                                    <Button
+                                      size="sm"
+                                      disabled={joiningRequestId === joinId}
+                                      onClick={() => handleJoinOneOnOne(joinId)}
+                                    >
+                                      <Video className="mr-1.5 h-3.5 w-3.5" />
+                                      {joiningRequestId === joinId ? 'Opening…' : 'Join session'}
+                                    </Button>
+                                  ) : null
+                                })()}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setRescheduleRequestId(request.requestId)}
+                                >
+                                  Reschedule
+                                </Button>
+                              </>
                             )
                           }
                         />

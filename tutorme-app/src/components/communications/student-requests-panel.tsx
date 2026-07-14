@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Loader2, CalendarClock } from 'lucide-react'
+import { Loader2, CalendarClock, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
 import {
   OneOnOneRequestCard,
   groupIntoSeries,
@@ -20,10 +21,22 @@ import {
  */
 export default function StudentRequestsPanel() {
   const params = useParams()
+  const router = useRouter()
   const locale = (params?.locale as string) || 'en'
   const [requests, setRequests] = useState<OneOnOneRequestSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [joiningId, setJoiningId] = useState<string | null>(null)
+
+  const join = useCallback(
+    async (requestId: string) => {
+      setJoiningId(requestId)
+      const sessionId = await resolveOneOnOneSession(requestId)
+      if (sessionId) router.push(`/call/${sessionId}`)
+      setJoiningId(null)
+    },
+    [router]
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,6 +101,8 @@ export default function StudentRequestsPanel() {
         const r = group.head
         const status = (r.status || '').toUpperCase()
         const cancellable = status === 'PENDING' || status === 'ACCEPTED'
+        // Confirmed (paid) bookings are joinable — open the next upcoming session.
+        const joinId = status === 'PAID' ? joinableRequestId(group.members) : null
         return (
           <OneOnOneRequestCard
             key={r.seriesId ?? r.requestId}
@@ -96,8 +111,14 @@ export default function StudentRequestsPanel() {
             variant="light"
             series={group.series}
             actions={
-              status === 'ACCEPTED' || cancellable ? (
+              joinId || status === 'ACCEPTED' || cancellable ? (
                 <>
+                  {joinId ? (
+                    <Button size="sm" disabled={joiningId === joinId} onClick={() => join(joinId)}>
+                      <Video className="mr-1.5 h-3.5 w-3.5" />
+                      {joiningId === joinId ? 'Opening…' : 'Join session'}
+                    </Button>
+                  ) : null}
                   {status === 'ACCEPTED' ? (
                     <Button asChild size="sm">
                       <Link
