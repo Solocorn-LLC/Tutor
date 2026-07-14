@@ -2,12 +2,16 @@
 
 import { useMemo, useState } from 'react'
 import type { Socket } from 'socket.io-client'
-import { X, FileText, Loader2, CheckCircle2, ListChecks } from 'lucide-react'
+import { X, FileText, Loader2, CheckCircle2, XCircle, Clock, ListChecks } from 'lucide-react'
 import { toast } from 'sonner'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { normalizeDmiQuestionType } from '@/lib/assessment/question-types'
+import { resolvePublicUrl } from '@/lib/utils'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
-import type { SessionRoomTask } from '@/components/one-on-one/use-session-room-state'
+import type {
+  SessionRoomTask,
+  SessionGradeResult,
+} from '@/components/one-on-one/use-session-room-state'
 
 /**
  * Both-sides panel showing what the tutor has deployed into the session, live.
@@ -26,6 +30,7 @@ export function SessionDeployedPanel({
   isTutor,
   tasks,
   completedTaskIds,
+  resultByTask,
   onClose,
 }: {
   sessionId: string
@@ -33,6 +38,7 @@ export function SessionDeployedPanel({
   isTutor?: boolean
   tasks: SessionRoomTask[]
   completedTaskIds: Set<string>
+  resultByTask: Record<string, SessionGradeResult>
   onClose: () => void
 }) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -110,6 +116,7 @@ export function SessionDeployedPanel({
                     socket={socket}
                     isTutor={isTutor}
                     alreadySubmitted={completedTaskIds.has(active.id)}
+                    result={resultByTask[active.id]}
                   />
                 ) : !active.sourceDocument && !active.content ? (
                   <p className="text-xs text-slate-400">This item has no preview.</p>
@@ -136,6 +143,7 @@ function DeployedQuestions({
   socket,
   isTutor,
   alreadySubmitted,
+  result,
 }: {
   sessionId: string
   taskId: string
@@ -143,6 +151,7 @@ function DeployedQuestions({
   socket: Socket | null
   isTutor?: boolean
   alreadySubmitted?: boolean
+  result?: SessionGradeResult
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -202,15 +211,7 @@ function DeployedQuestions({
   }
 
   if (submitted) {
-    return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center">
-        <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-        <p className="text-sm font-semibold text-emerald-800">Submitted</p>
-        <p className="text-xs text-emerald-700">
-          Your tutor has your answers. They’ll appear in your feedback.
-        </p>
-      </div>
-    )
+    return <SubmittedResult items={items} result={result} />
   }
 
   return (
@@ -244,6 +245,79 @@ function DeployedQuestions({
           )}
         </button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The student's post-submit view. Shows their auto-grade score and a per-question
+ * outcome once the grade lands (via task:graded), degrading to a plain "submitted"
+ * acknowledgement while it's pending or when the task can't be auto-scored. Never
+ * shows the correct answer — only the student's own right/wrong/needs-review.
+ */
+function SubmittedResult({
+  items,
+  result,
+}: {
+  items: StudentDmiItem[]
+  result?: SessionGradeResult
+}) {
+  const resultById = useMemo(() => {
+    const map = new Map<string, { correct: boolean; needsReview?: boolean }>()
+    for (const r of result?.questionResults ?? []) {
+      map.set(r.questionId, { correct: r.correct, needsReview: r.needsReview })
+    }
+    return map
+  }, [result])
+
+  const hasScore = result && typeof result.score === 'number'
+  const graded = (result?.questionResults?.length ?? 0) > 0
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center">
+        <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+        <p className="text-sm font-semibold text-emerald-800">Submitted</p>
+        {hasScore ? (
+          <p className="text-2xl font-bold text-emerald-700">{Math.round(result!.score!)}%</p>
+        ) : (
+          <p className="text-xs text-emerald-700">
+            Your tutor has your answers. They’ll appear in your feedback.
+          </p>
+        )}
+      </div>
+
+      {graded ? (
+        <ol className="space-y-1.5">
+          {items.map((it, idx) => {
+            const r = resultById.get(it.id)
+            return (
+              <li
+                key={it.id}
+                className="flex items-start gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
+              >
+                {r?.needsReview ? (
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                ) : r?.correct ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                )}
+                <span className="min-w-0 text-slate-700">
+                  <span className="font-medium text-slate-500">
+                    {it.questionLabel || it.questionNumber || idx + 1}.
+                  </span>{' '}
+                  {r?.needsReview
+                    ? 'Sent to your tutor to review'
+                    : r?.correct
+                      ? 'Correct'
+                      : 'Incorrect'}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
     </div>
   )
 }
@@ -402,9 +476,92 @@ function SessionDmiAnswerField({
     )
   }
 
-  // Long / matching / drag_drop / hotspot / anything else — free-text fallback so
-  // the student is never stuck. (Matching/hotspot degrade to describing the
-  // answer; those go to the tutor for review rather than auto-marking.)
+  // Matching & drag-and-drop — assign each prompt to a bank option via a
+  // dropdown. Both store the same JSON map { prompt: choice } the course
+  // classroom uses, so the tutor's review renders them identically.
+  if (
+    (type === 'matching' || type === 'drag_drop') &&
+    item.matchPrompts &&
+    item.matchPrompts.length > 0
+  ) {
+    const bank = (item.matchBank ?? []).slice().sort((a, b) => a.localeCompare(b))
+    let map: Record<string, string> = {}
+    try {
+      const parsed = value ? JSON.parse(value) : {}
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) map = parsed
+    } catch {
+      map = {}
+    }
+    const setMatch = (prompt: string, choice: string) =>
+      onValueChange(JSON.stringify({ ...map, [prompt]: choice }))
+    return (
+      <div className="space-y-2">
+        {item.matchPrompts.map(prompt => (
+          <div key={prompt} className="flex items-center gap-2 text-sm">
+            <span className="min-w-0 flex-1 text-slate-800">{prompt}</span>
+            <span className="shrink-0 text-slate-300">→</span>
+            <select
+              value={map[prompt] ?? ''}
+              onChange={e => setMatch(prompt, e.target.value)}
+              className={'w-40 shrink-0 ' + baseField}
+            >
+              <option value="">Choose…</option>
+              {bank.map(b => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Hotspot — click the point on the image; stored as a { x, y } fraction (0–1),
+  // matching the course classroom. The correct region stays tutor-side.
+  if (type === 'hotspot') {
+    const imageUrl = resolvePublicUrl(item.hotspotImageUrl)
+    if (imageUrl) {
+      let point: { x: number; y: number } | null = null
+      try {
+        const parsed = value ? JSON.parse(value) : null
+        if (parsed && typeof parsed.x === 'number' && typeof parsed.y === 'number') point = parsed
+      } catch {
+        point = null
+      }
+      const onPick = (e: React.MouseEvent<HTMLImageElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect()
+        if (!rect.width || !rect.height) return
+        const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+        const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height))
+        onValueChange(JSON.stringify({ x, y }))
+      }
+      return (
+        <div className="space-y-1">
+          <p className="text-xs text-slate-500">Click the correct spot on the image.</p>
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt="Hotspot"
+              onClick={onPick}
+              className="max-h-[280px] max-w-full cursor-crosshair rounded-md border border-slate-200"
+            />
+            {point ? (
+              <span
+                className="pointer-events-none absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-blue-600 shadow"
+                style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+              />
+            ) : null}
+          </div>
+        </div>
+      )
+    }
+  }
+
+  // Long / ordering / anything else — free-text fallback so the student is never
+  // stuck. (Open-ended answers go to the tutor for review rather than auto-marking.)
   return (
     <textarea
       value={value}

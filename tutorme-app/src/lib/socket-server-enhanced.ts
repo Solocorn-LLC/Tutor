@@ -1795,6 +1795,19 @@ export async function initEnhancedSocketServer(server: NetServer) {
               console.warn('[task:complete] auto-grade failed (non-critical):', gradeErr)
             }
 
+            // Push the auto-grade outcome to the room: the student sees their own
+            // score + per-question result, and the tutor's live view updates.
+            // This is deliberately student-safe — `questionResults` carries
+            // correct/needs-review flags but never the answer key (see
+            // AutoGradeQuestionResult), the same projection the REST quiz results
+            // use — so broadcasting it leaks nothing the student shouldn't see.
+            io.to(roomId).emit('task:graded', {
+              taskId,
+              studentId,
+              score: autoScore,
+              questionResults: autoResults,
+            })
+
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(task,student) rule and never overwrites a graded row.
             //    Status stays 'submitted' so the tutor can still review/override.

@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
+import type { AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
+
+/** The student-safe auto-grade outcome for one submission (no answer key). */
+export interface SessionGradeResult {
+  score: number | null
+  questionResults: AutoGradeQuestionResult[] | null
+}
 
 export interface SessionSourceDocument {
   fileName: string
@@ -27,6 +34,9 @@ export interface SessionStudentResponse {
   studentName: string
   completedAt: number
   answers: Record<string, string>
+  /** The auto-grade outcome, once it lands (via task:graded). */
+  score?: number | null
+  questionResults?: AutoGradeQuestionResult[] | null
 }
 
 interface RoomStatePayload {
@@ -40,6 +50,13 @@ interface TaskCompletedEvent {
   studentName?: string
   completedAt?: number
   answers?: Record<string, string>
+}
+
+interface TaskGradedEvent {
+  taskId: string
+  studentId: string
+  score?: number | null
+  questionResults?: AutoGradeQuestionResult[] | null
 }
 
 /**
@@ -135,15 +152,41 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       )
     }
 
+    // The (student-safe) auto-grade result — merged onto the matching response,
+    // creating a bare entry if the grade somehow beats the completion event.
+    const onGraded = (evt: TaskGradedEvent) => {
+      if (!evt?.taskId || !evt?.studentId) return
+      setResponsesByTask(prev => {
+        const perTask = prev[evt.taskId] ?? {}
+        const existing = perTask[evt.studentId]
+        return {
+          ...prev,
+          [evt.taskId]: {
+            ...perTask,
+            [evt.studentId]: {
+              studentId: evt.studentId,
+              studentName: existing?.studentName || 'Student',
+              completedAt: existing?.completedAt ?? 0,
+              answers: existing?.answers ?? {},
+              score: evt.score ?? null,
+              questionResults: evt.questionResults ?? null,
+            },
+          },
+        }
+      })
+    }
+
     socket.on('room_state', onRoomState)
     socket.on('task:deployed', onDeployed)
     socket.on('task:updated', onUpdated)
     socket.on('task:completed', onCompleted)
+    socket.on('task:graded', onGraded)
     return () => {
       socket.off('room_state', onRoomState)
       socket.off('task:deployed', onDeployed)
       socket.off('task:updated', onUpdated)
       socket.off('task:completed', onCompleted)
+      socket.off('task:graded', onGraded)
     }
   }, [socket])
 
@@ -155,5 +198,18 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     [tasks, myUserId]
   )
 
-  return { tasks, responsesByTask, myCompletedTaskIds }
+  // The current user's own grade per task (for the student's post-submit view).
+  const myResultByTask = useMemo(() => {
+    const out: Record<string, SessionGradeResult> = {}
+    if (!myUserId) return out
+    for (const [taskId, byStudent] of Object.entries(responsesByTask)) {
+      const mine = byStudent[myUserId]
+      if (mine && (mine.score != null || mine.questionResults != null)) {
+        out[taskId] = { score: mine.score ?? null, questionResults: mine.questionResults ?? null }
+      }
+    }
+    return out
+  }, [responsesByTask, myUserId])
+
+  return { tasks, responsesByTask, myCompletedTaskIds, myResultByTask }
 }

@@ -64,7 +64,7 @@ export function SessionClassroom({
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
   // room_state replay instead of missing everything that happened before.
-  const { tasks, responsesByTask, myCompletedTaskIds } = useSessionRoomState(
+  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask } = useSessionRoomState(
     socket,
     session?.user?.id
   )
@@ -155,6 +155,7 @@ export function SessionClassroom({
                 isTutor={isTutor}
                 tasks={tasks}
                 completedTaskIds={myCompletedTaskIds}
+                resultByTask={myResultByTask}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}

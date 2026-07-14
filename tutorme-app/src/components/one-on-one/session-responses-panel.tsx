@@ -106,6 +106,21 @@ export function SessionResponsesPanel({
                         <span className="text-sm font-semibold text-slate-900">
                           {r.studentName}
                         </span>
+                        {typeof r.score === 'number' ? (
+                          <span
+                            className={
+                              'ml-auto rounded-full px-2 py-0.5 text-xs font-bold ' +
+                              (r.score >= 70
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : r.score >= 40
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-rose-100 text-rose-700')
+                            }
+                            title="Auto-graded score (tutor can override in grading)"
+                          >
+                            {Math.round(r.score)}%
+                          </span>
+                        ) : null}
                       </div>
                       <ResponseAnswers item={active} answers={r.answers} />
                     </li>
