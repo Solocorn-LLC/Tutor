@@ -49,3 +49,15 @@ export function joinableRequestId(
   const upcoming = byDate.find(m => new Date(m.requestedDate).getTime() + GRACE_MS >= now)
   return (upcoming ?? byDate[byDate.length - 1]).requestId
 }
+
+/**
+ * The most recent COMPLETED session in a group — the one a "Rate" click reviews.
+ * Returns null when none are completed.
+ */
+export function latestCompletedRequestId(members: OneOnOneRequestSummary[]): string | null {
+  const completed = members.filter(m => (m.status || '').toUpperCase() === 'COMPLETED')
+  if (completed.length === 0) return null
+  return completed.reduce((a, b) =>
+    new Date(a.requestedDate).getTime() >= new Date(b.requestedDate).getTime() ? a : b
+  ).requestId
+}

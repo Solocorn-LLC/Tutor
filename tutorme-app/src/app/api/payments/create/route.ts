@@ -26,7 +26,8 @@ import {
   groupSessionParticipant,
 } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from '@/lib/payments'
-import { eq, and, sql, isNull } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
+import { unpaidSeriesTotal } from '@/lib/one-on-one/series-total'
 import { z } from 'zod'
 import { createHash } from 'crypto'
 
@@ -253,22 +254,8 @@ export const POST = withCsrf(
       const seriesId = requestRow.request.seriesId
       let amount = Number(requestRow.request.costPerSession || 0)
       if (seriesId) {
-        const seriesRows = await drizzleDb
-          .select({ costPerSession: oneOnOneBookingRequest.costPerSession })
-          .from(oneOnOneBookingRequest)
-          .where(
-            and(
-              eq(oneOnOneBookingRequest.seriesId, seriesId),
-              eq(oneOnOneBookingRequest.status, 'ACCEPTED'),
-              isNull(oneOnOneBookingRequest.paidAt)
-            )
-          )
-        if (seriesRows.length > 0) {
-          amount =
-            Math.round(
-              seriesRows.reduce((sum, r) => sum + Number(r.costPerSession || 0), 0) * 100
-            ) / 100
-        }
+        const series = await unpaidSeriesTotal(seriesId)
+        if (series.count > 0) amount = series.total
       }
       if (amount <= 0) {
         throw new ValidationError('Invalid payment amount')
