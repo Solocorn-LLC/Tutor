@@ -6,6 +6,15 @@ import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { notifyStudentsOfReschedule } from '@/lib/notifications/reschedule'
+import { classifySessionForReschedule, proposeReschedule } from '@/lib/schedule/reschedule-consent'
+
+/** 409 response steering the tutor to the 1-on-1 propose/accept flow. */
+const ONE_ON_ONE_GATE = {
+  requiresConsent: true,
+  kind: 'one-on-one',
+  error:
+    'This 1-on-1 can’t be moved directly — use “Reschedule” to propose a new time. The student must agree before it changes.',
+}
 export const GET = withAuth(async () => {
   return NextResponse.json(
     {
@@ -96,6 +105,40 @@ export const PATCH = withCsrf(
           )
         }
 
+        // Consent gate: a session with rostered students can't be moved
+        // directly — propose the change and hold the old time until everyone
+        // agrees. Only audience-free sessions move immediately.
+        const gate = await classifySessionForReschedule({
+          sessionId: eventId,
+          courseId: sess.courseId,
+          calendarEventId: null,
+        })
+        if (gate.kind === 'one_on_one') {
+          return NextResponse.json(ONE_ON_ONE_GATE, { status: 409 })
+        }
+        if (gate.kind === 'consent') {
+          const currentEnd = sess.scheduledAt
+            ? new Date(sess.scheduledAt.getTime() + (sess.durationMinutes ?? sessDuration) * 60000)
+            : null
+          const result = await proposeReschedule({
+            session: {
+              sessionId: eventId,
+              courseId: sess.courseId,
+              tutorId,
+              title: sess.title,
+            },
+            currentStart: sess.scheduledAt ?? null,
+            currentEnd,
+            proposedStart: newStart,
+            proposedEnd: sessEnd,
+          })
+          return NextResponse.json({
+            pendingConsent: result.kind === 'proposed',
+            proposalId: result.kind === 'proposed' ? result.proposalId : undefined,
+            voterCount: result.kind === 'proposed' ? result.voterCount : 0,
+          })
+        }
+
         await drizzleDb
           .update(liveSession)
           .set({ scheduledAt: newStart, durationMinutes: sessDuration })
@@ -161,6 +204,39 @@ export const PATCH = withCsrf(
           },
           { status: 409 }
         )
+      }
+
+      // Consent gate (session-backed events only). A personal calendar event
+      // with no externalId has no roster — it moves directly, as before.
+      if (calEvent.externalId) {
+        const gate = await classifySessionForReschedule({
+          sessionId: calEvent.externalId,
+          courseId: calEvent.courseId,
+          calendarEventId: eventId,
+        })
+        if (gate.kind === 'one_on_one') {
+          return NextResponse.json(ONE_ON_ONE_GATE, { status: 409 })
+        }
+        if (gate.kind === 'consent') {
+          const result = await proposeReschedule({
+            session: {
+              sessionId: calEvent.externalId,
+              courseId: calEvent.courseId,
+              tutorId,
+              title: calEvent.title,
+            },
+            currentStart: calEvent.startTime ?? null,
+            currentEnd: calEvent.endTime ?? null,
+            proposedStart: newStart,
+            proposedEnd: newEnd,
+            timezone: calEvent.timezone,
+          })
+          return NextResponse.json({
+            pendingConsent: result.kind === 'proposed',
+            proposalId: result.kind === 'proposed' ? result.proposalId : undefined,
+            voterCount: result.kind === 'proposed' ? result.voterCount : 0,
+          })
+        }
       }
 
       await drizzleDb
