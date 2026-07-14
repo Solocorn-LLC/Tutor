@@ -16,7 +16,9 @@ import { convertOfficeToPdf } from '@/lib/documents/office-to-pdf'
 export const runtime = 'nodejs'
 
 export const POST = withCsrf(
-  withAuth(async (request: NextRequest, _session: Session) => {
+  withAuth(async (request: NextRequest, session: Session) => {
+    const startedAt = Date.now()
+    const userId = session?.user?.id ?? 'unknown'
     try {
       const body = await request.json().catch(() => null)
       const fileKey = typeof body?.fileKey === 'string' ? body.fileKey : ''
@@ -25,19 +27,32 @@ export const POST = withCsrf(
       // Only accept keys from our own storage namespaces — never a raw path — so
       // this can't be used to read arbitrary files.
       if (!fileKey || !/^(documents|assets|resources)\//.test(fileKey) || fileKey.includes('..')) {
+        console.warn(
+          `[office-to-pdf] 400 invalid fileKey (user ${userId}): ${fileKey || '(empty)'}`
+        )
         return NextResponse.json({ error: 'A valid document fileKey is required' }, { status: 400 })
       }
 
       const input = await readFileBuffer(fileKey)
       if (!input) {
+        console.warn(`[office-to-pdf] 404 not found (user ${userId}): ${fileKey}`)
         return NextResponse.json({ error: 'Document not found' }, { status: 404 })
       }
 
+      console.info(
+        `[office-to-pdf] request: key=${fileKey} name="${fileName}" ${input.length} bytes (user ${userId})`
+      )
       const pdf = await convertOfficeToPdf(input, fileName)
       if (!pdf) {
+        console.error(
+          `[office-to-pdf] 422 conversion failed: key=${fileKey} after ${Date.now() - startedAt}ms (user ${userId})`
+        )
         return NextResponse.json({ error: 'Could not convert the document' }, { status: 422 })
       }
 
+      console.info(
+        `[office-to-pdf] 200 ok: key=${fileKey} → ${pdf.length} bytes in ${Date.now() - startedAt}ms (user ${userId})`
+      )
       return new NextResponse(new Uint8Array(pdf), {
         status: 200,
         headers: {
@@ -47,6 +62,10 @@ export const POST = withCsrf(
         },
       })
     } catch (err) {
+      console.error(
+        `[office-to-pdf] 500 error after ${Date.now() - startedAt}ms (user ${userId}):`,
+        err instanceof Error ? err.message : err
+      )
       return handleApiError(err, 'Failed to convert document', 'api/ai/office-to-pdf/route.ts')
     }
   })
