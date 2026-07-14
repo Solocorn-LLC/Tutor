@@ -460,7 +460,7 @@ export function CourseCategoryPicker({
 
         <div
           className={cn(
-            'scrollbar-no-arrows overscroll-contain border-t border-white/10 pb-4 pt-2',
+            'scrollbar-no-arrows flex flex-col overscroll-contain border-t border-white/10 pb-4 pt-2',
             categoryTab === 'global' ? 'overflow-hidden' : 'overflow-y-auto'
           )}
           style={{ height: globalContentHeight, maxHeight: globalContentHeight }}
