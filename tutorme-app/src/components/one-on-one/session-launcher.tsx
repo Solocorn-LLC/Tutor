@@ -21,9 +21,9 @@ import { formatCountdown } from '@/lib/one-on-one/format'
 
 interface LiveSession {
   sessionId: string
-  requestId: string
   scheduledAt: string
-  withName: string
+  /** Display label, e.g. "1-on-1 with Alice" or a group session's title. */
+  title: string
   viewerIsTutor: boolean
   joinable: boolean
   live: boolean
@@ -94,9 +94,7 @@ export function SessionLauncher() {
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">
-            1-on-1 with <span className="capitalize">{live.withName}</span>
-          </p>
+          <p className="truncate text-sm font-semibold">{live.title}</p>
           <p className="truncate text-xs text-white/60">
             {isLive ? (
               <span className="font-medium text-emerald-400">● Live now</span>

@@ -13,8 +13,12 @@ import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { groupSession, profile, user } from '@/lib/db/schema'
 import { countActiveSeats } from '@/lib/group-session/seats'
+import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
 
 export const GET = withAuth(async (_req: NextRequest) => {
+  // Release abandoned reservations first so seat counts are accurate.
+  await expireStaleGroupSeats().catch(() => {})
+
   const now = new Date()
   const startOfTodayUtc = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())

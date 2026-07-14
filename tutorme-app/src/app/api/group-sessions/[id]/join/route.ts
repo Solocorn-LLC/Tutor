@@ -21,6 +21,7 @@ import { countActiveSeats, admitPaidSeat } from '@/lib/group-session/seats'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { notifyWaitlistOfOpening } from '@/lib/one-on-one/waitlist'
 import { bookingInstants } from '@/lib/one-on-one/time'
+import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
 
 async function load(id: string) {
   const [gs] = await drizzleDb
@@ -49,6 +50,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (start.getTime() <= Date.now()) {
       return NextResponse.json({ error: 'This session has already started' }, { status: 400 })
     }
+
+    // Release any abandoned reservations first so the capacity check below sees
+    // seats freed by students who never completed checkout.
+    await expireStaleGroupSeats({ groupSessionId: id }).catch(() => {})
 
     // Re-use an existing seat if the student already holds one.
     const [existing] = await drizzleDb

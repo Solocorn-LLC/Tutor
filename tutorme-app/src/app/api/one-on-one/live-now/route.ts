@@ -1,40 +1,55 @@
 /**
  * GET /api/one-on-one/live-now
  *
- * The current user's most imminent confirmed 1-on-1 session — live now or
- * starting soon — for the global Session Launcher. Works for either participant.
- * Returns null when nothing is near, so the launcher stays hidden.
+ * The current user's most imminent confirmed session — 1-on-1 OR group session,
+ * live now or starting soon — for the global Session Launcher. Works for either
+ * participant. Returns null when nothing is near, so the launcher stays hidden.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, or, gte, lte } from 'drizzle-orm'
+import { and, eq, or, gte, lte, inArray } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { oneOnOneBookingRequest, calendarEvent, liveSession, profile } from '@/lib/db/schema'
+import {
+  oneOnOneBookingRequest,
+  calendarEvent,
+  liveSession,
+  groupSession,
+  groupSessionParticipant,
+  profile,
+} from '@/lib/db/schema'
 
-// How early the launcher appears, and how late it lingers after the end.
 const LOOKAHEAD_MS = 30 * 60 * 1000 // 30 min before start
 const LINGER_AFTER_END_MS = 15 * 60 * 1000 // 15 min after end
-// Must match the join endpoint's early-entry window so "Join" only enables when
-// the room will actually accept the student.
+// Must match the join endpoint's early-entry window.
 const EARLY_ENTRY_MS = 20 * 60 * 1000
+
+interface Candidate {
+  sessionId: string
+  scheduledAt: Date | null
+  durationMinutes: number | null
+  status: string | null
+  isGroup: boolean
+  tutorId: string
+  /** 1-on-1: the other party (for the "1-on-1 with X" label). */
+  studentId: string | null
+  /** Group: the session title. */
+  title: string | null
+}
 
 export const GET = withAuth(async (_req: NextRequest, session) => {
   const userId = session.user.id
   const now = Date.now()
-
-  // Candidate window: sessions scheduled from a few hours ago (so a long/late
-  // session still counts) up to the lookahead. End is checked precisely below.
   const from = new Date(now - 4 * 60 * 60 * 1000)
   const until = new Date(now + LOOKAHEAD_MS)
 
-  const rows = await drizzleDb
+  // 1-on-1 sessions the user is in (either side).
+  const oneOnOnes = await drizzleDb
     .select({
       sessionId: liveSession.sessionId,
       scheduledAt: liveSession.scheduledAt,
       durationMinutes: liveSession.durationMinutes,
       status: liveSession.status,
-      requestId: oneOnOneBookingRequest.requestId,
       tutorId: oneOnOneBookingRequest.tutorId,
       studentId: oneOnOneBookingRequest.studentId,
     })
@@ -53,37 +68,96 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
         lte(liveSession.scheduledAt, until)
       )
     )
-    .orderBy(liveSession.scheduledAt)
 
-  // Pick the soonest session that is still within its live window.
-  const pick = rows.find(r => {
-    if (!r.scheduledAt) return false
-    const start = new Date(r.scheduledAt).getTime()
-    const end = start + (r.durationMinutes ?? 60) * 60 * 1000
+  // Group sessions the user holds a paid seat in.
+  const groupAsStudent = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
+      status: liveSession.status,
+      tutorId: groupSession.tutorId,
+      title: groupSession.title,
+    })
+    .from(groupSessionParticipant)
+    .innerJoin(
+      groupSession,
+      eq(groupSession.groupSessionId, groupSessionParticipant.groupSessionId)
+    )
+    .innerJoin(liveSession, eq(liveSession.sessionId, groupSession.liveSessionId))
+    .where(
+      and(
+        eq(groupSessionParticipant.studentId, userId),
+        eq(groupSessionParticipant.status, 'PAID'),
+        inArray(groupSession.status, ['OPEN', 'FULL', 'COMPLETED']),
+        gte(liveSession.scheduledAt, from),
+        lte(liveSession.scheduledAt, until)
+      )
+    )
+
+  // Group sessions the user hosts.
+  const groupAsTutor = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
+      status: liveSession.status,
+      tutorId: groupSession.tutorId,
+      title: groupSession.title,
+    })
+    .from(groupSession)
+    .innerJoin(liveSession, eq(liveSession.sessionId, groupSession.liveSessionId))
+    .where(
+      and(
+        eq(groupSession.tutorId, userId),
+        inArray(groupSession.status, ['OPEN', 'FULL']),
+        gte(liveSession.scheduledAt, from),
+        lte(liveSession.scheduledAt, until)
+      )
+    )
+
+  const candidates: Candidate[] = [
+    ...oneOnOnes.map(r => ({ ...r, isGroup: false, title: null as string | null })),
+    ...groupAsStudent.map(r => ({ ...r, isGroup: true, studentId: null as string | null })),
+    ...groupAsTutor.map(r => ({ ...r, isGroup: true, studentId: null as string | null })),
+  ]
+    .filter(c => c.scheduledAt)
+    .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
+
+  // Soonest one still within its live window.
+  const pick = candidates.find(c => {
+    const start = new Date(c.scheduledAt!).getTime()
+    const end = start + (c.durationMinutes ?? 60) * 60 * 1000
     return now <= end + LINGER_AFTER_END_MS
   })
-
   if (!pick || !pick.scheduledAt) {
     return NextResponse.json({ session: null })
   }
 
   const start = new Date(pick.scheduledAt).getTime()
-  const isTutor = pick.tutorId === userId
-  const otherPartyId = isTutor ? pick.studentId : pick.tutorId
-  const [other] = await drizzleDb
-    .select({ name: profile.name })
-    .from(profile)
-    .where(eq(profile.userId, otherPartyId))
-    .limit(1)
+  const viewerIsTutor = pick.tutorId === userId
+
+  let title: string
+  if (pick.isGroup) {
+    title = pick.title || 'Group session'
+  } else {
+    const otherId = viewerIsTutor ? pick.studentId : pick.tutorId
+    const [other] = otherId
+      ? await drizzleDb
+          .select({ name: profile.name })
+          .from(profile)
+          .where(eq(profile.userId, otherId))
+          .limit(1)
+      : [null]
+    title = `1-on-1 with ${other?.name || (viewerIsTutor ? 'your student' : 'your tutor')}`
+  }
 
   return NextResponse.json({
     session: {
       sessionId: pick.sessionId,
-      requestId: pick.requestId,
       scheduledAt: new Date(pick.scheduledAt).toISOString(),
-      withName: other?.name || (isTutor ? 'your student' : 'your tutor'),
-      viewerIsTutor: isTutor,
-      // Live if the session is active, or if we're inside the 20-min entry window.
+      title,
+      viewerIsTutor,
       joinable: pick.status === 'active' || now >= start - EARLY_ENTRY_MS,
       live: pick.status === 'active',
     },

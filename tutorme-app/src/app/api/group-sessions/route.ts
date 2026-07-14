@@ -21,6 +21,8 @@ import { dailyProvider } from '@/lib/video/daily-provider'
 import { findConflicts } from '@/lib/schedule/conflicts'
 import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
 import { countActiveSeats } from '@/lib/group-session/seats'
+import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
+import { completeFinishedGroupSessions } from '@/lib/group-session/complete'
 
 const createSchema = z.object({
   title: z.string().min(1).max(120),
@@ -144,6 +146,12 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions, req)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Keep statuses/seat counts current before listing (best-effort).
+  await Promise.all([
+    expireStaleGroupSeats().catch(() => {}),
+    completeFinishedGroupSessions().catch(() => {}),
+  ])
 
   const tutorId = new URL(req.url).searchParams.get('tutorId')
 
