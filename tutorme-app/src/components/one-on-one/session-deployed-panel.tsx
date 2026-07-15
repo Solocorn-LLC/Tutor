@@ -2,7 +2,17 @@
 
 import { useMemo, useState } from 'react'
 import type { Socket } from 'socket.io-client'
-import { X, FileText, Loader2, CheckCircle2, XCircle, Clock, ListChecks } from 'lucide-react'
+import {
+  X,
+  FileText,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ListChecks,
+  Pencil,
+  Check,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { normalizeDmiQuestionType } from '@/lib/assessment/question-types'
@@ -94,18 +104,22 @@ export function SessionDeployedPanel({
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {active ? (
               <>
-                <p className="mb-3 text-sm font-semibold text-slate-900">{active.title}</p>
                 {active.sourceDocument ? (
-                  <div className="h-[60vh] w-full">
-                    <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
-                  </div>
-                ) : active.content ? (
-                  <div
-                    className="prose prose-sm mb-4 max-w-none text-slate-700"
-                    // Tutor-authored task content, shown to their own session.
-                    dangerouslySetInnerHTML={{ __html: active.content }}
+                  <>
+                    <p className="mb-3 text-sm font-semibold text-slate-900">{active.title}</p>
+                    <div className="h-[60vh] w-full">
+                      <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
+                    </div>
+                  </>
+                ) : (
+                  <ActiveTaskBody
+                    key={active.id}
+                    task={active}
+                    socket={socket}
+                    sessionId={sessionId}
+                    canEdit={!!isTutor}
                   />
-                ) : null}
+                )}
 
                 {active.dmiItems && active.dmiItems.length > 0 ? (
                   <DeployedQuestions
@@ -127,6 +141,143 @@ export function SessionDeployedPanel({
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * Renders a deployed task's title + content. For the tutor it adds an inline
+ * "quick edit" of the title/content that saves to the underlying BuilderTask
+ * (the shared source of truth — so the change reflects everywhere) and re-deploys
+ * so the live room updates immediately. Deeper edits (questions, structure) go
+ * through the classroom's "Edit course" deep-link.
+ */
+function ActiveTaskBody({
+  task,
+  socket,
+  sessionId,
+  canEdit,
+}: {
+  task: SessionRoomTask
+  socket: Socket | null
+  sessionId: string
+  canEdit: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(task.title)
+  const [content, setContent] = useState(task.content ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    const t = title.trim()
+    if (!t) {
+      toast.error('Title cannot be empty')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/one-on-one/tasks/${encodeURIComponent(task.id)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: t, content }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        toast.error(d.error || 'Could not save the edit')
+        return
+      }
+      // Re-deploy so the live room (and every student) picks up the edit now.
+      // Re-uses the same task:deploy the deploy panel emits; the server merges
+      // onto the existing room task, preserving who's already completed it.
+      socket?.emit('task:deploy', {
+        roomId: sessionId,
+        task: {
+          id: task.id,
+          title: t,
+          content,
+          source: task.source || 'task',
+          dmiItems: task.dmiItems,
+          deployedAt: Date.now(),
+          polls: [],
+          questions: [],
+        },
+      })
+      toast.success('Saved — updated for everyone')
+      setEditing(false)
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="mb-4 space-y-2">
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm font-semibold text-slate-900 focus:border-blue-500 focus:outline-none"
+          placeholder="Task title"
+        />
+        <textarea
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          rows={8}
+          className="w-full rounded-md border border-slate-300 p-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+          placeholder="Task content (HTML allowed)…"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            Save
+          </button>
+          <button
+            onClick={() => {
+              setEditing(false)
+              setTitle(task.title)
+              setContent(task.content ?? '')
+            }}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          Saves to your course, so the change shows everywhere. For questions or structure, use
+          “Edit course”.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-900">{task.title}</p>
+        {canEdit ? (
+          <button
+            onClick={() => setEditing(true)}
+            title="Quick-edit this task"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </button>
+        ) : null}
+      </div>
+      {task.content ? (
+        <div
+          className="prose prose-sm mb-4 max-w-none text-slate-700"
+          // Tutor-authored task content, shown to their own session.
+          dangerouslySetInnerHTML={{ __html: task.content }}
+        />
+      ) : null}
+    </>
   )
 }
 

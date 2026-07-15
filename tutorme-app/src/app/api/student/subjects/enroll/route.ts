@@ -94,6 +94,7 @@ export const POST = withCsrf(
           .where(
             and(
               eq(courseEnrollment.studentId, session.user.id),
+              // eslint-disable-next-line no-restricted-syntax -- exact match: dedup for THIS resolved course, not a session-derived id
               eq(courseEnrollment.courseId, courseByCategory.courseId)
             )
           )

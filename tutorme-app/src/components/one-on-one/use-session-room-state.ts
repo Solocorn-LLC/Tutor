@@ -82,9 +82,20 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
   const [responsesByTask, setResponsesByTask] = useState<
     Record<string, Record<string, SessionStudentResponse>>
   >({})
+  // The student roster (for the tutor's board viewer), from room_state + joins.
+  const [students, setStudents] = useState<Array<{ userId: string; name: string }>>([])
 
   useEffect(() => {
     if (!socket) return
+
+    const mergeStudents = (incoming: Array<{ userId: string; name?: string }>) =>
+      setStudents(prev => {
+        const byId = new Map(prev.map(s => [s.userId, s]))
+        for (const s of incoming) {
+          if (s?.userId) byId.set(s.userId, { userId: s.userId, name: s.name || 'Student' })
+        }
+        return Array.from(byId.values())
+      })
 
     const upsertTask = (t: SessionRoomTask) => {
       if (!t?.id) return
@@ -98,6 +109,7 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     // Join-time replay: hydrate both the deployed tasks and any submissions that
     // already happened (task.responses), naming students from the roster.
     const onRoomState = (state: RoomStatePayload) => {
+      if (Array.isArray(state?.students)) mergeStudents(state.students)
       if (!Array.isArray(state?.tasks)) return
       const nameById = new Map((state.students ?? []).map(s => [s.userId, s.name || 'Student']))
       setTasks(prev => {
@@ -182,17 +194,23 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       })
     }
 
+    const onStudentJoined = (data: { userId: string; name?: string }) => {
+      if (data?.userId) mergeStudents([data])
+    }
+
     socket.on('room_state', onRoomState)
     socket.on('task:deployed', onDeployed)
     socket.on('task:updated', onUpdated)
     socket.on('task:completed', onCompleted)
     socket.on('task:graded', onGraded)
+    socket.on('student_joined', onStudentJoined)
     return () => {
       socket.off('room_state', onRoomState)
       socket.off('task:deployed', onDeployed)
       socket.off('task:updated', onUpdated)
       socket.off('task:completed', onCompleted)
       socket.off('task:graded', onGraded)
+      socket.off('student_joined', onStudentJoined)
     }
   }, [socket])
 
@@ -221,5 +239,5 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     return out
   }, [responsesByTask, myUserId])
 
-  return { tasks, responsesByTask, myCompletedTaskIds, myResultByTask }
+  return { tasks, responsesByTask, myCompletedTaskIds, myResultByTask, students }
 }

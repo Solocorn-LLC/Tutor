@@ -74,6 +74,20 @@ const config = [
       'no-with': 'error',
       'no-caller': 'error',
       'no-unsafe-finally': 'error',
+      // Variant-family guard: reading enrollments by a session's courseId
+      // (eq(courseEnrollment.courseId, someSession.courseId)) silently misses
+      // students enrolled under the sibling course variant (template vs
+      // published). Use expandToCourseFamily(...) + inArray(...). The `course`
+      // join and single-id/cast forms are intentionally not matched.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name='eq'][arguments.0.object.name='courseEnrollment'][arguments.0.property.name='courseId'][arguments.1.type='MemberExpression'][arguments.1.property.name='courseId']:not([arguments.1.object.name='course'])",
+          message:
+            "Filtering courseEnrollment by a session's courseId misses students under the sibling course variant. Use `inArray(courseEnrollment.courseId, await expandToCourseFamily([<id>]))`. See variant-family.ts.",
+        },
+      ],
     },
   },
   {

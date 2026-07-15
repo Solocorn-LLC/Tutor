@@ -57,10 +57,18 @@ interface CourseGroup {
 export function SessionDeployPanel({
   sessionId,
   socket,
+  courseId,
+  refreshKey,
   onClose,
 }: {
   sessionId: string
   socket: Socket | null
+  /** When the session is built around a course, only that course's tasks are
+   *  deployable; null/undefined offers all the tutor's published tasks. */
+  courseId?: string | null
+  /** Bumped by the parent when the linked course is edited in the in-session
+   *  modal, so the task list refetches instead of serving stale content. */
+  refreshKey?: number
   onClose: () => void
 }) {
   const [items, setItems] = useState<Deployable[]>([])
@@ -71,7 +79,10 @@ export function SessionDeployPanel({
 
   useEffect(() => {
     let active = true
-    fetch('/api/one-on-one/deployables', { credentials: 'include' })
+    const url = courseId
+      ? `/api/one-on-one/deployables?courseId=${encodeURIComponent(courseId)}`
+      : '/api/one-on-one/deployables'
+    fetch(url, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : { tasks: [] }))
       .then(d => {
         if (active) setItems(Array.isArray(d.tasks) ? d.tasks : [])
@@ -81,7 +92,7 @@ export function SessionDeployPanel({
     return () => {
       active = false
     }
-  }, [])
+  }, [courseId, refreshKey])
 
   // Group the flat task list into course → lesson → tasks, filtered by the
   // search query (matches task title, course name or lesson title).
@@ -200,8 +211,10 @@ export function SessionDeployPanel({
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-10 text-center text-xs text-slate-500">
-            No saved tasks to deploy yet. Create tasks in the course builder first.
+          <div className="rounded-lg border border-dashed px-4 py-10 text-center text-xs text-slate-500">
+            {courseId
+              ? 'This session is scoped to its course, and that course has no saved tasks yet. Add tasks to it in the course builder to deploy them here.'
+              : 'No saved tasks to deploy yet. Create tasks in the course builder first.'}
           </div>
         ) : courses.length === 0 ? (
           <div className="rounded-lg border border-dashed py-10 text-center text-xs text-slate-500">

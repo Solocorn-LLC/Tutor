@@ -115,8 +115,11 @@ function TutorInsightsPageInner() {
   } | null>(null)
   // When opened from Dashboard sidebar or My Page Create Course, start in draft mode
   const startInEditMode = searchParams.get('mode') === 'edit'
+  // Embedded in the in-session Edit-course modal: edit UI, but persist straight
+  // to the DB (live) and auto-save — so "changes sync everywhere" holds.
+  const embedded = searchParams.get('embed') === '1'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
-    searchParams.get('sessionId') ? 'live' : startInEditMode ? 'draft' : 'live'
+    searchParams.get('sessionId') || embedded ? 'live' : startInEditMode ? 'draft' : 'live'
   )
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
@@ -130,8 +133,8 @@ function TutorInsightsPageInner() {
   // BUT respect explicit mode=edit query param (set by Create Course / Course Builder nav)
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // If a sessionId is in the URL, force live mode
-    if (searchParams.get('sessionId')) {
+    // A sessionId or the embedded Edit-course modal force live (DB) persistence.
+    if (searchParams.get('sessionId') || searchParams.get('embed') === '1') {
       setSaveMode('live')
       return
     }
@@ -364,6 +367,22 @@ function TutorInsightsPageInner() {
         setIndependent,
       })
 
+      // When running inside the in-session Edit-course modal (iframe), tell the
+      // parent classroom a save landed so it can refetch its deploy panel — which
+      // otherwise keeps serving the pre-edit task content. Fires on autosave too
+      // (before the early return below), since the modal auto-saves silently.
+      if (
+        embedded &&
+        result?.success &&
+        typeof window !== 'undefined' &&
+        window.parent !== window
+      ) {
+        window.parent.postMessage(
+          { type: 'tutorme:course-saved', courseId },
+          window.location.origin
+        )
+      }
+
       if (options?.isAutoSave) return
 
       if (result.success) {
@@ -413,12 +432,14 @@ function TutorInsightsPageInner() {
 
   const handleSave = useCallback(
     async (lessons: any[], options?: any) => {
-      // For published variants, auto-propagate edits to sibling variants (those
-      // published with this course, NOT all tutor courses). This runs on autosave
-      // too — autosave is debounced (~2s after edits settle), so siblings stay in
-      // sync without the tutor needing a manual Save. Independent variants are
-      // still excluded server-side.
-      if (isPublishedVariant) {
+      // For published variants, propagate edits to sibling variants (those
+      // published with this course, NOT all tutor courses) — but ONLY on an
+      // explicit manual Save. Autosave is debounced and silent (no toast), so
+      // auto-propagating would rewrite every sibling variant on each edit burst
+      // with no confirmation. On autosave we fall through and persist just this
+      // variant (persistMode stays 'live' for a published variant, so the edit
+      // is still saved to the DB — it simply doesn't touch the siblings).
+      if (isPublishedVariant && !options?.isAutoSave) {
         await executeSave(lessons, options, true, false)
         return
       }
@@ -1343,6 +1364,7 @@ function TutorInsightsPageInner() {
           detachedCourseName={dataMode === 'detached' ? detachedCourseName : undefined}
           insightsProps={{
             courseId,
+            autoSave: embedded,
             courses: courses.map(course => ({
               id: course.id,
               name: course.name,

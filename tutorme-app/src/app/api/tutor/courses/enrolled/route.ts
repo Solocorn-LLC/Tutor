@@ -54,9 +54,12 @@ export const GET = withAuth(
       )
       .orderBy(desc(enrollmentCount))
 
-    // Get session counts for each course. `total` counts every non-cancelled
-    // session (so a course whose sessions are all past/ended still shows a real
-    // number rather than 0); `upcoming` counts only the actionable ones.
+    // Get session counts for each course. `total` counts every session (so a
+    // course whose sessions are all past/ended still shows a real number rather
+    // than 0); `upcoming` counts only the actionable ones. There is no
+    // 'cancelled' LiveSessionStatus — cancelling a session sets it to 'ended' —
+    // so the old `status <> 'cancelled'` filter both errored (invalid enum
+    // literal) and excluded nothing; `total` is simply the full count.
     const courseIds = courses.map(c => c.courseId)
     let sessionCounts: { courseId: string; total: number; upcoming: number }[] = []
 
@@ -64,7 +67,7 @@ export const GET = withAuth(
       const sessions = await drizzleDb
         .select({
           courseId: liveSession.courseId,
-          total: sql<number>`count(*) filter (where ${liveSession.status} <> 'cancelled')::int`,
+          total: sql<number>`count(*)::int`,
           upcoming: sql<number>`count(*) filter (where ${liveSession.status} in ('scheduled', 'active', 'live', 'paused'))::int`,
         })
         .from(liveSession)

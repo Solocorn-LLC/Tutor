@@ -13,6 +13,7 @@ import {
   taskSubmission,
 } from '@/lib/db/schema'
 import { and, asc, eq, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,9 @@ export const GET = withAuth(async (req, session, context) => {
   // in-memory courseId drifted from the DB row) may not. Don't hard-fail —
   // submissions are anchored to the session, so we can still surface them.
   const courseId = sessionRow.courseId || ''
+  // The session's courseId may be the template while enrollments/reports live
+  // under the published variant (or vice versa) — match the whole family.
+  const courseFamily = courseId ? await expandToCourseFamily([courseId]) : []
 
   const [courseRow] = courseId
     ? await drizzleDb
@@ -75,7 +79,7 @@ export const GET = withAuth(async (req, session, context) => {
         })
         .from(courseEnrollment)
         .leftJoin(profile, eq(courseEnrollment.studentId, profile.userId))
-        .where(eq(courseEnrollment.courseId, courseId))
+        .where(inArray(courseEnrollment.courseId, courseFamily))
     : []
 
   // Anchor deployed materials to the SESSION only — not also to the session's
@@ -160,7 +164,7 @@ export const GET = withAuth(async (req, session, context) => {
           .where(
             and(
               eq(studentTaskReport.tutorId, tutorId),
-              eq(studentTaskReport.courseId, courseId),
+              inArray(studentTaskReport.courseId, courseFamily),
               inArray(studentTaskReport.studentId, studentIds)
             )
           )

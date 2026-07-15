@@ -6,6 +6,7 @@ import { BackButton } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { parentRegistrationSchema } from '@/lib/validation/user-registration'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -38,6 +39,10 @@ export default function ParentRegistrationPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  // Inline per-field validation errors (empty/invalid required fields turn red).
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const clearError = (field: string) =>
+    setErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
 
   // Form data
   const [formData, setFormData] = useState({
@@ -222,36 +227,23 @@ export default function ParentRegistrationPage() {
   }
 
   const validateStepOne = () => {
-    if (!formData.firstName || !formData.lastName) {
-      toast.error('First and last name are required')
-      return false
-    }
-    if (!formData.email) {
-      toast.error('Email is required')
-      return false
-    }
+    // Collect ALL empty/invalid required fields so each is highlighted red at
+    // once, rather than a one-at-a-time toast.
+    const next: Record<string, string> = {}
+    if (!formData.firstName.trim()) next.firstName = 'Please enter your first name'
+    if (!formData.lastName.trim()) next.lastName = 'Please enter your last name'
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(formData.email)) {
-      toast.error('Enter a valid email address')
-      return false
-    }
-    if (!formData.password || !formData.confirmPassword) {
-      toast.error('Password and confirmation are required')
-      return false
-    }
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match')
-      return false
-    }
-    if (!formData.phoneNumber?.trim()) {
-      toast.error('Phone number is required')
-      return false
-    }
-    if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber)) {
-      toast.error('Valid phone number required')
-      return false
-    }
-    return true
+    if (!formData.email) next.email = 'Email is required'
+    else if (!emailPattern.test(formData.email)) next.email = 'Enter a valid email address'
+    if (!formData.password) next.password = 'Password is required'
+    if (!formData.confirmPassword) next.confirmPassword = 'Please confirm your password'
+    else if (formData.password && formData.password !== formData.confirmPassword)
+      next.confirmPassword = 'Passwords do not match'
+    if (!formData.phoneNumber?.trim()) next.phoneNumber = 'Phone number is required'
+    else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber))
+      next.phoneNumber = 'Enter a valid phone number'
+    setErrors(next)
+    return Object.keys(next).length === 0
   }
 
   const validateStepTwo = () => {
@@ -308,9 +300,10 @@ export default function ParentRegistrationPage() {
 
   const validateStepFour = () => {
     if (!formData.tosAccepted) {
-      toast.error('You must accept the Terms of Service')
+      setErrors(prev => ({ ...prev, tosAccepted: 'You must accept the Terms of Service' }))
       return false
     }
+    setErrors(prev => ({ ...prev, tosAccepted: '' }))
     return true
   }
 
@@ -381,20 +374,44 @@ export default function ParentRegistrationPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">First Name</Label>
                         <Input
-                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                          className={cn(
+                            'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                            errors.firstName && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
+                          aria-invalid={!!errors.firstName}
                           value={formData.firstName}
-                          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                          onChange={e => {
+                            setFormData({ ...formData, firstName: e.target.value })
+                            clearError('firstName')
+                          }}
                           autoComplete="off"
                         />
+                        {errors.firstName && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.firstName}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">Last Name</Label>
                         <Input
-                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                          className={cn(
+                            'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                            errors.lastName && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
+                          aria-invalid={!!errors.lastName}
                           value={formData.lastName}
-                          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                          onChange={e => {
+                            setFormData({ ...formData, lastName: e.target.value })
+                            clearError('lastName')
+                          }}
                           autoComplete="off"
                         />
+                        {errors.lastName && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.lastName}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -402,13 +419,25 @@ export default function ParentRegistrationPage() {
                     <div className="space-y-1">
                       <Label className="text-xs text-white/70">Email</Label>
                       <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                        className={cn(
+                          'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                          errors.email && 'border-red-500 focus-visible:ring-red-500/30'
+                        )}
+                        aria-invalid={!!errors.email}
                         type="email"
                         name="parent_registration_email"
                         autoComplete="off"
                         value={formData.email}
-                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, email: e.target.value })
+                          clearError('email')
+                        }}
                       />
+                      {errors.email && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Password row */}
@@ -417,12 +446,19 @@ export default function ParentRegistrationPage() {
                         <Label className="text-xs text-white/70">Password</Label>
                         <div className="relative">
                           <Input
-                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                            className={cn(
+                              'h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                              errors.password && 'border-red-500 focus-visible:ring-red-500/30'
+                            )}
+                            aria-invalid={!!errors.password}
                             type={showPassword ? 'text' : 'password'}
                             name="parent_registration_password"
                             autoComplete="new-password"
                             value={formData.password}
-                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            onChange={e => {
+                              setFormData({ ...formData, password: e.target.value })
+                              clearError('password')
+                            }}
                             placeholder="Create a password"
                           />
                           <button
@@ -438,19 +474,30 @@ export default function ParentRegistrationPage() {
                             )}
                           </button>
                         </div>
+                        {errors.password && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.password}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">Confirm Password</Label>
                         <div className="relative">
                           <Input
-                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                            className={cn(
+                              'h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                              errors.confirmPassword &&
+                                'border-red-500 focus-visible:ring-red-500/30'
+                            )}
+                            aria-invalid={!!errors.confirmPassword}
                             type={showConfirmPassword ? 'text' : 'password'}
                             name="parent_registration_confirm_password"
                             autoComplete="new-password"
                             value={formData.confirmPassword}
-                            onChange={e =>
+                            onChange={e => {
                               setFormData({ ...formData, confirmPassword: e.target.value })
-                            }
+                              clearError('confirmPassword')
+                            }}
                             placeholder="Confirm your password"
                           />
                           <button
@@ -467,11 +514,12 @@ export default function ParentRegistrationPage() {
                           </button>
                         </div>
                         <p className="min-h-[18px] text-xs text-red-300">
-                          {formData.password.length > 0 &&
-                          formData.confirmPassword.length > 0 &&
-                          formData.password !== formData.confirmPassword
-                            ? 'Passwords do not match.'
-                            : '\u00A0'}
+                          {errors.confirmPassword ||
+                            (formData.password.length > 0 &&
+                            formData.confirmPassword.length > 0 &&
+                            formData.password !== formData.confirmPassword
+                              ? 'Passwords do not match.'
+                              : '\u00A0')}
                         </p>
                       </div>
                     </div>
@@ -480,12 +528,24 @@ export default function ParentRegistrationPage() {
                     <div className="space-y-1">
                       <Label className="text-xs text-white/70">Phone Number</Label>
                       <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40"
+                        className={cn(
+                          'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-emerald-500/40',
+                          errors.phoneNumber && 'border-red-500 focus-visible:ring-red-500/30'
+                        )}
+                        aria-invalid={!!errors.phoneNumber}
                         value={formData.phoneNumber}
-                        onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, phoneNumber: e.target.value })
+                          clearError('phoneNumber')
+                        }}
                         placeholder="+86 138 0000 0000"
                         autoComplete="off"
                       />
+                      {errors.phoneNumber && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.phoneNumber}
+                        </p>
+                      )}
                     </div>
 
                     {/* Relationship */}
@@ -882,13 +942,20 @@ export default function ParentRegistrationPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3 rounded-lg border border-white/20 bg-white/10 p-4">
+                  <div
+                    className={cn(
+                      'flex items-start space-x-3 rounded-lg border bg-white/10 p-4',
+                      errors.tosAccepted ? 'border-red-500' : 'border-white/20'
+                    )}
+                  >
                     <Checkbox
                       id="tosAccepted"
                       checked={formData.tosAccepted}
-                      onCheckedChange={checked =>
+                      onCheckedChange={checked => {
                         setFormData(prev => ({ ...prev, tosAccepted: checked === true }))
-                      }
+                        clearError('tosAccepted')
+                      }}
+                      aria-invalid={!!errors.tosAccepted}
                       className="border-white/40 data-[state=checked]:border-emerald-400 data-[state=checked]:bg-emerald-400 data-[state=checked]:text-white"
                     />
                     <div className="space-y-1">
@@ -898,8 +965,13 @@ export default function ParentRegistrationPage() {
                       >
                         I accept the Terms of Service and Privacy Policy
                       </Label>
-                      <p className="text-xs text-white/60">
-                        You must accept the terms to create an account.
+                      <p
+                        className={cn(
+                          'text-xs',
+                          errors.tosAccepted ? 'text-red-400' : 'text-white/60'
+                        )}
+                      >
+                        {errors.tosAccepted || 'You must accept the terms to create an account.'}
                       </p>
                     </div>
                   </div>

@@ -37,6 +37,7 @@ export const POST = withCsrf(
         calendarEventId: oneOnOneBookingRequest.calendarEventId,
         durationMinutes: oneOnOneBookingRequest.durationMinutes,
         timezone: oneOnOneBookingRequest.timezone,
+        courseId: oneOnOneBookingRequest.courseId,
       })
       .from(oneOnOneBookingRequest)
       .where(eq(oneOnOneBookingRequest.requestId, requestId))
@@ -115,6 +116,7 @@ export const POST = withCsrf(
           maxStudents: 2,
           description: 'One-on-one tutoring session',
           timezone: booking.timezone,
+          courseId: booking.courseId ?? undefined,
         },
         tx
       )

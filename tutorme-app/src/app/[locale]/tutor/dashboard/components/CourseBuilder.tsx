@@ -212,6 +212,7 @@ import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
 import { nextDmiGate } from '@/lib/assessment/dmi-generate-gate'
 import { resolveDocPaneVisibility } from '@/lib/courses/doc-pane-visibility'
+import { shouldRehydrateBuilder } from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
@@ -705,6 +706,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [resolvedInitialCourseBuilderNodes])
     const lastInitialCourseBuilderNodesKeyRef = useRef<string | null>(null)
+    // The course whose loaded data we last hydrated the builder from, so a late/
+    // async initial for the SAME course can't clobber in-progress edits.
+    const lastHydratedCourseIdRef = useRef<string | null>(null)
     const [builderNodes, setBuilderNodes] = useState<CourseBuilderNode[]>([])
     const [liveNodes, setLiveNodes] = useState<CourseBuilderNode[]>([])
 
@@ -4053,12 +4057,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     useEffect(() => {
       if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) return
       lastInitialCourseBuilderNodesKeyRef.current = initialCourseBuilderNodesKey
+
+      // Only (re)hydrate the builder from the loaded course data when we switch to
+      // a DIFFERENT course, or while the builder is still empty. A late/async
+      // initial for the SAME course — e.g. the background course load finishing
+      // AFTER the tutor has begun adding lessons to a newly-created course — must
+      // NOT overwrite their in-memory lessons; autosave would then persist the
+      // clobbered state and the lessons would be lost on reload. builderNodes is
+      // read (not depended on) intentionally: the effect only re-runs when the
+      // initial key / course changes, at which point it reflects the latest edits.
+      const courseChanged = lastHydratedCourseIdRef.current !== (courseId ?? null)
+      lastHydratedCourseIdRef.current = courseId ?? null
+      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) return
+
       const normalized = normalizeCourseBuilderNodesForAssessments(
         resolvedInitialCourseBuilderNodes
       )
       setBuilderNodes(normalized)
       setLiveNodes(isStudentView || saveMode !== 'draft' ? cloneNodes(normalized) : [])
-    }, [initialCourseBuilderNodesKey, resolvedInitialCourseBuilderNodes])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [courseId, initialCourseBuilderNodesKey, resolvedInitialCourseBuilderNodes])
 
     // Helper to get effective value based on difficulty mode and preview
     const getEffectiveValue = <T extends WithDifficultyVariants>(
@@ -7801,10 +7819,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [leftPanelResizing])
 
-    // Auto-save course edits (debounced) — disabled in live mode
+    // Auto-save course edits (debounced). Off in insights mode UNLESS the caller
+    // opts in via insightsProps.autoSave (the in-session Edit-course modal), so
+    // edits persist without a manual Save. Gated on a stable boolean — NOT the
+    // insightsProps object — so a new-object-every-render doesn't reset the timer.
+    const autoSaveEnabled = !insightsProps || !!insightsProps.autoSave
     useEffect(() => {
       if (!canEdit) return
-      if (insightsProps) return
+      if (!autoSaveEnabled) return
       if (!onSave) return
 
       const timeoutId = setTimeout(() => {
@@ -7829,7 +7851,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       coursePropsModal.description,
       courseName,
       onSave,
-      insightsProps,
+      autoSaveEnabled,
     ])
 
     const filteredCourseBuilderNodes = useMemo(() => {

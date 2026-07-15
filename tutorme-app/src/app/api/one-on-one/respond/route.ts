@@ -8,10 +8,7 @@ import { createSession } from '@/lib/sessions/create-session'
 import { notify } from '@/lib/notifications/notify'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
-import {
-  isSlotWithinStudentAvailability,
-  studentHasAvailabilityConfigured,
-} from '@/lib/student-availability'
+import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 import { slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
@@ -82,18 +79,8 @@ export async function PATCH(request: NextRequest) {
       : [existingRequest]
 
     if (validated.action === 'accept') {
-      // The student must have availability configured — otherwise the slot checks
-      // below are skipped and the tutor could accept an out-of-hours time.
-      if (!(await studentHasAvailabilityConfigured(existingRequest.studentId))) {
-        return NextResponse.json(
-          {
-            error:
-              'This student has no availability set. Ask them (or their parent) to add their available hours before accepting.',
-          },
-          { status: 400 }
-        )
-      }
-
+      // Students are bookable 24/7 by default; only parent-blocked hours are
+      // rejected, per-slot below.
       const [tutorProfileRow] = await drizzleDb
         .select({ bufferMinutes: profile.bufferMinutes, oneOnOneFree: profile.oneOnOneFree })
         .from(profile)
@@ -126,7 +113,7 @@ export async function PATCH(request: NextRequest) {
           const which = isSeries ? ` for the ${slotDate} session` : ''
           return NextResponse.json(
             {
-              error: `That time${which} is outside the student's available hours. Ask the student's parent to update their availability, or accept a different slot.`,
+              error: `That time${which} has been blocked by the student's parent. Ask them to allow it, or accept a different slot.`,
             },
             { status: 400 }
           )
@@ -203,6 +190,7 @@ export async function PATCH(request: NextRequest) {
               maxStudents: 2,
               description: `One-on-one tutoring session with student`,
               timezone: p.req.timezone,
+              courseId: p.req.courseId ?? undefined,
               existingRoom: p.room,
             },
             tx

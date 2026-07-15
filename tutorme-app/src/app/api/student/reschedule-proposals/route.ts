@@ -16,7 +16,7 @@ import {
   liveSession,
   profile,
 } from '@/lib/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 
 export const GET = withAuth(async (_req, session) => {
   const studentId = session.user.id
@@ -42,7 +42,9 @@ export const GET = withAuth(async (_req, session) => {
     .where(
       and(
         eq(sessionRescheduleVote.studentId, studentId),
-        eq(sessionRescheduleProposal.status, 'PENDING')
+        eq(sessionRescheduleProposal.status, 'PENDING'),
+        // Hide proposals for a session that has since ended (it's moot).
+        ne(liveSession.status, 'ended')
       )
     )
 

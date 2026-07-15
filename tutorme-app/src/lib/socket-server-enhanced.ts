@@ -8,6 +8,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
 import { eq, and, inArray, desc } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -773,7 +774,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   const rows = await drizzleDb
                     .select({ studentId: courseEnrollment.studentId })
                     .from(courseEnrollment)
-                    .where(eq(courseEnrollment.courseId, s.courseId))
+                    .where(
+                      inArray(courseEnrollment.courseId, await expandToCourseFamily([s.courseId]))
+                    )
                   const studentIds = rows.map(r => r.studentId).filter(Boolean)
                   if (studentIds.length > 0) {
                     void notifyMany({
@@ -887,6 +890,36 @@ export async function initEnhancedSocketServer(server: NetServer) {
       socket.join(roomId)
       socket.data.roomId = roomId
 
+      // Private whiteboard sub-rooms are `<sessionId>:board:<ownerId>`. They have
+      // no LiveSession row, so the tutor/enrollment gates below are no-ops and
+      // would let ANY authenticated user in. Authorize explicitly: only the
+      // board's owner, or the base session's scheduled tutor, may join — otherwise
+      // a peer could read/draw on someone's "private" board.
+      const boardIdx = roomId.indexOf(':board:')
+      if (boardIdx >= 0) {
+        const baseSessionId = roomId.slice(0, boardIdx)
+        const ownerId = roomId.slice(boardIdx + ':board:'.length)
+        let allowed = userId === ownerId
+        if (!allowed && baseSessionId) {
+          try {
+            const [ls] = await drizzleDb
+              .select({ tutorId: liveSession.tutorId })
+              .from(liveSession)
+              .where(eq(liveSession.sessionId, baseSessionId))
+              .limit(1)
+            allowed = !!ls && ls.tutorId === userId
+          } catch {
+            allowed = false
+          }
+        }
+        if (!allowed) {
+          socket.leave(roomId)
+          socket.data.roomId = undefined
+          socket.emit('error', { message: 'Not authorized for this board' })
+          return
+        }
+      }
+
       // Get or create room from Redis first, then memory
       let room = activeRooms.get(roomId)
       if (!room && redisClient) {
@@ -922,10 +955,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
           where: eq(liveSession.sessionId, roomId),
         })
         if (liveSessionRow?.courseId) {
+          // Match the whole variant family: the session's courseId may be the
+          // template while the student enrolled under the published variant —
+          // a raw match would wrongly reject a legitimately enrolled student.
+          const enrolledFamily = await expandToCourseFamily([liveSessionRow.courseId])
           const enrolled = await drizzleDb.query.courseEnrollment.findFirst({
             where: and(
               eq(courseEnrollment.studentId, userId),
-              eq(courseEnrollment.courseId, liveSessionRow.courseId)
+              inArray(courseEnrollment.courseId, enrolledFamily)
             ),
           })
           if (!enrolled) {
@@ -1045,6 +1082,66 @@ export async function initEnhancedSocketServer(server: NetServer) {
       await (effectiveRole === 'student'
         ? addStudentToRoom(socket, room)
         : addTutorToRoom(socket, room))
+
+      // Private board sub-room: replay the strokes already drawn to the joining
+      // socket, so a tutor opening a student's board (or anyone rejoining) sees
+      // the existing drawing instead of a blank board. EnhancedWhiteboard only
+      // applies live deltas, so without this the board appears empty. Sent to the
+      // joiner alone; attributed to the board owner (board rooms aren't filtered).
+      const replayBoardIdx = roomId.indexOf(':board:')
+      if (replayBoardIdx >= 0 && room.whiteboardData) {
+        const ownerId = roomId.slice(replayBoardIdx + ':board:'.length)
+        const wb = room.whiteboardData as {
+          strokes?: Array<{ pageIndex?: number }>
+          shapes?: Array<{ pageIndex?: number }>
+          texts?: Array<{ pageIndex?: number }>
+          formulas?: Array<{ pageIndex?: number }>
+          graphs?: Array<{ pageIndex?: number }>
+        }
+        // `replay: true` tells the client this is hydration, not a live echo —
+        // the board owner (viewerId === ownerId) would otherwise drop every one
+        // of these as its "own echo" and see a blank board on rejoin.
+        for (const stroke of wb.strokes ?? []) {
+          socket.emit('whiteboard:stroke:added', {
+            userId: ownerId,
+            stroke,
+            pageIndex: stroke.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const shape of wb.shapes ?? []) {
+          socket.emit('whiteboard:shape:added', {
+            userId: ownerId,
+            shape,
+            pageIndex: shape.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const text of wb.texts ?? []) {
+          socket.emit('whiteboard:text:added', {
+            userId: ownerId,
+            text,
+            pageIndex: text.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const formula of wb.formulas ?? []) {
+          socket.emit('whiteboard:formula:added', {
+            userId: ownerId,
+            formula,
+            pageIndex: formula.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const graph of wb.graphs ?? []) {
+          socket.emit('whiteboard:graph:added', {
+            userId: ownerId,
+            graph,
+            pageIndex: graph.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+      }
     })
 
     // Activity ping keeps room and student alive during quiet sessions
@@ -2113,6 +2210,15 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    // A socket may only mutate/broadcast into a private board sub-room it actually
+    // joined. `join_class` gates board membership to the owner + base-session
+    // tutor (and makes a rejected socket leave), but io.to(roomId).emit does NOT
+    // require the sender to be a member — so without this check a crafted
+    // `roomId = "<session>:board:<victim>"` could write to a board the sender was
+    // rejected from. Base (non-board) rooms keep their existing behaviour.
+    const canWriteRoom = (roomId: string): boolean =>
+      !roomId.includes(':board:') || socket.rooms.has(roomId)
+
     // Incremental whiteboard delta sync handlers
     socket.on(
       'whiteboard:stroke:add',
@@ -2120,6 +2226,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, stroke, pageIndex } = data || ({} as any)
         if (!roomId || !stroke) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2145,6 +2252,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, shape, pageIndex } = data || ({} as any)
         if (!roomId || !shape) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2170,6 +2278,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, text, pageIndex } = data || ({} as any)
         if (!roomId || !text) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2204,6 +2313,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, formula, pageIndex } = data || ({} as any)
         if (!roomId || !formula) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2232,6 +2342,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, graph, pageIndex } = data || ({} as any)
         if (!roomId || !graph) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2255,6 +2366,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
       const { roomId, pageIndex } = data || ({} as any)
       if (!roomId || typeof pageIndex !== 'number') return
+      if (!canWriteRoom(roomId)) return
 
       const room = activeRooms.get(roomId)
       if (!room) return

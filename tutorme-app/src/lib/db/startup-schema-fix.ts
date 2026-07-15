@@ -414,6 +414,37 @@ CREATE UNIQUE INDEX IF NOT EXISTS "SessionRescheduleVote_proposal_student_key"
   ON "SessionRescheduleVote" ("proposalId", "studentId");
 CREATE INDEX IF NOT EXISTS "SessionRescheduleVote_proposalId_idx"
   ON "SessionRescheduleVote" ("proposalId");
+
+-- Enforce the 1:1 booking↔CalendarEvent and groupSession↔CalendarEvent invariants
+-- so a join on calendarEventId can't fan out (accept/heal always mints a fresh
+-- event and repoints the column). Guarded: if a stray duplicate exists in prod,
+-- skip + RAISE WARNING rather than throw — this whole block runs as one implicit
+-- transaction, so a failing CREATE would roll back every table-ensure above.
+-- NULL calendarEventId rows (unpaid/legacy) are allowed to repeat.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM "OneOnOneBookingRequest"
+    WHERE "calendarEventId" IS NOT NULL
+    GROUP BY "calendarEventId" HAVING count(*) > 1
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS "OneOnOneBookingRequest_calendarEventId_key"
+      ON "OneOnOneBookingRequest" ("calendarEventId");
+  ELSE
+    RAISE WARNING 'Skipped OneOnOneBookingRequest_calendarEventId_key: duplicate calendarEventId values present — clean them up, then restart to enforce.';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM "GroupSession"
+    WHERE "calendarEventId" IS NOT NULL
+    GROUP BY "calendarEventId" HAVING count(*) > 1
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS "GroupSession_calendarEventId_key"
+      ON "GroupSession" ("calendarEventId");
+  ELSE
+    RAISE WARNING 'Skipped GroupSession_calendarEventId_key: duplicate calendarEventId values present — clean them up, then restart to enforce.';
+  END IF;
+END $$;
 `)
 
 export async function applyStartupSchemaFixes(): Promise<void> {

@@ -35,6 +35,12 @@ interface Candidate {
   studentId: string | null
   /** Group: the session title. */
   title: string | null
+  /** Student booked but hasn't paid — the launcher nudges "Pay to join". */
+  needsPayment?: boolean
+  /** 1-on-1 pending payment: the request to pay for. */
+  requestId?: string | null
+  /** Group pending payment: the reserved seat to resume checkout for. */
+  participantId?: string | null
 }
 
 export const GET = withAuth(async (_req: NextRequest, session) => {
@@ -116,20 +122,103 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
       )
     )
 
+  // Student-only: imminent bookings that are accepted/reserved but NOT yet paid.
+  // Surfaced so the launcher can nudge "Pay to join" before start — otherwise an
+  // unpaid booking gets no app-wide reminder and the student silently misses the
+  // session they booked. (Tutors can't act on an unpaid booking, so tutor-side is
+  // intentionally excluded.)
+  const unpaidOneOnOnes = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
+      status: liveSession.status,
+      tutorId: oneOnOneBookingRequest.tutorId,
+      studentId: oneOnOneBookingRequest.studentId,
+      requestId: oneOnOneBookingRequest.requestId,
+    })
+    .from(oneOnOneBookingRequest)
+    .innerJoin(calendarEvent, eq(calendarEvent.eventId, oneOnOneBookingRequest.calendarEventId))
+    .innerJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
+    .where(
+      and(
+        eq(oneOnOneBookingRequest.status, 'ACCEPTED'),
+        eq(oneOnOneBookingRequest.studentId, userId),
+        eq(calendarEvent.isCancelled, false),
+        gte(liveSession.scheduledAt, from),
+        lte(liveSession.scheduledAt, until)
+      )
+    )
+
+  const unpaidGroup = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
+      status: liveSession.status,
+      tutorId: groupSession.tutorId,
+      title: groupSession.title,
+      participantId: groupSessionParticipant.participantId,
+    })
+    .from(groupSessionParticipant)
+    .innerJoin(
+      groupSession,
+      eq(groupSession.groupSessionId, groupSessionParticipant.groupSessionId)
+    )
+    .innerJoin(liveSession, eq(liveSession.sessionId, groupSession.liveSessionId))
+    .where(
+      and(
+        eq(groupSessionParticipant.studentId, userId),
+        eq(groupSessionParticipant.status, 'RESERVED'),
+        inArray(groupSession.status, ['OPEN', 'FULL']),
+        gte(liveSession.scheduledAt, from),
+        lte(liveSession.scheduledAt, until)
+      )
+    )
+
   const candidates: Candidate[] = [
     ...oneOnOnes.map(r => ({ ...r, isGroup: false, title: null as string | null })),
     ...groupAsStudent.map(r => ({ ...r, isGroup: true, studentId: null as string | null })),
     ...groupAsTutor.map(r => ({ ...r, isGroup: true, studentId: null as string | null })),
+    ...unpaidOneOnOnes.map(r => ({
+      ...r,
+      isGroup: false,
+      title: null as string | null,
+      needsPayment: true,
+    })),
+    ...unpaidGroup.map(r => ({
+      ...r,
+      isGroup: true,
+      studentId: null as string | null,
+      needsPayment: true,
+    })),
   ]
     .filter(c => c.scheduledAt)
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
 
-  // Soonest one still within its live window.
-  const pick = candidates.find(c => {
+  // Candidates still worth showing (sorted soonest-first above):
+  // - paid: from now until a little after it ends (linger so a just-finished
+  //   session lingers briefly).
+  // - unpaid: ONLY before it starts — it's a "pay before it begins" nudge; once
+  //   started there's nothing to join, and showing it would render a bogus
+  //   "starts in 0:00".
+  const eligible = candidates.filter(c => {
     const start = new Date(c.scheduledAt!).getTime()
-    const end = start + (c.durationMinutes ?? 60) * 60 * 1000
+    if (c.needsPayment) return now < start
+    const end = start + (c.durationMinutes ?? 120) * 60 * 1000
     return now <= end + LINGER_AFTER_END_MS
   })
+
+  // Prefer a PAID session the student can act on right now (live or within the
+  // entry window) over an unpaid "Pay to join" nudge — a student ready to enter a
+  // paid room must not instead be shown a payment prompt for a different booking.
+  // Otherwise fall back to the soonest eligible candidate (an upcoming paid one,
+  // or an imminent unpaid nudge when nothing is joinable yet).
+  const joinableNow = (c: Candidate): boolean => {
+    if (c.needsPayment || !c.scheduledAt) return false
+    return c.status === 'active' || now >= c.scheduledAt.getTime() - EARLY_ENTRY_MS
+  }
+  const pick = eligible.find(joinableNow) ?? eligible[0]
   if (!pick || !pick.scheduledAt) {
     return NextResponse.json({ session: null })
   }
@@ -152,14 +241,21 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
     title = `1-on-1 with ${other?.name || (viewerIsTutor ? 'your student' : 'your tutor')}`
   }
 
+  const needsPayment = !!pick.needsPayment
+
   return NextResponse.json({
     session: {
       sessionId: pick.sessionId,
       scheduledAt: new Date(pick.scheduledAt).toISOString(),
       title,
       viewerIsTutor,
-      joinable: pick.status === 'active' || now >= start - EARLY_ENTRY_MS,
-      live: pick.status === 'active',
+      // An unpaid booking can't be joined until checkout completes — the launcher
+      // shows "Pay to join" instead of Join and routes to the pay path below.
+      needsPayment,
+      joinable: !needsPayment && (pick.status === 'active' || now >= start - EARLY_ENTRY_MS),
+      live: !needsPayment && pick.status === 'active',
+      payRequestId: needsPayment ? (pick.requestId ?? null) : null,
+      payParticipantId: needsPayment ? (pick.participantId ?? null) : null,
     },
   })
 })

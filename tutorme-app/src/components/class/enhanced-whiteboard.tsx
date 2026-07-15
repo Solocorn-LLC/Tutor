@@ -1992,15 +1992,34 @@ export function EnhancedWhiteboard({
           const page = ensurePage(op.pageIndex)
           if (!page) continue
           if (op.type === 'stroke') {
-            page.strokes = [...page.strokes, op.stroke]
+            // Dedup by id: the join-time replay re-fires on every socket
+            // reconnect (use-socket re-emits join_class on 'connect'), and a
+            // private board stays mounted — so without this an already-applied
+            // item would be appended again on each reconnect and persisted back.
+            const id = (op.stroke as { id?: string })?.id
+            if (!id || !page.strokes.some(s => (s as { id?: string }).id === id)) {
+              page.strokes = [...page.strokes, op.stroke]
+            }
           } else if (op.type === 'shape') {
-            page.shapes = [...page.shapes, op.shape]
+            const id = (op.shape as { id?: string })?.id
+            if (!id || !page.shapes.some(s => (s as { id?: string }).id === id)) {
+              page.shapes = [...page.shapes, op.shape]
+            }
           } else if (op.type === 'text') {
-            page.texts = [...page.texts, op.text]
+            const id = (op.text as { id?: string })?.id
+            if (!id || !page.texts.some(t => (t as { id?: string }).id === id)) {
+              page.texts = [...page.texts, op.text]
+            }
           } else if (op.type === 'formula') {
-            page.formulas = [...page.formulas, op.formula]
+            const id = (op.formula as { id?: string })?.id
+            if (!id || !page.formulas.some(f => (f as { id?: string }).id === id)) {
+              page.formulas = [...page.formulas, op.formula]
+            }
           } else if (op.type === 'graph') {
-            page.graphs = [...page.graphs, op.graph]
+            const id = (op.graph as { id?: string })?.id
+            if (!id || !page.graphs.some(g => (g as { id?: string }).id === id)) {
+              page.graphs = [...page.graphs, op.graph]
+            }
           } else if (op.type === 'page:clear') {
             page.strokes = []
             page.texts = []
@@ -2019,8 +2038,9 @@ export function EnhancedWhiteboard({
       userId?: string
       stroke: Stroke & { points?: number[] | Point[] }
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const stroke: Stroke = {
         ...data.stroke,
@@ -2040,8 +2060,9 @@ export function EnhancedWhiteboard({
       userId?: string
       shape: ShapeElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'shape', pageIndex: idx, shape: data.shape })
@@ -2056,8 +2077,13 @@ export function EnhancedWhiteboard({
       }
     }
 
-    const handleTextAdded = (data: { userId?: string; text: TextElement; pageIndex?: number }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+    const handleTextAdded = (data: {
+      userId?: string
+      text: TextElement
+      pageIndex?: number
+      replay?: boolean
+    }) => {
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'text', pageIndex: idx, text: data.text })
@@ -2078,8 +2104,9 @@ export function EnhancedWhiteboard({
       userId?: string
       formula: FormulaElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'formula', pageIndex: idx, formula: data.formula })
@@ -2089,8 +2116,9 @@ export function EnhancedWhiteboard({
       userId?: string
       graph: GraphElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'graph', pageIndex: idx, graph: data.graph })
@@ -2713,6 +2741,11 @@ export function EnhancedWhiteboard({
           {videoOverlay && videoComponent && showVideo && !isVideoFullscreen && (
             <div
               role="presentation"
+              // Stop BOTH pointer and mouse events from reaching the canvas
+              // container — otherwise the canvas's own onMouseDown re-runs the
+              // legacy video hit-test and a second, competing drag fires alongside
+              // the handle drag (they fight and the frame jumps).
+              onPointerDown={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
               className="absolute z-10 overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg"
               style={{
@@ -2722,65 +2755,87 @@ export function EnhancedWhiteboard({
                 top: `${16 + videoPosition.y}px`,
               }}
             >
+              {/* Move handle — a labelled top bar. Uses pointer capture so the
+                  drag keeps tracking over the video tiles, and clamps the frame
+                  inside the board so it can't be dragged off-screen. */}
               <div
-                className="absolute left-2 top-2 z-20 cursor-move rounded bg-slate-800/50 p-1 hover:bg-slate-700"
-                title="Drag to move"
-                onMouseDown={e => {
+                className="absolute inset-x-0 top-0 z-30 flex h-6 cursor-move touch-none select-none items-center gap-1 bg-slate-900/70 pl-2 pr-16 text-[10px] font-medium text-white/80 hover:bg-slate-900/85"
+                title="Drag to move the video"
+                onPointerDown={e => {
                   e.stopPropagation()
                   e.preventDefault()
+                  const el = e.currentTarget
+                  el.setPointerCapture(e.pointerId)
                   const startX = e.clientX
                   const startY = e.clientY
                   const start = { ...videoPosition }
-                  const onMove = (ev: MouseEvent) => {
-                    setVideoPosition({
-                      x: start.x - (ev.clientX - startX),
-                      y: start.y + (ev.clientY - startY),
-                    })
+                  const onMove = (ev: PointerEvent) => {
+                    let nx = start.x - (ev.clientX - startX)
+                    let ny = start.y + (ev.clientY - startY)
+                    // Keep the whole frame on-screen (offset = 16 + n): so
+                    // n ∈ [-16, containerSize - frameSize - 16].
+                    const rect = containerRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      nx = Math.min(Math.max(nx, -16), rect.width - videoSize.width - 16)
+                      ny = Math.min(Math.max(ny, -16), rect.height - videoSize.height - 16)
+                    }
+                    setVideoPosition({ x: nx, y: ny })
                   }
                   const onUp = () => {
-                    window.removeEventListener('mousemove', onMove)
-                    window.removeEventListener('mouseup', onUp)
+                    el.releasePointerCapture(e.pointerId)
+                    el.removeEventListener('pointermove', onMove)
+                    el.removeEventListener('pointerup', onUp)
+                    el.removeEventListener('pointercancel', onUp)
                   }
-                  window.addEventListener('mousemove', onMove)
-                  window.addEventListener('mouseup', onUp)
+                  el.addEventListener('pointermove', onMove)
+                  el.addEventListener('pointerup', onUp)
+                  el.addEventListener('pointercancel', onUp)
                 }}
               >
-                <GripVertical className="h-4 w-4 text-white" />
+                <GripVertical className="h-3.5 w-3.5" />
+                Move
               </div>
-              {/* Resize handle — bottom-left corner (the box is anchored top-right),
-                  keeps a 16:9 ratio. Self-contained window listeners. */}
+              {/* Resize handle — bottom-left corner (box is anchored top-right),
+                  16:9 locked. Pointer capture for the same iframe reason. */}
               <div
                 role="presentation"
                 title="Drag to resize"
-                className="absolute bottom-0 left-0 z-20 flex h-5 w-5 cursor-nesw-resize items-end justify-start p-1"
-                onMouseDown={e => {
+                className="absolute bottom-0 left-0 z-30 flex h-5 w-5 cursor-nesw-resize touch-none items-end justify-start p-1"
+                onPointerDown={e => {
                   e.stopPropagation()
                   e.preventDefault()
+                  const el = e.currentTarget
+                  el.setPointerCapture(e.pointerId)
                   const startX = e.clientX
                   const startW = videoSize.width
-                  const onMove = (ev: MouseEvent) => {
+                  const onMove = (ev: PointerEvent) => {
                     const w = Math.max(220, Math.min(560, startW - (ev.clientX - startX)))
                     setVideoSize({ width: w, height: Math.round((w * 9) / 16) })
                   }
                   const onUp = () => {
-                    window.removeEventListener('mousemove', onMove)
-                    window.removeEventListener('mouseup', onUp)
+                    el.releasePointerCapture(e.pointerId)
+                    el.removeEventListener('pointermove', onMove)
+                    el.removeEventListener('pointerup', onUp)
+                    el.removeEventListener('pointercancel', onUp)
                   }
-                  window.addEventListener('mousemove', onMove)
-                  window.addEventListener('mouseup', onUp)
+                  el.addEventListener('pointermove', onMove)
+                  el.addEventListener('pointerup', onUp)
+                  el.addEventListener('pointercancel', onUp)
                 }}
               >
                 <span className="h-2.5 w-2.5 border-b-2 border-l-2 border-white/70" />
               </div>
-              <div className="absolute right-2 top-2 z-20 flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 bg-slate-800/50 p-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
-                  onClick={onToggleVideoFullscreen}
-                >
-                  <Maximize className="h-3 w-3 text-white" />
-                </Button>
+              <div className="absolute right-2 top-1 z-40 flex gap-1">
+                {onToggleVideoFullscreen ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 bg-slate-800/50 p-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
+                    onClick={onToggleVideoFullscreen}
+                  >
+                    <Maximize className="h-3 w-3 text-white" />
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"

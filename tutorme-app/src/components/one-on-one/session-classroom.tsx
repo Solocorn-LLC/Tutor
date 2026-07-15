@@ -12,19 +12,30 @@
  * task deployment) are intentionally absent — a course-less session has none.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, FolderOpen, Users } from 'lucide-react'
+import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
 import { SessionResponsesPanel } from '@/components/one-on-one/session-responses-panel'
+import {
+  SessionBoardsOverlay,
+  BoardsPicker,
+  useOwnBoardOpened,
+} from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 type ActivePanel = 'deploy' | 'materials' | 'responses' | null
+interface BoardTarget {
+  ownerId: string
+  ownerName: string
+  mine: boolean
+}
 
 interface SessionClassroomProps {
   sessionId: string
@@ -32,6 +43,12 @@ interface SessionClassroomProps {
   token: string | null
   isTutor?: boolean
   twoWay?: boolean
+  /** The course this session is built around, if any — lets the tutor jump
+   *  straight into the Course Builder to edit it (changes sync everywhere). */
+  courseId?: string | null
+  courseName?: string | null
+  /** Re-mint a fresh access token and re-enter (recovers from an expired token). */
+  onRefreshToken?: () => void | Promise<void>
 }
 
 export function SessionClassroom({
@@ -40,11 +57,35 @@ export function SessionClassroom({
   token,
   isTutor,
   twoWay,
+  courseId,
+  courseName,
+  onRefreshToken,
 }: SessionClassroomProps) {
   const { data: session } = useSession()
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
   const toggle = (panel: Exclude<ActivePanel, null>) =>
     setActivePanel(cur => (cur === panel ? null : panel))
+  // Private-board overlay: whose board is open (own = editable, student = tutor
+  // viewing read-only), plus the tutor's student-board picker.
+  const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
+  const [showBoardsPicker, setShowBoardsPicker] = useState(false)
+  const [showCourseEditor, setShowCourseEditor] = useState(false)
+  // Bumped when the Edit-course modal (iframe) reports a save, so the deploy
+  // panel refetches instead of serving pre-edit task content.
+  const [deployRefreshKey, setDeployRefreshKey] = useState(0)
+  const myId = session?.user?.id ?? ''
+
+  // Listen for the embedded course-editor's save postMessage and refresh the
+  // deploy panel's task list. Same-origin check guards against foreign frames.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'tutorme:course-saved') setDeployRefreshKey(k => k + 1)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+  const ownBoardOpened = useOwnBoardOpened(boardTarget?.mine === true)
 
   // useSocket keys its effect on the option fields (not object identity), so an
   // inline object is safe — the compiler memoizes and the socket only reconnects
@@ -64,10 +105,8 @@ export function SessionClassroom({
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
   // room_state replay instead of missing everything that happened before.
-  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask } = useSessionRoomState(
-    socket,
-    session?.user?.id
-  )
+  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask, students } =
+    useSessionRoomState(socket, session?.user?.id)
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -76,6 +115,7 @@ export function SessionClassroom({
       token={token}
       isTutor={isTutor}
       twoWay={twoWay}
+      onRefreshToken={onRefreshToken}
       className="h-full w-full rounded-none border-0"
     />
   )
@@ -118,7 +158,63 @@ export function SessionClassroom({
               <Users className="h-3.5 w-3.5" />
               Responses
             </button>
+            {courseId ? (
+              <button
+                type="button"
+                onClick={() => setShowCourseEditor(true)}
+                title={
+                  courseName
+                    ? `Edit "${courseName}" in the Course Builder — changes sync everywhere`
+                    : 'Edit this course in the Course Builder'
+                }
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit course
+              </button>
+            ) : null}
+            <div className="pointer-events-auto relative">
+              <button
+                type="button"
+                onClick={() => setShowBoardsPicker(v => !v)}
+                title="View a student's board"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Boards
+              </button>
+              {showBoardsPicker ? (
+                <BoardsPicker
+                  students={students}
+                  onPick={s => {
+                    setBoardTarget({ ownerId: s.userId, ownerName: s.name, mine: false })
+                    setShowBoardsPicker(false)
+                  }}
+                  onClose={() => setShowBoardsPicker(false)}
+                />
+              ) : null}
+            </div>
           </>
+        ) : null}
+        {myId ? (
+          <button
+            type="button"
+            onClick={() =>
+              setBoardTarget(cur =>
+                cur?.mine ? null : { ownerId: myId, ownerName: 'Me', mine: true }
+              )
+            }
+            title="Your own private whiteboard"
+            className={
+              'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+              (boardTarget?.mine
+                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                : 'bg-white/90 text-slate-800 hover:bg-white')
+            }
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            My board
+          </button>
         ) : null}
         <button
           type="button"
@@ -130,6 +226,18 @@ export function SessionClassroom({
         </button>
       </div>
 
+      {/* Private-board overlay — sits above the shared board (which stays mounted
+          so the call audio keeps running). Own board stays alive once opened. */}
+      <SessionBoardsOverlay
+        sessionId={sessionId}
+        userId={myId}
+        userName={session?.user?.name || undefined}
+        isTutor={isTutor}
+        target={boardTarget}
+        ownBoardEverOpened={ownBoardOpened}
+        onClose={() => setBoardTarget(null)}
+      />
+
       {/* Side panels — wrapped so a panel crash closes to nothing, never the room. */}
       {activePanel ? (
         <FallbackBoundary label="session panel" fallback={null}>
@@ -138,6 +246,8 @@ export function SessionClassroom({
               <SessionDeployPanel
                 sessionId={sessionId}
                 socket={socket}
+                courseId={courseId}
+                refreshKey={deployRefreshKey}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
@@ -161,6 +271,22 @@ export function SessionClassroom({
             ) : null}
           </div>
         </FallbackBoundary>
+      ) : null}
+
+      {/* Edit-course modal — the full Course Builder for the linked course, in a
+          ~95% dialog (the tutor layout renders /tutor/insights chrome-less, and
+          the builder auto-saves, so edits sync everywhere without leaving the
+          room). */}
+      {courseId ? (
+        <Dialog open={showCourseEditor} onOpenChange={setShowCourseEditor}>
+          <DialogContent size="full" className="h-[95vh] overflow-hidden p-0">
+            <iframe
+              src={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit&embed=1`}
+              title={courseName ? `Edit ${courseName}` : 'Edit course'}
+              className="h-full w-full rounded-lg border-0"
+            />
+          </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   )

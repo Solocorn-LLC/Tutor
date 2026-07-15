@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, Check } from 'lucide-react'
+import { Loader2, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -33,21 +33,24 @@ interface AvailabilityEditorProps {
 }
 
 /**
- * Parent-facing weekly availability editor for a child. Persists to
- * /api/parent/students/[studentId]/availability, which writes to the same
- * StudentAvailability table (keyed by the child's studentId) that the rest of
- * the app reads, so tutor scheduling and calendars stay consistent.
+ * Parent-facing weekly availability editor for a child.
+ *
+ * Model: the child can book 24/7 by DEFAULT. The parent taps hours to BLOCK
+ * them; a blocked hour writes an isAvailable=false row to StudentAvailability
+ * (via /api/parent/students/[studentId]/availability), which the booking backend
+ * treats as off-limits. Tapping a blocked hour again re-opens it.
  */
 export function AvailabilityEditor({ studentId, studentName }: AvailabilityEditorProps) {
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
-  const [available, setAvailable] = useState<Set<string>>(new Set())
+  // Hours the parent has BLOCKED (everything else is bookable by default).
+  const [blocked, setBlocked] = useState<Set<string>>(new Set())
   const [selectedDay, setSelectedDay] = useState<number>(() => new Date().getDay())
 
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', [])
   const endpoint = `/api/parent/students/${studentId}/availability`
 
-  // Load the child's saved availability
+  // Load the child's saved blocks (rows explicitly marked unavailable).
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -57,9 +60,9 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
         if (cancelled) return
         const set = new Set<string>()
         for (const a of data?.availability ?? []) {
-          if (a.isAvailable) set.add(`${a.dayOfWeek}-${a.startTime}`)
+          if (a.isAvailable === false) set.add(`${a.dayOfWeek}-${a.startTime}`)
         }
-        setAvailable(set)
+        setBlocked(set)
       })
       .catch(() => {
         if (!cancelled) toast.error("Could not load this student's availability")
@@ -77,13 +80,13 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
       const key = slotKey(day, hour)
       const startTime = `${pad(hour)}:00`
       const endTime = `${pad(hour + 1)}:00`
-      const currentlyAvailable = available.has(key)
-      const next = !currentlyAvailable
+      const currentlyBlocked = blocked.has(key)
+      const willBlock = !currentlyBlocked
 
       // Optimistic
-      setAvailable(prev => {
+      setBlocked(prev => {
         const s = new Set(prev)
-        if (next) s.add(key)
+        if (willBlock) s.add(key)
         else s.delete(key)
         return s
       })
@@ -104,15 +107,16 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
             startTime,
             endTime,
             timezone,
-            isAvailable: next,
+            // Blocking a slot marks it unavailable; re-opening marks it available.
+            isAvailable: !willBlock,
           }),
         })
         if (!res.ok) throw new Error('save failed')
       } catch {
         // Revert on failure
-        setAvailable(prev => {
+        setBlocked(prev => {
           const s = new Set(prev)
-          if (currentlyAvailable) s.add(key)
+          if (currentlyBlocked) s.add(key)
           else s.delete(key)
           return s
         })
@@ -121,11 +125,11 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
         setSavingKey(null)
       }
     },
-    [available, timezone, endpoint]
+    [blocked, timezone, endpoint]
   )
 
   const dayLong = DAYS.find(d => d.idx === selectedDay)?.long ?? ''
-  const availableCount = available.size
+  const blockedCount = blocked.size
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
@@ -135,11 +139,12 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
             {studentName ? `${studentName}'s Availability` : 'Availability'}
           </h3>
           <p className="text-xs text-gray-500">
-            Tap the hours your child is free. Tutors use this when scheduling 1-on-1s.
+            Your child can book any time by default. Tap an hour to block it — tutors won&apos;t be
+            able to schedule 1-on-1s then.
           </p>
         </div>
-        <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700">
-          {availableCount} slot{availableCount === 1 ? '' : 's'} marked free
+        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+          {blockedCount} hour{blockedCount === 1 ? '' : 's'} blocked
         </span>
       </div>
 
@@ -173,7 +178,7 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {HOURS.map(h => {
               const key = slotKey(selectedDay, h)
-              const isFree = available.has(key)
+              const isBlocked = blocked.has(key)
               const isSaving = savingKey === key
               return (
                 <button
@@ -181,17 +186,18 @@ export function AvailabilityEditor({ studentId, studentName }: AvailabilityEdito
                   type="button"
                   disabled={isSaving}
                   onClick={() => void toggleSlot(selectedDay, h)}
+                  title={isBlocked ? 'Blocked — tap to allow' : 'Allowed — tap to block'}
                   className={cn(
                     'flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors disabled:opacity-60',
-                    isFree
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                    isBlocked
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                   )}
                 >
                   {isSaving ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : isFree ? (
-                    <Check className="h-3 w-3" />
+                  ) : isBlocked ? (
+                    <Ban className="h-3 w-3" />
                   ) : null}
                   {hourLabel(h)}
                 </button>

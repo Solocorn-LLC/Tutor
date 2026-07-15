@@ -118,6 +118,11 @@ export default function StudentRegistrationPage() {
 
   const [region, countryCode] = [formData.region, formData.countryCode]
 
+  // Inline per-field validation errors (empty required fields turn red).
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const clearError = (field: string) =>
+    setErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
+
   const availableCountries = useMemo(() => {
     if (!region) return []
     const selectedRegion = REGIONS.find(r => r.id === region)
@@ -137,54 +142,37 @@ export default function StudentRegistrationPage() {
   const goBack = () => setStep(prev => Math.max(1, prev - 1))
 
   const validateStep = () => {
+    // Collect ALL empty/invalid required fields so every one can be highlighted
+    // red at once, rather than a one-at-a-time toast.
+    const next: Record<string, string> = {}
     if (step === 1) {
-      const fullName = `${formData.firstName} ${formData.lastName}`.trim()
-      if (fullName.length < 2) {
-        toast.error('Please enter your first and last name')
-        return false
+      if (!formData.firstName.trim()) next.firstName = 'Please enter your first name'
+      if (!formData.lastName.trim()) next.lastName = 'Please enter your last name'
+      if (!formData.email) next.email = 'Please enter your email address'
+      if (!formData.password) next.password = 'Please enter a password'
+      if (!formData.confirmPassword) next.confirmPassword = 'Please confirm your password'
+      if (
+        formData.password &&
+        formData.confirmPassword &&
+        formData.password !== formData.confirmPassword
+      ) {
+        next.confirmPassword = 'Passwords do not match'
       }
-      if (!formData.email) {
-        toast.error('Please enter your email address')
-        return false
-      }
-      if (!formData.password || !formData.confirmPassword) {
-        toast.error('Please enter and confirm your password')
-        return false
-      }
-      if (formData.password !== formData.confirmPassword) {
-        toast.error('Passwords do not match')
-        return false
-      }
-      if (!formData.region) {
-        toast.error('Please select your region')
-        return false
-      }
-      if (!formData.countryCode) {
-        toast.error('Please select your country')
-        return false
-      }
+      if (!formData.region) next.region = 'Please select your region'
+      if (!formData.countryCode) next.countryCode = 'Please select your country'
     }
     if (step === 2) {
+      // Preserves the original behaviour (the parent-email checks below it were
+      // unreachable dead code): step 2 requires the 16+ confirmation and the ToS.
       if (!formData.isSixteen) {
-        toast.error('Please confirm if you are 16 years of age or older')
-        return false
+        next.isSixteen = 'Please confirm if you are 16 years of age or older'
       }
-      if (!formData.isSixteen) {
-        if (!formData.parentEmail) {
-          toast.error('Please enter your parent or guardian email')
-          return false
-        }
-        if (!formData.confirmParentEmail) {
-          toast.error('Please confirm your parent or guardian email')
-          return false
-        }
-        if (formData.parentEmail !== formData.confirmParentEmail) {
-          toast.error('Parent or guardian emails do not match')
-          return false
-        }
+      if (!formData.tosAccepted) {
+        next.tosAccepted = 'You must accept the Terms of Service'
       }
     }
-    return true
+    setErrors(next)
+    return Object.keys(next).length === 0
   }
 
   const handleNext = () => {
@@ -193,17 +181,9 @@ export default function StudentRegistrationPage() {
   }
 
   const handleSubmit = async () => {
+    // validateStep (step 2) already flags the 16+ confirmation and the ToS
+    // inline in red, so no duplicate toasts here.
     if (!validateStep()) return
-
-    if (!formData.isSixteen) {
-      toast.error('You must be 16 years of age or older to create an account')
-      return
-    }
-
-    if (!formData.tosAccepted) {
-      toast.error('You must accept the Terms of Service')
-      return
-    }
 
     const fullName = `${formData.firstName} ${formData.lastName}`.trim()
     setIsLoading(true)
@@ -275,9 +255,21 @@ export default function StudentRegistrationPage() {
                         id="firstName"
                         autoComplete="given-name"
                         value={formData.firstName}
-                        onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                        className={inputClassName}
+                        onChange={e => {
+                          setFormData({ ...formData, firstName: e.target.value })
+                          clearError('firstName')
+                        }}
+                        aria-invalid={!!errors.firstName}
+                        className={cn(
+                          inputClassName,
+                          errors.firstName && 'border-red-500 focus-visible:ring-red-500/30'
+                        )}
                       />
+                      {errors.firstName && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.firstName}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="middleName" className="text-xs text-white/70">
@@ -299,9 +291,21 @@ export default function StudentRegistrationPage() {
                         id="lastName"
                         autoComplete="family-name"
                         value={formData.lastName}
-                        onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                        className={inputClassName}
+                        onChange={e => {
+                          setFormData({ ...formData, lastName: e.target.value })
+                          clearError('lastName')
+                        }}
+                        aria-invalid={!!errors.lastName}
+                        className={cn(
+                          inputClassName,
+                          errors.lastName && 'border-red-500 focus-visible:ring-red-500/30'
+                        )}
                       />
+                      {errors.lastName && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.lastName}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -314,9 +318,21 @@ export default function StudentRegistrationPage() {
                       type="email"
                       autoComplete="email"
                       value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      className={inputClassName}
+                      onChange={e => {
+                        setFormData({ ...formData, email: e.target.value })
+                        clearError('email')
+                      }}
+                      aria-invalid={!!errors.email}
+                      className={cn(
+                        inputClassName,
+                        errors.email && 'border-red-500 focus-visible:ring-red-500/30'
+                      )}
                     />
+                    {errors.email && (
+                      <p className="text-xs text-red-400" role="alert">
+                        {errors.email}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -331,9 +347,17 @@ export default function StudentRegistrationPage() {
                           autoComplete="new-password"
                           type={showPassword ? 'text' : 'password'}
                           value={formData.password}
-                          onChange={e => setFormData({ ...formData, password: e.target.value })}
+                          onChange={e => {
+                            setFormData({ ...formData, password: e.target.value })
+                            clearError('password')
+                          }}
                           placeholder="Create a password"
-                          className={cn(inputClassName, 'pr-9')}
+                          aria-invalid={!!errors.password}
+                          className={cn(
+                            inputClassName,
+                            'pr-9',
+                            errors.password && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
                         />
                         <button
                           type="button"
@@ -348,6 +372,11 @@ export default function StudentRegistrationPage() {
                           )}
                         </button>
                       </div>
+                      {errors.password && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.password}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="confirmPassword" className="text-xs text-white/70">
@@ -360,11 +389,17 @@ export default function StudentRegistrationPage() {
                           autoComplete="new-password"
                           type={showConfirmPassword ? 'text' : 'password'}
                           value={formData.confirmPassword}
-                          onChange={e =>
+                          onChange={e => {
                             setFormData({ ...formData, confirmPassword: e.target.value })
-                          }
+                            clearError('confirmPassword')
+                          }}
                           placeholder="Confirm your password"
-                          className={cn(inputClassName, 'pr-9')}
+                          aria-invalid={!!errors.confirmPassword}
+                          className={cn(
+                            inputClassName,
+                            'pr-9',
+                            errors.confirmPassword && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
                         />
                         <button
                           type="button"
@@ -380,7 +415,8 @@ export default function StudentRegistrationPage() {
                         </button>
                       </div>
                       <p className="min-h-[18px] text-xs text-red-400">
-                        {passwordMismatch ? 'Passwords do not match.' : '\u00A0'}
+                        {errors.confirmPassword ||
+                          (passwordMismatch ? 'Passwords do not match.' : '\u00A0')}
                       </p>
                     </div>
                   </div>
@@ -394,9 +430,16 @@ export default function StudentRegistrationPage() {
                           value={formData.region}
                           onValueChange={v => {
                             setFormData(prev => ({ ...prev, region: v, countryCode: '' }))
+                            clearError('region')
                           }}
                         >
-                          <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40">
+                          <SelectTrigger
+                            aria-invalid={!!errors.region}
+                            className={cn(
+                              'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40',
+                              errors.region && 'border-red-500 focus:ring-red-500/40'
+                            )}
+                          >
                             <SelectValue placeholder="Select Region..." />
                           </SelectTrigger>
                           <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
@@ -411,19 +454,29 @@ export default function StudentRegistrationPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.region && (
+                          <p className="mt-1 text-xs text-red-400" role="alert">
+                            {errors.region}
+                          </p>
+                        )}
                       </div>
 
                       {/* Country */}
                       <div>
                         <Select
                           value={formData.countryCode}
-                          onValueChange={v => setFormData(prev => ({ ...prev, countryCode: v }))}
+                          onValueChange={v => {
+                            setFormData(prev => ({ ...prev, countryCode: v }))
+                            clearError('countryCode')
+                          }}
                           disabled={!formData.region}
                         >
                           <SelectTrigger
+                            aria-invalid={!!errors.countryCode}
                             className={cn(
                               'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 disabled:text-white disabled:opacity-100',
-                              !formData.region && 'border-slate-400/20 bg-slate-100/50'
+                              !formData.region && 'border-slate-400/20 bg-slate-100/50',
+                              errors.countryCode && 'border-red-500 focus:ring-red-500/40'
                             )}
                           >
                             <SelectValue placeholder="Select Country" />
@@ -446,6 +499,11 @@ export default function StudentRegistrationPage() {
                             )}
                           </SelectContent>
                         </Select>
+                        {errors.countryCode && (
+                          <p className="mt-1 text-xs text-red-400" role="alert">
+                            {errors.countryCode}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -465,15 +523,25 @@ export default function StudentRegistrationPage() {
                   <Checkbox
                     id="isSixteen"
                     checked={formData.isSixteen}
-                    onCheckedChange={checked =>
+                    onCheckedChange={checked => {
                       setFormData(prev => ({ ...prev, isSixteen: checked === true }))
-                    }
-                    className="border-white bg-white text-[#F97316] data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-[#F97316]"
+                      clearError('isSixteen')
+                    }}
+                    aria-invalid={!!errors.isSixteen}
+                    className={cn(
+                      'border-white bg-white text-[#F97316] data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-[#F97316]',
+                      errors.isSixteen && 'border-red-500 ring-2 ring-red-500/40'
+                    )}
                   />
                   <div className="space-y-1">
                     <Label htmlFor="isSixteen" className="cursor-pointer text-sm text-white/80">
                       I am 16 years of age or older
                     </Label>
+                    {errors.isSixteen && (
+                      <p className="text-xs text-red-400" role="alert">
+                        {errors.isSixteen}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -697,18 +765,30 @@ export default function StudentRegistrationPage() {
                   <Checkbox
                     id="tosAccepted"
                     checked={formData.tosAccepted}
-                    onCheckedChange={checked =>
+                    onCheckedChange={checked => {
                       setFormData(prev => ({ ...prev, tosAccepted: checked === true }))
-                    }
-                    className="border-white/40 data-[state=checked]:border-[#F97316] data-[state=checked]:bg-[#F97316] data-[state=checked]:text-white"
+                      clearError('tosAccepted')
+                    }}
+                    aria-invalid={!!errors.tosAccepted}
+                    className={cn(
+                      'border-white/40 data-[state=checked]:border-[#F97316] data-[state=checked]:bg-[#F97316] data-[state=checked]:text-white',
+                      errors.tosAccepted && 'border-red-500 ring-2 ring-red-500/40'
+                    )}
                   />
-                  <Label
-                    htmlFor="tosAccepted"
-                    className="cursor-pointer text-sm font-medium text-white/80"
-                  >
-                    I agree to the Terms and Agreements and confirm that the information provided is
-                    accurate.
-                  </Label>
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="tosAccepted"
+                      className="cursor-pointer text-sm font-medium text-white/80"
+                    >
+                      I agree to the Terms and Agreements and confirm that the information provided
+                      is accurate.
+                    </Label>
+                    {errors.tosAccepted && (
+                      <p className="text-xs text-red-400" role="alert">
+                        {errors.tosAccepted}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">

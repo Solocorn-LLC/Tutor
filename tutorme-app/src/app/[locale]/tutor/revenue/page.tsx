@@ -123,6 +123,7 @@ export default function RevenuePage() {
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const [emailAddress, setEmailAddress] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<RevenueData | null>(null)
@@ -289,6 +290,7 @@ export default function RevenuePage() {
 
   const [showPayoutDialog, setShowPayoutDialog] = useState(false)
   const [payoutAmount, setPayoutAmount] = useState('')
+  const [payoutError, setPayoutError] = useState<string | null>(null)
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer')
   const [submittingPayout, setSubmittingPayout] = useState(false)
 
@@ -303,13 +305,14 @@ export default function RevenuePage() {
   const submitPayoutRequest = async () => {
     const amount = parseFloat(payoutAmount)
     if (!amount || amount <= 0) {
-      toast.error('Please enter a valid amount')
+      setPayoutError('Please enter a valid amount')
       return
     }
     if (amount > (data?.summary.availableBalance || 0)) {
-      toast.error('Amount exceeds available balance')
+      setPayoutError('Amount exceeds available balance')
       return
     }
+    setPayoutError(null)
 
     setSubmittingPayout(true)
     try {
@@ -343,9 +346,10 @@ export default function RevenuePage() {
 
   const handleSendEmail = async () => {
     if (!emailAddress.trim() || !emailAddress.includes('@')) {
-      toast.error('Please enter a valid email address')
+      setEmailError('Please enter a valid email address')
       return
     }
+    setEmailError(null)
     setSendingEmail(true)
     await new Promise(resolve => setTimeout(resolve, 1500))
     toast.success(`Statement sent to ${emailAddress}`)
@@ -943,7 +947,11 @@ export default function RevenuePage() {
                 type="email"
                 placeholder="Enter email address..."
                 value={emailAddress}
-                onChange={e => setEmailAddress(e.target.value)}
+                onChange={e => {
+                  setEmailAddress(e.target.value)
+                  if (emailError) setEmailError(null)
+                }}
+                errorMessage={emailError || undefined}
                 onKeyDown={e => e.key === 'Enter' && handleSendEmail()}
               />
             </div>
@@ -1006,7 +1014,11 @@ export default function RevenuePage() {
                 type="number"
                 placeholder="Enter amount..."
                 value={payoutAmount}
-                onChange={e => setPayoutAmount(e.target.value)}
+                onChange={e => {
+                  setPayoutAmount(e.target.value)
+                  if (payoutError) setPayoutError(null)
+                }}
+                errorMessage={payoutError || undefined}
                 min={1}
                 max={data?.summary.availableBalance}
               />

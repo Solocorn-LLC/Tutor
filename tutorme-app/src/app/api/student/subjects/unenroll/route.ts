@@ -8,6 +8,7 @@ import { withAuth, withCsrf, ValidationError, NotFoundError } from '@/lib/api/mi
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course, courseEnrollment } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { reconcileProposalsAfterDeparture } from '@/lib/schedule/reschedule-consent'
 
 export const POST = withCsrf(
   withAuth(
@@ -34,6 +35,7 @@ export const POST = withCsrf(
         .where(
           and(
             eq(courseEnrollment.studentId, session.user.id),
+            // eslint-disable-next-line no-restricted-syntax -- exact match: unenroll targets THIS resolved course, not a session-derived id
             eq(courseEnrollment.courseId, courseRow.courseId)
           )
         )
@@ -58,6 +60,9 @@ export const POST = withCsrf(
           )
         }
       })
+
+      // A departed student's unanswered vote must not stall a pending reschedule.
+      await reconcileProposalsAfterDeparture(session.user.id, courseRow.courseId)
 
       return NextResponse.json({
         success: true,

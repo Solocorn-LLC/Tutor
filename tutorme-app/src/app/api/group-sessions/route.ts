@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
       )
       .orderBy(desc(groupSession.requestedDate))
     const withSeats = await withSeatsLeft(rows)
-    return NextResponse.json({ sessions: withSeats })
+    return NextResponse.json({ sessions: await attachCourseName(withSeats) })
   }
 
   // Tutor viewing their own sessions.
@@ -204,7 +204,27 @@ export async function GET(req: NextRequest) {
     .from(groupSession)
     .where(eq(groupSession.tutorId, session.user.id))
     .orderBy(desc(groupSession.requestedDate))
-  return NextResponse.json({ sessions: await withSeatsLeft(rows) })
+  return NextResponse.json({ sessions: await attachCourseName(await withSeatsLeft(rows)) })
+}
+
+/** Attach the linked course's name (published state) to each session so the
+ *  cards can show what a session is about. One query for the whole page. */
+async function attachCourseName<T extends { courseId: string | null }>(
+  rows: T[]
+): Promise<(T & { courseName: string | null; coursePublished: boolean | null })[]> {
+  const ids = [...new Set(rows.map(r => r.courseId).filter((x): x is string => !!x))]
+  const byId = new Map<string, { name: string; isPublished: boolean }>()
+  if (ids.length > 0) {
+    const cs = await drizzleDb
+      .select({ courseId: course.courseId, name: course.name, isPublished: course.isPublished })
+      .from(course)
+      .where(inArray(course.courseId, ids))
+    for (const c of cs) byId.set(c.courseId, { name: c.name, isPublished: c.isPublished })
+  }
+  return rows.map(r => {
+    const c = r.courseId ? byId.get(r.courseId) : undefined
+    return { ...r, courseName: c?.name ?? null, coursePublished: c?.isPublished ?? null }
+  })
 }
 
 function todayUtc(): string {

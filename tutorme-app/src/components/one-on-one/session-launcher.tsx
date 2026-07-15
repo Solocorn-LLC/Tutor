@@ -13,11 +13,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Video, X } from 'lucide-react'
+import { Video, X, CreditCard } from 'lucide-react'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import { formatCountdown } from '@/lib/one-on-one/format'
+import { resumeGroupSeatPayment } from '@/lib/group-session/resume-payment'
 
 interface LiveSession {
   sessionId: string
@@ -27,6 +28,12 @@ interface LiveSession {
   viewerIsTutor: boolean
   joinable: boolean
   live: boolean
+  /** Booked but unpaid — show "Pay to join" instead of Join. */
+  needsPayment?: boolean
+  /** 1-on-1 pending payment: navigate to the payment page for this request. */
+  payRequestId?: string | null
+  /** Group pending payment: resume checkout for this reserved seat. */
+  payParticipantId?: string | null
 }
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000
@@ -35,6 +42,8 @@ const POLL_MS = 45_000
 export function SessionLauncher() {
   const { status } = useSession()
   const router = useRouter()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'en'
   const overlayOpen = useVideoOverlayStore(s => s.open)
   const [live, setLive] = useState<LiveSession | null>(null)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
@@ -77,11 +86,19 @@ export function SessionLauncher() {
   if (dismissed.has(live.sessionId)) return null
 
   const start = new Date(live.scheduledAt).getTime()
-  const joinable = live.live || now >= start - EARLY_ENTRY_MS
-  const isLive = live.live || now >= start
+  const needsPayment = !!live.needsPayment
+  const joinable = !needsPayment && (live.live || now >= start - EARLY_ENTRY_MS)
+  const isLive = !needsPayment && (live.live || now >= start)
   const opensAt = start - EARLY_ENTRY_MS
 
   const join = () => router.push(`/call/${live.sessionId}`)
+  const pay = () => {
+    if (live.payRequestId) {
+      router.push(`/${locale}/payment?requestId=${live.payRequestId}`)
+    } else if (live.payParticipantId) {
+      resumeGroupSeatPayment(live.payParticipantId)
+    }
+  }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[9998] flex justify-center px-4 sm:inset-x-auto sm:right-4 sm:justify-end">
@@ -96,7 +113,11 @@ export function SessionLauncher() {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{live.title}</p>
           <p className="truncate text-xs text-white/60">
-            {isLive ? (
+            {needsPayment ? (
+              <span className="font-medium text-amber-300">
+                Payment needed · starts in {formatCountdown(start, now)}
+              </span>
+            ) : isLive ? (
               <span className="font-medium text-emerald-400">● Live now</span>
             ) : joinable ? (
               <span className="font-medium text-blue-300">Ready to join</span>
@@ -106,7 +127,16 @@ export function SessionLauncher() {
           </p>
         </div>
 
-        {joinable ? (
+        {needsPayment ? (
+          <button
+            type="button"
+            onClick={pay}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400"
+          >
+            <CreditCard className="h-4 w-4" />
+            Pay to join
+          </button>
+        ) : joinable ? (
           <button
             type="button"
             onClick={join}

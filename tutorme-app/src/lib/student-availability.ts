@@ -1,7 +1,12 @@
 /**
  * Read helpers for a student's weekly availability (StudentAvailability),
- * which is managed by the student's parent. Used by the booking backend so a
- * 1-on-1 can only be scheduled within the hours the parent marked free.
+ * which is managed by the student's parent.
+ *
+ * Model: a student is free to book 24/7 BY DEFAULT. A parent can BLOCK specific
+ * weekly hours (rows with `isAvailable = false`); only those hours are off-limits
+ * and require the parent to re-open them. Hours with no row — or a row marked
+ * available — are bookable. So the booking backend enforces a blacklist, not a
+ * whitelist.
  */
 
 import { eq } from 'drizzle-orm'
@@ -11,12 +16,10 @@ import { studentAvailability } from '@/lib/db/schema'
 const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
- * The set of free hour keys ("<dayOfWeek>-HH:00", e.g. "1-14:00") a student is
- * marked available for. Returns `null` when the student has NO availability
- * configured at all, so callers can choose not to enforce (rather than block a
- * student whose parent hasn't set any availability yet).
+ * The set of hour keys ("<dayOfWeek>-HH:00", e.g. "1-14:00") a parent has
+ * explicitly BLOCKED for a student. Empty when nothing is blocked (the default).
  */
-export async function getStudentFreeHourSet(studentId: string): Promise<Set<string> | null> {
+export async function getStudentBlockedHourSet(studentId: string): Promise<Set<string>> {
   const rows = await drizzleDb
     .select({
       dayOfWeek: studentAvailability.dayOfWeek,
@@ -26,53 +29,50 @@ export async function getStudentFreeHourSet(studentId: string): Promise<Set<stri
     .from(studentAvailability)
     .where(eq(studentAvailability.studentId, studentId))
 
-  if (rows.length === 0) return null
-
-  const free = new Set<string>()
+  const blocked = new Set<string>()
   for (const r of rows) {
-    if (r.isAvailable) free.add(`${r.dayOfWeek}-${r.startTime}`)
+    if (r.isAvailable === false) blocked.add(`${r.dayOfWeek}-${r.startTime}`)
   }
-  return free
+  return blocked
 }
 
 /**
- * Whether a proposed session time falls within the student's available hours.
- *  - date: "YYYY-MM-DD"
+ * Pure check: does [startTime, endTime) on `date` overlap any parent-blocked
+ * hour? Returns true (unbookable) for a blocked overlap OR an invalid range.
+ *  - date: "YYYY-MM-DD" (weekday parsed as UTC so it doesn't shift with the
+ *    server timezone)
  *  - startTime / endTime: "HH:mm"
- *
- * Returns true when the student has no availability configured (not enforced),
- * or when every clock hour the session overlaps is marked free; false otherwise.
  */
-/**
- * Whether the student has ANY availability configured at all. Used to enforce
- * that a 1-on-1 can't be requested/accepted for a student whose availability is
- * unset (which would otherwise skip the slot check entirely).
- */
-export async function studentHasAvailabilityConfigured(studentId: string): Promise<boolean> {
-  return (await getStudentFreeHourSet(studentId)) !== null
+export function slotOverlapsBlockedHours(
+  blocked: ReadonlySet<string>,
+  date: string,
+  startTime: string,
+  endTime: string
+): boolean {
+  const [sh, sm] = startTime.split(':').map(Number)
+  const [eh, em] = endTime.split(':').map(Number)
+  const startMin = sh * 60 + (sm || 0)
+  const endMin = eh * 60 + (em || 0)
+  if (!Number.isFinite(startMin) || !Number.isFinite(endMin) || endMin <= startMin) return true
+  if (blocked.size === 0) return false
+
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay()
+  for (let h = Math.floor(startMin / 60); h * 60 < endMin; h++) {
+    if (blocked.has(`${day}-${pad(h)}:00`)) return true
+  }
+  return false
 }
 
+/**
+ * Whether a proposed session time is bookable for the student — i.e. it does NOT
+ * fall on an hour the parent has blocked. Free by default (nothing blocked).
+ */
 export async function isSlotWithinStudentAvailability(
   studentId: string,
   date: string,
   startTime: string,
   endTime: string
 ): Promise<boolean> {
-  const free = await getStudentFreeHourSet(studentId)
-  if (free === null) return true // no availability configured → don't block
-
-  // Day-of-week of the calendar date itself — parse as UTC so it doesn't shift
-  // with the server's timezone (a plain YYYY-MM-DD has a fixed weekday).
-  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay()
-  const [sh, sm] = startTime.split(':').map(Number)
-  const [eh, em] = endTime.split(':').map(Number)
-  const startMin = sh * 60 + (sm || 0)
-  const endMin = eh * 60 + (em || 0)
-  if (!Number.isFinite(startMin) || !Number.isFinite(endMin) || endMin <= startMin) return false
-
-  // Every clock hour the session overlaps must be marked free.
-  for (let h = Math.floor(startMin / 60); h * 60 < endMin; h++) {
-    if (!free.has(`${day}-${pad(h)}:00`)) return false
-  }
-  return true
+  const blocked = await getStudentBlockedHourSet(studentId)
+  return !slotOverlapsBlockedHours(blocked, date, startTime, endTime)
 }

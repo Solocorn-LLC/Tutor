@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { sessionRescheduleProposal, sessionRescheduleVote, liveSession } from '@/lib/db/schema'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, ne } from 'drizzle-orm'
 
 export const GET = withAuth(
   async (_req, session) => {
@@ -29,7 +29,9 @@ export const GET = withAuth(
       .where(
         and(
           eq(sessionRescheduleProposal.proposedBy, tutorId),
-          eq(sessionRescheduleProposal.status, 'PENDING')
+          eq(sessionRescheduleProposal.status, 'PENDING'),
+          // Hide proposals for a session that has since ended (it's moot).
+          ne(liveSession.status, 'ended')
         )
       )
 

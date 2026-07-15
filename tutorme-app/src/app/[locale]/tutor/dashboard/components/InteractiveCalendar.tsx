@@ -88,6 +88,8 @@ interface CalendarEvent {
   sessionId?: string
   /** 1-on-1 booking request id — used to self-heal a missing session link. */
   requestId?: string
+  /** Tutor accepted but the student hasn't paid — can't join yet. */
+  pendingPayment?: boolean
   studentCount?: number
   maxStudents?: number
   subject?: string
@@ -597,6 +599,9 @@ export function InteractiveCalendar({
             nationality: e.nationality,
             variantCategory: e.variantCategory,
             studentCount: e.enrolledCount ?? 0,
+            // An accepted-but-unpaid 1-on-1 has a live session row but no student
+            // can enter yet — disables the "Start Session" button (see detail dialog).
+            pendingPayment: e.pendingPayment,
             color:
               e.status === 'live'
                 ? 'bg-emerald-500'
@@ -1483,8 +1488,13 @@ export function InteractiveCalendar({
                   </Button>
                   <Button
                     variant="modal-primary-dark"
-                    disabled={selectedEvent.status === 'cancelled' || joiningSession}
+                    disabled={
+                      selectedEvent.status === 'cancelled' ||
+                      joiningSession ||
+                      selectedEvent.pendingPayment
+                    }
                     onClick={async () => {
+                      if (selectedEvent.pendingPayment) return
                       const isOneOnOne = (selectedEvent.maxStudents ?? 50) <= 2
                       // 1-on-1 (capacity ≤ 2) → the shared two-way call room, which
                       // works for both roles (course classrooms are role-specific and
@@ -1540,17 +1550,19 @@ export function InteractiveCalendar({
                     }}
                   >
                     <Video className="mr-2 h-4 w-4" />
-                    {selectedEvent.status === 'cancelled'
-                      ? 'Cancelled'
-                      : selectedEvent.status === 'completed'
-                        ? isStudent
-                          ? 'View Feedback'
-                          : 'View Session'
-                        : selectedEvent.status === 'live'
-                          ? 'Join Session'
-                          : isStudent
-                            ? 'View Session'
-                            : 'Start Session'}
+                    {selectedEvent.pendingPayment
+                      ? 'Awaiting payment'
+                      : selectedEvent.status === 'cancelled'
+                        ? 'Cancelled'
+                        : selectedEvent.status === 'completed'
+                          ? isStudent
+                            ? 'View Feedback'
+                            : 'View Session'
+                          : selectedEvent.status === 'live'
+                            ? 'Join Session'
+                            : isStudent
+                              ? 'View Session'
+                              : 'Start Session'}
                   </Button>
                 </DialogFooter>
               </>

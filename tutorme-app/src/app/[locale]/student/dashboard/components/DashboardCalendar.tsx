@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -12,10 +12,27 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock,
+  BookOpen,
+  MapPin,
+  Video,
+  Users,
+  Loader2,
+  Star,
+  X,
+  CreditCard,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
+import {
+  OneOnOneRequestCard,
+  groupIntoSeries,
+  type OneOnOneRequestSummary,
+} from '@/components/one-on-one/one-on-one-request-card'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -33,6 +50,9 @@ export interface CalendarEvent {
   meetingUrl?: string | null
   status?: string
   requestId?: string | null
+  /** The tutor accepted the slot but the student hasn't paid — shown on the
+   *  calendar as "awaiting payment", with no (dead-end) join. */
+  pendingPayment?: boolean
   /** LiveSession id (from the calendar event's externalId) — used to open the
    *  in-app two-way call room for a 1-on-1. */
   sessionId?: string | null
@@ -102,6 +122,8 @@ export function DashboardCalendar({
   onBookClass,
 }: DashboardCalendarProps) {
   const router = useRouter()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'en'
   const [activeTab, setActiveTab] = useState('classes')
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
@@ -112,6 +134,11 @@ export function DashboardCalendar({
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  // Pending (not-yet-accepted) 1-on-1 requests — they have no CalendarEvent yet,
+  // so they never come back from /calendar/events. Fetched separately so a
+  // just-submitted request is visible while awaiting the tutor's response.
+  const [pendingRequests, setPendingRequests] = useState<OneOnOneRequestSummary[]>([])
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -144,6 +171,48 @@ export function DashboardCalendar({
       cancelled = true
     }
   }, [monthStart, monthEnd, onRefresh, refreshTick])
+
+  // Fetch the student's own requests and keep only the PENDING ones — the
+  // accepted/paid/completed ones already surface via the calendar-events list.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/one-on-one/request?role=sent', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { requests: [] }))
+      .then(data => {
+        if (cancelled) return
+        const all: OneOnOneRequestSummary[] = Array.isArray(data?.requests) ? data.requests : []
+        setPendingRequests(all.filter(r => (r.status || '').toUpperCase() === 'PENDING'))
+      })
+      .catch(() => {
+        if (!cancelled) setPendingRequests([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshTick])
+
+  const handleCancelRequestSeries = async (requestId: string) => {
+    setCancellingRequestId(requestId)
+    try {
+      const res = await fetchWithCsrf('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId }),
+      })
+      if (res.ok) {
+        toast.success('Request cancelled.')
+        setRefreshTick(t => t + 1)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Could not cancel the request')
+      }
+    } catch {
+      toast.error('Could not cancel the request')
+    } finally {
+      setCancellingRequestId(null)
+    }
+  }
 
   const handleCancelBooking = async (requestId: string) => {
     if (
@@ -248,6 +317,7 @@ export function DashboardCalendar({
         // self-heal; maxStudents (2 for a 1-on-1) routes to the shared call room.
         sessionId: (ev as any).sessionId ?? undefined,
         requestId: (ev as any).requestId ?? undefined,
+        pendingPayment: (ev as any).pendingPayment ?? undefined,
         maxStudents: isOneOnOne ? 2 : ((ev as any).maxStudents ?? undefined),
         description:
           (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
@@ -320,7 +390,40 @@ export function DashboardCalendar({
                 <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
                 <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
                 <div className="flex-1 overflow-y-auto pr-1">
-                  {oneOnOneSessions.length === 0 ? (
+                  {/* Pending requests — shown as soon as they're submitted, before
+                      the tutor responds (they have no CalendarEvent yet). */}
+                  {pendingRequests.length > 0 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-amber-600">
+                        Awaiting tutor response
+                      </p>
+                      {groupIntoSeries(pendingRequests).map(group => {
+                        const r = group.head
+                        return (
+                          <OneOnOneRequestCard
+                            key={r.seriesId ?? r.requestId}
+                            request={r}
+                            perspective="student"
+                            variant="light"
+                            series={group.series}
+                            actions={
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:bg-destructive/10"
+                                disabled={cancellingRequestId === r.requestId}
+                                onClick={() => handleCancelRequestSeries(r.requestId)}
+                              >
+                                {cancellingRequestId === r.requestId ? 'Cancelling…' : 'Cancel'}
+                              </Button>
+                            }
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {oneOnOneSessions.length === 0 && pendingRequests.length === 0 ? (
                     <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
                       <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
                       <p className="text-muted-foreground text-sm">
@@ -330,7 +433,7 @@ export function DashboardCalendar({
                         Your upcoming private sessions will appear here.
                       </p>
                     </div>
-                  ) : (
+                  ) : oneOnOneSessions.length === 0 ? null : (
                     <ul className="space-y-2">
                       {oneOnOneSessions.map(s => {
                         const isLive = s.status === 'live' || s.status === 'active'
@@ -392,6 +495,28 @@ export function DashboardCalendar({
                                   <Star className="h-3.5 w-3.5" />
                                   Rate
                                 </button>
+                              ) : s.pendingPayment ? (
+                                s.requestId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(`/${locale}/payment?requestId=${s.requestId}`)
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <CreditCard className="h-3.5 w-3.5" />
+                                    Complete payment
+                                  </button>
+                                ) : (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Awaiting payment
+                                  </span>
+                                )
                               ) : s.sessionId ? (
                                 // Two-way in-app call room (both student and tutor).
                                 <button
@@ -467,7 +592,24 @@ export function DashboardCalendar({
                                 {formatDate(s.start)} · {formatEventTime(s.start)}
                               </p>
                             </div>
-                            {s.sessionId ? (
+                            {new Date(s.end).getTime() < Date.now() ? (
+                              // Session already ended — suppress the dead-end Join
+                              // (the room is closed). Parity with the 1-on-1 list,
+                              // which flips a past session to its Rate/ended state.
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-500">
+                                Ended
+                              </span>
+                            ) : s.pendingPayment ? (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/${locale}/student/group-sessions`)}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                title="Seat held — complete payment to confirm and unlock the room."
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Complete payment
+                              </button>
+                            ) : s.sessionId ? (
                               <button
                                 type="button"
                                 onClick={() => router.push(`/call/${s.sessionId}`)}

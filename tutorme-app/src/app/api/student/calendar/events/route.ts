@@ -126,7 +126,10 @@ export const GET = withAuth(
     // finishes (COMPLETED) so the past session stays on the calendar to review. ---
     const oneOnOneFilters = [
       eq(calendarEvent.studentId, studentId),
-      inArray(oneOnOneBookingRequest.status, ['PAID', 'COMPLETED']),
+      // ACCEPTED = the tutor confirmed the slot and it's awaiting the student's
+      // payment; show it (flagged pending) so a booking is visible right after
+      // acceptance, not only once paid. EXPIRED/CANCELLED naturally drop out.
+      inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID', 'COMPLETED']),
       eq(calendarEvent.isCancelled, false),
       isNull(calendarEvent.deletedAt),
     ]
@@ -148,6 +151,7 @@ export const GET = withAuth(
         externalId: calendarEvent.externalId,
         sessionStatus: liveSession.status,
         requestId: oneOnOneBookingRequest.requestId,
+        bookingStatus: oneOnOneBookingRequest.status,
       })
       .from(calendarEvent)
       .innerJoin(
@@ -162,7 +166,9 @@ export const GET = withAuth(
     // Surfaced so the student can find and join the shared room after booking.
     const groupFilters = [
       eq(groupSessionParticipant.studentId, studentId),
-      eq(groupSessionParticipant.status, 'PAID'),
+      // RESERVED = seat held awaiting payment; PAID = confirmed. Show both so a
+      // just-booked seat appears (flagged pending until paid).
+      inArray(groupSessionParticipant.status, ['RESERVED', 'PAID']),
       ne(groupSession.status, 'CANCELLED'),
     ]
     if (startParam) groupFilters.push(gte(liveSession.scheduledAt, startDate))
@@ -177,6 +183,7 @@ export const GET = withAuth(
         durationMinutes: liveSession.durationMinutes,
         meetingUrl: liveSession.roomUrl,
         sessionStatus: liveSession.status,
+        seatStatus: groupSessionParticipant.status,
       })
       .from(groupSessionParticipant)
       .innerJoin(
@@ -251,6 +258,9 @@ export const GET = withAuth(
         location: e.location,
         isVirtual: e.isVirtual,
         status: e.sessionStatus || e.status || 'scheduled',
+        // True when the tutor accepted but the student hasn't paid — the UI can
+        // badge it "awaiting payment" instead of showing a confirmed session.
+        pendingPayment: e.bookingStatus === 'ACCEPTED',
         courseId: null as string | null,
       })),
       ...groupEvents.map(e => {
@@ -272,6 +282,7 @@ export const GET = withAuth(
           location: 'Online',
           isVirtual: true,
           status: e.sessionStatus || 'scheduled',
+          pendingPayment: e.seatStatus === 'RESERVED',
           courseId: null as string | null,
         }
       }),

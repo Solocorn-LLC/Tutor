@@ -22,7 +22,6 @@ import { getParamAsync } from '@/lib/api/params'
 import { getFamilyAccountForParent } from '@/lib/api/parent-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { studentAvailability, studentAvailabilityException } from '@/lib/db/schema'
-import { defaultStudentAvailabilitySlots } from '@/lib/student-availability-defaults'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,43 +55,13 @@ export const GET = withAuth(
     if ('error' in resolved) return resolved.error
     const { studentId } = resolved
 
-    let availability = await drizzleDb
+    // Students are free to book 24/7 by DEFAULT — we no longer seed a restrictive
+    // baseline. An empty result means "nothing blocked"; the parent blocks
+    // specific hours by tapping them (which writes an isAvailable=false row).
+    const availability = await drizzleDb
       .select()
       .from(studentAvailability)
       .where(eq(studentAvailability.studentId, studentId))
-
-    // First time: seed the default (8am–9pm free, every day) so the parent
-    // starts from a sensible baseline. Idempotent.
-    if (availability.length === 0) {
-      const now = new Date()
-      await drizzleDb
-        .insert(studentAvailability)
-        .values(
-          defaultStudentAvailabilitySlots().map(s => ({
-            availabilityId: crypto.randomUUID(),
-            studentId,
-            dayOfWeek: s.dayOfWeek,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            timezone: 'UTC',
-            isAvailable: true,
-            createdAt: now,
-            updatedAt: now,
-          }))
-        )
-        .onConflictDoNothing({
-          target: [
-            studentAvailability.studentId,
-            studentAvailability.dayOfWeek,
-            studentAvailability.startTime,
-            studentAvailability.endTime,
-          ],
-        })
-      availability = await drizzleDb
-        .select()
-        .from(studentAvailability)
-        .where(eq(studentAvailability.studentId, studentId))
-    }
 
     const exceptions = await drizzleDb
       .select()

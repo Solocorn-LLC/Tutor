@@ -11,6 +11,7 @@ import {
   courseLesson,
 } from '@/lib/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions, _req)
@@ -79,11 +80,12 @@ export async function GET(_req: NextRequest) {
 
         // Lessons now directly reference courses (no modules)
         if (liveSessionRow.courseId) {
+          const lessonFamily = await expandToCourseFamily([liveSessionRow.courseId])
           const lessonIds = (
             await drizzleDb
               .select({ lessonId: courseLesson.lessonId })
               .from(courseLesson)
-              .where(eq(courseLesson.courseId, liveSessionRow.courseId))
+              .where(inArray(courseLesson.courseId, lessonFamily))
           ).map(l => l.lessonId)
 
           if (lessonIds.length > 0) {

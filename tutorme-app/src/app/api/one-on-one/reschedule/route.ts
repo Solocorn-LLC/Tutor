@@ -15,10 +15,7 @@ import { z } from 'zod'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, calendarEvent, liveSession, profile } from '@/lib/db/schema'
 import { findConflicts } from '@/lib/schedule/conflicts'
-import {
-  isSlotWithinStudentAvailability,
-  studentHasAvailabilityConfigured,
-} from '@/lib/student-availability'
+import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 import { notify } from '@/lib/notifications/notify'
 import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
 
@@ -85,11 +82,8 @@ async function validateSlot(
   startTime: string,
   endTime: string
 ): Promise<string | null> {
-  if (!(await studentHasAvailabilityConfigured(booking.studentId))) {
-    return 'The student has no availability set — they must add their available hours first.'
-  }
   if (!(await isSlotWithinStudentAvailability(booking.studentId, date, startTime, endTime))) {
-    return "That time is outside the student's available hours."
+    return "That time has been blocked by the student's parent — pick another, or ask them to allow it."
   }
   if (endTime <= startTime) return 'The end time must be after the start time.'
   // Resolve the proposed wall-clock slot in the booking's own timezone.
