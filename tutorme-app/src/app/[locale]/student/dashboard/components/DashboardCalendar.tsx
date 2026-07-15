@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -12,7 +12,18 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock,
+  BookOpen,
+  MapPin,
+  Video,
+  Users,
+  Loader2,
+  Star,
+  X,
+  CreditCard,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
@@ -105,6 +116,8 @@ export function DashboardCalendar({
   onBookClass,
 }: DashboardCalendarProps) {
   const router = useRouter()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'en'
   const [activeTab, setActiveTab] = useState('classes')
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
@@ -397,13 +410,27 @@ export function DashboardCalendar({
                                   Rate
                                 </button>
                               ) : s.pendingPayment ? (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
-                                  title="Your tutor accepted — complete payment to confirm and unlock the room."
-                                >
-                                  <Clock className="h-3.5 w-3.5" />
-                                  Awaiting payment
-                                </span>
+                                s.requestId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(`/${locale}/payment?requestId=${s.requestId}`)
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <CreditCard className="h-3.5 w-3.5" />
+                                    Complete payment
+                                  </button>
+                                ) : (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Awaiting payment
+                                  </span>
+                                )
                               ) : s.sessionId ? (
                                 // Two-way in-app call room (both student and tutor).
                                 <button
@@ -487,13 +514,15 @@ export function DashboardCalendar({
                                 Ended
                               </span>
                             ) : s.pendingPayment ? (
-                              <span
-                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/${locale}/student/group-sessions`)}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
                                 title="Seat held — complete payment to confirm and unlock the room."
                               >
-                                <Clock className="h-3.5 w-3.5" />
-                                Awaiting payment
-                              </span>
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Complete payment
+                              </button>
                             ) : s.sessionId ? (
                               <button
                                 type="button"
