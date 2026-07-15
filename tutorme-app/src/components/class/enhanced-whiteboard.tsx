@@ -1992,15 +1992,34 @@ export function EnhancedWhiteboard({
           const page = ensurePage(op.pageIndex)
           if (!page) continue
           if (op.type === 'stroke') {
-            page.strokes = [...page.strokes, op.stroke]
+            // Dedup by id: the join-time replay re-fires on every socket
+            // reconnect (use-socket re-emits join_class on 'connect'), and a
+            // private board stays mounted — so without this an already-applied
+            // item would be appended again on each reconnect and persisted back.
+            const id = (op.stroke as { id?: string })?.id
+            if (!id || !page.strokes.some(s => (s as { id?: string }).id === id)) {
+              page.strokes = [...page.strokes, op.stroke]
+            }
           } else if (op.type === 'shape') {
-            page.shapes = [...page.shapes, op.shape]
+            const id = (op.shape as { id?: string })?.id
+            if (!id || !page.shapes.some(s => (s as { id?: string }).id === id)) {
+              page.shapes = [...page.shapes, op.shape]
+            }
           } else if (op.type === 'text') {
-            page.texts = [...page.texts, op.text]
+            const id = (op.text as { id?: string })?.id
+            if (!id || !page.texts.some(t => (t as { id?: string }).id === id)) {
+              page.texts = [...page.texts, op.text]
+            }
           } else if (op.type === 'formula') {
-            page.formulas = [...page.formulas, op.formula]
+            const id = (op.formula as { id?: string })?.id
+            if (!id || !page.formulas.some(f => (f as { id?: string }).id === id)) {
+              page.formulas = [...page.formulas, op.formula]
+            }
           } else if (op.type === 'graph') {
-            page.graphs = [...page.graphs, op.graph]
+            const id = (op.graph as { id?: string })?.id
+            if (!id || !page.graphs.some(g => (g as { id?: string }).id === id)) {
+              page.graphs = [...page.graphs, op.graph]
+            }
           } else if (op.type === 'page:clear') {
             page.strokes = []
             page.texts = []
