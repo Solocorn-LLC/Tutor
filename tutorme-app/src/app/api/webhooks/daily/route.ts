@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, courseEnrollment } from '@/lib/db/schema'
-import { eq, desc, and, isNotNull } from 'drizzle-orm'
+import { eq, desc, and, isNotNull, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { notify } from '@/lib/notifications/notify'
 import { getRecordingDownloadLink } from '@/lib/video/daily-webhook'
 
@@ -125,7 +126,9 @@ export async function POST(req: NextRequest) {
       const enrollments = await drizzleDb
         .select({ studentId: courseEnrollment.studentId })
         .from(courseEnrollment)
-        .where(eq(courseEnrollment.courseId, sessionRow.courseId))
+        .where(
+          inArray(courseEnrollment.courseId, await expandToCourseFamily([sessionRow.courseId]))
+        )
 
       await Promise.allSettled(
         enrollments.map(e =>

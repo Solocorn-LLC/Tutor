@@ -8,6 +8,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
 import { eq, and, inArray, desc } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -773,7 +774,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   const rows = await drizzleDb
                     .select({ studentId: courseEnrollment.studentId })
                     .from(courseEnrollment)
-                    .where(eq(courseEnrollment.courseId, s.courseId))
+                    .where(
+                      inArray(courseEnrollment.courseId, await expandToCourseFamily([s.courseId]))
+                    )
                   const studentIds = rows.map(r => r.studentId).filter(Boolean)
                   if (studentIds.length > 0) {
                     void notifyMany({
@@ -922,10 +925,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
           where: eq(liveSession.sessionId, roomId),
         })
         if (liveSessionRow?.courseId) {
+          // Match the whole variant family: the session's courseId may be the
+          // template while the student enrolled under the published variant —
+          // a raw match would wrongly reject a legitimately enrolled student.
+          const enrolledFamily = await expandToCourseFamily([liveSessionRow.courseId])
           const enrolled = await drizzleDb.query.courseEnrollment.findFirst({
             where: and(
               eq(courseEnrollment.studentId, userId),
-              eq(courseEnrollment.courseId, liveSessionRow.courseId)
+              inArray(courseEnrollment.courseId, enrolledFamily)
             ),
           })
           if (!enrolled) {
