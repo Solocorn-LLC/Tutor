@@ -890,6 +890,36 @@ export async function initEnhancedSocketServer(server: NetServer) {
       socket.join(roomId)
       socket.data.roomId = roomId
 
+      // Private whiteboard sub-rooms are `<sessionId>:board:<ownerId>`. They have
+      // no LiveSession row, so the tutor/enrollment gates below are no-ops and
+      // would let ANY authenticated user in. Authorize explicitly: only the
+      // board's owner, or the base session's scheduled tutor, may join — otherwise
+      // a peer could read/draw on someone's "private" board.
+      const boardIdx = roomId.indexOf(':board:')
+      if (boardIdx >= 0) {
+        const baseSessionId = roomId.slice(0, boardIdx)
+        const ownerId = roomId.slice(boardIdx + ':board:'.length)
+        let allowed = userId === ownerId
+        if (!allowed && baseSessionId) {
+          try {
+            const [ls] = await drizzleDb
+              .select({ tutorId: liveSession.tutorId })
+              .from(liveSession)
+              .where(eq(liveSession.sessionId, baseSessionId))
+              .limit(1)
+            allowed = !!ls && ls.tutorId === userId
+          } catch {
+            allowed = false
+          }
+        }
+        if (!allowed) {
+          socket.leave(roomId)
+          socket.data.roomId = undefined
+          socket.emit('error', { message: 'Not authorized for this board' })
+          return
+        }
+      }
+
       // Get or create room from Redis first, then memory
       let room = activeRooms.get(roomId)
       if (!room && redisClient) {

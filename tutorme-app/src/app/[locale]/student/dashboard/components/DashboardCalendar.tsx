@@ -251,6 +251,7 @@ export function DashboardCalendar({
         // self-heal; maxStudents (2 for a 1-on-1) routes to the shared call room.
         sessionId: (ev as any).sessionId ?? undefined,
         requestId: (ev as any).requestId ?? undefined,
+        pendingPayment: (ev as any).pendingPayment ?? undefined,
         maxStudents: isOneOnOne ? 2 : ((ev as any).maxStudents ?? undefined),
         description:
           (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
