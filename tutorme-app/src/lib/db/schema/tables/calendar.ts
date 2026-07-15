@@ -273,6 +273,12 @@ export const oneOnOneBookingRequest = pgTable(
     OneOnOneBookingRequest_seriesId_idx: index('OneOnOneBookingRequest_seriesId_idx').on(
       table.seriesId
     ),
+    // A CalendarEvent belongs to exactly one booking (accept/heal always mints a
+    // fresh event and repoints this column at it). Enforce that 1:1 so reads that
+    // join on it can't fan out. NULLs are allowed to repeat (unpaid/legacy rows).
+    OneOnOneBookingRequest_calendarEventId_key: uniqueIndex(
+      'OneOnOneBookingRequest_calendarEventId_key'
+    ).on(table.calendarEventId),
   })
 )
 
@@ -380,6 +386,11 @@ export const groupSession = pgTable(
     GroupSession_tutorId_idx: index('GroupSession_tutorId_idx').on(table.tutorId),
     GroupSession_status_idx: index('GroupSession_status_idx').on(table.status),
     GroupSession_requestedDate_idx: index('GroupSession_requestedDate_idx').on(table.requestedDate),
+    // A CalendarEvent belongs to exactly one group session — same 1:1 invariant
+    // as the 1-on-1 booking above. NULLs may repeat.
+    GroupSession_calendarEventId_key: uniqueIndex('GroupSession_calendarEventId_key').on(
+      table.calendarEventId
+    ),
   })
 )
 
