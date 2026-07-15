@@ -416,12 +416,14 @@ function TutorInsightsPageInner() {
 
   const handleSave = useCallback(
     async (lessons: any[], options?: any) => {
-      // For published variants, auto-propagate edits to sibling variants (those
-      // published with this course, NOT all tutor courses). This runs on autosave
-      // too — autosave is debounced (~2s after edits settle), so siblings stay in
-      // sync without the tutor needing a manual Save. Independent variants are
-      // still excluded server-side.
-      if (isPublishedVariant) {
+      // For published variants, propagate edits to sibling variants (those
+      // published with this course, NOT all tutor courses) — but ONLY on an
+      // explicit manual Save. Autosave is debounced and silent (no toast), so
+      // auto-propagating would rewrite every sibling variant on each edit burst
+      // with no confirmation. On autosave we fall through and persist just this
+      // variant (persistMode stays 'live' for a published variant, so the edit
+      // is still saved to the DB — it simply doesn't touch the siblings).
+      if (isPublishedVariant && !options?.isAutoSave) {
         await executeSave(lessons, options, true, false)
         return
       }
