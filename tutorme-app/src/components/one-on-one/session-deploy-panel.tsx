@@ -57,10 +57,14 @@ interface CourseGroup {
 export function SessionDeployPanel({
   sessionId,
   socket,
+  courseId,
   onClose,
 }: {
   sessionId: string
   socket: Socket | null
+  /** When the session is built around a course, only that course's tasks are
+   *  deployable; null/undefined offers all the tutor's published tasks. */
+  courseId?: string | null
   onClose: () => void
 }) {
   const [items, setItems] = useState<Deployable[]>([])
@@ -71,7 +75,10 @@ export function SessionDeployPanel({
 
   useEffect(() => {
     let active = true
-    fetch('/api/one-on-one/deployables', { credentials: 'include' })
+    const url = courseId
+      ? `/api/one-on-one/deployables?courseId=${encodeURIComponent(courseId)}`
+      : '/api/one-on-one/deployables'
+    fetch(url, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : { tasks: [] }))
       .then(d => {
         if (active) setItems(Array.isArray(d.tasks) ? d.tasks : [])
@@ -81,7 +88,7 @@ export function SessionDeployPanel({
     return () => {
       active = false
     }
-  }, [])
+  }, [courseId])
 
   // Group the flat task list into course → lesson → tasks, filtered by the
   // search query (matches task title, course name or lesson title).
