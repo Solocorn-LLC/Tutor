@@ -705,6 +705,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [resolvedInitialCourseBuilderNodes])
     const lastInitialCourseBuilderNodesKeyRef = useRef<string | null>(null)
+    // The course whose loaded data we last hydrated the builder from, so a late/
+    // async initial for the SAME course can't clobber in-progress edits.
+    const lastHydratedCourseIdRef = useRef<string | null>(null)
     const [builderNodes, setBuilderNodes] = useState<CourseBuilderNode[]>([])
     const [liveNodes, setLiveNodes] = useState<CourseBuilderNode[]>([])
 
@@ -4053,12 +4056,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     useEffect(() => {
       if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) return
       lastInitialCourseBuilderNodesKeyRef.current = initialCourseBuilderNodesKey
+
+      // Only (re)hydrate the builder from the loaded course data when we switch to
+      // a DIFFERENT course, or while the builder is still empty. A late/async
+      // initial for the SAME course — e.g. the background course load finishing
+      // AFTER the tutor has begun adding lessons to a newly-created course — must
+      // NOT overwrite their in-memory lessons; autosave would then persist the
+      // clobbered state and the lessons would be lost on reload. builderNodes is
+      // read (not depended on) intentionally: the effect only re-runs when the
+      // initial key / course changes, at which point it reflects the latest edits.
+      const courseChanged = lastHydratedCourseIdRef.current !== (courseId ?? null)
+      lastHydratedCourseIdRef.current = courseId ?? null
+      if (!courseChanged && builderNodes.length > 0) return
+
       const normalized = normalizeCourseBuilderNodesForAssessments(
         resolvedInitialCourseBuilderNodes
       )
       setBuilderNodes(normalized)
       setLiveNodes(isStudentView || saveMode !== 'draft' ? cloneNodes(normalized) : [])
-    }, [initialCourseBuilderNodesKey, resolvedInitialCourseBuilderNodes])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [courseId, initialCourseBuilderNodesKey, resolvedInitialCourseBuilderNodes])
 
     // Helper to get effective value based on difficulty mode and preview
     const getEffectiveValue = <T extends WithDifficultyVariants>(
