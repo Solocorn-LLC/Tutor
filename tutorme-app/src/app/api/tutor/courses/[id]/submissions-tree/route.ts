@@ -14,6 +14,7 @@ import {
   taskSubmission,
 } from '@/lib/db/schema'
 import { and, eq, inArray, isNull, asc } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +44,10 @@ export const GET = withAuth(async (request, session, context) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
+  // Content (lessons/sessions/enrollments/materials/reports) can sit under either
+  // the template or the published variant id, so scope them to the whole family.
+  const courseFamily = await expandToCourseFamily([courseId])
+
   const lessons = await drizzleDb
     .select({
       id: courseLesson.lessonId,
@@ -50,7 +55,7 @@ export const GET = withAuth(async (request, session, context) => {
       order: courseLesson.order,
     })
     .from(courseLesson)
-    .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
+    .where(and(inArray(courseLesson.courseId, courseFamily), isNull(courseLesson.deletedAt)))
     .orderBy(asc(courseLesson.order))
 
   const sessions = await drizzleDb
@@ -61,7 +66,7 @@ export const GET = withAuth(async (request, session, context) => {
       status: liveSession.status,
     })
     .from(liveSession)
-    .where(and(eq(liveSession.courseId, courseId), eq(liveSession.tutorId, tutorId)))
+    .where(and(inArray(liveSession.courseId, courseFamily), eq(liveSession.tutorId, tutorId)))
     .orderBy(asc(liveSession.scheduledAt))
 
   const sessionIds = sessions.map(s => s.id).filter(Boolean)
@@ -85,7 +90,7 @@ export const GET = withAuth(async (request, session, context) => {
     })
     .from(courseEnrollment)
     .leftJoin(profile, eq(courseEnrollment.studentId, profile.userId))
-    .where(eq(courseEnrollment.courseId, courseId))
+    .where(inArray(courseEnrollment.courseId, courseFamily))
 
   const deployed =
     sessionIds.length === 0
@@ -105,7 +110,7 @@ export const GET = withAuth(async (request, session, context) => {
           .from(deployedMaterial)
           .where(
             and(
-              eq(deployedMaterial.courseId, courseId),
+              inArray(deployedMaterial.courseId, courseFamily),
               inArray(deployedMaterial.sessionId, sessionIds)
             )
           )
@@ -174,7 +179,7 @@ export const GET = withAuth(async (request, session, context) => {
           .where(
             and(
               eq(studentTaskReport.tutorId, tutorId),
-              eq(studentTaskReport.courseId, courseId),
+              inArray(studentTaskReport.courseId, courseFamily),
               inArray(studentTaskReport.studentId, studentIds)
             )
           )

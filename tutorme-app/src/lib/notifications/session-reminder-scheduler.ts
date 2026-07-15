@@ -28,6 +28,7 @@ import {
   groupSession,
   groupSessionParticipant,
 } from '@/lib/db/schema'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { notify, notifyMany } from './notify'
 
 /** How far ahead of a session's start to send the reminder. */
@@ -130,10 +131,14 @@ export async function runSessionReminderScan(): Promise<void> {
     // case they're also enrolled, so they don't get two reminders.
     if (s.courseId) {
       try {
+        // Expand to the variant family: a session's courseId can be the template
+        // while students enrol under the published variant, so a raw match would
+        // find nobody and silently skip everyone's reminder.
+        const familyIds = await expandToCourseFamily([s.courseId])
         const enrolled = await drizzleDb
           .select({ studentId: courseEnrollment.studentId })
           .from(courseEnrollment)
-          .where(eq(courseEnrollment.courseId, s.courseId))
+          .where(inArray(courseEnrollment.courseId, familyIds))
         const studentIds = Array.from(
           new Set(enrolled.map(e => e.studentId).filter(id => id && id !== s.tutorId))
         )
