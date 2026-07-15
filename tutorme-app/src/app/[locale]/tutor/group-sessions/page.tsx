@@ -173,7 +173,7 @@ export default function TutorGroupSessionsPage() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero — Analytics-style header */}
-      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#0891B2] to-[#0E7490] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <h1 className="text-xl font-bold text-white">Group Sessions</h1>
@@ -209,7 +209,7 @@ export default function TutorGroupSessionsPage() {
 
       {/* Create form + Sessions list */}
       <div className="flex min-h-0 flex-1 flex-col pb-0.5">
-        <div className="mb-8 rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
           <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-slate-900">
             <Plus className="h-4 w-4" /> New group session
           </h2>
@@ -323,89 +323,91 @@ export default function TutorGroupSessionsPage() {
           </div>
         </div>
 
-        {/* Existing sessions */}
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Your sessions</h2>
-        {loading ? (
-          <div className="flex items-center gap-2 text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="py-16 text-center">
-            <CalendarDays className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-700">No group sessions yet.</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Create your first session above to get started.
-            </p>
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {sessions.map(gs => {
-              const cancelled = gs.status === 'CANCELLED'
-              return (
-                <li
-                  key={gs.groupSessionId}
-                  className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium text-slate-900">{gs.title}</span>
-                      <span
-                        className={
-                          'rounded-full px-2 py-0.5 text-xs font-medium ' +
-                          (cancelled
-                            ? 'bg-slate-100 text-slate-500'
-                            : gs.status === 'FULL'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-emerald-100 text-emerald-700')
-                        }
-                      >
-                        {gs.status}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        {formatDate(gs.requestedDate)} · {gs.startTime}–{gs.endTime}
-                      </span>
-                      <span>
-                        {gs.pricePerSeat > 0 ? `${gs.pricePerSeat} ${gs.currency}/seat` : 'Free'}
-                      </span>
-                      <span>
-                        {gs.capacity - gs.seatsLeft}/{gs.capacity} booked
-                      </span>
-                    </div>
-                  </div>
-                  {!cancelled ? (
-                    <div className="flex shrink-0 items-center gap-2">
-                      {gs.liveSessionId ? (
-                        <Button
-                          variant="solocorn-book"
-                          onClick={() => router.push(`/call/${gs.liveSessionId}`)}
+        {/* Sessions list panel */}
+        <div className="mb-4 rounded-[18px] border border-[rgba(0,0,0,0.05)] bg-[#FFFFFF] p-6 shadow-[0_14px_45px_rgba(0,0,0,0.14)]">
+          <h2 className="mb-4 text-base font-semibold text-slate-900">Your sessions</h2>
+          {loading ? (
+            <div className="flex items-center gap-2 text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="py-16 text-center">
+              <CalendarDays className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-700">No group sessions yet.</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Create your first session above to get started.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {sessions.map(gs => {
+                const cancelled = gs.status === 'CANCELLED'
+                return (
+                  <li
+                    key={gs.groupSessionId}
+                    className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium text-slate-900">{gs.title}</span>
+                        <span
+                          className={
+                            'rounded-full px-2 py-0.5 text-xs font-medium ' +
+                            (cancelled
+                              ? 'bg-slate-100 text-slate-500'
+                              : gs.status === 'FULL'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700')
+                          }
                         >
-                          <Video className="mr-2 h-4 w-4" />
-                          Join room
-                        </Button>
-                      ) : null}
-                      <Button
-                        variant="outline"
-                        className="text-red-600 hover:bg-red-50"
-                        disabled={cancelId === gs.groupSessionId}
-                        onClick={() => cancel(gs.groupSessionId)}
-                      >
-                        {cancelId === gs.groupSessionId ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-2 h-4 w-4" />
-                        )}
-                        Cancel &amp; refund
-                      </Button>
+                          {gs.status}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {formatDate(gs.requestedDate)} · {gs.startTime}–{gs.endTime}
+                        </span>
+                        <span>
+                          {gs.pricePerSeat > 0 ? `${gs.pricePerSeat} ${gs.currency}/seat` : 'Free'}
+                        </span>
+                        <span>
+                          {gs.capacity - gs.seatsLeft}/{gs.capacity} booked
+                        </span>
+                      </div>
                     </div>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                    {!cancelled ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        {gs.liveSessionId ? (
+                          <Button
+                            variant="solocorn-book"
+                            onClick={() => router.push(`/call/${gs.liveSessionId}`)}
+                          >
+                            <Video className="mr-2 h-4 w-4" />
+                            Join room
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="outline"
+                          className="text-red-600 hover:bg-red-50"
+                          disabled={cancelId === gs.groupSessionId}
+                          onClick={() => cancel(gs.groupSessionId)}
+                        >
+                          {cancelId === gs.groupSessionId ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                          )}
+                          Cancel &amp; refund
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   )
