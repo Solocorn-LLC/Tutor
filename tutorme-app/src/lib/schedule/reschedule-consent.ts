@@ -207,7 +207,7 @@ export async function proposeReschedule(opts: {
 export type RespondResult =
   | { status: 'PENDING'; agreed: number; total: number }
   | { status: 'APPLIED' }
-  | { status: 'REJECTED'; reason: 'student_disagreed' | 'slot_unavailable' }
+  | { status: 'REJECTED'; reason: 'student_disagreed' | 'slot_unavailable' | 'session_ended' }
   | { status: 'ERROR'; error: string }
 
 /** A student agrees or disagrees. Applies the move on unanimous agreement;
@@ -250,17 +250,49 @@ export async function respondToProposal(opts: {
     return { status: 'REJECTED', reason: 'student_disagreed' }
   }
 
-  // AGREE — apply only when every vote is now AGREE.
-  const votes = await drizzleDb
-    .select({ response: sessionRescheduleVote.response })
-    .from(sessionRescheduleVote)
-    .where(eq(sessionRescheduleVote.proposalId, proposalId))
-  const agreed = votes.filter(v => v.response === 'AGREE').length
-  if (agreed < votes.length) {
-    return { status: 'PENDING', agreed, total: votes.length }
+  // AGREE recorded — re-evaluate against the CURRENT roster.
+  return evaluatePendingProposal(proposal)
+}
+
+/**
+ * Decide a PENDING proposal against the CURRENT roster and apply it when every
+ * still-enrolled voter has agreed. Votes from students who have since left
+ * (unenrolled / seat cancelled) are ignored — otherwise a departed student's
+ * unanswered vote would block unanimous agreement forever. Also closes the
+ * proposal if its session has ended/been removed.
+ */
+async function evaluatePendingProposal(proposal: Proposal): Promise<RespondResult> {
+  // Session gone or ended → the proposal is moot; close it.
+  const [sess] = await drizzleDb
+    .select({ status: liveSession.status })
+    .from(liveSession)
+    .where(eq(liveSession.sessionId, proposal.sessionId))
+    .limit(1)
+  if (!sess || sess.status === 'ended') {
+    await resolveProposal(proposal.proposalId, 'CANCELLED', 'session_ended')
+    return { status: 'REJECTED', reason: 'session_ended' }
   }
 
-  // Everyone agreed — re-check the slot is still free, then move the session.
+  const [votes, roster] = await Promise.all([
+    drizzleDb
+      .select({
+        studentId: sessionRescheduleVote.studentId,
+        response: sessionRescheduleVote.response,
+      })
+      .from(sessionRescheduleVote)
+      .where(eq(sessionRescheduleVote.proposalId, proposal.proposalId)),
+    resolveVoterRoster(proposal.sessionId, proposal.courseId),
+  ])
+  const rosterSet = new Set(roster)
+  // Only votes from students still on the roster count toward the decision.
+  const relevant = votes.filter(v => rosterSet.has(v.studentId))
+  const agreed = relevant.filter(v => v.response === 'AGREE').length
+  // Still someone left to hear from (or nobody valid remains) → stay pending.
+  if (relevant.length === 0 || agreed < relevant.length) {
+    return { status: 'PENDING', agreed, total: relevant.length }
+  }
+
+  // Everyone still enrolled agreed — re-check the slot is free, then move.
   const conflicts = await findConflicts(
     proposal.proposedBy,
     proposal.proposedStart,
@@ -281,6 +313,42 @@ export async function respondToProposal(opts: {
   await resolveProposal(proposal.proposalId, 'APPLIED', 'all_agreed')
   await notifyOutcome(proposal, 'applied')
   return { status: 'APPLIED' }
+}
+
+/**
+ * After a student leaves a course, drop their pending votes and re-evaluate any
+ * affected proposals — so their departure can't leave a proposal stuck one vote
+ * short of unanimous. Best-effort; never throws into the caller.
+ */
+export async function reconcileProposalsAfterDeparture(
+  studentId: string,
+  courseId: string
+): Promise<void> {
+  try {
+    const familyIds = await expandToCourseFamily([courseId])
+    const proposals = await drizzleDb
+      .select()
+      .from(sessionRescheduleProposal)
+      .where(
+        and(
+          eq(sessionRescheduleProposal.status, 'PENDING'),
+          inArray(sessionRescheduleProposal.courseId, familyIds)
+        )
+      )
+    for (const proposal of proposals) {
+      await drizzleDb
+        .delete(sessionRescheduleVote)
+        .where(
+          and(
+            eq(sessionRescheduleVote.proposalId, proposal.proposalId),
+            eq(sessionRescheduleVote.studentId, studentId)
+          )
+        )
+      await evaluatePendingProposal(proposal)
+    }
+  } catch (err) {
+    console.warn('[reschedule] departure reconcile failed (non-critical):', err)
+  }
 }
 
 /** Tutor withdraws a pending proposal; the session keeps its current time. */

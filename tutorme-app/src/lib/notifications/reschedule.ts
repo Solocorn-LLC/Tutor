@@ -99,7 +99,7 @@ export async function notifyStudentsOfReschedule(opts: {
 
     const fallbackTz = timezone || 'UTC'
     const name = title || 'Your session'
-    const actionUrl = courseId ? `/student/classroom/${courseId}` : '/student/schedule'
+    const actionUrl = courseId ? `/student/classroom/${courseId}` : '/student/dashboard'
 
     await Promise.allSettled(
       userIds.map(userId => {
