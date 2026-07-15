@@ -32,6 +32,7 @@ export function CreateCourseDialog({
   const [creating, setCreating] = useState(false)
   const [courseName, setCourseName] = useState('')
   const [apiError, setApiError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   const charCount = courseName.length
   const isAtLimit = charCount >= MAX_LENGTH
@@ -40,9 +41,11 @@ export function CreateCourseDialog({
   const handleSubmit = async () => {
     const trimmed = courseName.trim()
     if (!trimmed) {
-      toast.error('Please enter a course name')
+      // Highlight the empty field inline (red) instead of only warning.
+      setNameError('Please enter a course name')
       return
     }
+    setNameError(null)
 
     setCreating(true)
     setApiError(null)
@@ -84,6 +87,7 @@ export function CreateCourseDialog({
     if (!next) {
       setApiError(null)
       setCourseName('')
+      setNameError(null)
     }
     onOpenChange(next)
   }
@@ -118,12 +122,18 @@ export function CreateCourseDialog({
                 if (value.length <= MAX_LENGTH) {
                   setCourseName(value)
                   if (apiError) setApiError(null)
+                  if (nameError) setNameError(null)
                 }
               }}
               placeholder="Course name"
               disabled={creating}
               maxLength={MAX_LENGTH}
-              className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              aria-invalid={!!nameError}
+              className={`h-12 w-full rounded-lg border bg-white px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${
+                nameError
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+              }`}
               onKeyDown={e => {
                 if (e.key === 'Enter' && courseName.trim() && !creating) {
                   e.preventDefault()
@@ -131,6 +141,11 @@ export function CreateCourseDialog({
                 }
               }}
             />
+            {nameError && (
+              <p className="text-xs font-medium text-red-600" role="alert">
+                {nameError}
+              </p>
+            )}
             <div className="flex justify-end">
               <span
                 className={`text-xs font-medium ${
