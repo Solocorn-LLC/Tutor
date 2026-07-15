@@ -42,6 +42,11 @@ interface DailyVideoFrameProps {
    *  video for both roles (symmetric two-way) instead of the tutor→students
    *  broadcast layout, and let the student toggle their camera. */
   twoWay?: boolean
+  /** Optional: re-mint a fresh access token and re-enter. Wired to Retry so a
+   *  join that failed on an EXPIRED token (e.g. after a long idle) can recover —
+   *  a plain retry would just replay the same dead token. Falls back to a local
+   *  retry when not provided. */
+  onRefreshToken?: () => void | Promise<void>
 }
 
 export function DailyVideoFrame({
@@ -52,6 +57,7 @@ export function DailyVideoFrame({
   floating = false,
   isTutor = false,
   twoWay = false,
+  onRefreshToken,
 }: DailyVideoFrameProps) {
   const {
     call,
@@ -498,7 +504,10 @@ export function DailyVideoFrame({
               type="button"
               onClick={() => {
                 joinedRef.current = false
-                setJoinAttempt(v => v + 1)
+                // Prefer a fresh token (recovers from an expired one); fall back
+                // to a local retry when the parent can't re-mint.
+                if (onRefreshToken) void onRefreshToken()
+                else setJoinAttempt(v => v + 1)
               }}
               className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20"
             >

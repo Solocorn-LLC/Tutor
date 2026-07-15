@@ -12,7 +12,7 @@
  * task deployment) are intentionally absent — a course-less session has none.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
@@ -47,6 +47,8 @@ interface SessionClassroomProps {
    *  straight into the Course Builder to edit it (changes sync everywhere). */
   courseId?: string | null
   courseName?: string | null
+  /** Re-mint a fresh access token and re-enter (recovers from an expired token). */
+  onRefreshToken?: () => void | Promise<void>
 }
 
 export function SessionClassroom({
@@ -57,6 +59,7 @@ export function SessionClassroom({
   twoWay,
   courseId,
   courseName,
+  onRefreshToken,
 }: SessionClassroomProps) {
   const { data: session } = useSession()
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
@@ -67,7 +70,21 @@ export function SessionClassroom({
   const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
   const [showBoardsPicker, setShowBoardsPicker] = useState(false)
   const [showCourseEditor, setShowCourseEditor] = useState(false)
+  // Bumped when the Edit-course modal (iframe) reports a save, so the deploy
+  // panel refetches instead of serving pre-edit task content.
+  const [deployRefreshKey, setDeployRefreshKey] = useState(0)
   const myId = session?.user?.id ?? ''
+
+  // Listen for the embedded course-editor's save postMessage and refresh the
+  // deploy panel's task list. Same-origin check guards against foreign frames.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'tutorme:course-saved') setDeployRefreshKey(k => k + 1)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
   const ownBoardOpened = useOwnBoardOpened(boardTarget?.mine === true)
 
   // useSocket keys its effect on the option fields (not object identity), so an
@@ -98,6 +115,7 @@ export function SessionClassroom({
       token={token}
       isTutor={isTutor}
       twoWay={twoWay}
+      onRefreshToken={onRefreshToken}
       className="h-full w-full rounded-none border-0"
     />
   )
@@ -229,6 +247,7 @@ export function SessionClassroom({
                 sessionId={sessionId}
                 socket={socket}
                 courseId={courseId}
+                refreshKey={deployRefreshKey}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
@@ -262,7 +281,7 @@ export function SessionClassroom({
         <Dialog open={showCourseEditor} onOpenChange={setShowCourseEditor}>
           <DialogContent size="full" className="h-[95vh] overflow-hidden p-0">
             <iframe
-              src={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit`}
+              src={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit&embed=1`}
               title={courseName ? `Edit ${courseName}` : 'Edit course'}
               className="h-full w-full rounded-lg border-0"
             />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -12,7 +12,18 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, Clock, BookOpen, MapPin, Video, Users, Loader2, Star, X } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock,
+  BookOpen,
+  MapPin,
+  Video,
+  Users,
+  Loader2,
+  Star,
+  X,
+  CreditCard,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
@@ -33,6 +44,9 @@ export interface CalendarEvent {
   meetingUrl?: string | null
   status?: string
   requestId?: string | null
+  /** The tutor accepted the slot but the student hasn't paid — shown on the
+   *  calendar as "awaiting payment", with no (dead-end) join. */
+  pendingPayment?: boolean
   /** LiveSession id (from the calendar event's externalId) — used to open the
    *  in-app two-way call room for a 1-on-1. */
   sessionId?: string | null
@@ -102,6 +116,8 @@ export function DashboardCalendar({
   onBookClass,
 }: DashboardCalendarProps) {
   const router = useRouter()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'en'
   const [activeTab, setActiveTab] = useState('classes')
   const [calendarView, setCalendarView] = useState<CalendarView>('day')
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
@@ -248,6 +264,7 @@ export function DashboardCalendar({
         // self-heal; maxStudents (2 for a 1-on-1) routes to the shared call room.
         sessionId: (ev as any).sessionId ?? undefined,
         requestId: (ev as any).requestId ?? undefined,
+        pendingPayment: (ev as any).pendingPayment ?? undefined,
         maxStudents: isOneOnOne ? 2 : ((ev as any).maxStudents ?? undefined),
         description:
           (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
@@ -392,6 +409,28 @@ export function DashboardCalendar({
                                   <Star className="h-3.5 w-3.5" />
                                   Rate
                                 </button>
+                              ) : s.pendingPayment ? (
+                                s.requestId ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(`/${locale}/payment?requestId=${s.requestId}`)
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <CreditCard className="h-3.5 w-3.5" />
+                                    Complete payment
+                                  </button>
+                                ) : (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                  >
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Awaiting payment
+                                  </span>
+                                )
                               ) : s.sessionId ? (
                                 // Two-way in-app call room (both student and tutor).
                                 <button
@@ -467,7 +506,24 @@ export function DashboardCalendar({
                                 {formatDate(s.start)} · {formatEventTime(s.start)}
                               </p>
                             </div>
-                            {s.sessionId ? (
+                            {new Date(s.end).getTime() < Date.now() ? (
+                              // Session already ended — suppress the dead-end Join
+                              // (the room is closed). Parity with the 1-on-1 list,
+                              // which flips a past session to its Rate/ended state.
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-500">
+                                Ended
+                              </span>
+                            ) : s.pendingPayment ? (
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/${locale}/student/group-sessions`)}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                title="Seat held — complete payment to confirm and unlock the room."
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Complete payment
+                              </button>
+                            ) : s.sessionId ? (
                               <button
                                 type="button"
                                 onClick={() => router.push(`/call/${s.sessionId}`)}

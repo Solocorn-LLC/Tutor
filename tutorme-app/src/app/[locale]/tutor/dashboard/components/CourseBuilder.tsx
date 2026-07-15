@@ -7800,10 +7800,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [leftPanelResizing])
 
-    // Auto-save course edits (debounced) — disabled in live mode
+    // Auto-save course edits (debounced). Off in insights mode UNLESS the caller
+    // opts in via insightsProps.autoSave (the in-session Edit-course modal), so
+    // edits persist without a manual Save. Gated on a stable boolean — NOT the
+    // insightsProps object — so a new-object-every-render doesn't reset the timer.
+    const autoSaveEnabled = !insightsProps || !!insightsProps.autoSave
     useEffect(() => {
       if (!canEdit) return
-      if (insightsProps) return
+      if (!autoSaveEnabled) return
       if (!onSave) return
 
       const timeoutId = setTimeout(() => {
@@ -7828,7 +7832,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       coursePropsModal.description,
       courseName,
       onSave,
-      insightsProps,
+      autoSaveEnabled,
     ])
 
     const filteredCourseBuilderNodes = useMemo(() => {

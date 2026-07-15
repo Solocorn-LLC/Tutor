@@ -3,9 +3,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Users, Loader2, CalendarDays, ArrowUpRight, BookOpen, Video } from 'lucide-react'
+import {
+  Users,
+  Loader2,
+  CalendarDays,
+  ArrowUpRight,
+  BookOpen,
+  Video,
+  CreditCard,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bookGroupSeat } from '@/lib/group-session/book-seat'
+import { resumeGroupSeatPayment } from '@/lib/group-session/resume-payment'
 import { formatEarnings } from '@/lib/format-currency'
 
 interface BrowseSession {
@@ -27,6 +36,7 @@ interface BrowseSession {
 }
 
 interface MySession {
+  participantId: string
   groupSessionId: string
   title: string
   liveSessionId: string | null
@@ -36,6 +46,8 @@ interface MySession {
   timezone: string
   tutorName?: string | null
   joinable: boolean
+  /** Seat held but not paid — render "Complete payment" instead of Join. */
+  needsPayment?: boolean
 }
 
 function formatDate(iso: string): string {
@@ -123,7 +135,28 @@ export default function StudentGroupSessionsPage() {
                     {s.tutorName ? <span className="capitalize">with {s.tutorName}</span> : null}
                   </div>
                 </div>
-                {s.liveSessionId ? (
+                {s.needsPayment ? (
+                  <button
+                    type="button"
+                    disabled={busyId === s.participantId}
+                    onClick={async () => {
+                      setBusyId(s.participantId)
+                      const result = await resumeGroupSeatPayment(s.participantId)
+                      // On 'redirecting' the page is navigating away; only clear
+                      // busy on failure so the button can be retried.
+                      if (result !== 'redirecting') setBusyId(null)
+                    }}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                    title="Complete payment to confirm your seat"
+                  >
+                    {busyId === s.participantId ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-3.5 w-3.5" />
+                    )}
+                    Complete payment
+                  </button>
+                ) : s.liveSessionId ? (
                   <Link
                     href={s.joinable ? `/${locale}/call/${s.liveSessionId}` : '#'}
                     aria-disabled={!s.joinable}

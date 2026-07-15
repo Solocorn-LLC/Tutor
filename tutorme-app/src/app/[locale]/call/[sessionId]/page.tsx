@@ -272,6 +272,7 @@ export default function OneOnOneCallPage() {
       twoWay={video.twoWay}
       courseId={video.courseId ?? null}
       courseName={video.courseName ?? null}
+      onRefreshToken={runJoin}
     />
   )
 }
