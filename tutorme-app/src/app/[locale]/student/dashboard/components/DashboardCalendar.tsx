@@ -33,6 +33,9 @@ export interface CalendarEvent {
   meetingUrl?: string | null
   status?: string
   requestId?: string | null
+  /** The tutor accepted the slot but the student hasn't paid — shown on the
+   *  calendar as "awaiting payment", with no (dead-end) join. */
+  pendingPayment?: boolean
   /** LiveSession id (from the calendar event's externalId) — used to open the
    *  in-app two-way call room for a 1-on-1. */
   sessionId?: string | null
@@ -392,6 +395,14 @@ export function DashboardCalendar({
                                   <Star className="h-3.5 w-3.5" />
                                   Rate
                                 </button>
+                              ) : s.pendingPayment ? (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                  title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                >
+                                  <Clock className="h-3.5 w-3.5" />
+                                  Awaiting payment
+                                </span>
                               ) : s.sessionId ? (
                                 // Two-way in-app call room (both student and tutor).
                                 <button
@@ -467,7 +478,15 @@ export function DashboardCalendar({
                                 {formatDate(s.start)} · {formatEventTime(s.start)}
                               </p>
                             </div>
-                            {s.sessionId ? (
+                            {s.pendingPayment ? (
+                              <span
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                title="Seat held — complete payment to confirm and unlock the room."
+                              >
+                                <Clock className="h-3.5 w-3.5" />
+                                Awaiting payment
+                              </span>
+                            ) : s.sessionId ? (
                               <button
                                 type="button"
                                 onClick={() => router.push(`/call/${s.sessionId}`)}
