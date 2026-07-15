@@ -1043,6 +1043,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
     const [collapsedTaskExtensions, setCollapsedTaskExtensions] = useState<Set<string>>(new Set())
 
+    const selectedItemRef = useRef<HTMLElement | null>(null)
+    useEffect(() => {
+      if (selectedItem?.id && selectedItemRef.current) {
+        scrollElementIntoView(selectedItemRef.current, { margin: 16 })
+      }
+    }, [selectedItem?.type, selectedItem?.id])
+
     const nodeRefs = useRef<Record<string, HTMLElement | null>>({})
     const prevExpandedNodesRef = useRef<Set<string>>(new Set())
     useEffect(() => {
@@ -8252,6 +8259,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }
                                                   >
                                                     <div
+                                                      ref={el => {
+                                                        if (
+                                                          selectedItem?.type === 'task' &&
+                                                          selectedItem?.id === task.id
+                                                        ) {
+                                                          selectedItemRef.current = el
+                                                        }
+                                                      }}
                                                       className={cn(
                                                         'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                         selectedItem?.type === 'task' &&
@@ -9026,6 +9041,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   isLast={idx === assessments.length - 1}
                                                 >
                                                   <div
+                                                    ref={el => {
+                                                      if (
+                                                        selectedItem?.type === 'homework' &&
+                                                        selectedItem?.id === hw.id
+                                                      ) {
+                                                        selectedItemRef.current = el
+                                                      }
+                                                    }}
                                                     className={cn(
                                                       'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                       selectedItem?.type === 'homework' &&

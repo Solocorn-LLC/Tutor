@@ -1349,13 +1349,11 @@ function CourseBuilderInsightsRouteInner({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/30 bg-white/35 p-4 shadow-sm backdrop-blur-xl">
-                  <CourseCategoryPicker
-                    value={newCourseCategories ?? []}
-                    onChange={v => setNewCourseCategories?.(v)}
-                    storageUserId={createStorageUserId}
-                  />
-                </div>
+                <CourseCategoryPicker
+                  value={newCourseCategories ?? []}
+                  onChange={v => setNewCourseCategories?.(v)}
+                  storageUserId={createStorageUserId}
+                />
               )}
             </div>
 
