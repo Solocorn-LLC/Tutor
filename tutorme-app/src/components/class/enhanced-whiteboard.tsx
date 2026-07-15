@@ -2019,8 +2019,9 @@ export function EnhancedWhiteboard({
       userId?: string
       stroke: Stroke & { points?: number[] | Point[] }
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const stroke: Stroke = {
         ...data.stroke,
@@ -2040,8 +2041,9 @@ export function EnhancedWhiteboard({
       userId?: string
       shape: ShapeElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'shape', pageIndex: idx, shape: data.shape })
@@ -2056,8 +2058,13 @@ export function EnhancedWhiteboard({
       }
     }
 
-    const handleTextAdded = (data: { userId?: string; text: TextElement; pageIndex?: number }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+    const handleTextAdded = (data: {
+      userId?: string
+      text: TextElement
+      pageIndex?: number
+      replay?: boolean
+    }) => {
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'text', pageIndex: idx, text: data.text })
@@ -2078,8 +2085,9 @@ export function EnhancedWhiteboard({
       userId?: string
       formula: FormulaElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'formula', pageIndex: idx, formula: data.formula })
@@ -2089,8 +2097,9 @@ export function EnhancedWhiteboard({
       userId?: string
       graph: GraphElement
       pageIndex?: number
+      replay?: boolean
     }) => {
-      if (data.userId && userId && data.userId === userId) return // own echo: already applied locally
+      if (!data.replay && data.userId && userId && data.userId === userId) return // own echo: already applied locally (but replayed hydration must apply)
       if (filterByUserId && data.userId !== filterByUserId) return
       const idx = safePageIndex(data.pageIndex, currentPageIndexRef.current)
       enqueue({ type: 'graph', pageIndex: idx, graph: data.graph })
