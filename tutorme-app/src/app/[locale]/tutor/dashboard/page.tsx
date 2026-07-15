@@ -479,6 +479,16 @@ function TutorDashboardContent() {
 
   const handleOneOnOneResponse = useCallback(
     async (requestId: string, action: 'accept' | 'reject') => {
+      // Rejecting declines the student's request (and the whole series). Confirm
+      // first so an inadvertent click doesn't turn a student away.
+      if (
+        action === 'reject' &&
+        !window.confirm(
+          'Reject this booking request? The student will be notified that you declined.'
+        )
+      ) {
+        return
+      }
       setRespondingRequestId(requestId)
       try {
         const res = await fetch('/api/one-on-one/respond', {

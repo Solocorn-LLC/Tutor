@@ -126,6 +126,15 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
     requestId: string,
     action: 'accept' | 'reject'
   ) => {
+    // Confirm rejections so an accidental click doesn't decline a student.
+    if (
+      action === 'reject' &&
+      !window.confirm(
+        'Reject this booking request? The student will be notified that you declined.'
+      )
+    ) {
+      return
+    }
     setRespondingIds(prev => ({ ...prev, [notificationId]: action }))
     try {
       const res = await fetch('/api/one-on-one/respond', {
