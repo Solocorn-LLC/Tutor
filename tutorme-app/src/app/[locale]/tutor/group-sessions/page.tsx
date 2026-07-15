@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { formatEarnings } from '@/lib/format-currency'
 import { CourseCombobox, type CourseOption } from '@/components/course/course-combobox'
 
 interface GroupSessionItem {
@@ -372,7 +373,9 @@ export default function TutorGroupSessionsPage() {
                           {formatDate(gs.requestedDate)} · {gs.startTime}–{gs.endTime}
                         </span>
                         <span>
-                          {gs.pricePerSeat > 0 ? `${gs.pricePerSeat} ${gs.currency}/seat` : 'Free'}
+                          {gs.pricePerSeat > 0
+                            ? `${formatEarnings(gs.pricePerSeat, gs.currency || 'USD')}/seat`
+                            : 'Free'}
                         </span>
                         <span>
                           {gs.capacity - gs.seatsLeft}/{gs.capacity} booked

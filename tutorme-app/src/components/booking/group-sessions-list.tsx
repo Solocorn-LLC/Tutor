@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Users, Loader2, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bookGroupSeat } from '@/lib/group-session/book-seat'
+import { formatEarnings } from '@/lib/format-currency'
 
 interface GroupSessionItem {
   groupSessionId: string
@@ -92,7 +93,9 @@ export function GroupSessionsList({ tutorId }: { tutorId: string }) {
                     {formatDate(gs.requestedDate)} · {gs.startTime}–{gs.endTime} ({gs.timezone})
                   </span>
                   <span>
-                    {gs.pricePerSeat > 0 ? `${gs.pricePerSeat} ${gs.currency}/seat` : 'Free'}
+                    {gs.pricePerSeat > 0
+                      ? `${formatEarnings(gs.pricePerSeat, gs.currency || 'USD')}/seat`
+                      : 'Free'}
                   </span>
                   <span className={full ? 'text-slate-400' : 'text-emerald-700'}>
                     {full ? 'Full' : `${gs.seatsLeft} of ${gs.capacity} seats left`}

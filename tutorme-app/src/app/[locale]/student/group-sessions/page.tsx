@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { Users, Loader2, CalendarDays, ArrowUpRight, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bookGroupSeat } from '@/lib/group-session/book-seat'
+import { formatEarnings } from '@/lib/format-currency'
 
 interface BrowseSession {
   groupSessionId: string
@@ -124,7 +125,9 @@ export default function StudentGroupSessionsPage() {
                       {formatDate(gs.requestedDate)} · {gs.startTime}–{gs.endTime} ({gs.timezone})
                     </span>
                     <span className="font-medium text-slate-900">
-                      {gs.pricePerSeat > 0 ? `${gs.pricePerSeat} ${gs.currency}/seat` : 'Free'}
+                      {gs.pricePerSeat > 0
+                        ? `${formatEarnings(gs.pricePerSeat, gs.currency || 'USD')}/seat`
+                        : 'Free'}
                     </span>
                     <span className={full ? 'text-slate-400' : 'text-emerald-700'}>
                       {full
