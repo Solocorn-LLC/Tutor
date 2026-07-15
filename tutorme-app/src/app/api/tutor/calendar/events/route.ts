@@ -14,6 +14,7 @@ import {
   course,
   sessionParticipant,
   courseVariant,
+  oneOnOneBookingRequest,
 } from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, isNotNull, sql } from 'drizzle-orm'
 
@@ -60,9 +61,18 @@ export const GET = withAuth(
         sessionStatus: liveSession.status,
         sessionId: liveSession.sessionId,
         externalId: calendarEvent.externalId,
+        // A 1-on-1 CalendarEvent + LiveSession is created the moment the tutor
+        // ACCEPTS, before the student pays. Surface the booking status so an
+        // unpaid session doesn't offer a "Start Session" into a room the student
+        // can't enter. Non-1-on-1 events have no booking row → null → not pending.
+        bookingStatus: oneOnOneBookingRequest.status,
       })
       .from(calendarEvent)
       .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
+      .leftJoin(
+        oneOnOneBookingRequest,
+        eq(oneOnOneBookingRequest.calendarEventId, calendarEvent.eventId)
+      )
       .where(and(...calFilters))
       .orderBy(calendarEvent.startTime)
 
@@ -119,6 +129,7 @@ export const GET = withAuth(
         location: e.location,
         isVirtual: e.isVirtual,
         sessionId: e.sessionId || e.externalId,
+        pendingPayment: e.bookingStatus === 'ACCEPTED',
       })),
       ...liveSessions
         .filter(ls => !coveredSessionIds.has(ls.sessionId))
@@ -134,6 +145,7 @@ export const GET = withAuth(
           location: 'Online',
           isVirtual: true,
           sessionId: ls.sessionId,
+          pendingPayment: false,
         })),
     ]
 
