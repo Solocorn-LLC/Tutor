@@ -599,6 +599,9 @@ export function InteractiveCalendar({
             nationality: e.nationality,
             variantCategory: e.variantCategory,
             studentCount: e.enrolledCount ?? 0,
+            // An accepted-but-unpaid 1-on-1 has a live session row but no student
+            // can enter yet — disables the "Start Session" button (see detail dialog).
+            pendingPayment: e.pendingPayment,
             color:
               e.status === 'live'
                 ? 'bg-emerald-500'
