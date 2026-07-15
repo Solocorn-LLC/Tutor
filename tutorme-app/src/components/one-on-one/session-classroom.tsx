@@ -47,6 +47,8 @@ interface SessionClassroomProps {
    *  straight into the Course Builder to edit it (changes sync everywhere). */
   courseId?: string | null
   courseName?: string | null
+  /** Re-mint a fresh access token and re-enter (recovers from an expired token). */
+  onRefreshToken?: () => void | Promise<void>
 }
 
 export function SessionClassroom({
@@ -57,6 +59,7 @@ export function SessionClassroom({
   twoWay,
   courseId,
   courseName,
+  onRefreshToken,
 }: SessionClassroomProps) {
   const { data: session } = useSession()
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
@@ -98,6 +101,7 @@ export function SessionClassroom({
       token={token}
       isTutor={isTutor}
       twoWay={twoWay}
+      onRefreshToken={onRefreshToken}
       className="h-full w-full rounded-none border-0"
     />
   )
