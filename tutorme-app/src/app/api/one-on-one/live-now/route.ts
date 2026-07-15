@@ -196,12 +196,29 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
     .filter(c => c.scheduledAt)
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
 
-  // Soonest one still within its live window.
-  const pick = candidates.find(c => {
+  // Candidates still worth showing (sorted soonest-first above):
+  // - paid: from now until a little after it ends (linger so a just-finished
+  //   session lingers briefly).
+  // - unpaid: ONLY before it starts — it's a "pay before it begins" nudge; once
+  //   started there's nothing to join, and showing it would render a bogus
+  //   "starts in 0:00".
+  const eligible = candidates.filter(c => {
     const start = new Date(c.scheduledAt!).getTime()
-    const end = start + (c.durationMinutes ?? 60) * 60 * 1000
+    if (c.needsPayment) return now < start
+    const end = start + (c.durationMinutes ?? 120) * 60 * 1000
     return now <= end + LINGER_AFTER_END_MS
   })
+
+  // Prefer a PAID session the student can act on right now (live or within the
+  // entry window) over an unpaid "Pay to join" nudge — a student ready to enter a
+  // paid room must not instead be shown a payment prompt for a different booking.
+  // Otherwise fall back to the soonest eligible candidate (an upcoming paid one,
+  // or an imminent unpaid nudge when nothing is joinable yet).
+  const joinableNow = (c: Candidate): boolean => {
+    if (c.needsPayment || !c.scheduledAt) return false
+    return c.status === 'active' || now >= c.scheduledAt.getTime() - EARLY_ENTRY_MS
+  }
+  const pick = eligible.find(joinableNow) ?? eligible[0]
   if (!pick || !pick.scheduledAt) {
     return NextResponse.json({ session: null })
   }
