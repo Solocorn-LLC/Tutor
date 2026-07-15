@@ -10623,6 +10623,40 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }))
                                                     }
                                                   }}
+                                                  onReset={() => {
+                                                    // Clear all test data for this extension
+                                                    // 1. Clear classroom messages
+                                                    setClassroomMessages(prev => {
+                                                      const next = { ...prev }
+                                                      delete next[extKey]
+                                                      try {
+                                                        localStorage.setItem(
+                                                          'tutor-classroom-messages-v1',
+                                                          JSON.stringify(next)
+                                                        )
+                                                      } catch {
+                                                        // ignore
+                                                      }
+                                                      return next
+                                                    })
+                                                    // 2. Clear all student tab stores for this extension
+                                                    ;['student1', 'student2'].forEach(st => {
+                                                      const sk = `${extKey}:${st}`
+                                                      delete testTaskChatStore.current[sk]
+                                                    })
+                                                    // 3. Clear classroom tab store
+                                                    delete testTaskChatStore.current[
+                                                      `${extKey}:classroom`
+                                                    ]
+                                                    try {
+                                                      localStorage.setItem(
+                                                        'tutor-test-chat-store-v1',
+                                                        JSON.stringify(testTaskChatStore.current)
+                                                      )
+                                                    } catch {
+                                                      // ignore
+                                                    }
+                                                  }}
                                                   mode={
                                                     isClassroomTab ? 'classroom' : 'test-student'
                                                   }

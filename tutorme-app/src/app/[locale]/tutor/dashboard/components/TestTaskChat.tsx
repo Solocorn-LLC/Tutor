@@ -64,6 +64,7 @@ export function TestTaskChat({
   initialState,
   onPersist,
   onBroadcast,
+  onReset,
   incomingMessages,
   mode = 'test-student',
   tutorAvatarUrl,
@@ -78,6 +79,8 @@ export function TestTaskChat({
   onPersist?: (state: TestTaskChatState) => void
   /** Called when a new message is sent from this tab so the parent can relay it to other tabs. */
   onBroadcast?: (msg: TestTaskChatMsg) => void
+  /** Called when the user clicks the reset/restart button. Parent should clear all persisted data. */
+  onReset?: () => void
   /** Messages injected from outside (e.g. from other tabs via the parent). Appended to the chat. */
   incomingMessages?: TestTaskChatMsg[]
   /** Which preview mode this is rendering in. */
@@ -155,7 +158,7 @@ export function TestTaskChat({
     const a = draft.trim()
     if (!a || busy) return
     const msg: ChatMsg = {
-      role: isClassroom ? 'tutor' : 'student',
+      role: 'student',
       content: a,
       timestamp: Date.now(),
     }
@@ -179,7 +182,7 @@ export function TestTaskChat({
     let nextMessages = messages
     if (pending) {
       const pendingMsg: ChatMsg = {
-        role: isClassroom ? 'tutor' : 'student',
+        role: 'student',
         content: pending,
         timestamp: Date.now(),
       }
@@ -271,6 +274,7 @@ export function TestTaskChat({
     setDraft('')
     setCompleted(false)
     onPersist?.(emptyState)
+    onReset?.()
   }
 
   const accentColor = isClassroom ? 'text-[#F17623]' : 'text-violet-600'
