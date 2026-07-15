@@ -1295,7 +1295,11 @@ function CourseBuilderInsightsRouteInner({
         onOpenChange={next => (next ? setIsCreateDialogOpen?.(true) : closeCreateDialog())}
       >
         <DialogContent
-          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-white/25 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+          className={
+            createStep === 'name'
+              ? 'max-w-md border border-white/25 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl'
+              : 'max-h-[90vh] w-full max-w-5xl overflow-hidden border border-white/25 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl'
+          }
           aria-describedby={undefined}
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
@@ -1321,7 +1325,7 @@ function CourseBuilderInsightsRouteInner({
                       placeholder="Course name"
                       maxLength={25}
                       autoFocus
-                      className="h-12 w-full rounded-lg border border-white/25 bg-white/10 px-4 text-sm text-white placeholder:text-white/50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="h-12 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
                       onKeyDown={e => {
                         if (e.key === 'Enter' && newCourseName?.trim()) {
                           e.preventDefault()
@@ -1333,10 +1337,10 @@ function CourseBuilderInsightsRouteInner({
                       <span
                         className={`text-xs font-medium ${
                           (newCourseName?.length || 0) >= 25
-                            ? 'text-red-400'
+                            ? 'text-red-500'
                             : (newCourseName?.length || 0) >= 20
-                              ? 'text-orange-400'
-                              : 'text-white/60'
+                              ? 'text-orange-500'
+                              : 'text-gray-500'
                         }`}
                       >
                         {newCourseName?.length || 0}/25
@@ -1345,11 +1349,13 @@ function CourseBuilderInsightsRouteInner({
                   </div>
                 </div>
               ) : (
-                <CourseCategoryPicker
-                  value={newCourseCategories ?? []}
-                  onChange={v => setNewCourseCategories?.(v)}
-                  storageUserId={createStorageUserId}
-                />
+                <div className="rounded-xl border border-white/30 bg-white/35 p-4 shadow-sm backdrop-blur-xl">
+                  <CourseCategoryPicker
+                    value={newCourseCategories ?? []}
+                    onChange={v => setNewCourseCategories?.(v)}
+                    storageUserId={createStorageUserId}
+                  />
+                </div>
               )}
             </div>
 
