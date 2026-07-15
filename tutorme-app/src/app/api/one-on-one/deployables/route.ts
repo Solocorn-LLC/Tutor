@@ -28,7 +28,12 @@ import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 const ADHOC_ANCHOR_COURSE_ID = '__system_adhoc_course__'
 
 export const GET = withAuth(
-  async (_req: NextRequest, session) => {
+  async (req: NextRequest, session) => {
+    // When a live session is built around a course, the classroom passes its
+    // courseId so ONLY that course's tasks are deployable; with no course, all
+    // of the tutor's published tasks are offered.
+    const scopedCourseId = new URL(req.url).searchParams.get('courseId')?.trim() || null
+
     const rows = await drizzleDb
       .select({
         taskId: builderTask.taskId,
@@ -50,7 +55,8 @@ export const GET = withAuth(
           eq(builderTask.tutorId, session.user.id),
           eq(builderTask.status, 'published'),
           isNull(builderTask.deletedAt),
-          ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID)
+          ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID),
+          ...(scopedCourseId ? [eq(builderTask.courseId, scopedCourseId)] : [])
         )
       )
       .orderBy(desc(builderTask.updatedAt))

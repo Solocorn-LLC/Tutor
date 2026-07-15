@@ -227,6 +227,7 @@ export function SessionClassroom({
               <SessionDeployPanel
                 sessionId={sessionId}
                 socket={socket}
+                courseId={courseId}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
