@@ -68,6 +68,11 @@ export function CreateClassDialog({
   const router = useRouter()
   const [creating, setCreating] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{
+    title?: string
+    date?: string
+    time?: string
+  }>({})
   const timeOptions = useTimeOptions()
 
   const [form, setForm] = useState({
@@ -104,18 +109,17 @@ export function CreateClassDialog({
   }, [open, initialDate])
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) {
-      toast.error('Please enter a session title')
+    // Highlight every empty required field at once (red + inline) instead of a
+    // one-at-a-time toast.
+    const errs: { title?: string; date?: string; time?: string } = {}
+    if (!form.title.trim()) errs.title = 'Please enter a session title'
+    if (!form.date) errs.date = 'Please select a date'
+    if (!form.time) errs.time = 'Please select a time'
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
       return
     }
-    if (!form.date) {
-      toast.error('Please select a date')
-      return
-    }
-    if (!form.time) {
-      toast.error('Please select a time')
-      return
-    }
+    setFieldErrors({})
 
     setCreating(true)
     setApiError(null)
@@ -219,10 +223,13 @@ export function CreateClassDialog({
               <Label className="text-gray-900">Class Title *</Label>
               <Input
                 value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
+                onChange={e => {
+                  setForm({ ...form, title: e.target.value })
+                  if (fieldErrors.title) setFieldErrors(prev => ({ ...prev, title: undefined }))
+                }}
                 placeholder="e.g., AP Calculus - Limits"
                 disabled={creating}
-                aria-invalid={!!apiError}
+                errorMessage={fieldErrors.title}
               />
             </div>
 
@@ -242,18 +249,28 @@ export function CreateClassDialog({
                 <Input
                   type="date"
                   value={form.date}
-                  onChange={e => setForm({ ...form, date: e.target.value })}
+                  onChange={e => {
+                    setForm({ ...form, date: e.target.value })
+                    if (fieldErrors.date) setFieldErrors(prev => ({ ...prev, date: undefined }))
+                  }}
                   disabled={creating}
+                  errorMessage={fieldErrors.date}
                 />
               </div>
               <div>
                 <Label className="text-gray-900">Time *</Label>
                 <Select
                   value={form.time}
-                  onValueChange={v => setForm({ ...form, time: v })}
+                  onValueChange={v => {
+                    setForm({ ...form, time: v })
+                    if (fieldErrors.time) setFieldErrors(prev => ({ ...prev, time: undefined }))
+                  }}
                   disabled={creating}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    aria-invalid={!!fieldErrors.time}
+                    className={fieldErrors.time ? 'border-destructive' : undefined}
+                  >
                     <SelectValue placeholder="Select time" />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,6 +281,11 @@ export function CreateClassDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErrors.time && (
+                  <p className="text-destructive mt-1 text-xs" role="alert">
+                    {fieldErrors.time}
+                  </p>
+                )}
               </div>
             </div>
 
