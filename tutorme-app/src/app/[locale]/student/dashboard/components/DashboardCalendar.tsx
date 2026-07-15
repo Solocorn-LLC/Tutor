@@ -14,6 +14,7 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays,
+  CalendarClock,
   Clock,
   BookOpen,
   MapPin,
@@ -22,6 +23,7 @@ import {
   Loader2,
   Star,
   X,
+  Check,
   CreditCard,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -56,6 +58,19 @@ export interface CalendarEvent {
   /** LiveSession id (from the calendar event's externalId) — used to open the
    *  in-app two-way call room for a 1-on-1. */
   sessionId?: string | null
+  isVirtual?: boolean
+  costPerSession?: number | null
+  tutorTimezone?: string | null
+  /** A pending 1-on-1 reschedule proposal (from oneOnOneBookingRequest). When
+   *  `proposedByMe` is false, the tutor proposed a new time and the student
+   *  must accept/decline right on the card. */
+  reschedule?: {
+    proposedByMe: boolean
+    date: string | null
+    startTime: string | null
+    endTime: string | null
+    timezone: string | null
+  } | null
 }
 
 interface DashboardCalendarProps {
@@ -133,6 +148,7 @@ export function DashboardCalendar({
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null)
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [respondingReschedule, setRespondingReschedule] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
   // Pending (not-yet-accepted) 1-on-1 requests — they have no CalendarEvent yet,
   // so they never come back from /calendar/events. Fetched separately so a
@@ -245,6 +261,36 @@ export function DashboardCalendar({
       toast.error('Could not cancel the booking')
     } finally {
       setCancellingId(null)
+    }
+  }
+
+  // Respond to a reschedule the TUTOR proposed: accept moves the session, decline
+  // keeps the current time. Mirrors the OneOnOneRescheduleDialog's PATCH.
+  const handleRescheduleResponse = async (requestId: string, action: 'accept' | 'decline') => {
+    setRespondingReschedule(requestId)
+    try {
+      const res = await fetch('/api/one-on-one/reschedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId, action }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(
+          action === 'accept'
+            ? 'New time accepted — the session has been moved.'
+            : 'Declined — the session keeps its current time.'
+        )
+        setRefreshTick(t => t + 1)
+        onRefresh?.()
+      } else {
+        toast.error(data.error || 'Could not respond to the reschedule')
+      }
+    } catch {
+      toast.error('Could not respond to the reschedule')
+    } finally {
+      setRespondingReschedule(null)
     }
   }
 
@@ -440,117 +486,216 @@ export function DashboardCalendar({
                         return (
                           <li
                             key={s.id}
-                            className="flex items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white p-3"
+                            className="flex flex-col gap-2.5 rounded-[12px] border border-gray-200 bg-white p-3"
                           >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-[#1F2933]">
-                                {s.title}
-                                {s.tutorName ? (
-                                  <span className="font-normal text-gray-400">
-                                    {' '}
-                                    · {s.tutorName}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-start gap-2.5">
+                                {s.tutorAvatarUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={s.tutorAvatarUrl}
+                                    alt=""
+                                    className="mt-0.5 h-9 w-9 shrink-0 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                                    {(s.tutorName || 'T').charAt(0).toUpperCase()}
                                   </span>
-                                ) : null}
-                              </p>
-                              <p className="mt-0.5 text-xs text-gray-500">
-                                {formatDate(s.start)} · {formatEventTime(s.start)}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              {s.type === 'one-on-one' &&
-                                s.requestId &&
-                                new Date(s.end).getTime() >= Date.now() && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => setRescheduleRequestId(s.requestId ?? null)}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                                    >
-                                      <CalendarDays className="h-3.5 w-3.5" />
-                                      Reschedule
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCancelBooking(s.requestId as string)}
-                                      disabled={cancellingId === s.requestId}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                                    >
-                                      {cancellingId === s.requestId ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : (
-                                        <X className="h-3.5 w-3.5" />
-                                      )}
-                                      Cancel
-                                    </button>
-                                  </>
                                 )}
-                              {s.type === 'one-on-one' &&
-                              s.requestId &&
-                              new Date(s.end).getTime() < Date.now() ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setReviewRequestId(s.requestId ?? null)}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                                >
-                                  <Star className="h-3.5 w-3.5" />
-                                  Rate
-                                </button>
-                              ) : s.pendingPayment ? (
-                                s.requestId ? (
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-[#1F2933]">
+                                    {s.title}
+                                  </p>
+                                  {s.tutorName ? (
+                                    <p className="truncate text-xs text-gray-500">
+                                      with {s.tutorName}
+                                    </p>
+                                  ) : null}
+                                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                                    <span className="inline-flex items-center gap-1">
+                                      <CalendarDays className="h-3 w-3" />
+                                      {formatDate(s.start)}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formatEventTime(s.start)} · {s.duration} min
+                                    </span>
+                                    <span className="inline-flex items-center gap-1">
+                                      {s.isVirtual === false ? (
+                                        <>
+                                          <MapPin className="h-3 w-3" />
+                                          In person
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Video className="h-3 w-3" />
+                                          Online
+                                        </>
+                                      )}
+                                    </span>
+                                    {typeof s.costPerSession === 'number' &&
+                                    s.costPerSession > 0 ? (
+                                      <span className="font-medium text-gray-600">
+                                        ${s.costPerSession}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                {s.type === 'one-on-one' &&
+                                  s.requestId &&
+                                  new Date(s.end).getTime() >= Date.now() && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => setRescheduleRequestId(s.requestId ?? null)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                      >
+                                        <CalendarDays className="h-3.5 w-3.5" />
+                                        Reschedule
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelBooking(s.requestId as string)}
+                                        disabled={cancellingId === s.requestId}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                      >
+                                        {cancellingId === s.requestId ? (
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          <X className="h-3.5 w-3.5" />
+                                        )}
+                                        Cancel
+                                      </button>
+                                    </>
+                                  )}
+                                {s.type === 'one-on-one' &&
+                                s.requestId &&
+                                new Date(s.end).getTime() < Date.now() ? (
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      router.push(`/${locale}/payment?requestId=${s.requestId}`)
-                                    }
+                                    onClick={() => setReviewRequestId(s.requestId ?? null)}
                                     className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
-                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
                                   >
-                                    <CreditCard className="h-3.5 w-3.5" />
-                                    Complete payment
+                                    <Star className="h-3.5 w-3.5" />
+                                    Rate
                                   </button>
-                                ) : (
-                                  <span
-                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
-                                    title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                ) : s.pendingPayment ? (
+                                  s.requestId ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(`/${locale}/payment?requestId=${s.requestId}`)
+                                      }
+                                      className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                                      title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                    >
+                                      <CreditCard className="h-3.5 w-3.5" />
+                                      Complete payment
+                                    </button>
+                                  ) : (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                                      title="Your tutor accepted — complete payment to confirm and unlock the room."
+                                    >
+                                      <Clock className="h-3.5 w-3.5" />
+                                      Awaiting payment
+                                    </span>
+                                  )
+                                ) : s.sessionId ? (
+                                  // Two-way in-app call room (both student and tutor).
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/call/${s.sessionId}`)}
+                                    className={cn(
+                                      'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                      isLive
+                                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                                        : 'bg-blue-600 hover:bg-blue-700'
+                                    )}
                                   >
-                                    <Clock className="h-3.5 w-3.5" />
-                                    Awaiting payment
-                                  </span>
-                                )
-                              ) : s.sessionId ? (
-                                // Two-way in-app call room (both student and tutor).
-                                <button
-                                  type="button"
-                                  onClick={() => router.push(`/call/${s.sessionId}`)}
-                                  className={cn(
-                                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                    isLive
-                                      ? 'bg-emerald-600 hover:bg-emerald-700'
-                                      : 'bg-blue-600 hover:bg-blue-700'
-                                  )}
-                                >
-                                  <Video className="h-3.5 w-3.5" />
-                                  {isLive ? 'Join now' : 'Join'}
-                                </button>
-                              ) : s.meetingUrl ? (
-                                <a
-                                  href={s.meetingUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={cn(
-                                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                    isLive
-                                      ? 'bg-emerald-600 hover:bg-emerald-700'
-                                      : 'bg-blue-600 hover:bg-blue-700'
-                                  )}
-                                >
-                                  <Video className="h-3.5 w-3.5" />
-                                  {isLive ? 'Join now' : 'Join'}
-                                </a>
-                              ) : (
-                                <span className="text-xs text-gray-400">Scheduled</span>
-                              )}
+                                    <Video className="h-3.5 w-3.5" />
+                                    {isLive ? 'Join now' : 'Join'}
+                                  </button>
+                                ) : s.meetingUrl ? (
+                                  <a
+                                    href={s.meetingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={cn(
+                                      'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
+                                      isLive
+                                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                                        : 'bg-blue-600 hover:bg-blue-700'
+                                    )}
+                                  >
+                                    <Video className="h-3.5 w-3.5" />
+                                    {isLive ? 'Join now' : 'Join'}
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-gray-400">Scheduled</span>
+                                )}
+                              </div>
                             </div>
+                            {/* Reschedule consent: tutor proposed a new time — student accepts/declines here */}
+                            {s.reschedule && s.requestId ? (
+                              s.reschedule.proposedByMe ? (
+                                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                  <CalendarClock className="h-4 w-4 shrink-0 text-slate-400" />
+                                  You proposed a new time — waiting for{' '}
+                                  {s.tutorName || 'your tutor'} to respond.
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex items-start gap-2 text-xs text-amber-900">
+                                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                                    <span>
+                                      <span className="font-semibold">
+                                        {s.tutorName || 'Your tutor'}
+                                      </span>{' '}
+                                      proposed a new time:{' '}
+                                      <span className="font-semibold">
+                                        {s.reschedule.date ? formatDate(s.reschedule.date) : ''}
+                                        {s.reschedule.startTime
+                                          ? ` · ${s.reschedule.startTime}`
+                                          : ''}
+                                        {s.reschedule.endTime ? `–${s.reschedule.endTime}` : ''}
+                                      </span>
+                                      . It won&apos;t change until you agree.
+                                    </span>
+                                  </div>
+                                  <div className="flex shrink-0 gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={respondingReschedule === s.requestId}
+                                      onClick={() =>
+                                        handleRescheduleResponse(s.requestId as string, 'accept')
+                                      }
+                                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                    >
+                                      {respondingReschedule === s.requestId ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Check className="h-3.5 w-3.5" />
+                                      )}
+                                      Accept
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={respondingReschedule === s.requestId}
+                                      onClick={() =>
+                                        handleRescheduleResponse(s.requestId as string, 'decline')
+                                      }
+                                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                      Decline
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            ) : null}
                           </li>
                         )
                       })}
