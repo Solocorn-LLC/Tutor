@@ -2713,7 +2713,7 @@ export function EnhancedWhiteboard({
           {videoOverlay && videoComponent && showVideo && !isVideoFullscreen && (
             <div
               role="presentation"
-              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
               className="absolute z-10 overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg"
               style={{
                 width: `${videoSize.width}px`,
@@ -2722,57 +2722,68 @@ export function EnhancedWhiteboard({
                 top: `${16 + videoPosition.y}px`,
               }}
             >
+              {/* Move handle — a labelled top bar. Uses pointer capture so the
+                  drag keeps tracking even while the pointer is over the Daily
+                  iframe (a plain window mousemove listener is swallowed by the
+                  cross-origin iframe, which is why dragging felt "stuck"). */}
               <div
-                className="absolute left-2 top-2 z-20 cursor-move rounded bg-slate-800/50 p-1 hover:bg-slate-700"
-                title="Drag to move"
-                onMouseDown={e => {
+                className="absolute inset-x-0 top-0 z-30 flex h-6 cursor-move touch-none select-none items-center gap-1 bg-slate-900/70 pl-2 pr-16 text-[10px] font-medium text-white/80 hover:bg-slate-900/85"
+                title="Drag to move the video"
+                onPointerDown={e => {
                   e.stopPropagation()
                   e.preventDefault()
+                  const el = e.currentTarget
+                  el.setPointerCapture(e.pointerId)
                   const startX = e.clientX
                   const startY = e.clientY
                   const start = { ...videoPosition }
-                  const onMove = (ev: MouseEvent) => {
+                  const onMove = (ev: PointerEvent) => {
                     setVideoPosition({
                       x: start.x - (ev.clientX - startX),
                       y: start.y + (ev.clientY - startY),
                     })
                   }
                   const onUp = () => {
-                    window.removeEventListener('mousemove', onMove)
-                    window.removeEventListener('mouseup', onUp)
+                    el.releasePointerCapture(e.pointerId)
+                    el.removeEventListener('pointermove', onMove)
+                    el.removeEventListener('pointerup', onUp)
                   }
-                  window.addEventListener('mousemove', onMove)
-                  window.addEventListener('mouseup', onUp)
+                  el.addEventListener('pointermove', onMove)
+                  el.addEventListener('pointerup', onUp)
                 }}
               >
-                <GripVertical className="h-4 w-4 text-white" />
+                <GripVertical className="h-3.5 w-3.5" />
+                Move
               </div>
-              {/* Resize handle — bottom-left corner (the box is anchored top-right),
-                  keeps a 16:9 ratio. Self-contained window listeners. */}
+              {/* Resize handle — bottom-left corner (box is anchored top-right),
+                  16:9 locked. Pointer capture for the same iframe reason. */}
               <div
                 role="presentation"
                 title="Drag to resize"
-                className="absolute bottom-0 left-0 z-20 flex h-5 w-5 cursor-nesw-resize items-end justify-start p-1"
-                onMouseDown={e => {
+                className="absolute bottom-0 left-0 z-30 flex h-5 w-5 cursor-nesw-resize touch-none items-end justify-start p-1"
+                onPointerDown={e => {
                   e.stopPropagation()
                   e.preventDefault()
+                  const el = e.currentTarget
+                  el.setPointerCapture(e.pointerId)
                   const startX = e.clientX
                   const startW = videoSize.width
-                  const onMove = (ev: MouseEvent) => {
+                  const onMove = (ev: PointerEvent) => {
                     const w = Math.max(220, Math.min(560, startW - (ev.clientX - startX)))
                     setVideoSize({ width: w, height: Math.round((w * 9) / 16) })
                   }
                   const onUp = () => {
-                    window.removeEventListener('mousemove', onMove)
-                    window.removeEventListener('mouseup', onUp)
+                    el.releasePointerCapture(e.pointerId)
+                    el.removeEventListener('pointermove', onMove)
+                    el.removeEventListener('pointerup', onUp)
                   }
-                  window.addEventListener('mousemove', onMove)
-                  window.addEventListener('mouseup', onUp)
+                  el.addEventListener('pointermove', onMove)
+                  el.addEventListener('pointerup', onUp)
                 }}
               >
                 <span className="h-2.5 w-2.5 border-b-2 border-l-2 border-white/70" />
               </div>
-              <div className="absolute right-2 top-2 z-20 flex gap-1">
+              <div className="absolute right-2 top-1 z-40 flex gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
