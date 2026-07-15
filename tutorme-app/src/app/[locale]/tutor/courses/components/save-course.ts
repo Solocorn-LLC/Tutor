@@ -40,7 +40,7 @@ function getDefaultStorageKey(courseId: string | null): string {
   return `insights-course-builder:${courseId ?? 'default'}`
 }
 
-function isDraftCourseId(courseId: string | null): boolean {
+export function isDraftCourseId(courseId: string | null): boolean {
   return !courseId || DRAFT_SENTINELS.has(courseId)
 }
 

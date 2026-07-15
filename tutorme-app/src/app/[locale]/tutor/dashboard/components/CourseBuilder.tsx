@@ -212,7 +212,10 @@ import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
 import { nextDmiGate } from '@/lib/assessment/dmi-generate-gate'
 import { resolveDocPaneVisibility } from '@/lib/courses/doc-pane-visibility'
-import { shouldRehydrateBuilder } from '@/lib/courses/course-builder-guards'
+import {
+  shouldRehydrateBuilder,
+  mergeLoadedWithPendingEdits,
+} from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
@@ -709,6 +712,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // The course whose loaded data we last hydrated the builder from, so a late/
     // async initial for the SAME course can't clobber in-progress edits.
     const lastHydratedCourseIdRef = useRef<string | null>(null)
+    // The course for which we've already absorbed the FIRST real (non-empty) load.
+    // Until this is set, the builder's lessons don't yet reflect the DB, so the
+    // first real load is MERGED in (not skipped) to preserve any lessons the tutor
+    // added during the load window while still capturing the full DB baseline.
+    const mergedRealLoadCourseIdRef = useRef<string | null>(null)
     const [builderNodes, setBuilderNodes] = useState<CourseBuilderNode[]>([])
     const [liveNodes, setLiveNodes] = useState<CourseBuilderNode[]>([])
 
@@ -4058,23 +4066,44 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) return
       lastInitialCourseBuilderNodesKeyRef.current = initialCourseBuilderNodesKey
 
-      // Only (re)hydrate the builder from the loaded course data when we switch to
-      // a DIFFERENT course, or while the builder is still empty. A late/async
-      // initial for the SAME course — e.g. the background course load finishing
-      // AFTER the tutor has begun adding lessons to a newly-created course — must
-      // NOT overwrite their in-memory lessons; autosave would then persist the
-      // clobbered state and the lessons would be lost on reload. builderNodes is
-      // read (not depended on) intentionally: the effect only re-runs when the
-      // initial key / course changes, at which point it reflects the latest edits.
       const courseChanged = lastHydratedCourseIdRef.current !== (courseId ?? null)
       lastHydratedCourseIdRef.current = courseId ?? null
-      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) return
 
       const normalized = normalizeCourseBuilderNodesForAssessments(
         resolvedInitialCourseBuilderNodes
       )
+      const hydrateLive = (nodes: CourseBuilderNode[]) =>
+        setLiveNodes(isStudentView || saveMode !== 'draft' ? cloneNodes(nodes) : [])
+
+      if (courseChanged) {
+        // Switched to a different course (or first mount): replace wholesale.
+        // Don't merge — builderNodes still holds the previous course's lessons.
+        mergedRealLoadCourseIdRef.current = normalized.length > 0 ? (courseId ?? null) : null
+        setBuilderNodes(normalized)
+        hydrateLive(normalized)
+        return
+      }
+
+      // Same course. The FIRST time real (non-empty) loaded data lands — the
+      // background load finishing AFTER the builder opened empty — MERGE it with
+      // any lessons the tutor added during the load window. Skipping it (as #1127
+      // did) would leave builderNodes without the DB lessons, and the next
+      // delete-missing save would soft-delete them (the "lessons disappear" bug).
+      if (normalized.length > 0 && mergedRealLoadCourseIdRef.current !== (courseId ?? null)) {
+        mergedRealLoadCourseIdRef.current = courseId ?? null
+        const merged = mergeLoadedWithPendingEdits(normalized, builderNodes)
+        setBuilderNodes(merged)
+        hydrateLive(merged)
+        return
+      }
+
+      // A later re-fetch for the same course must NOT clobber in-progress edits;
+      // only re-hydrate while the builder is still empty. builderNodes is read
+      // (not depended on) intentionally: the effect only re-runs on key/course
+      // change, at which point it reflects the latest edits.
+      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) return
       setBuilderNodes(normalized)
-      setLiveNodes(isStudentView || saveMode !== 'draft' ? cloneNodes(normalized) : [])
+      hydrateLive(normalized)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [courseId, initialCourseBuilderNodesKey, resolvedInitialCourseBuilderNodes])
 

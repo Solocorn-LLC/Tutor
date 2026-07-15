@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
-import { emptySaveDecision } from '@/lib/courses/course-builder-guards'
+import { preSaveDecision } from '@/lib/courses/course-builder-guards'
+import { isDraftCourseId } from './save-course'
 import { saveCourse } from './save-course'
 import type {
   CourseBuilderRef,
@@ -165,22 +166,24 @@ export function useCourseBuilderContentModel({
   ) => {
     const isDetached = dataMode === 'detached'
 
-    // Guard against wiping the course when its content never loaded. On a
-    // DB-backed course, loadedLessons stays null only while the load is still
-    // pending or has failed (a successfully-empty course loads as []). Saving an
-    // empty tree in that state would soft-delete every lesson server-side — and
-    // the server floor only spares DEPLOYED lessons, so un-deployed ones would be
-    // lost. This MUST also cover autosave: the mount autosave fires on a 2s
-    // debounce and can beat a slow load, sending an empty payload. Autosave is
-    // silent; a manual save tells the tutor to wait.
-    const emptySave = emptySaveDecision({
+    // Never save while the initial load is incomplete. On a DB-backed course,
+    // loadedLessons stays null only while the load is still pending or has failed
+    // (a successfully-empty course loads as []). In that state builderNodes does
+    // NOT yet reflect the DB, so the delete-missing save would soft-delete every
+    // not-yet-loaded lesson — the "lessons disappear on create/reopen" bug. This
+    // MUST cover BOTH the empty case (the 2s mount autosave beating a slow load)
+    // and a non-empty payload (the tutor adds lessons during the load window). It
+    // MUST also cover autosave, silently; a manual save tells the tutor to wait.
+    // Once the load lands, the hydration effect merges it in, so later saves carry
+    // the full lesson set and this gate opens (loadedLessons is [] or populated).
+    const gate = preSaveDecision({
       isDetached,
-      lessonCount: lessons.length,
+      isDraftCourse: isDraftCourseId(courseId),
       loadedLessonsIsNull: loadedLessons === null,
       isAutoSave: !!options?.isAutoSave,
     })
-    if (emptySave !== 'proceed') {
-      if (emptySave === 'block-warn') {
+    if (gate !== 'proceed') {
+      if (gate === 'block-warn') {
         toast.error('Lessons haven’t finished loading yet — reload the course before saving.')
       }
       return
