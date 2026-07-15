@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { DASHBOARD_THEMES, getThemeStyle } from '@/components/dashboard-theme'
+import { emptySaveDecision } from '@/lib/courses/course-builder-guards'
 import { saveCourse } from './save-course'
 import type {
   CourseBuilderRef,
@@ -172,8 +173,14 @@ export function useCourseBuilderContentModel({
     // lost. This MUST also cover autosave: the mount autosave fires on a 2s
     // debounce and can beat a slow load, sending an empty payload. Autosave is
     // silent; a manual save tells the tutor to wait.
-    if (!isDetached && lessons.length === 0 && loadedLessons === null) {
-      if (!options?.isAutoSave) {
+    const emptySave = emptySaveDecision({
+      isDetached,
+      lessonCount: lessons.length,
+      loadedLessonsIsNull: loadedLessons === null,
+      isAutoSave: !!options?.isAutoSave,
+    })
+    if (emptySave !== 'proceed') {
+      if (emptySave === 'block-warn') {
         toast.error('Lessons haven’t finished loading yet — reload the course before saving.')
       }
       return
