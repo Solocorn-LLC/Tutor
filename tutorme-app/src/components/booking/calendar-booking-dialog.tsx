@@ -1036,7 +1036,16 @@ export function CalendarBookingDialog({
           </Button>
           <Button
             variant="modal-primary-dark"
-            onClick={handleSubmit}
+            // Two-step: from Schedule, advance to the Summary tab first (where the
+            // course picker + note live) so students don't submit before choosing a
+            // course. Only the Summary step actually sends the request.
+            onClick={() => {
+              if (activeTab === 'schedule') {
+                setActiveTab('summary')
+                return
+              }
+              handleSubmit()
+            }}
             disabled={!selectedSlot || submitting || loading}
             className="h-10"
           >
@@ -1045,6 +1054,8 @@ export function CalendarBookingDialog({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Sending...
               </>
+            ) : activeTab === 'schedule' ? (
+              'Next: review & course'
             ) : (
               'Confirm Booking Request'
             )}
