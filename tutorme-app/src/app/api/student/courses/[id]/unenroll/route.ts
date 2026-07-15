@@ -19,6 +19,7 @@ import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { courseEnrollment, courseProgress, course, payment, refund } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
+import { reconcileProposalsAfterDeparture } from '@/lib/schedule/reschedule-consent'
 import { sumLlmUsageForStudentCourse } from '@/lib/ai/usage'
 
 export const POST = withCsrf(
@@ -91,6 +92,10 @@ export const POST = withCsrf(
           )
         }
       })
+
+      // Re-evaluate any pending reschedule proposals now that this student is
+      // gone, so their unanswered vote can't leave a proposal stuck.
+      await reconcileProposalsAfterDeparture(studentId, courseId)
 
       // 3. Partial refund request for paid courses.
       let refundInfo: { amount: number; currency: string; status: string } | null = null
