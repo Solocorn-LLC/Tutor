@@ -1095,12 +1095,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
           strokes?: Array<{ pageIndex?: number }>
           shapes?: Array<{ pageIndex?: number }>
           texts?: Array<{ pageIndex?: number }>
+          formulas?: Array<{ pageIndex?: number }>
+          graphs?: Array<{ pageIndex?: number }>
         }
+        // `replay: true` tells the client this is hydration, not a live echo —
+        // the board owner (viewerId === ownerId) would otherwise drop every one
+        // of these as its "own echo" and see a blank board on rejoin.
         for (const stroke of wb.strokes ?? []) {
           socket.emit('whiteboard:stroke:added', {
             userId: ownerId,
             stroke,
             pageIndex: stroke.pageIndex ?? 0,
+            replay: true,
           })
         }
         for (const shape of wb.shapes ?? []) {
@@ -1108,6 +1114,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             userId: ownerId,
             shape,
             pageIndex: shape.pageIndex ?? 0,
+            replay: true,
           })
         }
         for (const text of wb.texts ?? []) {
@@ -1115,6 +1122,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
             userId: ownerId,
             text,
             pageIndex: text.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const formula of wb.formulas ?? []) {
+          socket.emit('whiteboard:formula:added', {
+            userId: ownerId,
+            formula,
+            pageIndex: formula.pageIndex ?? 0,
+            replay: true,
+          })
+        }
+        for (const graph of wb.graphs ?? []) {
+          socket.emit('whiteboard:graph:added', {
+            userId: ownerId,
+            graph,
+            pageIndex: graph.pageIndex ?? 0,
+            replay: true,
           })
         }
       }
@@ -2186,6 +2210,15 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    // A socket may only mutate/broadcast into a private board sub-room it actually
+    // joined. `join_class` gates board membership to the owner + base-session
+    // tutor (and makes a rejected socket leave), but io.to(roomId).emit does NOT
+    // require the sender to be a member — so without this check a crafted
+    // `roomId = "<session>:board:<victim>"` could write to a board the sender was
+    // rejected from. Base (non-board) rooms keep their existing behaviour.
+    const canWriteRoom = (roomId: string): boolean =>
+      !roomId.includes(':board:') || socket.rooms.has(roomId)
+
     // Incremental whiteboard delta sync handlers
     socket.on(
       'whiteboard:stroke:add',
@@ -2193,6 +2226,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, stroke, pageIndex } = data || ({} as any)
         if (!roomId || !stroke) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2218,6 +2252,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, shape, pageIndex } = data || ({} as any)
         if (!roomId || !shape) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2243,6 +2278,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, text, pageIndex } = data || ({} as any)
         if (!roomId || !text) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2277,6 +2313,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, formula, pageIndex } = data || ({} as any)
         if (!roomId || !formula) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2305,6 +2342,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
         const { roomId, graph, pageIndex } = data || ({} as any)
         if (!roomId || !graph) return
+        if (!canWriteRoom(roomId)) return
 
         const room = activeRooms.get(roomId)
         if (!room) return
@@ -2328,6 +2366,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (socket.data.role !== 'tutor' && socket.data.role !== 'student') return
       const { roomId, pageIndex } = data || ({} as any)
       if (!roomId || typeof pageIndex !== 'number') return
+      if (!canWriteRoom(roomId)) return
 
       const room = activeRooms.get(roomId)
       if (!room) return
