@@ -13,6 +13,7 @@ import { and, eq, inArray, isNull, lt } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { groupSession, groupSessionParticipant } from '@/lib/db/schema'
 import { notifyWaitlistOfOpening } from '@/lib/one-on-one/waitlist'
+import { reconcileProposalsForSession } from '@/lib/schedule/reschedule-consent'
 
 /** How long a student has to complete checkout before their seat is released. */
 const RESERVATION_TTL_MS = 30 * 60 * 1000
@@ -35,6 +36,7 @@ export async function expireStaleGroupSeats(
     .select({
       participantId: groupSessionParticipant.participantId,
       groupSessionId: groupSessionParticipant.groupSessionId,
+      studentId: groupSessionParticipant.studentId,
     })
     .from(groupSessionParticipant)
     .where(and(...conditions))
@@ -52,13 +54,19 @@ export async function expireStaleGroupSeats(
     )
 
   // Re-open any session that was FULL, and let its waitlist know a seat opened.
+  const liveSessionByGs = new Map<string, string | null>()
   for (const gsId of new Set(stale.map(s => s.groupSessionId))) {
     const [gs] = await drizzleDb
-      .select({ status: groupSession.status, tutorId: groupSession.tutorId })
+      .select({
+        status: groupSession.status,
+        tutorId: groupSession.tutorId,
+        liveSessionId: groupSession.liveSessionId,
+      })
       .from(groupSession)
       .where(eq(groupSession.groupSessionId, gsId))
       .limit(1)
     if (!gs) continue
+    liveSessionByGs.set(gsId, gs.liveSessionId)
     if (gs.status === 'FULL') {
       await drizzleDb
         .update(groupSession)
@@ -66,6 +74,13 @@ export async function expireStaleGroupSeats(
         .where(eq(groupSession.groupSessionId, gsId))
     }
     if (gs.status !== 'CANCELLED') void notifyWaitlistOfOpening(gs.tutorId)
+  }
+
+  // A released seat drops the student from the reschedule roster — re-evaluate
+  // any pending proposal so their unanswered vote can't stall it.
+  for (const seat of stale) {
+    const liveSessionId = liveSessionByGs.get(seat.groupSessionId)
+    if (liveSessionId) await reconcileProposalsForSession(seat.studentId, liveSessionId)
   }
 
   return stale.length

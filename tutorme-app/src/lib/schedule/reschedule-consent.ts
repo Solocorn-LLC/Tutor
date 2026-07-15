@@ -335,19 +335,48 @@ export async function reconcileProposalsAfterDeparture(
           inArray(sessionRescheduleProposal.courseId, familyIds)
         )
       )
-    for (const proposal of proposals) {
-      await drizzleDb
-        .delete(sessionRescheduleVote)
-        .where(
-          and(
-            eq(sessionRescheduleVote.proposalId, proposal.proposalId),
-            eq(sessionRescheduleVote.studentId, studentId)
-          )
-        )
-      await evaluatePendingProposal(proposal)
-    }
+    await dropVotesAndReevaluate(proposals, studentId)
   } catch (err) {
     console.warn('[reschedule] departure reconcile failed (non-critical):', err)
+  }
+}
+
+/**
+ * Same as above but keyed by session — for group-seat cancellations (an expired
+ * or withdrawn seat), where the session may have no course. Best-effort.
+ */
+export async function reconcileProposalsForSession(
+  studentId: string,
+  sessionId: string
+): Promise<void> {
+  try {
+    const proposals = await drizzleDb
+      .select()
+      .from(sessionRescheduleProposal)
+      .where(
+        and(
+          eq(sessionRescheduleProposal.status, 'PENDING'),
+          eq(sessionRescheduleProposal.sessionId, sessionId)
+        )
+      )
+    await dropVotesAndReevaluate(proposals, studentId)
+  } catch (err) {
+    console.warn('[reschedule] session reconcile failed (non-critical):', err)
+  }
+}
+
+/** Drop a departed student's votes from these proposals, then re-evaluate each. */
+async function dropVotesAndReevaluate(proposals: Proposal[], studentId: string): Promise<void> {
+  for (const proposal of proposals) {
+    await drizzleDb
+      .delete(sessionRescheduleVote)
+      .where(
+        and(
+          eq(sessionRescheduleVote.proposalId, proposal.proposalId),
+          eq(sessionRescheduleVote.studentId, studentId)
+        )
+      )
+    await evaluatePendingProposal(proposal)
   }
 }
 
@@ -462,6 +491,13 @@ export async function getOpenProposal(sessionId: string): Promise<{
     )
     .limit(1)
   if (!proposal) return null
+  // A proposal for a session that has since ended is moot — treat it as none.
+  const [sess] = await drizzleDb
+    .select({ status: liveSession.status })
+    .from(liveSession)
+    .where(eq(liveSession.sessionId, sessionId))
+    .limit(1)
+  if (!sess || sess.status === 'ended') return null
   const votes = await drizzleDb
     .select({ response: sessionRescheduleVote.response })
     .from(sessionRescheduleVote)
