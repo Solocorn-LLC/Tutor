@@ -28,6 +28,7 @@ import {
 } from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 type ActivePanel = 'deploy' | 'materials' | 'responses' | null
 interface BoardTarget {
@@ -65,6 +66,7 @@ export function SessionClassroom({
   // viewing read-only), plus the tutor's student-board picker.
   const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
   const [showBoardsPicker, setShowBoardsPicker] = useState(false)
+  const [showCourseEditor, setShowCourseEditor] = useState(false)
   const myId = session?.user?.id ?? ''
   const ownBoardOpened = useOwnBoardOpened(boardTarget?.mine === true)
 
@@ -139,10 +141,9 @@ export function SessionClassroom({
               Responses
             </button>
             {courseId ? (
-              <a
-                href={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setShowCourseEditor(true)}
                 title={
                   courseName
                     ? `Edit "${courseName}" in the Course Builder — changes sync everywhere`
@@ -152,7 +153,7 @@ export function SessionClassroom({
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit course
-              </a>
+              </button>
             ) : null}
             <div className="pointer-events-auto relative">
               <button
@@ -251,6 +252,22 @@ export function SessionClassroom({
             ) : null}
           </div>
         </FallbackBoundary>
+      ) : null}
+
+      {/* Edit-course modal — the full Course Builder for the linked course, in a
+          ~95% dialog (the tutor layout renders /tutor/insights chrome-less, and
+          the builder auto-saves, so edits sync everywhere without leaving the
+          room). */}
+      {courseId ? (
+        <Dialog open={showCourseEditor} onOpenChange={setShowCourseEditor}>
+          <DialogContent size="full" className="h-[95vh] overflow-hidden p-0">
+            <iframe
+              src={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit`}
+              title={courseName ? `Edit ${courseName}` : 'Edit course'}
+              className="h-full w-full rounded-lg border-0"
+            />
+          </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   )
