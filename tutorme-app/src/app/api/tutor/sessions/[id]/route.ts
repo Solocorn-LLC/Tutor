@@ -4,7 +4,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq, and, isNull, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -100,7 +101,12 @@ export const PATCH = withAuth(
         const enrollments = await drizzleDb
           .select({ studentId: courseEnrollment.studentId })
           .from(courseEnrollment)
-          .where(eq(courseEnrollment.courseId, existingSession.courseId))
+          .where(
+            inArray(
+              courseEnrollment.courseId,
+              await expandToCourseFamily([existingSession.courseId])
+            )
+          )
 
         const studentIds = enrollments.map(e => e.studentId)
 

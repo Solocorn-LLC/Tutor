@@ -35,6 +35,7 @@ export const POST = withCsrf(
         .where(
           and(
             eq(courseEnrollment.studentId, session.user.id),
+            // eslint-disable-next-line no-restricted-syntax -- exact match: unenroll targets THIS resolved course, not a session-derived id
             eq(courseEnrollment.courseId, courseRow.courseId)
           )
         )

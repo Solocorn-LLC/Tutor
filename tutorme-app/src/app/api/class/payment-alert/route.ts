@@ -18,6 +18,7 @@ import {
   familyNotification,
 } from '@/lib/db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { logAudit, AUDIT_ACTIONS } from '@/lib/security/audit'
 import crypto from 'crypto'
 
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
       .from(courseEnrollment)
       .where(
         and(
-          eq(courseEnrollment.courseId, body.courseId),
+          inArray(courseEnrollment.courseId, await expandToCourseFamily([body.courseId])),
           eq(courseEnrollment.studentId, session.user.id)
         )
       )
