@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, inArray } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -49,11 +50,14 @@ export const GET = withAuth(
       .select({ itemId: deployedMaterial.itemId, type: deployedMaterial.type })
       .from(deployedMaterial)
       .where(eq(deployedMaterial.sessionId, sessionId))
-    const courseTasks = sess.courseId
+    // Expand to the variant family so legacy course tasks under the sibling
+    // (template vs published) course id are still counted.
+    const taskCourseFamily = sess.courseId ? await expandToCourseFamily([sess.courseId]) : []
+    const courseTasks = taskCourseFamily.length
       ? await drizzleDb
           .select({ taskId: builderTask.taskId })
           .from(builderTask)
-          .where(eq(builderTask.courseId, sess.courseId))
+          .where(inArray(builderTask.courseId, taskCourseFamily))
       : []
     const taskIds = Array.from(
       new Set([

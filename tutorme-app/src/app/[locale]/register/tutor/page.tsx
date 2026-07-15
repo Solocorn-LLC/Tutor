@@ -319,6 +319,10 @@ export default function TutorRegistrationPage() {
   const [showUsernameCheckModal, setShowUsernameCheckModal] = useState(false)
   const [region, setRegion] = useState('')
   const [countryCode, setCountryCode] = useState('')
+  // Inline per-field validation errors (empty/invalid required fields turn red).
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const clearError = (field: string) =>
+    setErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
 
   const [formData, setFormData] = useState({
     email: '',
@@ -521,32 +525,20 @@ export default function TutorRegistrationPage() {
   }, [step])
 
   const validateStepOne = async () => {
-    if (!formData.firstName || !formData.lastName) {
-      toast.error('First and last name are required')
-      return false
-    }
-    if (!formData.email || !formData.password) {
-      toast.error('Email and password are required')
-      return false
-    }
+    // Collect ALL empty/invalid required fields so each is highlighted red at
+    // once, rather than a one-at-a-time toast.
+    const next: Record<string, string> = {}
+    if (!formData.firstName?.trim()) next.firstName = 'Please enter your first name'
+    if (!formData.lastName?.trim()) next.lastName = 'Please enter your last name'
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailPattern.test(formData.email)) {
-      toast.error('Enter a valid email address')
-      return false
-    }
-    if (passwordMismatch) {
-      toast.error('Passwords do not match')
-      return false
-    }
-    if (!region) {
-      toast.error('Region is required')
-      return false
-    }
-    if (!countryCode) {
-      toast.error('Country is required')
-      return false
-    }
-    return true
+    if (!formData.email) next.email = 'Email is required'
+    else if (!emailPattern.test(formData.email)) next.email = 'Enter a valid email address'
+    if (!formData.password) next.password = 'Password is required'
+    if (passwordMismatch) next.confirmPassword = 'Passwords do not match'
+    if (!region) next.region = 'Region is required'
+    if (!countryCode) next.countryCode = 'Country is required'
+    setErrors(next)
+    return Object.keys(next).length === 0
   }
 
   const validateStepTwo = async () => {
@@ -764,11 +756,23 @@ export default function TutorRegistrationPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">First Name</Label>
                         <Input
-                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                          className={cn(
+                            'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40',
+                            errors.firstName && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
+                          aria-invalid={!!errors.firstName}
                           value={formData.firstName}
-                          onChange={e => setFormData({ ...formData, firstName: e.target.value })}
+                          onChange={e => {
+                            setFormData({ ...formData, firstName: e.target.value })
+                            clearError('firstName')
+                          }}
                           autoComplete="off"
                         />
+                        {errors.firstName && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.firstName}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">Middle Name</Label>
@@ -782,11 +786,23 @@ export default function TutorRegistrationPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">Last Name</Label>
                         <Input
-                          className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                          className={cn(
+                            'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40',
+                            errors.lastName && 'border-red-500 focus-visible:ring-red-500/30'
+                          )}
+                          aria-invalid={!!errors.lastName}
                           value={formData.lastName}
-                          onChange={e => setFormData({ ...formData, lastName: e.target.value })}
+                          onChange={e => {
+                            setFormData({ ...formData, lastName: e.target.value })
+                            clearError('lastName')
+                          }}
                           autoComplete="off"
                         />
+                        {errors.lastName && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.lastName}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -794,13 +810,25 @@ export default function TutorRegistrationPage() {
                     <div className="space-y-1">
                       <Label className="text-xs text-white/70">Email</Label>
                       <Input
-                        className="h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                        className={cn(
+                          'h-8 border-white/10 bg-white text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40',
+                          errors.email && 'border-red-500 focus-visible:ring-red-500/30'
+                        )}
+                        aria-invalid={!!errors.email}
                         type="email"
                         name="tutor_registration_email"
                         autoComplete="off"
                         value={formData.email}
-                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, email: e.target.value })
+                          clearError('email')
+                        }}
                       />
+                      {errors.email && (
+                        <p className="text-xs text-red-400" role="alert">
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Password row */}
@@ -809,12 +837,19 @@ export default function TutorRegistrationPage() {
                         <Label className="text-xs text-white/70">Password</Label>
                         <div className="relative">
                           <Input
-                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                            className={cn(
+                              'h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40',
+                              errors.password && 'border-red-500 focus-visible:ring-red-500/30'
+                            )}
+                            aria-invalid={!!errors.password}
                             type={showPassword ? 'text' : 'password'}
                             name="tutor_registration_password"
                             autoComplete="new-password"
                             value={formData.password}
-                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                            onChange={e => {
+                              setFormData({ ...formData, password: e.target.value })
+                              clearError('password')
+                            }}
                             placeholder="Create a password"
                           />
                           <button
@@ -830,19 +865,30 @@ export default function TutorRegistrationPage() {
                             )}
                           </button>
                         </div>
+                        {errors.password && (
+                          <p className="text-xs text-red-400" role="alert">
+                            {errors.password}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-white/70">Confirm Password</Label>
                         <div className="relative">
                           <Input
-                            className="h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40"
+                            className={cn(
+                              'h-8 border-white/10 bg-white pr-9 text-sm text-[#1F2933] placeholder:text-gray-400 focus-visible:ring-[#2563EB]/40',
+                              errors.confirmPassword &&
+                                'border-red-500 focus-visible:ring-red-500/30'
+                            )}
+                            aria-invalid={!!errors.confirmPassword}
                             type={showConfirmPassword ? 'text' : 'password'}
                             name="tutor_registration_confirm_password"
                             autoComplete="new-password"
                             value={formData.confirmPassword}
-                            onChange={e =>
+                            onChange={e => {
                               setFormData({ ...formData, confirmPassword: e.target.value })
-                            }
+                              clearError('confirmPassword')
+                            }}
                             placeholder="Confirm your password"
                           />
                           <button
@@ -859,7 +905,8 @@ export default function TutorRegistrationPage() {
                           </button>
                         </div>
                         <p className="min-h-[18px] text-xs text-red-400">
-                          {passwordMismatch ? 'Passwords do not match.' : '\u00A0'}
+                          {errors.confirmPassword ||
+                            (passwordMismatch ? 'Passwords do not match.' : '\u00A0')}
                         </p>
                       </div>
                     </div>
@@ -875,9 +922,16 @@ export default function TutorRegistrationPage() {
                             onValueChange={v => {
                               setRegion(v)
                               setCountryCode('')
+                              clearError('region')
                             }}
                           >
-                            <SelectTrigger className="h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40">
+                            <SelectTrigger
+                              aria-invalid={!!errors.region}
+                              className={cn(
+                                'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 hover:border-slate-400/50 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40',
+                                errors.region && 'border-red-500 focus:ring-red-500/40'
+                              )}
+                            >
                               <SelectValue placeholder="Select Region..." />
                             </SelectTrigger>
                             <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-md border border-white/10 p-1.5 shadow-lg">
@@ -892,19 +946,29 @@ export default function TutorRegistrationPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {errors.region && (
+                            <p className="mt-1 text-xs text-red-400" role="alert">
+                              {errors.region}
+                            </p>
+                          )}
                         </div>
 
                         {/* Country */}
                         <div>
                           <Select
                             value={countryCode}
-                            onValueChange={setCountryCode}
+                            onValueChange={v => {
+                              setCountryCode(v)
+                              clearError('countryCode')
+                            }}
                             disabled={!region}
                           >
                             <SelectTrigger
+                              aria-invalid={!!errors.countryCode}
                               className={cn(
                                 'h-8 w-full rounded-md border border-white/10 bg-white px-3 py-2 text-sm text-[#1F2933] shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/40 disabled:text-white disabled:opacity-100',
-                                !region && 'border-slate-400/20 bg-slate-100/50'
+                                !region && 'border-slate-400/20 bg-slate-100/50',
+                                errors.countryCode && 'border-red-500 focus:ring-red-500/40'
                               )}
                             >
                               <SelectValue placeholder="Select Country" />
@@ -927,6 +991,11 @@ export default function TutorRegistrationPage() {
                               )}
                             </SelectContent>
                           </Select>
+                          {errors.countryCode && (
+                            <p className="mt-1 text-xs text-red-400" role="alert">
+                              {errors.countryCode}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
