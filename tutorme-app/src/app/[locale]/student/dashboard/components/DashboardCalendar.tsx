@@ -479,7 +479,14 @@ export function DashboardCalendar({
                                 {formatDate(s.start)} · {formatEventTime(s.start)}
                               </p>
                             </div>
-                            {s.pendingPayment ? (
+                            {new Date(s.end).getTime() < Date.now() ? (
+                              // Session already ended — suppress the dead-end Join
+                              // (the room is closed). Parity with the 1-on-1 list,
+                              // which flips a past session to its Rate/ended state.
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-500">
+                                Ended
+                              </span>
+                            ) : s.pendingPayment ? (
                               <span
                                 className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700"
                                 title="Seat held — complete payment to confirm and unlock the room."
