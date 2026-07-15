@@ -5932,6 +5932,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               }
 
               if (currentId) {
+                setSelectedItem({ type: 'task', id: currentId })
                 const newAsset = {
                   id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
                   name: firstFile.name,

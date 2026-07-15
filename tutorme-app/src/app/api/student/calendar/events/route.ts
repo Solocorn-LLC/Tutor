@@ -152,6 +152,12 @@ export const GET = withAuth(
         sessionStatus: liveSession.status,
         requestId: oneOnOneBookingRequest.requestId,
         bookingStatus: oneOnOneBookingRequest.status,
+        bookingTimezone: oneOnOneBookingRequest.timezone,
+        costPerSession: oneOnOneBookingRequest.costPerSession,
+        rescheduleProposedDate: oneOnOneBookingRequest.rescheduleProposedDate,
+        rescheduleProposedStart: oneOnOneBookingRequest.rescheduleProposedStart,
+        rescheduleProposedEnd: oneOnOneBookingRequest.rescheduleProposedEnd,
+        rescheduleProposedBy: oneOnOneBookingRequest.rescheduleProposedBy,
       })
       .from(calendarEvent)
       .innerJoin(
@@ -262,6 +268,20 @@ export const GET = withAuth(
         // badge it "awaiting payment" instead of showing a confirmed session.
         pendingPayment: e.bookingStatus === 'ACCEPTED',
         courseId: null as string | null,
+        tutorTimezone: e.bookingTimezone as string | null,
+        costPerSession: e.costPerSession as number | null,
+        // A pending 1-on-1 reschedule proposal, if any. `proposedByMe` = the
+        // student proposed it (waiting on the tutor); otherwise the tutor
+        // proposed and the student must accept/decline.
+        reschedule: e.rescheduleProposedBy
+          ? {
+              proposedByMe: e.rescheduleProposedBy === studentId,
+              date: e.rescheduleProposedDate?.toISOString() ?? null,
+              startTime: e.rescheduleProposedStart as string | null,
+              endTime: e.rescheduleProposedEnd as string | null,
+              timezone: (e.bookingTimezone as string | null) ?? null,
+            }
+          : null,
       })),
       ...groupEvents.map(e => {
         const start = e.scheduledAt ?? new Date()
