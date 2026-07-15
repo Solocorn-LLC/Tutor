@@ -12,7 +12,7 @@
  * task deployment) are intentionally absent — a course-less session has none.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
@@ -70,7 +70,21 @@ export function SessionClassroom({
   const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
   const [showBoardsPicker, setShowBoardsPicker] = useState(false)
   const [showCourseEditor, setShowCourseEditor] = useState(false)
+  // Bumped when the Edit-course modal (iframe) reports a save, so the deploy
+  // panel refetches instead of serving pre-edit task content.
+  const [deployRefreshKey, setDeployRefreshKey] = useState(0)
   const myId = session?.user?.id ?? ''
+
+  // Listen for the embedded course-editor's save postMessage and refresh the
+  // deploy panel's task list. Same-origin check guards against foreign frames.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'tutorme:course-saved') setDeployRefreshKey(k => k + 1)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
   const ownBoardOpened = useOwnBoardOpened(boardTarget?.mine === true)
 
   // useSocket keys its effect on the option fields (not object identity), so an
@@ -233,6 +247,7 @@ export function SessionClassroom({
                 sessionId={sessionId}
                 socket={socket}
                 courseId={courseId}
+                refreshKey={deployRefreshKey}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}

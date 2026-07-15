@@ -58,6 +58,7 @@ export function SessionDeployPanel({
   sessionId,
   socket,
   courseId,
+  refreshKey,
   onClose,
 }: {
   sessionId: string
@@ -65,6 +66,9 @@ export function SessionDeployPanel({
   /** When the session is built around a course, only that course's tasks are
    *  deployable; null/undefined offers all the tutor's published tasks. */
   courseId?: string | null
+  /** Bumped by the parent when the linked course is edited in the in-session
+   *  modal, so the task list refetches instead of serving stale content. */
+  refreshKey?: number
   onClose: () => void
 }) {
   const [items, setItems] = useState<Deployable[]>([])
@@ -88,7 +92,7 @@ export function SessionDeployPanel({
     return () => {
       active = false
     }
-  }, [courseId])
+  }, [courseId, refreshKey])
 
   // Group the flat task list into course → lesson → tasks, filtered by the
   // search query (matches task title, course name or lesson title).

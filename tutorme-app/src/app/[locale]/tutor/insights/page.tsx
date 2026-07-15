@@ -367,6 +367,22 @@ function TutorInsightsPageInner() {
         setIndependent,
       })
 
+      // When running inside the in-session Edit-course modal (iframe), tell the
+      // parent classroom a save landed so it can refetch its deploy panel — which
+      // otherwise keeps serving the pre-edit task content. Fires on autosave too
+      // (before the early return below), since the modal auto-saves silently.
+      if (
+        embedded &&
+        result?.success &&
+        typeof window !== 'undefined' &&
+        window.parent !== window
+      ) {
+        window.parent.postMessage(
+          { type: 'tutorme:course-saved', courseId },
+          window.location.origin
+        )
+      }
+
       if (options?.isAutoSave) return
 
       if (result.success) {
