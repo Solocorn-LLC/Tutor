@@ -12,6 +12,7 @@ import {
   Inbox,
   Clock,
   CheckCircle2,
+  BookOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,8 @@ interface GroupSessionItem {
   status: string
   seatsLeft: number
   liveSessionId?: string | null
+  courseName?: string | null
+  coursePublished?: boolean | null
 }
 
 const emptyForm = {
@@ -374,6 +377,15 @@ export default function TutorGroupSessionsPage() {
                         <span>
                           {gs.capacity - gs.seatsLeft}/{gs.capacity} booked
                         </span>
+                        {gs.courseName ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            <BookOpen className="h-3 w-3" />
+                            {gs.courseName}
+                            {gs.coursePublished === false ? (
+                              <span className="text-blue-400">· draft</span>
+                            ) : null}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     {!cancelled ? (

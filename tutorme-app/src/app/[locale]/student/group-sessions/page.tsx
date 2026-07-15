@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Users, Loader2, CalendarDays, ArrowUpRight } from 'lucide-react'
+import { Users, Loader2, CalendarDays, ArrowUpRight, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bookGroupSeat } from '@/lib/group-session/book-seat'
 
@@ -22,6 +22,7 @@ interface BrowseSession {
   seatsLeft: number
   tutorName?: string | null
   tutorUsername?: string | null
+  courseName?: string | null
 }
 
 function formatDate(iso: string): string {
@@ -132,6 +133,12 @@ export default function StudentGroupSessionsPage() {
                           ? '1-on-1 · 1 seat'
                           : `${gs.seatsLeft} of ${gs.capacity} seats left`}
                     </span>
+                    {gs.courseName ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                        <BookOpen className="h-3 w-3" />
+                        {gs.courseName}
+                      </span>
+                    ) : null}
                   </div>
                   {gs.description ? (
                     <p className="mt-1 line-clamp-2 text-sm text-slate-500">{gs.description}</p>

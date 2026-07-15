@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, asc, eq, gte } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { groupSession, profile, user } from '@/lib/db/schema'
+import { groupSession, profile, user, course } from '@/lib/db/schema'
 import { countActiveSeats } from '@/lib/group-session/seats'
 import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
 
@@ -41,10 +41,12 @@ export const GET = withAuth(async (_req: NextRequest) => {
       tutorName: profile.name,
       tutorUsername: profile.username,
       tutorImage: user.image,
+      courseName: course.name,
     })
     .from(groupSession)
     .leftJoin(profile, eq(profile.userId, groupSession.tutorId))
     .leftJoin(user, eq(user.userId, groupSession.tutorId))
+    .leftJoin(course, eq(course.courseId, groupSession.courseId))
     .where(and(eq(groupSession.status, 'OPEN'), gte(groupSession.requestedDate, startOfTodayUtc)))
     .orderBy(asc(groupSession.requestedDate))
     .limit(100)

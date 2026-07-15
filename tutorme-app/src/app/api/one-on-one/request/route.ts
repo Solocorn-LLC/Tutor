@@ -368,5 +368,21 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     throw new ValidationError('Invalid role parameter')
   }
 
+  // Attach the linked course's name so the request card can show what the
+  // session is about (one query for the whole list).
+  const courseIds = [...new Set(requests.map(r => r.courseId).filter((x): x is string => !!x))]
+  const nameById = new Map<string, string>()
+  if (courseIds.length > 0) {
+    const cs = await drizzleDb
+      .select({ courseId: course.courseId, name: course.name })
+      .from(course)
+      .where(inArray(course.courseId, courseIds))
+    for (const c of cs) nameById.set(c.courseId, c.name)
+  }
+  requests = requests.map(r => ({
+    ...r,
+    courseName: r.courseId ? (nameById.get(r.courseId) ?? null) : null,
+  }))
+
   return NextResponse.json({ requests })
 })

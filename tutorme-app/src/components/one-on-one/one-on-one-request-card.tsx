@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Calendar, Clock, CreditCard, Repeat, Timer } from 'lucide-react'
+import { Calendar, Clock, CreditCard, Repeat, Timer, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface OneOnOneParty {
@@ -23,6 +23,7 @@ export interface OneOnOneRequestSummary {
   durationMinutes?: number | null
   currency?: string | null
   studentNotes?: string | null
+  courseName?: string | null
   seriesId?: string | null
   seriesIndex?: number | null
   createdAt?: string | null
@@ -288,6 +289,19 @@ export function OneOnOneRequestCard({
           ) : null}
         </div>
       )}
+
+      {/* the course the student wants this session to be about */}
+      {request.courseName ? (
+        <div
+          className={cn(
+            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+            dark ? 'bg-white/10 text-white/80' : 'bg-blue-50 text-blue-700'
+          )}
+        >
+          <BookOpen className="h-3 w-3" />
+          {request.courseName}
+        </div>
+      ) : null}
 
       {/* student's note to the tutor ("why I want this session") */}
       {request.studentNotes?.trim() ? (
