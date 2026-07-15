@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { Users, Loader2, CalendarDays, ArrowUpRight, BookOpen } from 'lucide-react'
+import { Users, Loader2, CalendarDays, ArrowUpRight, BookOpen, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { bookGroupSeat } from '@/lib/group-session/book-seat'
 import { formatEarnings } from '@/lib/format-currency'
@@ -26,6 +26,18 @@ interface BrowseSession {
   courseName?: string | null
 }
 
+interface MySession {
+  groupSessionId: string
+  title: string
+  liveSessionId: string | null
+  requestedDate: string
+  startTime: string
+  endTime: string
+  timezone: string
+  tutorName?: string | null
+  joinable: boolean
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     weekday: 'short',
@@ -39,16 +51,23 @@ export default function StudentGroupSessionsPage() {
   const params = useParams()
   const locale = (params?.locale as string) || 'en'
   const [sessions, setSessions] = useState<BrowseSession[]>([])
+  const [mine, setMine] = useState<MySession[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/group-sessions/browse', { credentials: 'include' })
-      const data = res.ok ? await res.json() : { sessions: [] }
-      setSessions(Array.isArray(data.sessions) ? data.sessions : [])
+      const [browseRes, mineRes] = await Promise.all([
+        fetch('/api/group-sessions/browse', { credentials: 'include' }),
+        fetch('/api/group-sessions/mine', { credentials: 'include' }),
+      ])
+      const browse = browseRes.ok ? await browseRes.json() : { sessions: [] }
+      const mineData = mineRes.ok ? await mineRes.json() : { sessions: [] }
+      setSessions(Array.isArray(browse.sessions) ? browse.sessions : [])
+      setMine(Array.isArray(mineData.sessions) ? mineData.sessions : [])
     } catch {
       setSessions([])
+      setMine([])
     } finally {
       setLoading(false)
     }
@@ -83,6 +102,51 @@ export default function StudentGroupSessionsPage() {
           </div>
         </div>
       </section>
+
+      {/* Your booked sessions — with a Join button once the room opens. */}
+      {mine.length > 0 ? (
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-emerald-900">Your booked sessions</h2>
+          <ul className="flex flex-col gap-2">
+            {mine.map(s => (
+              <li
+                key={s.groupSessionId}
+                className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-900">{s.title}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {formatDate(s.requestedDate)} · {s.startTime}–{s.endTime} ({s.timezone})
+                    </span>
+                    {s.tutorName ? <span className="capitalize">with {s.tutorName}</span> : null}
+                  </div>
+                </div>
+                {s.liveSessionId ? (
+                  <Link
+                    href={s.joinable ? `/${locale}/call/${s.liveSessionId}` : '#'}
+                    aria-disabled={!s.joinable}
+                    onClick={e => {
+                      if (!s.joinable) e.preventDefault()
+                    }}
+                    className={
+                      'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ' +
+                      (s.joinable
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                        : 'cursor-not-allowed bg-slate-100 text-slate-400')
+                    }
+                    title={s.joinable ? 'Join the session' : 'Opens 20 minutes before it starts'}
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    {s.joinable ? 'Join' : 'Not yet open'}
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-16">
