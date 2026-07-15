@@ -15,10 +15,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask, builderTaskDmi, course, courseLesson } from '@/lib/db/schema'
+import { builderTask, builderTaskDmi, course, courseLesson, courseVariant } from '@/lib/db/schema'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 
@@ -27,12 +27,63 @@ import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 // out of the deployable list. Mirrors ADHOC_ANCHOR_COURSE_ID in the socket server.
 const ADHOC_ANCHOR_COURSE_ID = '__system_adhoc_course__'
 
+/**
+ * Resolve the whole template↔published variant family for a scoped course id.
+ *
+ * A course exists as a template plus N published variants (one per
+ * nationality×category). Tasks are stored under whatever courseId the session
+ * that authored them carried: a builder "teaching" session uses the TEMPLATE id,
+ * while a scheduled live session carries the PUBLISHED-variant id. Scoping the
+ * deploy panel by the raw session courseId therefore returns ZERO tasks whenever
+ * the tasks were authored under a sibling id — the exact template/published
+ * split documented across the codebase. Expanding to the family fixes both
+ * directions. Standalone courses (no variant rows) resolve to just themselves,
+ * so behaviour is unchanged for them.
+ */
+async function resolveCourseFamily(scopedId: string): Promise<string[]> {
+  const rows = await drizzleDb
+    .select({
+      templateCourseId: courseVariant.templateCourseId,
+      publishedCourseId: courseVariant.publishedCourseId,
+    })
+    .from(courseVariant)
+    .where(
+      or(
+        eq(courseVariant.templateCourseId, scopedId),
+        eq(courseVariant.publishedCourseId, scopedId)
+      )
+    )
+
+  const family = new Set<string>([scopedId])
+  const templateIds = new Set<string>()
+  for (const r of rows) {
+    family.add(r.templateCourseId)
+    family.add(r.publishedCourseId)
+    templateIds.add(r.templateCourseId)
+  }
+
+  // When `scopedId` is a published variant, the query above only matched its own
+  // row — pull in the remaining siblings via the template(s) we just learned.
+  if (templateIds.size > 0) {
+    const siblings = await drizzleDb
+      .select({ publishedCourseId: courseVariant.publishedCourseId })
+      .from(courseVariant)
+      .where(inArray(courseVariant.templateCourseId, [...templateIds]))
+    for (const s of siblings) family.add(s.publishedCourseId)
+  }
+
+  return [...family]
+}
+
 export const GET = withAuth(
   async (req: NextRequest, session) => {
     // When a live session is built around a course, the classroom passes its
     // courseId so ONLY that course's tasks are deployable; with no course, all
     // of the tutor's published tasks are offered.
     const scopedCourseId = new URL(req.url).searchParams.get('courseId')?.trim() || null
+    // Scope to the whole variant family, not just the raw id, so tasks authored
+    // under a sibling variant/template id are still found (see resolveCourseFamily).
+    const scopedFamily = scopedCourseId ? await resolveCourseFamily(scopedCourseId) : null
 
     const rows = await drizzleDb
       .select({
@@ -56,7 +107,7 @@ export const GET = withAuth(
           eq(builderTask.status, 'published'),
           isNull(builderTask.deletedAt),
           ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID),
-          ...(scopedCourseId ? [eq(builderTask.courseId, scopedCourseId)] : [])
+          ...(scopedFamily ? [inArray(builderTask.courseId, scopedFamily)] : [])
         )
       )
       .orderBy(desc(builderTask.updatedAt))
