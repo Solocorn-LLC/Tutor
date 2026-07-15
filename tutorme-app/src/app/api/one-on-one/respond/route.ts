@@ -203,6 +203,7 @@ export async function PATCH(request: NextRequest) {
               maxStudents: 2,
               description: `One-on-one tutoring session with student`,
               timezone: p.req.timezone,
+              courseId: p.req.courseId ?? undefined,
               existingRoom: p.room,
             },
             tx

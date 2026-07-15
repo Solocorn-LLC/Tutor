@@ -34,6 +34,8 @@ interface VideoInfo {
   isTutor?: boolean
   twoWay?: boolean
   error?: string
+  courseId?: string | null
+  courseName?: string | null
 }
 
 const LOBBY_POLL_MS = 20_000
@@ -91,6 +93,8 @@ export default function OneOnOneCallPage() {
         isTutor,
         twoWay: data?.twoWay ?? true,
         error: data?.videoError || undefined,
+        courseId: data?.session?.courseId ?? null,
+        courseName: data?.session?.course?.name ?? null,
       })
       setPhase('inRoom')
     } catch (err) {
@@ -266,6 +270,8 @@ export default function OneOnOneCallPage() {
       token={video.token}
       isTutor={video.isTutor}
       twoWay={video.twoWay}
+      courseId={video.courseId ?? null}
+      courseName={video.courseName ?? null}
     />
   )
 }

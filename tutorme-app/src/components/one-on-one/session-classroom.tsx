@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, FolderOpen, Users } from 'lucide-react'
+import { Send, FolderOpen, Users, Pencil } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
@@ -32,6 +32,10 @@ interface SessionClassroomProps {
   token: string | null
   isTutor?: boolean
   twoWay?: boolean
+  /** The course this session is built around, if any — lets the tutor jump
+   *  straight into the Course Builder to edit it (changes sync everywhere). */
+  courseId?: string | null
+  courseName?: string | null
 }
 
 export function SessionClassroom({
@@ -40,6 +44,8 @@ export function SessionClassroom({
   token,
   isTutor,
   twoWay,
+  courseId,
+  courseName,
 }: SessionClassroomProps) {
   const { data: session } = useSession()
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
@@ -118,6 +124,22 @@ export function SessionClassroom({
               <Users className="h-3.5 w-3.5" />
               Responses
             </button>
+            {courseId ? (
+              <a
+                href={`/tutor/insights?tab=builder&courseId=${encodeURIComponent(courseId)}&mode=edit`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={
+                  courseName
+                    ? `Edit "${courseName}" in the Course Builder — changes sync everywhere`
+                    : 'Edit this course in the Course Builder'
+                }
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit course
+              </a>
+            ) : null}
           </>
         ) : null}
         <button
