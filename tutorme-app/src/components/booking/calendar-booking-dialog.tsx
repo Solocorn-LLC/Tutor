@@ -122,7 +122,9 @@ export function CalendarBookingDialog({
   const [submitting, setSubmitting] = useState(false)
   const [availability, setAvailability] = useState<AvailabilityData | null>(null)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  // Multiple distinct base slots the student picks. Each is repeated across
+  // `recurringWeeks` at submit time (one series → one acceptance → one payment).
+  const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([])
   const [slotError, setSlotError] = useState(false)
   const [hasPendingRequest, setHasPendingRequest] = useState(false)
   const [activeRequest, setActiveRequest] = useState<{ id: string; status: string } | null>(null)
@@ -262,9 +264,10 @@ export function CalendarBookingDialog({
     }
   }
 
-  // Reset selected slot when week changes
+  // Keep the picker on the schedule step when navigating weeks. Selected slots
+  // are intentionally preserved across weeks — students pick sessions on
+  // different weeks in one request.
   useEffect(() => {
-    setSelectedSlot(null)
     setActiveTab('schedule')
   }, [weekOffset])
 
@@ -398,29 +401,78 @@ export function CalendarBookingDialog({
     [availability?.timezone]
   )
 
-  // Handle slot selection
+  // A tutor can disable recurring/multi-session booking — then only ONE slot may
+  // be picked (the API also rejects >1 slot in that case).
+  const allowMulti = availability?.recurringEnabled !== false
+
+  // Toggle a slot in/out of the selection. With multi disabled, selecting a new
+  // cell replaces the current one (single-slot behaviour).
   const toggleSlot = (dateKey: string, timeStr: string) => {
     if (!isSlotAvailable(dateKey, timeStr) || isSlotInPast(dateKey, timeStr)) return
 
     const endHour = parseInt(timeStr.slice(0, 2)) + 1
     const endTime = `${String(endHour).padStart(2, '0')}:00`
-
     const dayIndex = parseISO(dateKey).getDay()
-
-    setSelectedSlot({
+    const slot: TimeSlot = {
       date: dateKey,
       startTime: timeStr,
       endTime,
       dayOfWeek: dayIndex,
       timezone: availability?.timezone ?? 'UTC',
+    }
+
+    setSelectedSlots(prev => {
+      if (!allowMulti) return [slot]
+      const exists = prev.some(s => s.date === dateKey && s.startTime === timeStr)
+      return exists
+        ? prev.filter(s => !(s.date === dateKey && s.startTime === timeStr))
+        : [...prev, slot]
     })
     setSlotError(false)
   }
 
+  // The concrete sessions being requested: each selected slot repeated across
+  // `recurringWeeks`, deduped and sorted chronologically. Single source of truth
+  // for submit, the summary and the price.
+  const MAX_SESSIONS = 20
+  const expandedSessions = useMemo(() => {
+    const weeks = allowMulti ? recurringWeeks : 1
+    const out: { date: string; startTime: string; endTime: string; dateObj: Date }[] = []
+    const seen = new Set<string>()
+    for (const slot of selectedSlots) {
+      const base = parseISO(slot.date)
+      for (let w = 0; w < weeks; w += 1) {
+        const d = new Date(base)
+        d.setDate(d.getDate() + w * 7)
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        const date = `${y}-${m}-${day}`
+        const key = `${date}T${slot.startTime}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push({ date, startTime: slot.startTime, endTime: slot.endTime, dateObj: d })
+      }
+    }
+    out.sort((a, b) =>
+      a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date)
+    )
+    return out
+  }, [selectedSlots, recurringWeeks, allowMulti])
+
+  // Guard the API's per-request cap up front so we never silently drop sessions.
+  const overSessionLimit = expandedSessions.length > MAX_SESSIONS
+
   const handleSubmit = async () => {
-    if (!selectedSlot) {
+    if (selectedSlots.length === 0) {
       // Highlight the picker in red inline instead of only warning.
       setSlotError(true)
+      return
+    }
+    if (overSessionLimit) {
+      toast.error(
+        `You can book at most ${MAX_SESSIONS} sessions per request — reduce slots or weeks.`
+      )
       return
     }
     if (!session?.user) {
@@ -434,21 +486,12 @@ export function CalendarBookingDialog({
       const csrfData = await csrfRes.json().catch(() => ({}))
       const csrfToken = csrfData?.token ?? null
 
-      // Generate recurring slots: same day-of-week and time, N weeks apart
-      const proposedSlots = []
-      const baseDate = parseISO(selectedSlot.date)
-      for (let w = 0; w < recurringWeeks; w += 1) {
-        const d = new Date(baseDate)
-        d.setDate(d.getDate() + w * 7)
-        const y = d.getFullYear()
-        const m = String(d.getMonth() + 1).padStart(2, '0')
-        const day = String(d.getDate()).padStart(2, '0')
-        proposedSlots.push({
-          date: `${y}-${m}-${day}`,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
-        })
-      }
+      // Every picked slot, expanded across the recurring weeks (deduped/sorted).
+      const proposedSlots = expandedSessions.map(s => ({
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }))
 
       const res = await fetch('/api/one-on-one/request', {
         method: 'POST',
@@ -471,6 +514,7 @@ export function CalendarBookingDialog({
       if (res.ok) {
         toast.success('Booking request sent! The tutor will review and confirm.')
         setStudentNotes('')
+        setSelectedSlots([])
         setHasPendingRequest(true)
         setActiveRequest({
           id: data.request.requestId ?? data.request.id,
@@ -500,33 +544,18 @@ export function CalendarBookingDialog({
     }
   }, [availability?.recurringEnabled, recurringWeeks])
 
-  // Generate all recurring dates for display
-  const recurringDates = useMemo(() => {
-    if (!selectedSlot) return []
-    const dates = []
-    const baseDate = parseISO(selectedSlot.date)
-    for (let w = 0; w < recurringWeeks; w += 1) {
-      const d = new Date(baseDate)
-      d.setDate(d.getDate() + w * 7)
-      dates.push(d)
-    }
-    return dates
-  }, [selectedSlot, recurringWeeks])
-
-  // Summary data
+  // Summary data — derived from the concrete expanded sessions (each carries its
+  // own date/day/time, since slots can be on different days).
   const summaryData = useMemo(() => {
-    if (!selectedSlot) return null
+    if (expandedSessions.length === 0) return null
     return {
-      dates: recurringDates,
-      startTime: selectedSlot.startTime,
-      endTime: selectedSlot.endTime,
+      sessions: expandedSessions,
       durationMinutes: 60,
-      dayOfWeek: DAYS[selectedSlot.dayOfWeek === 0 ? 6 : selectedSlot.dayOfWeek - 1],
       timezone: availability?.timezone ?? 'UTC',
-      sessionCount: recurringWeeks,
-      totalHours: recurringWeeks,
+      sessionCount: expandedSessions.length,
+      totalHours: expandedSessions.length,
     }
-  }, [selectedSlot, availability, recurringDates, recurringWeeks])
+  }, [expandedSessions, availability])
 
   // Not logged in state
   if (!session?.user) {
@@ -617,8 +646,10 @@ export function CalendarBookingDialog({
           </DialogTitle>
           <DialogDescription className={slotError ? 'font-medium text-red-600' : undefined}>
             {slotError
-              ? 'Please select a time slot below to continue.'
-              : 'Select an available time slot for your one-hour session.'}
+              ? 'Please select at least one time slot below to continue.'
+              : allowMulti
+                ? 'Select one or more available time slots — each is a one-hour session.'
+                : 'Select an available time slot for your one-hour session.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -629,7 +660,7 @@ export function CalendarBookingDialog({
         >
           <TabsList className="mx-6 mb-2 grid w-auto shrink-0 grid-cols-2">
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="summary" disabled={!selectedSlot}>
+            <TabsTrigger value="summary" disabled={selectedSlots.length === 0}>
               Summary
             </TabsTrigger>
           </TabsList>
@@ -663,7 +694,7 @@ export function CalendarBookingDialog({
                     {availability?.recurringEnabled !== false && (
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="text-sm font-semibold text-[#1F2933]">
-                          Book recurring sessions for
+                          Repeat selected slots for
                         </span>
                         <input
                           type="number"
@@ -811,9 +842,9 @@ export function CalendarBookingDialog({
                                 const dateKey = formatDateKey(weekDates[dayIndex])
                                 const available = isSlotAvailable(dateKey, timeStr)
                                 const inPast = isSlotInPast(dateKey, timeStr)
-                                const isSelected =
-                                  selectedSlot?.date === dateKey &&
-                                  selectedSlot?.startTime === timeStr
+                                const isSelected = selectedSlots.some(
+                                  s => s.date === dateKey && s.startTime === timeStr
+                                )
 
                                 const isUnavailable = !available || inPast
 
@@ -855,24 +886,27 @@ export function CalendarBookingDialog({
                     </div>
                   </div>
 
-                  {/* Selected slot info */}
-                  {selectedSlot && (
+                  {/* Selected slots info */}
+                  {selectedSlots.length > 0 && (
                     <div className="shrink-0">
                       <DialogPanel className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-gray-900">Selected:</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedSlots.length} time slot{selectedSlots.length > 1 ? 's' : ''}{' '}
+                            selected
+                          </p>
                           <p className="text-sm text-gray-600">
-                            {format(parseISO(selectedSlot.date), 'EEEE, MMMM d, yyyy')} at{' '}
-                            {formatTime(selectedSlot.startTime)} –{' '}
-                            {formatTime(selectedSlot.endTime)}
-                            {recurringWeeks > 1 && (
-                              <span className="ml-1 font-medium text-blue-600">
-                                (+{recurringWeeks - 1} more weekly{recurringWeeks > 2 ? 's' : ''})
+                            {allowMulti && recurringWeeks > 1
+                              ? `Repeated for ${recurringWeeks} weeks → ${expandedSessions.length} sessions total`
+                              : `${expandedSessions.length} session${expandedSessions.length > 1 ? 's' : ''} total`}
+                            {overSessionLimit && (
+                              <span className="ml-1 font-semibold text-red-600">
+                                — over the {MAX_SESSIONS}-session limit; reduce slots or weeks
                               </span>
                             )}
                           </p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedSlot(null)}>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedSlots([])}>
                           <X className="h-4 w-4" />
                         </Button>
                       </DialogPanel>
@@ -922,33 +956,33 @@ export function CalendarBookingDialog({
                     {/* Session details */}
                     <div className="mt-4 space-y-2">
                       <div className="text-sm font-semibold text-white">Session Details</div>
-                      {summaryData.dates.map((date, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]"
-                        >
-                          <div className="flex min-w-0 items-center gap-4">
-                            <div className="w-[92px] shrink-0 font-semibold">
-                              {summaryData.dayOfWeek}
+                      {summaryData.sessions.map((s, idx) => {
+                        const dow = DAYS[s.dateObj.getDay() === 0 ? 6 : s.dateObj.getDay() - 1]
+                        return (
+                          <div
+                            key={`${s.date}-${s.startTime}`}
+                            className="flex items-center justify-between gap-4 rounded-[12px] border border-[rgba(226,232,240,0.9)] bg-white px-[18px] py-[14px] text-[#1F2933]"
+                          >
+                            <div className="flex min-w-0 items-center gap-4">
+                              <div className="w-[92px] shrink-0 font-semibold">{dow}</div>
+                              <div className="min-w-0 text-sm text-slate-700">
+                                <span className="font-medium">{format(s.dateObj, 'MMM d')}</span>
+                                <span className="mx-2 text-slate-400">•</span>
+                                <span className="font-medium">
+                                  {formatTimeRange(s.startTime, summaryData.durationMinutes)}
+                                </span>
+                                <span className="mx-2 text-slate-400">•</span>
+                                <span className="text-slate-600">
+                                  {summaryData.durationMinutes}m
+                                </span>
+                              </div>
                             </div>
-                            <div className="min-w-0 text-sm text-slate-700">
-                              <span className="font-medium">{format(date, 'MMM d')}</span>
-                              <span className="mx-2 text-slate-400">•</span>
-                              <span className="font-medium">
-                                {formatTimeRange(
-                                  summaryData.startTime,
-                                  summaryData.durationMinutes
-                                )}
-                              </span>
-                              <span className="mx-2 text-slate-400">•</span>
-                              <span className="text-slate-600">{summaryData.durationMinutes}m</span>
-                            </div>
+                            <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                              Session {idx + 1}
+                            </span>
                           </div>
-                          <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                            Session {idx + 1}
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     {/* Price */}
@@ -1046,7 +1080,7 @@ export function CalendarBookingDialog({
               }
               handleSubmit()
             }}
-            disabled={!selectedSlot || submitting || loading}
+            disabled={selectedSlots.length === 0 || submitting || loading || overSessionLimit}
             className="h-10"
           >
             {submitting ? (
