@@ -14,17 +14,27 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, FolderOpen, Users, Pencil } from 'lucide-react'
+import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
 import { SessionResponsesPanel } from '@/components/one-on-one/session-responses-panel'
+import {
+  SessionBoardsOverlay,
+  BoardsPicker,
+  useOwnBoardOpened,
+} from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
 
 type ActivePanel = 'deploy' | 'materials' | 'responses' | null
+interface BoardTarget {
+  ownerId: string
+  ownerName: string
+  mine: boolean
+}
 
 interface SessionClassroomProps {
   sessionId: string
@@ -51,6 +61,12 @@ export function SessionClassroom({
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
   const toggle = (panel: Exclude<ActivePanel, null>) =>
     setActivePanel(cur => (cur === panel ? null : panel))
+  // Private-board overlay: whose board is open (own = editable, student = tutor
+  // viewing read-only), plus the tutor's student-board picker.
+  const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
+  const [showBoardsPicker, setShowBoardsPicker] = useState(false)
+  const myId = session?.user?.id ?? ''
+  const ownBoardOpened = useOwnBoardOpened(boardTarget?.mine === true)
 
   // useSocket keys its effect on the option fields (not object identity), so an
   // inline object is safe — the compiler memoizes and the socket only reconnects
@@ -70,10 +86,8 @@ export function SessionClassroom({
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
   // room_state replay instead of missing everything that happened before.
-  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask } = useSessionRoomState(
-    socket,
-    session?.user?.id
-  )
+  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask, students } =
+    useSessionRoomState(socket, session?.user?.id)
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -140,7 +154,48 @@ export function SessionClassroom({
                 Edit course
               </a>
             ) : null}
+            <div className="pointer-events-auto relative">
+              <button
+                type="button"
+                onClick={() => setShowBoardsPicker(v => !v)}
+                title="View a student's board"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Boards
+              </button>
+              {showBoardsPicker ? (
+                <BoardsPicker
+                  students={students}
+                  onPick={s => {
+                    setBoardTarget({ ownerId: s.userId, ownerName: s.name, mine: false })
+                    setShowBoardsPicker(false)
+                  }}
+                  onClose={() => setShowBoardsPicker(false)}
+                />
+              ) : null}
+            </div>
           </>
+        ) : null}
+        {myId ? (
+          <button
+            type="button"
+            onClick={() =>
+              setBoardTarget(cur =>
+                cur?.mine ? null : { ownerId: myId, ownerName: 'Me', mine: true }
+              )
+            }
+            title="Your own private whiteboard"
+            className={
+              'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+              (boardTarget?.mine
+                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                : 'bg-white/90 text-slate-800 hover:bg-white')
+            }
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            My board
+          </button>
         ) : null}
         <button
           type="button"
@@ -151,6 +206,18 @@ export function SessionClassroom({
           Materials
         </button>
       </div>
+
+      {/* Private-board overlay — sits above the shared board (which stays mounted
+          so the call audio keeps running). Own board stays alive once opened. */}
+      <SessionBoardsOverlay
+        sessionId={sessionId}
+        userId={myId}
+        userName={session?.user?.name || undefined}
+        isTutor={isTutor}
+        target={boardTarget}
+        ownBoardEverOpened={ownBoardOpened}
+        onClose={() => setBoardTarget(null)}
+      />
 
       {/* Side panels — wrapped so a panel crash closes to nothing, never the room. */}
       {activePanel ? (

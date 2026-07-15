@@ -13,6 +13,10 @@ interface UseSocketOptions {
   name: string
   role: 'student' | 'tutor'
   tutorId?: string
+  /** Force an independent connection (its own Manager) instead of sharing the
+   *  default one. Used for private-board sub-rooms so their room_state /
+   *  whiteboard events never bleed into the main session socket. */
+  forceNew?: boolean
   onStudentJoined?: (student: StudentState) => void
   onStudentLeft?: (userId: string) => void
   onStudentStateUpdate?: (data: { userId: string; state: StudentState }) => void
@@ -63,6 +67,7 @@ export function useSocket(options?: UseSocketOptions) {
         reconnectionAttempts: 50,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
+        forceNew: options?.forceNew ?? false,
       })
       if (cancelled) {
         socket.disconnect()
@@ -185,7 +190,14 @@ export function useSocket(options?: UseSocketOptions) {
         socketRef.current = null
       }
     }
-  }, [options?.roomId, options?.userId, options?.name, options?.role, options?.tutorId])
+  }, [
+    options?.roomId,
+    options?.userId,
+    options?.name,
+    options?.role,
+    options?.tutorId,
+    options?.forceNew,
+  ])
 
   // Send chat message
   const sendChatMessage = useCallback((text: string) => {
