@@ -27,6 +27,12 @@ import {
 import { toast } from 'sonner'
 import { OneOnOneReviewDialog } from '@/components/booking/one-on-one-review-dialog'
 import { OneOnOneRescheduleDialog } from '@/components/booking/one-on-one-reschedule-dialog'
+import {
+  OneOnOneRequestCard,
+  groupIntoSeries,
+  type OneOnOneRequestSummary,
+} from '@/components/one-on-one/one-on-one-request-card'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -128,6 +134,11 @@ export function DashboardCalendar({
   const [rescheduleRequestId, setRescheduleRequestId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
+  // Pending (not-yet-accepted) 1-on-1 requests — they have no CalendarEvent yet,
+  // so they never come back from /calendar/events. Fetched separately so a
+  // just-submitted request is visible while awaiting the tutor's response.
+  const [pendingRequests, setPendingRequests] = useState<OneOnOneRequestSummary[]>([])
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
@@ -160,6 +171,48 @@ export function DashboardCalendar({
       cancelled = true
     }
   }, [monthStart, monthEnd, onRefresh, refreshTick])
+
+  // Fetch the student's own requests and keep only the PENDING ones — the
+  // accepted/paid/completed ones already surface via the calendar-events list.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/one-on-one/request?role=sent', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { requests: [] }))
+      .then(data => {
+        if (cancelled) return
+        const all: OneOnOneRequestSummary[] = Array.isArray(data?.requests) ? data.requests : []
+        setPendingRequests(all.filter(r => (r.status || '').toUpperCase() === 'PENDING'))
+      })
+      .catch(() => {
+        if (!cancelled) setPendingRequests([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshTick])
+
+  const handleCancelRequestSeries = async (requestId: string) => {
+    setCancellingRequestId(requestId)
+    try {
+      const res = await fetchWithCsrf('/api/one-on-one/cancel', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ requestId }),
+      })
+      if (res.ok) {
+        toast.success('Request cancelled.')
+        setRefreshTick(t => t + 1)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Could not cancel the request')
+      }
+    } catch {
+      toast.error('Could not cancel the request')
+    } finally {
+      setCancellingRequestId(null)
+    }
+  }
 
   const handleCancelBooking = async (requestId: string) => {
     if (
@@ -337,7 +390,40 @@ export function DashboardCalendar({
                 <h3 className="mb-1 text-base font-semibold text-[#1F2933]">1-on-1 Sessions</h3>
                 <p className="mb-4 text-xs text-gray-500">Upcoming private tutoring sessions.</p>
                 <div className="flex-1 overflow-y-auto pr-1">
-                  {oneOnOneSessions.length === 0 ? (
+                  {/* Pending requests — shown as soon as they're submitted, before
+                      the tutor responds (they have no CalendarEvent yet). */}
+                  {pendingRequests.length > 0 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-amber-600">
+                        Awaiting tutor response
+                      </p>
+                      {groupIntoSeries(pendingRequests).map(group => {
+                        const r = group.head
+                        return (
+                          <OneOnOneRequestCard
+                            key={r.seriesId ?? r.requestId}
+                            request={r}
+                            perspective="student"
+                            variant="light"
+                            series={group.series}
+                            actions={
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:bg-destructive/10"
+                                disabled={cancellingRequestId === r.requestId}
+                                onClick={() => handleCancelRequestSeries(r.requestId)}
+                              >
+                                {cancellingRequestId === r.requestId ? 'Cancelling…' : 'Cancel'}
+                              </Button>
+                            }
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {oneOnOneSessions.length === 0 && pendingRequests.length === 0 ? (
                     <div className="rounded-[12px] border border-dashed border-gray-200 bg-gray-50/60 py-10 text-center">
                       <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-10 w-10" />
                       <p className="text-muted-foreground text-sm">
@@ -347,7 +433,7 @@ export function DashboardCalendar({
                         Your upcoming private sessions will appear here.
                       </p>
                     </div>
-                  ) : (
+                  ) : oneOnOneSessions.length === 0 ? null : (
                     <ul className="space-y-2">
                       {oneOnOneSessions.map(s => {
                         const isLive = s.status === 'live' || s.status === 'active'
