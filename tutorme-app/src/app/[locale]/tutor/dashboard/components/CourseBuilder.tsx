@@ -212,6 +212,7 @@ import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
 import { nextDmiGate } from '@/lib/assessment/dmi-generate-gate'
 import { resolveDocPaneVisibility } from '@/lib/courses/doc-pane-visibility'
+import { shouldRehydrateBuilder } from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
@@ -4067,7 +4068,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // initial key / course changes, at which point it reflects the latest edits.
       const courseChanged = lastHydratedCourseIdRef.current !== (courseId ?? null)
       lastHydratedCourseIdRef.current = courseId ?? null
-      if (!courseChanged && builderNodes.length > 0) return
+      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) return
 
       const normalized = normalizeCourseBuilderNodesForAssessments(
         resolvedInitialCourseBuilderNodes
