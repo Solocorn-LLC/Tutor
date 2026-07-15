@@ -115,8 +115,11 @@ function TutorInsightsPageInner() {
   } | null>(null)
   // When opened from Dashboard sidebar or My Page Create Course, start in draft mode
   const startInEditMode = searchParams.get('mode') === 'edit'
+  // Embedded in the in-session Edit-course modal: edit UI, but persist straight
+  // to the DB (live) and auto-save — so "changes sync everywhere" holds.
+  const embedded = searchParams.get('embed') === '1'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
-    searchParams.get('sessionId') ? 'live' : startInEditMode ? 'draft' : 'live'
+    searchParams.get('sessionId') || embedded ? 'live' : startInEditMode ? 'draft' : 'live'
   )
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
@@ -130,8 +133,8 @@ function TutorInsightsPageInner() {
   // BUT respect explicit mode=edit query param (set by Create Course / Course Builder nav)
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // If a sessionId is in the URL, force live mode
-    if (searchParams.get('sessionId')) {
+    // A sessionId or the embedded Edit-course modal force live (DB) persistence.
+    if (searchParams.get('sessionId') || searchParams.get('embed') === '1') {
       setSaveMode('live')
       return
     }
@@ -1343,6 +1346,7 @@ function TutorInsightsPageInner() {
           detachedCourseName={dataMode === 'detached' ? detachedCourseName : undefined}
           insightsProps={{
             courseId,
+            autoSave: embedded,
             courses: courses.map(course => ({
               id: course.id,
               name: course.name,

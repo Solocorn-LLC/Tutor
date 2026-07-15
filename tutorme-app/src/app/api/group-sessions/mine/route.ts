@@ -32,6 +32,7 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
       timezone: groupSession.timezone,
       status: groupSession.status,
       scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
       tutorName: profile.name,
     })
     .from(groupSessionParticipant)
@@ -62,8 +63,14 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
       timezone: r.timezone,
       tutorName: r.tutorName,
       scheduledAt: r.scheduledAt,
-      // The room is joinable from 20 min before the scheduled start.
-      joinable: !!r.scheduledAt && r.scheduledAt.getTime() - now.getTime() <= EARLY_ENTRY_MS,
+      // Joinable from 20 min before start UNTIL the session ends (start +
+      // duration) — otherwise a finished session kept showing an active "Join".
+      joinable: (() => {
+        if (!r.scheduledAt) return false
+        const startMs = r.scheduledAt.getTime()
+        const endMs = startMs + (r.durationMinutes ?? 120) * 60_000
+        return startMs - now.getTime() <= EARLY_ENTRY_MS && now.getTime() < endMs
+      })(),
     })),
   })
 })

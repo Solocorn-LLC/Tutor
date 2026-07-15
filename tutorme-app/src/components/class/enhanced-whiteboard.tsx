@@ -2713,7 +2713,12 @@ export function EnhancedWhiteboard({
           {videoOverlay && videoComponent && showVideo && !isVideoFullscreen && (
             <div
               role="presentation"
+              // Stop BOTH pointer and mouse events from reaching the canvas
+              // container — otherwise the canvas's own onMouseDown re-runs the
+              // legacy video hit-test and a second, competing drag fires alongside
+              // the handle drag (they fight and the frame jumps).
               onPointerDown={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
               className="absolute z-10 overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg"
               style={{
                 width: `${videoSize.width}px`,
@@ -2723,9 +2728,8 @@ export function EnhancedWhiteboard({
               }}
             >
               {/* Move handle — a labelled top bar. Uses pointer capture so the
-                  drag keeps tracking even while the pointer is over the Daily
-                  iframe (a plain window mousemove listener is swallowed by the
-                  cross-origin iframe, which is why dragging felt "stuck"). */}
+                  drag keeps tracking over the video tiles, and clamps the frame
+                  inside the board so it can't be dragged off-screen. */}
               <div
                 className="absolute inset-x-0 top-0 z-30 flex h-6 cursor-move touch-none select-none items-center gap-1 bg-slate-900/70 pl-2 pr-16 text-[10px] font-medium text-white/80 hover:bg-slate-900/85"
                 title="Drag to move the video"
@@ -2738,18 +2742,26 @@ export function EnhancedWhiteboard({
                   const startY = e.clientY
                   const start = { ...videoPosition }
                   const onMove = (ev: PointerEvent) => {
-                    setVideoPosition({
-                      x: start.x - (ev.clientX - startX),
-                      y: start.y + (ev.clientY - startY),
-                    })
+                    let nx = start.x - (ev.clientX - startX)
+                    let ny = start.y + (ev.clientY - startY)
+                    // Keep the whole frame on-screen (offset = 16 + n): so
+                    // n ∈ [-16, containerSize - frameSize - 16].
+                    const rect = containerRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      nx = Math.min(Math.max(nx, -16), rect.width - videoSize.width - 16)
+                      ny = Math.min(Math.max(ny, -16), rect.height - videoSize.height - 16)
+                    }
+                    setVideoPosition({ x: nx, y: ny })
                   }
                   const onUp = () => {
                     el.releasePointerCapture(e.pointerId)
                     el.removeEventListener('pointermove', onMove)
                     el.removeEventListener('pointerup', onUp)
+                    el.removeEventListener('pointercancel', onUp)
                   }
                   el.addEventListener('pointermove', onMove)
                   el.addEventListener('pointerup', onUp)
+                  el.addEventListener('pointercancel', onUp)
                 }}
               >
                 <GripVertical className="h-3.5 w-3.5" />
@@ -2776,22 +2788,26 @@ export function EnhancedWhiteboard({
                     el.releasePointerCapture(e.pointerId)
                     el.removeEventListener('pointermove', onMove)
                     el.removeEventListener('pointerup', onUp)
+                    el.removeEventListener('pointercancel', onUp)
                   }
                   el.addEventListener('pointermove', onMove)
                   el.addEventListener('pointerup', onUp)
+                  el.addEventListener('pointercancel', onUp)
                 }}
               >
                 <span className="h-2.5 w-2.5 border-b-2 border-l-2 border-white/70" />
               </div>
               <div className="absolute right-2 top-1 z-40 flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 bg-slate-800/50 p-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
-                  onClick={onToggleVideoFullscreen}
-                >
-                  <Maximize className="h-3 w-3 text-white" />
-                </Button>
+                {onToggleVideoFullscreen ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 bg-slate-800/50 p-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white"
+                    onClick={onToggleVideoFullscreen}
+                  >
+                    <Maximize className="h-3 w-3 text-white" />
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"

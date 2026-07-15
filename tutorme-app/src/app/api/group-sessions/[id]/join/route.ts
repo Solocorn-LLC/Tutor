@@ -11,13 +11,13 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { groupSession, groupSessionParticipant, sessionParticipant } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { refundGroupSeat } from '@/lib/payments/refund-group-session'
-import { countActiveSeats, admitPaidSeat } from '@/lib/group-session/seats'
+import { admitPaidSeat } from '@/lib/group-session/seats'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { notifyWaitlistOfOpening } from '@/lib/one-on-one/waitlist'
 import { bookingInstants } from '@/lib/one-on-one/time'
@@ -82,24 +82,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (existing && existing.status === 'RESERVED') {
       participantId = existing.participantId
     } else {
-      if ((await countActiveSeats(id)) >= gs.capacity) {
-        return NextResponse.json({ error: 'This session is full' }, { status: 409 })
-      }
-      if (existing) {
-        participantId = existing.participantId
-        await drizzleDb
-          .update(groupSessionParticipant)
-          .set({ status: 'RESERVED', reservedAt: new Date(), paidAt: null, paymentId: null })
-          .where(eq(groupSessionParticipant.participantId, participantId))
-      } else {
-        participantId = nanoid()
-        await drizzleDb.insert(groupSessionParticipant).values({
-          participantId,
+      // Serialize concurrent seat claims for THIS session so two students racing
+      // for the last seat can't both pass the capacity check (oversell). Lock the
+      // GroupSession row, then re-count active seats and claim one atomically.
+      const claim = await drizzleDb.transaction(async tx => {
+        await tx.execute(sql`SELECT 1 FROM "GroupSession" WHERE id = ${id} FOR UPDATE`)
+        const [seatCount] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(groupSessionParticipant)
+          .where(
+            and(
+              eq(groupSessionParticipant.groupSessionId, id),
+              inArray(groupSessionParticipant.status, ['RESERVED', 'PAID'])
+            )
+          )
+        if ((seatCount?.n ?? 0) >= gs.capacity) return { full: true as const }
+        if (existing) {
+          await tx
+            .update(groupSessionParticipant)
+            .set({ status: 'RESERVED', reservedAt: new Date(), paidAt: null, paymentId: null })
+            .where(eq(groupSessionParticipant.participantId, existing.participantId))
+          return { full: false as const, participantId: existing.participantId }
+        }
+        const pid = nanoid()
+        await tx.insert(groupSessionParticipant).values({
+          participantId: pid,
           groupSessionId: id,
           studentId: session.user.id,
           status: 'RESERVED',
         })
+        return { full: false as const, participantId: pid }
+      })
+      if (claim.full) {
+        return NextResponse.json({ error: 'This session is full' }, { status: 409 })
       }
+      participantId = claim.participantId
     }
 
     // Free session: confirm the seat immediately (no checkout) — admit to the
