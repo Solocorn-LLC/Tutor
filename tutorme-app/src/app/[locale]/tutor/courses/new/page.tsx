@@ -30,17 +30,17 @@ export default function CreateCoursePage() {
   const [courseName, setCourseName] = useState('')
   const [description, setDescription] = useState('')
   const [categories, setCategories] = useState<string[]>([])
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
   const descriptionCount = useMemo(() => description.length, [description])
 
   const validateDetailsStep = () => {
-    if (!courseName.trim()) {
-      toast.error('Course name is required')
-      return false
-    }
-    if (categories.length === 0) {
-      toast.error('Please select a category')
-      return false
-    }
+    // Highlight empty required fields inline in red instead of a toast.
+    const nErr = !courseName.trim() ? 'Course name is required' : null
+    const cErr = categories.length === 0 ? 'Please select a category' : null
+    setNameError(nErr)
+    setCategoryError(cErr)
+    if (nErr || cErr) return false
     if (descriptionCount > DESCRIPTION_LIMIT) {
       toast.error('Description exceeds 500 characters')
       return false
@@ -112,22 +112,47 @@ export default function CreateCoursePage() {
                   <Input
                     id="courseName"
                     value={courseName}
-                    onChange={e => setCourseName(e.target.value)}
+                    onChange={e => {
+                      setCourseName(e.target.value)
+                      if (nameError) setNameError(null)
+                    }}
                     placeholder="e.g. AP Calculus Mastery"
                     disabled={creating}
-                    className="h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    aria-invalid={!!nameError}
+                    className={`h-11 focus:ring-blue-500 ${
+                      nameError
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-gray-200 focus:border-blue-500'
+                    }`}
                   />
+                  {nameError && (
+                    <p className="text-xs font-medium text-red-600" role="alert">
+                      {nameError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700">Category *</Label>
-                  <div className="rounded-lg border border-gray-200 p-4">
+                  <div
+                    className={`rounded-lg border p-4 ${
+                      categoryError ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                  >
                     <CourseCategoryPicker
                       value={categories}
-                      onChange={setCategories}
+                      onChange={next => {
+                        setCategories(next)
+                        if (categoryError) setCategoryError(null)
+                      }}
                       storageUserId={session?.user?.id}
                     />
                   </div>
+                  {categoryError && (
+                    <p className="text-xs font-medium text-red-600" role="alert">
+                      {categoryError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
