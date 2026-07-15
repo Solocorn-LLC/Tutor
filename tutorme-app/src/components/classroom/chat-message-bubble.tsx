@@ -111,7 +111,7 @@ export function ChatMessageBubble({
       {/* Avatar */}
       {showAvatar && (
         <div className="flex flex-col items-center gap-1">
-          <Avatar className="h-8 w-8 shrink-0">
+          <Avatar className="h-10 w-10 shrink-0 overflow-hidden">
             {resolvedAvatar && <AvatarImage src={resolvedAvatar} alt={name} />}
             <AvatarFallback
               className={cn(

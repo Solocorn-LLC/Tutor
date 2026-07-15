@@ -16,7 +16,16 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, CheckCircle2, Sparkles, FileText, X, ImageIcon } from 'lucide-react'
+import {
+  Send,
+  Loader2,
+  CheckCircle2,
+  Sparkles,
+  FileText,
+  X,
+  ImageIcon,
+  RotateCcw,
+} from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
@@ -275,30 +284,6 @@ export function TestTaskChat({
     <div
       className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white`}
     >
-      {/* Header bar */}
-      <div className={`flex items-center gap-2 border-b ${accentBorder} ${accentBg} px-4 py-2`}>
-        <Sparkles className={`h-4 w-4 ${accentColor}`} />
-        <span className="text-sm font-semibold text-gray-800">
-          {completed ? 'Ask about this task' : 'Answer by chat'}
-        </span>
-        <span className="ml-auto flex items-center gap-2">
-          {completed && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Completed
-            </span>
-          )}
-          {messages.length > 0 && (
-            <button
-              type="button"
-              onClick={reset}
-              className={`text-xs font-medium ${accentColor} hover:opacity-80`}
-            >
-              Restart
-            </button>
-          )}
-        </span>
-      </div>
-
       {/* Unified chat stream — document thumbnail + messages scroll together.
           flex-col-reverse so new messages appear at the bottom and push older ones up. */}
       <div
@@ -424,6 +409,16 @@ export function TestTaskChat({
           >
             <Send className="h-4 w-4" />
           </button>
+          {isClassroom && (
+            <button
+              type="button"
+              onClick={reset}
+              title="Restart"
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-white transition-colors hover:opacity-80 ${isClassroom ? 'border-[#F17623] bg-[#F17623]' : 'border-violet-600 bg-violet-600'}`}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
         </div>
         {/* Task Complete button — only shown in test-student mode, not classroom */}
         {!completed && !isClassroom && (
