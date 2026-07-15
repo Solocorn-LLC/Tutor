@@ -233,7 +233,7 @@ export default function TutorGroupSessionsPage() {
               defaultOpen={true}
               fillHeight={true}
             >
-              <div className="grid gap-4 sm:grid-cols-2 p-6">
+              <div className="grid gap-4 p-6 sm:grid-cols-2">
                 <label className="text-sm font-medium text-slate-700 sm:col-span-2">
                   Title
                   <input
@@ -376,7 +376,9 @@ export default function TutorGroupSessionsPage() {
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="truncate font-medium text-slate-900">{gs.title}</span>
+                                <span className="truncate font-medium text-slate-900">
+                                  {gs.title}
+                                </span>
                                 <span
                                   className={
                                     'rounded-full px-2 py-0.5 text-xs font-medium ' +
