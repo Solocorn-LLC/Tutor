@@ -998,7 +998,11 @@ function CourseBuilderInsightsRouteInner({
                             </SelectItem>
                           )}
                           {courses?.map(c => (
-                            <SelectItem key={c.id} value={c.id} className="focus-visible:ring-0">
+                            <SelectItem
+                              key={c.id}
+                              value={c.id}
+                              className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                            >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
@@ -1021,7 +1025,11 @@ function CourseBuilderInsightsRouteInner({
                             </SelectItem>
                           )}
                           {draftCourses?.map(c => (
-                            <SelectItem key={c.id} value={c.id} className="focus-visible:ring-0">
+                            <SelectItem
+                              key={c.id}
+                              value={c.id}
+                              className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                            >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
