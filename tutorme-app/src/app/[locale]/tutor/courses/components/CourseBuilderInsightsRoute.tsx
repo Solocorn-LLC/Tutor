@@ -995,7 +995,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               value="__live-header__"
                               disabled
-                              className="text-xs font-semibold text-white focus-visible:ring-0"
+                              className="text-xs font-semibold text-white transition-none focus-visible:ring-0"
                             >
                               Live Courses
                             </SelectItem>
@@ -1004,7 +1004,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               key={c.id}
                               value={c.id}
-                              className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                              className="transition-none hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
                             >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
@@ -1022,7 +1022,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               value="__draft-header__"
                               disabled
-                              className="text-xs font-semibold text-white focus-visible:ring-0"
+                              className="text-xs font-semibold text-white transition-none focus-visible:ring-0"
                             >
                               Draft Courses
                             </SelectItem>
@@ -1031,7 +1031,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               key={c.id}
                               value={c.id}
-                              className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                              className="transition-none hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
                             >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">

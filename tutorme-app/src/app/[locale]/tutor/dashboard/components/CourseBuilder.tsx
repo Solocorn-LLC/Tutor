@@ -4194,7 +4194,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
         window.setTimeout(() => {
           const el = document.querySelector(`[data-curriculum-item="${type}:${id}"]`)
-          if (el) scrollElementIntoView(el, { margin: 16, block: 'nearest' })
+          if (el) scrollElementIntoView(el, { margin: 16, block: 'start' })
         }, 60)
       }, 50)
     }

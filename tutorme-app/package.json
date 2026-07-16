@@ -46,6 +46,7 @@
     "drizzle:push": "drizzle-kit push --force",
     "db:seed": "tsx src/scripts/seed-db.ts",
     "db:seed:admin": "tsx src/scripts/seed-admin.ts",
+    "backfill:group-course": "tsx scripts/backfill-group-session-course.ts",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
     "postinstall": "node scripts/copy-pdf-worker.js"
   },
