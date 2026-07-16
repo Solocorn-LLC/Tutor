@@ -1304,7 +1304,7 @@ function CourseBuilderInsightsRouteInner({
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
           <div className="relative z-10 flex flex-col overflow-hidden">
-            <DialogHeader className="shrink-0 pb-4 pt-4 text-center">
+            <DialogHeader className="shrink-0 border-white/20 pb-4 pt-4 text-center">
               <DialogTitle className="mx-auto text-center text-white">
                 {createStep === 'category' ? 'Choose a Category' : 'Create New Course'}
               </DialogTitle>
@@ -1357,7 +1357,7 @@ function CourseBuilderInsightsRouteInner({
               )}
             </div>
 
-            <DialogFooter className="shrink-0 gap-3 px-6 pb-4">
+            <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
               {createStep === 'name' ? (
                 <>
                   <Button variant="modal-secondary-dark" onClick={closeCreateDialog}>
@@ -1398,7 +1398,7 @@ function CourseBuilderInsightsRouteInner({
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
           <div className="relative z-10 flex flex-col overflow-hidden">
-            <DialogHeader className="shrink-0 pb-4 pt-4 text-center">
+            <DialogHeader className="shrink-0 border-white/20 pb-4 pt-4 text-center">
               <DialogTitle className="mx-auto text-center text-white">Edit Category</DialogTitle>
             </DialogHeader>
 
@@ -1410,7 +1410,7 @@ function CourseBuilderInsightsRouteInner({
               />
             </div>
 
-            <DialogFooter className="shrink-0 gap-3 px-6 pb-4">
+            <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
               <Button variant="modal-secondary-dark" onClick={() => setIsEditCourseOpen(false)}>
                 Cancel
               </Button>
