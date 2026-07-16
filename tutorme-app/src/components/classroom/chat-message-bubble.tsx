@@ -105,7 +105,7 @@ export function ChatMessageBubble({
     <div
       className={cn(
         'flex gap-2',
-        isRight ? 'flex-row-reverse justify-end' : 'flex-row justify-start'
+        isRight ? 'flex-row justify-end' : 'flex-row justify-start'
       )}
     >
       {/* Avatar */}
