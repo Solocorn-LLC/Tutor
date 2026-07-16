@@ -1794,7 +1794,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, number>
     >({})
     const activeItemId = mainBuilderTab === 'assessment' ? loadedAssessmentId : loadedTaskId
-    const extractedTextFontSize = activeItemId ? (extractedTextFontSizeMap[activeItemId] ?? 14) : 14
+    const extractedTextFontSize = activeItemId ? (extractedTextFontSizeMap[activeItemId] ?? 18) : 18
     const setExtractedTextFontSize = (val: number) => {
       if (activeItemId) setExtractedTextFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
     }
@@ -11635,7 +11635,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             />
                                             {/* Floating font size control */}
                                             <div
-                                              className="absolute bottom-6 right-6 z-20 flex items-center gap-1 rounded-md px-2 py-1 text-white"
+                                              className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
                                               style={{
                                                 background: 'rgba(40,40,40,0.78)',
                                                 backdropFilter: 'blur(8px)',
@@ -12066,7 +12066,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             />
                                             {/* Floating font size control */}
                                             <div
-                                              className="absolute bottom-6 right-6 z-20 flex items-center gap-1 rounded-md px-2 py-1 text-white"
+                                              className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
                                               style={{
                                                 background: 'rgba(40,40,40,0.78)',
                                                 backdropFilter: 'blur(8px)',
