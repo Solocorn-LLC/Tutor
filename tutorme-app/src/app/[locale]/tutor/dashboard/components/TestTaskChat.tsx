@@ -337,6 +337,18 @@ export function TestTaskChat({
           />
         )}
 
+        {/* Text-only task: show the question text as the initial tutor message. */}
+        {!sourceDocument && questionText && (
+          <ChatMessageBubble
+            sender="tutor"
+            name="Tutor"
+            content={questionText}
+            avatarUrl={tutorAvatarUrl}
+            isClassroom={isClassroom}
+            studentOnRight
+          />
+        )}
+
         {/* PDF Popup — overlay within chat panel, no header, X on right */}
         {pdfPopupOpen && loadable && (
           <div className="absolute inset-0 z-10 flex flex-col bg-white">

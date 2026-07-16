@@ -10681,20 +10681,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           )
                                           const hasDmi = !!version
 
-                                          if (!hasDoc && !hasDmi) {
-                                            return (
-                                              <div className="h-full min-h-0 w-full overflow-y-auto p-4">
-                                                <p className="text-muted-foreground whitespace-pre-wrap text-sm">
-                                                  {testPciContent[tab.id] || ''}
-                                                </p>
-                                              </div>
-                                            )
-                                          }
-
                                           // Test-tab task preview: render the exact student chat flow
                                           // (the document collapses into the chat on the first sample
                                           // answer) filling this panel — instead of a separate PDF +
                                           // chat, so the tutor previews what students actually see.
+                                          // This branch runs first so text-only tasks with no document
+                                          // still get a functional chat preview.
                                           if (mainTab === 'test-pci' && testPciSource === 'task') {
                                             const previewExt = taskBuilder.activeExtensionId
                                               ? taskBuilder.extensions.find(
@@ -10837,6 +10829,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ]
                                                   }
                                                 />
+                                              </div>
+                                            )
+                                          }
+
+                                          // Nothing to render as a document or DMI — fall back to
+                                          // plain text (e.g. assessments/live with no source doc).
+                                          if (!hasDoc && !hasDmi) {
+                                            return (
+                                              <div className="h-full min-h-0 w-full overflow-y-auto p-4">
+                                                <p className="text-muted-foreground whitespace-pre-wrap text-sm">
+                                                  {testPciContent[tab.id] || ''}
+                                                </p>
                                               </div>
                                             )
                                           }
