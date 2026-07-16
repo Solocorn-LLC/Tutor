@@ -102,12 +102,7 @@ export function ChatMessageBubble({
   })()
 
   return (
-    <div
-      className={cn(
-        'flex gap-2',
-        isRight ? 'flex-row-reverse justify-end' : 'flex-row justify-start'
-      )}
-    >
+    <div className={cn('flex gap-2', isRight ? 'flex-row justify-end' : 'flex-row justify-start')}>
       {/* Avatar */}
       {showAvatar && (
         <div className="flex flex-col items-center gap-1">
