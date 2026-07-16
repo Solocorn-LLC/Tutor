@@ -4185,8 +4185,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Reveal an item in the Curriculum panel after a document load: select it,
-    // expand its node + section, then scroll its row into view. The short
-    // timeouts let React commit the new row/expansion before we measure.
+    // expand its node + section, then scroll its row to the top of the Curriculum
+    // panel. The timeouts let React commit the new row/expansion before we
+    // measure. We scroll the Radix ScrollArea viewport directly because nested
+    // scrollable ancestors can confuse a generic scroll-into-view helper.
     const revealCurriculumItem = (type: 'task' | 'homework', id: string) => {
       setSelectedItem({ type, id })
       window.setTimeout(() => {
@@ -4194,9 +4196,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         if (!resolved) return
         ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
         window.setTimeout(() => {
-          const el = document.querySelector(`[data-curriculum-item="${type}:${id}"]`)
-          if (el) scrollElementIntoView(el, { margin: 16, block: 'start' })
-        }, 60)
+          const el = document.querySelector(
+            `[data-curriculum-item="${type}:${id}"]`
+          ) as HTMLElement | null
+          if (!el) return
+
+          const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
+          if (viewport) {
+            const relativeTop =
+              el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+            const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
+            viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+          } else {
+            scrollElementIntoView(el, { margin: 16, block: 'start' })
+          }
+        }, 100)
       }, 50)
     }
 
