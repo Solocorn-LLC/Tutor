@@ -963,7 +963,7 @@ function CourseBuilderInsightsRouteInner({
                             // theme, so use a hardcoded dark text colour — the theme
                             // token text-foreground flips to white under dark themes
                             // and made the course name unreadable here.
-                            'h-9 min-w-[160px] max-w-[320px] border-none bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0',
+                            'h-9 min-w-[170px] max-w-[330px] border border-gray-200/50 bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0',
                             hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
                           )}
                         >
@@ -987,18 +987,18 @@ function CourseBuilderInsightsRouteInner({
                             })()}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[320px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[330px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
                           {courses && courses.length > 0 && (
                             <SelectItem
                               value="__live-header__"
                               disabled
-                              className="text-xs font-semibold text-white"
+                              className="text-xs font-semibold text-white focus-visible:ring-0"
                             >
                               Live Courses
                             </SelectItem>
                           )}
                           {courses?.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
+                            <SelectItem key={c.id} value={c.id} className="focus-visible:ring-0">
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
@@ -1015,13 +1015,13 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               value="__draft-header__"
                               disabled
-                              className="text-xs font-semibold text-white"
+                              className="text-xs font-semibold text-white focus-visible:ring-0"
                             >
                               Draft Courses
                             </SelectItem>
                           )}
                           {draftCourses?.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
+                            <SelectItem key={c.id} value={c.id} className="focus-visible:ring-0">
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
