@@ -15,6 +15,7 @@ import {
   sessionParticipant,
   courseVariant,
   oneOnOneBookingRequest,
+  groupSession,
 } from '@/lib/db/schema'
 import { eq, and, gte, lte, inArray, isNull, isNotNull, sql } from 'drizzle-orm'
 
@@ -66,6 +67,10 @@ export const GET = withAuth(
         // unpaid session doesn't offer a "Start Session" into a room the student
         // can't enter. Non-1-on-1 events have no booking row → null → not pending.
         bookingStatus: oneOnOneBookingRequest.status,
+        // A group session links its own CalendarEvent. A booking (1-on-1) OR a
+        // group session means this is a "direct" session that lives in the shared
+        // /call room — NOT a course class (which opens the course-builder classroom).
+        groupSessionId: groupSession.groupSessionId,
       })
       .from(calendarEvent)
       .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
@@ -73,6 +78,7 @@ export const GET = withAuth(
         oneOnOneBookingRequest,
         eq(oneOnOneBookingRequest.calendarEventId, calendarEvent.eventId)
       )
+      .leftJoin(groupSession, eq(groupSession.calendarEventId, calendarEvent.eventId))
       .where(and(...calFilters))
       .orderBy(calendarEvent.startTime)
 
@@ -130,6 +136,8 @@ export const GET = withAuth(
         isVirtual: e.isVirtual,
         sessionId: e.sessionId || e.externalId,
         pendingPayment: e.bookingStatus === 'ACCEPTED',
+        // 1-on-1 or group → the shared /call room, not the course-builder classroom.
+        isDirectSession: !!e.bookingStatus || !!e.groupSessionId,
       })),
       ...liveSessions
         .filter(ls => !coveredSessionIds.has(ls.sessionId))
@@ -146,6 +154,8 @@ export const GET = withAuth(
           isVirtual: true,
           sessionId: ls.sessionId,
           pendingPayment: false,
+          // Fallback rows are course sessions (they require a non-null courseId).
+          isDirectSession: false,
         })),
     ]
 

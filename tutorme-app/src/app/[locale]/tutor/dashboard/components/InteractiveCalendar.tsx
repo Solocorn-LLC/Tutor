@@ -90,6 +90,9 @@ interface CalendarEvent {
   requestId?: string
   /** Tutor accepted but the student hasn't paid — can't join yet. */
   pendingPayment?: boolean
+  /** A 1-on-1 or group session — joins the shared /call room, not the
+   *  course-builder classroom. (Course classes are false/undefined.) */
+  isDirectSession?: boolean
   studentCount?: number
   maxStudents?: number
   subject?: string
@@ -602,6 +605,8 @@ export function InteractiveCalendar({
             // An accepted-but-unpaid 1-on-1 has a live session row but no student
             // can enter yet — disables the "Start Session" button (see detail dialog).
             pendingPayment: e.pendingPayment,
+            // 1-on-1 / group → shared /call room; course classes → builder classroom.
+            isDirectSession: e.isDirectSession,
             color:
               e.status === 'live'
                 ? 'bg-emerald-500'
@@ -1496,13 +1501,16 @@ export function InteractiveCalendar({
                     onClick={async () => {
                       if (selectedEvent.pendingPayment) return
                       const isOneOnOne = (selectedEvent.maxStudents ?? 50) <= 2
-                      // 1-on-1 (capacity ≤ 2) → the shared two-way call room, which
-                      // works for both roles (course classrooms are role-specific and
-                      // can't host a course-less 1-on-1).
+                      // A direct (1-on-1 OR group) session lives in the shared
+                      // two-way /call room, which works for both roles. Course
+                      // classes open the role-specific course-builder classroom.
+                      // Prefer the server flag; fall back to the 1-on-1 heuristic so
+                      // old events (no flag) still route a 1-on-1 correctly.
+                      const isDirect = selectedEvent.isDirectSession ?? isOneOnOne
                       const routeToSession = (sessionId: string) => {
                         router.push(
                           withLocalePath(
-                            isOneOnOne
+                            isDirect
                               ? `/call/${sessionId}`
                               : isStudent
                                 ? `/student/feedback?sessionId=${sessionId}`
