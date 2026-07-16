@@ -7802,32 +7802,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadedAssessmentId, assessmentDmiReady, canEdit])
 
-    // Task PCI kickoff: when the tutor opens the PCI tab for a task that has a
-    // document and the chat is still empty, auto-start the guided flow — the
-    // agent leads with a plain-English summary of the document for the tutor to
-    // confirm, then walks the marking-policy interview (per TASK_PCI_SYSTEM_PROMPT).
-    // Fires once per task/extension. Docless tasks are untouched (the tutor just
-    // types when ready); there is no gate on the chat.
-    const taskPciKickoffRef = useRef<Set<string>>(new Set())
-    useEffect(() => {
-      if (!loadedTaskId || taskBuilderActiveTab !== 'pci' || !hasTaskDocument || !canEdit) return
-      if (activeTaskThread.messages.length > 0 || activeTaskThread.loading) return
-      const kickoffKey =
-        activeTaskTarget.kind === 'taskExtension'
-          ? `ext:${activeTaskTarget.id}`
-          : `task:${loadedTaskId}`
-      if (taskPciKickoffRef.current.has(kickoffKey)) return
-      taskPciKickoffRef.current.add(kickoffKey)
-      const t = setTimeout(() => {
-        handlePciSend(
-          'task',
-          "Let's set up the marking policy for this task. First, summarize this document so I can confirm you've understood it correctly, then guide me through the marking policy one question at a time."
-        )
-      }, 300)
-      return () => clearTimeout(t)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loadedTaskId, taskBuilderActiveTab, hasTaskDocument, canEdit])
-
     // Auto-scroll the task PCI chat so new messages / the loading indicator
     // stays pinned to the bottom without manual scrolling.
     useEffect(() => {
