@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid } from 'lucide-react'
+import { Send, FolderOpen, Users, Pencil, PenTool, LayoutGrid, BookOpen } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
@@ -137,6 +137,16 @@ export function SessionClassroom({
           videoComponent={video}
         />
       </FallbackBoundary>
+
+      {/* Linked-course chip — so everyone in the room can see which course this
+          session is built around (the tutor's deploy/edit affordances are scoped
+          to it). Absent for a course-less session. */}
+      {courseName ? (
+        <div className="pointer-events-none absolute left-3 top-3 z-40 inline-flex max-w-[45vw] items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur">
+          <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+          <span className="truncate">{courseName}</span>
+        </div>
+      ) : null}
 
       {/* Classroom toolbar: deploy + responses (tutor) + materials (everyone). */}
       <div className="pointer-events-none absolute right-3 top-3 z-40 flex gap-2">
