@@ -347,6 +347,7 @@ import {
   AI_SUGGESTIONS,
   CONTENT_TEMPLATES,
   generateQuestionPaperPDF,
+  generateTaskTextPDF,
   resolveSelectedItem,
   stringToColor,
   formatDuration,
@@ -4527,6 +4528,105 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return newAssessment
     }, [nodes, ensureFirstLessonContext])
 
+    // When a task has only manually-typed text (no uploaded PDF), generate a PDF
+    // from that text and upload it so the task behaves identically to a loaded
+    // document in Test mode and in live classrooms.
+    const generatingTaskDocRef = useRef(false)
+    const ensureTaskTextDocument = useCallback(async () => {
+      if (generatingTaskDocRef.current) return
+      if (!loadedTaskId) return
+
+      const isExtension = !!taskBuilder.activeExtensionId
+      const content = isExtension
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.content || ''
+        : taskBuilder.taskContent
+      const trimmed = content.trim()
+      if (!trimmed) return
+
+      const existingDoc = isExtension
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.sourceDocument
+        : taskBuilder.sourceDocument
+      // If a real uploaded document is present, never overwrite it.
+      if (existingDoc && !existingDoc.generatedFromText) return
+      // Already generated and content hasn't changed → nothing to do.
+      if (existingDoc?.generatedFromText && existingDoc.extractedText === content) return
+
+      generatingTaskDocRef.current = true
+      try {
+        const { blob, fileName } = generateTaskTextPDF(taskBuilder.title || 'Task', content)
+        const file = new File([blob], fileName, { type: 'application/pdf' })
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetchWithCsrf('/api/uploads/documents', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error || `Failed to upload ${fileName}`)
+          return
+        }
+        const data = await res.json()
+        const newDoc = {
+          fileName: data.name || fileName,
+          fileUrl: data.url || '',
+          fileKey: data.key || '',
+          mimeType: data.type || 'application/pdf',
+          uploadedAt: new Date().toISOString(),
+          extractedText: content,
+          generatedFromText: true,
+        }
+
+        if (isExtension) {
+          setTaskBuilder(prev => ({
+            ...prev,
+            extensions: prev.extensions.map(ext =>
+              ext.id === prev.activeExtensionId ? { ...ext, sourceDocument: newDoc } : ext
+            ),
+          }))
+        } else {
+          setTaskSourceDocument(newDoc)
+          setTaskUploadedFiles([{ id: 'source', name: newDoc.fileName }])
+          setTaskBuilder(prev => ({ ...prev, sourceDocument: newDoc }))
+        }
+
+        setCourseBuilderNodes(prev =>
+          prev.map(mod => ({
+            ...mod,
+            lessons: mod.lessons.map(lesson => ({
+              ...lesson,
+              tasks: lesson.tasks.map(task => {
+                if (task.id !== loadedTaskId) return task
+                if (isExtension) {
+                  return {
+                    ...task,
+                    extensions: (task.extensions || []).map(ext =>
+                      ext.id === taskBuilder.activeExtensionId
+                        ? { ...ext, sourceDocument: newDoc }
+                        : ext
+                    ),
+                  }
+                }
+                return { ...task, sourceDocument: newDoc, description: content }
+              }),
+            })),
+          }))
+        )
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to convert text to PDF')
+      } finally {
+        generatingTaskDocRef.current = false
+      }
+    }, [
+      loadedTaskId,
+      taskBuilder.activeExtensionId,
+      taskBuilder.extensions,
+      taskBuilder.sourceDocument,
+      taskBuilder.taskContent,
+      taskBuilder.title,
+    ])
+
     const assetsLesson = nodes[0]?.lessons?.[0] ?? null
 
     const applyTemplate = useCallback(
@@ -8079,6 +8179,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (next === 'live') {
               handleSyncToLive()
               prevMainTabRef.current = 'live'
+            }
+            // If the active task only has typed text, generate its PDF document
+            // before switching to Test or Live so the preview/classroom sees a
+            // real, clickable sourceDocument just like an uploaded PDF.
+            if ((next === 'test-pci' || next === 'live') && mainBuilderTab === 'task') {
+              ensureTaskTextDocument()
             }
             // setMainTab notifies the parent route (and updates local state when
             // the component is used uncontrolled).
@@ -11714,6 +11820,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   }))
                                                 }
                                               }}
+                                              onBlur={() => ensureTaskTextDocument()}
                                             />
                                             {/* Floating font size control */}
                                             <div

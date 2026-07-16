@@ -454,6 +454,49 @@ export function generateQuestionPaperPDF(
   return { blob: pdfBlob, url: pdfUrl, fileName }
 }
 
+/**
+ * Generate a simple PDF from a task's typed title + content so that text-only
+ * tasks can be previewed and deployed exactly like uploaded PDF documents.
+ */
+export function generateTaskTextPDF(
+  title: string,
+  content: string
+): { blob: Blob; fileName: string } {
+  // Dynamic import jsPDF to avoid SSR issues
+  const jsPDF = require('jspdf')
+  const doc = new jsPDF()
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const margin = 15
+  const contentWidth = pageWidth - margin * 2
+  let y = 20
+
+  if (title.trim()) {
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    const titleLines = doc.splitTextToSize(title.trim(), contentWidth)
+    doc.text(titleLines, margin, y)
+    y += titleLines.length * 8 + 12
+  }
+
+  if (content.trim()) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    const lines = doc.splitTextToSize(content.trim(), contentWidth)
+    for (const line of lines) {
+      if (y > 270) {
+        doc.addPage()
+        y = 20
+      }
+      doc.text(line, margin, y)
+      y += 6
+    }
+  }
+
+  const safeTitle = title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Task'
+  return { blob: doc.output('blob'), fileName: `${safeTitle}.pdf` }
+}
+
 export function resolveSelectedItem(
   selectedItem: { type: string; id: string } | null,
   nodes: CourseBuilderNode[]
