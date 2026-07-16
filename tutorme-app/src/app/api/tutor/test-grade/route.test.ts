@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   gradeAnswerAgainstBasis: vi.fn(),
   renderGradingSpec: vi.fn(),
+  generateWithKimi: vi.fn(),
+  sanitizeAiInput: vi.fn((x: string) => x),
+  validateAiResponse: vi.fn(() => Promise.resolve({ isValid: true, issues: [], severity: 'LOW' })),
 }))
 
 vi.mock('@/lib/api/middleware', () => ({
@@ -25,6 +28,15 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/grading/pci-grader', () => ({
   gradeAnswerAgainstBasis: mocks.gradeAnswerAgainstBasis,
   renderGradingSpec: mocks.renderGradingSpec,
+}))
+vi.mock('@/lib/ai/kimi', () => ({
+  generateWithKimi: mocks.generateWithKimi,
+}))
+vi.mock('@/lib/security/ai-sanitization', () => ({
+  AISecurityManager: {
+    sanitizeAiInput: mocks.sanitizeAiInput,
+    validateAiResponse: mocks.validateAiResponse,
+  },
 }))
 
 import { POST } from './route'
@@ -53,6 +65,9 @@ beforeEach(() => {
   mocks.getServerSession.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
   mocks.renderGradingSpec.mockReturnValue('')
   mocks.gradeAnswerAgainstBasis.mockResolvedValue(okResult)
+  mocks.generateWithKimi.mockResolvedValue('Because the PCI says so.')
+  mocks.sanitizeAiInput.mockImplementation((x: string) => x)
+  mocks.validateAiResponse.mockResolvedValue({ isValid: true, issues: [], severity: 'LOW' })
   mocks.handleApiError.mockReturnValue(new Response('err', { status: 500 }))
 })
 
@@ -135,5 +150,97 @@ describe('POST /api/tutor/test-grade', () => {
     expect(json.guardrailWarnings).toEqual([
       { ruleId: 'TASK-10', severity: 'warning', message: 'fabricated' },
     ])
+  })
+
+  describe('task chat follow-up (ask branch)', () => {
+    it('returns a generated answer grounded in PCI, task and history', async () => {
+      const res = await POST(
+        makeReq({
+          pci: 'award method marks',
+          questionText: 'What is 6 x 7?',
+          question: 'Why did I lose marks?',
+          history: [
+            { role: 'user', content: 'hello' },
+            { role: 'assistant', content: 'hi there' },
+          ],
+        })
+      )
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.mode).toBe('ask')
+      expect(json.answer).toBe('Because the PCI says so.')
+
+      // Sanitization is applied to untrusted inputs.
+      expect(mocks.sanitizeAiInput).toHaveBeenCalledWith('Why did I lose marks?')
+      expect(mocks.sanitizeAiInput).toHaveBeenCalledWith('hello')
+      expect(mocks.sanitizeAiInput).toHaveBeenCalledWith('hi there')
+
+      // Output validation runs on the generated answer.
+      expect(mocks.validateAiResponse).toHaveBeenCalledWith('Because the PCI says so.')
+
+      // The prompt contains all grounding context.
+      const prompt = mocks.generateWithKimi.mock.calls[0][0]
+      expect(prompt).toContain('award method marks')
+      expect(prompt).toContain('What is 6 x 7?')
+      expect(prompt).toContain('Why did I lose marks?')
+    })
+
+    it('rejects an empty sanitized question', async () => {
+      mocks.sanitizeAiInput.mockReturnValue('')
+      const res = await POST(
+        makeReq({
+          pci: 'award method marks',
+          questionText: 'What is 6 x 7?',
+          question: '<script>alert(1)</script>',
+        })
+      )
+      expect(res.status).toBe(400)
+      expect(mocks.generateWithKimi).not.toHaveBeenCalled()
+    })
+
+    it('returns 502 when the model returns an empty answer', async () => {
+      mocks.generateWithKimi.mockResolvedValue('   ')
+      const res = await POST(
+        makeReq({
+          pci: 'award method marks',
+          questionText: 'What is 6 x 7?',
+          question: 'Why?',
+        })
+      )
+      expect(res.status).toBe(502)
+      const json = await res.json()
+      expect(json.error).toBe('Could not generate an answer.')
+    })
+
+    it('returns 502 when the generated response fails safety validation', async () => {
+      mocks.validateAiResponse.mockResolvedValue({
+        isValid: false,
+        issues: ['AI response contains inappropriate or harmful content'],
+        severity: 'CRITICAL',
+      })
+      const res = await POST(
+        makeReq({
+          pci: 'award method marks',
+          questionText: 'What is 6 x 7?',
+          question: 'Why?',
+        })
+      )
+      expect(res.status).toBe(502)
+      const json = await res.json()
+      expect(json.error).toBe('The generated response failed safety checks.')
+    })
+
+    it('returns a friendly message when no PCI is set', async () => {
+      const res = await POST(
+        makeReq({
+          questionText: 'What is 6 x 7?',
+          question: 'Why?',
+        })
+      )
+      expect(res.status).toBe(200)
+      const json = await res.json()
+      expect(json.answer).toContain("There's no marking policy set for this task")
+      expect(mocks.generateWithKimi).not.toHaveBeenCalled()
+    })
   })
 })
