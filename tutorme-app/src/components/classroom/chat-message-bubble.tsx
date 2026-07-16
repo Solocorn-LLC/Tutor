@@ -107,7 +107,9 @@ export function ChatMessageBubble({
       {showAvatar && (
         <div className="flex flex-col items-center gap-1">
           <Avatar className="h-10 w-10 shrink-0 overflow-hidden">
-            {resolvedAvatar && <AvatarImage src={resolvedAvatar} alt={name} />}
+            {resolvedAvatar && (
+              <AvatarImage src={resolvedAvatar} alt={name} className="object-cover" />
+            )}
             <AvatarFallback
               className={cn(
                 'text-xs font-medium',
