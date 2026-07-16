@@ -7804,32 +7804,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (taskPciKickoffRef.current.has(kickoffKey)) return
       taskPciKickoffRef.current.add(kickoffKey)
       const t = setTimeout(() => {
-        // Build a concise summary of every task/assessment in the current lesson
-        // so the PCI assistant can ground the marking policy in the broader context.
-        const currentNodeForPci = nodes.find(n =>
-          n.lessons.some(l => l.tasks.some(task => task.id === loadedTaskId))
-        )
-        const primaryLesson = currentNodeForPci?.lessons[0]
-        const lessonSummary = primaryLesson
-          ? [
-              `Lesson: ${currentNodeForPci.title || 'Untitled'}`,
-              ...(primaryLesson.tasks.length
-                ? [`Tasks: ${primaryLesson.tasks.map(task => task.title).join(', ')}`]
-                : []),
-              ...(primaryLesson.assessments.length
-                ? [`Assessments: ${primaryLesson.assessments.map(a => a.title).join(', ')}`]
-                : []),
-              ...(primaryLesson.homework.length
-                ? [`Homework: ${primaryLesson.homework.map(h => h.title).join(', ')}`]
-                : []),
-            ].join('\n')
-          : ''
-        const contextBlock = lessonSummary
-          ? `\n\nLesson context (all tasks and assessments in this lesson):\n${lessonSummary}`
-          : ''
         handlePciSend(
           'task',
-          `Let's set up the marking policy for this task. You have the task document above.${contextBlock}\n\nFirst, summarize the task document AND the lesson context so I can confirm you've understood them correctly, then guide me through the marking policy one question at a time.`
+          "Let's set up the marking policy for this task. First, summarize this document so I can confirm you've understood it correctly, then guide me through the marking policy one question at a time."
         )
       }, 300)
       return () => clearTimeout(t)
