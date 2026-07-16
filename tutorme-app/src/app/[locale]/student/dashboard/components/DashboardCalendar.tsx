@@ -349,6 +349,7 @@ export function DashboardCalendar({
             ? 'completed'
             : 'scheduled'
       const isOneOnOne = (ev as any).type === 'one-on-one'
+      const isGroup = (ev as any).type === 'group'
       return {
         id: ev.id,
         title: ev.title,
@@ -360,10 +361,13 @@ export function DashboardCalendar({
         isOnline: true,
         // Carry the join keys through: without sessionId the Join button
         // always reported "not linked"; requestId lets a missing 1-on-1 session
-        // self-heal; maxStudents (2 for a 1-on-1) routes to the shared call room.
+        // self-heal; isDirectSession routes 1-on-1 AND group sessions to the
+        // shared /call room (the calendar-grid dialog otherwise sent group
+        // sessions to /student/feedback).
         sessionId: (ev as any).sessionId ?? undefined,
         requestId: (ev as any).requestId ?? undefined,
         pendingPayment: (ev as any).pendingPayment ?? undefined,
+        isDirectSession: isOneOnOne || isGroup,
         maxStudents: isOneOnOne ? 2 : ((ev as any).maxStudents ?? undefined),
         description:
           (ev as any).meetingUrl || (ev.tutorName ? `Tutor: ${ev.tutorName}` : undefined),
