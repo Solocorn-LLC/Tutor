@@ -1200,6 +1200,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // through refs that are pointed at the hook once it's created.
     const loadPciMessagesRef = useRef<(target: PciTarget, messages: PciMessage[]) => void>(() => {})
     const resetPciRef = useRef<() => void>(() => {})
+    const taskPciScrollRef = useRef<HTMLDivElement>(null)
 
     // Whether the "Current PCI" box is in edit mode (tutor typing the policy
     // directly instead of via the assistant chat).
@@ -7789,14 +7790,45 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (taskPciKickoffRef.current.has(kickoffKey)) return
       taskPciKickoffRef.current.add(kickoffKey)
       const t = setTimeout(() => {
+        // Build a concise summary of every task/assessment in the current lesson
+        // so the PCI assistant can ground the marking policy in the broader context.
+        const currentNodeForPci = nodes.find(n =>
+          n.lessons.some(l => l.tasks.some(task => task.id === loadedTaskId))
+        )
+        const primaryLesson = currentNodeForPci?.lessons[0]
+        const lessonSummary = primaryLesson
+          ? [
+              `Lesson: ${currentNodeForPci.title || 'Untitled'}`,
+              ...(primaryLesson.tasks.length
+                ? [`Tasks: ${primaryLesson.tasks.map(task => task.title).join(', ')}`]
+                : []),
+              ...(primaryLesson.assessments.length
+                ? [`Assessments: ${primaryLesson.assessments.map(a => a.title).join(', ')}`]
+                : []),
+              ...(primaryLesson.homework.length
+                ? [`Homework: ${primaryLesson.homework.map(h => h.title).join(', ')}`]
+                : []),
+            ].join('\n')
+          : ''
+        const contextBlock = lessonSummary
+          ? `\n\nLesson context (all tasks and assessments in this lesson):\n${lessonSummary}`
+          : ''
         handlePciSend(
           'task',
-          "Let's set up the marking policy for this task. First, summarize this document so I can confirm you've understood it correctly, then guide me through the marking policy one question at a time."
+          `Let's set up the marking policy for this task. You have the task document above.${contextBlock}\n\nFirst, summarize the task document AND the lesson context so I can confirm you've understood them correctly, then guide me through the marking policy one question at a time.`
         )
       }, 300)
       return () => clearTimeout(t)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadedTaskId, taskBuilderActiveTab, hasTaskDocument, canEdit])
+
+    // Auto-scroll the task PCI chat so new messages / the loading indicator
+    // stays pinned to the bottom without manual scrolling.
+    useEffect(() => {
+      const el = taskPciScrollRef.current
+      if (!el) return
+      el.scrollTop = el.scrollHeight
+    }, [activeTaskPciMessages.length, taskPciLoading])
 
     // Auto-switch assessment panels based on document presence
     useEffect(() => {
@@ -11717,18 +11749,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         data-pci-container="task"
                                         className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm"
                                       >
-                                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
-                                          <PciGuidance kind="task" />
-                                          {renderCurrentPci('task', activeTaskPci)}
-                                          <PciSpecSoFar
-                                            spec={activeTaskThread.specSoFar}
-                                            subject={pciCategory}
-                                            showBoard={false}
-                                            editable={canEdit}
-                                            onEditField={(key, value) =>
-                                              editSpecSoFar(activeTaskTarget, key, value)
-                                            }
-                                          />
+                                        <div
+                                          ref={taskPciScrollRef}
+                                          className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
+                                        >
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the
