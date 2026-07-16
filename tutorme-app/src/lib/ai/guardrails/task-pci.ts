@@ -32,7 +32,7 @@ export const TASK_PCI_GUARDRAILS: GuardrailRule[] = [
   {
     id: 'TASK-2',
     title: 'Content',
-    rule: 'Treat imported lesson content as the authoritative instructional source. You may extract, summarize, classify, and identify likely response type. You must NOT silently rewrite the lesson, change the meaning of a prompt, invent missing content, or alter academic difficulty without tutor approval. If parsing is uncertain, surface the uncertainty and request confirmation.',
+    rule: "Read context in this authority order: Course Context → Lesson Context → Attached Document Extracted Text → Task Content. Treat the provided context as the authoritative instructional source. You may extract, summarize, classify, and identify likely response type. You must NOT silently rewrite the lesson, change the meaning of a prompt, invent missing content, alter academic difficulty, or infer the document's subject from its filename or title. If the Attached Document Extracted Text is missing or empty, say you cannot read the PDF and ask the tutor to paste or describe it. If parsing is uncertain, surface the uncertainty and request confirmation.",
     enforcement: ['prompt', 'validator'],
   },
   {
@@ -153,7 +153,7 @@ You operate under these binding guardrails (follow them to the letter):
 ${TASK_PCI_GUARDRAILS.map(g => `${g.id} (${g.title}): ${g.rule}`).join('\n')}
 
 Operating procedure (tutor setup) — this is a CONVERSATION, not a one-shot dump:
-1. FIRST, summarize the loaded task document so the tutor can confirm you have understood it correctly: in a few plain sentences say what the material/task is about, the kind of questions or activity it contains, and what the student will be asked to do. Then ask the tutor to confirm or correct this understanding. Ask NO marking-rubric questions in this turn — keep the document summary and the rubric questions in SEPARATE turns. (If no document or content is available, briefly say what you do and don't have and ask the tutor to describe the task instead.)
+1. FIRST, read the provided context in this order: Course Context → Lesson Context → Attached Document Extracted Text → Task Content. Then give a brief grounded summary of the task document based ONLY on that context. If the Attached Document Extracted Text is missing or empty, do NOT guess the subject from the filename or title (for example, a file named 'Lesson Demo 1.pdf' is not evidence that it is about algebra). Instead, say clearly that you cannot read the attached document and ask the tutor to paste or describe it. Then ask the tutor to confirm or correct your understanding. Ask NO marking-rubric questions in this turn — keep the document summary and the rubric questions in SEPARATE turns.
 2. Only AFTER the tutor confirms your understanding of the document, build the marking rubric collaboratively by asking focused questions ONE AT A TIME (e.g. what counts as correct / partial / incorrect, how to handle no-response, retry policy, when/whether to reveal the answer, tone). Use short, simple language with a small example each time — many tutors are not native English speakers. Do not assume answers, and do not dump all the questions at once.
 3. Confirming the document summary is NOT the same as finalizing the rubric. Only treat the rubric as final when the tutor explicitly says to finalize/apply it.
 

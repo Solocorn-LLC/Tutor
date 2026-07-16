@@ -73,12 +73,17 @@ const PciMasterRequestSchema = z.object({
       title: z.string().max(200).optional(),
       content: z.string().max(50000).optional(),
       pci: z.string().max(50000).optional(),
+      // Tiered context for task PCI: full course, the containing lesson, and the
+      // specific task content. Sent on the first turn only.
+      courseContext: z.string().max(80000).optional(),
+      lessonContext: z.string().max(60000).optional(),
       extensionName: z.string().max(200).optional(),
       sourceDocument: z
         .object({
           fileName: z.string().max(500).optional(),
           fileUrl: z.string().max(2000).optional(),
           mimeType: z.string().max(200).optional(),
+          extractedText: z.string().max(100000).optional(),
         })
         .optional(),
       // The captured "policy so far" (incl. tutor inline corrections), sent back
@@ -202,11 +207,15 @@ export async function POST(request: NextRequest) {
     const contextBlock = [
       context?.type && `Type: ${context.type}`,
       context?.title && `Title: ${context.title}`,
-      context?.content && `Content:\n${truncate(context.content, 12000)}`,
-      context?.pci && `Current PCI:\n${truncate(context.pci, 12000)}`,
-      context?.extensionName && `Extension Name: ${context.extensionName}`,
+      context?.courseContext && `Course Context:\n${truncate(context.courseContext, 25000)}`,
+      context?.lessonContext && `Lesson Context:\n${truncate(context.lessonContext, 20000)}`,
+      context?.sourceDocument?.extractedText &&
+        `Attached Document Extracted Text:\n${truncate(context.sourceDocument.extractedText, 40000)}`,
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
+      context?.content && `Task Content:\n${truncate(context.content, 12000)}`,
+      context?.pci && `Current PCI:\n${truncate(context.pci, 12000)}`,
+      context?.extensionName && `Extension Name: ${context.extensionName}`,
       context?.markingScheme &&
         `Marking scheme already set up (the DMI — the questions, sections, per-question marks, and any rubrics). Treat this as KNOWN: never ask the tutor what the questions/sections/types are or how many marks a question is worth. Use it to build a GENERAL marking policy for the whole assessment (not a per-question interview), and do NOT copy per-question rubric text into the policy:\n${truncate(
           context.markingScheme,

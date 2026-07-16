@@ -216,6 +216,43 @@ describe('/api/ai/pci-master', () => {
     expect(data.pciDraft).toBe('')
   })
 
+  it('forwards tiered task context (course, lesson, extracted PDF text) into the LLM prompt', async () => {
+    // Force the local text-generation path (no ADK).
+    delete process.env.ADK_BASE_URL
+    process.env.KIMI_API_KEY = 'test-key'
+    mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
+    mocks.generateWithFallback.mockResolvedValue({
+      content: '{"reply":"I cannot read the attached PDF. Please paste or describe it.","pci":""}',
+      provider: 'kimi',
+      latencyMs: 5,
+    })
+
+    const res = await postBody({
+      message: 'set up the marking policy',
+      context: {
+        type: 'task',
+        courseContext: 'Course: Algebra 101\nNode 1: Linear equations',
+        lessonContext: 'Lesson: Solving linear equations\nContent 1: introduction text',
+        sourceDocument: {
+          fileName: 'Lesson Demo 1.pdf',
+          mimeType: 'application/pdf',
+          extractedText: 'This document is actually about quadratic equations.',
+        },
+      },
+    })
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(mocks.generateWithFallback).toHaveBeenCalledTimes(1)
+    const [prompt] = mocks.generateWithFallback.mock.calls[0] as [string, unknown]
+    expect(prompt).toContain('Course Context:')
+    expect(prompt).toContain('Lesson Context:')
+    expect(prompt).toContain('Attached Document Extracted Text:')
+    expect(prompt).toContain('This document is actually about quadratic equations.')
+    expect(data.response).toBe('I cannot read the attached PDF. Please paste or describe it.')
+    expect(data.pciDraft).toBe('')
+  })
+
   it('non-guardrail domain: no pciDraft extraction', async () => {
     mocks.getSessionForRealm.mockResolvedValue({ user: { id: 'tutor-1', role: 'TUTOR' } })
     mocks.adkPciMasterChat.mockResolvedValue({

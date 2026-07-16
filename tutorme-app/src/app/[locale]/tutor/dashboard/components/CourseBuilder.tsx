@@ -353,6 +353,80 @@ import {
   deepCloneSourceDocument,
 } from './builder-utils'
 
+// --- Tiered PCI context helpers -------------------------------------------
+
+function findContainingLesson(
+  nodes: CourseBuilderNode[],
+  predicate: (lesson: Lesson) => boolean
+): { node: CourseBuilderNode; lesson: Lesson; nodeIndex: number; lessonIndex: number } | null {
+  for (let nIdx = 0; nIdx < nodes.length; nIdx++) {
+    const node = nodes[nIdx]
+    for (let lIdx = 0; lIdx < node.lessons.length; lIdx++) {
+      const lesson = node.lessons[lIdx]
+      if (predicate(lesson)) {
+        return { node, lesson, nodeIndex: nIdx, lessonIndex: lIdx }
+      }
+    }
+  }
+  return null
+}
+
+function buildLessonContext(lesson: Lesson): string {
+  const parts: string[] = []
+  parts.push(`Lesson: ${lesson.title || 'Untitled lesson'}`)
+  if (lesson.description?.trim()) {
+    parts.push(`Lesson description: ${lesson.description.trim()}`)
+  }
+  if (lesson.taskSectionDescription?.trim()) {
+    parts.push(`Task section description: ${lesson.taskSectionDescription.trim()}`)
+  }
+  lesson.docs?.forEach((doc, i) => {
+    parts.push(`Doc ${i + 1}: ${doc.title || 'Untitled'} (${doc.type})`)
+  })
+  lesson.content?.forEach((c, i) => {
+    if (c.type === 'text' && c.body?.trim()) {
+      parts.push(`Content ${i + 1} (${c.title || 'text'}): ${c.body.trim().slice(0, 8000)}`)
+    } else if (c.title?.trim()) {
+      parts.push(`Content ${i + 1}: [${c.type}] ${c.title.trim()}`)
+    }
+  })
+  return parts.join('\n')
+}
+
+function buildCourseContext(
+  courseName: string | undefined,
+  courseDescription: string | undefined,
+  nodes: CourseBuilderNode[]
+): string {
+  const parts: string[] = []
+  parts.push(`Course: ${courseName?.trim() || 'Untitled course'}`)
+  if (courseDescription?.trim()) {
+    parts.push(`Course description: ${courseDescription.trim()}`)
+  }
+  nodes.forEach((node, nIdx) => {
+    parts.push(`\nNode ${nIdx + 1}: ${node.title || 'Untitled node'}`)
+    if (node.description?.trim()) {
+      parts.push(`Node description: ${node.description.trim()}`)
+    }
+    node.lessons.forEach((lesson, lIdx) => {
+      parts.push(`  Lesson ${lIdx + 1}: ${lesson.title || 'Untitled lesson'}`)
+      if (lesson.description?.trim()) {
+        parts.push(`  Lesson description: ${lesson.description.trim()}`)
+      }
+      lesson.content?.forEach((c, cIdx) => {
+        if (c.type === 'text' && c.body?.trim()) {
+          parts.push(
+            `  Content ${cIdx + 1} (${c.title || 'text'}): ${c.body.trim().slice(0, 4000)}`
+          )
+        } else if (c.title?.trim()) {
+          parts.push(`  Content ${cIdx + 1}: [${c.type}] ${c.title.trim()}`)
+        }
+      })
+    })
+  })
+  return parts.join('\n')
+}
+
 const generateId = utilsGenerateId
 
 /**
@@ -7486,6 +7560,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const { totalMarks: assessmentDmiTotalMarks, ready: assessmentDmiReady } =
       assessmentDmiReadiness(assessmentDmiItems)
 
+    // Build tiered context for the PCI assistant: the whole course, the specific
+    // lesson that contains the active task/assessment, and the task itself. This
+    // is sent on the first PCI turn only so the model does not hallucinate from
+    // the filename.
+    const { courseContext, lessonContext } = useMemo(() => {
+      const courseCtx = buildCourseContext(courseName, courseDescription, nodes)
+      let lessonCtx = ''
+      if (loadedTaskId) {
+        const found = findContainingLesson(nodes, lesson =>
+          lesson.tasks.some(t => t.id === loadedTaskId)
+        )
+        if (found) lessonCtx = buildLessonContext(found.lesson)
+      } else if (loadedAssessmentId) {
+        const found = findContainingLesson(nodes, lesson =>
+          lesson.homework.some(h => h.id === loadedAssessmentId)
+        )
+        if (found) lessonCtx = buildLessonContext(found.lesson)
+      }
+      return {
+        courseContext: courseCtx.slice(0, 50000),
+        lessonContext: lessonCtx.slice(0, 30000),
+      }
+    }, [courseName, courseDescription, nodes, loadedTaskId, loadedAssessmentId])
+
     // PCI assistant state + actions, consolidated into a reducer-backed hook.
     // Called late (all deps below are defined by here); the two early consumers
     // (task/assessment loaders and the blank-slate reset) reach it via the
@@ -7498,6 +7596,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCurrentPci,
       taskSourceDocument,
       currentAssessmentDocument,
+      courseContext,
+      lessonContext,
       autoCreateTask,
       autoCreateAssessment,
       renderPdfToImages,

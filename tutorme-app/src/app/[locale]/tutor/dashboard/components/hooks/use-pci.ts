@@ -16,6 +16,8 @@ interface PciSourceDoc {
   fileName: string
   fileUrl?: string
   mimeType?: string
+  /** Full OCR/extracted text of the uploaded PDF, if available. */
+  extractedText?: string
 }
 
 /** What the PCI chat needs from the course builder. The PCI conversation STATE
@@ -67,6 +69,12 @@ interface UsePciDeps {
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
   currentAssessmentDocument?: PciSourceDoc
+  /**
+   * Full hierarchical context for task PCI. Sent on the first turn only so the
+   * model understands where the task sits in the course and lesson.
+   */
+  courseContext?: string
+  lessonContext?: string
   autoCreateTask: () => { id?: string } | null | undefined
   autoCreateAssessment: () => { id?: string } | null | undefined
   renderPdfToImages: (pdfUrl: string, maxPages?: number) => Promise<string[]>
@@ -187,20 +195,29 @@ export function usePci(deps: UsePciDeps) {
             fileName: sourceDocData.fileName,
             fileUrl: sourceDocData.fileUrl,
             mimeType: sourceDocData.mimeType,
+            // Forward the full extracted text on the first turn; later turns rely
+            // on the conversation. The server truncates as needed.
+            extractedText: isFirstTurn
+              ? (sourceDocData.extractedText || '').slice(0, 80000) || undefined
+              : undefined,
           }
         : undefined
 
       // Render an attached PDF's pages (cached) so the model can SEE the
       // document — first turn only (see isFirstTurn above).
+      // When we already have extracted text, one page is enough as a layout aid;
+      // otherwise render a few pages so the model has some visual signal.
       let pdfPages: string[] | undefined
       if (isFirstTurn && sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
         const cacheKey = sourceDocData.fileUrl
         const cached = deps.pdfPageCache.get(cacheKey)
+        const hasExtractedText = !!(sourceDocData.extractedText || '').trim()
+        const pageLimit = hasExtractedText ? 1 : 3
         if (cached) {
-          pdfPages = cached
+          pdfPages = cached.slice(0, pageLimit)
         } else {
           try {
-            const rendered = await deps.renderPdfToImages(sourceDocData.fileUrl, 3)
+            const rendered = await deps.renderPdfToImages(sourceDocData.fileUrl, pageLimit)
             if (rendered.length > 0) {
               pdfPages = rendered
               deps.pdfPageCache.set(cacheKey, rendered)
@@ -238,6 +255,13 @@ export function usePci(deps: UsePciDeps) {
               // Bounded to stay under the server's content limit and keep the
               // request small on every turn.
               content: (slideContent || '').slice(0, 48000),
+              // Tiered context is large, so only send it on the first turn.
+              courseContext: isFirstTurn
+                ? (deps.courseContext || '').slice(0, 50000) || undefined
+                : undefined,
+              lessonContext: isFirstTurn
+                ? (deps.lessonContext || '').slice(0, 30000) || undefined
+                : undefined,
               pci: pciText,
               extensionName,
               sourceDocument,
