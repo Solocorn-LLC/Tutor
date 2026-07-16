@@ -4186,32 +4186,47 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Reveal an item in the Curriculum panel after a document load: select it,
     // expand its node + section, then scroll its row to the top of the Curriculum
-    // panel. The timeouts let React commit the new row/expansion before we
-    // measure. We scroll the Radix ScrollArea viewport directly because nested
-    // scrollable ancestors can confuse a generic scroll-into-view helper.
+    // panel. React may need more than one frame to commit a newly created row or
+    // expanded section, so we retry the DOM lookup for up to ~1s before giving up.
     const revealCurriculumItem = (type: 'task' | 'homework', id: string) => {
       setSelectedItem({ type, id })
-      window.setTimeout(() => {
-        const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
-        if (!resolved) return
-        ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
-        window.setTimeout(() => {
-          const el = document.querySelector(
-            `[data-curriculum-item="${type}:${id}"]`
-          ) as HTMLElement | null
-          if (!el) return
 
-          const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
-          if (viewport) {
-            const relativeTop =
-              el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
-            const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
-            viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-          } else {
-            scrollElementIntoView(el, { margin: 16, block: 'start' })
+      const scrollToItem = () => {
+        // Expand the item's node/section first (no-op if already expanded).
+        const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
+        if (resolved) {
+          ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
+        }
+
+        // Wait for the DOM to reflect the expansion, then scroll with retries.
+        window.setTimeout(() => {
+          let attempts = 0
+          const tryScroll = () => {
+            const el = document.querySelector(
+              `[data-curriculum-item="${type}:${id}"]`
+            ) as HTMLElement | null
+            if (el) {
+              const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
+              if (viewport) {
+                const relativeTop =
+                  el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+                const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
+                viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+              } else {
+                el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+              }
+              return
+            }
+            attempts += 1
+            if (attempts <= 16) {
+              window.setTimeout(tryScroll, 60)
+            }
           }
-        }, 100)
-      }, 50)
+          tryScroll()
+        }, 80)
+      }
+
+      window.setTimeout(scrollToItem, 50)
     }
 
     // Add handlers
