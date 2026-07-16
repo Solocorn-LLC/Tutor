@@ -1133,13 +1133,19 @@ function CourseBuilderInsightsRouteInner({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="live">
+                      <SelectItem
+                        value="live"
+                        className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
                           Live
                         </div>
                       </SelectItem>
-                      <SelectItem value="draft">
+                      <SelectItem
+                        value="draft"
+                        className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-amber-500" />
                           Editing
@@ -1606,7 +1612,11 @@ function CourseBuilderInsightsRouteInner({
                           <SelectContent>
                             {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(
                               c => (
-                                <SelectItem key={c} value={c}>
+                                <SelectItem
+                                  key={c}
+                                  value={c}
+                                  className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                                >
                                   {c}
                                 </SelectItem>
                               )
