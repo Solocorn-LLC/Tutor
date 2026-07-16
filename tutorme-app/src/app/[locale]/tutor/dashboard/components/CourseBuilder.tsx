@@ -736,6 +736,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [mainTab, liveNodes, builderNodes]
     )
 
+    // Always-current ref to `nodes` so deferred callbacks (e.g. reveal-after-load
+    // timeouts) don't read stale state captured before setCourseBuilderNodes ran.
+    const nodesRef = useRef(nodes)
+    useEffect(() => {
+      nodesRef.current = nodes
+    }, [nodes])
+
     const setCourseBuilderNodes = useCallback(
       (updater: React.SetStateAction<CourseBuilderNode[]>) => {
         if (mainTab === 'live') {
@@ -4176,6 +4183,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       })
     }
 
+    // Reveal an item in the Curriculum panel after a document load: select it,
+    // expand its node + section, then scroll its row into view. The short
+    // timeouts let React commit the new row/expansion before we measure.
+    const revealCurriculumItem = (type: 'task' | 'homework', id: string) => {
+      setSelectedItem({ type, id })
+      window.setTimeout(() => {
+        const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
+        if (!resolved) return
+        ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
+        window.setTimeout(() => {
+          const el = document.querySelector(`[data-curriculum-item="${type}:${id}"]`)
+          if (el) scrollElementIntoView(el, { margin: 16, block: 'nearest' })
+        }, 60)
+      }, 50)
+    }
+
     // Add handlers
     // Next lesson number = one past the HIGHEST existing "Lesson N" — not the
     // count. So after deleting Lesson 3 (leaving 1, 2, 4) a new lesson is "Lesson
@@ -5615,6 +5638,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 }
                 currentId = created.id
               }
+              revealCurriculumItem('homework', currentId)
 
               const extractedText = asset.content || `[Asset: ${asset.name}]`
               const newDoc = {
@@ -5669,6 +5693,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 }
                 currentId = created.id
               }
+              revealCurriculumItem('task', currentId)
 
               const extractedText = asset.content || `[Asset: ${asset.name}]`
               const newDoc = {
@@ -5802,6 +5827,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }
             currentId = created.id
           }
+          revealCurriculumItem('homework', currentId)
 
           const newDoc = {
             fileName: newAsset.name,
@@ -5921,7 +5947,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               }
 
               if (currentId) {
-                setSelectedItem({ type: 'task', id: currentId })
+                revealCurriculumItem('task', currentId)
                 const newAsset = {
                   id: `asset-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
                   name: firstFile.name,
@@ -8252,6 +8278,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }
                                                   >
                                                     <div
+                                                      data-curriculum-item={`task:${task.id}`}
                                                       className={cn(
                                                         'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                         selectedItem?.type === 'task' &&
@@ -8753,6 +8780,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         </DropdownMenu>
                                                       )}
                                                     </div>
+                                                    {task.sourceDocument?.fileName && (
+                                                      <div className="mb-1.5 ml-6 flex min-w-0 items-center gap-1.5 rounded-lg border border-[#E7ECF3] bg-white px-2.5 py-1 text-[11px] text-slate-600">
+                                                        <FileText className="h-3 w-3 shrink-0 text-red-600" />
+                                                        <span className="truncate">
+                                                          {task.sourceDocument.fileName}
+                                                        </span>
+                                                      </div>
+                                                    )}
                                                   </SortableTreeItem>
                                                   {loadedTaskId === task.id &&
                                                     taskBuilder.extensions.length > 0 && (
@@ -9026,6 +9061,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   isLast={idx === assessments.length - 1}
                                                 >
                                                   <div
+                                                    data-curriculum-item={`homework:${hw.id}`}
                                                     className={cn(
                                                       'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
                                                       selectedItem?.type === 'homework' &&
@@ -9353,6 +9389,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       </DropdownMenu>
                                                     )}
                                                   </div>
+                                                  {hw.sourceDocument?.fileName && (
+                                                    <div className="mb-1.5 ml-6 flex min-w-0 items-center gap-1.5 rounded-lg border border-[#E7ECF3] bg-white px-2.5 py-1 text-[11px] text-slate-600">
+                                                      <FileText className="h-3 w-3 shrink-0 text-red-600" />
+                                                      <span className="truncate">
+                                                        {hw.sourceDocument.fileName}
+                                                      </span>
+                                                    </div>
+                                                  )}
                                                 </SortableTreeItem>
                                               ))}
                                             </SortableContext>
