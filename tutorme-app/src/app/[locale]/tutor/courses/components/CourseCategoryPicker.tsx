@@ -316,7 +316,7 @@ export function CourseCategoryPicker({
               <SelectItem
                 key={region.id}
                 value={region.id}
-                className="mx-1.5 rounded-md text-white hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                className="mx-1.5 rounded-md text-white"
               >
                 {region.name}
               </SelectItem>
@@ -359,7 +359,7 @@ export function CourseCategoryPicker({
                 <button
                   key={country.code}
                   onClick={() => setSelectedCountryCode(country.code)}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-black/10"
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white hover:bg-white/40"
                 >
                   <div
                     className={cn(

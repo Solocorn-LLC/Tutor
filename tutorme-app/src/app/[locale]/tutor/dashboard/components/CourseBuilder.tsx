@@ -4309,7 +4309,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // Expand the item's node/section first (no-op if already expanded).
         const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
         if (resolved) {
-          ensureSectionExpanded(resolved.nodeId, type === 'task' ? 'task' : 'assessment')
+          let section: 'task' | 'assessment' | 'homework' = type === 'task' ? 'task' : 'assessment'
+          if (
+            type === 'homework' &&
+            'category' in resolved.item &&
+            (resolved.item as any).category === 'homework'
+          ) {
+            section = 'homework'
+          }
+          ensureSectionExpanded(resolved.nodeId, section)
         }
 
         // Wait for the DOM to reflect the expansion, then scroll with retries.
@@ -6410,6 +6418,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setMainBuilderTab('assessment')
       setSelectedItem({ type: 'assessment', id: targetAssess.id })
       loadAssessmentIntoBuilder(targetAssess)
+      revealCurriculumItem('homework', targetAssess.id)
 
       // Show PDF by default, hide text
       setAssessmentPdfVisibleMap(prev => ({ ...prev, [targetAssess.id]: true }))
@@ -6926,12 +6935,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           const taskId = updatedExistingTask.id
                           setSelectedItem({ type: 'task', id: updatedExistingTask.id })
                           loadTaskIntoBuilder(updatedExistingTask)
+                          revealCurriculumItem('task', taskId)
                           setTaskPdfVisibleMap(prev => ({ ...prev, [taskId]: true }))
                           setTaskTextVisibleMap(prev => ({ ...prev, [taskId]: false }))
                         } else if (newTasks.length > 0) {
                           const firstNew = newTasks[0]
                           setSelectedItem({ type: 'task', id: firstNew.id })
                           loadTaskIntoBuilder(firstNew)
+                          revealCurriculumItem('task', firstNew.id)
 
                           setTaskPdfVisibleMap(prev => ({ ...prev, [firstNew.id]: true }))
                           setTaskTextVisibleMap(prev => ({ ...prev, [firstNew.id]: false }))
@@ -7146,6 +7157,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         setMainBuilderTab('task')
                         setSelectedItem({ type: 'task', id: newTask.id })
                         loadTaskIntoBuilder(newTask)
+                        revealCurriculumItem('task', newTask.id)
 
                         // Show PDF by default, hide text
                         setTaskPdfVisibleMap(prev => ({ ...prev, [newTask.id]: true }))
