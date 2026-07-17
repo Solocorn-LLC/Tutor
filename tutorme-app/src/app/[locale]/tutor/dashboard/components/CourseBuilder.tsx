@@ -10974,19 +10974,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ]
                                                   }
                                                   aiMessages={
-                                                    isClassroomTab ? classroomAiMessages[extKey] : undefined
+                                                    isClassroomTab
+                                                      ? classroomAiMessages[extKey]
+                                                      : undefined
                                                   }
                                                   aiPanelOpen={classroomAiPanelOpen}
                                                   onAiPanelToggle={() =>
                                                     setClassroomAiPanelOpen(p => !p)
                                                   }
-                                                  onAiSend={content => {
+                                                  onAiSend={async content => {
                                                     if (!content.trim() || aiBusy) return
+                                                    const trimmed = content.trim()
                                                     const next = [
                                                       ...(classroomAiMessages[extKey] ?? []),
                                                       {
                                                         role: 'tutor' as const,
-                                                        content: content.trim(),
+                                                        content: trimmed,
                                                         timestamp: Date.now(),
                                                       },
                                                     ]
@@ -10995,7 +10998,99 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       [extKey]: next,
                                                     }))
                                                     setAiBusy(true)
-                                                    window.setTimeout(() => {
+
+                                                    const previewExt = taskBuilder.activeExtensionId
+                                                      ? taskBuilder.extensions.find(
+                                                          e =>
+                                                            e.id === taskBuilder.activeExtensionId
+                                                        )
+                                                      : null
+                                                    const context = {
+                                                      taskId: loadedTaskId ?? undefined,
+                                                      taskName:
+                                                        taskBuilder.title?.trim() ||
+                                                        'Untitled task',
+                                                      courseName:
+                                                        courseName?.trim() || 'Test Course',
+                                                      taskContent: previewExt
+                                                        ? previewExt.content
+                                                        : taskBuilder.taskContent,
+                                                      taskPci: previewExt
+                                                        ? previewExt.pci
+                                                        : taskBuilder.taskPci,
+                                                      taskPciSpec: taskBuilder.pciSpec,
+                                                      extensionName: previewExt
+                                                        ? previewExt.name
+                                                        : null,
+                                                      enrolledStudents: 2,
+                                                      sessionNumber: 1,
+                                                      attendance: '100%',
+                                                      currentDate: new Date().toLocaleDateString(),
+                                                    }
+                                                    const history = (
+                                                      classroomAiMessages[extKey] ?? []
+                                                    )
+                                                      .filter(
+                                                        m => m.role === 'tutor' || m.role === 'ai'
+                                                      )
+                                                      .map(m => ({
+                                                        role:
+                                                          m.role === 'ai'
+                                                            ? ('ai' as const)
+                                                            : ('tutor' as const),
+                                                        content: m.content,
+                                                      }))
+
+                                                    try {
+                                                      const res = await fetchWithCsrf(
+                                                        '/api/ai/session-tutor',
+                                                        {
+                                                          method: 'POST',
+                                                          headers: {
+                                                            'Content-Type': 'application/json',
+                                                          },
+                                                          body: JSON.stringify({
+                                                            message: trimmed,
+                                                            context,
+                                                            history,
+                                                          }),
+                                                        }
+                                                      )
+                                                      let reply = 'Sorry, I could not process that.'
+                                                      if (res.ok) {
+                                                        const data = await res.json()
+                                                        reply = data.response ?? reply
+                                                      } else {
+                                                        const err = await res
+                                                          .json()
+                                                          .catch(() => ({}))
+                                                        console.error(
+                                                          '[session-tutor] request failed:',
+                                                          err
+                                                        )
+                                                        toast.error(
+                                                          err.error || 'Session assistant failed'
+                                                        )
+                                                      }
+                                                      setClassroomAiMessages(prev => ({
+                                                        ...prev,
+                                                        [extKey]: [
+                                                          ...(prev[extKey] ?? []),
+                                                          {
+                                                            role: 'ai' as const,
+                                                            content: reply,
+                                                            timestamp: Date.now(),
+                                                          },
+                                                        ],
+                                                      }))
+                                                    } catch (err) {
+                                                      console.error(
+                                                        '[session-tutor] network error:',
+                                                        err
+                                                      )
+                                                      toast.error(
+                                                        'Session assistant is unavailable'
+                                                      )
                                                       setClassroomAiMessages(prev => ({
                                                         ...prev,
                                                         [extKey]: [
@@ -11003,13 +11098,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           {
                                                             role: 'ai' as const,
                                                             content:
-                                                              'Session LLM response will be wired in the next step.',
+                                                              'Session assistant is unavailable. Please try again.',
                                                             timestamp: Date.now(),
                                                           },
                                                         ],
                                                       }))
+                                                    } finally {
                                                       setAiBusy(false)
-                                                    }, 800)
+                                                    }
                                                   }}
                                                   aiBusy={aiBusy}
                                                 />
