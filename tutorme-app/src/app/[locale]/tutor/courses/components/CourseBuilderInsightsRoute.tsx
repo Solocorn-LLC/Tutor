@@ -1004,7 +1004,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               key={c.id}
                               value={c.id}
-                              className="transition-none hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                              className="transition-none"
                             >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
@@ -1031,7 +1031,7 @@ function CourseBuilderInsightsRouteInner({
                             <SelectItem
                               key={c.id}
                               value={c.id}
-                              className="transition-none hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                              className="transition-none"
                             >
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
@@ -1135,7 +1135,7 @@ function CourseBuilderInsightsRouteInner({
                     <SelectContent>
                       <SelectItem
                         value="live"
-                        className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                        className=""
                       >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
@@ -1144,7 +1144,7 @@ function CourseBuilderInsightsRouteInner({
                       </SelectItem>
                       <SelectItem
                         value="draft"
-                        className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                        className=""
                       >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-amber-500" />
@@ -1615,7 +1615,7 @@ function CourseBuilderInsightsRouteInner({
                                 <SelectItem
                                   key={c}
                                   value={c}
-                                  className="hover:bg-black/10 focus-visible:bg-black/10 focus-visible:ring-0"
+                                  className=""
                                 >
                                   {c}
                                 </SelectItem>
