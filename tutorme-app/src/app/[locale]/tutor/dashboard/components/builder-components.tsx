@@ -406,8 +406,8 @@ export function PreviewCard({
     sourceDocument?: ImportedLearningResource
   }
 
-  const handleDownloadPdf = () => {
-    const result = generateQuestionPaperPDF(
+  const handleDownloadPdf = async () => {
+    const result = await generateQuestionPaperPDF(
       normalizedItem.title,
       normalizedItem.description || normalizedItem.instructions || '',
       normalizedItem.questions || []

@@ -30,6 +30,7 @@ import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export interface TestTaskChatMsg {
@@ -69,6 +70,11 @@ export function TestTaskChat({
   mode = 'test-student',
   tutorAvatarUrl,
   studentAvatarUrl,
+  aiMessages,
+  aiPanelOpen,
+  onAiPanelToggle,
+  onAiSend,
+  aiBusy,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -89,12 +95,23 @@ export function TestTaskChat({
   tutorAvatarUrl?: string | null
   /** Student avatar URL — shown on student messages. */
   studentAvatarUrl?: string | null
+  /** AI messages for the tutor-only session assistant panel (classroom mode only). */
+  aiMessages?: ChatMsg[]
+  /** Whether the AI chat panel is open (classroom mode only). */
+  aiPanelOpen?: boolean
+  /** Toggle the AI chat panel open/closed. */
+  onAiPanelToggle?: () => void
+  /** Called when the tutor sends a message to the session AI. */
+  onAiSend?: (content: string) => void
+  /** Whether the session AI is processing a response. */
+  aiBusy?: boolean
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
   const [completed, setCompleted] = useState(initialState?.completed ?? false)
   const [busy, setBusy] = useState(false)
   const [pdfPopupOpen, setPdfPopupOpen] = useState(false)
+  const [aiDraft, setAiDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastIncomingLen = useRef(0)
   const isClassroom = mode === 'classroom'
@@ -398,6 +415,110 @@ export function TestTaskChat({
           </div>
         )}
       </div>
+
+      {/* AI participant — classroom mode only */}
+      {isClassroom && (
+        <>
+          {!aiPanelOpen && (
+            <button
+              type="button"
+              onClick={onAiPanelToggle}
+              className="absolute right-4 top-4 z-20 flex flex-col items-center gap-1"
+              aria-label="Open session AI"
+            >
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-white shadow-lg transition-transform hover:scale-105">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <span className="text-[10px] font-medium text-violet-600">AI</span>
+            </button>
+          )}
+
+          {aiPanelOpen && (
+            <div className="absolute inset-y-0 right-0 z-20 flex w-80 flex-col border-l border-gray-200 bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+                <span className="text-sm font-semibold text-gray-800">Solocorn Assistant</span>
+                <button
+                  type="button"
+                  onClick={onAiPanelToggle}
+                  className="grid h-7 w-7 place-items-center rounded-md text-gray-500 transition-colors hover:bg-gray-100"
+                  aria-label="Close session AI"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                {aiMessages?.map((m, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex items-end gap-2',
+                      m.role === 'tutor' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    {m.role !== 'tutor' && (
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-700">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        'max-w-[75%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm',
+                        m.role === 'tutor'
+                          ? 'rounded-br-sm bg-gray-100 text-gray-800'
+                          : 'rounded-bl-sm bg-violet-600 text-white'
+                      )}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {aiBusy && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Thinking…
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 p-2">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={aiDraft}
+                    onChange={e => setAiDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        const text = aiDraft.trim()
+                        if (!text || aiBusy) return
+                        onAiSend?.(text)
+                        setAiDraft('')
+                      }
+                    }}
+                    disabled={aiBusy}
+                    rows={1}
+                    placeholder="Ask the session AI…"
+                    className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = aiDraft.trim()
+                      if (!text || aiBusy) return
+                      onAiSend?.(text)
+                      setAiDraft('')
+                    }}
+                    disabled={aiBusy || !aiDraft.trim()}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white transition-colors hover:bg-violet-700 disabled:opacity-40"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Input area */}
       <div className="border-t border-gray-100 p-2">

@@ -309,13 +309,14 @@ export function convertQuizToAssessment(quiz: Quiz): Assessment {
 /**
  * Generate a PDF question paper from questions using jsPDF
  */
-export function generateQuestionPaperPDF(
+export async function generateQuestionPaperPDF(
   title: string,
   description: string,
   questions: QuizQuestion[]
-): { blob: Blob; url: string; fileName: string } {
-  // Dynamic import jsPDF to avoid SSR issues
-  const jsPDF = require('jspdf')
+): Promise<{ blob: Blob; url: string; fileName: string }> {
+  // Dynamic import jsPDF to avoid SSR issues and to get the correct default
+  // export in both dev and production builds.
+  const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF()
 
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -439,7 +440,7 @@ export function generateQuestionPaperPDF(
   })
 
   // Footer
-  const totalPages = doc.internal.getNumberOfPages()
+  const totalPages = (doc.internal as any).getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
@@ -461,6 +462,10 @@ export function generateQuestionPaperPDF(
  * Uses html2canvas to rasterise the text as an image inside the PDF. This avoids
  * font/encoding limitations and gives us full browser language support (CJK,
  * Arabic, Devanagari, emojis, etc.) without bundling huge font files.
+ *
+ * The PDF page is a plain white document with a snapshot of the Task Slide card
+ * (purple background, white text) placed on it. This lets the existing PDF
+ * thumbnail and popup viewer treat text-only tasks exactly like uploaded PDFs.
  */
 export async function generateTaskTextPDF(
   title: string,
@@ -470,65 +475,93 @@ export async function generateTaskTextPDF(
     throw new Error('generateTaskTextPDF must be called in a browser')
   }
 
-  const jsPDF = require('jspdf')
+  const { default: jsPDF } = await import('jspdf')
   const html2canvas = (await import('html2canvas')).default
 
-  const container = document.createElement('div')
-  container.style.position = 'fixed'
-  container.style.left = '-9999px'
-  container.style.top = '-9999px'
-  container.style.width = '794px' // A4 width at 96dpi
-  container.style.padding = '48px'
-  container.style.background = '#ffffff'
-  container.style.color = '#1f2937'
-  container.style.fontFamily =
+  // Snapshot card styled like the Task Slide display.
+  const card = document.createElement('div')
+  card.style.position = 'fixed'
+  card.style.left = '-9999px'
+  card.style.top = '-9999px'
+  card.style.width = '640px'
+  card.style.padding = '48px'
+  card.style.background = '#7C3AED'
+  card.style.color = '#ffffff'
+  card.style.borderRadius = '24px'
+  card.style.fontFamily =
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
-  container.style.fontSize = '16px'
-  container.style.lineHeight = '1.6'
-  container.style.whiteSpace = 'pre-wrap'
-  container.style.wordBreak = 'break-word'
+  card.style.fontSize = '18px'
+  card.style.lineHeight = '1.6'
+  card.style.whiteSpace = 'pre-wrap'
+  card.style.wordBreak = 'break-word'
+  card.style.boxSizing = 'border-box'
+
+  const headerEl = document.createElement('div')
+  headerEl.style.fontSize = '13px'
+  headerEl.style.fontWeight = '600'
+  headerEl.style.textTransform = 'uppercase'
+  headerEl.style.letterSpacing = '0.08em'
+  headerEl.style.marginBottom = '12px'
+  headerEl.style.opacity = '0.8'
+  headerEl.textContent = 'Task'
+  card.appendChild(headerEl)
 
   const titleEl = document.createElement('h1')
-  titleEl.style.fontSize = '24px'
+  titleEl.style.fontSize = '30px'
   titleEl.style.fontWeight = '700'
   titleEl.style.margin = '0 0 24px 0'
-  titleEl.style.lineHeight = '1.3'
-  titleEl.style.color = '#111827'
-  titleEl.textContent = title.trim()
-  container.appendChild(titleEl)
+  titleEl.style.lineHeight = '1.25'
+  titleEl.style.color = '#ffffff'
+  titleEl.textContent = title.trim() || 'Task'
+  titleEl.setAttribute('dir', 'auto')
+  card.appendChild(titleEl)
+
+  const dividerEl = document.createElement('div')
+  dividerEl.style.height = '2px'
+  dividerEl.style.width = '64px'
+  dividerEl.style.background = 'rgba(255, 255, 255, 0.5)'
+  dividerEl.style.marginBottom = '24px'
+  card.appendChild(dividerEl)
 
   const contentEl = document.createElement('div')
   contentEl.style.whiteSpace = 'pre-wrap'
   contentEl.style.wordBreak = 'break-word'
+  contentEl.style.fontSize = '20px'
+  contentEl.style.lineHeight = '1.6'
+  contentEl.style.color = '#ffffff'
   contentEl.textContent = content.trim()
   contentEl.setAttribute('dir', 'auto')
-  container.appendChild(contentEl)
+  card.appendChild(contentEl)
 
-  document.body.appendChild(container)
+  document.body.appendChild(card)
 
   try {
-    const canvas = await html2canvas(container, {
+    const canvas = await html2canvas(card, {
       scale: 2,
       useCORS: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: null,
       logging: false,
     })
 
-    const cssWidth = container.scrollWidth
-    const cssHeight = container.scrollHeight
+    const cardCssWidth = card.scrollWidth
+    const cardCssHeight = card.scrollHeight
+    const margin = 48
     // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
-    const ptWidth = cssWidth * 0.75
-    const ptHeight = cssHeight * 0.75
+    const ptWidth = (cardCssWidth + margin * 2) * 0.75
+    const ptHeight = (cardCssHeight + margin * 2) * 0.75
+    const ptMargin = margin * 0.75
+    const ptCardWidth = cardCssWidth * 0.75
+    const ptCardHeight = cardCssHeight * 0.75
 
     const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight] })
     const imgData = canvas.toDataURL('image/png')
-    doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
+    doc.addImage(imgData, 'PNG', ptMargin, ptMargin, ptCardWidth, ptCardHeight)
 
     const safeTitle = title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Task'
     return { blob: doc.output('blob'), fileName: `${safeTitle}.pdf` }
   } finally {
-    if (container.parentNode) {
-      document.body.removeChild(container)
+    if (card.parentNode) {
+      document.body.removeChild(card)
     }
   }
 }
