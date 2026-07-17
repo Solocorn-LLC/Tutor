@@ -451,7 +451,10 @@ export function TestTaskChat({
                 {aiMessages?.map((m, i) => (
                   <div
                     key={i}
-                    className={cn('flex items-end gap-2', m.role === 'tutor' ? 'justify-end' : 'justify-start')}
+                    className={cn(
+                      'flex items-end gap-2',
+                      m.role === 'tutor' ? 'justify-end' : 'justify-start'
+                    )}
                   >
                     {m.role !== 'tutor' && (
                       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-700">
