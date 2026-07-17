@@ -29,6 +29,14 @@ interface Deployable {
   lessonOrder: number | null
   /** Student-safe questions (answers already stripped server-side). */
   dmiItems: StudentDmiItem[]
+  /** The document the task was built from (e.g. a question-paper PDF), shown in
+   *  the live Materials panel when deployed. Null when the task has none. */
+  sourceDocument: {
+    fileName: string
+    fileUrl: string
+    fileKey: string
+    mimeType: string
+  } | null
 }
 
 interface LessonGroup {
@@ -169,6 +177,9 @@ export function SessionDeployPanel({
         source: t.type,
         lessonId: t.lessonId ?? undefined,
         dmiItems: t.dmiItems,
+        // Attached PDF (if any) — the server re-signs its url from the durable
+        // fileKey on deploy and shows it in the Materials panel for everyone.
+        sourceDocument: t.sourceDocument ?? undefined,
         deployedAt: Date.now(),
         polls: [],
         questions: [],
@@ -281,6 +292,11 @@ export function SessionDeployPanel({
                                         <span className="lowercase text-blue-500">
                                           · {t.dmiItems.length} q
                                           {t.dmiItems.length === 1 ? '' : 's'}
+                                        </span>
+                                      ) : null}
+                                      {t.sourceDocument ? (
+                                        <span className="inline-flex items-center gap-0.5 lowercase text-rose-500">
+                                          · <FileText className="h-3 w-3" /> pdf
                                         </span>
                                       ) : null}
                                     </p>
