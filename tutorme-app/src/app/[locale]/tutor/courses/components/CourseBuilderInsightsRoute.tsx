@@ -1001,11 +1001,7 @@ function CourseBuilderInsightsRouteInner({
                             </SelectItem>
                           )}
                           {courses?.map(c => (
-                            <SelectItem
-                              key={c.id}
-                              value={c.id}
-                              className="transition-none"
-                            >
+                            <SelectItem key={c.id} value={c.id} className="transition-none">
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
@@ -1028,11 +1024,7 @@ function CourseBuilderInsightsRouteInner({
                             </SelectItem>
                           )}
                           {draftCourses?.map(c => (
-                            <SelectItem
-                              key={c.id}
-                              value={c.id}
-                              className="transition-none"
-                            >
+                            <SelectItem key={c.id} value={c.id} className="transition-none">
                               {c.nationality && c.nationality !== 'Global' ? (
                                 <span className="inline-flex items-center gap-1">
                                   {c.name} — {c.variantCategory || ''} —{' '}
@@ -1133,19 +1125,13 @@ function CourseBuilderInsightsRouteInner({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="live"
-                        className=""
-                      >
+                      <SelectItem value="live" className="">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
                           Live
                         </div>
                       </SelectItem>
-                      <SelectItem
-                        value="draft"
-                        className=""
-                      >
+                      <SelectItem value="draft" className="">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-amber-500" />
                           Editing
@@ -1612,11 +1598,7 @@ function CourseBuilderInsightsRouteInner({
                           <SelectContent>
                             {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(
                               c => (
-                                <SelectItem
-                                  key={c}
-                                  value={c}
-                                  className=""
-                                >
+                                <SelectItem key={c} value={c} className="">
                                   {c}
                                 </SelectItem>
                               )
