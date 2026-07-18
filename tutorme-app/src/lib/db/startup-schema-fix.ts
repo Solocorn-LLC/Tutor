@@ -447,6 +447,51 @@ BEGIN
 END $$;
 `)
 
+// Enforce the courseId → Course(id) foreign keys that the schema DEFINES but that
+// were never actually created in prod (so hard-deleting a Course left orphaned rows
+// behind — see scripts/cleanup-orphaned-courses.ts + recover-protected-courses.ts,
+// which cleared/backfilled every orphan so these can finally validate). Each FK is
+// added IF NOT EXISTS and wrapped in its own exception handler, so it's idempotent
+// and a stray orphan on one table never blocks the others (or crashes startup). The
+// ON DELETE action matches each table's schema definition.
+const ENFORCE_COURSE_FKS_SQL = sql.raw(`
+DO $$
+DECLARE
+  fk record;
+BEGIN
+  FOR fk IN
+    SELECT * FROM (VALUES
+      ('LiveSession',            'SET NULL'),
+      ('CourseLesson',           'CASCADE'),
+      ('CalendarEvent',          'SET NULL'),
+      ('CourseEnrollment',       'CASCADE'),
+      ('BuilderTask',            'CASCADE'),
+      ('OneOnOneBookingRequest', 'SET NULL'),
+      ('GroupSession',           'SET NULL')
+    ) AS t(tbl, on_delete)
+  LOOP
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = fk.tbl)
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = fk.tbl AND column_name = 'courseId')
+        AND NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = fk.tbl || '_courseId_Course_id_fk'
+        )
+      THEN
+        EXECUTE format(
+          'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE %s',
+          fk.tbl, fk.tbl || '_courseId_Course_id_fk', fk.on_delete
+        );
+        RAISE NOTICE 'Added FK %_courseId_Course_id_fk', fk.tbl;
+      END IF;
+    EXCEPTION WHEN others THEN
+      -- e.g. a residual orphan would fail validation — log and keep going.
+      RAISE NOTICE 'Skipped FK %_courseId_Course_id_fk: %', fk.tbl, SQLERRM;
+    END;
+  END LOOP;
+END $$;
+`)
+
 export async function applyStartupSchemaFixes(): Promise<void> {
   // Always ensure new standalone tables exist, even when the drift check below
   // short-circuits (prod DBs whose LiveSession columns already look fine).
@@ -464,6 +509,14 @@ export async function applyStartupSchemaFixes(): Promise<void> {
     )
   } catch (err: any) {
     console.error('[SchemaFix] ❌ Failed to add COMPLETED booking status:', err?.message)
+  }
+
+  // Enforce the courseId → Course FKs (idempotent). Must run outside the drift
+  // check below, which short-circuits on a healthy LiveSession schema.
+  try {
+    await drizzleDb.execute(ENFORCE_COURSE_FKS_SQL)
+  } catch (err: any) {
+    console.error('[SchemaFix] ❌ Failed to enforce courseId FKs:', err?.message)
   }
 
   try {

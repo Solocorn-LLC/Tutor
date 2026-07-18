@@ -50,7 +50,8 @@
     "audit:orphaned-courses": "tsx scripts/audit-orphaned-courses.ts",
     "cleanup:orphaned-courses": "tsx scripts/cleanup-orphaned-courses.ts",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
-    "postinstall": "node scripts/copy-pdf-worker.js"
+    "postinstall": "node scripts/copy-pdf-worker.js",
+    "recover:protected-courses": "tsx scripts/recover-protected-courses.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.87.0",
