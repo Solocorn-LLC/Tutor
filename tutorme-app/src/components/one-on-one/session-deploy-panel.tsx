@@ -464,7 +464,10 @@ function TaskPreviewOverlay({
   // real authored content interleaved with a block breaks the match and is shown.
   const isImportPlaceholder = /^(\[Imported .+\]\s*)+$/.test(contentText)
   const showContent = contentText.length > 0 && !isImportPlaceholder
-  const hasAnyPreview = !!task.sourceDocument || showContent || task.dmiItems.length > 0
+  // The right column holds the authored content + questions. When both a document
+  // and a right column exist they sit side by side; either one alone fills the row.
+  const hasRightColumn = showContent || task.dmiItems.length > 0
+  const hasAnyPreview = !!task.sourceDocument || hasRightColumn
 
   return (
     <div
@@ -475,7 +478,7 @@ function TaskPreviewOverlay({
       aria-label={`Preview of ${task.title}`}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex h-[95vh] w-[95vw] max-w-none flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b px-5 py-3">
@@ -494,85 +497,92 @@ function TaskPreviewOverlay({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row">
+          {/* Document (left) — split 50/50 with the right column via flex-1 (stacked
+              on mobile, side by side on lg+); fills the whole row when alone. */}
           {task.sourceDocument ? (
-            <div className="mb-4 h-[55vh] w-full">
+            <div className="min-h-0 flex-1">
               <TaskDocumentCard sourceDocument={task.sourceDocument} alwaysOpen />
             </div>
           ) : null}
 
-          {/* Hide the auto-generated "[Imported file.docx]" placeholder content —
-              it's noise once the actual document is shown above. Only real
-              authored content is rendered. */}
-          {showContent ? (
-            <div
-              className="prose prose-sm mb-4 max-w-none text-slate-700"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
-            />
-          ) : null}
+          {/* Content + questions (right) — scrolls independently. */}
+          {hasRightColumn ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {/* Hide the auto-generated "[Imported file.docx]" placeholder content —
+                  it's noise once the actual document is shown. Only real authored
+                  content is rendered. */}
+              {showContent ? (
+                <div
+                  className="prose prose-sm mb-4 max-w-none text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
+                />
+              ) : null}
 
-          {task.dmiItems.length > 0 ? (
-            <ol className="flex flex-col gap-4">
-              {task.dmiItems.map((q, i) => (
-                <li key={q.id} className="rounded-lg border border-slate-200 p-3">
-                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-500">
-                      {q.questionLabel || `Question ${q.questionNumber || i + 1}`}
-                    </span>
-                    {typeof q.marks === 'number' ? (
-                      <span className="shrink-0 text-[11px] text-slate-400">
-                        {q.marks} mark{q.marks === 1 ? '' : 's'}
-                      </span>
-                    ) : null}
-                  </div>
-                  {q.questionText ? (
-                    <p className="mb-2 whitespace-pre-wrap text-sm text-slate-800">
-                      {q.questionText}
-                    </p>
-                  ) : null}
-                  {q.hotspotImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={q.hotspotImageUrl}
-                      alt=""
-                      className="mb-2 max-h-64 w-auto rounded border border-slate-200"
-                    />
-                  ) : null}
-                  {q.options && q.options.length > 0 ? (
-                    <ul className="flex flex-col gap-1">
-                      {q.options.map((opt, oi) => (
-                        <li key={oi} className="flex items-start gap-2 text-sm text-slate-700">
-                          <span className="shrink-0 font-semibold text-slate-400">
-                            {String.fromCharCode(65 + oi)}.
+              {task.dmiItems.length > 0 ? (
+                <ol className="flex flex-col gap-4">
+                  {task.dmiItems.map((q, i) => (
+                    <li key={q.id} className="rounded-lg border border-slate-200 p-3">
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-500">
+                          {q.questionLabel || `Question ${q.questionNumber || i + 1}`}
+                        </span>
+                        {typeof q.marks === 'number' ? (
+                          <span className="shrink-0 text-[11px] text-slate-400">
+                            {q.marks} mark{q.marks === 1 ? '' : 's'}
                           </span>
-                          <span className="whitespace-pre-wrap">{opt}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {q.matchPrompts && q.matchPrompts.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
-                      <ul className="flex flex-col gap-1">
-                        {q.matchPrompts.map((p, pi) => (
-                          <li key={pi} className="whitespace-pre-wrap">
-                            {pi + 1}. {p}
-                          </li>
-                        ))}
-                      </ul>
-                      {q.matchBank && q.matchBank.length > 0 ? (
-                        <ul className="flex flex-col gap-1 text-slate-500">
-                          {q.matchBank.map((b, bi) => (
-                            <li key={bi} className="whitespace-pre-wrap">
-                              • {b}
+                        ) : null}
+                      </div>
+                      {q.questionText ? (
+                        <p className="mb-2 whitespace-pre-wrap text-sm text-slate-800">
+                          {q.questionText}
+                        </p>
+                      ) : null}
+                      {q.hotspotImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={q.hotspotImageUrl}
+                          alt=""
+                          className="mb-2 max-h-64 w-auto rounded border border-slate-200"
+                        />
+                      ) : null}
+                      {q.options && q.options.length > 0 ? (
+                        <ul className="flex flex-col gap-1">
+                          {q.options.map((opt, oi) => (
+                            <li key={oi} className="flex items-start gap-2 text-sm text-slate-700">
+                              <span className="shrink-0 font-semibold text-slate-400">
+                                {String.fromCharCode(65 + oi)}.
+                              </span>
+                              <span className="whitespace-pre-wrap">{opt}</span>
                             </li>
                           ))}
                         </ul>
                       ) : null}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
+                      {q.matchPrompts && q.matchPrompts.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                          <ul className="flex flex-col gap-1">
+                            {q.matchPrompts.map((p, pi) => (
+                              <li key={pi} className="whitespace-pre-wrap">
+                                {pi + 1}. {p}
+                              </li>
+                            ))}
+                          </ul>
+                          {q.matchBank && q.matchBank.length > 0 ? (
+                            <ul className="flex flex-col gap-1 text-slate-500">
+                              {q.matchBank.map((b, bi) => (
+                                <li key={bi} className="whitespace-pre-wrap">
+                                  • {b}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </div>
           ) : null}
 
           {!hasAnyPreview ? (
