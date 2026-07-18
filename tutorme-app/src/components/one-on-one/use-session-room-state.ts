@@ -254,8 +254,15 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       })
     }
 
-    const onStudentJoined = (data: { userId: string; name?: string }) => {
-      if (data?.userId) mergeStudents([data])
+    const onStudentJoined = (data: {
+      userId: string
+      name?: string
+      state?: Partial<SessionRosterStudent>
+    }) => {
+      // The server nests the live signals under `state` on join — flatten them so
+      // the Monitor shows engagement/status straight away, not only after the next
+      // student_state_update.
+      if (data?.userId) mergeStudents([{ userId: data.userId, name: data.name, ...data.state }])
     }
 
     const onChatMessage = (msg: SessionChatMessage) => {

@@ -966,8 +966,26 @@ export async function initEnhancedSocketServer(server: NetServer) {
             ),
           })
           if (!enrolled) {
-            socket.emit('error', { message: 'You are not enrolled in this course' })
-            return
+            // A 1-on-1 / group attendee isn't necessarily course-ENROLLED — they
+            // join via a booking / seat. The HTTP room-join already authorized them
+            // and wrote a SessionParticipant row, so accept that seat here too.
+            // Without this, a legit participant is left in the socket room (so the
+            // whiteboard works) but never added to room.students — making the
+            // tutor's Monitor + board viewer show an empty roster.
+            const [participant] = await drizzleDb
+              .select({ id: sessionParticipant.participantId })
+              .from(sessionParticipant)
+              .where(
+                and(
+                  eq(sessionParticipant.sessionId, roomId),
+                  eq(sessionParticipant.studentId, userId)
+                )
+              )
+              .limit(1)
+            if (!participant) {
+              socket.emit('error', { message: 'You are not enrolled in this course' })
+              return
+            }
           }
         }
       }
