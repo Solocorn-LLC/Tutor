@@ -116,7 +116,7 @@ function TutorInsightsPageInner() {
   // When opened from Dashboard sidebar or My Page Create Course, start in Creating mode
   const startInEditMode = searchParams.get('mode') === 'edit'
   // Embedded in the in-session Edit-course modal: edit UI, but persist straight
-  // to the DB (Editing mode) and auto-save — so "changes sync everywhere" holds.
+  // to the DB (Unpublished mode) and auto-save — so "changes sync everywhere" holds.
   const embedded = searchParams.get('embed') === '1'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
     searchParams.get('sessionId') || embedded ? 'live' : startInEditMode ? 'draft' : 'live'
@@ -133,7 +133,7 @@ function TutorInsightsPageInner() {
   // BUT respect explicit mode=edit query param (set by Create Course / Course Builder nav)
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // A sessionId or the embedded Edit-course modal force DB (Editing mode) persistence.
+    // A sessionId or the embedded Edit-course modal force DB (Unpublished mode) persistence.
     if (searchParams.get('sessionId') || searchParams.get('embed') === '1') {
       setSaveMode('live')
       return
@@ -388,7 +388,7 @@ function TutorInsightsPageInner() {
       if (result.success) {
         toast.success(
           persistMode === 'draft'
-            ? 'Creating course saved locally — switch to Editing mode to persist to the server'
+            ? 'Creating course saved locally — switch to Unpublished mode to persist to the server'
             : 'Course saved successfully'
         )
 
@@ -1302,13 +1302,13 @@ function TutorInsightsPageInner() {
                   </h1>
                   <p className="text-muted-foreground text-sm">
                     {activeCourses.length > 0
-                      ? `Pick ${saveMode === 'live' ? 'an Editing' : 'a Creating'} course to open the builder.`
-                      : `Create ${saveMode === 'live' ? 'an Editing' : 'a Creating'} course to access the builder.`}
+                      ? `Pick ${saveMode === 'live' ? 'an Unpublished' : 'a Creating'} course to open the builder.`
+                      : `Create ${saveMode === 'live' ? 'an Unpublished' : 'a Creating'} course to access the builder.`}
                   </p>
                 </div>
                 {activeCourses.length === 0 ? (
                   <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    New {saveMode === 'live' ? 'Editing' : 'Creating'} Course
+                    New {saveMode === 'live' ? 'Unpublished' : 'Creating'} Course
                   </Button>
                 ) : (
                   <div className="mt-4 grid w-full gap-3">
@@ -1380,7 +1380,7 @@ function TutorInsightsPageInner() {
               setCourseId(value)
               const isDraftCourse = draftCourses.some(course => course.id === value)
               // Only auto-switch to Creating mode for Creating-mode courses.
-              // Editing-mode courses can be edited in either mode, so keep the current mode.
+              // DB courses (Unpublished or Published) can be edited in either mode, so keep the current mode.
               if (!sessionId && isDraftCourse) {
                 setSaveMode('draft')
               }
