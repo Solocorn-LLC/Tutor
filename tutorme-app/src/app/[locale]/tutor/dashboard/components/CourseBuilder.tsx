@@ -10872,11 +10872,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   pciSpec={
                                                     previewExt ? undefined : taskBuilder.pciSpec
                                                   }
-                                                  questionText={`${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`}
+                                                  questionText={
+                                                    loadedTaskId
+                                                      ? `${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`
+                                                      : undefined
+                                                  }
                                                   sourceDocument={
-                                                    previewExt
-                                                      ? previewExt.sourceDocument
-                                                      : currentTaskDocument
+                                                    loadedTaskId
+                                                      ? previewExt
+                                                        ? previewExt.sourceDocument
+                                                        : currentTaskDocument
+                                                      : undefined
                                                   }
                                                   initialState={
                                                     isClassroomTab

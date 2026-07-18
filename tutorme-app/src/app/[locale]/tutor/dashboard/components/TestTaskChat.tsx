@@ -376,7 +376,7 @@ export function TestTaskChat({
         )}
 
         {/* Text-only task: show the question text as the initial tutor message. */}
-        {!sourceDocument && questionText && (
+        {!sourceDocument && questionText?.trim() && (
           <ChatMessageBubble
             sender="tutor"
             name="Tutor"
