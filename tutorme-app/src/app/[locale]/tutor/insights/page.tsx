@@ -113,17 +113,17 @@ function TutorInsightsPageInner() {
     lessons: any[]
     options?: any
   } | null>(null)
-  // When opened from Dashboard sidebar or My Page Create Course, start in draft mode
+  // When opened from Dashboard sidebar or My Page Create Course, start in Creating mode
   const startInEditMode = searchParams.get('mode') === 'edit'
   // Embedded in the in-session Edit-course modal: edit UI, but persist straight
-  // to the DB (live) and auto-save — so "changes sync everywhere" holds.
+  // to the DB (Editing mode) and auto-save — so "changes sync everywhere" holds.
   const embedded = searchParams.get('embed') === '1'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
     searchParams.get('sessionId') || embedded ? 'live' : startInEditMode ? 'draft' : 'live'
   )
   const [draftCourses, setDraftCourses] = useState<CourseSummary[]>([])
 
-  // User-specific localStorage key so drafts don't leak across accounts on shared devices
+  // User-specific localStorage key so Creating-mode courses don't leak across accounts on shared devices
   const draftStorageKey = useMemo(
     () => `lesson-bank-courses-v1:${session?.user?.id || 'anonymous'}`,
     [session?.user?.id]
@@ -133,12 +133,12 @@ function TutorInsightsPageInner() {
   // BUT respect explicit mode=edit query param (set by Create Course / Course Builder nav)
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // A sessionId or the embedded Edit-course modal force live (DB) persistence.
+    // A sessionId or the embedded Edit-course modal force DB (Editing mode) persistence.
     if (searchParams.get('sessionId') || searchParams.get('embed') === '1') {
       setSaveMode('live')
       return
     }
-    // Respect explicit mode=edit query param — don't auto-detect away from draft
+    // Respect explicit mode=edit query param — don't auto-detect away from Creating mode
     if (searchParams.get('mode') === 'edit') {
       setSaveMode('draft')
       return
@@ -178,7 +178,7 @@ function TutorInsightsPageInner() {
     }
   }, [courseId, draftStorageKey])
 
-  // Load draft courses from lesson bank localStorage
+  // Load Creating-mode courses from lesson bank localStorage
   useEffect(() => {
     try {
       const raw = localStorage.getItem(draftStorageKey)
@@ -386,7 +386,11 @@ function TutorInsightsPageInner() {
       if (options?.isAutoSave) return
 
       if (result.success) {
-        toast.success(persistMode === 'draft' ? 'Draft saved' : 'Course saved successfully')
+        toast.success(
+          persistMode === 'draft'
+            ? 'Creating course saved locally — switch to Editing mode to persist to the server'
+            : 'Course saved successfully'
+        )
 
         // If a new course was created (draft sentinel → real DB course),
         // update state + URL so refresh loads the persisted course
@@ -414,7 +418,7 @@ function TutorInsightsPageInner() {
         console.error('[Insights] Save failed:', result.error)
         toast.error(
           result.error ||
-            (persistMode === 'draft' ? 'Failed to save draft' : 'Failed to save course')
+            'Failed to save course'
         )
       }
     },
@@ -493,9 +497,9 @@ function TutorInsightsPageInner() {
         setNewCourseName('')
         setNewCourseCategories([])
         setIsCreateDialogOpen(false)
-        toast.success(`Created draft "${newCourse.name}"`)
+        toast.success(`Created "${newCourse.name}" in Creating mode`)
       } catch {
-        toast.error('Failed to create draft')
+        toast.error('Failed to create course')
       }
       return
     }
@@ -553,7 +557,7 @@ function TutorInsightsPageInner() {
       )
       if (id === courseId) setDetachedCourseName(patch.name)
 
-      // Drafts live only in localStorage; DB courses persist via PATCH.
+      // Creating-mode courses live only in localStorage; DB courses persist via PATCH.
       const isDraft = draftCourses.some(c => c.id === id)
       if (isDraft) {
         try {
@@ -595,7 +599,7 @@ function TutorInsightsPageInner() {
   const handleDeleteCourse = useCallback(async () => {
     if (!courseId || courseId === 'insights-draft') return
 
-    // Determine if this courseId is a localStorage draft or a DB course
+    // Determine if this courseId is a localStorage Creating-mode course or a DB course
     const isDraft = draftCourses.some(c => c.id === courseId)
 
     if (isDraft) {
@@ -617,14 +621,14 @@ function TutorInsightsPageInner() {
           setDetachedCourseName('Insights Builder')
         }
         setIsDeleteDialogOpen(false)
-        toast.success('Draft deleted')
+        toast.success('Creating course deleted')
       } catch {
-        toast.error('Failed to delete draft')
+        toast.error('Failed to delete course')
       }
       return
     }
 
-    // Live/DB course deletion
+    // DB course deletion
     try {
       const doDelete = async (confirmed: boolean) =>
         fetchWithCsrf(`/api/tutor/courses/${courseId}${confirmed ? '?confirm=true' : ''}`, {
@@ -704,7 +708,7 @@ function TutorInsightsPageInner() {
       try {
         const res = await fetch('/api/tutor/courses', { credentials: 'include' })
         if (!res.ok) {
-          // Only set draft if we don't have a session that will give us the courseId
+          // Only use the Creating-mode sentinel if we don't have a session that will give us the courseId
           if (!searchParams.get('sessionId')) {
             setCourseId('insights-draft')
             setDetachedCourseName('Insights Builder')
@@ -1301,13 +1305,13 @@ function TutorInsightsPageInner() {
                   </h1>
                   <p className="text-muted-foreground text-sm">
                     {activeCourses.length > 0
-                      ? `Pick a ${saveMode} course to open the builder.`
-                      : `Create a ${saveMode} course to access the builder.`}
+                      ? `Pick ${saveMode === 'live' ? 'an Editing' : 'a Creating'} course to open the builder.`
+                      : `Create ${saveMode === 'live' ? 'an Editing' : 'a Creating'} course to access the builder.`}
                   </p>
                 </div>
                 {activeCourses.length === 0 ? (
                   <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    New {saveMode === 'live' ? 'Course' : 'Draft'}
+                    New {saveMode === 'live' ? 'Editing' : 'Creating'} Course
                   </Button>
                 ) : (
                   <div className="mt-4 grid w-full gap-3">
@@ -1349,8 +1353,10 @@ function TutorInsightsPageInner() {
     )
   }
 
-  const dataMode =
-    saveMode === 'draft' && !sessionId && courseId === 'insights-draft' ? 'detached' : 'default'
+  // In Creating mode (and not inside a live session), the course is edited from the
+  // browser's local store, not the DB API. This includes both the special
+  // insights-draft sentinel and local Creating-mode courses that haven't been persisted yet.
+  const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
 
   return (
     <div className="flex h-screen w-full flex-col items-stretch bg-gray-50">
@@ -1376,8 +1382,8 @@ function TutorInsightsPageInner() {
             onCourseChange: value => {
               setCourseId(value)
               const isDraftCourse = draftCourses.some(course => course.id === value)
-              // Only auto-switch to draft mode for draft courses.
-              // Live courses can be edited in either mode, so keep the current mode.
+              // Only auto-switch to Creating mode for Creating-mode courses.
+              // Editing-mode courses can be edited in either mode, so keep the current mode.
               if (!sessionId && isDraftCourse) {
                 setSaveMode('draft')
               }

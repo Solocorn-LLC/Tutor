@@ -114,9 +114,37 @@ export function useCourseBuilderContentModel({
         })
         const stored = localStorage.getItem(storageKey)
         if (stored) {
-          const parsed = JSON.parse(stored) as { lessons?: CourseBuilderLesson[] }
-          if (Array.isArray(parsed.lessons) && parsed.lessons.length > 0) {
-            setLoadedLessons(parsed.lessons)
+          try {
+            const parsed = JSON.parse(stored) as { lessons?: CourseBuilderLesson[] }
+            if (Array.isArray(parsed.lessons) && parsed.lessons.length > 0) {
+              setLoadedLessons(parsed.lessons)
+              return
+            }
+          } catch {
+            // ignore malformed local draft
+          }
+        }
+        // No local draft yet. For real courses, fall back to the API so the tutor sees
+        // existing content before making draft edits. Draft sentinels stay empty.
+        if (!isDraftCourseId(courseId)) {
+          try {
+            const res = await fetch(`/api/tutor/courses/${courseId}`, { credentials: 'include' })
+            if (res.ok) {
+              const data = await res.json()
+              setCourse(data.course)
+            }
+
+            const currRes = await fetch(`/api/tutor/courses/${courseId}/course`, {
+              credentials: 'include',
+            })
+            if (currRes.ok) {
+              const currData = await currRes.json()
+              if (Array.isArray(currData.lessons)) {
+                setLoadedLessons(currData.lessons)
+              }
+            }
+          } catch {
+            setLoadedLessons(null)
           }
         }
         return
@@ -144,7 +172,7 @@ export function useCourseBuilderContentModel({
     } finally {
       setLoading(false)
     }
-  }, [courseId, dataMode, detachedCourseName, detachedStorageKey])
+  }, [courseId, detachedCourseName, detachedStorageKey])
 
   useEffect(() => {
     if (shouldShowCoursePickerEmpty) {
