@@ -343,7 +343,13 @@ export function TestTaskChat({
                   (m.role === 'student' ? 'Student' : m.role === 'ai' ? defaultAiName : 'Tutor')
                 }
                 content={m.content}
-                avatarUrl={m.role === 'student' ? studentAvatarUrl : tutorAvatarUrl}
+                avatarUrl={
+                  m.role === 'student'
+                    ? studentAvatarUrl
+                    : m.role === 'ai'
+                      ? undefined
+                      : tutorAvatarUrl
+                }
                 re={m.re}
                 timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
                 isClassroom={isClassroom}

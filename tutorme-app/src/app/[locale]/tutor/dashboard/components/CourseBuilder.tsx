@@ -737,6 +737,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [isMainTabControlled, onMainTabChange]
     )
 
+    // Loading state shown while generating a text-only task's PDF snapshot
+    // before entering Test/Live so the preview has a real sourceDocument.
+    const [preparingTestPreview, setPreparingTestPreview] = useState(false)
+
     // Global styles for hiding Radix modals during drag
     useEffect(() => {
       const style = document.createElement('style')
@@ -4683,6 +4687,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.title,
     ])
 
+    const handleMainTabChange = useCallback(
+      async (v: string) => {
+        const next = v as 'live' | 'builder' | 'test-pci'
+        // Switching to Live shows liveNodes, a snapshot separate from the
+        // builderNodes the Build tab edits. Sync the latest builder content
+        // into it first so edits made in Build don't vanish on the Live tab.
+        // Bump prevMainTabRef so the transition effect skips a redundant sync.
+        if (next === 'live') {
+          handleSyncToLive()
+          prevMainTabRef.current = 'live'
+        }
+        // If the active task only has typed text, generate its PDF document
+        // before switching to Test so the preview sees a real, clickable
+        // sourceDocument just like an uploaded PDF.
+        if (next === 'test-pci' && mainBuilderTab === 'task') {
+          setPreparingTestPreview(true)
+          await ensureTaskTextDocument()
+          setPreparingTestPreview(false)
+        }
+        setMainTab(next)
+      },
+      [ensureTaskTextDocument, handleSyncToLive, mainBuilderTab, setMainTab]
+    )
+
     const assetsLesson = nodes[0]?.lessons?.[0] ?? null
 
     const applyTemplate = useCallback(
@@ -8226,30 +8254,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const isLiveMode = saveMode !== undefined ? saveMode === 'live' : coursePropsModal.isLive
 
     return (
-      <div className="course-builder-density flex h-full w-full flex-col items-stretch">
+      <div className="course-builder-density relative flex h-full w-full flex-col items-stretch">
+        {preparingTestPreview && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">Preparing task preview…</span>
+            </div>
+          </div>
+        )}
         <Tabs
           value={mainTab}
-          onValueChange={v => {
-            const next = v as 'live' | 'builder' | 'test-pci'
-            // Switching to Live shows liveNodes, a snapshot separate from the
-            // builderNodes the Build tab edits. Sync the latest builder content
-            // into it first so edits made in Build don't vanish on the Live tab.
-            // This is a local view sync only — it does not deploy to students.
-            // Bump prevMainTabRef so the transition effect skips a redundant sync.
-            if (next === 'live') {
-              handleSyncToLive()
-              prevMainTabRef.current = 'live'
-            }
-            // If the active task only has typed text, generate its PDF document
-            // before switching to Test or Live so the preview/classroom sees a
-            // real, clickable sourceDocument just like an uploaded PDF.
-            if ((next === 'test-pci' || next === 'live') && mainBuilderTab === 'task') {
-              ensureTaskTextDocument()
-            }
-            // setMainTab notifies the parent route (and updates local state when
-            // the component is used uncontrolled).
-            setMainTab(next)
-          }}
+          onValueChange={handleMainTabChange}
           className="flex h-full w-full flex-1 flex-col bg-gray-50/50 px-0 pt-0"
         >
           <div
