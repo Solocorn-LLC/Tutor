@@ -329,6 +329,18 @@ export const GET = withAuth(
     // not just the tasks.
     let scopedLessons: { lessonId: string; title: string; order: number }[] = []
     let scopedCourse: { courseId: string; name: string; variantName: string } | null = null
+    // Correlate a family task's lesson to THIS scoped course's lesson. Template and
+    // published-variant lessons don't share ids, but a published lesson records the
+    // template lesson it was copied from in `sourceLessonId`, so both resolve to the
+    // same "root" (sourceLessonId || id). Falls back to matching by `order`. Without
+    // this, a task authored under the template (or a sibling variant) has a lessonId
+    // that isn't in the scoped course's lesson list and would fall into "Other tasks"
+    // instead of nesting under its real lesson.
+    let resolveScopedLessonId: (
+      lessonId: string | null,
+      sourceId: string | null,
+      order: number | null
+    ) => string | null = lessonId => lessonId
     if (scopedCourseId) {
       const [lessonRows, courseRows, variantRows] = await Promise.all([
         drizzleDb
@@ -336,6 +348,7 @@ export const GET = withAuth(
             lessonId: courseLesson.lessonId,
             title: courseLesson.title,
             order: courseLesson.order,
+            sourceLessonId: courseLesson.sourceLessonId,
           })
           .from(courseLesson)
           .where(and(eq(courseLesson.courseId, scopedCourseId), isNull(courseLesson.deletedAt)))
@@ -356,6 +369,34 @@ export const GET = withAuth(
         title: l.title || 'Untitled lesson',
         order: typeof l.order === 'number' ? l.order : 0,
       }))
+
+      // rootId → scoped lessonId (rootId = the template lesson id both a template
+      // lesson and its published copies share) and order → scoped lessonId fallback.
+      const scopedIds = new Set(lessonRows.map(l => l.lessonId))
+      const byRoot = new Map<string, string>()
+      const byOrder = new Map<number, string>()
+      // `order` has no unique constraint; only use it as a fallback for orders that
+      // identify exactly ONE lesson, so a duplicate order never mis-nests a task
+      // (an ambiguous one falls through to "Other tasks" instead of guessing).
+      const orderCount = new Map<number, number>()
+      for (const l of lessonRows) {
+        if (typeof l.order === 'number') orderCount.set(l.order, (orderCount.get(l.order) ?? 0) + 1)
+      }
+      for (const l of lessonRows) {
+        byRoot.set(l.sourceLessonId || l.lessonId, l.lessonId)
+        if (typeof l.order === 'number' && orderCount.get(l.order) === 1)
+          byOrder.set(l.order, l.lessonId)
+      }
+      resolveScopedLessonId = (lessonId, sourceId, order) => {
+        if (!lessonId) return null
+        if (scopedIds.has(lessonId)) return lessonId // already a scoped lesson
+        const root = sourceId || lessonId
+        return (
+          byRoot.get(root) ??
+          (typeof order === 'number' ? byOrder.get(order) : undefined) ??
+          lessonId // truly foreign — leave as-is (client shows it under "Other tasks")
+        )
+      }
       scopedCourse = {
         courseId: scopedCourseId,
         name: courseRows[0]?.name || 'Course',
@@ -377,6 +418,7 @@ export const GET = withAuth(
         coursePublished: course.isPublished,
         lessonTitle: courseLesson.title,
         lessonOrder: courseLesson.order,
+        lessonSourceId: courseLesson.sourceLessonId,
       })
       .from(builderTask)
       .leftJoin(course, eq(builderTask.courseId, course.courseId))
@@ -419,24 +461,79 @@ export const GET = withAuth(
       }
     }
 
-    return NextResponse.json({
-      tasks: rows.map(r => ({
+    // Scoped-lesson metadata (title/order) keyed by the scoped lessonId, so a task
+    // remapped onto a scoped lesson also reports that lesson's title/order.
+    const scopedLessonById = new Map(scopedLessons.map(l => [l.lessonId, l]))
+
+    // Resolve each task onto a scoped-course lesson, then de-duplicate: a published
+    // variant often carries its own copy of a template task, so the family query can
+    // return both — they resolve to the same lesson and would show twice. Keep one
+    // per (resolved lesson + title + type), preferring the scoped course's OWN copy
+    // (and, failing that, the one that actually carries a document / questions).
+    const seenTaskKey = new Map<string, number>() // key → index into `deployTasks`
+    const deployTasks: Array<{
+      taskId: string
+      title: string
+      type: 'task' | 'assessment' | 'homework'
+      content: string
+      lessonId: string | null
+      courseId: string | null
+      courseName: string
+      coursePublished: boolean
+      lessonTitle: string | null
+      lessonOrder: number | null
+      dmiItems: StudentDmiItem[]
+      sourceDocument: SourceDocLite | null
+    }> = []
+    for (const r of rows) {
+      const resolvedLessonId = resolveScopedLessonId(r.lessonId, r.lessonSourceId, r.lessonOrder)
+      const scopedLesson = resolvedLessonId ? scopedLessonById.get(resolvedLessonId) : undefined
+      const dmiItems = safeItemsByTask.get(r.taskId) ?? []
+      const sourceDocument = sourceDocByTask.get(r.taskId) ?? null
+      const task = {
         taskId: r.taskId,
         title: r.title || 'Untitled task',
         type: (r.type as 'task' | 'assessment' | 'homework') || 'task',
         content: r.content || '',
-        lessonId: r.lessonId || null,
+        lessonId: resolvedLessonId || null,
         courseId: r.courseId || null,
         courseName: r.courseName || 'Uncategorized',
         coursePublished: r.coursePublished ?? false,
-        lessonTitle: r.lessonTitle || null,
-        lessonOrder: typeof r.lessonOrder === 'number' ? r.lessonOrder : null,
-        dmiItems: safeItemsByTask.get(r.taskId) ?? [],
+        // Prefer the scoped lesson's own title/order once remapped, so the label the
+        // client shows matches the lesson it's nested under.
+        lessonTitle: scopedLesson?.title ?? r.lessonTitle ?? null,
+        lessonOrder:
+          scopedLesson?.order ?? (typeof r.lessonOrder === 'number' ? r.lessonOrder : null),
+        dmiItems,
         // The task's attached document (e.g. question-paper PDF), so deploying it
         // shows the PDF in the live Materials panel. Durable fileKey; the socket
         // re-signs the url on deploy. Null when the task has no document.
-        sourceDocument: sourceDocByTask.get(r.taskId) ?? null,
-      })),
+        sourceDocument,
+      }
+      // De-dupe only within a scoped session (the family can surface variant copies).
+      if (!scopedCourseId) {
+        deployTasks.push(task)
+        continue
+      }
+      const key = `${task.lessonId ?? '∅'}|${task.type}|${task.title.trim().toLowerCase()}`
+      const existingIdx = seenTaskKey.get(key)
+      if (existingIdx === undefined) {
+        seenTaskKey.set(key, deployTasks.length)
+        deployTasks.push(task)
+        continue
+      }
+      // Duplicate: keep the better copy — scoped course's own wins, else the richer
+      // one (has a document or questions).
+      const existing = deployTasks[existingIdx]
+      const score = (t: typeof task) =>
+        (t.courseId === scopedCourseId ? 4 : 0) +
+        (t.sourceDocument ? 2 : 0) +
+        (t.dmiItems.length > 0 ? 1 : 0)
+      if (score(task) > score(existing)) deployTasks[existingIdx] = task
+    }
+
+    return NextResponse.json({
+      tasks: deployTasks,
       // Full structure for a course-scoped session (empty for all-courses mode):
       // the session course (with its variant name) + every lesson, so the panel
       // renders the whole course, not just the lessons that happen to have tasks.

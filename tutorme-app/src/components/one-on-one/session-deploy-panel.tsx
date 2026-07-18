@@ -339,72 +339,99 @@ export function SessionDeployPanel({
 
                     {!isCollapsed ? (
                       <div className="flex flex-col gap-2 p-2">
-                        {c.lessons.map(l => (
-                          <div key={l.lessonId}>
-                            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                              {l.lessonTitle}
-                            </p>
-                            {l.tasks.length === 0 ? (
-                              <p className="px-1 pb-1 text-[11px] italic text-slate-300">
-                                No deployable tasks yet
-                              </p>
-                            ) : null}
-                            <ul className="flex flex-col gap-1.5">
-                              {l.tasks.map(t => (
-                                <li
-                                  key={t.taskId}
-                                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"
+                        {c.lessons.map(l => {
+                          const hasTasks = l.tasks.length > 0
+                          const lKey = `l:${l.lessonId}`
+                          const lessonCollapsed = collapsed.has(lKey)
+                          return (
+                            <div key={l.lessonId}>
+                              {hasTasks ? (
+                                <button
+                                  onClick={() => toggle(lKey)}
+                                  aria-expanded={!lessonCollapsed}
+                                  className="mb-1 flex w-full items-center gap-1 px-1 py-0.5 text-left"
                                 >
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    {t.dmiItems.length > 0 ? (
-                                      <ListChecks className="h-4 w-4 shrink-0 text-blue-400" />
-                                    ) : (
-                                      <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                                    )}
-                                    <div className="min-w-0">
-                                      <p className="truncate text-sm font-medium text-slate-900">
-                                        {t.title}
-                                      </p>
-                                      <p className="flex items-center gap-1 text-[11px] capitalize text-slate-400">
-                                        {t.type}
+                                  {lessonCollapsed ? (
+                                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-400" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3 shrink-0 text-slate-400" />
+                                  )}
+                                  <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                    {l.lessonTitle}
+                                  </span>
+                                  <span className="shrink-0 rounded-full bg-slate-100 px-1.5 text-[10px] font-semibold text-slate-500">
+                                    {l.tasks.length}
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="mb-1 flex items-center gap-1 px-1 py-0.5">
+                                  <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-slate-300">
+                                    {l.lessonTitle}
+                                  </span>
+                                  <span className="shrink-0 text-[10px] italic text-slate-300">
+                                    empty
+                                  </span>
+                                </div>
+                              )}
+                              {hasTasks && !lessonCollapsed ? (
+                                <ul className="flex flex-col gap-1.5">
+                                  {l.tasks.map(t => (
+                                    <li
+                                      key={t.taskId}
+                                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"
+                                    >
+                                      <div className="flex min-w-0 items-center gap-2">
                                         {t.dmiItems.length > 0 ? (
-                                          <span className="lowercase text-blue-500">
-                                            · {t.dmiItems.length} q
-                                            {t.dmiItems.length === 1 ? '' : 's'}
-                                          </span>
-                                        ) : null}
-                                        {t.sourceDocument ? (
-                                          <span className="inline-flex items-center gap-0.5 lowercase text-rose-500">
-                                            · <FileText className="h-3 w-3" /> pdf
-                                          </span>
-                                        ) : null}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-1">
-                                    <button
-                                      onClick={() => setPreviewTask(t)}
-                                      title="Preview the full task before deploying"
-                                      aria-label={`Preview "${t.title}"`}
-                                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                                    >
-                                      <Eye className="h-3.5 w-3.5" />
-                                      View
-                                    </button>
-                                    <button
-                                      onClick={() => deploy(t)}
-                                      disabled={deployingId === t.taskId}
-                                      className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
-                                    >
-                                      <Send className="h-3 w-3" />
-                                      Deploy
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
+                                          <ListChecks className="h-4 w-4 shrink-0 text-blue-400" />
+                                        ) : (
+                                          <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                                        )}
+                                        <div className="min-w-0">
+                                          <p className="truncate text-sm font-medium text-slate-900">
+                                            {t.title}
+                                          </p>
+                                          <p className="flex items-center gap-1 text-[11px] capitalize text-slate-400">
+                                            {t.type}
+                                            {t.dmiItems.length > 0 ? (
+                                              <span className="lowercase text-blue-500">
+                                                · {t.dmiItems.length} q
+                                                {t.dmiItems.length === 1 ? '' : 's'}
+                                              </span>
+                                            ) : null}
+                                            {t.sourceDocument ? (
+                                              <span className="inline-flex items-center gap-0.5 lowercase text-rose-500">
+                                                · <FileText className="h-3 w-3" /> pdf
+                                              </span>
+                                            ) : null}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex shrink-0 items-center gap-1">
+                                        <button
+                                          onClick={() => setPreviewTask(t)}
+                                          title="Preview the full task before deploying"
+                                          aria-label={`Preview "${t.title}"`}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                          View
+                                        </button>
+                                        <button
+                                          onClick={() => deploy(t)}
+                                          disabled={deployingId === t.taskId}
+                                          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                        >
+                                          <Send className="h-3 w-3" />
+                                          Deploy
+                                        </button>
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          )
+                        })}
                       </div>
                     ) : null}
                   </div>
