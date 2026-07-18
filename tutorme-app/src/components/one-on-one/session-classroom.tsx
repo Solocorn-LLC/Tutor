@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Users,
   Clock,
+  BarChart3,
 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -40,11 +41,12 @@ import {
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { SessionChatPanel } from '@/components/one-on-one/session-chat-panel'
 import { SessionMonitorPanel } from '@/components/one-on-one/session-monitor-panel'
+import { SessionPollPanel, SessionPollCard } from '@/components/one-on-one/session-poll'
 import { toast } from 'sonner'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
-type ActivePanel = 'deploy' | 'materials' | 'responses' | 'chat' | 'monitor' | null
+type ActivePanel = 'deploy' | 'materials' | 'responses' | 'chat' | 'monitor' | 'poll' | null
 interface BoardTarget {
   ownerId: string
   ownerName: string
@@ -212,8 +214,15 @@ export function SessionClassroom({
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
   // room_state replay instead of missing everything that happened before.
-  const { tasks, responsesByTask, myCompletedTaskIds, myResultByTask, students, chatMessages } =
-    useSessionRoomState(socket, session?.user?.id)
+  const {
+    tasks,
+    responsesByTask,
+    myCompletedTaskIds,
+    myResultByTask,
+    students,
+    chatMessages,
+    activePoll,
+  } = useSessionRoomState(socket, session?.user?.id)
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -328,6 +337,17 @@ export function SessionClassroom({
               <Users className="h-3.5 w-3.5" />
               Monitor
             </button>
+            <button
+              type="button"
+              onClick={() => toggle('poll')}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Poll
+              {activePoll ? (
+                <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              ) : null}
+            </button>
             {courseId ? (
               <button
                 type="button"
@@ -438,6 +458,14 @@ export function SessionClassroom({
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
+            {activePanel === 'poll' && isTutor ? (
+              <SessionPollPanel
+                sessionId={sessionId}
+                socket={socket}
+                activePoll={activePoll}
+                onClose={() => setActivePanel(null)}
+              />
+            ) : null}
             {activePanel === 'monitor' && isTutor ? (
               <SessionMonitorPanel
                 sessionId={sessionId}
@@ -486,6 +514,19 @@ export function SessionClassroom({
             />
           </DialogContent>
         </Dialog>
+      ) : null}
+
+      {/* Live poll — auto-shown to students while one is active (the tutor drives it
+          from the Poll panel). Keyed by poll id so a new poll resets the card. */}
+      {activePoll && !isTutor ? (
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2">
+          <SessionPollCard
+            key={activePoll.id}
+            sessionId={sessionId}
+            socket={socket}
+            poll={activePoll}
+          />
+        </div>
       ) : null}
 
       {/* Room closed — the tutor ended it, or the server's duration timeout did. */}

@@ -43,6 +43,22 @@ export interface SessionStudentResponse {
   correctAnswers?: Record<string, string> | null
 }
 
+export interface SessionPollTally {
+  pollId: string
+  counts: number[]
+  total: number
+}
+
+/** The active in-session live poll as the client tracks it. */
+export interface SessionActivePoll {
+  id: string
+  question: string
+  options: string[]
+  tally?: SessionPollTally | null
+  /** This user's chosen option (hydrated on join; set locally on vote). */
+  myOptionIndex?: number | null
+}
+
 /** A room chat message (mirrors the socket server's ChatMessage). */
 export interface SessionChatMessage {
   id: string
@@ -81,6 +97,7 @@ interface RoomStatePayload {
   students?: Array<Partial<SessionRosterStudent> & { userId: string }>
   tasks?: Array<SessionRoomTask & { responses?: Record<string, Record<string, string>> }>
   chatHistory?: SessionChatMessage[]
+  activePoll?: SessionActivePoll | null
 }
 
 interface TaskCompletedEvent {
@@ -123,6 +140,9 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
   // Room chat — hydrated from room_state on join, appended live. Held here (in the
   // always-mounted classroom) so the chat panel shows history even when opened late.
   const [chatMessages, setChatMessages] = useState<SessionChatMessage[]>([])
+  // The active in-session live poll (null when none). Hydrated on join, updated by
+  // poll:started / poll:tally / poll:closed.
+  const [activePoll, setActivePoll] = useState<SessionActivePoll | null>(null)
 
   useEffect(() => {
     if (!socket) return
@@ -170,6 +190,7 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     const onRoomState = (state: RoomStatePayload) => {
       if (Array.isArray(state?.students)) mergeStudents(state.students)
       if (Array.isArray(state?.chatHistory)) mergeChat(state.chatHistory)
+      if (state?.activePoll !== undefined) setActivePoll(state.activePoll)
       if (!Array.isArray(state?.tasks)) return
       const nameById = new Map((state.students ?? []).map(s => [s.userId, s.name || 'Student']))
       setTasks(prev => {
@@ -269,6 +290,21 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       if (msg?.id && typeof msg.text === 'string') mergeChat([msg])
     }
 
+    const onPollStarted = (p: { id: string; question: string; options: string[] }) => {
+      if (!p?.id) return
+      setActivePoll({
+        id: p.id,
+        question: p.question,
+        options: p.options ?? [],
+        tally: { pollId: p.id, counts: (p.options ?? []).map(() => 0), total: 0 },
+        myOptionIndex: null,
+      })
+    }
+    const onPollTally = (t: SessionPollTally) =>
+      setActivePoll(cur => (cur && cur.id === t?.pollId ? { ...cur, tally: t } : cur))
+    const onPollClosed = (t: SessionPollTally) =>
+      setActivePoll(cur => (cur && cur.id === t?.pollId ? null : cur))
+
     socket.on('room_state', onRoomState)
     socket.on('task:deployed', onDeployed)
     socket.on('task:updated', onUpdated)
@@ -277,6 +313,9 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     socket.on('student_joined', onStudentJoined)
     socket.on('chat_message', onChatMessage)
     socket.on('student_state_update', onStudentState)
+    socket.on('poll:started', onPollStarted)
+    socket.on('poll:tally', onPollTally)
+    socket.on('poll:closed', onPollClosed)
     return () => {
       socket.off('room_state', onRoomState)
       socket.off('task:deployed', onDeployed)
@@ -286,6 +325,9 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       socket.off('student_joined', onStudentJoined)
       socket.off('chat_message', onChatMessage)
       socket.off('student_state_update', onStudentState)
+      socket.off('poll:started', onPollStarted)
+      socket.off('poll:tally', onPollTally)
+      socket.off('poll:closed', onPollClosed)
     }
   }, [socket])
 
@@ -314,5 +356,13 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     return out
   }, [responsesByTask, myUserId])
 
-  return { tasks, responsesByTask, myCompletedTaskIds, myResultByTask, students, chatMessages }
+  return {
+    tasks,
+    responsesByTask,
+    myCompletedTaskIds,
+    myResultByTask,
+    students,
+    chatMessages,
+    activePoll,
+  }
 }

@@ -59,6 +59,17 @@ export interface StudentState {
   joinedAt: number
 }
 
+/** An ephemeral in-session live poll (one active per room). Not persisted — a
+ *  quick pulse-check the tutor runs live; cleared when closed or the room ends. */
+export interface LivePoll {
+  id: string
+  question: string
+  options: string[]
+  /** studentId → chosen option index. */
+  votes: Record<string, number>
+  startedAt: number
+}
+
 export interface ClassRoom {
   id: string
   tutorId: string
@@ -67,6 +78,7 @@ export interface ClassRoom {
   chatHistory: ChatMessage[]
   tasks: LiveTask[]
   polls?: any[]
+  activePoll?: LivePoll | null
   codeEditorContent?: string
   codeLanguage?: string
   createdAt: Date
@@ -872,6 +884,61 @@ export async function initEnhancedSocketServer(server: NetServer) {
             console.error('[chat_message] Failed to persist chat message:', err)
           })
       }
+    })
+
+    // --- Live poll (ephemeral, one active per room) ---
+    // Tutor launches a quick poll; students vote; everyone sees the live tally.
+    socket.on('poll:launch', (data: { roomId: string; question?: string; options?: string[] }) => {
+      if (socket.data.role !== 'tutor') return
+      const roomId = data?.roomId || socket.data.roomId
+      const room = roomId ? activeRooms.get(roomId) : null
+      // `roomId` is client-supplied — only the room's OWN tutor may run a poll in it,
+      // else any tutor could clobber another room's poll (mirrors tutor:end_session).
+      if (!room || room.tutorId !== socket.data.userId) return
+      const question = String(data?.question ?? '')
+        .slice(0, 300)
+        .trim()
+      const options = (Array.isArray(data?.options) ? data.options : [])
+        .map(o => String(o).slice(0, 140).trim())
+        .filter(Boolean)
+        .slice(0, 8)
+      if (!question || options.length < 2) return
+      const poll: LivePoll = {
+        id: crypto.randomUUID(),
+        question,
+        options,
+        votes: {},
+        startedAt: Date.now(),
+      }
+      room.activePoll = poll
+      room.lastActivity = Date.now()
+      io.to(roomId).emit('poll:started', { id: poll.id, question, options })
+    })
+
+    socket.on('poll:vote', (data: { roomId: string; pollId: string; optionIndex: number }) => {
+      const roomId = data?.roomId || socket.data.roomId
+      const room = roomId ? activeRooms.get(roomId) : null
+      const poll = room?.activePoll
+      const uid = socket.data.userId
+      // Only a member of THIS room's roster may vote (defense in depth: the pollId
+      // is only broadcast to room members, but don't rely on that alone).
+      if (!room || !poll || !uid || poll.id !== data?.pollId || !room.students.has(uid)) return
+      const idx = data?.optionIndex
+      if (typeof idx !== 'number' || idx < 0 || idx >= poll.options.length) return
+      poll.votes[uid] = idx
+      room.lastActivity = Date.now()
+      io.to(roomId).emit('poll:tally', pollTally(poll))
+    })
+
+    socket.on('poll:close', (data: { roomId: string; pollId: string }) => {
+      if (socket.data.role !== 'tutor') return
+      const roomId = data?.roomId || socket.data.roomId
+      const room = roomId ? activeRooms.get(roomId) : null
+      if (!room || room.tutorId !== socket.data.userId) return
+      if (!room.activePoll || room.activePoll.id !== data?.pollId) return
+      const tally = pollTally(room.activePoll)
+      room.activePoll = null
+      io.to(roomId).emit('poll:closed', tally)
     })
 
     // Enhanced room management with authentication
@@ -2731,6 +2798,24 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
 // Helper functions (implementing join_class logic)
 
+function pollTally(poll: LivePoll): { pollId: string; counts: number[]; total: number } {
+  const counts = new Array(poll.options.length).fill(0)
+  for (const idx of Object.values(poll.votes)) if (idx >= 0 && idx < counts.length) counts[idx]++
+  return { pollId: poll.id, counts, total: Object.keys(poll.votes).length }
+}
+
+/** The active poll as a joining client should see it: options + live tally + the
+ *  joiner's own vote (so a late-joiner or reconnect resumes exactly where they were). */
+function formatActivePoll(poll: LivePoll, userId: string) {
+  return {
+    id: poll.id,
+    question: poll.question,
+    options: poll.options,
+    tally: pollTally(poll),
+    myOptionIndex: userId in poll.votes ? poll.votes[userId] : null,
+  }
+}
+
 async function addStudentToRoom(socket: Socket, room: ClassRoom) {
   const studentState: StudentState = {
     userId: socket.data.userId,
@@ -2769,6 +2854,7 @@ async function addStudentToRoom(socket: Socket, room: ClassRoom) {
     chatHistory: room.chatHistory.slice(-50),
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
+    activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
   })
 }
 
@@ -2789,6 +2875,7 @@ async function addTutorToRoom(socket: Socket, room: ClassRoom) {
     chatHistory: room.chatHistory,
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
+    activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
   })
 }
 
