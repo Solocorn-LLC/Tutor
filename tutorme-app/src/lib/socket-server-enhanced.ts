@@ -2629,6 +2629,26 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    // --- Tutor ends the session for everyone ---
+    // Mirrors the server's own duration-timeout end (mark the LiveSession ended +
+    // broadcast session:ended), just triggered on demand by the tutor. The
+    // booking-completion sweep runs independently, so this only closes the live
+    // room early — no refund/series side effects.
+    socket.on('tutor:end_session', async (data: { roomId: string }) => {
+      if (socket.data.role !== 'tutor') return
+      const roomId = data?.roomId || socket.data.roomId
+      if (!roomId) return
+      try {
+        await drizzleDb
+          .update(liveSession)
+          .set({ status: 'ended', endedAt: new Date() })
+          .where(eq(liveSession.sessionId, roomId))
+      } catch (err) {
+        console.warn('[tutor:end_session] failed to mark session ended:', err)
+      }
+      io.to(roomId).emit('session:ended', { sessionId: roomId, reason: 'tutor' })
+    })
+
     // Enhanced disconnect handler with cleanup
     socket.on('disconnect', async () => {
       console.log(`Client disconnected: ${socket.id}`)

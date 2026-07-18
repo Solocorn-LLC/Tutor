@@ -24,6 +24,7 @@ import {
   BookOpen,
   MessageSquare,
   Users,
+  Clock,
 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -86,6 +87,10 @@ export function SessionClassroom({
   // Bumped when the Edit-course modal (iframe) reports a save, so the deploy
   // panel refetches instead of serving pre-edit task content.
   const [deployRefreshKey, setDeployRefreshKey] = useState(0)
+  // Session timing (for the countdown) + whether the room has been ended.
+  const [timing, setTiming] = useState<{ endTs: number } | null>(null)
+  const [nowTs, setNowTs] = useState(0)
+  const [ended, setEnded] = useState(false)
   const myId = session?.user?.id ?? ''
 
   // Listen for the embedded course-editor's save postMessage and refresh the
@@ -154,6 +159,56 @@ export function SessionClassroom({
     }
   }, [socket, isTutor, myId])
 
+  // Session countdown: fetch the scheduled end once, then tick a coarse clock.
+  useEffect(() => {
+    if (!sessionId) return
+    let active = true
+    fetch(`/api/one-on-one/session-status?sessionId=${encodeURIComponent(sessionId)}`, {
+      credentials: 'include',
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!active || !d?.scheduledAt) return
+        const start = new Date(d.scheduledAt).getTime()
+        const mins = typeof d.durationMinutes === 'number' ? d.durationMinutes : 60
+        if (Number.isFinite(start)) setTiming({ endTs: start + mins * 60_000 })
+        if (d.status === 'ended') setEnded(true)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [sessionId])
+  useEffect(() => {
+    setNowTs(Date.now())
+    const iv = setInterval(() => setNowTs(Date.now()), 20_000)
+    return () => clearInterval(iv)
+  }, [])
+
+  // Everyone leaves the room when it ends (tutor End, or the server's timeout end).
+  useEffect(() => {
+    if (!socket) return
+    const onEnded = () => setEnded(true)
+    socket.on('session:ended', onEnded)
+    return () => {
+      socket.off('session:ended', onEnded)
+    }
+  }, [socket])
+
+  const endSession = () => {
+    if (!socket) return
+    if (!window.confirm('End this session for everyone? This closes the room.')) return
+    socket.emit('tutor:end_session', { roomId: sessionId })
+  }
+
+  const remainingMs = timing && nowTs ? timing.endTs - nowTs : null
+  const timerLabel =
+    remainingMs == null
+      ? ''
+      : remainingMs > 0
+        ? `${Math.max(1, Math.ceil(remainingMs / 60_000))}m left`
+        : `Overdue ${Math.floor(-remainingMs / 60_000)}m`
+
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
   // room_state replay instead of missing everything that happened before.
@@ -189,6 +244,31 @@ export function SessionClassroom({
           videoComponent={video}
         />
       </FallbackBoundary>
+
+      {/* Session countdown (everyone) + tutor "End session". */}
+      {timing ? (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-2">
+          <div className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur">
+            <Clock className="h-3.5 w-3.5 text-slate-500" />
+            <span
+              className={
+                remainingMs != null && remainingMs < 0 ? 'text-rose-600' : 'text-slate-800'
+              }
+            >
+              {timerLabel}
+            </span>
+          </div>
+          {isTutor ? (
+            <button
+              type="button"
+              onClick={endSession}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-rose-600/90 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur hover:bg-rose-600"
+            >
+              End
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Linked-course chip — so everyone in the room can see which course this
           session is built around. For the tutor the chip IS the deploy trigger
@@ -406,6 +486,16 @@ export function SessionClassroom({
             />
           </DialogContent>
         </Dialog>
+      ) : null}
+
+      {/* Room closed — the tutor ended it, or the server's duration timeout did. */}
+      {ended ? (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/95 px-6 text-center text-white">
+          <p className="text-lg font-semibold">This session has ended</p>
+          <p className="max-w-sm text-sm text-white/70">
+            The room is closed. You can leave a review from your dashboard.
+          </p>
+        </div>
       ) : null}
     </div>
   )
