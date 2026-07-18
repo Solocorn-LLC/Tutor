@@ -892,7 +892,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (socket.data.role !== 'tutor') return
       const roomId = data?.roomId || socket.data.roomId
       const room = roomId ? activeRooms.get(roomId) : null
-      if (!room) return
+      // `roomId` is client-supplied — only the room's OWN tutor may run a poll in it,
+      // else any tutor could clobber another room's poll (mirrors tutor:end_session).
+      if (!room || room.tutorId !== socket.data.userId) return
       const question = String(data?.question ?? '')
         .slice(0, 300)
         .trim()
@@ -918,7 +920,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
       const room = roomId ? activeRooms.get(roomId) : null
       const poll = room?.activePoll
       const uid = socket.data.userId
-      if (!room || !poll || !uid || poll.id !== data?.pollId) return
+      // Only a member of THIS room's roster may vote (defense in depth: the pollId
+      // is only broadcast to room members, but don't rely on that alone).
+      if (!room || !poll || !uid || poll.id !== data?.pollId || !room.students.has(uid)) return
       const idx = data?.optionIndex
       if (typeof idx !== 'number' || idx < 0 || idx >= poll.options.length) return
       poll.votes[uid] = idx
@@ -930,7 +934,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (socket.data.role !== 'tutor') return
       const roomId = data?.roomId || socket.data.roomId
       const room = roomId ? activeRooms.get(roomId) : null
-      if (!room || !room.activePoll || room.activePoll.id !== data?.pollId) return
+      if (!room || room.tutorId !== socket.data.userId) return
+      if (!room.activePoll || room.activePoll.id !== data?.pollId) return
       const tally = pollTally(room.activePoll)
       room.activePoll = null
       io.to(roomId).emit('poll:closed', tally)
