@@ -9,6 +9,7 @@ import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
+import { authorizeSessionStudent } from '@/lib/live/session-student-auth'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -2729,37 +2730,6 @@ export async function initEnhancedSocketServer(server: NetServer) {
 }
 
 // Helper functions (implementing join_class logic)
-/**
- * May this student be a live participant of `sessionId`? Mirrors the HTTP room-join
- * authorization so the two never disagree: a course-linked session accepts an
- * ENROLLED student (matched across the whole template↔published variant family) OR
- * a booking-seat holder (SessionParticipant, how 1-on-1/group attendees join); a
- * course-less session gates on neither. Returning the seat check is what lets a
- * 1-on-1/group participant appear in the tutor's roster + submit tasks.
- */
-async function authorizeSessionStudent(userId: string, sessionId: string): Promise<boolean> {
-  if (!userId || !sessionId) return false
-  const liveSessionRow = await drizzleDb.query.liveSession.findFirst({
-    where: eq(liveSession.sessionId, sessionId),
-  })
-  if (!liveSessionRow?.courseId) return true // course-less session — no enrollment gate
-  const enrolledFamily = await expandToCourseFamily([liveSessionRow.courseId])
-  const enrolled = await drizzleDb.query.courseEnrollment.findFirst({
-    where: and(
-      eq(courseEnrollment.studentId, userId),
-      inArray(courseEnrollment.courseId, enrolledFamily)
-    ),
-  })
-  if (enrolled) return true
-  const [participant] = await drizzleDb
-    .select({ id: sessionParticipant.participantId })
-    .from(sessionParticipant)
-    .where(
-      and(eq(sessionParticipant.sessionId, sessionId), eq(sessionParticipant.studentId, userId))
-    )
-    .limit(1)
-  return !!participant
-}
 
 async function addStudentToRoom(socket: Socket, room: ClassRoom) {
   const studentState: StudentState = {
