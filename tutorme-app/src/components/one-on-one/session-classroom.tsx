@@ -139,27 +139,47 @@ export function SessionClassroom({
       </FallbackBoundary>
 
       {/* Linked-course chip — so everyone in the room can see which course this
-          session is built around (the tutor's deploy/edit affordances are scoped
-          to it). Absent for a course-less session. */}
+          session is built around. For the tutor the chip IS the deploy trigger
+          (clicking it opens the deploy panel, exactly like the Deploy button);
+          for students it's a plain label. Absent for a course-less session. */}
       {courseName ? (
-        <div className="pointer-events-none absolute left-3 top-3 z-40 inline-flex max-w-[45vw] items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur">
-          <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-          <span className="truncate">{courseName}</span>
-        </div>
+        isTutor ? (
+          <button
+            type="button"
+            onClick={() => toggle('deploy')}
+            title={`Deploy tasks & assessments for "${courseName}"`}
+            aria-label={`Deploy tasks & assessments for ${courseName}`}
+            className="pointer-events-auto absolute left-3 top-3 z-40 inline-flex max-w-[45vw] items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur transition hover:bg-white"
+          >
+            <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+            <span className="truncate">{courseName}</span>
+            <Send className="h-3 w-3 shrink-0 text-blue-600" />
+          </button>
+        ) : (
+          <div className="pointer-events-none absolute left-3 top-3 z-40 inline-flex max-w-[45vw] items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur">
+            <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+            <span className="truncate">{courseName}</span>
+          </div>
+        )
       ) : null}
 
       {/* Classroom toolbar: deploy + responses (tutor) + materials (everyone). */}
       <div className="pointer-events-none absolute right-3 top-3 z-40 flex gap-2">
         {isTutor ? (
           <>
-            <button
-              type="button"
-              onClick={() => toggle('deploy')}
-              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
-            >
-              <Send className="h-3.5 w-3.5" />
-              Deploy
-            </button>
+            {/* Deploy lives on the course-title chip when a course is linked
+                (see above). A course-less session has no chip, so it keeps the
+                explicit toolbar Deploy button. */}
+            {!courseName ? (
+              <button
+                type="button"
+                onClick={() => toggle('deploy')}
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Deploy
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => toggle('responses')}

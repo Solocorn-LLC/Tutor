@@ -13,8 +13,11 @@ import {
   ChevronRight,
   ChevronDown,
   BookOpen,
+  Eye,
 } from 'lucide-react'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
+import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 interface Deployable {
   taskId: string
@@ -92,6 +95,8 @@ export function SessionDeployPanel({
   const [structure, setStructure] = useState<CourseStructure>({ course: null, lessons: [] })
   const [loading, setLoading] = useState(true)
   const [deployingId, setDeployingId] = useState<string | null>(null)
+  /** Task whose full content the tutor is previewing before deploying. */
+  const [previewTask, setPreviewTask] = useState<Deployable | null>(null)
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -250,151 +255,333 @@ export function SessionDeployPanel({
   }
 
   return (
-    <div className="pointer-events-auto flex h-full w-[22rem] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">Deploy from your courses</h3>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {!loading && items.length > 0 ? (
-        <div className="border-b p-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search tasks, courses, lessons…"
-              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
+    <>
+      <div className="pointer-events-auto flex h-full w-[22rem] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h3 className="text-sm font-semibold text-slate-900">Deploy from your courses</h3>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        {!loading && items.length > 0 ? (
+          <div className="border-b p-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search tasks, courses, lessons…"
+                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
           </div>
-        ) : courses.every(c => c.lessons.length === 0) ? (
-          // Empty = no lessons AND no tasks (a course-scoped session still shows
-          // its lessons, so this only fires for a truly empty course, an
-          // all-courses session with no tasks, or a search that matched nothing).
-          <div className="rounded-lg border border-dashed px-4 py-10 text-center text-xs text-slate-500">
-            {query
-              ? `No tasks match “${query}”.`
-              : courseId
-                ? 'This session is scoped to its course, and that course has no lessons or tasks yet. Add them in the course builder.'
-                : 'No saved tasks to deploy yet. Create tasks in the course builder first.'}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {courses.map(c => {
-              const isCollapsed = collapsed.has(c.courseId)
-              return (
-                <div key={c.courseId} className="rounded-lg border border-slate-200">
-                  <button
-                    onClick={() => toggle(c.courseId)}
-                    className="flex w-full items-center gap-1.5 rounded-t-lg bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
-                  >
-                    {isCollapsed ? (
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    )}
-                    <BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-xs font-semibold text-slate-800">
-                        {c.courseName}
-                      </span>
-                      {c.variantName ? (
-                        <span className="truncate text-[10px] font-medium text-slate-400">
-                          {c.variantName}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={
-                        'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' +
-                        (c.coursePublished
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-amber-100 text-amber-700')
-                      }
+        ) : null}
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            </div>
+          ) : courses.every(c => c.lessons.length === 0) ? (
+            // Empty = no lessons AND no tasks (a course-scoped session still shows
+            // its lessons, so this only fires for a truly empty course, an
+            // all-courses session with no tasks, or a search that matched nothing).
+            <div className="rounded-lg border border-dashed px-4 py-10 text-center text-xs text-slate-500">
+              {query
+                ? `No tasks match “${query}”.`
+                : courseId
+                  ? 'This session is scoped to its course, and that course has no lessons or tasks yet. Add them in the course builder.'
+                  : 'No saved tasks to deploy yet. Create tasks in the course builder first.'}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {courses.map(c => {
+                const isCollapsed = collapsed.has(c.courseId)
+                return (
+                  <div key={c.courseId} className="rounded-lg border border-slate-200">
+                    <button
+                      onClick={() => toggle(c.courseId)}
+                      className="flex w-full items-center gap-1.5 rounded-t-lg bg-slate-50 px-2.5 py-2 text-left hover:bg-slate-100"
                     >
-                      {c.coursePublished ? 'Published' : 'Draft'}
-                    </span>
-                    <span className="shrink-0 text-[10px] text-slate-400">{c.taskCount}</span>
-                  </button>
+                      {isCollapsed ? (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      )}
+                      <BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-xs font-semibold text-slate-800">
+                          {c.courseName}
+                        </span>
+                        {c.variantName ? (
+                          <span className="truncate text-[10px] font-medium text-slate-400">
+                            {c.variantName}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={
+                          'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ' +
+                          (c.coursePublished
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700')
+                        }
+                      >
+                        {c.coursePublished ? 'Published' : 'Draft'}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-slate-400">{c.taskCount}</span>
+                    </button>
 
-                  {!isCollapsed ? (
-                    <div className="flex flex-col gap-2 p-2">
-                      {c.lessons.map(l => (
-                        <div key={l.lessonId}>
-                          <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                            {l.lessonTitle}
-                          </p>
-                          {l.tasks.length === 0 ? (
-                            <p className="px-1 pb-1 text-[11px] italic text-slate-300">
-                              No deployable tasks yet
+                    {!isCollapsed ? (
+                      <div className="flex flex-col gap-2 p-2">
+                        {c.lessons.map(l => (
+                          <div key={l.lessonId}>
+                            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                              {l.lessonTitle}
                             </p>
-                          ) : null}
-                          <ul className="flex flex-col gap-1.5">
-                            {l.tasks.map(t => (
-                              <li
-                                key={t.taskId}
-                                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"
-                              >
-                                <div className="flex min-w-0 items-center gap-2">
-                                  {t.dmiItems.length > 0 ? (
-                                    <ListChecks className="h-4 w-4 shrink-0 text-blue-400" />
-                                  ) : (
-                                    <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-slate-900">
-                                      {t.title}
-                                    </p>
-                                    <p className="flex items-center gap-1 text-[11px] capitalize text-slate-400">
-                                      {t.type}
-                                      {t.dmiItems.length > 0 ? (
-                                        <span className="lowercase text-blue-500">
-                                          · {t.dmiItems.length} q
-                                          {t.dmiItems.length === 1 ? '' : 's'}
-                                        </span>
-                                      ) : null}
-                                      {t.sourceDocument ? (
-                                        <span className="inline-flex items-center gap-0.5 lowercase text-rose-500">
-                                          · <FileText className="h-3 w-3" /> pdf
-                                        </span>
-                                      ) : null}
-                                    </p>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => deploy(t)}
-                                  disabled={deployingId === t.taskId}
-                                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                            {l.tasks.length === 0 ? (
+                              <p className="px-1 pb-1 text-[11px] italic text-slate-300">
+                                No deployable tasks yet
+                              </p>
+                            ) : null}
+                            <ul className="flex flex-col gap-1.5">
+                              {l.tasks.map(t => (
+                                <li
+                                  key={t.taskId}
+                                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"
                                 >
-                                  <Send className="h-3 w-3" />
-                                  Deploy
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    {t.dmiItems.length > 0 ? (
+                                      <ListChecks className="h-4 w-4 shrink-0 text-blue-400" />
+                                    ) : (
+                                      <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-medium text-slate-900">
+                                        {t.title}
+                                      </p>
+                                      <p className="flex items-center gap-1 text-[11px] capitalize text-slate-400">
+                                        {t.type}
+                                        {t.dmiItems.length > 0 ? (
+                                          <span className="lowercase text-blue-500">
+                                            · {t.dmiItems.length} q
+                                            {t.dmiItems.length === 1 ? '' : 's'}
+                                          </span>
+                                        ) : null}
+                                        {t.sourceDocument ? (
+                                          <span className="inline-flex items-center gap-0.5 lowercase text-rose-500">
+                                            · <FileText className="h-3 w-3" /> pdf
+                                          </span>
+                                        ) : null}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    <button
+                                      onClick={() => setPreviewTask(t)}
+                                      title="Preview the full task before deploying"
+                                      aria-label={`Preview "${t.title}"`}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                      View
+                                    </button>
+                                    <button
+                                      onClick={() => deploy(t)}
+                                      disabled={deployingId === t.taskId}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                    >
+                                      <Send className="h-3 w-3" />
+                                      Deploy
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      {previewTask ? (
+        <TaskPreviewOverlay
+          task={previewTask}
+          deploying={deployingId === previewTask.taskId}
+          onDeploy={() => {
+            deploy(previewTask)
+            setPreviewTask(null)
+          }}
+          onClose={() => setPreviewTask(null)}
+        />
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * Full read-only preview of a task/assessment BEFORE it is deployed, so the
+ * tutor can see exactly what students will get: the attached document (if any),
+ * the task content, and every question — rendered from the same student-safe
+ * `dmiItems` (answers already stripped server-side) the students receive. A
+ * "Deploy" action is offered inline so preview → deploy is one flow.
+ */
+function TaskPreviewOverlay({
+  task,
+  deploying,
+  onDeploy,
+  onClose,
+}: {
+  task: Deployable
+  deploying: boolean
+  onDeploy: () => void
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Preview of ${task.title}`}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b px-5 py-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">
+              Preview · {task.type}
+            </p>
+            <h3 className="truncate text-base font-semibold text-slate-900">{task.title}</h3>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close preview"
+            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {task.sourceDocument ? (
+            <div className="mb-4 h-[55vh] w-full">
+              <TaskDocumentCard sourceDocument={task.sourceDocument} alwaysOpen />
+            </div>
+          ) : null}
+
+          {task.content ? (
+            <div
+              className="prose prose-sm mb-4 max-w-none text-slate-700"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
+            />
+          ) : null}
+
+          {task.dmiItems.length > 0 ? (
+            <ol className="flex flex-col gap-4">
+              {task.dmiItems.map((q, i) => (
+                <li key={q.id} className="rounded-lg border border-slate-200 p-3">
+                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {q.questionLabel || `Question ${q.questionNumber || i + 1}`}
+                    </span>
+                    {typeof q.marks === 'number' ? (
+                      <span className="shrink-0 text-[11px] text-slate-400">
+                        {q.marks} mark{q.marks === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                  </div>
+                  {q.questionText ? (
+                    <p className="mb-2 whitespace-pre-wrap text-sm text-slate-800">
+                      {q.questionText}
+                    </p>
+                  ) : null}
+                  {q.hotspotImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={q.hotspotImageUrl}
+                      alt=""
+                      className="mb-2 max-h-64 w-auto rounded border border-slate-200"
+                    />
+                  ) : null}
+                  {q.options && q.options.length > 0 ? (
+                    <ul className="flex flex-col gap-1">
+                      {q.options.map((opt, oi) => (
+                        <li key={oi} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="shrink-0 font-semibold text-slate-400">
+                            {String.fromCharCode(65 + oi)}.
+                          </span>
+                          <span className="whitespace-pre-wrap">{opt}</span>
+                        </li>
                       ))}
+                    </ul>
+                  ) : null}
+                  {q.matchPrompts && q.matchPrompts.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                      <ul className="flex flex-col gap-1">
+                        {q.matchPrompts.map((p, pi) => (
+                          <li key={pi} className="whitespace-pre-wrap">
+                            {pi + 1}. {p}
+                          </li>
+                        ))}
+                      </ul>
+                      {q.matchBank && q.matchBank.length > 0 ? (
+                        <ul className="flex flex-col gap-1 text-slate-500">
+                          {q.matchBank.map((b, bi) => (
+                            <li key={bi} className="whitespace-pre-wrap">
+                              • {b}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
                   ) : null}
-                </div>
-              )
-            })}
-          </div>
-        )}
+                </li>
+              ))}
+            </ol>
+          ) : null}
+
+          {!task.sourceDocument && !task.content && task.dmiItems.length === 0 ? (
+            <p className="text-sm text-slate-400">This item has no previewable content.</p>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Close
+          </button>
+          <button
+            onClick={onDeploy}
+            disabled={deploying}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Deploy
+          </button>
+        </div>
       </div>
     </div>
   )
