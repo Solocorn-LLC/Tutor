@@ -12,6 +12,8 @@ import {
   FileText,
   Loader2,
   ListChecks,
+  Download,
+  ExternalLink,
 } from 'lucide-react'
 import { normalizeDmiQuestionType } from '@/lib/assessment/question-types'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
@@ -72,6 +74,7 @@ interface ApiResponse {
 type MergedRow = {
   studentId: string
   name: string
+  submissionId: string | null
   submitted: boolean
   status: string
   score: number | null
@@ -102,6 +105,7 @@ export function SessionSubmissionsPanel({
   const [error, setError] = useState<string | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [ungradedOnly, setUngradedOnly] = useState(false)
 
   const load = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -193,6 +197,7 @@ export function SessionSubmissionsPanel({
         return {
           studentId,
           name,
+          submissionId: sub?.submissionId ?? null,
           submitted: !!sub || !!live,
           status: sub?.status ?? (live ? 'submitted' : 'not_submitted'),
           score: sub?.score ?? live?.score ?? null,
@@ -209,6 +214,33 @@ export function SessionSubmissionsPanel({
   }, [activeTask, data, responsesByTask, roster])
 
   const submittedCount = rows.filter(r => r.submitted).length
+  // Submitted but not yet graded/sent — the queue the tutor still needs to action.
+  const needsGrading = rows.filter(r => r.submitted && !isGraded(r)).length
+  const visibleRows = ungradedOnly ? rows.filter(r => r.submitted && !isGraded(r)) : rows
+
+  const exportCsv = () => {
+    if (!activeTask) return
+    const header = ['Student', 'Status', 'Score', 'Max', 'Submitted at']
+    const lines = rows.map(r =>
+      [
+        r.name,
+        statusBadge(r).label,
+        r.score ?? '',
+        r.maxScore ?? '',
+        r.submittedAt ? new Date(r.submittedAt).toISOString() : '',
+      ]
+        .map(csvCell)
+        .join(',')
+    )
+    const csv = [header.join(','), ...lines].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `submissions-${slug(activeTask.title)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="pointer-events-auto flex h-full w-[30rem] max-w-[92vw] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
@@ -218,6 +250,16 @@ export function SessionSubmissionsPanel({
           Submissions
         </h3>
         <div className="flex items-center gap-1">
+          {taskList.length > 0 ? (
+            <button
+              onClick={exportCsv}
+              aria-label="Export CSV"
+              title="Export this task's submissions as CSV"
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          ) : null}
           <button
             onClick={() => load()}
             aria-label="Refresh"
@@ -284,11 +326,25 @@ export function SessionSubmissionsPanel({
           </div>
 
           {activeTask ? (
-            <div className="flex items-center justify-between border-b bg-slate-50 px-4 py-1.5 text-[11px] text-slate-500">
-              <span className="truncate font-medium text-slate-600">{activeTask.title}</span>
+            <div className="flex items-center justify-between gap-2 border-b bg-slate-50 px-4 py-1.5 text-[11px] text-slate-500">
               <span className="shrink-0">
                 {submittedCount}/{rows.length || '—'} submitted
+                {needsGrading > 0 ? (
+                  <span className="ml-1 text-violet-600">· {needsGrading} to grade</span>
+                ) : null}
               </span>
+              <button
+                onClick={() => setUngradedOnly(v => !v)}
+                className={
+                  'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
+                  (ungradedOnly
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300')
+                }
+                title="Show only submitted work that still needs grading"
+              >
+                {ungradedOnly ? 'Showing: to grade' : 'Show all'}
+              </button>
             </div>
           ) : null}
 
@@ -297,9 +353,13 @@ export function SessionSubmissionsPanel({
               <div className="rounded-lg border border-dashed py-10 text-center text-xs text-slate-500">
                 No students on this session yet.
               </div>
+            ) : visibleRows.length === 0 ? (
+              <div className="rounded-lg border border-dashed py-10 text-center text-xs text-slate-500">
+                Nothing left to grade for “{activeTask?.title}”.
+              </div>
             ) : (
               <ul className="flex flex-col gap-1.5">
-                {rows.map(r => (
+                {visibleRows.map(r => (
                   <StudentSubmissionRow
                     key={r.studentId}
                     row={r}
@@ -365,11 +425,8 @@ function StudentSubmissionRow({
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
           {row.name}
         </span>
-        {typeof row.score === 'number' ? (
-          <span className="shrink-0 text-xs font-semibold text-slate-500">
-            {Math.round(row.score)}
-            {typeof row.maxScore === 'number' ? `/${row.maxScore}` : '%'}
-          </span>
+        {scoreLabel(row) ? (
+          <span className="shrink-0 text-xs font-semibold text-slate-500">{scoreLabel(row)}</span>
         ) : null}
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
@@ -506,7 +563,44 @@ function SubmissionDetail({
       {!answerRows.length && !row.report && !row.tutorFeedback && !aiText ? (
         <p className="text-slate-400">Submitted — no detail captured.</p>
       ) : null}
+
+      {/* Jump to the full grading / report workspace for this student (new tab). */}
+      <a
+        href={`/tutor/reports/${row.studentId}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex w-fit items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+      >
+        <ExternalLink className="h-3 w-3" />
+        Grade &amp; report
+      </a>
     </div>
+  )
+}
+
+function isGraded(row: MergedRow): boolean {
+  return (row.status || '').toLowerCase() === 'graded' || row.report?.status === 'sent'
+}
+
+/** Score as a percentage (maxScore 100 or unknown) or raw points/max otherwise. */
+function scoreLabel(row: MergedRow): string | null {
+  if (typeof row.score !== 'number') return null
+  if (row.maxScore == null || row.maxScore === 100) return `${Math.round(row.score)}%`
+  return `${Math.round(row.score)}/${row.maxScore}`
+}
+
+function csvCell(v: unknown): string {
+  const s = String(v ?? '')
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function slug(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'task'
   )
 }
 
