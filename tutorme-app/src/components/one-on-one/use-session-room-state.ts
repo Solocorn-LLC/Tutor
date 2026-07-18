@@ -53,8 +53,32 @@ export interface SessionChatMessage {
   isAI?: boolean
 }
 
+/** A roster student as the tutor's Monitor sees them — identity plus the live
+ *  engagement/understanding/status signals the socket server tracks. */
+export interface SessionRosterStudent {
+  userId: string
+  name: string
+  engagement?: number
+  understanding?: number | null
+  status?: string
+  currentActivity?: string
+  lastActivity?: number
+  joinedAt?: number
+}
+
+interface StudentStateUpdate {
+  userId: string
+  state?: {
+    engagement?: number
+    understanding?: number | null
+    status?: string
+    currentActivity?: string
+    lastActivity?: number
+  }
+}
+
 interface RoomStatePayload {
-  students?: Array<{ userId: string; name?: string }>
+  students?: Array<Partial<SessionRosterStudent> & { userId: string }>
   tasks?: Array<SessionRoomTask & { responses?: Record<string, Record<string, string>> }>
   chatHistory?: SessionChatMessage[]
 }
@@ -93,8 +117,9 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
   const [responsesByTask, setResponsesByTask] = useState<
     Record<string, Record<string, SessionStudentResponse>>
   >({})
-  // The student roster (for the tutor's board viewer), from room_state + joins.
-  const [students, setStudents] = useState<Array<{ userId: string; name: string }>>([])
+  // The student roster (for the tutor's board viewer + Monitor), from room_state +
+  // joins, enriched by live `student_state_update` events.
+  const [students, setStudents] = useState<SessionRosterStudent[]>([])
   // Room chat — hydrated from room_state on join, appended live. Held here (in the
   // always-mounted classroom) so the chat panel shows history even when opened late.
   const [chatMessages, setChatMessages] = useState<SessionChatMessage[]>([])
@@ -102,14 +127,27 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
   useEffect(() => {
     if (!socket) return
 
-    const mergeStudents = (incoming: Array<{ userId: string; name?: string }>) =>
+    const mergeStudents = (incoming: Array<Partial<SessionRosterStudent> & { userId: string }>) =>
       setStudents(prev => {
         const byId = new Map(prev.map(s => [s.userId, s]))
         for (const s of incoming) {
-          if (s?.userId) byId.set(s.userId, { userId: s.userId, name: s.name || 'Student' })
+          if (!s?.userId) continue
+          const existing = byId.get(s.userId)
+          byId.set(s.userId, {
+            ...existing,
+            ...s,
+            userId: s.userId,
+            name: s.name || existing?.name || 'Student',
+          })
         }
         return Array.from(byId.values())
       })
+
+    // Live engagement/understanding/status changes (the tutor's Monitor).
+    const onStudentState = (u: StudentStateUpdate) => {
+      if (!u?.userId || !u.state) return
+      mergeStudents([{ userId: u.userId, ...u.state }])
+    }
 
     const upsertTask = (t: SessionRoomTask) => {
       if (!t?.id) return
@@ -231,6 +269,7 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
     socket.on('task:graded', onGraded)
     socket.on('student_joined', onStudentJoined)
     socket.on('chat_message', onChatMessage)
+    socket.on('student_state_update', onStudentState)
     return () => {
       socket.off('room_state', onRoomState)
       socket.off('task:deployed', onDeployed)
@@ -239,6 +278,7 @@ export function useSessionRoomState(socket: Socket | null, myUserId: string | un
       socket.off('task:graded', onGraded)
       socket.off('student_joined', onStudentJoined)
       socket.off('chat_message', onChatMessage)
+      socket.off('student_state_update', onStudentState)
     }
   }, [socket])
 

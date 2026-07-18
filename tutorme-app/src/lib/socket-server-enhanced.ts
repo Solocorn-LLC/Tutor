@@ -2616,8 +2616,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (socket.data.role !== 'tutor') return
         const { roomId, studentId, message } = data
         if (!roomId || !studentId || !message) return
-        // Send message specifically tagged for that student
-        io.to(roomId).emit('student:direct_message', {
+        // Deliver ONLY to the target student's own `user:` room — not the whole
+        // class. Broadcasting to the room (with client-side filtering) leaked the
+        // message text to every peer's socket; `emitToUser` keeps a "private" nudge
+        // actually private. Payload shape unchanged, so existing listeners (the
+        // 1-on-1 classroom + the course-builder feedback page) still match on
+        // `targetStudentId`.
+        emitToUser(studentId, 'student:direct_message', {
           targetStudentId: studentId,
           message,
         })

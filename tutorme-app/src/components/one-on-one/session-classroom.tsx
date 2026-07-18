@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   BookOpen,
   MessageSquare,
+  Users,
 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -37,10 +38,12 @@ import {
 } from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { SessionChatPanel } from '@/components/one-on-one/session-chat-panel'
+import { SessionMonitorPanel } from '@/components/one-on-one/session-monitor-panel'
+import { toast } from 'sonner'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
-type ActivePanel = 'deploy' | 'materials' | 'responses' | 'chat' | null
+type ActivePanel = 'deploy' | 'materials' | 'responses' | 'chat' | 'monitor' | null
 interface BoardTarget {
   ownerId: string
   ownerName: string
@@ -111,6 +114,45 @@ export function SessionClassroom({
       : undefined
 
   const { socket } = useSocket(socketOptions)
+
+  // Students emit a light engagement signal (tab focus + recent interaction) every
+  // ~15s so the tutor's Monitor shows live status. Cheap heuristic — no tracking
+  // beyond "is this tab focused and did they interact recently".
+  useEffect(() => {
+    if (!socket || isTutor || !sessionId) return
+    let lastInteraction = Date.now()
+    const bump = () => {
+      lastInteraction = Date.now()
+    }
+    const events = ['pointerdown', 'keydown', 'pointermove', 'wheel'] as const
+    events.forEach(e => window.addEventListener(e, bump, { passive: true }))
+    const tick = () => {
+      const focused = typeof document !== 'undefined' && document.visibilityState === 'visible'
+      const idleMs = Date.now() - lastInteraction
+      const engagement = !focused ? 20 : idleMs < 30_000 ? 100 : idleMs < 90_000 ? 55 : 35
+      socket.emit('activity_ping', { roomId: sessionId, engagement, activity: 'classroom' })
+    }
+    tick()
+    const iv = setInterval(tick, 15_000)
+    return () => {
+      clearInterval(iv)
+      events.forEach(e => window.removeEventListener(e, bump))
+    }
+  }, [socket, isTutor, sessionId])
+
+  // Student receives a private nudge from the tutor (tutor:direct_message) → toast.
+  useEffect(() => {
+    if (!socket || isTutor) return
+    const onDm = (data: { targetStudentId?: string; message?: string }) => {
+      if (data?.targetStudentId && data.targetStudentId === myId && data.message) {
+        toast(data.message, { icon: '👋', duration: 8000 })
+      }
+    }
+    socket.on('student:direct_message', onDm)
+    return () => {
+      socket.off('student:direct_message', onDm)
+    }
+  }, [socket, isTutor, myId])
 
   // Canonical deployed-task + submission state, owned here (mounted from join)
   // so the panels — which mount only when opened — hydrate from the join-time
@@ -197,6 +239,14 @@ export function SessionClassroom({
             >
               <ListChecks className="h-3.5 w-3.5" />
               Submissions
+            </button>
+            <button
+              type="button"
+              onClick={() => toggle('monitor')}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+            >
+              <Users className="h-3.5 w-3.5" />
+              Monitor
             </button>
             {courseId ? (
               <button
@@ -305,6 +355,16 @@ export function SessionClassroom({
                 tasks={tasks}
                 responsesByTask={responsesByTask}
                 students={students}
+                onClose={() => setActivePanel(null)}
+              />
+            ) : null}
+            {activePanel === 'monitor' && isTutor ? (
+              <SessionMonitorPanel
+                sessionId={sessionId}
+                socket={socket}
+                students={students}
+                tasks={tasks}
+                responsesByTask={responsesByTask}
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
