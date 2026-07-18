@@ -98,6 +98,12 @@ export function SessionDeployPanel({
   const [deployingId, setDeployingId] = useState<string | null>(null)
   /** Task whose full content the tutor is previewing before deploying. */
   const [previewTask, setPreviewTask] = useState<Deployable | null>(null)
+  /** When students see the correct answers after they submit. Applies to every
+   *  deploy from this panel; the server persists it onto the task's metadata and
+   *  gates the live/async correct-answer reveal on it. */
+  const [revealMode, setRevealMode] = useState<'instant' | 'after_submit' | 'hidden'>(
+    'after_submit'
+  )
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -246,6 +252,9 @@ export function SessionDeployPanel({
         // Attached PDF (if any) — the server re-signs its url from the durable
         // fileKey on deploy and shows it in the Materials panel for everyone.
         sourceDocument: t.sourceDocument ?? undefined,
+        // When students may see the correct answers (server gates the reveal on
+        // this and persists it to the task metadata for the async path too).
+        answerReveal: revealMode,
         deployedAt: Date.now(),
         polls: [],
         questions: [],
@@ -279,6 +288,42 @@ export function SessionDeployPanel({
                 placeholder="Search tasks, courses, lessons…"
                 className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
               />
+            </div>
+            {/* Answer-reveal policy applied to every deploy from this panel. */}
+            <div className="mt-2 flex items-center gap-1.5">
+              <Eye className="h-3 w-3 shrink-0 text-slate-400" />
+              <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                Answers
+              </span>
+              <div className="flex flex-1 overflow-hidden rounded-lg border border-slate-200">
+                {(
+                  [
+                    ['after_submit', 'After submit'],
+                    ['instant', 'Instant'],
+                    ['hidden', 'Hidden'],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setRevealMode(mode)}
+                    title={
+                      mode === 'after_submit'
+                        ? 'Students see the correct answers once they submit'
+                        : mode === 'instant'
+                          ? 'Students see correctness as they answer'
+                          : 'Correct answers are never shown to students'
+                    }
+                    className={
+                      'flex-1 px-1.5 py-1 text-[10px] font-semibold ' +
+                      (revealMode === mode
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-slate-500 hover:bg-slate-50')
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : null}
