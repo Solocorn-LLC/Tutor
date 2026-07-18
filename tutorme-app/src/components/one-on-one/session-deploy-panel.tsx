@@ -48,9 +48,18 @@ interface LessonGroup {
 interface CourseGroup {
   courseId: string
   courseName: string
+  /** Full variant label (category — nationality), when this is a scoped course. */
+  variantName?: string
   coursePublished: boolean
   taskCount: number
   lessons: LessonGroup[]
+}
+
+/** The scoped course's full structure (all lessons + variant name), returned only
+ *  for a course-scoped session. */
+interface CourseStructure {
+  course: { courseId: string; name: string; variantName: string } | null
+  lessons: { lessonId: string; title: string; order: number }[]
 }
 
 /**
@@ -80,6 +89,7 @@ export function SessionDeployPanel({
   onClose: () => void
 }) {
   const [items, setItems] = useState<Deployable[]>([])
+  const [structure, setStructure] = useState<CourseStructure>({ course: null, lessons: [] })
   const [loading, setLoading] = useState(true)
   const [deployingId, setDeployingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -93,9 +103,19 @@ export function SessionDeployPanel({
     fetch(url, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : { tasks: [] }))
       .then(d => {
-        if (active) setItems(Array.isArray(d.tasks) ? d.tasks : [])
+        if (!active) return
+        setItems(Array.isArray(d.tasks) ? d.tasks : [])
+        setStructure({
+          course: d.course ?? null,
+          lessons: Array.isArray(d.lessons) ? d.lessons : [],
+        })
       })
-      .catch(() => active && setItems([]))
+      .catch(() => {
+        if (active) {
+          setItems([])
+          setStructure({ course: null, lessons: [] })
+        }
+      })
       .finally(() => active && setLoading(false))
     return () => {
       active = false
@@ -114,6 +134,46 @@ export function SessionDeployPanel({
             (t.lessonTitle ?? '').toLowerCase().includes(q)
         )
       : items
+
+    // Course-scoped session: render the WHOLE course — its variant name and every
+    // lesson, even ones with no deployable task — with tasks nested under lessons.
+    if (structure.course) {
+      const c: CourseGroup = {
+        courseId: structure.course.courseId,
+        courseName: structure.course.name,
+        variantName: structure.course.variantName,
+        coursePublished: items[0]?.coursePublished ?? true,
+        taskCount: filtered.length,
+        lessons: structure.lessons.map(l => ({
+          lessonId: l.lessonId,
+          lessonTitle: l.title,
+          lessonOrder: l.order,
+          tasks: [] as Deployable[],
+        })),
+      }
+      const byLesson = new Map(c.lessons.map(l => [l.lessonId, l]))
+      let other: LessonGroup | null = null
+      for (const t of filtered) {
+        const l = t.lessonId ? byLesson.get(t.lessonId) : null
+        if (l) l.tasks.push(t)
+        else {
+          if (!other) {
+            other = {
+              lessonId: '__other__',
+              lessonTitle: 'Other tasks',
+              lessonOrder: 1e9,
+              tasks: [],
+            }
+            c.lessons.push(other)
+          }
+          other.tasks.push(t)
+        }
+      }
+      c.lessons.sort((a, b) => a.lessonOrder - b.lessonOrder)
+      // While searching, hide lessons with no matching task to keep it focused.
+      if (q) c.lessons = c.lessons.filter(l => l.tasks.length > 0)
+      return [c]
+    }
 
     const byCourse = new Map<string, CourseGroup>()
     for (const t of filtered) {
@@ -147,7 +207,7 @@ export function SessionDeployPanel({
     for (const c of list) c.lessons.sort((a, b) => a.lessonOrder - b.lessonOrder)
     list.sort((a, b) => a.courseName.localeCompare(b.courseName))
     return list
-  }, [items, query])
+  }, [items, query, structure])
 
   const toggle = (courseId: string) =>
     setCollapsed(prev => {
@@ -221,15 +281,16 @@ export function SessionDeployPanel({
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
-        ) : items.length === 0 ? (
+        ) : courses.every(c => c.lessons.length === 0) ? (
+          // Empty = no lessons AND no tasks (a course-scoped session still shows
+          // its lessons, so this only fires for a truly empty course, an
+          // all-courses session with no tasks, or a search that matched nothing).
           <div className="rounded-lg border border-dashed px-4 py-10 text-center text-xs text-slate-500">
-            {courseId
-              ? 'This session is scoped to its course, and that course has no saved tasks yet. Add tasks to it in the course builder to deploy them here.'
-              : 'No saved tasks to deploy yet. Create tasks in the course builder first.'}
-          </div>
-        ) : courses.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-10 text-center text-xs text-slate-500">
-            No tasks match “{query}”.
+            {query
+              ? `No tasks match “${query}”.`
+              : courseId
+                ? 'This session is scoped to its course, and that course has no lessons or tasks yet. Add them in the course builder.'
+                : 'No saved tasks to deploy yet. Create tasks in the course builder first.'}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -247,8 +308,15 @@ export function SessionDeployPanel({
                       <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     )}
                     <BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-                      {c.courseName}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-xs font-semibold text-slate-800">
+                        {c.courseName}
+                      </span>
+                      {c.variantName ? (
+                        <span className="truncate text-[10px] font-medium text-slate-400">
+                          {c.variantName}
+                        </span>
+                      ) : null}
                     </span>
                     <span
                       className={
@@ -270,6 +338,11 @@ export function SessionDeployPanel({
                           <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                             {l.lessonTitle}
                           </p>
+                          {l.tasks.length === 0 ? (
+                            <p className="px-1 pb-1 text-[11px] italic text-slate-300">
+                              No deployable tasks yet
+                            </p>
+                          ) : null}
                           <ul className="flex flex-col gap-1.5">
                             {l.tasks.map(t => (
                               <li

@@ -21,6 +21,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { builderTask, builderTaskDmi, course, courseLesson, courseVariant } from '@/lib/db/schema'
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
+import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
 // The hidden system course that anchors course-less (ad-hoc) session deploys.
 // Tasks under it are prior live deploys, not authored course content — keep them
@@ -308,6 +309,48 @@ export const GET = withAuth(
       }
     }
 
+    // For a course-scoped session, return the FULL course structure — every lesson
+    // of the session's course (even ones with no deployable task) — plus the full
+    // variant name (category — nationality), so the panel shows the whole course,
+    // not just the tasks.
+    let scopedLessons: { lessonId: string; title: string; order: number }[] = []
+    let scopedCourse: { courseId: string; name: string; variantName: string } | null = null
+    if (scopedCourseId) {
+      const [lessonRows, courseRows, variantRows] = await Promise.all([
+        drizzleDb
+          .select({
+            lessonId: courseLesson.lessonId,
+            title: courseLesson.title,
+            order: courseLesson.order,
+          })
+          .from(courseLesson)
+          .where(and(eq(courseLesson.courseId, scopedCourseId), isNull(courseLesson.deletedAt)))
+          .orderBy(courseLesson.order),
+        drizzleDb
+          .select({ name: course.name })
+          .from(course)
+          .where(eq(course.courseId, scopedCourseId))
+          .limit(1),
+        drizzleDb
+          .select({ category: courseVariant.category, nationality: courseVariant.nationality })
+          .from(courseVariant)
+          .where(eq(courseVariant.publishedCourseId, scopedCourseId))
+          .limit(1),
+      ])
+      scopedLessons = lessonRows.map(l => ({
+        lessonId: l.lessonId,
+        title: l.title || 'Untitled lesson',
+        order: typeof l.order === 'number' ? l.order : 0,
+      }))
+      scopedCourse = {
+        courseId: scopedCourseId,
+        name: courseRows[0]?.name || 'Course',
+        variantName: variantRows[0]
+          ? formatCourseVariantName(variantRows[0].category, variantRows[0].nationality)
+          : '',
+      }
+    }
+
     const rows = await drizzleDb
       .select({
         taskId: builderTask.taskId,
@@ -380,6 +423,11 @@ export const GET = withAuth(
         // re-signs the url on deploy. Null when the task has no document.
         sourceDocument: sourceDocByTask.get(r.taskId) ?? null,
       })),
+      // Full structure for a course-scoped session (empty for all-courses mode):
+      // the session course (with its variant name) + every lesson, so the panel
+      // renders the whole course, not just the lessons that happen to have tasks.
+      course: scopedCourse,
+      lessons: scopedLessons,
     })
   },
   { role: 'TUTOR' }
