@@ -544,8 +544,24 @@ function feedbackText(v: unknown): string | null {
  * field encoded it: mcq stores a letter, multiple_response a JSON array of
  * option texts, everything else the raw text.
  */
-function decodeAnswer(item: StudentDmiItem, value: string | undefined): string {
-  if (value == null || value.trim().length === 0) return '—'
+function decodeAnswer(item: StudentDmiItem, value: unknown): string {
+  if (value == null) return '—'
+  // `answers` is jsonb — the submit route stores it verbatim, so a value can be a
+  // non-string (number, array, object). Normalise before the string logic below
+  // so an unexpected shape never crashes the row.
+  if (typeof value !== 'string') {
+    if (Array.isArray(value))
+      return value.map(v => (typeof v === 'string' ? v : JSON.stringify(v))).join(', ') || '—'
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return '—'
+      }
+    }
+    return String(value)
+  }
+  if (value.trim().length === 0) return '—'
   const type = normalizeDmiQuestionType(item.questionType)
   if (type === 'mcq' && item.options && item.options.length > 0) {
     const idx = value.charCodeAt(0) - 65
