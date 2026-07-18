@@ -22,6 +22,7 @@ import { builderTask, builderTaskDmi, course, courseLesson, courseVariant } from
 import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessment/deploy-safety'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
+import { buildScopedLessonResolver } from '@/lib/courses/lesson-correlation'
 
 // The hidden system course that anchors course-less (ad-hoc) session deploys.
 // Tasks under it are prior live deploys, not authored course content — keep them
@@ -370,33 +371,7 @@ export const GET = withAuth(
         order: typeof l.order === 'number' ? l.order : 0,
       }))
 
-      // rootId → scoped lessonId (rootId = the template lesson id both a template
-      // lesson and its published copies share) and order → scoped lessonId fallback.
-      const scopedIds = new Set(lessonRows.map(l => l.lessonId))
-      const byRoot = new Map<string, string>()
-      const byOrder = new Map<number, string>()
-      // `order` has no unique constraint; only use it as a fallback for orders that
-      // identify exactly ONE lesson, so a duplicate order never mis-nests a task
-      // (an ambiguous one falls through to "Other tasks" instead of guessing).
-      const orderCount = new Map<number, number>()
-      for (const l of lessonRows) {
-        if (typeof l.order === 'number') orderCount.set(l.order, (orderCount.get(l.order) ?? 0) + 1)
-      }
-      for (const l of lessonRows) {
-        byRoot.set(l.sourceLessonId || l.lessonId, l.lessonId)
-        if (typeof l.order === 'number' && orderCount.get(l.order) === 1)
-          byOrder.set(l.order, l.lessonId)
-      }
-      resolveScopedLessonId = (lessonId, sourceId, order) => {
-        if (!lessonId) return null
-        if (scopedIds.has(lessonId)) return lessonId // already a scoped lesson
-        const root = sourceId || lessonId
-        return (
-          byRoot.get(root) ??
-          (typeof order === 'number' ? byOrder.get(order) : undefined) ??
-          lessonId // truly foreign — leave as-is (client shows it under "Other tasks")
-        )
-      }
+      resolveScopedLessonId = buildScopedLessonResolver(lessonRows)
       scopedCourse = {
         courseId: scopedCourseId,
         name: courseRows[0]?.name || 'Course',

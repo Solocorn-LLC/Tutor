@@ -15,7 +15,7 @@ import {
   Download,
   ExternalLink,
 } from 'lucide-react'
-import { normalizeDmiQuestionType } from '@/lib/assessment/question-types'
+import { decodeStudentAnswer } from '@/lib/assessment/decode-student-answer'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 import type { AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
 import type { SessionRoomTask, SessionStudentResponse } from './use-session-room-state'
@@ -497,7 +497,7 @@ function SubmissionDetail({
                   <span className="font-medium text-slate-500">
                     {q.questionLabel || q.questionNumber || i + 1}.
                   </span>{' '}
-                  <span className="text-slate-700">{decodeAnswer(q, value)}</span>
+                  <span className="text-slate-700">{decodeStudentAnswer(q, value)}</span>
                 </span>
               </li>
             ))}
@@ -632,44 +632,4 @@ function feedbackText(v: unknown): string | null {
     }
   }
   return null
-}
-
-/**
- * Turn a stored answer back into something readable, matching how the student
- * field encoded it: mcq stores a letter, multiple_response a JSON array of
- * option texts, everything else the raw text.
- */
-function decodeAnswer(item: StudentDmiItem, value: unknown): string {
-  if (value == null) return '—'
-  // `answers` is jsonb — the submit route stores it verbatim, so a value can be a
-  // non-string (number, array, object). Normalise before the string logic below
-  // so an unexpected shape never crashes the row.
-  if (typeof value !== 'string') {
-    if (Array.isArray(value))
-      return value.map(v => (typeof v === 'string' ? v : JSON.stringify(v))).join(', ') || '—'
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value)
-      } catch {
-        return '—'
-      }
-    }
-    return String(value)
-  }
-  if (value.trim().length === 0) return '—'
-  const type = normalizeDmiQuestionType(item.questionType)
-  if (type === 'mcq' && item.options && item.options.length > 0) {
-    const idx = value.charCodeAt(0) - 65
-    const opt = idx >= 0 && idx < item.options.length ? item.options[idx] : null
-    return opt ? `${value}. ${opt}` : value
-  }
-  if (type === 'multiple_response') {
-    try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) return parsed.filter(v => typeof v === 'string').join(', ') || '—'
-    } catch {
-      // fall through to raw
-    }
-  }
-  return value
 }
