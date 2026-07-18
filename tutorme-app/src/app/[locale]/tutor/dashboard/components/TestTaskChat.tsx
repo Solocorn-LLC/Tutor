@@ -348,6 +348,7 @@ export function TestTaskChat({
                 timestamp={m.timestamp ? new Date(m.timestamp) : undefined}
                 isClassroom={isClassroom}
                 studentOnRight
+                aiOnRight={isClassroom}
               />
             )
           })}

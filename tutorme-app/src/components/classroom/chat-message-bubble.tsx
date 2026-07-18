@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { resolvePublicUrl } from '@/lib/utils'
-import { FileText, ImageIcon } from 'lucide-react'
+import { Bot, FileText, ImageIcon } from 'lucide-react'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
 import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,8 @@ export interface ChatMessageBubbleProps {
   isClassroom?: boolean
   /** When true, student messages appear on the right (tutor/AI on left). */
   studentOnRight?: boolean
+  /** When true, AI/SAI messages appear on the right (used in the tutor classroom view). */
+  aiOnRight?: boolean
 }
 
 export function ChatMessageBubble({
@@ -41,10 +43,16 @@ export function ChatMessageBubble({
   re,
   isClassroom = false,
   studentOnRight = false,
+  aiOnRight = false,
 }: ChatMessageBubbleProps) {
+  // When aiOnRight is true, AI/SAI messages are on the right (tutor classroom view).
   // When studentOnRight is true, student messages are on the right (tutor/AI on left).
   // Otherwise the legacy behavior: tutor/AI on right, student on left.
-  const isRight = studentOnRight ? sender === 'student' : sender === 'tutor' || sender === 'ai'
+  const isRight = aiOnRight
+    ? sender === 'ai'
+    : studentOnRight
+      ? sender === 'student'
+      : sender === 'tutor' || sender === 'ai'
   const isStudent = sender === 'student'
   const showAvatar = !!avatarUrl || !!name
 
@@ -115,12 +123,16 @@ export function ChatMessageBubble({
                 'text-xs font-medium',
                 isStudent
                   ? 'border border-slate-200 bg-white text-slate-600'
-                  : isClassroom
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-violet-100 text-violet-700'
+                  : sender === 'ai'
+                    ? isClassroom
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-violet-100 text-violet-700'
+                    : isClassroom
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-violet-100 text-violet-700'
               )}
             >
-              {initial}
+              {sender === 'ai' ? <Bot className="h-5 w-5" /> : initial}
             </AvatarFallback>
           </Avatar>
           {sender === 'ai' && <span className="text-[9px] font-medium text-gray-400">{name}</span>}
