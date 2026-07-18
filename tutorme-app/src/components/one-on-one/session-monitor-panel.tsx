@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import { toast } from 'sonner'
-import { X, RefreshCw, MessageSquare, Send, Loader2, Users } from 'lucide-react'
+import { X, RefreshCw, MessageSquare, Send, Loader2, Users, Sparkles } from 'lucide-react'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type {
   SessionRosterStudent,
   SessionRoomTask,
@@ -40,6 +41,29 @@ export function SessionMonitorPanel({
   const [loading, setLoading] = useState(true)
   const [dmFor, setDmFor] = useState<string | null>(null)
   const [dmText, setDmText] = useState('')
+  const [insights, setInsights] = useState<string | null>(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
+
+  const generateInsights = async () => {
+    setInsightsLoading(true)
+    setInsights(null)
+    try {
+      const res = await fetchWithCsrf(`/api/tutor/live-sessions/${sessionId}/insights`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(d?.error || 'Could not generate insights.')
+        return
+      }
+      setInsights(d?.insights || d?.message || 'No insights available yet.')
+    } catch {
+      toast.error('Could not generate insights.')
+    } finally {
+      setInsightsLoading(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -109,6 +133,27 @@ export function SessionMonitorPanel({
             <X className="h-4 w-4" />
           </button>
         </div>
+      </div>
+
+      {/* AI session insights — grounded in the real submission data. */}
+      <div className="border-b p-2">
+        <button
+          onClick={generateInsights}
+          disabled={insightsLoading}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+        >
+          {insightsLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          {insights ? 'Regenerate AI summary' : 'AI session summary'}
+        </button>
+        {insights ? (
+          <div className="mt-2 whitespace-pre-wrap rounded-lg bg-violet-50 p-2.5 text-xs leading-relaxed text-slate-700">
+            {insights}
+          </div>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
