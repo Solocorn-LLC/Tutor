@@ -490,11 +490,18 @@ export function SessionClassroom({
 
       {/* Room closed — the tutor ended it, or the server's duration timeout did. */}
       {ended ? (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/95 px-6 text-center text-white">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-950/95 px-6 text-center text-white">
           <p className="text-lg font-semibold">This session has ended</p>
           <p className="max-w-sm text-sm text-white/70">
             The room is closed. You can leave a review from your dashboard.
           </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          >
+            Leave
+          </button>
         </div>
       ) : null}
     </div>

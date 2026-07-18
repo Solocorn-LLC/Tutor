@@ -2637,14 +2637,22 @@ export async function initEnhancedSocketServer(server: NetServer) {
     socket.on('tutor:end_session', async (data: { roomId: string }) => {
       if (socket.data.role !== 'tutor') return
       const roomId = data?.roomId || socket.data.roomId
-      if (!roomId) return
+      if (!roomId || !socket.data.userId) return
       try {
-        await drizzleDb
+        // Scope the end to a session THIS tutor owns — `roomId` is client-supplied,
+        // so without the tutorId predicate any tutor could end (and kick everyone
+        // out of) any session by id. Only broadcast if a row was actually ended.
+        const ended = await drizzleDb
           .update(liveSession)
           .set({ status: 'ended', endedAt: new Date() })
-          .where(eq(liveSession.sessionId, roomId))
+          .where(
+            and(eq(liveSession.sessionId, roomId), eq(liveSession.tutorId, socket.data.userId))
+          )
+          .returning({ id: liveSession.sessionId })
+        if (ended.length === 0) return // not this tutor's session — do nothing
       } catch (err) {
         console.warn('[tutor:end_session] failed to mark session ended:', err)
+        return
       }
       io.to(roomId).emit('session:ended', { sessionId: roomId, reason: 'tutor' })
     })

@@ -135,6 +135,11 @@ export const GET = withAuth(async (req: NextRequest, session) => {
     withName,
     viewerIsTutor: isTutor,
     scheduledAt: Number.isFinite(start) ? new Date(start).toISOString() : null,
+    durationMinutes: ls.durationMinutes ?? 60,
+    // The persisted lifecycle status — lets the classroom show its "ended" overlay
+    // on reload / late-join after a manual early end (the time-based `ended` below
+    // only reflects the scheduled window, not an early end).
+    status: ls.status,
     opensAt: Number.isFinite(opensAt) ? new Date(opensAt).toISOString() : null,
     live,
     // The tutor may always enter; a student once the session is live or inside the
