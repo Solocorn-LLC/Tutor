@@ -141,7 +141,13 @@ export const builderTaskVersion = pgTable(
 export const builderTaskDmi = pgTable(
   'BuilderTaskDmi',
   {
-    dmiId: text('id').primaryKey().notNull(),
+    // NOTE: the prod column is literally "dmiId" (see migration 0020), NOT the
+    // usual "id". Mapping it to text('id') was a latent drift bug: every
+    // INSERT/upsert drizzle generated referenced a non-existent "id" column and
+    // threw `column "id" does not exist`, so nothing ever persisted here (answer
+    // keys on deploy, materialized DMI, etc. all silently failed). Keep this
+    // aligned with the actual column name.
+    dmiId: text('dmiId').primaryKey().notNull(),
     taskId: text('taskId')
       .notNull()
       .references(() => builderTask.taskId, { onDelete: 'cascade' }),
@@ -165,7 +171,9 @@ export const builderTaskDmi = pgTable(
 export const builderTaskDmiVersion = pgTable(
   'BuilderTaskDmiVersion',
   {
-    versionId: text('id').primaryKey().notNull(),
+    // Same drift as BuilderTaskDmi above — the prod column is "versionId", not
+    // "id" (migration 0020). Map it correctly so inserts don't throw.
+    versionId: text('versionId').primaryKey().notNull(),
     taskId: text('taskId')
       .notNull()
       .references(() => builderTask.taskId, { onDelete: 'cascade' }),

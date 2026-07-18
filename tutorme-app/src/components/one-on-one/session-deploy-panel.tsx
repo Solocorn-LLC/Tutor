@@ -455,6 +455,14 @@ function TaskPreviewOverlay({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // The importer stores "[Imported <file>]" as placeholder content when it can't
+  // extract text from an uploaded doc. It's noise, not authored content — show
+  // the real content only, and never as the sole "preview" of a task.
+  const contentText = task.content?.trim() ?? ''
+  const isImportPlaceholder = /^\[Imported .+\]$/.test(contentText)
+  const showContent = contentText.length > 0 && !isImportPlaceholder
+  const hasAnyPreview = !!task.sourceDocument || showContent || task.dmiItems.length > 0
+
   return (
     <div
       className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -490,7 +498,10 @@ function TaskPreviewOverlay({
             </div>
           ) : null}
 
-          {task.content ? (
+          {/* Hide the auto-generated "[Imported file.docx]" placeholder content —
+              it's noise once the actual document is shown above. Only real
+              authored content is rendered. */}
+          {showContent ? (
             <div
               className="prose prose-sm mb-4 max-w-none text-slate-700"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
@@ -561,7 +572,7 @@ function TaskPreviewOverlay({
             </ol>
           ) : null}
 
-          {!task.sourceDocument && !task.content && task.dmiItems.length === 0 ? (
+          {!hasAnyPreview ? (
             <p className="text-sm text-slate-400">This item has no previewable content.</p>
           ) : null}
         </div>

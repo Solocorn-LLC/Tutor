@@ -247,42 +247,56 @@ async function materializeCourseFamilyTasks(
     )
   }
 
-  if (taskRows.length > 0) {
-    // Insert new tasks only. Do NOT overwrite an existing row: an in-session
-    // inline edit (tasks/[taskId] PATCH) writes title/content straight to
-    // BuilderTask, and re-opening the panel must not stomp it back to the
-    // builderData snapshot. Also avoids re-writing unchanged rows on every open.
-    await drizzleDb.insert(builderTask).values(taskRows).onConflictDoNothing({
-      target: builderTask.taskId,
-    })
-  }
-  if (dmiRows.length > 0) {
-    await drizzleDb.insert(builderTaskDmi).values(dmiRows).onConflictDoNothing({
-      target: builderTaskDmi.dmiId,
-    })
-  }
+  // The mutations below are best-effort: they make authored tasks appear as
+  // deployable rows. Crucially they are wrapped so that a write failure (e.g.
+  // an unexpected constraint) can NEVER discard `sourceDocByTask`, which is a
+  // pure read from builderData and is what surfaces a task's document in the
+  // deploy preview / live Materials panel. Previously a throw here bubbled to
+  // the caller's catch, which reset the map to empty — silently dropping every
+  // task's document. Read-then-write separation keeps the document reliable.
+  try {
+    if (taskRows.length > 0) {
+      // Insert new tasks only. Do NOT overwrite an existing row: an in-session
+      // inline edit (tasks/[taskId] PATCH) writes title/content straight to
+      // BuilderTask, and re-opening the panel must not stomp it back to the
+      // builderData snapshot. Also avoids re-writing unchanged rows on every open.
+      await drizzleDb.insert(builderTask).values(taskRows).onConflictDoNothing({
+        target: builderTask.taskId,
+      })
+    }
+    if (dmiRows.length > 0) {
+      await drizzleDb.insert(builderTaskDmi).values(dmiRows).onConflictDoNothing({
+        target: builderTaskDmi.dmiId,
+      })
+    }
 
-  // Reconcile deletions: soft-delete family tasks that we materialized but that
-  // are no longer in builderData (the tutor deleted them in the builder) — so a
-  // deleted task stops showing as a deployable "ghost". Only touches rows that
-  // were NEVER deployed (no DeployedMaterial); a task that was actually deployed
-  // has live history and is kept even if later removed from the builder. `seen`
-  // holds every current authored id. This distinguisher works without a flag, so
-  // it also cleans up rows materialized by earlier versions.
-  const currentIds = [...seen]
-  await drizzleDb
-    .update(builderTask)
-    .set({ deletedAt: now })
-    .where(
-      and(
-        eq(builderTask.tutorId, tutorId),
-        inArray(builderTask.courseId, familyIds),
-        isNull(builderTask.deletedAt),
-        ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID),
-        ...(currentIds.length > 0 ? [notInArray(builderTask.taskId, currentIds)] : []),
-        sql`NOT EXISTS (SELECT 1 FROM "DeployedMaterial" dm WHERE dm."itemId" = ${builderTask.taskId})`
+    // Reconcile deletions: soft-delete family tasks that we materialized but that
+    // are no longer in builderData (the tutor deleted them in the builder) — so a
+    // deleted task stops showing as a deployable "ghost". Only touches rows that
+    // were NEVER deployed (no DeployedMaterial); a task that was actually deployed
+    // has live history and is kept even if later removed from the builder. `seen`
+    // holds every current authored id. This distinguisher works without a flag, so
+    // it also cleans up rows materialized by earlier versions.
+    const currentIds = [...seen]
+    await drizzleDb
+      .update(builderTask)
+      .set({ deletedAt: now })
+      .where(
+        and(
+          eq(builderTask.tutorId, tutorId),
+          inArray(builderTask.courseId, familyIds),
+          isNull(builderTask.deletedAt),
+          ne(builderTask.courseId, ADHOC_ANCHOR_COURSE_ID),
+          ...(currentIds.length > 0 ? [notInArray(builderTask.taskId, currentIds)] : []),
+          sql`NOT EXISTS (SELECT 1 FROM "DeployedMaterial" dm WHERE dm."itemId" = ${builderTask.taskId})`
+        )
       )
+  } catch (err) {
+    console.warn(
+      '[deployables] materialization writes failed (non-critical); documents/tasks still surfaced from builderData:',
+      err
     )
+  }
 
   return sourceDocByTask
 }
