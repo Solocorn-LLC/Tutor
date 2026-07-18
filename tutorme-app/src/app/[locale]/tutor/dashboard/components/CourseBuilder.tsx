@@ -10628,7 +10628,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </div>
                                     ) : null
                                   ) : (
-                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0">
+                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white p-0">
                                       <PanelErrorBoundary
                                         label="this view"
                                         resetKeys={[
