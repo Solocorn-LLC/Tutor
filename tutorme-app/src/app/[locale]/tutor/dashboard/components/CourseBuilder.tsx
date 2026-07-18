@@ -10150,7 +10150,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   <Card
                     padding="none"
                     className={cn(
-                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+                      'flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] border bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]',
+                      mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
                     )}
                   >
                     <div
@@ -10627,7 +10628,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </div>
                                     ) : null
                                   ) : (
-                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0">
+                                    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white p-0">
                                       <PanelErrorBoundary
                                         label="this view"
                                         resetKeys={[
