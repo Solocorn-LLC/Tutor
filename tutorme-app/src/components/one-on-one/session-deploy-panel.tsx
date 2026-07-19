@@ -529,11 +529,19 @@ function TaskPreviewOverlay({
   }, [onClose])
 
   // Show only real authored content — hide the importer's "[Imported file.docx]"
-  // placeholder (the actual document is rendered separately). See isImportPlaceholder.
+  // placeholder (the actual document is rendered separately), AND require the content
+  // to have visible text once tags are stripped. Otherwise an image-only / empty-tag /
+  // whitespace body would open the right column but render nothing (blank pane next to
+  // the document). See isImportPlaceholder.
   const contentText = task.content?.trim() ?? ''
-  const showContent = contentText.length > 0 && !isImportPlaceholder(contentText)
+  const visibleText = contentText
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .trim()
+  const showContent = visibleText.length > 0 && !isImportPlaceholder(contentText)
   // The right column holds the authored content + questions. When both a document
   // and a right column exist they sit side by side; either one alone fills the row.
+  // No visible content AND no questions → the document fills the whole modal.
   const hasRightColumn = showContent || task.dmiItems.length > 0
   const hasAnyPreview = !!task.sourceDocument || hasRightColumn
 
