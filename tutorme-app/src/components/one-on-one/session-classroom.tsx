@@ -19,6 +19,7 @@ import {
   FolderOpen,
   ListChecks,
   Pencil,
+  PenTool,
   MonitorPlay,
   BookOpen,
   MessageSquare,
@@ -28,15 +29,12 @@ import {
   FolderTree,
 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
+import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
 import { SessionSubmissionsPanel } from '@/components/one-on-one/session-submissions-panel'
-import {
-  SessionBoardsOverlay,
-  PrimaryBoard,
-  useOwnBoardOpened,
-} from '@/components/one-on-one/session-boards'
+import { SessionBoardsOverlay, useOwnBoardOpened } from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { SessionChatPanel } from '@/components/one-on-one/session-chat-panel'
 import { SessionMonitorPanel } from '@/components/one-on-one/session-monitor-panel'
@@ -101,7 +99,6 @@ export function SessionClassroom({
   const [nowTs, setNowTs] = useState(0)
   const [ended, setEnded] = useState(false)
   const myId = session?.user?.id ?? ''
-  const myName = session?.user?.name || (isTutor ? 'Tutor' : 'Student')
 
   // Listen for the embedded course-editor's save postMessage and refresh the
   // deploy panel's task list. Same-origin check guards against foreign frames.
@@ -268,9 +265,8 @@ export function SessionClassroom({
   // they deploy by default and can toggle back to the whiteboard.
   const latestTaskId = tasks.length > 0 ? tasks[tasks.length - 1].id : null
 
-  // TUTOR: presented view. Presents their own whiteboard by default; deploying a
-  // task presents it; the "Presenting" chip toggles between the two.
-  const [presentWhiteboard, setPresentWhiteboard] = useState(true)
+  // TUTOR: presented view. Deploying a task presents it; a toggle shows the board.
+  const [presentWhiteboard, setPresentWhiteboard] = useState(false)
   const lastDeployedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!isTutor || !latestTaskId || latestTaskId === lastDeployedRef.current) return
@@ -281,10 +277,6 @@ export function SessionClassroom({
   const presentPayload = () => ({
     activeTab: tutorPresentTaskId ? 'task' : 'whiteboard',
     activeTaskId: tutorPresentTaskId,
-    // So a following student can view the tutor's own board when the tutor is on
-    // the whiteboard.
-    presenterId: myId,
-    presenterName: myName,
   })
 
   // Broadcast the tutor's presented view. The tutor's own screen isn't hijacked
@@ -315,66 +307,50 @@ export function SessionClassroom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTutor, socket, tutorPresentTaskId, sessionId])
 
-  // STUDENT: the tutor's presented view + who's presenting (for their board).
+  // STUDENT: the tutor's presented view, received live.
   const [presentedTaskId, setPresentedTaskId] = useState<string | null>(null)
-  const [presenter, setPresenter] = useState<{ id: string; name: string } | null>(null)
-  type PresentPayload = {
-    activeTab?: string
-    activeTaskId?: string | null
-    presenterId?: string
-    presenterName?: string
-  }
-  const applyPresented = (p: PresentPayload | null | undefined) => {
-    if (!p) return
-    setPresentedTaskId(p.activeTab === 'whiteboard' ? null : (p.activeTaskId ?? null))
-    if (p.presenterId) setPresenter({ id: p.presenterId, name: p.presenterName || 'Tutor' })
-  }
   useEffect(() => {
     if (isTutor || !socket) return
-    const onReceive = (msg: { type?: string; payload?: PresentPayload }) => {
+    const onReceive = (msg: {
+      type?: string
+      payload?: { activeTab?: string; activeTaskId?: string | null }
+    }) => {
       if (msg?.type !== 'tutor:state_sync') return
-      applyPresented(msg.payload)
+      const p = msg.payload || {}
+      setPresentedTaskId(p.activeTab === 'whiteboard' ? null : (p.activeTaskId ?? null))
     }
     socket.on('insight:receive', onReceive)
     return () => {
       socket.off('insight:receive', onReceive)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTutor, socket])
 
   // Hydrate the presented view from room_state on (re)join — robust against the
   // live tutor:state_sync broadcast arriving before this client is listening.
   useEffect(() => {
     if (isTutor || !socket) return
-    const onRoomState = (state: { presentedView?: PresentPayload | null }) => {
-      if (state?.presentedView === undefined) return
-      applyPresented(state.presentedView)
+    const onRoomState = (state: {
+      presentedView?: { activeTab?: string; activeTaskId?: string | null } | null
+    }) => {
+      const pv = state?.presentedView
+      if (pv === undefined) return
+      setPresentedTaskId(pv && pv.activeTab !== 'whiteboard' ? (pv.activeTaskId ?? null) : null)
     }
     socket.on('room_state', onRoomState)
     return () => {
       socket.off('room_state', onRoomState)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTutor, socket])
 
-  // STUDENT following: mirror the tutor's view. A presented task → open it; the
-  // tutor's whiteboard → view the tutor's board read-only (overlay); not following
-  // → their own board. Answering pauses follow (onInteract → setFollowTutor(false)).
+  // STUDENT following: mirror the tutor — open the presented task, or drop back to
+  // the whiteboard when the tutor presents it. Answering pauses follow (onInteract
+  // → setFollowTutor(false)); re-toggling jumps back to the tutor's current view.
   const following = !isTutor && followTutor
   useEffect(() => {
-    if (isTutor) return // the tutor drives boardTarget from the Monitor, not follow
-    if (following && presentedTaskId) {
-      setActivePanel('materials')
-      setBoardTarget(null)
-    } else if (following && presenter) {
-      // tutor is on their whiteboard → mirror it read-only
-      setActivePanel(cur => (cur === 'materials' ? null : cur))
-      setBoardTarget({ ownerId: presenter.id, ownerName: presenter.name, mine: false })
-    } else {
-      // not following (or nothing to follow yet) → own board
-      setBoardTarget(null)
-    }
-  }, [isTutor, following, presentedTaskId, presenter])
+    if (!following) return
+    if (presentedTaskId) setActivePanel('materials')
+    else setActivePanel(cur => (cur === 'materials' ? null : cur))
+  }, [following, presentedTaskId])
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -396,20 +372,16 @@ export function SessionClassroom({
         label="session classroom"
         fallback={<div className="h-screen w-full bg-black">{video}</div>}
       >
-        {/* Each participant's PRIMARY surface is their OWN board (editable),
-            carrying the call video. Tutors write only on theirs, students only on
-            theirs; a following student views the tutor's board through the
-            read-only overlay below. A student can open a deployed task full-page
-            (z-30, below the toolbar); keep their video above it (z-[35]). */}
-        <PrimaryBoard
-          sessionId={sessionId}
-          ownerId={myId}
-          ownerName={myName}
-          isTutor={isTutor}
-          video={video}
-          // Keep the call video above the full-page task (z-30) and the board
-          // overlays (z-30) but below the toolbar (z-40).
-          videoZClassName="z-[35]"
+        <EnhancedWhiteboard
+          socket={socket}
+          roomId={sessionId}
+          userId={session?.user?.id}
+          userName={session?.user?.name || undefined}
+          videoOverlay
+          videoComponent={video}
+          // A student can open a deployed task full-page (z-30, below the toolbar);
+          // keep their video above it so the tutor stays visible while they read.
+          videoZClassName={!isTutor ? 'z-[35]' : 'z-10'}
         />
       </FallbackBoundary>
 
@@ -547,6 +519,26 @@ export function SessionClassroom({
             ) : null}
           </>
         ) : null}
+        {myId ? (
+          <button
+            type="button"
+            onClick={() =>
+              setBoardTarget(cur =>
+                cur?.mine ? null : { ownerId: myId, ownerName: 'Me', mine: true }
+              )
+            }
+            title="Your own private whiteboard"
+            className={
+              'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+              (boardTarget?.mine
+                ? 'bg-blue-600 text-white hover:bg-blue-500'
+                : 'bg-white/90 text-slate-800 hover:bg-white')
+            }
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            My board
+          </button>
+        ) : null}
         {!isTutor ? (
           <button
             type="button"
@@ -565,9 +557,17 @@ export function SessionClassroom({
                 A pulsing dot when active; click to stop/resume following. */}
             <button
               type="button"
-              // The follow effect reacts to `following` — turning it on jumps to the
-              // tutor's current view (task or their board); off returns to own board.
-              onClick={() => setFollowTutor(v => !v)}
+              onClick={() => {
+                const next = !followTutor
+                setFollowTutor(next)
+                // Resuming follow jumps to whatever the tutor is presenting right
+                // now (a task, or the whiteboard); stopping leaves the student where
+                // they are so they can work freely.
+                if (next) {
+                  if (presentedTaskId) setActivePanel('materials')
+                  else setActivePanel(cur => (cur === 'materials' ? null : cur))
+                }
+              }}
               title={
                 followTutor
                   ? 'Following the tutor — your view opens what they present. Click to stop.'

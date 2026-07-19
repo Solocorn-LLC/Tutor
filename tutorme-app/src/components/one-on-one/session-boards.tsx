@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { X, Users, PenTool } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -20,22 +20,11 @@ export function boardRoomId(sessionId: string, ownerId: string): string {
   return `${sessionId}:board:${ownerId}`
 }
 
-/** A persistent badge naming whose board this is, so it's never ambiguous. */
-export function BoardNameBadge({ label }: { label: string }) {
-  return (
-    <div className="pointer-events-none absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur">
-      <PenTool className="h-3.5 w-3.5" />
-      {label}
-    </div>
-  )
-}
-
 /** One isolated board on its own connection. Editable for its owner, read-only
  *  when the tutor is viewing someone else's. */
 function IsolatedBoard({
   sessionId,
   ownerId,
-  ownerName,
   viewerId,
   viewerName,
   viewerIsTutor,
@@ -43,7 +32,6 @@ function IsolatedBoard({
 }: {
   sessionId: string
   ownerId: string
-  ownerName?: string
   viewerId: string
   viewerName?: string
   viewerIsTutor?: boolean
@@ -62,65 +50,14 @@ function IsolatedBoard({
   const { socket } = useSocket(socketOptions)
 
   return (
-    <div className="relative h-full w-full">
-      <EnhancedWhiteboard
-        socket={socket}
-        roomId={boardRoomId(sessionId, ownerId)}
-        userId={viewerId}
-        userName={viewerName || undefined}
-        readOnly={readOnly}
-        videoOverlay={false}
-      />
-      {ownerName ? <BoardNameBadge label={`${ownerName}'s board`} /> : null}
-    </div>
-  )
-}
-
-/**
- * The user's OWN board — the primary drawing surface, editable, carrying the
- * call video overlay. Each participant writes only on their own board; a
- * following student sees the tutor's board through the read-only overlay instead.
- */
-export function PrimaryBoard({
-  sessionId,
-  ownerId,
-  ownerName,
-  isTutor,
-  video,
-  videoZClassName,
-}: {
-  sessionId: string
-  ownerId: string
-  ownerName: string
-  isTutor?: boolean
-  video?: ReactNode
-  videoZClassName?: string
-}) {
-  const socketOptions =
-    sessionId && ownerId
-      ? {
-          roomId: boardRoomId(sessionId, ownerId),
-          userId: ownerId,
-          name: ownerName || (isTutor ? 'Tutor' : 'Student'),
-          role: isTutor ? ('tutor' as const) : ('student' as const),
-          forceNew: true,
-        }
-      : undefined
-  const { socket } = useSocket(socketOptions)
-
-  return (
-    <div className="relative h-full w-full">
-      <EnhancedWhiteboard
-        socket={socket}
-        roomId={boardRoomId(sessionId, ownerId)}
-        userId={ownerId}
-        userName={ownerName || undefined}
-        videoOverlay
-        videoComponent={video}
-        videoZClassName={videoZClassName}
-      />
-      <BoardNameBadge label={`${ownerName} · your board`} />
-    </div>
+    <EnhancedWhiteboard
+      socket={socket}
+      roomId={boardRoomId(sessionId, ownerId)}
+      userId={viewerId}
+      userName={viewerName || undefined}
+      readOnly={readOnly}
+      videoOverlay={false}
+    />
   )
 }
 
@@ -215,7 +152,6 @@ export function SessionBoardsOverlay({
                 key={viewingStudent.ownerId}
                 sessionId={sessionId}
                 ownerId={viewingStudent.ownerId}
-                ownerName={viewingStudent.ownerName}
                 viewerId={userId}
                 viewerName={userName}
                 viewerIsTutor={isTutor}
