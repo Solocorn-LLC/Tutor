@@ -79,10 +79,16 @@ export interface ClassRoom {
   tasks: LiveTask[]
   polls?: any[]
   activePoll?: LivePoll | null
-  /** What the tutor is currently presenting (whiteboard vs a task) — so a late-
-   *  joining student hydrates the "follow" target from room_state, not just the
-   *  live tutor:state_sync broadcast (which could arrive before they're listening). */
-  presentedView?: { activeTab?: string; activeTaskId?: string | null } | null
+  /** What the tutor is currently presenting (whiteboard vs a task, + who the
+   *  presenter is so a follower can view their board) — so a late-joining student
+   *  hydrates the "follow" target from room_state, not just the live
+   *  tutor:state_sync broadcast (which could arrive before they're listening). */
+  presentedView?: {
+    activeTab?: string
+    activeTaskId?: string | null
+    presenterId?: string
+    presenterName?: string
+  } | null
   codeEditorContent?: string
   codeLanguage?: string
   createdAt: Date
@@ -2332,8 +2338,17 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // require the sender to be a member — so without this check a crafted
     // `roomId = "<session>:board:<victim>"` could write to a board the sender was
     // rejected from. Base (non-board) rooms keep their existing behaviour.
-    const canWriteRoom = (roomId: string): boolean =>
-      !roomId.includes(':board:') || socket.rooms.has(roomId)
+    const canWriteRoom = (roomId: string): boolean => {
+      const boardIdx = roomId.indexOf(':board:')
+      if (boardIdx < 0) return true // base (non-board) room — existing behaviour
+      if (!socket.rooms.has(roomId)) return false
+      // Board sub-rooms are per-person: ONLY the owner may write. A viewer (the
+      // tutor watching a student's board, or a student following the tutor's
+      // board) is read-only server-side, not just in the UI — so no one can draw
+      // on someone else's board.
+      const ownerId = roomId.slice(boardIdx + ':board:'.length)
+      return socket.data.userId === ownerId
+    }
 
     // Incremental whiteboard delta sync handlers
     socket.on(
@@ -2530,6 +2545,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
             room.presentedView = (payload ?? null) as {
               activeTab?: string
               activeTaskId?: string | null
+              presenterId?: string
+              presenterName?: string
             } | null
           io.to(roomId).emit('insight:receive', { type, payload })
           return
