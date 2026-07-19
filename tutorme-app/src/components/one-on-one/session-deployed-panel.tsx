@@ -88,10 +88,16 @@ export function SessionDeployedPanel({
   }
 
   // Follow: open the tutor's current task when it changes (only when the id is a
-  // new value, so the student can still tap Back without being re-yanked).
+  // new value, so the student can still tap Back without being re-yanked). When
+  // following turns off (followTaskId null) reset the ref, so re-enabling follow
+  // re-opens the current task even if it hasn't changed.
   const lastFollowRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!followTaskId || followTaskId === lastFollowRef.current) return
+    if (!followTaskId) {
+      lastFollowRef.current = null
+      return
+    }
+    if (followTaskId === lastFollowRef.current) return
     lastFollowRef.current = followTaskId
     if (tasks.some(t => t.id === followTaskId)) openTask(followTaskId)
     // eslint-disable-next-line react-hooks/exhaustive-deps

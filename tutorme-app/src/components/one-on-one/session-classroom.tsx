@@ -12,7 +12,7 @@
  * task deployment) are intentionally absent — a course-less session has none.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Send,
@@ -240,6 +240,7 @@ export function SessionClassroom({
   // stops when the student starts answering (see onInteract) or toggles it off.
   const followKey = `sc:follow:${sessionId}`
   const [followTutor, setFollowTutor] = useState(true)
+  const followHydrated = useRef(false)
   useEffect(() => {
     if (isTutor) return
     try {
@@ -248,9 +249,12 @@ export function SessionClassroom({
     } catch {
       /* private mode / unavailable — default stays on */
     }
+    followHydrated.current = true
   }, [followKey, isTutor])
   useEffect(() => {
-    if (isTutor) return
+    // Don't persist until we've read the stored value, so the initial default
+    // can't clobber it on first mount.
+    if (isTutor || !followHydrated.current) return
     try {
       localStorage.setItem(followKey, followTutor ? '1' : '0')
     } catch {
