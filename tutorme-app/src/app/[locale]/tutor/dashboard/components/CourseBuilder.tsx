@@ -348,6 +348,7 @@ import {
   CONTENT_TEMPLATES,
   generateQuestionPaperPDF,
   generateTaskTextPDF,
+  TASK_TEXT_SNAPSHOT_VERSION,
   resolveSelectedItem,
   stringToColor,
   formatDuration,
@@ -4608,12 +4609,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         : taskBuilder.sourceDocument
       // If a real uploaded document is present, never overwrite it.
       if (existingDoc && !existingDoc.generatedFromText) return
-      // Already generated and content hasn't changed → nothing to do.
-      if (existingDoc?.generatedFromText && existingDoc.extractedText === content) return
+      // Already generated and content hasn't changed AND snapshot version matches → nothing to do.
+      if (
+        existingDoc?.generatedFromText &&
+        existingDoc.extractedText === content &&
+        existingDoc.snapshotVersion === TASK_TEXT_SNAPSHOT_VERSION
+      )
+        return
 
       generatingTaskDocRef.current = true
       try {
-        const { blob, fileName } = await generateTaskTextPDF(taskBuilder.title || 'Task', content)
+        const { blob, fileName, snapshotVersion } = await generateTaskTextPDF(
+          taskBuilder.title || 'Task',
+          content
+        )
         const file = new File([blob], fileName, { type: 'application/pdf' })
         const formData = new FormData()
         formData.append('file', file)
@@ -4636,6 +4645,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           uploadedAt: new Date().toISOString(),
           extractedText: content,
           generatedFromText: true,
+          snapshotVersion,
         }
 
         if (isExtension) {

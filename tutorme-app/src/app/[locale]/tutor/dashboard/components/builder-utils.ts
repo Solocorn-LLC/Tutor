@@ -456,6 +456,13 @@ export async function generateQuestionPaperPDF(
 }
 
 /**
+ * Version of the text-only task snapshot renderer. Bump this whenever the
+ * generated snapshot format changes so existing auto-generated PDFs are
+ * invalidated and regenerated.
+ */
+export const TASK_TEXT_SNAPSHOT_VERSION = 2
+
+/**
  * Generate a simple PDF from a task's typed content so that text-only
  * tasks can be previewed and deployed exactly like uploaded PDF documents.
  *
@@ -471,7 +478,7 @@ export async function generateQuestionPaperPDF(
 export async function generateTaskTextPDF(
   title: string,
   content: string
-): Promise<{ blob: Blob; fileName: string }> {
+): Promise<{ blob: Blob; fileName: string; snapshotVersion: number }> {
   if (typeof document === 'undefined') {
     throw new Error('generateTaskTextPDF must be called in a browser')
   }
@@ -525,7 +532,11 @@ export async function generateTaskTextPDF(
     doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
 
     const safeTitle = title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Task'
-    return { blob: doc.output('blob'), fileName: `${safeTitle}.pdf` }
+    return {
+      blob: doc.output('blob'),
+      fileName: `${safeTitle}.pdf`,
+      snapshotVersion: TASK_TEXT_SNAPSHOT_VERSION,
+    }
   } finally {
     if (viewport.parentNode) {
       document.body.removeChild(viewport)

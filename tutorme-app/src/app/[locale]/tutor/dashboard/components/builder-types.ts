@@ -34,6 +34,10 @@ export interface ImportedLearningResource {
   fileKey?: string
   extractedText?: string
   uploadedAt: string
+  /** True when this document was auto-generated from typed text rather than uploaded. */
+  generatedFromText?: boolean
+  /** Version of the snapshot generator that produced this document. Bumping it forces re-generation of older auto-snapshots. */
+  snapshotVersion?: number
 }
 
 export interface VisibleDocumentPayload {
