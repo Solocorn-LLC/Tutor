@@ -12,6 +12,7 @@ import {
   ListChecks,
   Pencil,
   Check,
+  ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
@@ -64,14 +65,40 @@ export function SessionDeployedPanel({
   resultByTask: Record<string, SessionGradeResult>
   onClose: () => void
 }) {
+  // Master-detail, mirroring the course-builder "Lessons" panel: the default
+  // view lists every deployed task/assessment (newest first); opening one drills
+  // into its content. Nothing is auto-opened — the student picks from the list.
   const [activeId, setActiveId] = useState<string | null>(null)
-  // Default to the most-recently-deployed task when nothing is selected.
-  const active = tasks.find(t => t.id === activeId) ?? tasks[tasks.length - 1] ?? null
+  // Tasks the viewer has opened this session — everything else reads as "New",
+  // like the Lessons panel's unseen badge.
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set())
+  const active = activeId ? (tasks.find(t => t.id === activeId) ?? null) : null
+
+  const openTask = (id: string) => {
+    setActiveId(id)
+    setSeenIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }
+
+  // Newest first, matching the reference panel's ordering.
+  const orderedTasks = [...tasks].reverse()
 
   return (
     <div className="pointer-events-auto flex h-full w-96 flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">Materials</h3>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {active ? (
+            <button
+              onClick={() => setActiveId(null)}
+              aria-label="Back to list"
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          ) : null}
+          <h3 className="truncate text-sm font-semibold text-slate-900">
+            {active ? 'Back to materials' : 'Materials'}
+          </h3>
+        </div>
         <button
           onClick={onClose}
           aria-label="Close"
@@ -85,35 +112,49 @@ export function SessionDeployedPanel({
         <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-slate-500">
           Nothing shared yet. When the tutor deploys a task or material, it appears here.
         </div>
-      ) : (
-        <>
-          {/* Tabs of deployed items */}
-          <div className="flex flex-wrap gap-1.5 border-b p-2">
-            {tasks.map(t => (
+      ) : !active ? (
+        /* List of every deployed task/assessment — the "Lessons" list. */
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          {orderedTasks.map(t => {
+            const isAssessment = (t.dmiItems?.length ?? 0) > 0 || t.source === 'assessment'
+            const done = completedTaskIds.has(t.id)
+            return (
               <button
                 key={t.id}
-                onClick={() => setActiveId(t.id)}
-                className={
-                  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ' +
-                  (t.id === active?.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
-                }
+                type="button"
+                onClick={() => openTask(t.id)}
+                className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-3 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/40"
               >
-                {t.dmiItems && t.dmiItems.length > 0 ? (
-                  <ListChecks className="h-3 w-3" />
-                ) : (
-                  <FileText className="h-3 w-3" />
-                )}
-                <span className="max-w-[8rem] truncate">{t.title}</span>
-                {completedTaskIds.has(t.id) ? (
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                ) : null}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-slate-900">
+                    {isAssessment ? (
+                      <ListChecks className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    )}
+                    <span className="truncate">{t.title}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {done ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : !seenIds.has(t.id) ? (
+                      <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                        New
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500">
+                  {isAssessment ? 'Assessment' : 'Task'}
+                  {t.deployedAt ? ` · Deployed ${new Date(t.deployedAt).toLocaleTimeString()}` : ''}
+                </span>
               </button>
-            ))}
-          </div>
-
-          {/* Active item */}
+            )
+          })}
+        </div>
+      ) : (
+        <>
+          {/* Opened item */}
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {active ? (
               isChatTask(active) ? (
@@ -149,6 +190,7 @@ export function SessionDeployedPanel({
                       taskId={active.id}
                       taskTitle={active.title}
                       sourceDocument={active.sourceDocument}
+                      previewMode={!!isTutor}
                       onCompleted={
                         isTutor
                           ? undefined

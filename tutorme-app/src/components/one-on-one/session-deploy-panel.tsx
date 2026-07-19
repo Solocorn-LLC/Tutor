@@ -615,6 +615,7 @@ function TaskPreviewOverlay({
                 taskId={task.taskId}
                 taskTitle={task.title}
                 sourceDocument={task.sourceDocument}
+                previewMode
               />
             </div>
           </div>

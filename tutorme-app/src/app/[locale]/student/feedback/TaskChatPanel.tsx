@@ -27,6 +27,7 @@ export function TaskChatPanel({
   taskTitle,
   sourceDocument,
   onCompleted,
+  previewMode = false,
 }: {
   taskId: string
   taskTitle?: string
@@ -36,6 +37,10 @@ export function TaskChatPanel({
   /** Fired after the task is completed, with the student's answers — the page
    *  uses it to broadcast the live "completed" tick to the tutor. */
   onCompleted?: (answers: string[]) => void
+  /** Tutor-facing preview: hides the student-only "Task complete" action (tutors
+   *  test tasks in the course-builder Test tab, not here). The box still shows
+   *  exactly what the student gets. */
+  previewMode?: boolean
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
@@ -203,9 +208,19 @@ export function TaskChatPanel({
         {loaded && messages.length === 0 && (
           <p className="text-sm leading-relaxed text-gray-500">
             {taskTitle ? <span className="font-medium text-gray-700">{taskTitle}. </span> : null}
-            Chat your answer(s) below — send each one, then click{' '}
-            <span className="font-medium text-[#9a4a12]">Task complete</span>. Your tutor’s AI will
-            respond to each answer, and then you can ask about anything you got wrong.
+            {previewMode ? (
+              <>
+                This is how the student answers this task — by chat. They send each answer, click{' '}
+                <span className="font-medium text-[#9a4a12]">Task complete</span>, and the AI
+                responds to each per your marking policy.
+              </>
+            ) : (
+              <>
+                Chat your answer(s) below — send each one, then click{' '}
+                <span className="font-medium text-[#9a4a12]">Task complete</span>. Your tutor’s AI
+                will respond to each answer, and then you can ask about anything you got wrong.
+              </>
+            )}
           </p>
         )}
         {messages.map((m, i) =>
@@ -262,7 +277,7 @@ export function TaskChatPanel({
             <Send className="h-4 w-4" />
           </button>
         </div>
-        {!completed && (
+        {!completed && !previewMode && (
           <button
             type="button"
             onClick={complete}
