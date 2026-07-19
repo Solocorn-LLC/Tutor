@@ -34,7 +34,11 @@ import { DailyVideoFrame } from '@/components/class/daily-video-frame'
 import { SessionDeployPanel } from '@/components/one-on-one/session-deploy-panel'
 import { SessionDeployedPanel } from '@/components/one-on-one/session-deployed-panel'
 import { SessionSubmissionsPanel } from '@/components/one-on-one/session-submissions-panel'
-import { SessionBoardsOverlay, useOwnBoardOpened } from '@/components/one-on-one/session-boards'
+import {
+  SessionBoardsOverlay,
+  BoardNameBadge,
+  useOwnBoardOpened,
+} from '@/components/one-on-one/session-boards'
 import { useSessionRoomState } from '@/components/one-on-one/use-session-room-state'
 import { SessionChatPanel } from '@/components/one-on-one/session-chat-panel'
 import { SessionMonitorPanel } from '@/components/one-on-one/session-monitor-panel'
@@ -99,6 +103,7 @@ export function SessionClassroom({
   const [nowTs, setNowTs] = useState(0)
   const [ended, setEnded] = useState(false)
   const myId = session?.user?.id ?? ''
+  const myName = session?.user?.name || (isTutor ? 'Tutor' : 'Student')
 
   // Listen for the embedded course-editor's save postMessage and refresh the
   // deploy panel's task list. Same-origin check guards against foreign frames.
@@ -372,17 +377,26 @@ export function SessionClassroom({
         label="session classroom"
         fallback={<div className="h-screen w-full bg-black">{video}</div>}
       >
-        <EnhancedWhiteboard
-          socket={socket}
-          roomId={sessionId}
-          userId={session?.user?.id}
-          userName={session?.user?.name || undefined}
-          videoOverlay
-          videoComponent={video}
-          // A student can open a deployed task full-page (z-30, below the toolbar);
-          // keep their video above it so the tutor stays visible while they read.
-          videoZClassName={!isTutor ? 'z-[35]' : 'z-10'}
-        />
+        {/* The base board is the TUTOR's board — the tutor writes on it, students
+            see it read-only (this is what a following student mirrors). Students
+            write on their OWN board via "My board". */}
+        <div className="relative h-full w-full">
+          <EnhancedWhiteboard
+            socket={socket}
+            roomId={sessionId}
+            userId={session?.user?.id}
+            userName={session?.user?.name || undefined}
+            readOnly={!isTutor}
+            videoOverlay
+            videoComponent={video}
+            // A student can open a deployed task full-page (z-30, below the toolbar);
+            // keep their video above it so the tutor stays visible while they read.
+            videoZClassName={!isTutor ? 'z-[35]' : 'z-10'}
+          />
+          <BoardNameBadge
+            label={isTutor ? `${session?.user?.name || 'You'} · your board` : "Tutor's board"}
+          />
+        </div>
       </FallbackBoundary>
 
       {/* Session countdown (everyone) + tutor "End session". */}
@@ -522,12 +536,16 @@ export function SessionClassroom({
         {myId ? (
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              // Opening your own board = you're working, so stop mirroring the tutor.
+              if (!isTutor) setFollowTutor(false)
               setBoardTarget(cur =>
-                cur?.mine ? null : { ownerId: myId, ownerName: 'Me', mine: true }
+                cur?.mine
+                  ? null
+                  : { ownerId: myId, ownerName: `${myName} · your board`, mine: true }
               )
-            }
-            title="Your own private whiteboard"
+            }}
+            title="Your own private whiteboard — write here"
             className={
               'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
               (boardTarget?.mine

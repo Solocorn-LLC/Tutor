@@ -2332,8 +2332,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // require the sender to be a member — so without this check a crafted
     // `roomId = "<session>:board:<victim>"` could write to a board the sender was
     // rejected from. Base (non-board) rooms keep their existing behaviour.
-    const canWriteRoom = (roomId: string): boolean =>
-      !roomId.includes(':board:') || socket.rooms.has(roomId)
+    const canWriteRoom = (roomId: string): boolean => {
+      const boardIdx = roomId.indexOf(':board:')
+      if (boardIdx < 0) return true // base session room — existing behaviour
+      if (!socket.rooms.has(roomId)) return false
+      // A per-person board sub-room is writable ONLY by its owner. A viewer (the
+      // tutor watching a student's board) is joined so they can watch, but must
+      // not draw on it — enforced here, not just in the UI.
+      const ownerId = roomId.slice(boardIdx + ':board:'.length)
+      return socket.data.userId === ownerId
+    }
 
     // Incremental whiteboard delta sync handlers
     socket.on(

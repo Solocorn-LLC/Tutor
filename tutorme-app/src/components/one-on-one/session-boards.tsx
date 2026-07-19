@@ -20,11 +20,22 @@ export function boardRoomId(sessionId: string, ownerId: string): string {
   return `${sessionId}:board:${ownerId}`
 }
 
+/** A persistent badge naming whose board this is, so it's never ambiguous. */
+export function BoardNameBadge({ label }: { label: string }) {
+  return (
+    <div className="pointer-events-none absolute left-3 top-16 z-30 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur">
+      <PenTool className="h-3.5 w-3.5" />
+      {label}
+    </div>
+  )
+}
+
 /** One isolated board on its own connection. Editable for its owner, read-only
  *  when the tutor is viewing someone else's. */
 function IsolatedBoard({
   sessionId,
   ownerId,
+  ownerName,
   viewerId,
   viewerName,
   viewerIsTutor,
@@ -32,6 +43,7 @@ function IsolatedBoard({
 }: {
   sessionId: string
   ownerId: string
+  ownerName?: string
   viewerId: string
   viewerName?: string
   viewerIsTutor?: boolean
@@ -50,14 +62,17 @@ function IsolatedBoard({
   const { socket } = useSocket(socketOptions)
 
   return (
-    <EnhancedWhiteboard
-      socket={socket}
-      roomId={boardRoomId(sessionId, ownerId)}
-      userId={viewerId}
-      userName={viewerName || undefined}
-      readOnly={readOnly}
-      videoOverlay={false}
-    />
+    <div className="relative h-full w-full">
+      <EnhancedWhiteboard
+        socket={socket}
+        roomId={boardRoomId(sessionId, ownerId)}
+        userId={viewerId}
+        userName={viewerName || undefined}
+        readOnly={readOnly}
+        videoOverlay={false}
+      />
+      {ownerName ? <BoardNameBadge label={ownerName} /> : null}
+    </div>
   )
 }
 
@@ -133,6 +148,7 @@ export function SessionBoardsOverlay({
               <IsolatedBoard
                 sessionId={sessionId}
                 ownerId={userId}
+                ownerName={`${userName || 'You'} · your board`}
                 viewerId={userId}
                 viewerName={userName}
                 viewerIsTutor={isTutor}
@@ -152,6 +168,7 @@ export function SessionBoardsOverlay({
                 key={viewingStudent.ownerId}
                 sessionId={sessionId}
                 ownerId={viewingStudent.ownerId}
+                ownerName={`${viewingStudent.ownerName}'s board`}
                 viewerId={userId}
                 viewerName={userName}
                 viewerIsTutor={isTutor}
