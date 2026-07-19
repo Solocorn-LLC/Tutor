@@ -7,7 +7,7 @@ import { Server as NetServer } from 'http'
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
-import { eq, and, inArray, desc } from 'drizzle-orm'
+import { eq, and, inArray, desc, sql } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { authorizeSessionStudent } from '@/lib/live/session-student-auth'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -1025,6 +1025,29 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
       }
 
+      // A 1-on-1 session (and anything created via create-session) starts life as
+      // 'scheduled' and nothing ever flips it live — unlike group/ad-hoc sessions,
+      // which set 'active' on their explicit start action. But status-gated
+      // features depend on it: `canDeployToSession` requires an active/live status,
+      // so with the session stuck 'scheduled' every task deploy was rejected server-
+      // side ("Session has not started yet") and never reached students. When the
+      // scheduled tutor actually enters the room, promote the session to 'active'.
+      // Guarded to only promote from 'scheduled' (ended/paused/active are left
+      // alone) and best-effort so a write hiccup never blocks the join. boardIdx<0
+      // skips private-whiteboard sub-rooms (no LiveSession row of their own).
+      if (effectiveRole !== 'student' && boardIdx < 0) {
+        try {
+          await drizzleDb
+            .update(liveSession)
+            // Preserve an existing startedAt (COALESCE) so a re-promotion can never
+            // reset the recorded start time / session-duration metric.
+            .set({ status: 'active', startedAt: sql`COALESCE(${liveSession.startedAt}, now())` })
+            .where(and(eq(liveSession.sessionId, roomId), eq(liveSession.status, 'scheduled')))
+        } catch (goLiveErr) {
+          console.warn('[join_class] failed to promote session to active:', goLiveErr)
+        }
+      }
+
       if (!room) {
         const roomTutorId =
           effectiveRole !== 'student'
@@ -1265,7 +1288,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // Helper: check if a session is currently in a state where tutors can deploy content
     async function canDeployToSession(
       sessionId: string,
-      source?: string
+      source?: string,
+      deployerId?: string
     ): Promise<{ ok: true } | { ok: false; reason: string }> {
       try {
         const [sessionRec] = await drizzleDb
@@ -1274,6 +1298,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             scheduledAt: liveSession.scheduledAt,
             startedAt: liveSession.startedAt,
             endedAt: liveSession.endedAt,
+            tutorId: liveSession.tutorId,
           })
           .from(liveSession)
           .where(eq(liveSession.sessionId, sessionId))
@@ -1281,17 +1306,31 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
         if (!sessionRec) return { ok: false, reason: 'Session not found' }
 
+        // Ownership: only the session's own tutor may deploy into it. The handler
+        // only checks role === 'tutor' and recreates the room on demand, so without
+        // this any tutor could deploy to any session by id (and then read its
+        // students' submissions). Skip only when the caller is unknown or the row
+        // has no tutor (legacy/ad-hoc) to preserve prior behaviour in those cases.
+        if (deployerId && sessionRec.tutorId && sessionRec.tutorId !== deployerId) {
+          return { ok: false, reason: 'Not authorized for this session' }
+        }
+
         // Homework can be dropped even after session ends
         if (source !== 'homework') {
           if (sessionRec.status === 'ended') return { ok: false, reason: 'Session has ended' }
           if (sessionRec.endedAt) return { ok: false, reason: 'Session has ended' }
         }
 
-        // Must be active or live to deploy (or ended for homework)
+        // Must be started (or ended, for homework) to deploy. 'scheduled' is
+        // allowed too: a tutor can only deploy from inside the live room, and
+        // joining promotes the session to 'active' (see join_class) — but that
+        // write races the first deploy, and 1-on-1 sessions historically never
+        // left 'scheduled' at all. 'ended'/endedAt are still blocked above for
+        // non-homework, so this only opens the not-yet-started window.
         const allowedStatuses =
           source === 'homework'
-            ? ['active', 'live', 'preparing', 'paused', 'ended']
-            : ['active', 'live', 'preparing', 'paused']
+            ? ['active', 'live', 'preparing', 'paused', 'ended', 'scheduled']
+            : ['active', 'live', 'preparing', 'paused', 'scheduled']
         if (!allowedStatuses.includes(sessionRec.status)) {
           return { ok: false, reason: 'Session has not started yet' }
         }
@@ -1332,7 +1371,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         console.log(`[task:deploy] Recreated room ${roomId} on demand`)
       }
 
-      const deployCheck = await canDeployToSession(roomId, task.source)
+      const deployCheck = await canDeployToSession(roomId, task.source, socket.data.userId)
       if (!deployCheck.ok) {
         socket.emit('task:deploy:error', { error: deployCheck.reason })
         return
@@ -2477,7 +2516,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           return
         }
 
-        const deployCheck = await canDeployToSession(roomId)
+        const deployCheck = await canDeployToSession(roomId, undefined, socket.data.userId)
         if (!deployCheck.ok) {
           socket.emit('insight:send:error', { error: deployCheck.reason })
           return
