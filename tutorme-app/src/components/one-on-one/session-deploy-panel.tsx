@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { StudentDmiItem } from '@/lib/assessment/student-dmi'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+import { TaskChatPanel } from '@/app/[locale]/student/feedback/TaskChatPanel'
 import { sanitizeHtml } from '@/lib/security/sanitize'
 import { isImportPlaceholder } from '@/lib/tasks/import-placeholder'
 
@@ -133,6 +134,22 @@ export function SessionDeployPanel({
       active = false
     }
   }, [courseId, refreshKey])
+
+  // Surface server-side deploy rejections. The `task:deploy` emit is optimistic
+  // (we toast success immediately), so without this a rejected deploy — e.g. the
+  // session status gate — would silently look successful while nothing reached
+  // the students.
+  useEffect(() => {
+    if (!socket) return
+    const onDeployError = (e: { error?: string }) => {
+      toast.error(e?.error ? `Couldn't deploy: ${e.error}` : "Couldn't deploy — please try again.")
+      setDeployingId(null)
+    }
+    socket.on('task:deploy:error', onDeployError)
+    return () => {
+      socket.off('task:deploy:error', onDeployError)
+    }
+  }, [socket])
 
   // Group the flat task list into course → lesson → tasks, filtered by the
   // search query (matches task title, course name or lesson title).
@@ -539,6 +556,11 @@ function TaskPreviewOverlay({
     .replace(/&nbsp;/gi, ' ')
     .trim()
   const showContent = visibleText.length > 0 && !isImportPlaceholder(contentText)
+  // A chat task (a plain task with no structured questions) is answered by
+  // chatting with the AI — the same box the student gets. Preview it interactively
+  // here: the tutor owns the task, so the task-chat endpoint runs it statelessly
+  // (nothing is saved). The source document is rendered inside TaskChatPanel.
+  const isChatTask = task.type === 'task' && task.dmiItems.length === 0
   // The right column holds the authored content + questions. When both a document
   // and a right column exist they sit side by side; either one alone fills the row.
   // No visible content AND no questions → the document fills the whole modal.
@@ -573,98 +595,126 @@ function TaskPreviewOverlay({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row">
-          {/* Document (left) — split 50/50 with the right column via flex-1 (stacked
-              on mobile, side by side on lg+); fills the whole row when alone. */}
-          {task.sourceDocument ? (
+        {isChatTask ? (
+          // Chat task: interactive AI chat preview (same box students get). The
+          // document, if any, is rendered inside TaskChatPanel — not standalone.
+          // onCompleted is omitted: this is a pre-deploy preview, so no live
+          // completion is ever emitted, and the owner-tutor call never persists.
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+            <p className="shrink-0 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs text-slate-500">
+              Preview — try the chat as a student would. Nothing is saved.
+            </p>
+            {showContent ? (
+              <div
+                className="prose prose-sm max-h-40 shrink-0 overflow-y-auto pr-1 text-slate-700"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
+              />
+            ) : null}
             <div className="min-h-0 flex-1">
-              <TaskDocumentCard sourceDocument={task.sourceDocument} alwaysOpen />
+              <TaskChatPanel
+                taskId={task.taskId}
+                taskTitle={task.title}
+                sourceDocument={task.sourceDocument}
+              />
             </div>
-          ) : null}
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row">
+            {/* Document (left) — split 50/50 with the right column via flex-1 (stacked
+              on mobile, side by side on lg+); fills the whole row when alone. */}
+            {task.sourceDocument ? (
+              <div className="min-h-0 flex-1">
+                <TaskDocumentCard sourceDocument={task.sourceDocument} alwaysOpen />
+              </div>
+            ) : null}
 
-          {/* Content + questions (right) — scrolls independently. */}
-          {hasRightColumn ? (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {/* Hide the auto-generated "[Imported file.docx]" placeholder content —
+            {/* Content + questions (right) — scrolls independently. */}
+            {hasRightColumn ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {/* Hide the auto-generated "[Imported file.docx]" placeholder content —
                   it's noise once the actual document is shown. Only real authored
                   content is rendered. */}
-              {showContent ? (
-                <div
-                  className="prose prose-sm mb-4 max-w-none text-slate-700"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
-                />
-              ) : null}
+                {showContent ? (
+                  <div
+                    className="prose prose-sm mb-4 max-w-none text-slate-700"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.content) }}
+                  />
+                ) : null}
 
-              {task.dmiItems.length > 0 ? (
-                <ol className="flex flex-col gap-4">
-                  {task.dmiItems.map((q, i) => (
-                    <li key={q.id} className="rounded-lg border border-slate-200 p-3">
-                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-semibold text-slate-500">
-                          {q.questionLabel || `Question ${q.questionNumber || i + 1}`}
-                        </span>
-                        {typeof q.marks === 'number' ? (
-                          <span className="shrink-0 text-[11px] text-slate-400">
-                            {q.marks} mark{q.marks === 1 ? '' : 's'}
+                {task.dmiItems.length > 0 ? (
+                  <ol className="flex flex-col gap-4">
+                    {task.dmiItems.map((q, i) => (
+                      <li key={q.id} className="rounded-lg border border-slate-200 p-3">
+                        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-500">
+                            {q.questionLabel || `Question ${q.questionNumber || i + 1}`}
                           </span>
+                          {typeof q.marks === 'number' ? (
+                            <span className="shrink-0 text-[11px] text-slate-400">
+                              {q.marks} mark{q.marks === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
+                        </div>
+                        {q.questionText ? (
+                          <p className="mb-2 whitespace-pre-wrap text-sm text-slate-800">
+                            {q.questionText}
+                          </p>
                         ) : null}
-                      </div>
-                      {q.questionText ? (
-                        <p className="mb-2 whitespace-pre-wrap text-sm text-slate-800">
-                          {q.questionText}
-                        </p>
-                      ) : null}
-                      {q.hotspotImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={q.hotspotImageUrl}
-                          alt=""
-                          className="mb-2 max-h-64 w-auto rounded border border-slate-200"
-                        />
-                      ) : null}
-                      {q.options && q.options.length > 0 ? (
-                        <ul className="flex flex-col gap-1">
-                          {q.options.map((opt, oi) => (
-                            <li key={oi} className="flex items-start gap-2 text-sm text-slate-700">
-                              <span className="shrink-0 font-semibold text-slate-400">
-                                {String.fromCharCode(65 + oi)}.
-                              </span>
-                              <span className="whitespace-pre-wrap">{opt}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {q.matchPrompts && q.matchPrompts.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                        {q.hotspotImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={q.hotspotImageUrl}
+                            alt=""
+                            className="mb-2 max-h-64 w-auto rounded border border-slate-200"
+                          />
+                        ) : null}
+                        {q.options && q.options.length > 0 ? (
                           <ul className="flex flex-col gap-1">
-                            {q.matchPrompts.map((p, pi) => (
-                              <li key={pi} className="whitespace-pre-wrap">
-                                {pi + 1}. {p}
+                            {q.options.map((opt, oi) => (
+                              <li
+                                key={oi}
+                                className="flex items-start gap-2 text-sm text-slate-700"
+                              >
+                                <span className="shrink-0 font-semibold text-slate-400">
+                                  {String.fromCharCode(65 + oi)}.
+                                </span>
+                                <span className="whitespace-pre-wrap">{opt}</span>
                               </li>
                             ))}
                           </ul>
-                          {q.matchBank && q.matchBank.length > 0 ? (
-                            <ul className="flex flex-col gap-1 text-slate-500">
-                              {q.matchBank.map((b, bi) => (
-                                <li key={bi} className="whitespace-pre-wrap">
-                                  • {b}
+                        ) : null}
+                        {q.matchPrompts && q.matchPrompts.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+                            <ul className="flex flex-col gap-1">
+                              {q.matchPrompts.map((p, pi) => (
+                                <li key={pi} className="whitespace-pre-wrap">
+                                  {pi + 1}. {p}
                                 </li>
                               ))}
                             </ul>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-            </div>
-          ) : null}
+                            {q.matchBank && q.matchBank.length > 0 ? (
+                              <ul className="flex flex-col gap-1 text-slate-500">
+                                {q.matchBank.map((b, bi) => (
+                                  <li key={bi} className="whitespace-pre-wrap">
+                                    • {b}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </div>
+            ) : null}
 
-          {!hasAnyPreview ? (
-            <p className="text-sm text-slate-400">This item has no previewable content.</p>
-          ) : null}
-        </div>
+            {!hasAnyPreview ? (
+              <p className="text-sm text-slate-400">This item has no previewable content.</p>
+            ) : null}
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
           <button

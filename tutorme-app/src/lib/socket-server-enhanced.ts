@@ -1025,6 +1025,27 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
       }
 
+      // A 1-on-1 session (and anything created via create-session) starts life as
+      // 'scheduled' and nothing ever flips it live — unlike group/ad-hoc sessions,
+      // which set 'active' on their explicit start action. But status-gated
+      // features depend on it: `canDeployToSession` requires an active/live status,
+      // so with the session stuck 'scheduled' every task deploy was rejected server-
+      // side ("Session has not started yet") and never reached students. When the
+      // scheduled tutor actually enters the room, promote the session to 'active'.
+      // Guarded to only promote from 'scheduled' (ended/paused/active are left
+      // alone) and best-effort so a write hiccup never blocks the join. boardIdx<0
+      // skips private-whiteboard sub-rooms (no LiveSession row of their own).
+      if (effectiveRole !== 'student' && boardIdx < 0) {
+        try {
+          await drizzleDb
+            .update(liveSession)
+            .set({ status: 'active', startedAt: new Date() })
+            .where(and(eq(liveSession.sessionId, roomId), eq(liveSession.status, 'scheduled')))
+        } catch (goLiveErr) {
+          console.warn('[join_class] failed to promote session to active:', goLiveErr)
+        }
+      }
+
       if (!room) {
         const roomTutorId =
           effectiveRole !== 'student'
@@ -1287,11 +1308,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
           if (sessionRec.endedAt) return { ok: false, reason: 'Session has ended' }
         }
 
-        // Must be active or live to deploy (or ended for homework)
+        // Must be started (or ended, for homework) to deploy. 'scheduled' is
+        // allowed too: a tutor can only deploy from inside the live room, and
+        // joining promotes the session to 'active' (see join_class) — but that
+        // write races the first deploy, and 1-on-1 sessions historically never
+        // left 'scheduled' at all. 'ended'/endedAt are still blocked above for
+        // non-homework, so this only opens the not-yet-started window.
         const allowedStatuses =
           source === 'homework'
-            ? ['active', 'live', 'preparing', 'paused', 'ended']
-            : ['active', 'live', 'preparing', 'paused']
+            ? ['active', 'live', 'preparing', 'paused', 'ended', 'scheduled']
+            : ['active', 'live', 'preparing', 'paused', 'scheduled']
         if (!allowedStatuses.includes(sessionRec.status)) {
           return { ok: false, reason: 'Session has not started yet' }
         }
