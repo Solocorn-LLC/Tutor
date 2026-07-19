@@ -63,13 +63,8 @@ import {
 } from './use-course-builder-content-model'
 import { saveCourse, resolveLessonDmis } from './save-course'
 import type { ScheduleItem } from '../[id]/constants'
-import { VariantScheduleEditor } from '../[id]/components/VariantScheduleEditor'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { useRouter } from 'next/navigation'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
-import { DollarSign, Languages } from 'lucide-react'
 
 function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
   const color = error ? 'text-red-500' : connected ? 'text-emerald-500' : 'text-amber-400'
@@ -193,6 +188,7 @@ interface TutorControlsPanelProps {
   endingSession?: boolean
   isConnected?: boolean
   connectionError?: boolean
+  scheduleButtonLabel?: string
 }
 
 function TutorControlsPanel({
@@ -216,6 +212,7 @@ function TutorControlsPanel({
   endingSession,
   isConnected,
   connectionError,
+  scheduleButtonLabel,
 }: TutorControlsPanelProps) {
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
@@ -431,7 +428,7 @@ function TutorControlsPanel({
                         )}
                       >
                         <Calendar className="h-4 w-4" />
-                        Schedule & Publish
+                        {scheduleButtonLabel || 'Schedule & Publish'}
                       </button>
                     </TooltipTrigger>
                   </Tooltip>
@@ -596,19 +593,6 @@ function CourseBuilderInsightsRouteInner({
     setCourseStateFilter(filter)
   }
   const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false)
-  const router = useRouter()
-
-  // Reschedule dialog state
-  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
-  const [wizardTab, setWizardTab] = useState<'details' | 'category' | 'schedule'>('details')
-  const [rescheduleName, setRescheduleName] = useState('')
-  const [rescheduleCategories, setRescheduleCategories] = useState<string[]>([])
-  const [reschedulePrice, setReschedulePrice] = useState<string>('')
-  const [rescheduleCurrency, setRescheduleCurrency] = useState('USD')
-  const [rescheduleIsFree, setRescheduleIsFree] = useState(false)
-  const [rescheduleLanguage, setRescheduleLanguage] = useState('')
-  const [rescheduleSchedule, setRescheduleSchedule] = useState<ScheduleItem[]>([])
-  const [rescheduleSaving, setRescheduleSaving] = useState(false)
 
   useEffect(() => {
     if (isClassroomMode) {
@@ -870,86 +854,6 @@ function CourseBuilderInsightsRouteInner({
 
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
-  const originalSchedule = currentCourse?.schedule || []
-
-  // Reschedule handlers
-  const openRescheduleDialog = useCallback(() => {
-    if (!currentCourse) return
-    setRescheduleName(`${currentCourse.name} — Rescheduled`)
-    setRescheduleCategories(
-      currentCourse.categories || ([currentCourse.variantCategory].filter(Boolean) as string[])
-    )
-    setWizardTab('details')
-    setReschedulePrice('')
-    setRescheduleCurrency('USD')
-    setRescheduleIsFree(false)
-    setRescheduleLanguage('')
-    setRescheduleSchedule([])
-    setRescheduleDialogOpen(true)
-  }, [currentCourse])
-
-  const closeRescheduleDialog = useCallback(() => {
-    setRescheduleDialogOpen(false)
-    setWizardTab('details')
-    setRescheduleName('')
-    setRescheduleCategories([])
-    setReschedulePrice('')
-    setRescheduleCurrency('USD')
-    setRescheduleIsFree(false)
-    setRescheduleLanguage('')
-    setRescheduleSchedule([])
-  }, [])
-
-  const handleRescheduleSave = useCallback(async () => {
-    if (!courseId || courseId === 'insights-draft') {
-      toast.error('Cannot reschedule: invalid course')
-      return
-    }
-    setRescheduleSaving(true)
-    try {
-      const payload = {
-        name: rescheduleName,
-        categories: rescheduleCategories,
-        price: rescheduleIsFree ? 0 : reschedulePrice ? parseFloat(reschedulePrice) : null,
-        currency: rescheduleCurrency,
-        isFree: rescheduleIsFree,
-        languageOfInstruction: rescheduleLanguage,
-        schedule: rescheduleSchedule,
-      }
-      const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}/clone`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { courseId?: string; name?: string }
-        toast.success(`Independent course "${data.name || rescheduleName}" created`)
-        closeRescheduleDialog()
-        if (data.courseId) {
-          router.push(`/tutor/courses/${data.courseId}`)
-        }
-      } else {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data?.error || 'Failed to create independent course')
-      }
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to create independent course')
-    } finally {
-      setRescheduleSaving(false)
-    }
-  }, [
-    courseId,
-    rescheduleName,
-    rescheduleCategories,
-    reschedulePrice,
-    rescheduleCurrency,
-    rescheduleIsFree,
-    rescheduleLanguage,
-    rescheduleSchedule,
-    router,
-    closeRescheduleDialog,
-  ])
 
   return (
     <div
@@ -1328,7 +1232,13 @@ function CourseBuilderInsightsRouteInner({
                 toast.error('Builder not ready to save')
               }
             }}
-            onSchedule={effectiveSaveMode === 'draft' ? handlePublishDraft : openRescheduleDialog}
+            onSchedule={() => {
+              if (effectiveSaveMode === 'draft') {
+                void handlePublishDraft()
+              } else if (courseId && courseId !== 'insights-draft') {
+                model.router.push(`/tutor/courses/${courseId}`)
+              }
+            }}
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
             onVideo={() => {
@@ -1342,10 +1252,11 @@ function CourseBuilderInsightsRouteInner({
             onCreateCourse={onCreateCourse}
             onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            // Schedule is only available in Creating mode. In Unpublished mode, scheduling
-            // is not allowed — publication is handled through the Course Details page.
-            canSchedule={
-              !!(courseId && courseId !== 'insights-draft' && effectiveSaveMode === 'draft')
+            // Schedule & Publish is available for any selected course. Creating courses
+            // are persisted first; existing DB courses jump to Course Details.
+            canSchedule={!!(courseId && courseId !== 'insights-draft')}
+            scheduleButtonLabel={
+              effectiveSaveMode === 'draft' ? 'Schedule & Publish' : 'Schedule & Publish New Course'
             }
             canGoLive={
               !!(
@@ -1576,226 +1487,6 @@ function CourseBuilderInsightsRouteInner({
               Delete
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reschedule Dialog — 3-step wizard: Course Details → Category → Schedule */}
-      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-        <DialogContent className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-5xl">
-          <div className="flex h-full flex-col p-7 sm:p-8">
-            <DialogHeader className="p-0">
-              <DialogTitle className="text-white">Reschedule as Independent Course</DialogTitle>
-              <DialogDescription className="text-white/70">
-                Create a new independent course with a different schedule. Original schedule slots
-                are greyed out.
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* Wizard Tabs */}
-            <Tabs
-              value={wizardTab}
-              onValueChange={v => setWizardTab(v as 'details' | 'category' | 'schedule')}
-              className="mt-6 flex min-h-0 flex-1 flex-col"
-            >
-              <TabsList className="relative grid h-auto w-full grid-cols-3 items-center rounded-xl bg-[#1F2933] p-1">
-                <TabsTrigger
-                  value="details"
-                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-                >
-                  Course Details
-                </TabsTrigger>
-                <TabsTrigger
-                  value="category"
-                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-                >
-                  Category
-                </TabsTrigger>
-                <TabsTrigger
-                  value="schedule"
-                  className="relative z-10 rounded-lg py-1.5 text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:!text-[#1F2933] data-[state=active]:shadow-none"
-                >
-                  Schedule
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Tab: Course Details */}
-              <TabsContent value="details" className="mt-4 flex flex-1 flex-col overflow-hidden">
-                <div className="scrollbar-hide flex flex-1 flex-col overflow-y-auto pr-2">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-white">Course Name</Label>
-                      <Input
-                        value={rescheduleName}
-                        onChange={e => setRescheduleName(e.target.value)}
-                        placeholder="Course name"
-                        className="mt-1 border-slate-200 bg-white"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-white">Free</Label>
-                        <div className="mt-1 flex h-10 items-center justify-between rounded-xl border border-slate-200 bg-white px-4">
-                          <span className="text-sm font-medium text-slate-600">
-                            {rescheduleIsFree ? 'Yes' : 'No'}
-                          </span>
-                          <Switch
-                            checked={rescheduleIsFree}
-                            onCheckedChange={setRescheduleIsFree}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-white">Price</Label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-slate-600" />
-                          <Input
-                            type="number"
-                            min={0}
-                            value={reschedulePrice}
-                            onChange={e => setReschedulePrice(e.target.value)}
-                            placeholder="0.00"
-                            disabled={rescheduleIsFree}
-                            className="border-slate-200 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-white">Currency</Label>
-                        <Select value={rescheduleCurrency} onValueChange={setRescheduleCurrency}>
-                          <SelectTrigger className="mt-1 border-slate-200 bg-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {['USD', 'SGD', 'EUR', 'GBP', 'KRW', 'JPY', 'HKD', 'CNY', 'INR'].map(
-                              c => (
-                                <SelectItem key={c} value={c} className="">
-                                  {c}
-                                </SelectItem>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-white">Language</Label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Languages className="h-4 w-4 text-slate-600" />
-                          <Input
-                            value={rescheduleLanguage}
-                            onChange={e => setRescheduleLanguage(e.target.value)}
-                            placeholder="e.g. English"
-                            className="border-slate-200 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeRescheduleDialog}
-                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (!rescheduleName.trim()) {
-                        toast.error('Please enter a course name')
-                        return
-                      }
-                      setWizardTab('category')
-                    }}
-                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
-                  >
-                    Next →
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Tab: Category */}
-              <TabsContent value="category" className="mt-4 flex flex-1 flex-col overflow-hidden">
-                <div className="scrollbar-hide flex flex-1 flex-col overflow-y-auto pr-2">
-                  <div className="max-h-[55vh] overflow-y-auto rounded-lg bg-white p-4 text-slate-900">
-                    <CourseCategoryPicker
-                      value={rescheduleCategories}
-                      onChange={setRescheduleCategories}
-                      storageUserId={undefined}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setWizardTab('details')}
-                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
-                  >
-                    ← Back
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (rescheduleCategories.length === 0) {
-                        toast.error('Please select at least one category')
-                        return
-                      }
-                      setWizardTab('schedule')
-                    }}
-                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
-                  >
-                    Next →
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Tab: Schedule */}
-              <TabsContent value="schedule" className="mt-4 flex flex-1 flex-col overflow-hidden">
-                <div className="scrollbar-hide flex flex-1 flex-col overflow-hidden pr-2">
-                  <p className="mb-2 text-sm font-medium text-white">Schedule</p>
-                  <p className="mb-3 text-xs text-white/60">
-                    Select a new schedule. Original course slots are greyed out and cannot be
-                    selected.
-                  </p>
-                  <VariantScheduleEditor
-                    schedule={rescheduleSchedule}
-                    onScheduleChange={updater => setRescheduleSchedule(prev => updater(prev))}
-                    price={rescheduleIsFree ? 0 : parseFloat(reschedulePrice) || 0}
-                    weeksToSchedule={8}
-                    excludedSchedules={originalSchedule.length > 0 ? [originalSchedule] : undefined}
-                    showTabs={false}
-                  />
-                </div>
-
-                <div className="mt-4 flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setWizardTab('category')}
-                    className="h-11 rounded-[12px] border-white/30 bg-white/10 px-6 text-white hover:bg-white/20"
-                  >
-                    ← Back
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleRescheduleSave}
-                    disabled={rescheduleSaving || !rescheduleName.trim()}
-                    className="h-11 rounded-[12px] bg-white px-6 text-[#0B3A9B] hover:bg-white/90"
-                  >
-                    {rescheduleSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {rescheduleSaving ? 'Publishing...' : 'Publish'}
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
         </DialogContent>
       </Dialog>
 
