@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import { toast } from 'sonner'
-import { X, RefreshCw, MessageSquare, Send, Loader2, Users, Sparkles } from 'lucide-react'
+import {
+  X,
+  RefreshCw,
+  MessageSquare,
+  Send,
+  Loader2,
+  Users,
+  Sparkles,
+  LayoutGrid,
+} from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type {
   SessionRosterStudent,
@@ -26,6 +35,7 @@ export function SessionMonitorPanel({
   students,
   tasks,
   responsesByTask,
+  onViewBoard,
   onClose,
 }: {
   sessionId: string
@@ -33,6 +43,9 @@ export function SessionMonitorPanel({
   students: SessionRosterStudent[]
   tasks: SessionRoomTask[]
   responsesByTask: Record<string, Record<string, SessionStudentResponse>>
+  /** Open a student's private whiteboard (read-only) — replaces the standalone
+   *  Boards picker. */
+  onViewBoard?: (userId: string, name: string) => void
   onClose: () => void
 }) {
   const [comprehension, setComprehension] = useState<
@@ -185,6 +198,16 @@ export function SessionMonitorPanel({
                     >
                       {badge.label}
                     </span>
+                    {onViewBoard ? (
+                      <button
+                        onClick={() => onViewBoard(s.userId, s.name)}
+                        title={`View ${s.name}'s whiteboard`}
+                        aria-label={`View ${s.name}'s whiteboard`}
+                        className="shrink-0 rounded-lg border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
                     <button
                       onClick={() => {
                         setDmFor(cur => (cur === s.userId ? null : s.userId))

@@ -28,6 +28,7 @@ export function TaskChatPanel({
   sourceDocument,
   onCompleted,
   previewMode = false,
+  onInteract,
 }: {
   taskId: string
   taskTitle?: string
@@ -41,6 +42,9 @@ export function TaskChatPanel({
    *  test tasks in the course-builder Test tab, not here). The box still shows
    *  exactly what the student gets. */
   previewMode?: boolean
+  /** Fired when the student starts answering (first chat message). Used by the
+   *  live session to stop auto-following the tutor. */
+  onInteract?: () => void
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState('')
@@ -117,6 +121,7 @@ export function TaskChatPanel({
   const addAnswer = () => {
     const a = draft.trim()
     if (!a || busy) return
+    onInteract?.()
     setMessages(prev => [...prev, { role: 'student', content: a }])
     setDraft('')
   }

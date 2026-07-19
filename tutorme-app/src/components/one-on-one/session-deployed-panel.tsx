@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import {
   X,
@@ -55,6 +55,8 @@ export function SessionDeployedPanel({
   tasks,
   completedTaskIds,
   resultByTask,
+  followTaskId,
+  onInteract,
   onClose,
 }: {
   sessionId: string
@@ -63,6 +65,12 @@ export function SessionDeployedPanel({
   tasks: SessionRoomTask[]
   completedTaskIds: Set<string>
   resultByTask: Record<string, SessionGradeResult>
+  /** While a student is following the tutor, the task to auto-open. When it
+   *  changes to a new id the panel opens it (they follow the tutor's view). */
+  followTaskId?: string | null
+  /** Called when the student starts answering — used to stop auto-following so a
+   *  new deploy can't yank them away mid-answer. */
+  onInteract?: () => void
   onClose: () => void
 }) {
   // Master-detail, mirroring the course-builder "Lessons" panel: the default
@@ -78,6 +86,16 @@ export function SessionDeployedPanel({
     setActiveId(id)
     setSeenIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
   }
+
+  // Follow: open the tutor's current task when it changes (only when the id is a
+  // new value, so the student can still tap Back without being re-yanked).
+  const lastFollowRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!followTaskId || followTaskId === lastFollowRef.current) return
+    lastFollowRef.current = followTaskId
+    if (tasks.some(t => t.id === followTaskId)) openTask(followTaskId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followTaskId, tasks])
 
   // Newest first, matching the reference panel's ordering.
   const orderedTasks = [...tasks].reverse()
@@ -204,6 +222,7 @@ export function SessionDeployedPanel({
                       taskTitle={active.title}
                       sourceDocument={active.sourceDocument}
                       previewMode={!!isTutor}
+                      onInteract={onInteract}
                       onCompleted={
                         isTutor
                           ? undefined
@@ -244,6 +263,7 @@ export function SessionDeployedPanel({
                       isTutor={isTutor}
                       alreadySubmitted={completedTaskIds.has(active.id)}
                       result={resultByTask[active.id]}
+                      onInteract={onInteract}
                     />
                   </div>
                 </div>
@@ -273,6 +293,7 @@ export function SessionDeployedPanel({
                       isTutor={isTutor}
                       alreadySubmitted={completedTaskIds.has(active.id)}
                       result={resultByTask[active.id]}
+                      onInteract={onInteract}
                     />
                   ) : !active.sourceDocument && !active.content ? (
                     <p className="text-xs text-slate-400">This item has no preview.</p>
@@ -440,6 +461,7 @@ function DeployedQuestions({
   isTutor,
   alreadySubmitted,
   result,
+  onInteract,
 }: {
   sessionId: string
   taskId: string
@@ -448,6 +470,7 @@ function DeployedQuestions({
   isTutor?: boolean
   alreadySubmitted?: boolean
   result?: SessionGradeResult
+  onInteract?: () => void
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -517,7 +540,10 @@ function DeployedQuestions({
           <SessionDmiAnswerField
             item={it}
             value={answers[it.id] ?? ''}
-            onValueChange={next => setAnswers(prev => ({ ...prev, [it.id]: next }))}
+            onValueChange={next => {
+              onInteract?.()
+              setAnswers(prev => ({ ...prev, [it.id]: next }))
+            }}
           />
         </QuestionBlock>
       ))}

@@ -20,7 +20,6 @@ import {
   ListChecks,
   Pencil,
   PenTool,
-  LayoutGrid,
   BookOpen,
   MessageSquare,
   Users,
@@ -94,7 +93,6 @@ export function SessionClassroom({
   // Private-board overlay: whose board is open (own = editable, student = tutor
   // viewing read-only), plus the tutor's student-board picker.
   const [boardTarget, setBoardTarget] = useState<BoardTarget | null>(null)
-  const [showBoardsPicker, setShowBoardsPicker] = useState(false)
   const [showCourseEditor, setShowCourseEditor] = useState(false)
   // Bumped when the Edit-course modal (iframe) reports a save, so the deploy
   // panel refetches instead of serving pre-edit task content.
@@ -233,6 +231,42 @@ export function SessionClassroom({
     chatMessages,
     activePoll,
   } = useSessionRoomState(socket, session?.user?.id)
+
+  // ── Follow the tutor (students) ─────────────────────────────────────────────
+  // Like the course-builder classroom: a student's view follows the tutor's — the
+  // shared whiteboard by default, and whatever task/assessment the tutor presents.
+  // The tutor presents by DEPLOYING (the newest deployed item is what everyone is
+  // on), so a following student auto-opens the latest deployed task. Following
+  // stops when the student starts answering (see onInteract) or toggles it off.
+  const followKey = `sc:follow:${sessionId}`
+  const [followTutor, setFollowTutor] = useState(true)
+  useEffect(() => {
+    if (isTutor) return
+    try {
+      const v = localStorage.getItem(followKey)
+      if (v != null) setFollowTutor(v === '1')
+    } catch {
+      /* private mode / unavailable — default stays on */
+    }
+  }, [followKey, isTutor])
+  useEffect(() => {
+    if (isTutor) return
+    try {
+      localStorage.setItem(followKey, followTutor ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [followKey, followTutor, isTutor])
+
+  // The newest deployed task is what the tutor is presenting (tasks are appended
+  // on deploy). While following, surface it: open the Lessons panel and hand the
+  // id to the panel, which drills into it.
+  const latestTaskId = tasks.length > 0 ? tasks[tasks.length - 1].id : null
+  const following = !isTutor && followTutor
+  useEffect(() => {
+    if (!following || !latestTaskId) return
+    setActivePanel('materials')
+  }, [following, latestTaskId])
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -376,27 +410,6 @@ export function SessionClassroom({
                 Edit course
               </button>
             ) : null}
-            <div className="pointer-events-auto relative">
-              <button
-                type="button"
-                onClick={() => setShowBoardsPicker(v => !v)}
-                title="View a student's board"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                Boards
-              </button>
-              {showBoardsPicker ? (
-                <BoardsPicker
-                  students={students}
-                  onPick={s => {
-                    setBoardTarget({ ownerId: s.userId, ownerName: s.name, mine: false })
-                    setShowBoardsPicker(false)
-                  }}
-                  onClose={() => setShowBoardsPicker(false)}
-                />
-              ) : null}
-            </div>
           </>
         ) : null}
         {myId ? (
@@ -432,14 +445,41 @@ export function SessionClassroom({
         {/* Lessons (deployed tasks/assessments) is a student affordance — the tutor
             deploys/reviews via the Deploy and Submissions panels, so they don't need it. */}
         {!isTutor ? (
-          <button
-            type="button"
-            onClick={() => toggle('materials')}
-            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
-            Lessons
-          </button>
+          <>
+            {/* Follow the tutor: on by default, mirrors the course-builder classroom.
+                A pulsing dot when active; click to stop/resume following. */}
+            <button
+              type="button"
+              onClick={() => setFollowTutor(v => !v)}
+              title={
+                followTutor
+                  ? 'Following the tutor — your view opens what they present. Click to stop.'
+                  : 'Follow the tutor — auto-open what they present.'
+              }
+              className={
+                'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+                (followTutor
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  : 'bg-white/90 text-slate-800 hover:bg-white')
+              }
+            >
+              <span
+                className={
+                  'h-2 w-2 rounded-full ' +
+                  (followTutor ? 'animate-pulse bg-white' : 'bg-slate-400')
+                }
+              />
+              {followTutor ? 'Following' : 'Follow'}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggle('materials')}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              Lessons
+            </button>
+          </>
         ) : null}
         <button
           type="button"
@@ -501,6 +541,9 @@ export function SessionClassroom({
                 students={students}
                 tasks={tasks}
                 responsesByTask={responsesByTask}
+                onViewBoard={(userId, name) =>
+                  setBoardTarget({ ownerId: userId, ownerName: name, mine: false })
+                }
                 onClose={() => setActivePanel(null)}
               />
             ) : null}
@@ -537,6 +580,8 @@ export function SessionClassroom({
             tasks={tasks}
             completedTaskIds={myCompletedTaskIds}
             resultByTask={myResultByTask}
+            followTaskId={following ? latestTaskId : null}
+            onInteract={isTutor ? undefined : () => setFollowTutor(false)}
             onClose={() => setActivePanel(null)}
           />
         </FallbackBoundary>
