@@ -20,6 +20,7 @@ import {
   ListChecks,
   Pencil,
   PenTool,
+  MonitorPlay,
   BookOpen,
   MessageSquare,
   Users,
@@ -262,15 +263,98 @@ export function SessionClassroom({
     }
   }, [followKey, followTutor, isTutor])
 
-  // The newest deployed task is what the tutor is presenting (tasks are appended
-  // on deploy). While following, surface it: open the Lessons panel and hand the
-  // id to the panel, which drills into it.
+  // ── Present (tutor) ⇄ follow (student), synced over insight:send/receive ──────
+  // The tutor "presents" the shared whiteboard or a specific deployed task; a
+  // following student mirrors exactly that. The tutor presents the latest task
+  // they deploy by default and can toggle back to the whiteboard.
   const latestTaskId = tasks.length > 0 ? tasks[tasks.length - 1].id : null
+
+  // TUTOR: presented view. Deploying a task presents it; a toggle shows the board.
+  const [presentWhiteboard, setPresentWhiteboard] = useState(false)
+  const lastDeployedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!isTutor || !latestTaskId || latestTaskId === lastDeployedRef.current) return
+    lastDeployedRef.current = latestTaskId
+    setPresentWhiteboard(false) // a fresh deploy presents the new task
+  }, [isTutor, latestTaskId])
+  const tutorPresentTaskId = isTutor && !presentWhiteboard ? latestTaskId : null
+  const presentPayload = () => ({
+    activeTab: tutorPresentTaskId ? 'task' : 'whiteboard',
+    activeTaskId: tutorPresentTaskId,
+  })
+
+  // Broadcast the tutor's presented view. The tutor's own screen isn't hijacked
+  // (they keep whatever panel they're in); the "Presenting" chip is their feedback.
+  useEffect(() => {
+    if (!isTutor || !socket) return
+    socket.emit('insight:send', {
+      roomId: sessionId,
+      type: 'tutor:state_sync',
+      payload: presentPayload(),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTutor, socket, tutorPresentTaskId, sessionId])
+
+  // Re-broadcast when a student joins so late-joiners land on the current view.
+  useEffect(() => {
+    if (!isTutor || !socket) return
+    const resend = () =>
+      socket.emit('insight:send', {
+        roomId: sessionId,
+        type: 'tutor:state_sync',
+        payload: presentPayload(),
+      })
+    socket.on('student_joined', resend)
+    return () => {
+      socket.off('student_joined', resend)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTutor, socket, tutorPresentTaskId, sessionId])
+
+  // STUDENT: the tutor's presented view, received live.
+  const [presentedTaskId, setPresentedTaskId] = useState<string | null>(null)
+  useEffect(() => {
+    if (isTutor || !socket) return
+    const onReceive = (msg: {
+      type?: string
+      payload?: { activeTab?: string; activeTaskId?: string | null }
+    }) => {
+      if (msg?.type !== 'tutor:state_sync') return
+      const p = msg.payload || {}
+      setPresentedTaskId(p.activeTab === 'whiteboard' ? null : (p.activeTaskId ?? null))
+    }
+    socket.on('insight:receive', onReceive)
+    return () => {
+      socket.off('insight:receive', onReceive)
+    }
+  }, [isTutor, socket])
+
+  // Hydrate the presented view from room_state on (re)join — robust against the
+  // live tutor:state_sync broadcast arriving before this client is listening.
+  useEffect(() => {
+    if (isTutor || !socket) return
+    const onRoomState = (state: {
+      presentedView?: { activeTab?: string; activeTaskId?: string | null } | null
+    }) => {
+      const pv = state?.presentedView
+      if (pv === undefined) return
+      setPresentedTaskId(pv && pv.activeTab !== 'whiteboard' ? (pv.activeTaskId ?? null) : null)
+    }
+    socket.on('room_state', onRoomState)
+    return () => {
+      socket.off('room_state', onRoomState)
+    }
+  }, [isTutor, socket])
+
+  // STUDENT following: mirror the tutor — open the presented task, or drop back to
+  // the whiteboard when the tutor presents it. Answering pauses follow (onInteract
+  // → setFollowTutor(false)); re-toggling jumps back to the tutor's current view.
   const following = !isTutor && followTutor
   useEffect(() => {
-    if (!following || !latestTaskId) return
-    setActivePanel('materials')
-  }, [following, latestTaskId])
+    if (!following) return
+    if (presentedTaskId) setActivePanel('materials')
+    else setActivePanel(cur => (cur === 'materials' ? null : cur))
+  }, [following, presentedTaskId])
 
   // The call feed rides along as the whiteboard's draggable video overlay.
   const video = (
@@ -399,6 +483,29 @@ export function SessionClassroom({
                 <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
               ) : null}
             </button>
+            {/* Present: what following students are pulled to. Presenting a task
+                shows it to them; switching to the whiteboard sends them back to
+                the shared board. Deploying a task presents it automatically. */}
+            {latestTaskId ? (
+              <button
+                type="button"
+                onClick={() => setPresentWhiteboard(v => !v)}
+                title={
+                  presentWhiteboard
+                    ? 'Present the latest task to following students'
+                    : 'Presenting a task — click to send following students back to the whiteboard'
+                }
+                className={
+                  'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+                  (presentWhiteboard
+                    ? 'bg-white/90 text-slate-800 hover:bg-white'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600')
+                }
+              >
+                <MonitorPlay className="h-3.5 w-3.5" />
+                {presentWhiteboard ? 'Present task' : 'Presenting'}
+              </button>
+            ) : null}
             {courseId ? (
               <button
                 type="button"
@@ -457,13 +564,12 @@ export function SessionClassroom({
               onClick={() => {
                 const next = !followTutor
                 setFollowTutor(next)
-                // Give the toggle an immediate, visible effect: resuming follow
-                // jumps to what the tutor is presenting (the latest deployed task);
-                // stopping follow drops back to the shared whiteboard.
+                // Resuming follow jumps to whatever the tutor is presenting right
+                // now (a task, or the whiteboard); stopping leaves the student where
+                // they are so they can work freely.
                 if (next) {
-                  if (latestTaskId) setActivePanel('materials')
-                } else {
-                  setActivePanel(cur => (cur === 'materials' ? null : cur))
+                  if (presentedTaskId) setActivePanel('materials')
+                  else setActivePanel(cur => (cur === 'materials' ? null : cur))
                 }
               }}
               title={
@@ -595,7 +701,7 @@ export function SessionClassroom({
             tasks={tasks}
             completedTaskIds={myCompletedTaskIds}
             resultByTask={myResultByTask}
-            followTaskId={following ? latestTaskId : null}
+            followTaskId={following ? presentedTaskId : null}
             onInteract={isTutor ? undefined : () => setFollowTutor(false)}
             onClose={() => setActivePanel(null)}
           />

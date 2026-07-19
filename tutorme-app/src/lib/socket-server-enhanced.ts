@@ -79,6 +79,10 @@ export interface ClassRoom {
   tasks: LiveTask[]
   polls?: any[]
   activePoll?: LivePoll | null
+  /** What the tutor is currently presenting (whiteboard vs a task) — so a late-
+   *  joining student hydrates the "follow" target from room_state, not just the
+   *  live tutor:state_sync broadcast (which could arrive before they're listening). */
+  presentedView?: { activeTab?: string; activeTaskId?: string | null } | null
   codeEditorContent?: string
   codeLanguage?: string
   createdAt: Date
@@ -2520,6 +2524,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (!roomId) return
 
         if (type === 'tutor:state_sync') {
+          // Remember the presented view so late joiners hydrate it from room_state.
+          const room = activeRooms.get(roomId)
+          if (room)
+            room.presentedView = (payload ?? null) as {
+              activeTab?: string
+              activeTaskId?: string | null
+            } | null
           io.to(roomId).emit('insight:receive', { type, payload })
           return
         }
@@ -2902,6 +2913,7 @@ async function addStudentToRoom(socket: Socket, room: ClassRoom) {
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
     activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
+    presentedView: room.presentedView ?? null,
   })
 }
 
@@ -2923,6 +2935,7 @@ async function addTutorToRoom(socket: Socket, room: ClassRoom) {
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
     activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
+    presentedView: room.presentedView ?? null,
   })
 }
 
