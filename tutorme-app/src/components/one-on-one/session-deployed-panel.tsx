@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+import { TaskChatPanel } from '@/app/[locale]/student/feedback/TaskChatPanel'
 import { normalizeDmiQuestionType } from '@/lib/assessment/question-types'
 import { sanitizeHtml } from '@/lib/security/sanitize'
 import { isImportPlaceholder } from '@/lib/tasks/import-placeholder'
@@ -36,6 +37,16 @@ import type {
  * course classroom uses, which the server auto-grades by taskId). Tutors see the
  * questions read-only.
  */
+
+/**
+ * A chat task carries no structured questions — it's answered by chatting with
+ * the AI (the same box the course-builder classroom uses). Mirrors the student
+ * feedback page's `isChatTask`: source 'task' + no `dmiItems`.
+ */
+function isChatTask(t: SessionRoomTask): boolean {
+  return t.source === 'task' && (!t.dmiItems || t.dmiItems.length === 0)
+}
+
 export function SessionDeployedPanel({
   sessionId,
   socket,
@@ -105,39 +116,68 @@ export function SessionDeployedPanel({
           {/* Active item */}
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {active ? (
-              <>
-                {active.sourceDocument ? (
-                  <>
-                    <p className="mb-3 text-sm font-semibold text-slate-900">{active.title}</p>
-                    <div className="h-[60vh] w-full">
-                      <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
-                    </div>
-                  </>
-                ) : (
-                  <ActiveTaskBody
-                    key={active.id}
-                    task={active}
-                    socket={socket}
-                    sessionId={sessionId}
-                    canEdit={!!isTutor}
-                  />
-                )}
+              isChatTask(active) ? (
+                // A chat task (source 'task', no structured questions) is answered
+                // via the AI chat — the same box as the course-builder classroom.
+                // Students get the real (persisted) flow; the tutor gets a stateless
+                // preview (onCompleted omitted → no live completion is emitted).
+                <TaskChatPanel
+                  key={active.id}
+                  taskId={active.id}
+                  taskTitle={active.title}
+                  sourceDocument={active.sourceDocument}
+                  onCompleted={
+                    isTutor
+                      ? undefined
+                      : answers => {
+                          const record: Record<string, string> = {}
+                          answers.forEach((a, i) => {
+                            record[String(i + 1)] = a
+                          })
+                          socket?.emit('task:complete', {
+                            roomId: sessionId,
+                            taskId: active.id,
+                            answers: record,
+                            aiHandled: true,
+                          })
+                        }
+                  }
+                />
+              ) : (
+                <>
+                  {active.sourceDocument ? (
+                    <>
+                      <p className="mb-3 text-sm font-semibold text-slate-900">{active.title}</p>
+                      <div className="h-[60vh] w-full">
+                        <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
+                      </div>
+                    </>
+                  ) : (
+                    <ActiveTaskBody
+                      key={active.id}
+                      task={active}
+                      socket={socket}
+                      sessionId={sessionId}
+                      canEdit={!!isTutor}
+                    />
+                  )}
 
-                {active.dmiItems && active.dmiItems.length > 0 ? (
-                  <DeployedQuestions
-                    key={active.id}
-                    sessionId={sessionId}
-                    taskId={active.id}
-                    items={active.dmiItems}
-                    socket={socket}
-                    isTutor={isTutor}
-                    alreadySubmitted={completedTaskIds.has(active.id)}
-                    result={resultByTask[active.id]}
-                  />
-                ) : !active.sourceDocument && !active.content ? (
-                  <p className="text-xs text-slate-400">This item has no preview.</p>
-                ) : null}
-              </>
+                  {active.dmiItems && active.dmiItems.length > 0 ? (
+                    <DeployedQuestions
+                      key={active.id}
+                      sessionId={sessionId}
+                      taskId={active.id}
+                      items={active.dmiItems}
+                      socket={socket}
+                      isTutor={isTutor}
+                      alreadySubmitted={completedTaskIds.has(active.id)}
+                      result={resultByTask[active.id]}
+                    />
+                  ) : !active.sourceDocument && !active.content ? (
+                    <p className="text-xs text-slate-400">This item has no preview.</p>
+                  ) : null}
+                </>
+              )
             ) : null}
           </div>
         </>

@@ -21,7 +21,13 @@ import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
 import { handleApiError, requireCsrf, withRateLimitPreset } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask, courseEnrollment, taskSubmission } from '@/lib/db/schema'
+import {
+  builderTask,
+  courseEnrollment,
+  taskSubmission,
+  sessionParticipant,
+  liveSession,
+} from '@/lib/db/schema'
 import { ASK_SYSTEM_PROMPT } from '@/lib/ai/task-chat-prompts'
 import { generateWithKimi } from '@/lib/ai/kimi'
 import { runTaskGuardrails } from '@/lib/ai/guardrails'
@@ -66,6 +72,7 @@ export async function POST(
         content: builderTask.content,
         pci: builderTask.pci,
         pciSpec: builderTask.pciSpec,
+        tutorId: builderTask.tutorId,
       })
       .from(builderTask)
       .where(eq(builderTask.taskId, taskId))
@@ -75,8 +82,12 @@ export async function POST(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // Ownership: the student must be enrolled in the task's course, OR already
-    // have a submission for it (so follow-ups keep working).
+    // Access: the caller must be enrolled in the task's course, already have a
+    // submission (so follow-ups keep working), be a live-session PARTICIPANT of the
+    // course (1-on-1/group students join by a booking seat, not enrollment), or be
+    // the task's OWNER tutor (an in-session preview of what students get). The
+    // owner-tutor path is stateless — it never writes a taskSubmission.
+    const isOwnerTutor = !!task.tutorId && task.tutorId === studentId
     const taskCourseFamily = await expandToCourseFamily(task.courseId ? [task.courseId] : [])
     const [enrolled] = await drizzleDb
       .select({ id: courseEnrollment.enrollmentId })
@@ -97,9 +108,26 @@ export async function POST(
       .from(taskSubmission)
       .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
       .limit(1)
-    if (!enrolled && !existing) {
+    let isParticipant = false
+    if (!enrolled && !existing && !isOwnerTutor && taskCourseFamily.length > 0) {
+      const [p] = await drizzleDb
+        .select({ id: sessionParticipant.participantId })
+        .from(sessionParticipant)
+        .innerJoin(liveSession, eq(liveSession.sessionId, sessionParticipant.sessionId))
+        .where(
+          and(
+            eq(sessionParticipant.studentId, studentId),
+            inArray(liveSession.courseId, taskCourseFamily)
+          )
+        )
+        .limit(1)
+      isParticipant = !!p
+    }
+    if (!enrolled && !existing && !isOwnerTutor && !isParticipant) {
       return NextResponse.json({ error: 'Not enrolled in this task' }, { status: 403 })
     }
+    // The tutor previewing their own task never persists a submission.
+    const persist = !isOwnerTutor
 
     const body = (await request.json().catch(() => ({}))) as {
       answers?: unknown
@@ -162,33 +190,36 @@ export async function POST(
         answersRecord[String(i + 1)] = a
       })
 
-      // Persist the completed attempt (idempotent on re-complete).
-      await drizzleDb
-        .insert(taskSubmission)
-        .values({
-          submissionId: randomUUID(),
-          taskId,
-          studentId,
-          answers: answersRecord,
-          timeSpent: 0,
-          attempts: 1,
-          score: avgScore,
-          maxScore: 100,
-          status: 'submitted',
-          tutorApproved: false,
-          aiFeedback,
-          submittedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: [taskSubmission.taskId, taskSubmission.studentId],
-          set: {
+      // Persist the completed attempt (idempotent on re-complete) — unless this is
+      // the owner tutor's stateless preview.
+      if (persist) {
+        await drizzleDb
+          .insert(taskSubmission)
+          .values({
+            submissionId: randomUUID(),
+            taskId,
+            studentId,
             answers: answersRecord,
+            timeSpent: 0,
+            attempts: 1,
             score: avgScore,
+            maxScore: 100,
             status: 'submitted',
+            tutorApproved: false,
             aiFeedback,
             submittedAt: new Date(),
-          },
-        })
+          })
+          .onConflictDoUpdate({
+            target: [taskSubmission.taskId, taskSubmission.studentId],
+            set: {
+              answers: answersRecord,
+              score: avgScore,
+              status: 'submitted',
+              aiFeedback,
+              submittedAt: new Date(),
+            },
+          })
+      }
 
       return NextResponse.json({
         mode: 'complete',
@@ -267,8 +298,9 @@ export async function POST(
       )
     }
 
-    // Persist the follow-up for tutor visibility (best-effort).
-    if (existing) {
+    // Persist the follow-up for tutor visibility (best-effort). Never for the
+    // owner tutor's stateless preview.
+    if (persist && existing) {
       try {
         const list = Array.isArray(existing.followUps) ? (existing.followUps as unknown[]) : []
         const next = [
