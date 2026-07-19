@@ -454,7 +454,18 @@ export function SessionClassroom({
                 A pulsing dot when active; click to stop/resume following. */}
             <button
               type="button"
-              onClick={() => setFollowTutor(v => !v)}
+              onClick={() => {
+                const next = !followTutor
+                setFollowTutor(next)
+                // Give the toggle an immediate, visible effect: resuming follow
+                // jumps to what the tutor is presenting (the latest deployed task);
+                // stopping follow drops back to the shared whiteboard.
+                if (next) {
+                  if (latestTaskId) setActivePanel('materials')
+                } else {
+                  setActivePanel(cur => (cur === 'materials' ? null : cur))
+                }
+              }}
               title={
                 followTutor
                   ? 'Following the tutor — your view opens what they present. Click to stop.'
