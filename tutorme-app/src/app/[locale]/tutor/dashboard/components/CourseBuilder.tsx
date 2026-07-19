@@ -1463,7 +1463,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // ignore
       }
     }, [classroomMessages])
-    const [aiBusy, setAiBusy] = useState(false)
 
     // Current extension key for the Test/Classroom chat preview.
     const getCurrentExtKey = () => {
@@ -1483,6 +1482,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           { role: 'ai' as const, name, content, timestamp: Date.now() },
         ],
       }))
+    }
+
+    // Emit student-interaction events that the tutor-facing classroom AI may use to
+    // generate automated reports. New event types intentionally no-op until guardrails
+    // are defined for them.
+    const emitClassroomAiEvent = (
+      eventType: 'student-answer' | 'student-ask' | 'task-complete',
+      payload: Record<string, unknown>
+    ) => {
+      void eventType
+      void payload
     }
 
     // Generate the session AI's initial summary whenever a task is loaded into Test mode.
@@ -11057,134 +11067,36 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           appendClassroomAiMessage(note, 'SAI')
                                                       : undefined
                                                   }
-                                                  onAiSend={async content => {
-                                                    if (!content.trim() || aiBusy) return
-                                                    const trimmed = content.trim()
-                                                    setClassroomMessages(prev => ({
-                                                      ...prev,
-                                                      [extKey]: [
-                                                        ...(prev[extKey] ?? []),
-                                                        {
-                                                          role: 'tutor' as const,
-                                                          name: 'Tutor',
-                                                          content: trimmed,
-                                                          timestamp: Date.now(),
-                                                        },
-                                                      ],
-                                                    }))
-                                                    setAiBusy(true)
-
-                                                    const previewExt = taskBuilder.activeExtensionId
-                                                      ? taskBuilder.extensions.find(
-                                                          e =>
-                                                            e.id === taskBuilder.activeExtensionId
-                                                        )
-                                                      : null
-                                                    const context = {
-                                                      taskId: loadedTaskId ?? undefined,
-                                                      taskName:
-                                                        taskBuilder.title?.trim() ||
-                                                        'Untitled task',
-                                                      courseName:
-                                                        courseName?.trim() || 'Test Course',
-                                                      taskContent: previewExt
-                                                        ? previewExt.content
-                                                        : taskBuilder.taskContent,
-                                                      taskPci: previewExt
-                                                        ? previewExt.pci
-                                                        : taskBuilder.taskPci,
-                                                      taskPciSpec: taskBuilder.pciSpec,
-                                                      extensionName: previewExt
-                                                        ? previewExt.name
-                                                        : null,
-                                                      enrolledStudents: 2,
-                                                      sessionNumber: 1,
-                                                      attendance: '100%',
-                                                      currentDate: new Date().toLocaleDateString(),
-                                                    }
-                                                    const history = (
-                                                      classroomMessages[extKey] ?? []
-                                                    )
-                                                      .filter(
-                                                        m => m.role === 'tutor' || m.role === 'ai'
-                                                      )
-                                                      .map(m => ({
-                                                        role:
-                                                          m.role === 'ai'
-                                                            ? ('ai' as const)
-                                                            : ('tutor' as const),
-                                                        content: m.content,
-                                                      }))
-
-                                                    try {
-                                                      const res = await fetchWithCsrf(
-                                                        '/api/ai/session-tutor',
-                                                        {
-                                                          method: 'POST',
-                                                          headers: {
-                                                            'Content-Type': 'application/json',
-                                                          },
-                                                          body: JSON.stringify({
-                                                            message: trimmed,
-                                                            context,
-                                                            history,
-                                                          }),
-                                                        }
-                                                      )
-                                                      let reply = 'Sorry, I could not process that.'
-                                                      if (res.ok) {
-                                                        const data = await res.json()
-                                                        reply = data.response ?? reply
-                                                      } else {
-                                                        const err = await res
-                                                          .json()
-                                                          .catch(() => ({}))
-                                                        console.error(
-                                                          '[session-tutor] request failed:',
-                                                          err
-                                                        )
-                                                        toast.error(
-                                                          err.error || 'Session assistant failed'
-                                                        )
-                                                      }
-                                                      setClassroomMessages(prev => ({
-                                                        ...prev,
-                                                        [extKey]: [
-                                                          ...(prev[extKey] ?? []),
-                                                          {
-                                                            role: 'ai' as const,
-                                                            name: 'SAI',
-                                                            content: reply,
-                                                            timestamp: Date.now(),
-                                                          },
-                                                        ],
-                                                      }))
-                                                    } catch (err) {
-                                                      console.error(
-                                                        '[session-tutor] network error:',
-                                                        err
-                                                      )
-                                                      toast.error(
-                                                        'Session assistant is unavailable'
-                                                      )
-                                                      setClassroomMessages(prev => ({
-                                                        ...prev,
-                                                        [extKey]: [
-                                                          ...(prev[extKey] ?? []),
-                                                          {
-                                                            role: 'ai' as const,
-                                                            name: 'SAI',
-                                                            content:
-                                                              'Session assistant is unavailable. Please try again.',
-                                                            timestamp: Date.now(),
-                                                          },
-                                                        ],
-                                                      }))
-                                                    } finally {
-                                                      setAiBusy(false)
-                                                    }
-                                                  }}
-                                                  aiBusy={aiBusy}
+                                                  onAddAnswer={
+                                                    isClassroomTab
+                                                      ? undefined
+                                                      : answer =>
+                                                          emitClassroomAiEvent('student-answer', {
+                                                            answer,
+                                                            extensionId: extKey,
+                                                            studentName: studentTabName,
+                                                          })
+                                                  }
+                                                  onAsk={
+                                                    isClassroomTab
+                                                      ? undefined
+                                                      : question =>
+                                                          emitClassroomAiEvent('student-ask', {
+                                                            question,
+                                                            extensionId: extKey,
+                                                            studentName: studentTabName,
+                                                          })
+                                                  }
+                                                  onComplete={
+                                                    isClassroomTab
+                                                      ? undefined
+                                                      : answers =>
+                                                          emitClassroomAiEvent('task-complete', {
+                                                            answers,
+                                                            extensionId: extKey,
+                                                            studentName: studentTabName,
+                                                          })
+                                                  }
                                                 />
                                               </div>
                                             )
