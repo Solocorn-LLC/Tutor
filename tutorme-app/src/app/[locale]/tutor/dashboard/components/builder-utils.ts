@@ -456,16 +456,17 @@ export async function generateQuestionPaperPDF(
 }
 
 /**
- * Generate a simple PDF from a task's typed title + content so that text-only
+ * Generate a simple PDF from a task's typed content so that text-only
  * tasks can be previewed and deployed exactly like uploaded PDF documents.
  *
  * Uses html2canvas to rasterise the text as an image inside the PDF. This avoids
  * font/encoding limitations and gives us full browser language support (CJK,
  * Arabic, Devanagari, emojis, etc.) without bundling huge font files.
  *
- * The PDF page is a plain white document with a snapshot of the Task Slide card
- * (purple background, white text) placed on it. This lets the existing PDF
- * thumbnail and popup viewer treat text-only tasks exactly like uploaded PDFs.
+ * The PDF page is a landscape snapshot of the Task Slide viewport: a plain white
+ * document showing the task content as it appears in the slide. It does not
+ * include the task number/title card or the purple branding. The height expands
+ * only if the content exceeds the default viewport height.
  */
 export async function generateTaskTextPDF(
   title: string,
@@ -478,90 +479,56 @@ export async function generateTaskTextPDF(
   const { default: jsPDF } = await import('jspdf')
   const html2canvas = (await import('html2canvas')).default
 
-  // Snapshot card styled like the Task Slide display.
-  const card = document.createElement('div')
-  card.style.position = 'fixed'
-  card.style.left = '-9999px'
-  card.style.top = '-9999px'
-  card.style.width = '640px'
-  card.style.padding = '48px'
-  card.style.background = '#7C3AED'
-  card.style.color = '#ffffff'
-  card.style.borderRadius = '24px'
-  card.style.fontFamily =
+  const VIEWPORT_WIDTH = 1100
+  const VIEWPORT_MIN_HEIGHT = 620
+
+  // Off-screen landscape slide viewport that mirrors the Task Slide display area.
+  const viewport = document.createElement('div')
+  viewport.style.position = 'fixed'
+  viewport.style.left = '-9999px'
+  viewport.style.top = '-9999px'
+  viewport.style.width = `${VIEWPORT_WIDTH}px`
+  viewport.style.minHeight = `${VIEWPORT_MIN_HEIGHT}px`
+  viewport.style.padding = '48px'
+  viewport.style.background = '#ffffff'
+  viewport.style.color = '#1F2933'
+  viewport.style.border = '1px solid #E5E7EB'
+  viewport.style.fontFamily =
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
-  card.style.fontSize = '18px'
-  card.style.lineHeight = '1.6'
-  card.style.whiteSpace = 'pre-wrap'
-  card.style.wordBreak = 'break-word'
-  card.style.boxSizing = 'border-box'
+  viewport.style.fontSize = '20px'
+  viewport.style.lineHeight = '1.6'
+  viewport.style.whiteSpace = 'pre-wrap'
+  viewport.style.wordBreak = 'break-word'
+  viewport.style.boxSizing = 'border-box'
+  viewport.style.overflow = 'hidden'
+  viewport.setAttribute('dir', 'auto')
+  viewport.textContent = content.trim()
 
-  const headerEl = document.createElement('div')
-  headerEl.style.fontSize = '13px'
-  headerEl.style.fontWeight = '600'
-  headerEl.style.textTransform = 'uppercase'
-  headerEl.style.letterSpacing = '0.08em'
-  headerEl.style.marginBottom = '12px'
-  headerEl.style.opacity = '0.8'
-  headerEl.textContent = 'Task'
-  card.appendChild(headerEl)
-
-  const titleEl = document.createElement('h1')
-  titleEl.style.fontSize = '30px'
-  titleEl.style.fontWeight = '700'
-  titleEl.style.margin = '0 0 24px 0'
-  titleEl.style.lineHeight = '1.25'
-  titleEl.style.color = '#ffffff'
-  titleEl.textContent = title.trim() || 'Task'
-  titleEl.setAttribute('dir', 'auto')
-  card.appendChild(titleEl)
-
-  const dividerEl = document.createElement('div')
-  dividerEl.style.height = '2px'
-  dividerEl.style.width = '64px'
-  dividerEl.style.background = 'rgba(255, 255, 255, 0.5)'
-  dividerEl.style.marginBottom = '24px'
-  card.appendChild(dividerEl)
-
-  const contentEl = document.createElement('div')
-  contentEl.style.whiteSpace = 'pre-wrap'
-  contentEl.style.wordBreak = 'break-word'
-  contentEl.style.fontSize = '20px'
-  contentEl.style.lineHeight = '1.6'
-  contentEl.style.color = '#ffffff'
-  contentEl.textContent = content.trim()
-  contentEl.setAttribute('dir', 'auto')
-  card.appendChild(contentEl)
-
-  document.body.appendChild(card)
+  document.body.appendChild(viewport)
 
   try {
-    const canvas = await html2canvas(card, {
+    const canvas = await html2canvas(viewport, {
       scale: 2,
       useCORS: true,
-      backgroundColor: null,
+      backgroundColor: '#ffffff',
       logging: false,
     })
 
-    const cardCssWidth = card.scrollWidth
-    const cardCssHeight = card.scrollHeight
-    const margin = 48
+    const viewportCssWidth = viewport.scrollWidth
+    const viewportCssHeight = viewport.scrollHeight
     // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
-    const ptWidth = (cardCssWidth + margin * 2) * 0.75
-    const ptHeight = (cardCssHeight + margin * 2) * 0.75
-    const ptMargin = margin * 0.75
-    const ptCardWidth = cardCssWidth * 0.75
-    const ptCardHeight = cardCssHeight * 0.75
+    const ptWidth = viewportCssWidth * 0.75
+    const ptHeight = viewportCssHeight * 0.75
 
     const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight] })
     const imgData = canvas.toDataURL('image/png')
-    doc.addImage(imgData, 'PNG', ptMargin, ptMargin, ptCardWidth, ptCardHeight)
+    doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
 
     const safeTitle = title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Task'
     return { blob: doc.output('blob'), fileName: `${safeTitle}.pdf` }
   } finally {
-    if (card.parentNode) {
-      document.body.removeChild(card)
+    if (viewport.parentNode) {
+      document.body.removeChild(viewport)
     }
   }
 }
