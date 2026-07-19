@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ChevronDown,
   Loader2,
+  Lock,
   User as UserIcon,
 } from 'lucide-react'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
@@ -90,7 +91,16 @@ type Detail =
       score: number | null
     }
 
-export function SessionDirectoryPanel({ onClose }: { onClose: () => void }) {
+export function SessionDirectoryPanel({
+  sessionCourseId,
+  onClose,
+}: {
+  /** The live session's course — while set, every OTHER course is locked (matches
+   *  the course-builder classroom's "focus on this session" behaviour). Null/absent
+   *  (course-less session) → nothing is locked. */
+  sessionCourseId?: string | null
+  onClose: () => void
+}) {
   const [directory, setDirectory] = useState<Directory>({})
   const [warnings, setWarnings] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -234,17 +244,32 @@ export function SessionDirectoryPanel({ onClose }: { onClose: () => void }) {
                       {Object.entries(courses).map(([courseName, node]) => {
                         const cKey = `cat_${tutor}_${courseName}`
                         const cOpen = open[cKey]
+                        const locked =
+                          !!sessionCourseId && !!node.courseId && node.courseId !== sessionCourseId
                         return (
                           <div key={courseName}>
-                            <FolderRow
-                              open={!!cOpen}
-                              onClick={() => toggle(cKey)}
-                              icon={
-                                <Folder className="h-4 w-4 text-indigo-400" fill="currentColor" />
-                              }
-                              label={courseName}
-                            />
-                            {cOpen ? (
+                            {locked ? (
+                              <div
+                                title="Locked during the live session — available when the session ends"
+                                className="flex w-full items-center gap-1 rounded-md px-1.5 py-1 opacity-40"
+                              >
+                                <span className="h-3.5 w-3.5 shrink-0" />
+                                <Lock className="h-4 w-4 shrink-0 text-slate-400" />
+                                <span className="min-w-0 flex-1 truncate text-xs text-slate-500">
+                                  {courseName}
+                                </span>
+                              </div>
+                            ) : (
+                              <FolderRow
+                                open={!!cOpen}
+                                onClick={() => toggle(cKey)}
+                                icon={
+                                  <Folder className="h-4 w-4 text-indigo-400" fill="currentColor" />
+                                }
+                                label={courseName}
+                              />
+                            )}
+                            {!locked && cOpen ? (
                               <div className="ml-4">
                                 {CATEGORIES.map(cat => {
                                   const items = (node[cat.key] as DirItem[] | undefined) ?? []

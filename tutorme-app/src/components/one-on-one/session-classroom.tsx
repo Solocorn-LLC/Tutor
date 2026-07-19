@@ -497,7 +497,10 @@ export function SessionClassroom({
               />
             ) : null}
             {activePanel === 'directory' && !isTutor ? (
-              <SessionDirectoryPanel onClose={() => setActivePanel(null)} />
+              <SessionDirectoryPanel
+                sessionCourseId={courseId}
+                onClose={() => setActivePanel(null)}
+              />
             ) : null}
             {activePanel === 'chat' ? (
               <SessionChatPanel
