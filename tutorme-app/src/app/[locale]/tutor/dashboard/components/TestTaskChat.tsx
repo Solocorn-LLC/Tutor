@@ -61,9 +61,10 @@ export function TestTaskChat({
   mode = 'test-student',
   tutorAvatarUrl,
   studentAvatarUrl,
-  onAiSend,
-  aiBusy,
   onTutorNote,
+  onAddAnswer,
+  onAsk,
+  onComplete,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -84,12 +85,14 @@ export function TestTaskChat({
   tutorAvatarUrl?: string | null
   /** Student avatar URL — shown on student messages. */
   studentAvatarUrl?: string | null
-  /** Called when the tutor sends a message to the session AI (classroom mode only). */
-  onAiSend?: (content: string) => void
-  /** Whether the session AI is processing a response (classroom mode only). */
-  aiBusy?: boolean
   /** Called when the test-grade endpoint returns a tutor-only note. */
   onTutorNote?: (note: string) => void
+  /** Called when a student submits a sample answer (Test mode only). */
+  onAddAnswer?: (answer: string) => void
+  /** Called when a student asks a follow-up question after completing the task (Test mode only). */
+  onAsk?: (question: string) => void
+  /** Called when the student clicks "Task complete" (Test mode only). */
+  onComplete?: (answers: string[]) => void
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -170,6 +173,7 @@ export function TestTaskChat({
     setDraft('')
     onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(msg)
+    onAddAnswer?.(a)
   }
 
   const complete = async () => {
@@ -195,6 +199,7 @@ export function TestTaskChat({
       onPersist?.({ messages: nextMessages, draft: '', completed })
       onBroadcast?.(pendingMsg)
     }
+    onComplete?.(answers)
     setBusy(true)
     try {
       const res = await post({ answers })
@@ -248,6 +253,7 @@ export function TestTaskChat({
     setDraft('')
     onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(questionMsg)
+    onAsk?.(q)
     setBusy(true)
     try {
       const history = messages
@@ -286,19 +292,8 @@ export function TestTaskChat({
     }
   }
 
-  const sendToSai = () => {
-    const text = draft.trim()
-    if (!text || aiBusy) return
-    onAiSend?.(text)
-    setDraft('')
-  }
-
   const onSend = () => {
-    if (isClassroom) {
-      sendToSai()
-    } else {
-      completed ? ask() : addAnswer()
-    }
+    completed ? ask() : addAnswer()
   }
 
   const reset = () => {
@@ -359,10 +354,10 @@ export function TestTaskChat({
             )
           })}
 
-        {(busy || (isClassroom && aiBusy)) && (
+        {busy && (
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {isClassroom ? 'SAI is thinking…' : completed ? 'Thinking…' : 'Checking the answers…'}
+            {completed ? 'Thinking…' : 'Checking the answers…'}
           </div>
         )}
 
@@ -443,64 +438,63 @@ export function TestTaskChat({
         )}
       </div>
 
-      {/* Input area -- classroom mode routes to SAI, test mode to sample answers */}
+      {/* Input area — student tabs only. Classroom tab is a read-only tutor view. */}
       <div className="border-t border-gray-100 p-2">
-        <div className="flex items-end gap-2">
-          <textarea
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                onSend()
-              }
-            }}
-            disabled={isClassroom ? aiBusy : busy}
-            rows={1}
-            placeholder={
-              isClassroom
-                ? 'Ask SAI…'
-                : completed
-                  ? 'Ask about this task…'
-                  : 'Type a sample answer…'
-            }
-            className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
-          />
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={(isClassroom ? aiBusy : busy) || !draft.trim()}
-            title={isClassroom ? 'Ask SAI' : completed ? 'Send' : 'Add answer'}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white transition-colors disabled:opacity-40 ${sendButtonBg} hover:opacity-90`}
-          >
-            <Send className="h-4 w-4" />
-          </button>
-          {isClassroom && (
+        {isClassroom ? (
+          <div className="flex justify-end">
             <button
               type="button"
               onClick={reset}
               title="Restart"
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 text-white transition-colors hover:opacity-80 ${isClassroom ? 'border-[#F17623] bg-[#F17623]' : 'border-violet-600 bg-violet-600'}`}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-[#F17623] bg-[#F17623] text-white transition-colors hover:opacity-80"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
-          )}
-        </div>
-        {/* Task Complete button — only shown in test-student mode, not classroom */}
-        {!completed && !isClassroom && (
-          <button
-            type="button"
-            onClick={complete}
-            disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
-            className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4" />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-end gap-2">
+              <textarea
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onSend()
+                  }
+                }}
+                disabled={busy}
+                rows={1}
+                placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
+                className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+              />
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={busy || !draft.trim()}
+                title={completed ? 'Send' : 'Add answer'}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Task Complete button — only shown in test-student mode, not classroom */}
+            {!completed && (
+              <button
+                type="button"
+                onClick={complete}
+                disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
+                className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Task complete
+              </button>
             )}
-            Task complete
-          </button>
+          </>
         )}
       </div>
     </div>
