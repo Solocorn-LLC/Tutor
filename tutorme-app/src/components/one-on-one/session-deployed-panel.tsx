@@ -57,6 +57,7 @@ export function SessionDeployedPanel({
   resultByTask,
   followTaskId,
   onInteract,
+  onActiveTaskChange,
   onClose,
 }: {
   sessionId: string
@@ -71,6 +72,9 @@ export function SessionDeployedPanel({
   /** Called when the student starts answering — used to stop auto-following so a
    *  new deploy can't yank them away mid-answer. */
   onInteract?: () => void
+  /** Fires with the currently-opened task id (or null on the list). The tutor
+   *  uses it to PRESENT that task to following students. */
+  onActiveTaskChange?: (taskId: string | null) => void
   onClose: () => void
 }) {
   // Master-detail, mirroring the course-builder "Lessons" panel: the default
@@ -103,14 +107,21 @@ export function SessionDeployedPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followTaskId, tasks])
 
+  // Report the opened task to the parent — the tutor PRESENTS it to students.
+  useEffect(() => {
+    onActiveTaskChange?.(activeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId])
+
   // Newest first, matching the reference panel's ordering.
   const orderedTasks = [...tasks].reverse()
 
-  // A student opens a deployed task FULL-PAGE (portaled to <body> at z-30, so the
-  // toolbar buttons (z-40) and the student's video (z-[35]) overlay it). Tutors
-  // keep the compact side panel. The label is "Lessons" for students (matching the
-  // course-builder classroom) and "Materials" for tutors.
-  const studentFullPage = !!active && !isTutor
+  // An opened task fills the screen FULL-PAGE (self-positioned at z-30, so the
+  // toolbar (z-40) and video (z-[35]) overlay it) for BOTH roles: the student
+  // reads/answers it, the tutor presents it — and both see the same layout, so
+  // what the tutor presents is exactly what the student mirrors. The list stays a
+  // compact side panel. Label: "Lessons" for students, "Materials" for tutors.
+  const openedFullPage = !!active
   const panelTitle = isTutor ? 'Materials' : 'Lessons'
 
   // Self-positioned (a direct child of the classroom root, NOT the shared z-40
@@ -119,7 +130,7 @@ export function SessionDeployedPanel({
   return (
     <div
       className={
-        studentFullPage
+        openedFullPage
           ? 'pointer-events-auto absolute inset-0 z-30 flex flex-col bg-white'
           : 'pointer-events-auto absolute bottom-3 right-3 top-16 z-40 flex w-96 flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl'
       }
@@ -251,7 +262,7 @@ export function SessionDeployedPanel({
               ) : active.sourceDocument &&
                 active.dmiItems &&
                 active.dmiItems.length > 0 &&
-                studentFullPage ? (
+                openedFullPage ? (
                 // Assessment with a source PDF: show the document and the answer
                 // sheet side by side (stacked on a narrow/mobile viewport). The
                 // full-page view has the width for it.

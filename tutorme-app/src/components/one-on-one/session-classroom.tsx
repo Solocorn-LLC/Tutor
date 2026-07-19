@@ -265,20 +265,15 @@ export function SessionClassroom({
   }, [followKey, followTutor, isTutor])
 
   // ── Present (tutor) ⇄ follow (student), synced over insight:send/receive ──────
-  // The tutor "presents" the shared whiteboard or a specific deployed task; a
-  // following student mirrors exactly that. The tutor presents the latest task
-  // they deploy by default and can toggle back to the whiteboard.
-  const latestTaskId = tasks.length > 0 ? tasks[tasks.length - 1].id : null
-
-  // TUTOR: presented view. Deploying a task presents it; a toggle shows the board.
-  const [presentWhiteboard, setPresentWhiteboard] = useState(false)
-  const lastDeployedRef = useRef<string | null>(null)
+  // The tutor "presents" by opening a deployed task/assessment in the Materials
+  // panel — that exact task is broadcast so following students open the same one.
+  // On the list, or with the panel closed, the tutor is "on the whiteboard" (their
+  // own board), which following students see via the shared base board.
+  const [tutorPresentTaskId, setTutorPresentTaskId] = useState<string | null>(null)
+  // Closing the Materials panel returns everyone to the whiteboard.
   useEffect(() => {
-    if (!isTutor || !latestTaskId || latestTaskId === lastDeployedRef.current) return
-    lastDeployedRef.current = latestTaskId
-    setPresentWhiteboard(false) // a fresh deploy presents the new task
-  }, [isTutor, latestTaskId])
-  const tutorPresentTaskId = isTutor && !presentWhiteboard ? latestTaskId : null
+    if (activePanel !== 'materials') setTutorPresentTaskId(null)
+  }, [activePanel])
   const presentPayload = () => ({
     activeTab: tutorPresentTaskId ? 'task' : 'whiteboard',
     activeTaskId: tutorPresentTaskId,
@@ -493,29 +488,24 @@ export function SessionClassroom({
                 <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
               ) : null}
             </button>
-            {/* Present: what following students are pulled to. Presenting a task
-                shows it to them; switching to the whiteboard sends them back to
-                the shared board. Deploying a task presents it automatically. */}
-            {latestTaskId ? (
-              <button
-                type="button"
-                onClick={() => setPresentWhiteboard(v => !v)}
-                title={
-                  presentWhiteboard
-                    ? 'Present the latest task to following students'
-                    : 'Presenting a task — click to send following students back to the whiteboard'
-                }
-                className={
-                  'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
-                  (presentWhiteboard
-                    ? 'bg-white/90 text-slate-800 hover:bg-white'
-                    : 'bg-emerald-500 text-white hover:bg-emerald-600')
-                }
-              >
-                <MonitorPlay className="h-3.5 w-3.5" />
-                {presentWhiteboard ? 'Present task' : 'Presenting'}
-              </button>
-            ) : null}
+            {/* Present: open the Materials panel and pick a deployed task/assessment
+                to present. Opening one shows it full-page and mirrors it to
+                following students; going back to the whiteboard returns them to
+                your board. A dot shows when you're actively presenting a task. */}
+            <button
+              type="button"
+              onClick={() => toggle('materials')}
+              title="Present a deployed task or assessment to following students"
+              className={
+                'pointer-events-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur ' +
+                (tutorPresentTaskId
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  : 'bg-white/90 text-slate-800 hover:bg-white')
+              }
+            >
+              <MonitorPlay className="h-3.5 w-3.5" />
+              {tutorPresentTaskId ? 'Presenting' : 'Present'}
+            </button>
             {courseId ? (
               <button
                 type="button"
@@ -717,6 +707,7 @@ export function SessionClassroom({
             resultByTask={myResultByTask}
             followTaskId={following ? presentedTaskId : null}
             onInteract={isTutor ? undefined : () => setFollowTutor(false)}
+            onActiveTaskChange={isTutor ? setTutorPresentTaskId : undefined}
             onClose={() => setActivePanel(null)}
           />
         </FallbackBoundary>
