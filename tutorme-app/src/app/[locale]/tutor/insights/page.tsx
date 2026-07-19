@@ -143,15 +143,17 @@ function TutorInsightsPageInner() {
       setSaveMode('draft')
       return
     }
-    // Otherwise detect from which list the course belongs to
+    // Otherwise detect from which list the course belongs to.
+    // DB courses take precedence over local drafts so a published or unpublished
+    // course is never accidentally edited in Creating mode.
     const isLive = courses.some(c => c.id === courseId)
     const isDraft = draftCourses.some(c => c.id === courseId)
-    if (isLive && !isDraft) {
+    if (isLive) {
       setSaveMode('live')
-    } else if (isDraft && !isLive) {
+    } else if (isDraft) {
       setSaveMode('draft')
     }
-    // If both or neither (e.g., during loading), leave current value
+    // If neither (e.g., during loading), leave current value
   }, [courseId, courses, draftCourses, searchParams])
 
   // Migrate legacy draft data saved under `modules` in lesson-bank-courses-v1
@@ -341,6 +343,11 @@ function TutorInsightsPageInner() {
     return course?.isPublished === true && course?.isVariant === true
   }, [courseId, courses])
 
+  const isDbCourse = useMemo(() => {
+    if (!courseId) return false
+    return courses.some(c => c.id === courseId)
+  }, [courseId, courses])
+
   const executeSave = useCallback(
     async (
       lessons: any[],
@@ -348,8 +355,10 @@ function TutorInsightsPageInner() {
       propagateToVariants?: boolean,
       setIndependent?: boolean
     ) => {
-      // Published variants always persist to the DB (mode='live') even when the UI is in 'draft' edit mode
-      const persistMode = isPublishedVariant ? 'live' : saveMode
+      // Any course loaded from the DB (Unpublished or Published) must persist to the
+      // DB (mode='live') regardless of the UI's current saveMode. Creating-mode
+      // drafts fall back to the selected saveMode.
+      const persistMode = isDbCourse ? 'live' : saveMode
 
       const result = await saveCourse({
         courseId,
@@ -423,6 +432,7 @@ function TutorInsightsPageInner() {
       courseId,
       saveMode,
       draftStorageKey,
+      isDbCourse,
       isPublishedVariant,
       detachedCourseName,
       router,
@@ -1353,7 +1363,7 @@ function TutorInsightsPageInner() {
   // In Creating mode (and not inside a live session), the course is edited from the
   // browser's local store, not the DB API. This includes both the special
   // insights-draft sentinel and local Creating-mode courses that haven't been persisted yet.
-  const dataMode = saveMode === 'draft' && !sessionId ? 'detached' : 'default'
+  const dataMode = saveMode === 'draft' && !sessionId && !isDbCourse ? 'detached' : 'default'
 
   return (
     <div className="flex h-screen w-full flex-col items-stretch bg-gray-50">
@@ -1378,11 +1388,16 @@ function TutorInsightsPageInner() {
             })),
             onCourseChange: value => {
               setCourseId(value)
+              const isDbCourseSelected = courses.some(course => course.id === value)
               const isDraftCourse = draftCourses.some(course => course.id === value)
-              // Only auto-switch to Creating mode for Creating-mode courses.
-              // DB courses (Unpublished or Published) can be edited in either mode, so keep the current mode.
-              if (!sessionId && isDraftCourse) {
-                setSaveMode('draft')
+              // DB courses (Unpublished or Published) must be edited in live mode so they
+              // persist to the server. Creating-mode courses stay in draft mode.
+              if (!sessionId) {
+                if (isDbCourseSelected) {
+                  setSaveMode('live')
+                } else if (isDraftCourse) {
+                  setSaveMode('draft')
+                }
               }
 
               const match = [...courses, ...draftCourses].find(course => course.id === value)
