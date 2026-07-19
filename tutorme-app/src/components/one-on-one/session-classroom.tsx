@@ -429,14 +429,18 @@ export function SessionClassroom({
             Directory
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => toggle('materials')}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
-        >
-          <FolderOpen className="h-3.5 w-3.5" />
-          {isTutor ? 'Materials' : 'Lessons'}
-        </button>
+        {/* Lessons (deployed tasks/assessments) is a student affordance — the tutor
+            deploys/reviews via the Deploy and Submissions panels, so they don't need it. */}
+        {!isTutor ? (
+          <button
+            type="button"
+            onClick={() => toggle('materials')}
+            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            Lessons
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => toggle('chat')}

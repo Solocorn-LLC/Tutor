@@ -223,6 +223,30 @@ export function SessionDeployedPanel({
                     />
                   </div>
                 </div>
+              ) : active.sourceDocument &&
+                active.dmiItems &&
+                active.dmiItems.length > 0 &&
+                studentFullPage ? (
+                // Assessment with a source PDF: show the document and the answer
+                // sheet side by side (stacked on a narrow/mobile viewport). The
+                // full-page view has the width for it.
+                <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden lg:flex-row">
+                  <div className="min-h-0 flex-1">
+                    <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <DeployedQuestions
+                      key={active.id}
+                      sessionId={sessionId}
+                      taskId={active.id}
+                      items={active.dmiItems}
+                      socket={socket}
+                      isTutor={isTutor}
+                      alreadySubmitted={completedTaskIds.has(active.id)}
+                      result={resultByTask[active.id]}
+                    />
+                  </div>
+                </div>
               ) : (
                 <>
                   {active.sourceDocument ? (
