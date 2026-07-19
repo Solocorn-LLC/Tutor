@@ -490,10 +490,17 @@ export async function generateTaskTextPDF(
   const VIEWPORT_MIN_HEIGHT = 620
 
   // Off-screen landscape slide viewport that mirrors the Task Slide display area.
+  // Use absolute positioning inside a sized wrapper so html2canvas gets a
+  // reliable 1100px width and the PDF page stays landscape by default.
+  const wrapper = document.createElement('div')
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '-9999px'
+  wrapper.style.top = '0'
+  wrapper.style.width = `${VIEWPORT_WIDTH}px`
+  wrapper.style.overflow = 'hidden'
+  wrapper.style.visibility = 'hidden'
+
   const viewport = document.createElement('div')
-  viewport.style.position = 'fixed'
-  viewport.style.left = '-9999px'
-  viewport.style.top = '-9999px'
   viewport.style.width = `${VIEWPORT_WIDTH}px`
   viewport.style.minHeight = `${VIEWPORT_MIN_HEIGHT}px`
   viewport.style.padding = '48px'
@@ -507,13 +514,24 @@ export async function generateTaskTextPDF(
   viewport.style.whiteSpace = 'pre-wrap'
   viewport.style.wordBreak = 'break-word'
   viewport.style.boxSizing = 'border-box'
-  viewport.style.overflow = 'hidden'
+  viewport.style.overflow = 'visible'
   viewport.setAttribute('dir', 'auto')
   viewport.textContent = content.trim()
 
-  document.body.appendChild(viewport)
+  wrapper.appendChild(viewport)
+  document.body.appendChild(wrapper)
 
   try {
+    // Force the viewport to render at the intended width, then measure how much
+    // height the content actually needs. If it exceeds the minimum, expand the
+    // viewport so html2canvas captures the full content.
+    const viewportCssWidth = Math.round(viewport.getBoundingClientRect().width)
+    const contentHeight = Math.round(viewport.scrollHeight)
+    const viewportCssHeight = Math.max(contentHeight, VIEWPORT_MIN_HEIGHT)
+    if (contentHeight > VIEWPORT_MIN_HEIGHT) {
+      viewport.style.height = `${contentHeight}px`
+    }
+
     const canvas = await html2canvas(viewport, {
       scale: 2,
       useCORS: true,
@@ -521,8 +539,6 @@ export async function generateTaskTextPDF(
       logging: false,
     })
 
-    const viewportCssWidth = viewport.scrollWidth
-    const viewportCssHeight = viewport.scrollHeight
     // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
     const ptWidth = viewportCssWidth * 0.75
     const ptHeight = viewportCssHeight * 0.75
@@ -538,8 +554,8 @@ export async function generateTaskTextPDF(
       snapshotVersion: TASK_TEXT_SNAPSHOT_VERSION,
     }
   } finally {
-    if (viewport.parentNode) {
-      document.body.removeChild(viewport)
+    if (wrapper.parentNode) {
+      document.body.removeChild(wrapper)
     }
   }
 }

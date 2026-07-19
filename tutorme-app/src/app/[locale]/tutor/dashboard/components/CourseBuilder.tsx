@@ -4725,6 +4725,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ensureTaskTextDocumentRef.current()
     }, [mainTab, mainBuilderTab, loadedTaskId])
 
+    // Generate the PDF snapshot the first time a text-only task is selected in
+    // the builder. Persisted snapshots are skipped by the existing guard.
+    useEffect(() => {
+      if (mainBuilderTab !== 'task') return
+      if (!loadedTaskId) return
+      ensureTaskTextDocumentRef.current()
+    }, [loadedTaskId, mainBuilderTab])
+
     const handleMainTabChange = useCallback(
       async (v: string) => {
         const next = v as 'live' | 'builder' | 'test-pci'
