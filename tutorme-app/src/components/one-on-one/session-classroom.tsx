@@ -26,6 +26,7 @@ import {
   Users,
   Clock,
   BarChart3,
+  FolderTree,
 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -42,11 +43,20 @@ import { useSessionRoomState } from '@/components/one-on-one/use-session-room-st
 import { SessionChatPanel } from '@/components/one-on-one/session-chat-panel'
 import { SessionMonitorPanel } from '@/components/one-on-one/session-monitor-panel'
 import { SessionPollPanel, SessionPollCard } from '@/components/one-on-one/session-poll'
+import { SessionDirectoryPanel } from '@/components/one-on-one/session-directory-panel'
 import { toast } from 'sonner'
 import { FallbackBoundary } from '@/components/ui/fallback-boundary'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
-type ActivePanel = 'deploy' | 'materials' | 'responses' | 'chat' | 'monitor' | 'poll' | null
+type ActivePanel =
+  | 'deploy'
+  | 'materials'
+  | 'responses'
+  | 'chat'
+  | 'monitor'
+  | 'poll'
+  | 'directory'
+  | null
 interface BoardTarget {
   ownerId: string
   ownerName: string
@@ -406,6 +416,16 @@ export function SessionClassroom({
             My board
           </button>
         ) : null}
+        {!isTutor ? (
+          <button
+            type="button"
+            onClick={() => toggle('directory')}
+            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-lg backdrop-blur hover:bg-white"
+          >
+            <FolderTree className="h-3.5 w-3.5" />
+            Directory
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => toggle('materials')}
@@ -475,6 +495,9 @@ export function SessionClassroom({
                 responsesByTask={responsesByTask}
                 onClose={() => setActivePanel(null)}
               />
+            ) : null}
+            {activePanel === 'directory' && !isTutor ? (
+              <SessionDirectoryPanel onClose={() => setActivePanel(null)} />
             ) : null}
             {activePanel === 'chat' ? (
               <SessionChatPanel
