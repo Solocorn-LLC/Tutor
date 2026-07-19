@@ -7,8 +7,10 @@ import {
   profile,
   deployedMaterial,
   studentTaskReport,
+  sessionParticipant,
+  liveSession,
 } from '@/lib/db/schema'
-import { eq, inArray, and } from 'drizzle-orm'
+import { eq, inArray, and, isNotNull, isNull } from 'drizzle-orm'
 import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
 
@@ -102,6 +104,41 @@ export const GET = withAuth(
       errors.push(`enrollments query failed: ${err?.message || String(err)}`)
       // Return early with empty directory but show the error
       return NextResponse.json({ directory: {}, errors }, { status: 200 })
+    }
+
+    // Also include courses the student is a PARTICIPANT in (1-on-1 / group live
+    // sessions) — they join by a booking seat, not courseEnrollment, so without
+    // this a participant-only student sees an empty directory. Same shape as an
+    // enrollment; unioned + deduped by courseId below.
+    try {
+      const participantCourses = await drizzleDb
+        .selectDistinct({
+          studentId: sessionParticipant.studentId,
+          courseId: course.courseId,
+          courseName: course.name,
+          tutorId: course.creatorId,
+          tutorName: profile.name,
+        })
+        .from(sessionParticipant)
+        .innerJoin(liveSession, eq(liveSession.sessionId, sessionParticipant.sessionId))
+        .innerJoin(course, eq(course.courseId, liveSession.courseId))
+        .leftJoin(profile, eq(course.creatorId, profile.userId))
+        .where(
+          and(
+            eq(sessionParticipant.studentId, studentId),
+            isNotNull(liveSession.courseId),
+            isNull(course.deletedAt)
+          )
+        )
+      const seen = new Set(enrollments.map(e => e.courseId))
+      for (const p of participantCourses) {
+        if (p.courseId && !seen.has(p.courseId)) {
+          seen.add(p.courseId)
+          enrollments.push(p)
+        }
+      }
+    } catch (err: any) {
+      errors.push(`participant courses query failed: ${err?.message || String(err)}`)
     }
 
     if (enrollments.length === 0) {
