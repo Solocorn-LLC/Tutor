@@ -4697,6 +4697,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.title,
     ])
 
+    // Ref so effects can reach the latest generation helper without taking a
+    // dependency on the taskBuilder closure (which changes on every keystroke).
+    const ensureTaskTextDocumentRef = useRef(ensureTaskTextDocument)
+    useEffect(() => {
+      ensureTaskTextDocumentRef.current = ensureTaskTextDocument
+    }, [ensureTaskTextDocument])
+
+    // If a text-only task is selected while already in Test or Live mode,
+    // generate its PDF snapshot so the preview sees a real document.
+    // handleMainTabChange covers switching *into* Test/Live; this covers
+    // switching tasks within those modes.
+    useEffect(() => {
+      if (mainTab !== 'test-pci' && mainTab !== 'live') return
+      if (mainBuilderTab !== 'task') return
+      if (!loadedTaskId) return
+      ensureTaskTextDocumentRef.current()
+    }, [mainTab, mainBuilderTab, loadedTaskId])
+
     const handleMainTabChange = useCallback(
       async (v: string) => {
         const next = v as 'live' | 'builder' | 'test-pci'
@@ -4705,6 +4723,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // into it first so edits made in Build don't vanish on the Live tab.
         // Bump prevMainTabRef so the transition effect skips a redundant sync.
         if (next === 'live') {
+          // If the active task only has typed text, generate its PDF snapshot
+          // before syncing it into the live preview so the classroom sees a
+          // real, clickable sourceDocument just like an uploaded PDF.
+          if (mainBuilderTab === 'task') {
+            setPreparingTestPreview(true)
+            await ensureTaskTextDocument()
+            setPreparingTestPreview(false)
+          }
           handleSyncToLive()
           prevMainTabRef.current = 'live'
         }
