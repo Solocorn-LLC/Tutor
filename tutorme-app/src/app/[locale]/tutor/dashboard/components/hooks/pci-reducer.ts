@@ -73,6 +73,7 @@ export type PciAction =
   | { type: 'setInput'; target: PciTarget; input: string }
   | { type: 'loadMessages'; target: PciTarget; messages: PciMessage[] }
   | { type: 'sendStart'; target: PciTarget; userMessage: string }
+  | { type: 'sendStartSilent'; target: PciTarget }
   | {
       type: 'sendSuccess'
       target: PciTarget
@@ -130,6 +131,11 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
         ],
         loading: true,
       })
+
+    case 'sendStartSilent':
+      // Start loading without appending a visible user message. Used for the
+      // automatic first-turn summary when the PCI panel is opened.
+      return patch(state, action.target, { loading: true })
 
     case 'sendSuccess': {
       // Append the assistant reply, hold any finalized draft + structured spec,

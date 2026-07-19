@@ -8136,6 +8136,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadedAssessmentId, assessmentDmiReady, canEdit])
 
+    // Task PCI first-open kickoff: when the tutor opens the PCI tab for a task
+    // (or task extension) and the chat is empty, auto-request the grounded summary
+    // so the tutor does not have to type a first message. Fires once per target.
+    useEffect(() => {
+      if (taskBuilderActiveTab !== 'pci') return
+      const taskId = loadedTaskId
+      if (!taskId) return
+      const extId = taskBuilder.activeExtensionId
+      const targetId = extId ? `ext:${extId}` : `task:${taskId}`
+      if (activeTaskThread.messages.length > 0 || activeTaskThread.loading) return
+      if (pciKickoffRef.current.has(targetId)) return
+      pciKickoffRef.current.add(targetId)
+      const t = setTimeout(() => {
+        handlePciSend(
+          'task',
+          'Please summarize this task based on the provided context, including its role in the lesson and course.',
+          true
+        )
+      }, 300)
+      return () => clearTimeout(t)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [taskBuilderActiveTab, loadedTaskId, taskBuilder.activeExtensionId])
+
     // Auto-scroll the task PCI chat so new messages / the loading indicator
     // stays pinned to the bottom without manual scrolling. Also re-pin when the
     // PCI tab becomes active, so the tutor always lands on the latest turn.

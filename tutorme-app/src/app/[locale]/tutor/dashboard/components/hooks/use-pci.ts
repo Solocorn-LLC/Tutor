@@ -133,7 +133,11 @@ export function usePci(deps: UsePciDeps) {
     toast.success('Rubric applied to PCI')
   }
 
-  const handlePciSend = async (type: 'task' | 'assessment', overrideMessage?: string) => {
+  const handlePciSend = async (
+    type: 'task' | 'assessment',
+    overrideMessage?: string,
+    silent?: boolean
+  ) => {
     const isTask = type === 'task'
     let taskId = deps.loadedTaskId
     let assessmentId = deps.loadedAssessmentId
@@ -159,7 +163,11 @@ export function usePci(deps: UsePciDeps) {
     // Clear the input box only on a real send (not a quick-action override), then
     // append the user's message + start loading.
     if (!overrideMessage) dispatch({ type: 'setInput', target, input: '' })
-    dispatch({ type: 'sendStart', target, userMessage })
+    if (silent) {
+      dispatch({ type: 'sendStartSilent', target })
+    } else {
+      dispatch({ type: 'sendStart', target, userMessage })
+    }
 
     try {
       const { taskBuilder, assessmentBuilder } = deps
