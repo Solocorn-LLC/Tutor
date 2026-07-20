@@ -259,6 +259,10 @@ export function SessionDeployPanel({
     // auto-grade — it is never sent to the client here.
     socket.emit('task:deploy', {
       roomId: sessionId,
+      // The course this task belongs to, so a session whose liveSession.courseId
+      // is unset doesn't fall back to the hidden ad-hoc anchor — which the
+      // deployables tree filters out, making the task vanish after deploy.
+      courseId: t.courseId ?? courseId ?? undefined,
       task: {
         id: t.taskId,
         title: t.title,
@@ -615,6 +619,7 @@ function TaskPreviewOverlay({
                 taskId={task.taskId}
                 taskTitle={task.title}
                 sourceDocument={task.sourceDocument}
+                previewMode
               />
             </div>
           </div>

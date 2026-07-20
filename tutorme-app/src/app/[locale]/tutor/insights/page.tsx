@@ -77,6 +77,9 @@ function TutorInsightsPageInner() {
   const [sessions, setSessions] = useState<InsightsSessionOption[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [linkedCourseId, setLinkedCourseId] = useState<string | null>(null)
+  // Whether we've finished resolving the session's linked course — so a
+  // course-less session (1-on-1) renders the classroom instead of spinning forever.
+  const [linkedCourseResolved, setLinkedCourseResolved] = useState(false)
   const [sessionCategory, setSessionCategory] = useState<string | null>(null)
   const [sessionNationality, setSessionNationality] = useState<string | null>(null)
   // Canonical "Category — Nationality" label from the API (formatCourseVariantName),
@@ -812,6 +815,7 @@ function TutorInsightsPageInner() {
   useEffect(() => {
     if (!sessionId) return
     let cancelled = false
+    setLinkedCourseResolved(false)
     const loadLinkedCourse = async () => {
       try {
         const res = await fetch(`/api/tutor/classes/${sessionId}`, { credentials: 'include' })
@@ -824,6 +828,8 @@ function TutorInsightsPageInner() {
         setSessionVariantName(data?.session?.variantName || null)
       } catch {
         // Ignore; keep existing selection
+      } finally {
+        if (!cancelled) setLinkedCourseResolved(true)
       }
     }
     loadLinkedCourse()
@@ -831,6 +837,14 @@ function TutorInsightsPageInner() {
       cancelled = true
     }
   }, [sessionId])
+
+  // Course-less session (e.g. a 1-on-1) — once we've confirmed there's no linked
+  // course, render the classroom with the ad-hoc draft sentinel instead of the
+  // infinite "resolving the linked course" spinner below.
+  useEffect(() => {
+    if (!sessionId || !linkedCourseResolved || linkedCourseId) return
+    setCourseId(prev => prev ?? 'insights-draft')
+  }, [sessionId, linkedCourseResolved, linkedCourseId])
 
   useEffect(() => {
     if (!linkedCourseId) return
@@ -1291,8 +1305,10 @@ function TutorInsightsPageInner() {
   }
 
   if (!courseId) {
-    // If a sessionId is in the URL, we're still resolving the linked course — show spinner
-    if (searchParams.get('sessionId')) {
+    // A sessionId is in the URL and we're STILL resolving its linked course — spin.
+    // Once resolved (even to no course, e.g. a 1-on-1) the effect above sets a draft
+    // courseId, so we fall through and render the classroom instead of spinning.
+    if (searchParams.get('sessionId') && !linkedCourseResolved) {
       return (
         <div className="flex h-full w-full flex-1 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />

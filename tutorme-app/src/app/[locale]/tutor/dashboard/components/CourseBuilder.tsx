@@ -1834,6 +1834,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       languageOfInstruction: string | null
       roomUrl: string | null
       token: string | null
+      // 1-on-1 (<=2 seats): both sides transmit, so the tutor's video renders the
+      // other participant's camera (see DailyVideoFrame twoWay).
+      twoWay: boolean
     } | null>(null)
     // Student roster is maintained upstream in insights/page.tsx (socket handlers)
     // and passed via insightsProps.students so it survives remounts.
@@ -2416,6 +2419,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             languageOfInstruction: data?.session?.languageOfInstruction ?? null,
             roomUrl: data?.session?.roomUrl ?? null,
             token: data?.session?.token ?? null,
+            twoWay: (data?.session?.maxStudents ?? 0) <= 2,
           })
           // Student roster maintained upstream in insights/page.tsx
         } catch {
@@ -2859,6 +2863,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             token: sessionContext.token,
             autoRecord: !isStudentView,
             isTutor: true,
+            twoWay: sessionContext.twoWay,
           })
         },
         triggerSync: () => {
