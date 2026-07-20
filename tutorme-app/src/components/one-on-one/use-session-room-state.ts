@@ -30,6 +30,9 @@ export interface SessionRoomTask {
   dmiItems?: StudentDmiItem[]
   sourceDocument?: SessionSourceDocument
   completedBy?: string[]
+  /** When the tutor deployed it (epoch ms or ISO). Sent on the deploy payload +
+   *  room_state; used to order/label the deployed-items list. */
+  deployedAt?: string | number
 }
 
 export interface SessionStudentResponse {
