@@ -916,7 +916,7 @@ function CourseSection({
   unregisteringId?: string | null
 }) {
   return (
-    <section>
+    <section className="mx-auto max-w-7xl">
       <div className="mb-6">
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
