@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import {
   X,
@@ -12,6 +12,7 @@ import {
   ListChecks,
   Pencil,
   Check,
+  ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
@@ -54,6 +55,9 @@ export function SessionDeployedPanel({
   tasks,
   completedTaskIds,
   resultByTask,
+  followTaskId,
+  onInteract,
+  onActiveTaskChange,
   onClose,
 }: {
   sessionId: string
@@ -62,16 +66,90 @@ export function SessionDeployedPanel({
   tasks: SessionRoomTask[]
   completedTaskIds: Set<string>
   resultByTask: Record<string, SessionGradeResult>
+  /** While a student is following the tutor, the task to auto-open. When it
+   *  changes to a new id the panel opens it (they follow the tutor's view). */
+  followTaskId?: string | null
+  /** Called when the student starts answering — used to stop auto-following so a
+   *  new deploy can't yank them away mid-answer. */
+  onInteract?: () => void
+  /** Fires with the currently-opened task id (or null on the list). The tutor
+   *  uses it to PRESENT that task to following students. */
+  onActiveTaskChange?: (taskId: string | null) => void
   onClose: () => void
 }) {
+  // Master-detail, mirroring the course-builder "Lessons" panel: the default
+  // view lists every deployed task/assessment (newest first); opening one drills
+  // into its content. Nothing is auto-opened — the student picks from the list.
   const [activeId, setActiveId] = useState<string | null>(null)
-  // Default to the most-recently-deployed task when nothing is selected.
-  const active = tasks.find(t => t.id === activeId) ?? tasks[tasks.length - 1] ?? null
+  // Tasks the viewer has opened this session — everything else reads as "New",
+  // like the Lessons panel's unseen badge.
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set())
+  const active = activeId ? (tasks.find(t => t.id === activeId) ?? null) : null
 
+  const openTask = (id: string) => {
+    setActiveId(id)
+    setSeenIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }
+
+  // Follow: open the tutor's current task when it changes (only when the id is a
+  // new value, so the student can still tap Back without being re-yanked). When
+  // following turns off (followTaskId null) reset the ref, so re-enabling follow
+  // re-opens the current task even if it hasn't changed.
+  const lastFollowRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!followTaskId) {
+      lastFollowRef.current = null
+      return
+    }
+    if (followTaskId === lastFollowRef.current) return
+    lastFollowRef.current = followTaskId
+    if (tasks.some(t => t.id === followTaskId)) openTask(followTaskId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followTaskId, tasks])
+
+  // Report the opened task to the parent — the tutor PRESENTS it to students.
+  useEffect(() => {
+    onActiveTaskChange?.(activeId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId])
+
+  // Newest first, matching the reference panel's ordering.
+  const orderedTasks = [...tasks].reverse()
+
+  // An opened task fills the screen FULL-PAGE (self-positioned at z-30, so the
+  // toolbar (z-40) and video (z-[35]) overlay it) for BOTH roles: the student
+  // reads/answers it, the tutor presents it — and both see the same layout, so
+  // what the tutor presents is exactly what the student mirrors. The list stays a
+  // compact side panel. Label: "Lessons" for students, "Materials" for tutors.
+  const openedFullPage = !!active
+  const panelTitle = isTutor ? 'Materials' : 'Lessons'
+
+  // Self-positioned (a direct child of the classroom root, NOT the shared z-40
+  // panel container) so the full-page task shares one stacking context with the
+  // toolbar (z-40) and video (z-[35]) and reliably sits under them at z-30.
   return (
-    <div className="pointer-events-auto flex h-full w-96 flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-900">Materials</h3>
+    <div
+      className={
+        openedFullPage
+          ? 'pointer-events-auto absolute inset-0 z-30 flex flex-col bg-white'
+          : 'pointer-events-auto absolute bottom-3 right-3 top-16 z-40 flex w-96 flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl'
+      }
+    >
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {active ? (
+            <button
+              onClick={() => setActiveId(null)}
+              aria-label="Back to list"
+              className="inline-flex items-center gap-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          ) : null}
+          <h3 className="truncate text-sm font-semibold text-slate-900">
+            {active ? active.title : panelTitle}
+          </h3>
+        </div>
         <button
           onClick={onClose}
           aria-label="Close"
@@ -85,35 +163,49 @@ export function SessionDeployedPanel({
         <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-slate-500">
           Nothing shared yet. When the tutor deploys a task or material, it appears here.
         </div>
-      ) : (
-        <>
-          {/* Tabs of deployed items */}
-          <div className="flex flex-wrap gap-1.5 border-b p-2">
-            {tasks.map(t => (
+      ) : !active ? (
+        /* List of every deployed task/assessment — the "Lessons" list. */
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          {orderedTasks.map(t => {
+            const isAssessment = (t.dmiItems?.length ?? 0) > 0 || t.source === 'assessment'
+            const done = completedTaskIds.has(t.id)
+            return (
               <button
                 key={t.id}
-                onClick={() => setActiveId(t.id)}
-                className={
-                  'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ' +
-                  (t.id === active?.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
-                }
+                type="button"
+                onClick={() => openTask(t.id)}
+                className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-3 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/40"
               >
-                {t.dmiItems && t.dmiItems.length > 0 ? (
-                  <ListChecks className="h-3 w-3" />
-                ) : (
-                  <FileText className="h-3 w-3" />
-                )}
-                <span className="max-w-[8rem] truncate">{t.title}</span>
-                {completedTaskIds.has(t.id) ? (
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                ) : null}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-slate-900">
+                    {isAssessment ? (
+                      <ListChecks className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    ) : (
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    )}
+                    <span className="truncate">{t.title}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {done ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : !seenIds.has(t.id) ? (
+                      <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                        New
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500">
+                  {isAssessment ? 'Assessment' : 'Task'}
+                  {t.deployedAt ? ` · Deployed ${new Date(t.deployedAt).toLocaleTimeString()}` : ''}
+                </span>
               </button>
-            ))}
-          </div>
-
-          {/* Active item */}
+            )
+          })}
+        </div>
+      ) : (
+        <>
+          {/* Opened item */}
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {active ? (
               isChatTask(active) ? (
@@ -128,9 +220,6 @@ export function SessionDeployedPanel({
                 // (one scrollbar) rather than a viewport-height box inside the
                 // already-scrollable parent.
                 <div className="flex h-full flex-col">
-                  <p className="mb-3 shrink-0 text-sm font-semibold text-slate-900">
-                    {active.title}
-                  </p>
                   {active.content && !isImportPlaceholder(active.content) ? (
                     <div
                       className="prose prose-sm mb-3 max-h-40 shrink-0 overflow-y-auto pr-1 text-slate-700"
@@ -149,6 +238,8 @@ export function SessionDeployedPanel({
                       taskId={active.id}
                       taskTitle={active.title}
                       sourceDocument={active.sourceDocument}
+                      previewMode={!!isTutor}
+                      onInteract={onInteract}
                       onCompleted={
                         isTutor
                           ? undefined
@@ -168,15 +259,37 @@ export function SessionDeployedPanel({
                     />
                   </div>
                 </div>
+              ) : active.sourceDocument &&
+                active.dmiItems &&
+                active.dmiItems.length > 0 &&
+                openedFullPage ? (
+                // Assessment with a source PDF: show the document and the answer
+                // sheet side by side (stacked on a narrow/mobile viewport). The
+                // full-page view has the width for it.
+                <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden lg:flex-row">
+                  <div className="min-h-0 flex-1">
+                    <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <DeployedQuestions
+                      key={active.id}
+                      sessionId={sessionId}
+                      taskId={active.id}
+                      items={active.dmiItems}
+                      socket={socket}
+                      isTutor={isTutor}
+                      alreadySubmitted={completedTaskIds.has(active.id)}
+                      result={resultByTask[active.id]}
+                      onInteract={onInteract}
+                    />
+                  </div>
+                </div>
               ) : (
                 <>
                   {active.sourceDocument ? (
-                    <>
-                      <p className="mb-3 text-sm font-semibold text-slate-900">{active.title}</p>
-                      <div className="h-[60vh] w-full">
-                        <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
-                      </div>
-                    </>
+                    <div className="h-[60vh] w-full">
+                      <TaskDocumentCard sourceDocument={active.sourceDocument} alwaysOpen />
+                    </div>
                   ) : (
                     <ActiveTaskBody
                       key={active.id}
@@ -197,6 +310,7 @@ export function SessionDeployedPanel({
                       isTutor={isTutor}
                       alreadySubmitted={completedTaskIds.has(active.id)}
                       result={resultByTask[active.id]}
+                      onInteract={onInteract}
                     />
                   ) : !active.sourceDocument && !active.content ? (
                     <p className="text-xs text-slate-400">This item has no preview.</p>
@@ -364,6 +478,7 @@ function DeployedQuestions({
   isTutor,
   alreadySubmitted,
   result,
+  onInteract,
 }: {
   sessionId: string
   taskId: string
@@ -372,6 +487,7 @@ function DeployedQuestions({
   isTutor?: boolean
   alreadySubmitted?: boolean
   result?: SessionGradeResult
+  onInteract?: () => void
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -441,7 +557,10 @@ function DeployedQuestions({
           <SessionDmiAnswerField
             item={it}
             value={answers[it.id] ?? ''}
-            onValueChange={next => setAnswers(prev => ({ ...prev, [it.id]: next }))}
+            onValueChange={next => {
+              onInteract?.()
+              setAnswers(prev => ({ ...prev, [it.id]: next }))
+            }}
           />
         </QuestionBlock>
       ))}

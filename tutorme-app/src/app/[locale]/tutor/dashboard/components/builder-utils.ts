@@ -460,7 +460,7 @@ export async function generateQuestionPaperPDF(
  * generated snapshot format changes so existing auto-generated PDFs are
  * invalidated and regenerated.
  */
-export const TASK_TEXT_SNAPSHOT_VERSION = 2
+export const TASK_TEXT_SNAPSHOT_VERSION = 3
 
 /**
  * Generate a simple PDF from a task's typed content so that text-only
@@ -490,10 +490,16 @@ export async function generateTaskTextPDF(
   const VIEWPORT_MIN_HEIGHT = 620
 
   // Off-screen landscape slide viewport that mirrors the Task Slide display area.
+  // Use an absolute wrapper so html2canvas gets a reliable 1100px width and the
+  // PDF page stays landscape by default. The wrapper is placed far off-screen; it
+  // is not visibility:hidden so the element still renders and has real dimensions.
+  const wrapper = document.createElement('div')
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '-9999px'
+  wrapper.style.top = '0'
+  wrapper.style.width = `${VIEWPORT_WIDTH}px`
+
   const viewport = document.createElement('div')
-  viewport.style.position = 'fixed'
-  viewport.style.left = '-9999px'
-  viewport.style.top = '-9999px'
   viewport.style.width = `${VIEWPORT_WIDTH}px`
   viewport.style.minHeight = `${VIEWPORT_MIN_HEIGHT}px`
   viewport.style.padding = '48px'
@@ -511,9 +517,18 @@ export async function generateTaskTextPDF(
   viewport.setAttribute('dir', 'auto')
   viewport.textContent = content.trim()
 
-  document.body.appendChild(viewport)
+  wrapper.appendChild(viewport)
+  document.body.appendChild(wrapper)
 
   try {
+    // Force layout and measure the rendered width/height. html2canvas needs the
+    // element to be rendered and have an explicit height; minHeight alone is not
+    // enough for the captured canvas to match the intended PDF page size.
+    const viewportCssWidth = Math.round(viewport.getBoundingClientRect().width)
+    const contentHeight = Math.round(viewport.scrollHeight)
+    const viewportCssHeight = Math.max(contentHeight, VIEWPORT_MIN_HEIGHT)
+    viewport.style.height = `${viewportCssHeight}px`
+
     const canvas = await html2canvas(viewport, {
       scale: 2,
       useCORS: true,
@@ -521,8 +536,6 @@ export async function generateTaskTextPDF(
       logging: false,
     })
 
-    const viewportCssWidth = viewport.scrollWidth
-    const viewportCssHeight = viewport.scrollHeight
     // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
     const ptWidth = viewportCssWidth * 0.75
     const ptHeight = viewportCssHeight * 0.75
@@ -538,8 +551,8 @@ export async function generateTaskTextPDF(
       snapshotVersion: TASK_TEXT_SNAPSHOT_VERSION,
     }
   } finally {
-    if (viewport.parentNode) {
-      document.body.removeChild(viewport)
+    if (wrapper.parentNode) {
+      document.body.removeChild(wrapper)
     }
   }
 }

@@ -204,6 +204,10 @@ interface EnhancedWhiteboardProps {
   onToggleVideoFullscreen?: () => void
   isVideoFullscreen?: boolean
   videoComponent?: React.ReactNode
+  /** Tailwind z-index class for the floating-video wrapper. Defaults to `z-10`
+   *  (above the canvas). The 1-on-1 classroom raises it so the tutor's video
+   *  stays above a full-page opened task. */
+  videoZClassName?: string
   // External page control
   pages?: Page[]
   currentPageIndex?: number
@@ -240,6 +244,7 @@ export function EnhancedWhiteboard({
   onToggleVideoFullscreen,
   isVideoFullscreen = false,
   videoComponent,
+  videoZClassName = 'z-10',
   pages: externalPages,
   currentPageIndex: externalPageIndex,
   onPagesChange,
@@ -2747,7 +2752,7 @@ export function EnhancedWhiteboard({
               // the handle drag (they fight and the frame jumps).
               onPointerDown={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
-              className="absolute z-10 overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg"
+              className={`absolute ${videoZClassName} overflow-hidden rounded-lg border border-slate-600 bg-black shadow-lg`}
               style={{
                 width: `${videoSize.width}px`,
                 height: `${videoSize.height}px`,
