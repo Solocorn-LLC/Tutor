@@ -1606,6 +1606,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // endless loop. So we hold it in a ref and reset it only when a fresh,
     // user-initiated generate begins.
     const dmiContentSourceRef = useRef<'document' | 'text' | null>(null)
+    // Identity (fileKey/fileUrl) of an assessment document the tutor JUST
+    // uploaded and for which the DMI should auto-generate. Set by the upload
+    // handlers only — so opening an existing assessment (hydration) never
+    // triggers a regeneration. Consumed + cleared by the auto-generate effect.
+    const pendingAutoGenDmiRef = useRef<string | null>(null)
     const [mcqConfigDialog, setMcqConfigDialog] = useState<{
       type: 'task' | 'assessment'
     } | null>(null)
@@ -6014,9 +6019,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 }))
               )
               toast.success(`Loaded '${asset.name}' into Assessment`)
-              // DMI-first: auto-generate the DMI now (the PCI chat stays locked
-              // until it's ready). Kind detection asks the tutor if unsure.
-              setTimeout(() => handleGenerateDMI('assessment'), 500)
+              // DMI-first: auto-generate the DMI once the new document commits to
+              // state (handled by the auto-generate effect, which reads fresh
+              // state instead of a stale setTimeout closure).
+              pendingAutoGenDmiRef.current = newDoc.fileKey || newDoc.fileUrl || null
             } else {
               // For tasks, load document and text
               if (!asset.url && !asset.fileKey) {
@@ -6203,6 +6209,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }))
           )
           toast.success(`Loaded '${newAsset.name}' into Assessment`)
+          // Auto-generate the DMI from the freshly uploaded document.
+          pendingAutoGenDmiRef.current = newDoc.fileKey || newDoc.fileUrl || null
           return
         }
 
@@ -7758,6 +7766,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const hasUploadedTaskDocument = !!currentTaskDocument && !currentTaskDocument.generatedFromText
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
+
+    // Auto-generate the DMI the moment a freshly uploaded assessment document
+    // commits to state. Gated on `pendingAutoGenDmiRef` (set only by the upload
+    // handlers) so opening an EXISTING assessment never re-generates, and it
+    // reads fresh state (unlike the old stale-closure setTimeout). Skips when a
+    // DMI already exists or one is already generating.
+    useEffect(() => {
+      const doc = currentAssessmentDocument
+      const docId = doc?.fileKey || doc?.fileUrl || null
+      if (!docId || pendingAutoGenDmiRef.current !== docId) return
+      pendingAutoGenDmiRef.current = null
+      if (doc?.mimeType !== 'application/pdf' || !canEdit) return
+      if (dmiGenerating || assessmentDmiItems.length > 0) return
+      void handleGenerateDMI('assessment')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentAssessmentDocument, assessmentDmiItems.length, dmiGenerating, canEdit])
 
     // An image scan or an Office file (Word / PowerPoint, modern or legacy) —
     // documents whose figures text/OCR extraction drops, but that we can turn
@@ -12678,11 +12702,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               {dmiGenerating ? (
                                                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                               ) : null}
-                                              {/* A loaded document auto-generates the DMI, so the
-                                                  manual control becomes a re-run; only a text-only
-                                                  assessment still needs an initial "Generate". */}
-                                              {currentAssessmentDocument?.mimeType ===
-                                                'application/pdf' || assessmentDmiItems.length > 0
+                                              {/* Only a generated DMI can be re-generated; before
+                                                  that it's the initial "Generate" (a loaded document
+                                                  auto-generates, but this stays the manual fallback). */}
+                                              {assessmentDmiItems.length > 0
                                                 ? 'Regenerate DMI'
                                                 : 'Generate DMI'}
                                             </Button>
