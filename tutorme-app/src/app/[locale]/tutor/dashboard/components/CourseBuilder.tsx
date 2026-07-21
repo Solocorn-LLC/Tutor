@@ -3694,7 +3694,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         : currentAssessmentDocument
 
       const hasContent = content.trim().length > 0
-      const hasPdf = sourceDoc?.mimeType === 'application/pdf' && sourceDoc.fileUrl
+      // Accept a fileKey-only PDF (assets stored by storage key with an empty
+      // fileUrl): the extractor/renderer below already fall back to the by-key
+      // proxy. Requiring fileUrl here silently skipped PDF reading for
+      // asset-library uploads, so auto-generation produced nothing.
+      const hasPdf =
+        sourceDoc?.mimeType === 'application/pdf' && !!(sourceDoc.fileUrl || sourceDoc.fileKey)
 
       if (!hasContent && !hasPdf) {
         toast.error('Please add Assessment content or load a PDF first')
