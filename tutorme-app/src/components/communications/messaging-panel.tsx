@@ -204,7 +204,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
   return (
-    <div className="flex h-full w-full overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
+    <div className="flex h-full w-full overflow-hidden bg-white">
       {/* Left menu rail */}
       <div className="flex w-40 flex-col items-center gap-2 border-r border-gray-200 py-4">
         {topItems.map(item => {
@@ -309,11 +309,6 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
 
       {/* Detail / chat area */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/30">
-        {/* Chat header */}
-        <div className="flex h-12 shrink-0 items-center justify-center bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-          Chat
-        </div>
-
         {/* Chat viewport */}
         <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
           {!selectedConversation ? (

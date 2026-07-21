@@ -223,7 +223,15 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
           ]}
         >
           <TabsContent value="messaging" className="flex h-full flex-col">
-            <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
+            <CollapsibleCard
+              title="Chat"
+              icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
+              defaultOpen
+              fillHeight
+              className="flex-1"
+            >
+              <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
+            </CollapsibleCard>
           </TabsContent>
 
           {role === 'student' && (
