@@ -742,6 +742,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Loading state shown while generating a text-only task's PDF snapshot
     // before entering Test/Live so the preview has a real sourceDocument.
     const [preparingTestPreview, setPreparingTestPreview] = useState(false)
+    // React-visible mirror of generatingTaskDocRef so the Test Mode task chat
+    // can render a loading state instead of falling back to plain text while the
+    // snapshot is being created.
+    const [isGeneratingTaskTextDoc, setIsGeneratingTaskTextDoc] = useState(false)
 
     // Global styles for hiding Radix modals during drag
     useEffect(() => {
@@ -4646,6 +4650,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
 
       generatingTaskDocRef.current = true
+      setIsGeneratingTaskTextDoc(true)
       try {
         const { blob, fileName, snapshotVersion } = await generateTaskTextPDF(
           taskBuilder.title || 'Task',
@@ -4715,6 +4720,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         toast.error(err instanceof Error ? err.message : 'Failed to convert text to PDF')
       } finally {
         generatingTaskDocRef.current = false
+        setIsGeneratingTaskTextDoc(false)
       }
     }, [
       loadedTaskId,
@@ -11011,6 +11017,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 : tab.id === 'student2'
                                                   ? 'Test Student 2'
                                                   : 'Student'
+
+                                            const isTextOnlyTaskWithoutDoc =
+                                              !previewExt?.sourceDocument &&
+                                              !currentTaskDocument &&
+                                              (previewExt
+                                                ? previewExt.content
+                                                : taskBuilder.taskContent
+                                              ).trim().length > 0
+                                            const isPreparingTaskDoc =
+                                              isTextOnlyTaskWithoutDoc &&
+                                              (preparingTestPreview || isGeneratingTaskTextDoc)
+
+                                            if (isPreparingTaskDoc) {
+                                              return (
+                                                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-500">
+                                                  <Loader2 className="h-5 w-5 animate-spin" />
+                                                  <span className="text-sm">
+                                                    Preparing task document…
+                                                  </span>
+                                                </div>
+                                              )
+                                            }
 
                                             return (
                                               <div className="h-full min-h-0 w-full">
