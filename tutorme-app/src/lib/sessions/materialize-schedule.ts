@@ -9,6 +9,9 @@
  * never reached the calendar. This shared helper closes that gap.
  */
 
+import { and, eq, gt, inArray } from 'drizzle-orm'
+import { drizzleDb } from '@/lib/db/drizzle'
+import { liveSession, calendarEvent } from '@/lib/db/schema'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts } from '@/lib/time/tz'
 import { createSession } from './create-session'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
@@ -155,4 +158,37 @@ export async function materializeScheduleSessions(
     created++
   }
   return created
+}
+
+/**
+ * Retire the FUTURE, not-yet-started sessions materialized from a schedule so
+ * they leave the calendar — used when a schedule's times change (before
+ * re-materializing) or when a schedule is removed. Past/active sessions are
+ * left untouched. Soft-retires (status 'ended' + calendarEvent cancelled) rather
+ * than hard-deleting, to avoid touching rows other tables may reference.
+ * Returns the number of sessions retired.
+ */
+export async function clearFutureScheduleSessions(scheduleId: string): Promise<number> {
+  const now = new Date()
+  const future = await drizzleDb
+    .select({ sessionId: liveSession.sessionId })
+    .from(liveSession)
+    .where(
+      and(
+        eq(liveSession.scheduleId, scheduleId),
+        eq(liveSession.status, 'scheduled'),
+        gt(liveSession.scheduledAt, now)
+      )
+    )
+  if (future.length === 0) return 0
+  const ids = future.map(s => s.sessionId)
+  await drizzleDb
+    .update(liveSession)
+    .set({ status: 'ended', endedAt: now })
+    .where(inArray(liveSession.sessionId, ids))
+  await drizzleDb
+    .update(calendarEvent)
+    .set({ isCancelled: true, deletedAt: now })
+    .where(inArray(calendarEvent.externalId, ids))
+  return ids.length
 }
