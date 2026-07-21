@@ -80,7 +80,7 @@ interface VariantManagerProps {
 export type VariantManagerHandle = {
   publish: () => Promise<void>
   /** Persist schedule edits to already-published variants without publishing. */
-  saveSchedules: () => Promise<void>
+  saveSchedules: () => Promise<SaveSchedulesResult | null>
   setPanelsOpen: (open: boolean) => void
 }
 
@@ -102,7 +102,27 @@ type VariantApiItem = {
 type PublishResponse = {
   variants?: Array<{ isPublished?: boolean }>
   count?: number
+  skippedCount?: number
+  skippedSessions?: Array<{ reason?: string }>
   error?: string
+}
+
+/** Outcome of a schedules-only save, so callers can message the tutor. */
+type SaveSchedulesResult = { ok: boolean; processed: number; skipped: number }
+
+/** Turn the server's skip reasons into a short human phrase for a toast. */
+function summarizeSkipReasons(skipped?: Array<{ reason?: string }>): string {
+  const labels: Record<string, string> = {
+    outside_availability: 'outside your availability',
+    exception: 'blocked by a calendar exception',
+    calendar_event: 'conflicting with another event',
+    one_on_one: 'conflicting with a 1-on-1',
+    other_course_live_session: 'conflicting with another course',
+  }
+  const reasons = Array.from(
+    new Set((skipped ?? []).map(s => labels[s.reason ?? ''] ?? 'unavailable'))
+  )
+  return reasons.length > 0 ? reasons.join('; ') : 'unavailable'
 }
 
 function getCountryName(code: string): string {
@@ -140,6 +160,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     )
     const [variants, setVariants] = useState<VariantConfig[]>([])
     const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+    const [savingSchedule, setSavingSchedule] = useState(false)
     const [scheduleDialogVariantIndex, setScheduleDialogVariantIndex] = useState<number | null>(
       null
     )
@@ -431,8 +452,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     // Persist schedule edits to already-published variants WITHOUT publishing
     // anything new (schedulesOnly). Used by the page's Save button so a tutor can
     // save schedule changes on a live course without putting more of it live.
-    const handleSaveSchedules = useCallback(async () => {
-      if (variants.length === 0) return
+    const handleSaveSchedules = useCallback(async (): Promise<SaveSchedulesResult | null> => {
+      if (variants.length === 0) return null
       try {
         const payload = variants.map(v => ({
           ...v,
@@ -443,13 +464,38 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ variants: payload, schedulesOnly: true }),
         })
+        const data: PublishResponse = await res.json().catch(() => ({}))
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
           toast.error(data?.error || 'Failed to save schedules')
+          return { ok: false, processed: 0, skipped: 0 }
         }
+        const processed = typeof data.count === 'number' ? data.count : 0
+        const skipped = typeof data.skippedCount === 'number' ? data.skippedCount : 0
+        const hasScheduleSlots = variants.some(
+          v =>
+            Array.isArray(v.schedules) &&
+            v.schedules.some(s => Array.isArray(s.schedule) && s.schedule.length > 0)
+        )
+        // Surface the actionable cases so a silently-skipped schedule isn't
+        // mistaken for success (clean success is messaged by the caller). A
+        // schedules-only save only materialises sessions for PUBLISHED variants,
+        // so processed === 0 with real slots means nothing reached the calendar.
+        if (processed === 0 && hasScheduleSlots) {
+          toast.warning(
+            'Schedule saved, but no sessions were added to your calendar — publish this course first (schedules only appear once the course is live).'
+          )
+        } else if (skipped > 0) {
+          toast.warning(
+            `Schedule saved. ${skipped} session${skipped === 1 ? '' : 's'} skipped (${summarizeSkipReasons(
+              data.skippedSessions
+            )}); the rest were added to your calendar.`
+          )
+        }
+        return { ok: true, processed, skipped }
       } catch (err) {
         console.error(err)
         toast.error('Failed to save schedules')
+        return { ok: false, processed: 0, skipped: 0 }
       }
     }, [variants, templateCourseId])
 
@@ -979,11 +1025,31 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               )}
 
               <div className="mt-6 flex justify-end gap-3">
-                <Button type="button" variant="modal-secondary-dark" onClick={cancelScheduleDialog}>
+                <Button
+                  type="button"
+                  variant="modal-secondary-dark"
+                  disabled={savingSchedule}
+                  onClick={cancelScheduleDialog}
+                >
                   Cancel
                 </Button>
-                <Button type="button" variant="modal-primary-dark" onClick={closeScheduleDialog}>
-                  Save
+                <Button
+                  type="button"
+                  variant="modal-primary-dark"
+                  disabled={savingSchedule}
+                  onClick={async () => {
+                    // Persist immediately so "Save" actually saves — the schedule
+                    // edit is already in `variants` state via onScheduleChange.
+                    setSavingSchedule(true)
+                    const result = await handleSaveSchedules()
+                    setSavingSchedule(false)
+                    if (result?.ok && result.processed > 0 && result.skipped === 0) {
+                      toast.success('Schedule saved — sessions added to your calendar.')
+                    }
+                    closeScheduleDialog()
+                  }}
+                >
+                  {savingSchedule ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
