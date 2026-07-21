@@ -647,8 +647,8 @@ function CoursePageInner() {
         >
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-4">
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map(i => (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[1, 2, 3, 4].map(i => (
                   <Card key={i} className="animate-pulse">
                     <CardHeader className="h-48 bg-gray-200" />
                   </Card>
@@ -916,14 +916,14 @@ function CourseSection({
   unregisteringId?: string | null
 }) {
   return (
-    <section className="mx-auto max-w-7xl">
+    <section className="mx-auto w-full">
       <div className="mb-6">
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {courses.map(course => (
           <CourseCard
             key={course.id}
