@@ -2130,6 +2130,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     const resolvePollOptions = (): string[] | undefined => {
+      // '1-10' is the DEFAULT mode; without this case it returned undefined and
+      // the server fell back to A–E, so students saw the wrong options.
+      if (pollOptionMode === '1-10') return Array.from({ length: 10 }, (_, i) => String(i + 1))
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
       if (pollOptionMode === 'likert') {
@@ -3723,10 +3726,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         contentSource,
         sourcesDisagree,
       })
-      if (dmiGate === 'format') {
-        setDmiFormatDialog({ type })
-        return
-      }
       if (dmiGate === 'source') {
         setDmiSourceDialog({ type })
         return
@@ -12679,7 +12678,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               {dmiGenerating ? (
                                                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                               ) : null}
-                                              Generate DMI
+                                              {/* A loaded document auto-generates the DMI, so the
+                                                  manual control becomes a re-run; only a text-only
+                                                  assessment still needs an initial "Generate". */}
+                                              {currentAssessmentDocument?.mimeType ===
+                                                'application/pdf' || assessmentDmiItems.length > 0
+                                                ? 'Regenerate DMI'
+                                                : 'Generate DMI'}
                                             </Button>
 
                                             {assessmentDmiItems.length > 0 && (

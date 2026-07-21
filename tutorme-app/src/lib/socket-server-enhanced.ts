@@ -2598,12 +2598,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         if (type === 'poll') {
-          // Tutor-chosen labels (True/False, Yes/No, custom); fall back to A–E.
-          // Sanitized: trimmed, non-empty, deduped-by-position, capped at 8.
+          // Tutor-chosen labels (True/False, Yes/No, 1–10, custom); fall back to
+          // A–E. Sanitized: trimmed, non-empty, capped at 10 (a 1–10 scale is the
+          // default option set, so the cap must fit all ten).
           const rawLabels = Array.isArray(data.options)
             ? data.options.map(o => String(o ?? '').trim()).filter(Boolean)
             : []
-          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 8) : ['A', 'B', 'C', 'D', 'E']
+          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 10) : ['A', 'B', 'C', 'D', 'E']
           const poll: LiveTaskPoll = {
             id: `poll-${taskId}-${Date.now()}`,
             taskId,
