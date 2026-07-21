@@ -6532,13 +6532,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setLoadAsModalOpen(false)
       setAssetToLoad(null)
 
-      // DMI-first: generate the DMI (questions + answers/marks)
-      // right away. The marking-policy (PCI) chat stays locked
-      // until the DMI is ready. handleGenerateDMI detects the
-      // document kind and asks the tutor to confirm if unsure.
-      setTimeout(() => {
-        handleGenerateDMI('assessment')
-      }, 500)
+      // DMI-first: auto-generate the DMI once the loaded assessment commits.
+      // Flag it for the auto-generate effect (which reads FRESH state) rather
+      // than a stale-closure setTimeout that read the previously-open
+      // assessment's state — that was why loading a paper from the asset library
+      // never generated anything.
+      pendingAutoGenDmiRef.current = asset.fileKey || asset.url || null
     }
 
     const handleLoadAsset = (
