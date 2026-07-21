@@ -10,9 +10,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseSchedule, course } from '@/lib/db/schema'
+import { courseSchedule, course, calendarAvailability } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { notifyStudentsOfScheduleChange } from '@/lib/notifications/reschedule'
+import { materializeScheduleSessions } from '@/lib/sessions/materialize-schedule'
 import crypto from 'crypto'
 
 // GET all schedules for a course
@@ -103,7 +104,42 @@ export const POST = withCsrf(
             updatedAt: courseSchedule.updatedAt,
           })
 
-        return NextResponse.json({ schedule: newSchedule[0] })
+        // Materialize the schedule into real LiveSession + CalendarEvent rows so
+        // it shows on the calendar (this endpoint previously only stored the
+        // pattern, so schedules added here never appeared). Best-effort: the
+        // schedule is already saved, so a materialization hiccup shouldn't fail
+        // the request — the count is surfaced so the UI can warn if it's zero.
+        let sessionsCreated = 0
+        try {
+          const slots = Array.isArray(body.schedule) ? body.schedule : []
+          if (slots.length > 0) {
+            const [tzRow] = await drizzleDb
+              .select({ timezone: calendarAvailability.timezone })
+              .from(calendarAvailability)
+              .where(eq(calendarAvailability.tutorId, userId))
+              .limit(1)
+            const [courseRow] = await drizzleDb
+              .select({ name: course.name, categories: course.categories })
+              .from(course)
+              .where(eq(course.courseId, courseId))
+              .limit(1)
+            sessionsCreated = await materializeScheduleSessions({
+              tutorId: userId,
+              courseId,
+              scheduleId: newSchedule[0].scheduleId,
+              slots,
+              weeksToSchedule: body.weeksToSchedule ?? 8,
+              timezone: tzRow?.timezone || 'UTC',
+              maxStudents: body.maxStudents ?? null,
+              title: courseRow?.name || 'Live Session',
+              category: courseRow?.categories?.[0] || 'General',
+            })
+          }
+        } catch (matErr) {
+          console.error('[POST /api/tutor/courses/[id]/schedules] materialize failed:', matErr)
+        }
+
+        return NextResponse.json({ schedule: newSchedule[0], sessionsCreated })
       } catch (error: any) {
         console.error('[POST /api/tutor/courses/[id]/schedules] Error:', error)
         return NextResponse.json(

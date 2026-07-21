@@ -127,11 +127,20 @@ export function ScheduleViewModal({
         },
         body: JSON.stringify({ schedule: slots, weeksToSchedule: draftWeeks }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         throw new Error(data?.error || 'Failed to create schedule')
       }
-      toast.success('Schedule created')
+      const created = typeof data?.sessionsCreated === 'number' ? data.sessionsCreated : 0
+      if (created > 0) {
+        toast.success(
+          `Schedule created — ${created} session${created === 1 ? '' : 's'} added to your calendar.`
+        )
+      } else {
+        toast.warning(
+          'Schedule created, but no upcoming sessions were added — check the dates are in the future.'
+        )
+      }
       setAddOpen(false)
       await loadSchedules()
     } catch (err) {
