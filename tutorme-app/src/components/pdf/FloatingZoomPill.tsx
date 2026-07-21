@@ -37,20 +37,44 @@ export function FloatingZoomPill({
 
   const isFitMode = fitScale !== null && fitScale !== undefined
 
+  // 100% display scale: fit-to-width/screen scale in fit mode, default scale otherwise.
+  const centerScale = isFitMode ? fitScale : defaultScale
+
   // Effective min/max for the slider: if in fit mode, allow 0.25x to 4x of fitScale
   const effectiveMinScale = isFitMode ? fitScale * 0.25 : minScale
   const effectiveMaxScale = isFitMode ? fitScale * 4.0 : maxScale
 
-  // Convert scale to slider percentage (0-100)
+  // Convert scale to slider percentage (0-100) using a centered logarithmic mapping.
+  // 100% display scale sits at the visual midpoint of the slider (50%).
   const scaleToPercent = useCallback(
-    (s: number) => ((s - effectiveMinScale) / (effectiveMaxScale - effectiveMinScale)) * 100,
-    [effectiveMinScale, effectiveMaxScale]
+    (s: number) => {
+      if (s <= centerScale) {
+        const logMin = Math.log(effectiveMinScale)
+        const logCenter = Math.log(centerScale)
+        const logS = Math.log(s)
+        return ((logS - logMin) / (logCenter - logMin)) * 50
+      }
+      const logCenter = Math.log(centerScale)
+      const logMax = Math.log(effectiveMaxScale)
+      const logS = Math.log(s)
+      return 50 + ((logS - logCenter) / (logMax - logCenter)) * 50
+    },
+    [effectiveMinScale, effectiveMaxScale, centerScale]
   )
 
-  // Convert slider percentage (0-100) to scale
+  // Convert slider percentage (0-100) to scale using the same centered logarithmic mapping.
   const percentToScale = useCallback(
-    (p: number) => effectiveMinScale + (p / 100) * (effectiveMaxScale - effectiveMinScale),
-    [effectiveMinScale, effectiveMaxScale]
+    (p: number) => {
+      if (p <= 50) {
+        const logMin = Math.log(effectiveMinScale)
+        const logCenter = Math.log(centerScale)
+        return Math.exp(logMin + (p / 50) * (logCenter - logMin))
+      }
+      const logCenter = Math.log(centerScale)
+      const logMax = Math.log(effectiveMaxScale)
+      return Math.exp(logCenter + ((p - 50) / 50) * (logMax - logCenter))
+    },
+    [effectiveMinScale, effectiveMaxScale, centerScale]
   )
 
   const handleMouseDown = useCallback(
@@ -127,20 +151,20 @@ export function FloatingZoomPill({
     <div
       ref={pillRef}
       className={cn(
-        'absolute z-50 flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-2 shadow-lg backdrop-blur-md transition-shadow',
+        'absolute z-50 flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 p-1.5 shadow-lg backdrop-blur-md transition-shadow',
         isDragging ? 'cursor-grabbing shadow-xl' : 'cursor-default',
         className
       )}
       style={{
         transform: fixed ? undefined : `translate(${position.x}px, ${position.y}px)`,
-        right: '16px',
-        bottom: '16px',
+        right: '8px',
+        bottom: '8px',
       }}
     >
       {/* Zoom percentage with space above */}
       <div className="mt-1 flex flex-col items-center gap-1">
         <span className="text-[10px] font-medium text-gray-700">{displayPercent}%</span>
-        <div className="relative h-24 w-4">
+        <div className="relative h-24 w-3.5">
           <input
             type="range"
             min="0"
@@ -148,7 +172,7 @@ export function FloatingZoomPill({
             step="1"
             value={sliderPercent}
             onChange={handleSliderChange}
-            className="absolute inset-0 h-24 w-4 cursor-pointer appearance-none rounded-full bg-gray-500/30 outline-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_rgba(255,255,255,0.8),0_2px_4px_rgba(0,0,0,0.3)]"
+            className="absolute inset-0 h-24 w-3.5 cursor-pointer appearance-none rounded-full bg-gray-500/30 outline-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_2px_rgba(255,255,255,0.8),0_2px_4px_rgba(0,0,0,0.3)]"
             style={{
               writingMode: 'vertical-lr',
               direction: 'rtl',
