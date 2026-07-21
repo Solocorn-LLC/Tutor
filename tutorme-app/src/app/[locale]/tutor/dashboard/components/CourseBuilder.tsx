@@ -7769,19 +7769,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Auto-generate the DMI the moment a freshly uploaded assessment document
     // commits to state. Gated on `pendingAutoGenDmiRef` (set only by the upload
-    // handlers) so opening an EXISTING assessment never re-generates, and it
-    // reads fresh state (unlike the old stale-closure setTimeout). Skips when a
-    // DMI already exists or one is already generating.
+    // handlers) so opening an EXISTING assessment never triggers it, and it reads
+    // fresh state (unlike the old stale-closure setTimeout).
+    //
+    // Crucially: only CLEAR the flag when we actually fire (or the doc can never
+    // qualify). A transient `!canEdit` / `dmiGenerating` on the first render must
+    // NOT consume the flag — otherwise the auto-generate is silently cancelled
+    // before conditions settle. That was the bug that stopped it firing at all.
     useEffect(() => {
       const doc = currentAssessmentDocument
       const docId = doc?.fileKey || doc?.fileUrl || null
       if (!docId || pendingAutoGenDmiRef.current !== docId) return
+      // Non-PDF can't be auto-read — retire the flag and bail (no retry).
+      if (doc?.mimeType !== 'application/pdf') {
+        pendingAutoGenDmiRef.current = null
+        return
+      }
+      // Wait WITHOUT clearing until editing is allowed and nothing is generating,
+      // so a transient state doesn't cancel the pending auto-generate.
+      if (!canEdit || dmiGenerating) return
       pendingAutoGenDmiRef.current = null
-      if (doc?.mimeType !== 'application/pdf' || !canEdit) return
-      if (dmiGenerating || assessmentDmiItems.length > 0) return
       void handleGenerateDMI('assessment')
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentAssessmentDocument, assessmentDmiItems.length, dmiGenerating, canEdit])
+    }, [currentAssessmentDocument, dmiGenerating, canEdit])
 
     // An image scan or an Office file (Word / PowerPoint, modern or legacy) —
     // documents whose figures text/OCR extraction drops, but that we can turn
