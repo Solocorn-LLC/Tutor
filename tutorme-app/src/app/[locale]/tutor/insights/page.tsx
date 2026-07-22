@@ -215,13 +215,14 @@ function TutorInsightsPageInner() {
 
   const handleCourseNameChange = useCallback(
     async (newName: string) => {
-      setCourseName(newName)
+      const trimmed = newName.trim().slice(0, 25)
+      setCourseName(trimmed)
       if (!courseId || courseId === 'insights-draft') return
 
       // Optimistically update BOTH lists so dropdown matches instantly
       // regardless of which saveMode is currently active
-      setDraftCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
-      setCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: newName } : c)))
+      setDraftCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: trimmed } : c)))
+      setCourses(prev => prev.map(c => (c.id === courseId ? { ...c, name: trimmed } : c)))
 
       // Also update localStorage drafts
       try {
@@ -229,7 +230,7 @@ function TutorInsightsPageInner() {
         const parsed = raw ? JSON.parse(raw) : []
         const updated = parsed.map((c: any) =>
           c.id === courseId
-            ? { ...c, name: newName.trim(), updatedAt: new Date().toISOString() }
+            ? { ...c, name: trimmed, updatedAt: new Date().toISOString() }
             : c
         )
         localStorage.setItem(draftStorageKey, JSON.stringify(updated))
@@ -239,12 +240,12 @@ function TutorInsightsPageInner() {
 
       // Persist to API for live courses (and drafts that have a DB id)
       const match = [...courses, ...draftCourses].find(c => c.id === courseId)
-      if (match && newName.trim() !== match.name) {
+      if (match && trimmed !== match.name) {
         try {
           await fetchWithCsrf(`/api/tutor/courses/${courseId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: newName.trim() }),
+            body: JSON.stringify({ name: trimmed }),
           })
         } catch {
           // silent fail

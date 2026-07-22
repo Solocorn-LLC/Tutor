@@ -195,7 +195,7 @@ const ScheduleItemSchema = z.object({
 })
 
 export const CreateCourseSchema = z.object({
-  title: z.string().min(1).max(200),
+  title: z.string().min(1).max(25),
   description: z.string().max(2000).optional(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   estimatedHours: z.number().min(0).max(1000).optional(),
@@ -218,7 +218,7 @@ export const EnrollCourseSchema = z.object({
 })
 
 export const UpdateCourseSettingsSchema = z.object({
-  name: z.string().min(1).max(200).optional().nullable(),
+  name: z.string().min(1).max(25).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional().nullable(),
   languageOfInstruction: z.string().min(1).max(20).optional().nullable(),

@@ -404,10 +404,7 @@ export const POST = withCsrf(
             // In schedules-only mode, only touch variants that are already
             // published; never create/publish anything new.
             if (schedulesOnly && (!existing || !existing.isPublished)) continue
-            const courseName =
-              v.nationality === 'Global'
-                ? templateCourse.name
-                : `${templateCourse.name} — ${v.nationality}`
+            const courseName = templateCourse.name
             const isFree =
               typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
             const price = isFree ? 0 : typeof v.price === 'number' ? v.price : null
