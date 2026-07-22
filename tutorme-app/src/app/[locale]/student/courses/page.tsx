@@ -916,7 +916,7 @@ function CourseSection({
   onUnregister?: (c: Course) => void
   unregisteringId?: string | null
 }) {
-  const ITEMS_PER_PAGE = 8
+  const ITEMS_PER_PAGE = 4
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = Math.max(1, Math.ceil(courses.length / ITEMS_PER_PAGE))
   const paginatedCourses = courses.slice(
