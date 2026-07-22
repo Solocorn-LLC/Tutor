@@ -492,7 +492,7 @@ export function isTaskSlideOverflowing(content: string): boolean {
  * generated snapshot format changes so existing auto-generated PDFs are
  * invalidated and regenerated.
  */
-export const TASK_TEXT_SNAPSHOT_VERSION = 6
+export const TASK_TEXT_SNAPSHOT_VERSION = 7
 
 /**
  * Generate a simple PDF from a task's typed content so that text-only
@@ -568,7 +568,7 @@ export async function generateTaskTextPDF(
     const ptWidth = VIEWPORT_WIDTH * 0.75
     const ptHeight = VIEWPORT_HEIGHT * 0.75
 
-    const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight] })
+    const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight], orientation: 'landscape' })
     const imgData = canvas.toDataURL('image/png')
     doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
 
