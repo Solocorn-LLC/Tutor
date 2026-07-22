@@ -99,7 +99,7 @@
     "next": "^16.1.6",
     "next-auth": "^4.24.13",
     "next-intl": "^4.8.3",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^7.0.13",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.2.67",
     "pg": "^8.13.0",
