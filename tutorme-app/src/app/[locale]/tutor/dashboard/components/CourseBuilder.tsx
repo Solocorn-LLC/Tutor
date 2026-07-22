@@ -11416,6 +11416,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             </Tabs>
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
+                              testPciActiveTab !== 'classroom' &&
                               !(mainTab === 'live' && testPciActiveTab === 'student1') &&
                               // For a TASK in the Test tab's Classroom view, keep the tutor
                               // composer available. For Test Student views, the chat flow in the
