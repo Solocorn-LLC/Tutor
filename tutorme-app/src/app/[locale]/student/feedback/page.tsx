@@ -1548,7 +1548,13 @@ function StudentFeedbackContent() {
     }
 
     const handleTaskUpdated = (payload: { task: LiveTask }) => {
-      setTasks(prev => prev.map(item => (item.id === payload.task.id ? payload.task : item)))
+      setTasks(prev => {
+        const exists = prev.some(item => item.id === payload.task.id)
+        if (exists) {
+          return prev.map(item => (item.id === payload.task.id ? payload.task : item))
+        }
+        return [...prev, payload.task]
+      })
     }
 
     const handleTaskSequence = (payload: { taskId: string; sequence: number }) => {
@@ -1683,8 +1689,18 @@ function StudentFeedbackContent() {
   const isSessionLive =
     !!activeCourseId && sessionContext?.status !== 'ended' && !sessionContext?.endedAt
 
-  const feedbackPolls = activeTask?.polls ?? []
-  const feedbackQuestions = activeTask?.questions ?? []
+  // The Interact tab should show every poll/question pushed by the tutor for
+  // this session, regardless of which task is currently selected in the main
+  // viewer. This mirrors the original "insight feed" behaviour and prevents a
+  // poll sent for a non-active task from disappearing.
+  const feedbackPolls = useMemo(
+    () => tasks.flatMap(t => t.polls ?? []).sort((a, b) => b.createdAt - a.createdAt),
+    [tasks]
+  )
+  const feedbackQuestions = useMemo(
+    () => tasks.flatMap(t => t.questions ?? []).sort((a, b) => b.createdAt - a.createdAt),
+    [tasks]
+  )
 
   // Count polls/questions this student hasn't answered yet (and that are still
   // open), so the Interact tab can badge how many need a response. A closed
@@ -1820,10 +1836,10 @@ function StudentFeedbackContent() {
   }
 
   const handlePollVote = (poll: LiveTaskPoll, value: number) => {
-    if (!socket || !selectedSessionId || !activeTask) return
+    if (!socket || !selectedSessionId) return
     socket.emit('insight:respond', {
       roomId: selectedSessionId,
-      taskId: activeTask.id,
+      taskId: poll.taskId,
       type: 'poll',
       insightId: poll.id,
       value,
@@ -1832,10 +1848,10 @@ function StudentFeedbackContent() {
 
   const handleQuestionSend = (question: LiveTaskQuestion) => {
     const draft = questionDrafts[question.id]?.trim()
-    if (!draft || !socket || !selectedSessionId || !activeTask) return
+    if (!draft || !socket || !selectedSessionId) return
     socket.emit('insight:respond', {
       roomId: selectedSessionId,
-      taskId: activeTask.id,
+      taskId: question.taskId,
       type: 'question',
       insightId: question.id,
       answer: draft,
@@ -2456,10 +2472,10 @@ function StudentFeedbackContent() {
                   <div className="mb-2 border-b border-gray-100 pb-2">
                     <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
                   </div>
-                  {!activeTask && (
+                  {tasks.length === 0 && (
                     <p className="text-sm text-gray-500">Select a task to see feedback prompts.</p>
                   )}
-                  {activeTask && (
+                  {tasks.length > 0 && (
                     <div className="space-y-6">
                       {feedbackPolls.length > 0 && (
                         <div className="space-y-3">
