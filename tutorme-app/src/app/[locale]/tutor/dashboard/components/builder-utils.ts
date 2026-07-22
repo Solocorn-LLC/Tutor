@@ -492,7 +492,7 @@ export function isTaskSlideOverflowing(content: string): boolean {
  * generated snapshot format changes so existing auto-generated PDFs are
  * invalidated and regenerated.
  */
-export const TASK_TEXT_SNAPSHOT_VERSION = 5
+export const TASK_TEXT_SNAPSHOT_VERSION = 6
 
 /**
  * Generate a simple PDF from a task's typed content so that text-only

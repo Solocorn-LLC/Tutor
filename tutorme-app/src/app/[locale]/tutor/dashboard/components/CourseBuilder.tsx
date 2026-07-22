@@ -11420,12 +11420,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               // For a TASK in the Test tab, preview the new chat-based
                               // flow students get (chat → Task complete → per-answer
                               // responses → follow-up); assessments keep the composer.
-                              (mainTab === 'test-pci' && testPciSource === 'task' ? (
-                                // A task is previewed via the chat flow rendered in the panel
-                                // above (the document collapses into the chat), so nothing
-                                // extra is needed here.
-                                <></>
-                              ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
+                              (mainTab === 'test-pci' && testPciSource === 'assessment' ? (
                                 // Assessments are answered in the DMI: test-grade per question
                                 // above (type an answer under a question and click Grade) rather
                                 // than a separate free-text box, which caused confusion.
