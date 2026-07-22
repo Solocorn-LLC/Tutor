@@ -219,7 +219,7 @@ export function TestTaskChat({
         }
         if (r.studentFeedback) {
           aiMsgs.push({
-            role: 'ai' as const,
+            role: 'tutor' as const,
             content: r.studentFeedback,
             re: r.answer,
             timestamp: Date.now(),
@@ -256,9 +256,10 @@ export function TestTaskChat({
     onAsk?.(q)
     setBusy(true)
     try {
-      const history = messages
-        .slice(-6)
-        .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
+      const history = messages.slice(-6).map(m => ({
+        role: m.role === 'tutor' || m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content,
+      }))
       const res = await post({ question: q, history, answers: studentAnswers })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to answer')
@@ -502,11 +503,11 @@ export function TestTaskChat({
           )}
         </div>
         {/* Task Complete button — only shown in test-student mode, not classroom */}
-        {!isClassroom && !completed && (
+        {!isClassroom && (
           <button
             type="button"
             onClick={complete}
-            disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
+            disabled={completed || busy || (studentAnswers.length === 0 && !draft.trim())}
             className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
           >
             {busy ? (

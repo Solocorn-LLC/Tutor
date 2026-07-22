@@ -130,6 +130,17 @@ const FIELD_HELP: Record<
     ],
     placeholder: 'e.g. Encouraging and patient',
   },
+  followUpBehavior: {
+    explain:
+      'How the AI should answer student follow-up questions after the task is completed — including what to explain and what to avoid.',
+    examples: [
+      'Answer only questions about the task and the student’s answers; explain errors without revealing the answer.',
+      'Allow follow-ups about the task; use the student’s own answers and the marking policy as the only source.',
+      'Answer follow-ups briefly; if a question is off-topic, redirect the student back to the task.',
+      'Use related previous tasks only when they directly help explain the current task.',
+    ],
+    placeholder: 'e.g. Answer only questions about the task and the student’s answers',
+  },
 }
 
 /**

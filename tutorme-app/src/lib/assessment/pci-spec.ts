@@ -31,6 +31,8 @@ export interface PciSpec {
   answerRevealPolicy?: string
   /** Instructional tone. */
   instructionalTone?: string
+  /** How follow-up questions should be answered after task completion. */
+  followUpBehavior?: string
 }
 
 /** The canonical field order + human labels for prompts and UI. */
@@ -46,6 +48,7 @@ export const PCI_SPEC_FIELDS: { key: keyof PciSpec; label: string }[] = [
   { key: 'retryPolicy', label: 'Retry policy' },
   { key: 'answerRevealPolicy', label: 'Answer-reveal policy' },
   { key: 'instructionalTone', label: 'Instructional tone' },
+  { key: 'followUpBehavior', label: 'Follow-up behaviour' },
 ]
 
 /** Values that mean "the tutor didn't define this" — dropped, not fabricated. */
