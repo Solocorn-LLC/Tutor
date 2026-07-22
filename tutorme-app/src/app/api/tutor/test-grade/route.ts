@@ -114,8 +114,7 @@ export async function POST(request: NextRequest) {
       if (!pci?.trim() && !specText) {
         return NextResponse.json({
           mode: 'ask',
-          answer: null,
-          tutorNote: NO_POLICY_SET_MESSAGE,
+          answer: NO_POLICY_SET_MESSAGE,
         })
       }
       const priorAnswers = Array.isArray(body.answers)
