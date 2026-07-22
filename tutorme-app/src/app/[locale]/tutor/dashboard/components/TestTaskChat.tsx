@@ -292,8 +292,25 @@ export function TestTaskChat({
     }
   }
 
+  const sendTutorMessage = () => {
+    const text = draft.trim()
+    if (!text || busy) return
+    const msg: ChatMsg = {
+      role: 'tutor',
+      content: text,
+      timestamp: Date.now(),
+    }
+    setDraft('')
+    onBroadcast?.(msg)
+    onPersist?.({ messages, draft: '', completed })
+  }
+
   const onSend = () => {
-    completed ? ask() : addAnswer()
+    if (isClassroom) {
+      sendTutorMessage()
+    } else {
+      completed ? ask() : addAnswer()
+    }
   }
 
   const reset = () => {
@@ -438,10 +455,42 @@ export function TestTaskChat({
         )}
       </div>
 
-      {/* Input area — student tabs only. Classroom tab is a read-only tutor view. */}
+      {/* Input area — chat composer for both classroom and student tabs. */}
       <div className="border-t border-gray-100 p-2">
-        {isClassroom ? (
-          <div className="flex justify-end">
+        <div className="flex items-end gap-2">
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                onSend()
+              }
+            }}
+            disabled={busy}
+            rows={1}
+            placeholder={
+              isClassroom
+                ? 'Send a message to students…'
+                : completed
+                  ? 'Ask about this task…'
+                  : 'Type a sample answer…'
+            }
+            className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+          />
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={busy || !draft.trim()}
+            title={isClassroom ? 'Send message' : completed ? 'Send' : 'Add answer'}
+            className={cn(
+              'grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-40',
+              isClassroom ? sendButtonBg : 'bg-violet-600'
+            )}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+          {isClassroom && (
             <button
               type="button"
               onClick={reset}
@@ -450,51 +499,23 @@ export function TestTaskChat({
             >
               <RotateCcw className="h-4 w-4" />
             </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-end gap-2">
-              <textarea
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    onSend()
-                  }
-                }}
-                disabled={busy}
-                rows={1}
-                placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
-                className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
-              />
-              <button
-                type="button"
-                onClick={onSend}
-                disabled={busy || !draft.trim()}
-                title={completed ? 'Send' : 'Add answer'}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white transition-colors hover:opacity-90 disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-            {/* Task Complete button — only shown in test-student mode, not classroom */}
-            {!completed && (
-              <button
-                type="button"
-                onClick={complete}
-                disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
-                className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
-                Task complete
-              </button>
+          )}
+        </div>
+        {/* Task Complete button — only shown in test-student mode, not classroom */}
+        {!isClassroom && !completed && (
+          <button
+            type="button"
+            onClick={complete}
+            disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
+            className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
             )}
-          </>
+            Task complete
+          </button>
         )}
       </div>
     </div>
