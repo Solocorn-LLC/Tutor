@@ -472,7 +472,6 @@ import {
   X,
   Lightbulb,
   Sparkles,
-  History,
   RotateCcw,
   Check,
   Zap,
@@ -12786,7 +12785,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               onClick={() => setShowDmiVersionList(true)}
                                               title="View DMI Versions"
                                             >
-                                              <History className="h-3 w-3" />
+                                              DMI
                                               {assessmentDmiVersions.length > 0 && (
                                                 <span className="ml-1">
                                                   ({assessmentDmiVersions.length})
