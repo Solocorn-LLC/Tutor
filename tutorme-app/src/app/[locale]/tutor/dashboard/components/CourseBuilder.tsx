@@ -619,6 +619,7 @@ function writeDmiFormatPref(courseKey: string, value: DmiFormat): void {
 
 function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   const noun = kind === 'assessment' ? 'assessment' : 'task'
+  const policyWord = kind === 'task' ? 'policy' : 'rubric'
   return (
     <details
       data-pci-anchor="guidance"
@@ -634,9 +635,9 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
         <p>
           <b>PCI is your marking instruction</b> for this {noun} — <i>how</i> you want answers
           marked, not the questions themselves. Chat your rules below; the assistant turns them into
-          a finalized <b>rubric</b>. Save it under <b>Current marking policy</b> (use <b>Edit</b> to
-          paste or refine) — it then guides the AI grading suggestions and how an uploaded marking
-          scheme is read.
+          a finalized <b>{policyWord}</b>. Save it under <b>Current marking policy</b> (use{' '}
+          <b>Edit</b> to paste or refine) — it then guides the AI grading suggestions and how an
+          uploaded marking scheme is read.
         </p>
         <p className="font-semibold">Things worth telling it:</p>
         <ul className="list-disc space-y-0.5 pl-4">
@@ -649,7 +650,7 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
           <li>&ldquo;One mark per valid point, maximum 4.&rdquo;</li>
         </ul>
         <p className="text-blue-700/80">
-          Flow: chat &rarr; the assistant proposes a rubric &rarr; set it as your{' '}
+          Flow: chat &rarr; the assistant proposes a {policyWord} &rarr; set it as your{' '}
           <b>Current marking policy</b> &rarr; it&rsquo;s saved and used when grading. The answer
           key itself comes from the DMI / an uploaded marking scheme — PCI is the <i>policy</i> on
           top.
@@ -12216,7 +12217,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           {taskPciDraft && (
                                             <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                                               <span>
-                                                Rubric ready — click Apply to save it as your
+                                                Policy ready — click Apply to save it as your
                                                 marking policy.
                                               </span>
                                               <Button

@@ -405,7 +405,7 @@ export function PciQuestionnaire({
 
       <p className="mb-2 text-[11px] leading-snug text-slate-500">
         Policy only — keep answers, marks, and per-question rubric in the{' '}
-        {source === 'assessment' ? 'marking scheme' : 'rubric'}. Leave anything you don&rsquo;t want
+        {source === 'assessment' ? 'marking scheme' : 'policy'}. Leave anything you don&rsquo;t want
         to specify blank.
         {markingScheme?.length ? (
           <>

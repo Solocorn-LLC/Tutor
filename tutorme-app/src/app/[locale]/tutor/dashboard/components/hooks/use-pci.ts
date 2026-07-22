@@ -1,6 +1,6 @@
 'use client'
 
-import { useReducer } from 'react'
+import { useReducer, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { PciMessage, PciAuditRecord } from '@/lib/assessment/pci'
 import {
@@ -10,6 +10,7 @@ import {
   type PciState,
   type PciTarget,
   type PciGuardrailWarning,
+  type PciThread,
 } from './pci-reducer'
 
 interface PciSourceDoc {
@@ -65,7 +66,7 @@ interface UsePciDeps {
   taskPciVariant?: {
     documentKind?: 'question_paper' | 'study_material'
   }
-  /** Writes the finalized rubric to the active task/assessment PCI field. */
+  /** Writes the finalized policy to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
   taskSourceDocument?: PciSourceDoc
   currentAssessmentDocument?: PciSourceDoc
@@ -94,7 +95,95 @@ export function usePci(deps: UsePciDeps) {
     dispatch({ type: 'setInput', target, input })
   const loadPciMessages = (target: PciTarget, messages: PciMessage[]) =>
     dispatch({ type: 'loadMessages', target, messages })
+  const loadPciThread = (target: PciTarget, thread: Partial<PciThread>) =>
+    dispatch({ type: 'loadThread', target, thread })
   const resetPci = () => dispatch({ type: 'reset' })
+
+  // Persist task PCI conversations to localStorage so a tutor doesn't lose a
+  // draft chat when switching tabs, items, or reloading the page. Stored per
+  // task / extension so each item keeps its own conversation history.
+  const taskStorageKey = (target: PciTarget) => {
+    if (target.kind === 'task') return `tutor-pci-thread:task:${deps.loadedTaskId}`
+    if (target.kind === 'taskExtension') {
+      return `tutor-pci-thread:task-ext:${deps.loadedTaskId}:${target.id}`
+    }
+    return `tutor-pci-thread:assessment:${deps.loadedAssessmentId}`
+  }
+
+  function loadStoredThread(target: PciTarget) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Partial<PciThread>
+      if (Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        loadPciThread(target, parsed)
+      }
+    } catch {
+      // Ignore corrupt or unavailable storage.
+    }
+  }
+
+  function saveStoredThread(target: PciTarget, thread: PciThread) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      if (thread.messages.length > 0) {
+        window.localStorage.setItem(key, JSON.stringify(thread))
+      } else {
+        window.localStorage.removeItem(key)
+      }
+    } catch {
+      // Ignore storage failures (private mode / quota).
+    }
+  }
+
+  function removeStoredThread(target: PciTarget) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      window.localStorage.removeItem(key)
+    } catch {
+      // ignore
+    }
+  }
+
+  // Load any previously persisted conversations when the item becomes known.
+  useEffect(() => {
+    if (!deps.loadedTaskId) return
+    loadStoredThread({ kind: 'task' })
+    for (const ext of deps.taskBuilder.extensions) {
+      loadStoredThread({ kind: 'taskExtension', id: ext.id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deps.loadedTaskId])
+
+  useEffect(() => {
+    if (!deps.loadedAssessmentId) return
+    loadStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deps.loadedAssessmentId])
+
+  // Persist thread changes as they happen.
+  useEffect(() => {
+    if (!deps.loadedTaskId) return
+    saveStoredThread({ kind: 'task' }, pci.task)
+    for (const ext of deps.taskBuilder.extensions) {
+      const thread = pci.taskExtensions[ext.id]
+      if (thread) {
+        saveStoredThread({ kind: 'taskExtension', id: ext.id }, thread)
+      }
+    }
+  }, [pci.task, pci.taskExtensions, deps.loadedTaskId, deps.taskBuilder.extensions])
+
+  useEffect(() => {
+    if (!deps.loadedAssessmentId) return
+    const thread = pci.assessments[deps.loadedAssessmentId]
+    if (thread) {
+      saveStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId }, thread)
+    }
+  }, [pci.assessments, deps.loadedAssessmentId])
 
   const applyTaskPciDraft = () => {
     const target = activeTaskTarget()
@@ -112,7 +201,8 @@ export function usePci(deps: UsePciDeps) {
     }
     deps.setCurrentPci('task', draft, audit)
     dispatch({ type: 'clearDraft', target })
-    toast.success('Rubric applied to PCI')
+    removeStoredThread(target)
+    toast.success('Policy applied to PCI')
   }
 
   const applyAssessmentPciDraft = (assessmentId: string) => {
@@ -130,6 +220,7 @@ export function usePci(deps: UsePciDeps) {
     }
     deps.setCurrentPci('assessment', draft, audit)
     dispatch({ type: 'clearDraft', target })
+    removeStoredThread(target)
     toast.success('Rubric applied to PCI')
   }
 
