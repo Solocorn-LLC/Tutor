@@ -507,7 +507,6 @@ import {
   ClipboardList,
   RefreshCw,
   Type,
-  ListChecks,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -1590,13 +1589,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       type: 'task' | 'assessment'
       signal: 'strong' | 'weak' | 'none' | null
     } | null>(null)
-    // Assessment response-format chooser + MCQ configuration. For a multiple-
-    // choice paper we skip the AI entirely (no tokens spent reading it): the
-    // tutor configures the sections + question counts and the DMI is built
-    // locally, then they click the correct option for each question.
-    const [dmiFormatDialog, setDmiFormatDialog] = useState<{
-      type: 'task' | 'assessment'
-    } | null>(null)
     // Content-source chooser: shown when a PDF is attached AND the text box was
     // edited away from the document's own extraction (the two sources disagree).
     const [dmiSourceDialog, setDmiSourceDialog] = useState<{
@@ -1614,14 +1606,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // handlers only — so opening an existing assessment (hydration) never
     // triggers a regeneration. Consumed + cleared by the auto-generate effect.
     const pendingAutoGenDmiRef = useRef<string | null>(null)
-    const [mcqConfigDialog, setMcqConfigDialog] = useState<{
-      type: 'task' | 'assessment'
-    } | null>(null)
-    const [mcqSections, setMcqSections] = useState<Array<{ name: string; count: number }>>([
-      { name: '', count: 10 },
-    ])
-    const [mcqChoices, setMcqChoices] = useState(4)
-    const [mcqMarks, setMcqMarks] = useState(1)
     // "Edit marks & answers" review modal — lets the tutor set per-question marks
     // and vet/approve the AI-generated answers before deploying.
     const [dmiEditor, setDmiEditor] = useState<{ source: 'task' | 'assessment' } | null>(null)
@@ -4068,94 +4052,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'text'
       if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
-    }
-
-    // Response-format choice → free-response runs the AI flow; multiple-choice
-    // opens the MCQ configuration dialog (no AI).
-    const handleChooseFreeResponse = () => {
-      const type = dmiFormatDialog?.type
-      setDmiFormatDialog(null)
-      if (type) void handleGenerateDMI(type, undefined, undefined, true)
-    }
-    const handleChooseMultipleChoice = () => {
-      const type = dmiFormatDialog?.type
-      setDmiFormatDialog(null)
-      if (!type) return
-      setMcqSections([{ name: '', count: 10 }])
-      setMcqChoices(4)
-      setMcqMarks(1)
-      setMcqConfigDialog({ type })
-    }
-
-    // Build the MCQ DMI locally from the tutor's configuration — no LLM call.
-    // Each question is a blank `mcq` with N lettered choices; the tutor then
-    // clicks the correct option (which fills the answer key). Grouped by the
-    // named sections, numbered continuously across the paper.
-    const generateMcqDmi = () => {
-      const type = mcqConfigDialog?.type
-      if (!type) return
-      const sections = mcqSections
-        .map(s => ({ name: s.name.trim(), count: Math.max(0, Math.round(s.count) || 0) }))
-        .filter(s => s.count > 0)
-      if (sections.length === 0) {
-        toast.error('Add at least one section with a question count above zero.')
-        return
-      }
-      const choices = Math.max(2, Math.min(8, Math.round(mcqChoices) || 4))
-      const marks = Math.max(1, Math.round(mcqMarks) || 1)
-      const items: DMIQuestion[] = []
-      let n = 0
-      for (const sec of sections) {
-        for (let i = 0; i < sec.count; i++) {
-          n++
-          items.push({
-            id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            questionNumber: n,
-            questionLabel: String(n),
-            questionText: '',
-            answer: '',
-            marks,
-            questionType: 'mcq',
-            options: Array(choices).fill(''),
-            section: sec.name || undefined,
-          })
-        }
-      }
-      if (items.length > 200) {
-        toast.error('That is over 200 questions — please split it up.')
-        return
-      }
-      const isTask = type === 'task'
-      const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
-      const nextVersionNumber = existingVersions.length + 1
-      const newVersion: DMIVersion = {
-        id: `dmi-version-${Date.now()}`,
-        versionNumber: nextVersionNumber,
-        items,
-        createdAt: Date.now(),
-        taskId: isTask ? loadedTaskId || undefined : undefined,
-        assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
-        sections: deriveSections(items),
-        totalMarks: deriveTotalMarks(items),
-      }
-      setDmiDocumentKind(prev => ({ ...prev, [type]: 'question_paper' }))
-      if (isTask) {
-        setTaskDmiItems(items)
-        setTaskDmiVersions(prev => [...prev, newVersion])
-        setTestPciSource('task')
-        setTestPciViewMode(`dmi_${newVersion.id}`)
-      } else {
-        setAssessmentDmiItems(items)
-        setAssessmentDmiVersions(prev => [...prev, newVersion])
-        setTestPciSource('assessment')
-        setTestPciViewMode(`dmi_${newVersion.id}`)
-      }
-      setMcqConfigDialog(null)
-      toast.success(
-        `DMI created with ${items.length} multiple-choice question${items.length !== 1 ? 's' : ''} — click the correct option for each.`
-      )
-      // Open the editor so the tutor can immediately mark the correct answers.
-      setDmiEditor({ source: type })
     }
 
     // Load a specific DMI version
@@ -14602,55 +14498,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </DialogContent>
         </Dialog>
 
-        {/* Response-format chooser — free-response (AI reads the paper) vs
-            multiple-choice (configure locally, no tokens). */}
-        <Dialog
-          open={!!dmiFormatDialog}
-          onOpenChange={open => {
-            if (!open) setDmiFormatDialog(null)
-          }}
-        >
-          <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
-            <DialogHeader className="text-center">
-              <DialogTitle className="mx-auto text-center text-white">
-                How are the questions answered?
-              </DialogTitle>
-              <DialogDescription className="text-white/80">
-                Choose the response format. Multiple-choice papers are configured directly — no need
-                to spend AI reading the paper.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 px-6 py-4">
-              <button
-                type="button"
-                onClick={handleChooseMultipleChoice}
-                className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
-              >
-                <span className="flex items-center gap-2 font-semibold text-slate-900">
-                  <ListChecks className="h-4 w-4 text-indigo-600" /> Multiple choice
-                </span>
-                <span className="text-xs text-slate-500">
-                  Set the sections and how many questions each has, then click the correct option
-                  per question. No AI used.
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={handleChooseFreeResponse}
-                className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
-              >
-                <span className="flex items-center gap-2 font-semibold text-slate-900">
-                  <FileText className="h-4 w-4 text-indigo-600" /> Free response
-                </span>
-                <span className="text-xs text-slate-500">
-                  The AI reads the paper and drafts the questions, marks, and answer key for you to
-                  review.
-                </span>
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Content-source chooser — shown when a PDF is attached but the text box
             was edited to differ from the doc's extraction. */}
         <Dialog
@@ -14697,131 +14544,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 </span>
               </button>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* MCQ configuration — named sections + question counts, choices per
-            question, and marks. Generates the DMI locally (no AI). */}
-        <Dialog
-          open={!!mcqConfigDialog}
-          onOpenChange={open => {
-            if (!open) setMcqConfigDialog(null)
-          }}
-        >
-          <DialogContent className="max-w-lg border border-slate-200 shadow-2xl">
-            <DialogHeader className="text-center">
-              <DialogTitle className="mx-auto text-center text-white">
-                Configure multiple-choice questions
-              </DialogTitle>
-              <DialogDescription className="text-white/80">
-                Name each section and set how many questions it has. Leave the section name blank if
-                the paper isn&rsquo;t divided into sections.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 px-6 py-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                  <span className="flex-1">Section name</span>
-                  <span className="w-24 text-center">Questions</span>
-                  <span className="w-9" />
-                </div>
-                {mcqSections.map((sec, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={sec.name}
-                      placeholder={`Section ${idx + 1} (optional)`}
-                      onChange={e =>
-                        setMcqSections(prev =>
-                          prev.map((s, i) => (i === idx ? { ...s, name: e.target.value } : s))
-                        )
-                      }
-                      className="h-10 flex-1 rounded-[10px] border border-gray-200 bg-white text-sm text-gray-900"
-                    />
-                    <Input
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={sec.count}
-                      onChange={e =>
-                        setMcqSections(prev =>
-                          prev.map((s, i) =>
-                            i === idx
-                              ? {
-                                  ...s,
-                                  count: Math.max(1, Math.min(200, Number(e.target.value) || 1)),
-                                }
-                              : s
-                          )
-                        )
-                      }
-                      className="h-10 w-24 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-slate-600 hover:text-red-500"
-                      disabled={mcqSections.length <= 1}
-                      onClick={() => setMcqSections(prev => prev.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 rounded-[10px] border border-white bg-[#22C55E] px-6 text-sm font-medium text-white hover:border-[#22C55E] hover:bg-white hover:text-[#22C55E]"
-                  onClick={() => setMcqSections(prev => [...prev, { name: '', count: 10 }])}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Add section
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-4 border-t border-slate-100 pt-3">
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
-                  Choices per question
-                  <Input
-                    type="number"
-                    min={2}
-                    max={8}
-                    value={mcqChoices}
-                    onChange={e =>
-                      setMcqChoices(Math.max(2, Math.min(8, Number(e.target.value) || 4)))
-                    }
-                    className="h-9 w-16 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                  />
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
-                  Marks per question
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={mcqMarks}
-                    onChange={e =>
-                      setMcqMarks(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
-                    }
-                    className="h-9 w-16 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                  />
-                </label>
-              </div>
-              <p className="text-[11px] text-gray-500">
-                {mcqSections.reduce((sum, s) => sum + (Math.round(s.count) || 0), 0)} question(s) in
-                total. You&rsquo;ll click the correct option for each after they&rsquo;re created.
-              </p>
-            </div>
-
-            <DialogFooter className="gap-3">
-              <Button variant="modal-secondary-dark" onClick={() => setMcqConfigDialog(null)}>
-                Cancel
-              </Button>
-              <Button variant="modal-primary-dark" onClick={generateMcqDmi}>
-                Generate DMI
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
