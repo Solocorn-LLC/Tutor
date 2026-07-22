@@ -4341,6 +4341,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstTask) ensureSectionExpanded(nodeId, 'task')
       setEditingData(newTask)
+      revealCurriculumItem('task', newTask.id)
       setActiveModal({ type: 'task', isOpen: true, nodeId, lessonId })
     }
 
@@ -4382,6 +4383,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(newAssessment)
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstAssessment) ensureSectionExpanded(nodeId, 'assessment')
+      revealCurriculumItem('homework', newAssessment.id)
       // Just add to list without opening modal - same as addTask behavior
       toast.success('Assessment added')
     }
@@ -5128,6 +5130,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       } else {
         // Add new task if not found
         newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(data)
+        revealCurriculumItem('task', data.id)
       }
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'task', isOpen: false })
@@ -5175,6 +5178,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       } else {
         // Add new homework/assessment if not found
         newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(data)
+        revealCurriculumItem('homework', data.id)
       }
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'homework', isOpen: false })
@@ -5531,6 +5535,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ]
       setCourseBuilderNodes(newCourseBuilderNodes)
       setSelectedItem({ type: 'task', id: copy.id })
+      revealCurriculumItem('task', copy.id)
       toast.success('Task duplicated')
     }
 
@@ -5552,6 +5557,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ]
       setCourseBuilderNodes(newCourseBuilderNodes)
       setSelectedItem({ type: 'homework', id: copy.id })
+      revealCurriculumItem('homework', copy.id)
       toast.success('Assessment duplicated')
     }
 
