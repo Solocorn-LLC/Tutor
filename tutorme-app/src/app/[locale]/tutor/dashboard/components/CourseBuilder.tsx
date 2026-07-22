@@ -11417,10 +11417,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
                               !(mainTab === 'live' && testPciActiveTab === 'student1') &&
-                              // For a TASK in the Test tab, preview the new chat-based
-                              // flow students get (chat → Task complete → per-answer
-                              // responses → follow-up); assessments keep the composer.
-                              (mainTab === 'test-pci' && testPciSource === 'assessment' ? (
+                              // For a TASK in the Test tab's Classroom view, keep the tutor
+                              // composer available. For Test Student views, the chat flow in the
+                              // panel above handles input; the composer is hidden so it doesn't
+                              // duplicate the student input. Assessments keep the helper message.
+                              (mainTab === 'test-pci' &&
+                              testPciSource === 'task' &&
+                              testPciActiveTab !== 'classroom' ? (
+                                <></>
+                              ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
                                 // Assessments are answered in the DMI: test-grade per question
                                 // above (type an answer under a question and click Grade) rather
                                 // than a separate free-text box, which caused confusion.
