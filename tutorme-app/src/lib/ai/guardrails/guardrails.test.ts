@@ -123,8 +123,8 @@ describe('evaluation-layer stripping', () => {
 })
 
 describe('prompts and rule lists', () => {
-  it('exposes 20 task rules and 15 assessment rules', () => {
-    expect(TASK_PCI_GUARDRAILS).toHaveLength(24)
+  it('exposes 25 task rules and 15 assessment rules', () => {
+    expect(TASK_PCI_GUARDRAILS).toHaveLength(25)
     expect(ASSESSMENT_GUARDRAILS).toHaveLength(15)
   })
 
