@@ -135,6 +135,12 @@ const OUTPUT_INDIVIDUAL_FEEDBACK_PATTERNS = [
   /\b(the correct answer is|your answer is wrong|your answer is incorrect|student \d+ answered|student \d+ got|student \d+ is correct|student \d+ is wrong|test student \d+ answered)\b/i,
 ]
 
+const OUTPUT_META_COMMENTARY_PATTERNS = [
+  /\b(individual feedback|correction of answers|feedback or correction)\b.*\b(as per the guidelines|according to the guidelines|has not been given|was not provided|is not provided)\b/i,
+  /\bI (?:am|have been) (?:instructed|told|asked) not? to\b/i,
+  /\bPlease note that .* (?:not|never) (?:give|provide|offer|share)\b/i,
+]
+
 export function applySessionTutorOutputGuardrails(
   raw: string,
   _context: SessionTutorContext
@@ -174,6 +180,22 @@ export function applySessionTutorOutputGuardrails(
       })
       reply +=
         '\n\n_Reminder: In classroom summaries, describe class-level patterns rather than addressing individual students._'
+      break
+    }
+  }
+
+  for (const re of OUTPUT_META_COMMENTARY_PATTERNS) {
+    if (re.test(reply)) {
+      violations.push({
+        ruleId: 'NO_META_COMMENTARY',
+        message:
+          'Output contains meta-commentary about instructions or guidelines; summaries should state findings directly.',
+        severity: 'warning',
+      })
+      reply = reply
+        .replace(re, '')
+        .replace(/\n{2,}/g, '\n')
+        .trim()
       break
     }
   }
