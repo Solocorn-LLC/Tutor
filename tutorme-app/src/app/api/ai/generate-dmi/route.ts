@@ -11,6 +11,11 @@ import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { generateWithKimi, generateWithKimiVision } from '@/lib/ai/kimi'
 import { stripCodeFences } from '@/lib/ai/llm-response'
 import {
+  buildAnswerKeySearchQuery,
+  formatSearchResultsForPrompt,
+  searchAnswerKey,
+} from '@/lib/search/serper'
+import {
   DMI_QUESTION_TYPES,
   DMI_QUESTION_TYPE_LABELS,
   normalizeDmiQuestionType,
@@ -135,11 +140,12 @@ Rules:
   EXACTLY as labelled on the paper (e.g. ["Figure 2"], ["Passage A", "Table 1"], ["the data in
   Question 1"]). Include only materials this specific part references; OMIT entirely when the part is
   self-contained. Never invent a reference that isn't on the paper.
-- "answer" and "rubric": ONLY for study_material (you wrote the questions, so you know the key).
-  "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
-  for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short
-  sentence of marking guidance for open-ended (short/long) items. For a question_paper you MUST
-  NOT output "answer" or "rubric" — never fabricate answers to the student's real exam.
+- "answer" and "rubric": For ALL documents, output these when known. The tutor will review and edit them afterwards.
+  - For a question_paper, do NOT put the answer or rubric in the "label" or "questionText"; those fields must remain student-facing references only. The hidden "answer" and "rubric" fields are for the tutor's evaluation layer and may be edited by the tutor.
+  - If the request includes an "Answer-key research results" block from a web search, use it as the primary source for answers and rubrics when it is trustworthy.
+  - If no answer key is found, use your own analysis and reasoning to produce a best-effort answer and concise marking guidance.
+  - For study_material, you authored the questions so you know the key.
+  "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …); for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short sentence of marking guidance for open-ended (short/long) items.
 
 EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
 {"documentKind":"question_paper","fields":[
@@ -241,11 +247,6 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           ? 'question_paper'
           : null
 
-    // Answer keys & rubrics are trusted ONLY for study material the model itself
-    // authored. For an extracted question paper we never keep a model-supplied
-    // answer (it would be a fabricated key to the student's real exam).
-    const allowAnswerKey = documentKind === 'study_material'
-
     const questions: ParsedDmiQuestion[] = obj.fields
       .map((f, i) => {
         const label = String(f.label ?? '').trim()
@@ -267,11 +268,11 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           ? f.sourceDependencies.map(s => String(s).trim()).filter(Boolean)
           : undefined
         const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
-        const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        const rawAnswer = String(f.answer ?? '').trim()
         // For mcq the student submits an option LETTER (A–E), so store the key as
         // a clean letter even if the model returned "C) Paris" or the option text.
         const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
-        const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
+        const rubricStr = String(f.rubric ?? '').trim()
         return {
           questionNumber: i + 1,
           questionLabel: extractQuestionRef(label),
@@ -531,6 +532,17 @@ export async function POST(request: NextRequest) {
             )} — follow that board's conventions where relevant, but do NOT change question wording or invent marks/answers that the source doesn't support.`
         : ''
 
+    // Web search: try to find a readily accessible answer key / mark scheme for
+    // assessments before asking the model to prepopulate answers. Search is best-
+    // effort and fully optional; missing key or empty results just fall back to the
+    // model's own reasoning.
+    let researchBlock = ''
+    if (type === 'assessment' && (title || examBody || subject)) {
+      const searchQuery = buildAnswerKeySearchQuery(title ?? '', examBody, subject)
+      const searchResults = await searchAnswerKey(searchQuery)
+      researchBlock = formatSearchResultsForPrompt(searchResults)
+    }
+
     let aiResponse: string
 
     if (pdfPages && pdfPages.length > 0) {
@@ -547,7 +559,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
+          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
         },
         ...(hasSourceText
           ? [
@@ -570,7 +582,7 @@ export async function POST(request: NextRequest) {
         timeoutMs: 60000,
       })
     } else {
-      const prompt = `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}${examContextInstruction}\n\n${content}`
+      const prompt = `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}${examContextInstruction}\n\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,

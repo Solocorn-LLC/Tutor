@@ -13,6 +13,8 @@ const WARN_IF_MISSING_IN_PROD = [
   'DAILY_API_KEY',
   'SENTRY_DSN',
   'NEXT_PUBLIC_SENTRY_DSN',
+  // Web search for answer-key / mark-scheme lookup during DMI generation.
+  'SERPER_API_KEY',
 ] as const
 
 const REQUIRED_MESSAGES: Record<string, string> = {

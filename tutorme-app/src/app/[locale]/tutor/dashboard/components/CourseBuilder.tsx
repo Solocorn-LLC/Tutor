@@ -4024,9 +4024,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
 
-        // Study material: the AI also drafted answers — open the review modal so
-        // the tutor can set marks and vet/approve the answers before deploying.
-        if (isStudyMaterial) {
+        // Open the DMI editor so the tutor can review and edit the AI-prepopulated
+        // answers/rubrics. For study material this also vets the generated questions;
+        // for question papers it vets the inferred answer key before deployment.
+        if (type === 'assessment') {
           setDmiEditor({ source: isTask ? 'task' : 'assessment' })
         }
       } catch (error) {
