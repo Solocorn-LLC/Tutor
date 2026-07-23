@@ -213,6 +213,9 @@ export async function POST(request: NextRequest) {
         `Attached Document Extracted Text:\n${truncate(context.sourceDocument.extractedText, 40000)}`,
       context?.sourceDocument &&
         `Attached Document: ${context.sourceDocument.fileName} (${context.sourceDocument.mimeType})\nURL: ${context.sourceDocument.fileUrl}`,
+      pdfPages &&
+        pdfPages.length > 0 &&
+        `Attached PDF pages are included as images in this request. Treat them as the primary reference for the source document and refer to them when answering questions about the task.`,
       context?.content && `Task Content:\n${truncate(context.content, 12000)}`,
       context?.pci && `Current PCI:\n${truncate(context.pci, 12000)}`,
       context?.extensionName && `Extension Name: ${context.extensionName}`,
