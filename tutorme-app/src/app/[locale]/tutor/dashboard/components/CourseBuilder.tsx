@@ -1536,15 +1536,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
         classroomStudentAnswers.current[key] = bucket
 
+        const totalStudents = testPciTabs.filter(t => t.id.startsWith('student')).length || 2
+        const completedCount = bucket.length
+        const allAnswers = bucket.flatMap(s => s.answers)
         const summaryRequest = [
-          'Summarize the following student responses for the tutor.',
-          'Do not give individual feedback or correct answers.',
-          'Describe class-level patterns, common misconceptions, or completion status in 2-3 concise bullets.',
+          'The following student answers have been submitted for this task.',
+          `Total students enrolled in this session: ${totalStudents}.`,
+          `Students who have submitted/completed so far: ${completedCount}.`,
+          'Provide 2-3 concise bullets summarizing class-level patterns, common misconceptions, or completion status only.',
+          'Do NOT name, number, or describe individual students.',
+          'Do NOT evaluate, judge, or comment on any individual answer.',
+          'Do NOT add meta-commentary about what you are not doing or what guidelines you are following.',
+          'Do NOT say all students completed unless the submitted count equals the enrolled count.',
           '',
-          ...bucket.map(
-            (s, i) =>
-              `Student ${i + 1}${s.studentName ? ` (${s.studentName})` : ''}:\n${s.answers.map(a => `- ${a}`).join('\n')}`
-          ),
+          'Submitted answers:',
+          ...allAnswers.map(a => `- ${a}`),
         ].join('\n')
 
         try {
