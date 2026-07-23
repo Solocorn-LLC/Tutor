@@ -105,7 +105,7 @@ export function TaskSlideFontEditor({
   return (
     <div
       className={cn(
-        'absolute bottom-2 right-2 z-20 flex flex-col items-center gap-2 rounded-xl border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md',
+        'flex flex-col items-center gap-2 rounded-xl border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md',
         className
       )}
     >

@@ -11920,44 +11920,50 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           // Text-only task: locked 1100 x 620 slide canvas.
                                           // No PDF preview here; the snapshot is generated only when entering Test/Live.
                                           <div className="flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                            <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                              <TaskSlideTextEditor
-                                                ref={taskSlideEditorRef}
-                                                html={
-                                                  taskBuilder.activeExtensionId
-                                                    ? taskBuilder.extensions.find(
-                                                        e => e.id === taskBuilder.activeExtensionId
-                                                      )?.content || ''
-                                                    : taskBuilder.taskContent
-                                                }
-                                                onHtmlChange={(newContent: string) => {
-                                                  if (
-                                                    !loadedTaskId &&
-                                                    !taskBuilder.activeExtensionId
-                                                  ) {
-                                                    autoCreateTask()
+                                            <div className="flex items-center justify-center gap-4">
+                                              <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                                <TaskSlideTextEditor
+                                                  ref={taskSlideEditorRef}
+                                                  html={
+                                                    taskBuilder.activeExtensionId
+                                                      ? taskBuilder.extensions.find(
+                                                          e =>
+                                                            e.id === taskBuilder.activeExtensionId
+                                                        )?.content || ''
+                                                      : taskBuilder.taskContent
                                                   }
-                                                  if (taskBuilder.activeExtensionId) {
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      extensions: prev.extensions.map(ext =>
-                                                        ext.id === prev.activeExtensionId
-                                                          ? { ...ext, content: newContent }
-                                                          : ext
-                                                      ),
-                                                    }))
-                                                  } else {
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      taskContent: newContent,
-                                                    }))
-                                                  }
-                                                }}
-                                                readOnly={!canEdit}
-                                                placeholder="Type the task content here — or load a document above to work from it."
-                                                className="h-full w-full"
-                                                style={{ fontSize: '18px' }}
-                                              />
+                                                  onHtmlChange={(newContent: string) => {
+                                                    if (
+                                                      !loadedTaskId &&
+                                                      !taskBuilder.activeExtensionId
+                                                    ) {
+                                                      autoCreateTask()
+                                                    }
+                                                    if (taskBuilder.activeExtensionId) {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        extensions: prev.extensions.map(ext =>
+                                                          ext.id === prev.activeExtensionId
+                                                            ? { ...ext, content: newContent }
+                                                            : ext
+                                                        ),
+                                                      }))
+                                                    } else {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        taskContent: newContent,
+                                                      }))
+                                                    }
+                                                  }}
+                                                  readOnly={!canEdit}
+                                                  placeholder="Type the task content here — or load a document above to work from it."
+                                                  className="h-full w-full"
+                                                  style={{
+                                                    fontSize: `${slideFontSize}px`,
+                                                    color: slideTextColor,
+                                                  }}
+                                                />
+                                              </div>
                                               <TaskSlideFontEditor
                                                 fontSize={slideFontSize}
                                                 onFontSizeChange={(size: number) => {
