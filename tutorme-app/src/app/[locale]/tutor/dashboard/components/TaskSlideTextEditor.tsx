@@ -110,9 +110,6 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           onPaste={handlePaste}
           onInput={emitHtml}
           onBlur={emitHtml}
-          dangerouslySetInnerHTML={{
-            __html: isSlideHtml(html) ? sanitizeSlideHtml(html) : '',
-          }}
         />
         {placeholder && isEmpty && !readOnly && (
           <div className="pointer-events-none absolute inset-0 p-12 leading-relaxed text-slate-400">
