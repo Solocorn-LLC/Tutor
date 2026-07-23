@@ -226,6 +226,7 @@ import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
 import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './TestTaskChat'
+import type { TaskChatMessagePayload } from '@/lib/socket'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
 import { Separator } from '@/components/ui/separator'
@@ -1470,6 +1471,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [classroomMessages])
 
+    // Shared state for the LIVE classroom chat stream. Keyed by live task id.
+    const [liveClassroomMessages, setLiveClassroomMessages] = useState<
+      Record<string, TestTaskChatMsg[]>
+    >({})
+
+    // Append a tutor-facing SAI message to the live classroom chat stream.
+    const appendLiveClassroomAiMessage = (taskId: string, content: string, name = 'SAI') => {
+      setLiveClassroomMessages(prev => ({
+        ...prev,
+        [taskId]: [
+          ...(prev[taskId] ?? []),
+          { role: 'ai' as const, name, content, timestamp: Date.now() },
+        ],
+      }))
+    }
+
     // Accumulator for test-student answers per extension, used to build a class-level
     // SAI summary when a student clicks "Task Complete".
     const classroomStudentAnswers = useRef<
@@ -1612,6 +1629,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseName,
       classroomMessages,
     ])
+
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -1959,6 +1977,126 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Track currently loaded item for saving back
     const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
     const [loadedAssessmentId, setLoadedAssessmentId] = useState<string | null>(null)
+
+    // Build a class-level SAI summary for a live chat task after a student submits.
+    const summarizeLiveClassroom = useCallback(
+      async (taskId: string, studentName: string, answers: string[]) => {
+        const task = insightsProps?.liveTasks?.find(t => t.id === taskId)
+        if (!task) return
+        const enrolledStudents = insightsProps?.students?.length ?? 0
+        const summaryRequest = [
+          'Summarize the following student responses for the tutor.',
+          'Do not give individual feedback or correct answers.',
+          'Describe class-level patterns, common misconceptions, or completion status in 2-3 concise bullets.',
+          '',
+          `Student: ${studentName}`,
+          ...answers.map(a => `- ${a}`),
+        ].join('\n')
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: {
+                taskId,
+                taskName: task.title?.trim() || 'Untitled task',
+                courseName,
+                taskContent: task.content || '',
+                taskPci: task.pci,
+                taskPciSpec: task.pciSpec,
+                enrolledStudents,
+                currentDate: new Date().toLocaleDateString(),
+                sessionNumber: 1,
+                attendance: enrolledStudents > 0 ? '100%' : '0%',
+              },
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendLiveClassroomAiMessage(
+            taskId,
+            data.response || 'Students submitted their answers.',
+            'SAI'
+          )
+        } catch (e) {
+          console.warn('[summarizeLiveClassroom] summary failed:', e)
+          appendLiveClassroomAiMessage(
+            taskId,
+            `${studentName || 'A student'} submitted ${answers.length} answer(s).`,
+            'SAI'
+          )
+        }
+      },
+      [courseName, insightsProps?.liveTasks, insightsProps?.students]
+    )
+
+    // Seed the live classroom "Session ready." greeting when a chat task is selected.
+    useEffect(() => {
+      if (mainTab !== 'live' || testPciSource !== 'task') return
+      const task = insightsProps?.liveTasks?.find(t => t.id === loadedTaskId)
+      if (!task) return
+      if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
+        return
+      if (
+        liveClassroomMessages[task.id]?.some(
+          m => m.role === 'ai' && m.content.startsWith('Session ready.')
+        )
+      )
+        return
+      const enrolledStudents = insightsProps?.students?.length ?? 0
+      const summary = [
+        'Session ready.',
+        '',
+        `Task: ${task.title?.trim() || 'Untitled task'}`,
+        `Course: ${courseName?.trim() || 'Live Course'}`,
+        `Enrolled Students: ${enrolledStudents}`,
+        `Date: ${new Date().toLocaleDateString()}`,
+        'Session Number: 1',
+        `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
+      ].join('\n')
+      appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+    }, [
+      mainTab,
+      testPciSource,
+      loadedTaskId,
+      insightsProps?.liveTasks,
+      insightsProps?.students,
+      courseName,
+      liveClassroomMessages,
+    ])
+
+    // Listen for live task-chat messages and completions, and update the tutor
+    // classroom stream accordingly.
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId || !loadedTaskId) return
+      const socket = insightsProps.socket
+      const handleTaskChatMessage = (msg: TaskChatMessagePayload) => {
+        if (msg.taskId !== loadedTaskId) return
+        setLiveClassroomMessages(prev => ({
+          ...prev,
+          [msg.taskId]: [...(prev[msg.taskId] ?? []), msg],
+        }))
+      }
+      const handleTaskCompleted = (payload: {
+        taskId: string
+        studentId: string
+        studentName?: string
+        answers?: Record<string, string>
+      }) => {
+        if (payload.taskId !== loadedTaskId) return
+        const answers = Object.values(payload.answers ?? {})
+        if (answers.length === 0) return
+        void summarizeLiveClassroom(payload.taskId, payload.studentName || 'A student', answers)
+      }
+      socket.on('task:chat_message', handleTaskChatMessage)
+      socket.on('task:completed', handleTaskCompleted)
+      return () => {
+        socket.off('task:chat_message', handleTaskChatMessage)
+        socket.off('task:completed', handleTaskCompleted)
+      }
+    }, [insightsProps?.socket, insightsProps?.sessionId, loadedTaskId, summarizeLiveClassroom])
 
     const canMirrorToStudents = !!(
       insightsProps?.sessionId &&
@@ -11204,6 +11342,68 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             extensionId: extKey,
                                                             studentName: studentTabName,
                                                           })
+                                                  }
+                                                />
+                                              </div>
+                                            )
+                                          }
+
+                                          // Live classroom chat task: use the same TestTaskChat
+                                          // component as Test mode so the tutor sees identical
+                                          // document popup / avatars / SAI summary behavior.
+                                          const activeLiveChatTask =
+                                            insightsProps?.liveTasks?.find(
+                                              t => t.id === loadedTaskId
+                                            ) ?? null
+                                          if (
+                                            mainTab === 'live' &&
+                                            testPciSource === 'task' &&
+                                            tab.id === 'classroom' &&
+                                            activeLiveChatTask &&
+                                            activeLiveChatTask.source === 'task' &&
+                                            !(
+                                              Array.isArray(activeLiveChatTask.dmiItems) &&
+                                              activeLiveChatTask.dmiItems.length > 0
+                                            )
+                                          ) {
+                                            const taskId = activeLiveChatTask.id
+                                            return (
+                                              <div className="h-full min-h-0 w-full">
+                                                <TestTaskChat
+                                                  mode="classroom"
+                                                  pci={activeLiveChatTask.pci}
+                                                  pciSpec={activeLiveChatTask.pciSpec}
+                                                  questionText={`${activeLiveChatTask.title}\n\n${activeLiveChatTask.content}`}
+                                                  sourceDocument={activeLiveChatTask.sourceDocument}
+                                                  incomingMessages={liveClassroomMessages[taskId]}
+                                                  tutorAvatarUrl={tutorAvatarUrl}
+                                                  onBroadcast={msg => {
+                                                    if (
+                                                      !insightsProps?.socket ||
+                                                      !insightsProps?.sessionId
+                                                    )
+                                                      return
+                                                    insightsProps.socket.emit('task:chat_message', {
+                                                      roomId: insightsProps.sessionId,
+                                                      taskId,
+                                                      role: 'tutor',
+                                                      content: msg.content,
+                                                      name: 'Tutor',
+                                                      timestamp: Date.now(),
+                                                    })
+                                                  }}
+                                                  onTutorNote={note =>
+                                                    appendLiveClassroomAiMessage(
+                                                      taskId,
+                                                      note,
+                                                      'SAI'
+                                                    )
+                                                  }
+                                                  onReset={() =>
+                                                    setLiveClassroomMessages(prev => ({
+                                                      ...prev,
+                                                      [taskId]: [],
+                                                    }))
                                                   }
                                                 />
                                               </div>

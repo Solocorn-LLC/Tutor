@@ -140,6 +140,16 @@ export interface LiveTask {
   completedBy?: string[]
 }
 
+export interface TaskChatMessagePayload {
+  taskId: string
+  role: 'tutor' | 'student'
+  content: string
+  name?: string
+  re?: string
+  timestamp?: number
+  userId?: string
+}
+
 export interface ClassRoom {
   id: string
   tutorId: string

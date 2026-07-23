@@ -65,6 +65,7 @@ export function TestTaskChat({
   onAddAnswer,
   onAsk,
   onComplete,
+  onGrade,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -93,6 +94,8 @@ export function TestTaskChat({
   onAsk?: (question: string) => void
   /** Called when the student clicks "Task complete" (Test mode only). */
   onComplete?: (answers: string[]) => void
+  /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/test-grade. */
+  onGrade?: (body: Record<string, unknown>) => Promise<Response>
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -151,12 +154,14 @@ export function TestTaskChat({
     (!sourceDocument?.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument?.fileName || rawUrl))
   const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
 
-  const post = (extra: Record<string, unknown>) =>
-    fetchWithCsrf('/api/tutor/test-grade', {
+  const post = (extra: Record<string, unknown>) => {
+    if (onGrade) return onGrade(extra)
+    return fetchWithCsrf('/api/tutor/test-grade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pci, pciSpec, questionText, ...extra }),
     })
+  }
 
   const addAnswer = () => {
     const a = draft.trim()
@@ -209,20 +214,22 @@ export function TestTaskChat({
       if (!res.ok) throw new Error(data?.error || 'Failed to grade')
       const responses: Array<{
         answer: string
-        studentFeedback: string | null
-        tutorNote: string | null
-        score: number | null
-        hasBasis: boolean
+        studentFeedback?: string | null
+        response?: string | null
+        tutorNote?: string | null
+        score?: number | null
+        hasBasis?: boolean
       }> = Array.isArray(data.responses) ? data.responses : []
       const aiMsgs: ChatMsg[] = []
       responses.forEach(r => {
         if (r.tutorNote) {
           onTutorNote?.(r.tutorNote)
         }
-        if (r.studentFeedback) {
+        const feedback = r.studentFeedback || r.response
+        if (feedback) {
           aiMsgs.push({
             role: 'tutor' as const,
-            content: r.studentFeedback,
+            content: feedback,
             re: r.answer,
             timestamp: Date.now(),
           })

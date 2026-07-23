@@ -30,7 +30,7 @@ import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { normalizePciSpec } from '@/lib/assessment/pci-spec'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
-import type { PollState } from '@/lib/socket'
+import type { PollState, TaskChatMessagePayload } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
@@ -888,6 +888,44 @@ export async function initEnhancedSocketServer(server: NetServer) {
             console.error('[chat_message] Failed to persist chat message:', err)
           })
       }
+    })
+
+    // Task-scoped chat messages (chat-task flow). Distinct from the general
+    // chat_message so a live task's answer/comment stream can be rendered inside
+    // TestTaskChat on both tutor and student sides without mixing with the
+    // general room chat.
+    socket.on('task:chat_message', (data: TaskChatMessagePayload & { roomId?: string }) => {
+      const { taskId, role, content } = data
+      if (!taskId || typeof taskId !== 'string') return
+      if (!content || typeof content !== 'string' || !content.trim()) return
+      if (role !== 'tutor' && role !== 'student') return
+
+      const targetRoomId = data.roomId || socket.data.roomId
+      if (!targetRoomId) return
+
+      const room = activeRooms.get(targetRoomId)
+      if (!room) return
+
+      const userId = socket.data.userId
+      if (!userId) return
+
+      const isTutor = room.tutorId === userId
+      const isStudent = room.students.has(userId)
+      if (!isTutor && !isStudent) return
+      if (role === 'tutor' && !isTutor) return
+      if (role === 'student' && !isStudent) return
+
+      const message: TaskChatMessagePayload = {
+        taskId,
+        role,
+        content: content.trim().slice(0, 3000),
+        name: data.name || (isTutor ? 'Tutor' : room.students.get(userId)?.name || 'Student'),
+        re: data.re,
+        timestamp: data.timestamp || Date.now(),
+        userId,
+      }
+
+      io.to(targetRoomId).emit('task:chat_message', message)
     })
 
     // --- Live poll (ephemeral, one active per room) ---
