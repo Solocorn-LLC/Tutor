@@ -11019,18 +11019,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ],
                                                       }))
                                                     } else {
-                                                      // Student message → add to classroom view with student name
-                                                      const studentMsg = {
-                                                        ...msg,
-                                                        name: studentTabName,
+                                                      // Only relay actual student messages to the classroom view.
+                                                      // AI/tutor feedback generated for an individual student is
+                                                      // not shown to the tutor, otherwise large classes would
+                                                      // flood the classroom stream with per-student responses.
+                                                      if (msg.role === 'student') {
+                                                        const studentMsg = {
+                                                          ...msg,
+                                                          name: studentTabName,
+                                                        }
+                                                        setClassroomMessages(prev => ({
+                                                          ...prev,
+                                                          [extKey]: [
+                                                            ...(prev[extKey] ?? []),
+                                                            studentMsg,
+                                                          ],
+                                                        }))
                                                       }
-                                                      setClassroomMessages(prev => ({
-                                                        ...prev,
-                                                        [extKey]: [
-                                                          ...(prev[extKey] ?? []),
-                                                          studentMsg,
-                                                        ],
-                                                      }))
                                                     }
                                                   }}
                                                   onReset={() => {
