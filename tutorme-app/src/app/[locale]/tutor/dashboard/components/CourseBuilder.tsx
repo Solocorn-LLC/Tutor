@@ -1470,6 +1470,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [classroomMessages])
 
+    // Accumulator for test-student answers per extension, used to build a class-level
+    // SAI summary when a student clicks "Task Complete".
+    const classroomStudentAnswers = useRef<
+      Record<string, Array<{ studentName: string; answers: string[] }>>
+    >({})
+
     // Current extension key for the Test/Classroom chat preview.
     const getCurrentExtKey = () => {
       const previewExt = taskBuilder.activeExtensionId
@@ -1491,14 +1497,85 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Emit student-interaction events that the tutor-facing classroom AI may use to
-    // generate automated reports. New event types intentionally no-op until guardrails
-    // are defined for them.
-    const emitClassroomAiEvent = (
+    // generate automated reports. On 'task-complete' we ask the Session AI to summarize
+    // the class's responses; individual per-student feedback is not shown in the
+    // classroom stream (that is handled privately in each student tab).
+    const emitClassroomAiEvent = async (
       eventType: 'student-answer' | 'student-ask' | 'task-complete',
       payload: Record<string, unknown>
     ) => {
-      void eventType
-      void payload
+      const key = (payload.extensionId as string) || getCurrentExtKey()
+      const studentName = (payload.studentName as string) || 'Student'
+      const ext = taskBuilder.activeExtensionId
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
+        : null
+
+      if (eventType === 'student-answer') {
+        const answer = payload.answer as string
+        if (!answer) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers.push(answer)
+        } else {
+          bucket.push({ studentName, answers: [answer] })
+        }
+        classroomStudentAnswers.current[key] = bucket
+        return
+      }
+
+      if (eventType === 'task-complete') {
+        const answers = Array.isArray(payload.answers) ? (payload.answers as string[]) : []
+        if (answers.length === 0) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers = answers
+        } else {
+          bucket.push({ studentName, answers })
+        }
+        classroomStudentAnswers.current[key] = bucket
+
+        const summaryRequest = [
+          'Summarize the following student responses for the tutor.',
+          'Do not give individual feedback or correct answers.',
+          'Describe class-level patterns, common misconceptions, or completion status in 2-3 concise bullets.',
+          '',
+          ...bucket.map(
+            (s, i) =>
+              `Student ${i + 1}${s.studentName ? ` (${s.studentName})` : ''}:\n${s.answers.map(a => `- ${a}`).join('\n')}`
+          ),
+        ].join('\n')
+
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: {
+                taskId: loadedTaskId || undefined,
+                taskName: ext ? ext.name : taskBuilder.title,
+                courseName,
+                taskContent: ext ? ext.content : taskBuilder.taskContent,
+                taskPci: ext ? ext.pci : taskBuilder.taskPci,
+                taskPciSpec: ext ? undefined : taskBuilder.pciSpec,
+                extensionName: ext?.name ?? null,
+              },
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendClassroomAiMessage(data.response || 'Students submitted their answers.', 'SAI')
+        } catch (e) {
+          console.warn('[emitClassroomAiEvent] summary failed:', e)
+          appendClassroomAiMessage(
+            `${bucket.length} student(s) submitted ${bucket.reduce((n, s) => n + s.answers.length, 0)} answer(s).`,
+            'SAI'
+          )
+        }
+      }
     }
 
     // Generate the session AI's initial summary whenever a task is loaded into Test mode.
@@ -11063,6 +11140,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     delete testTaskChatStore.current[
                                                       `${extKey}:classroom`
                                                     ]
+                                                    // 4. Clear accumulated student answers used for SAI summaries
+                                                    delete classroomStudentAnswers.current[extKey]
                                                     try {
                                                       localStorage.setItem(
                                                         'tutor-test-chat-store-v1',
