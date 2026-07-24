@@ -1591,7 +1591,13 @@ function StudentFeedbackContent() {
     }
 
     const handleTaskUpdated = (payload: { task: LiveTask }) => {
-      setTasks(prev => prev.map(item => (item.id === payload.task.id ? payload.task : item)))
+      setTasks(prev => {
+        const exists = prev.some(item => item.id === payload.task.id)
+        if (exists) {
+          return prev.map(item => (item.id === payload.task.id ? payload.task : item))
+        }
+        return [...prev, payload.task]
+      })
     }
 
     const handleTaskSequence = (payload: { taskId: string; sequence: number }) => {
@@ -1603,6 +1609,57 @@ function StudentFeedbackContent() {
           return item
         })
       )
+    }
+
+    // Polls and questions are attached to a deployed task. The server emits both
+    // `task:updated` and `insight:sent`; we listen to both so a missed `task:updated`
+    // (or a task that arrived without the latest insight) still surfaces the new poll
+    // in the student's Interact panel.
+    const handleInsightSent = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const exists = task.polls?.some(p => p.id === poll.id)
+          if (exists) return prev
+          const updatedTask = { ...task, polls: [...(task.polls ?? []), poll] }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const exists = task.questions?.some(q => q.id === question.id)
+        if (exists) return prev
+        const updatedTask = { ...task, questions: [...(task.questions ?? []), question] }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
+    }
+
+    const handleInsightResponse = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const updatedPolls = task.polls?.map(p => (p.id === poll.id ? poll : p)) ?? []
+          const updatedTask = { ...task, polls: updatedPolls }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const updatedQuestions =
+          task.questions?.map(q => (q.id === question.id ? question : q)) ?? []
+        const updatedTask = { ...task, questions: updatedQuestions }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
     }
 
     const handleInsightReceived = (payload: {
@@ -1678,6 +1735,8 @@ function StudentFeedbackContent() {
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
+    socket.on('insight:sent', handleInsightSent)
+    socket.on('insight:response', handleInsightResponse)
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
@@ -1688,6 +1747,8 @@ function StudentFeedbackContent() {
       socket.off('task:deployed', handleTaskDeployed)
       socket.off('task:updated', handleTaskUpdated)
       socket.off('task:deployed:sequence', handleTaskSequence)
+      socket.off('insight:sent', handleInsightSent)
+      socket.off('insight:response', handleInsightResponse)
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
