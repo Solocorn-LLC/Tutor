@@ -66,6 +66,7 @@ export function TestTaskChat({
   onAsk,
   onComplete,
   onGrade,
+  taskId,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -94,8 +95,10 @@ export function TestTaskChat({
   onAsk?: (question: string) => void
   /** Called when the student clicks "Task complete" (Test mode only). */
   onComplete?: (answers: string[]) => void
-  /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/test-grade. */
+  /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/task-chat-preview. */
   onGrade?: (body: Record<string, unknown>) => Promise<Response>
+  /** Task id used by the default preview endpoint. Required when onGrade is not provided. */
+  taskId?: string
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -156,10 +159,10 @@ export function TestTaskChat({
 
   const post = (extra: Record<string, unknown>) => {
     if (onGrade) return onGrade(extra)
-    return fetchWithCsrf('/api/tutor/test-grade', {
+    return fetchWithCsrf('/api/tutor/task-chat-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pci, pciSpec, questionText, ...extra }),
+      body: JSON.stringify({ taskId, pci, pciSpec, questionText, ...extra }),
     })
   }
 

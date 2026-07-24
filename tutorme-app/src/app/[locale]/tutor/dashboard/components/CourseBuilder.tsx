@@ -217,6 +217,7 @@ import {
   mergeLoadedWithPendingEdits,
 } from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
+import { buildClassroomSummaryRequest } from '@/lib/ai/session-tutor-summary'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -229,6 +230,7 @@ import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './Te
 import type { TaskChatMessagePayload } from '@/lib/socket'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
+import { type AutoGradeResult } from '@/lib/grading/auto-grade'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -1554,21 +1556,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         classroomStudentAnswers.current[key] = bucket
 
         const totalStudents = testPciTabs.filter(t => t.id.startsWith('student')).length || 2
-        const completedCount = bucket.length
-        const allAnswers = bucket.flatMap(s => s.answers)
-        const summaryRequest = [
-          'The following student answers have been submitted for this task.',
-          `Total students enrolled in this session: ${totalStudents}.`,
-          `Students who have submitted/completed so far: ${completedCount}.`,
-          'Provide 2-3 concise bullets summarizing class-level patterns, common misconceptions, or completion status only.',
-          'Do NOT name, number, or describe individual students.',
-          'Do NOT evaluate, judge, or comment on any individual answer.',
-          'Do NOT add meta-commentary about what you are not doing or what guidelines you are following.',
-          'Do NOT say all students completed unless the submitted count equals the enrolled count.',
-          '',
-          'Submitted answers:',
-          ...allAnswers.map(a => `- ${a}`),
-        ].join('\n')
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          bucket,
+          {
+            taskId: loadedTaskId || undefined,
+            taskName: ext ? ext.name : taskBuilder.title,
+            courseName,
+            taskContent: ext ? ext.content : taskBuilder.taskContent,
+            taskPci: ext ? ext.pci : taskBuilder.taskPci,
+            taskPciSpec: ext ? undefined : taskBuilder.pciSpec,
+            extensionName: ext?.name ?? null,
+            enrolledStudents: totalStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: totalStudents > 0 ? '100%' : '0%',
+          }
+        )
 
         try {
           const res = await fetchWithCsrf('/api/ai/session-tutor', {
@@ -1576,15 +1579,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: summaryRequest,
-              context: {
-                taskId: loadedTaskId || undefined,
-                taskName: ext ? ext.name : taskBuilder.title,
-                courseName,
-                taskContent: ext ? ext.content : taskBuilder.taskContent,
-                taskPci: ext ? ext.pci : taskBuilder.taskPci,
-                taskPciSpec: ext ? undefined : taskBuilder.pciSpec,
-                extensionName: ext?.name ?? null,
-              },
+              context: summaryContext,
               history: [],
             }),
           })
@@ -1640,6 +1635,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [testDmiAnswers, setTestDmiAnswers] = useState<Record<string, string>>({})
     const [testDmiResults, setTestDmiResults] = useState<
       Record<string, { loading?: boolean; score?: number | null; feedback?: string }>
+    >({})
+    // Deterministic live-style auto-grade preview for DMI answers.
+    const [testDmiAutoResults, setTestDmiAutoResults] = useState<
+      Record<string, AutoGradeResult & { loading?: boolean }>
     >({})
     // How the last-generated DMI was classified (per source). Lets the tutor
     // override a confidently-wrong call — e.g. numbered study notes read as a
@@ -1984,32 +1983,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const task = insightsProps?.liveTasks?.find(t => t.id === taskId)
         if (!task) return
         const enrolledStudents = insightsProps?.students?.length ?? 0
-        const summaryRequest = [
-          'Summarize the following student responses for the tutor.',
-          'Do not give individual feedback or correct answers.',
-          'Describe class-level patterns, common misconceptions, or completion status in 2-3 concise bullets.',
-          '',
-          `Student: ${studentName}`,
-          ...answers.map(a => `- ${a}`),
-        ].join('\n')
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          [{ studentName, answers }],
+          {
+            taskId,
+            taskName: task.title?.trim() || 'Untitled task',
+            courseName,
+            taskContent: task.content || '',
+            taskPci: task.pci,
+            taskPciSpec: task.pciSpec,
+            extensionName: null,
+            enrolledStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: enrolledStudents > 0 ? '100%' : '0%',
+          }
+        )
         try {
           const res = await fetchWithCsrf('/api/ai/session-tutor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message: summaryRequest,
-              context: {
-                taskId,
-                taskName: task.title?.trim() || 'Untitled task',
-                courseName,
-                taskContent: task.content || '',
-                taskPci: task.pci,
-                taskPciSpec: task.pciSpec,
-                enrolledStudents,
-                currentDate: new Date().toLocaleDateString(),
-                sessionNumber: 1,
-                attendance: enrolledStudents > 0 ? '100%' : '0%',
-              },
+              context: summaryContext,
               history: [],
             }),
           })
@@ -3454,6 +3450,63 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           ...prev,
           [key]: { feedback: e instanceof Error ? e.message : 'Failed to grade' },
         }))
+      }
+    }
+
+    // Live-style deterministic auto-grade preview for a single DMI answer.
+    // This matches the socket `task:complete` grading path used in live sessions.
+    const autoGradeTestDmiItem = async (item: DMIQuestion) => {
+      const key = `${testPciActiveTab}:${item.id}`
+      const answer = (testDmiAnswers[key] || '').trim()
+      if (!answer) return
+      setTestDmiAutoResults(prev => ({
+        ...prev,
+        [key]: {
+          loading: true,
+          score: null,
+          questionResults: null,
+          gradable: 0,
+          correct: 0,
+          needsReview: 0,
+          pointsPossible: 0,
+          pointsEarned: 0,
+        },
+      }))
+      try {
+        const res = await fetchWithCsrf('/api/tutor/auto-grade-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [
+              {
+                id: String(item.id),
+                answer: item.answer || '',
+                marks: item.marks,
+                questionText: item.questionText,
+              },
+            ],
+            answers: { [String(item.id)]: answer },
+          }),
+        })
+        const data = (await res.json().catch(() => ({}))) as AutoGradeResult
+        if (!res.ok)
+          throw new Error((data as unknown as { error?: string }).error || 'Failed to auto-grade')
+        setTestDmiAutoResults(prev => ({ ...prev, [key]: { ...data, loading: false } }))
+      } catch (e) {
+        setTestDmiAutoResults(prev => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            score: null,
+            questionResults: null,
+            gradable: 0,
+            correct: 0,
+            needsReview: 0,
+            pointsPossible: 0,
+            pointsEarned: 0,
+          },
+        }))
+        toast.error(e instanceof Error ? e.message : 'Failed to auto-grade')
       }
     }
 
@@ -11172,6 +11225,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             return (
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
+                                                  taskId={loadedTaskId || undefined}
                                                   pci={
                                                     (previewExt
                                                       ? previewExt.pci
@@ -11370,6 +11424,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             return (
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
+                                                  taskId={taskId}
                                                   mode="classroom"
                                                   pci={activeLiveChatTask.pci}
                                                   pciSpec={activeLiveChatTask.pciSpec}
@@ -11613,11 +11668,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           </p>
                                                         )}
                                                         {mainTab === 'test-pci' &&
-                                                          testPciSource === 'assessment' &&
                                                           canEdit &&
                                                           (() => {
                                                             const ak = `${testPciActiveTab}:${item.id}`
-                                                            const result = testDmiResults[ak]
+                                                            const answer = (
+                                                              testDmiAnswers[ak] || ''
+                                                            ).trim()
+                                                            const autoResult =
+                                                              testDmiAutoResults[ak]
+                                                            const llmResult = testDmiResults[ak]
                                                             return (
                                                               <div className="mt-2 border-t border-gray-200 pt-2">
                                                                 <textarea
@@ -11633,39 +11692,105 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
                                                                   className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
                                                                 />
-                                                                <div className="mt-1 flex items-center gap-2">
+                                                                <div className="mt-1 flex flex-wrap items-center gap-2">
                                                                   <button
                                                                     type="button"
                                                                     disabled={
-                                                                      result?.loading ||
-                                                                      !(
-                                                                        testDmiAnswers[ak] || ''
-                                                                      ).trim()
+                                                                      autoResult?.loading || !answer
                                                                     }
                                                                     onClick={() =>
-                                                                      gradeTestDmiItem(item)
+                                                                      autoGradeTestDmiItem(item)
                                                                     }
-                                                                    aria-label={`Grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                    className="rounded-md bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                                                                    aria-label={`Auto-grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                                                                   >
-                                                                    {result?.loading
-                                                                      ? 'Grading…'
-                                                                      : 'Grade'}
+                                                                    {autoResult?.loading
+                                                                      ? 'Auto-grading…'
+                                                                      : 'Auto-grade'}
                                                                   </button>
-                                                                  {result &&
-                                                                    !result.loading &&
-                                                                    typeof result.score ===
-                                                                      'number' && (
-                                                                      <span className="text-xs font-semibold text-violet-700">
-                                                                        Score: {result.score}%
+                                                                  {testPciSource ===
+                                                                    'assessment' && (
+                                                                    <button
+                                                                      type="button"
+                                                                      disabled={
+                                                                        llmResult?.loading ||
+                                                                        !answer
+                                                                      }
+                                                                      onClick={() =>
+                                                                        gradeTestDmiItem(item)
+                                                                      }
+                                                                      aria-label={`Debug LLM grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                      className="rounded-md bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                                                                    >
+                                                                      {llmResult?.loading
+                                                                        ? 'Grading…'
+                                                                        : 'Debug LLM grade'}
+                                                                    </button>
+                                                                  )}
+                                                                  {autoResult &&
+                                                                    !autoResult.loading &&
+                                                                    autoResult.score !== null && (
+                                                                      <span className="text-xs font-semibold text-emerald-700">
+                                                                        Score: {autoResult.score}%
                                                                       </span>
                                                                     )}
                                                                 </div>
-                                                                {result &&
-                                                                  !result.loading &&
-                                                                  result.feedback && (
+                                                                {autoResult &&
+                                                                  !autoResult.loading &&
+                                                                  Array.isArray(
+                                                                    autoResult.questionResults
+                                                                  ) &&
+                                                                  autoResult.questionResults
+                                                                    .length > 0 && (
+                                                                    <div className="mt-1 space-y-1">
+                                                                      {autoResult.questionResults.map(
+                                                                        r => (
+                                                                          <div
+                                                                            key={r.questionId}
+                                                                            className="flex items-center gap-2 text-xs"
+                                                                          >
+                                                                            {r.correct ? (
+                                                                              <span className="font-medium text-emerald-700">
+                                                                                Correct
+                                                                              </span>
+                                                                            ) : r.needsReview ? (
+                                                                              <span className="font-medium text-amber-700">
+                                                                                Needs review
+                                                                              </span>
+                                                                            ) : (
+                                                                              <span className="font-medium text-red-700">
+                                                                                Incorrect
+                                                                              </span>
+                                                                            )}
+                                                                            {typeof r.pointsEarned ===
+                                                                              'number' &&
+                                                                              typeof r.pointsMax ===
+                                                                                'number' &&
+                                                                              r.pointsMax > 0 && (
+                                                                                <span className="text-slate-600">
+                                                                                  {r.pointsEarned}/
+                                                                                  {r.pointsMax}
+                                                                                </span>
+                                                                              )}
+                                                                          </div>
+                                                                        )
+                                                                      )}
+                                                                    </div>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  typeof llmResult.score ===
+                                                                    'number' && (
+                                                                    <span className="mt-1 block text-xs font-semibold text-violet-700">
+                                                                      Debug LLM score:{' '}
+                                                                      {llmResult.score}%
+                                                                    </span>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  llmResult.feedback && (
                                                                     <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
-                                                                      {result.feedback}
+                                                                      {llmResult.feedback}
                                                                     </p>
                                                                   )}
                                                               </div>
