@@ -23,7 +23,9 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
     ref
   ) {
     const divRef = useRef<HTMLDivElement>(null)
-    const lastHtmlRef = useRef(html)
+    // Start with a sentinel value so the first effect always initialises the editor
+    // from the external html, even when it matches the prop on first render.
+    const lastHtmlRef = useRef('')
 
     // Load external html changes without clobbering the editor while the user is typing.
     useEffect(() => {
@@ -108,9 +110,6 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           onPaste={handlePaste}
           onInput={emitHtml}
           onBlur={emitHtml}
-          dangerouslySetInnerHTML={{
-            __html: isSlideHtml(html) ? sanitizeSlideHtml(html) : '',
-          }}
         />
         {placeholder && isEmpty && !readOnly && (
           <div className="pointer-events-none absolute inset-0 p-12 leading-relaxed text-slate-400">

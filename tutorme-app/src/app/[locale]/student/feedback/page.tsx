@@ -31,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
 import { cn, resolvePublicUrl } from '@/lib/utils'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import {
   MessageSquare,
   Send,
@@ -75,7 +76,11 @@ import type {
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 import { TaskAiHelper } from './TaskAiHelper'
-import { TaskChatPanel } from './TaskChatPanel'
+import {
+  TestTaskChat,
+  type TestTaskChatState,
+  type TestTaskChatMsg,
+} from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
@@ -942,6 +947,9 @@ function StudentFeedbackContent() {
   const [chatInput, setChatInput] = useState('')
   const [viewerZoom, setViewerZoom] = useState(1)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
+  const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
+  const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
   const [sessionContext, setSessionContext] = useState<{
     topic: string | null
     objectives: string[] | null
@@ -1204,6 +1212,8 @@ function StudentFeedbackContent() {
     setTutorBoardPages(createDefaultWhiteboardPages())
     setTutorBoardPageIndex(0)
     setChatMessages([])
+    setTaskChatInitial(undefined)
+    setTaskChatIncoming([])
   }, [selectedSessionId])
 
   // Refs to track notification IDs for tasks/homework so we can mark them as read
@@ -1669,6 +1679,81 @@ function StudentFeedbackContent() {
     !!activeTask &&
     activeTask.source === 'task' &&
     !(Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0)
+
+  // Restore a prior chat-task submission so a returning student sees their answers,
+  // the AI feedback, and any follow-ups — then they can continue asking questions.
+  useEffect(() => {
+    if (!activeTaskId || !isChatTask) {
+      setTaskChatInitial(undefined)
+      return
+    }
+    let active = true
+    fetch(`/api/student/assignments/${activeTaskId}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!active) return
+        if (data?.alreadySubmitted) {
+          const answersObj =
+            data.existingAnswers && typeof data.existingAnswers === 'object'
+              ? (data.existingAnswers as Record<string, string>)
+              : {}
+          const answers = Object.keys(answersObj)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(k => String(answersObj[k]))
+          const aiItems: Array<{ explanation?: string }> = data.existingAiFeedback?.items ?? []
+          const followUps: Array<{ question?: string; answer?: string }> = Array.isArray(
+            data.existingFollowUps
+          )
+            ? data.existingFollowUps
+            : []
+          const restored: TestTaskChatMsg[] = []
+          answers.forEach(a =>
+            restored.push({ role: 'student', content: a, timestamp: Date.now() })
+          )
+          aiItems.forEach((it, i) =>
+            restored.push({
+              role: 'ai',
+              content: it.explanation ?? '',
+              re: answers[i],
+              timestamp: Date.now(),
+            })
+          )
+          followUps.forEach(f => {
+            if (f.question)
+              restored.push({ role: 'student', content: f.question, timestamp: Date.now() })
+            if (f.answer) restored.push({ role: 'ai', content: f.answer, timestamp: Date.now() })
+          })
+          setTaskChatInitial({ messages: restored, draft: '', completed: restored.length > 0 })
+        } else {
+          setTaskChatInitial({ messages: [], draft: '', completed: false })
+        }
+      })
+      .catch(() => {
+        if (active) setTaskChatInitial({ messages: [], draft: '', completed: false })
+      })
+    return () => {
+      active = false
+    }
+  }, [activeTaskId, isChatTask])
+
+  // Listen for tutor task-chat messages and inject them into the student's chat.
+  useEffect(() => {
+    if (!socket || !activeTaskId) return
+    const handleTaskChatMessage = (msg: TestTaskChatMsg & { taskId?: string }) => {
+      if (msg.taskId && msg.taskId !== activeTaskId) return
+      setTaskChatIncoming(prev => [...prev, msg])
+    }
+    socket.on('task:chat_message', handleTaskChatMessage)
+    return () => {
+      socket.off('task:chat_message', handleTaskChatMessage)
+    }
+  }, [socket, activeTaskId])
+
+  // Clear cross-task message relay when the active chat task changes.
+  useEffect(() => {
+    setTaskChatIncoming([])
+  }, [activeTaskId])
+
   const currentSession = sessions.find(s => s.id === selectedSessionId) || null
   const isScheduled = currentSession?.status === 'scheduled'
   const isPassedSession =
@@ -2044,15 +2129,36 @@ function StudentFeedbackContent() {
                             PCI, then they can ask about what they got wrong. */}
                         {isChatTask && activeTaskId && (
                           <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
-                            <TaskChatPanel
-                              taskId={activeTaskId}
-                              taskTitle={activeTask.title}
+                            <TestTaskChat
+                              key={activeTaskId}
+                              mode="test-student"
+                              questionText={`${activeTask.title}\n\n${activeTask.content}`}
                               sourceDocument={activeTask.sourceDocument}
-                              onCompleted={answers => {
-                                // Broadcast the live "completed" tick to the tutor.
-                                // aiHandled=true → the server only marks completion
-                                // and does NOT re-write the DB (the task-chat route
-                                // already persisted the answers + AI responses).
+                              initialState={taskChatInitial}
+                              incomingMessages={taskChatIncoming}
+                              studentAvatarUrl={session?.user?.image}
+                              onGrade={body =>
+                                fetchWithCsrf(
+                                  `/api/student/assignments/${activeTaskId}/task-chat`,
+                                  {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(body),
+                                  }
+                                )
+                              }
+                              onBroadcast={msg => {
+                                if (!socket || !selectedSessionId) return
+                                socket.emit('task:chat_message', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  role: 'student',
+                                  content: msg.content,
+                                  name: session?.user?.name || 'Student',
+                                  timestamp: Date.now(),
+                                })
+                              }}
+                              onComplete={answers => {
                                 if (!socket || !selectedSessionId || !activeTaskId) return
                                 const record: Record<string, string> = {}
                                 answers.forEach((a, i) => {
@@ -2109,7 +2215,7 @@ function StudentFeedbackContent() {
                 </div>
 
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
-                    chat tasks, which use the in-viewer TaskChatPanel instead. */}
+                    chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
                   <div className="mt-3 flex items-center gap-3">
                     <div className="relative flex-1">

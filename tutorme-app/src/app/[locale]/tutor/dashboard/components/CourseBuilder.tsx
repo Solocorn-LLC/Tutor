@@ -217,6 +217,7 @@ import {
   mergeLoadedWithPendingEdits,
 } from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
+import { buildClassroomSummaryRequest } from '@/lib/ai/session-tutor-summary'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
@@ -226,8 +227,10 @@ import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
 import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './TestTaskChat'
+import type { TaskChatMessagePayload } from '@/lib/socket'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
+import { type AutoGradeResult } from '@/lib/grading/auto-grade'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -1470,6 +1473,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [classroomMessages])
 
+    // Shared state for the LIVE classroom chat stream. Keyed by live task id.
+    const [liveClassroomMessages, setLiveClassroomMessages] = useState<
+      Record<string, TestTaskChatMsg[]>
+    >({})
+
+    // Append a tutor-facing SAI message to the live classroom chat stream.
+    const appendLiveClassroomAiMessage = (taskId: string, content: string, name = 'SAI') => {
+      setLiveClassroomMessages(prev => ({
+        ...prev,
+        [taskId]: [
+          ...(prev[taskId] ?? []),
+          { role: 'ai' as const, name, content, timestamp: Date.now() },
+        ],
+      }))
+    }
+
+    // Accumulator for test-student answers per extension, used to build a class-level
+    // SAI summary when a student clicks "Task Complete".
+    const classroomStudentAnswers = useRef<
+      Record<string, Array<{ studentName: string; answers: string[] }>>
+    >({})
+
     // Current extension key for the Test/Classroom chat preview.
     const getCurrentExtKey = () => {
       const previewExt = taskBuilder.activeExtensionId
@@ -1491,14 +1516,84 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Emit student-interaction events that the tutor-facing classroom AI may use to
-    // generate automated reports. New event types intentionally no-op until guardrails
-    // are defined for them.
-    const emitClassroomAiEvent = (
+    // generate automated reports. On 'task-complete' we ask the Session AI to summarize
+    // the class's responses; individual per-student feedback is not shown in the
+    // classroom stream (that is handled privately in each student tab).
+    const emitClassroomAiEvent = async (
       eventType: 'student-answer' | 'student-ask' | 'task-complete',
       payload: Record<string, unknown>
     ) => {
-      void eventType
-      void payload
+      const key = (payload.extensionId as string) || getCurrentExtKey()
+      const studentName = (payload.studentName as string) || 'Student'
+      const ext = taskBuilder.activeExtensionId
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
+        : null
+
+      if (eventType === 'student-answer') {
+        const answer = payload.answer as string
+        if (!answer) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers.push(answer)
+        } else {
+          bucket.push({ studentName, answers: [answer] })
+        }
+        classroomStudentAnswers.current[key] = bucket
+        return
+      }
+
+      if (eventType === 'task-complete') {
+        const answers = Array.isArray(payload.answers) ? (payload.answers as string[]) : []
+        if (answers.length === 0) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers = answers
+        } else {
+          bucket.push({ studentName, answers })
+        }
+        classroomStudentAnswers.current[key] = bucket
+
+        const totalStudents = testPciTabs.filter(t => t.id.startsWith('student')).length || 2
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          bucket,
+          {
+            taskId: loadedTaskId || undefined,
+            taskName: ext ? ext.name : taskBuilder.title,
+            courseName,
+            taskContent: ext ? ext.content : taskBuilder.taskContent,
+            taskPci: ext ? ext.pci : taskBuilder.taskPci,
+            taskPciSpec: ext ? undefined : taskBuilder.pciSpec,
+            extensionName: ext?.name ?? null,
+            enrolledStudents: totalStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: totalStudents > 0 ? '100%' : '0%',
+          }
+        )
+
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: summaryContext,
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendClassroomAiMessage(data.response || 'Students submitted their answers.', 'SAI')
+        } catch (e) {
+          console.warn('[emitClassroomAiEvent] summary failed:', e)
+          appendClassroomAiMessage(
+            `${bucket.length} student(s) submitted ${bucket.reduce((n, s) => n + s.answers.length, 0)} answer(s).`,
+            'SAI'
+          )
+        }
+      }
     }
 
     // Generate the session AI's initial summary whenever a task is loaded into Test mode.
@@ -1529,6 +1624,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseName,
       classroomMessages,
     ])
+
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -1539,6 +1635,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [testDmiAnswers, setTestDmiAnswers] = useState<Record<string, string>>({})
     const [testDmiResults, setTestDmiResults] = useState<
       Record<string, { loading?: boolean; score?: number | null; feedback?: string }>
+    >({})
+    // Deterministic live-style auto-grade preview for DMI answers.
+    const [testDmiAutoResults, setTestDmiAutoResults] = useState<
+      Record<string, AutoGradeResult & { loading?: boolean }>
     >({})
     // How the last-generated DMI was classified (per source). Lets the tutor
     // override a confidently-wrong call — e.g. numbered study notes read as a
@@ -1876,6 +1976,123 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Track currently loaded item for saving back
     const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
     const [loadedAssessmentId, setLoadedAssessmentId] = useState<string | null>(null)
+
+    // Build a class-level SAI summary for a live chat task after a student submits.
+    const summarizeLiveClassroom = useCallback(
+      async (taskId: string, studentName: string, answers: string[]) => {
+        const task = insightsProps?.liveTasks?.find(t => t.id === taskId)
+        if (!task) return
+        const enrolledStudents = insightsProps?.students?.length ?? 0
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          [{ studentName, answers }],
+          {
+            taskId,
+            taskName: task.title?.trim() || 'Untitled task',
+            courseName,
+            taskContent: task.content || '',
+            taskPci: task.pci,
+            taskPciSpec: task.pciSpec,
+            extensionName: null,
+            enrolledStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: enrolledStudents > 0 ? '100%' : '0%',
+          }
+        )
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: summaryContext,
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendLiveClassroomAiMessage(
+            taskId,
+            data.response || 'Students submitted their answers.',
+            'SAI'
+          )
+        } catch (e) {
+          console.warn('[summarizeLiveClassroom] summary failed:', e)
+          appendLiveClassroomAiMessage(
+            taskId,
+            `${studentName || 'A student'} submitted ${answers.length} answer(s).`,
+            'SAI'
+          )
+        }
+      },
+      [courseName, insightsProps?.liveTasks, insightsProps?.students]
+    )
+
+    // Seed the live classroom "Session ready." greeting when a chat task is selected.
+    useEffect(() => {
+      if (mainTab !== 'live' || testPciSource !== 'task') return
+      const task = insightsProps?.liveTasks?.find(t => t.id === loadedTaskId)
+      if (!task) return
+      if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
+        return
+      if (
+        liveClassroomMessages[task.id]?.some(
+          m => m.role === 'ai' && m.content.startsWith('Session ready.')
+        )
+      )
+        return
+      const enrolledStudents = insightsProps?.students?.length ?? 0
+      const summary = [
+        'Session ready.',
+        '',
+        `Task: ${task.title?.trim() || 'Untitled task'}`,
+        `Course: ${courseName?.trim() || 'Live Course'}`,
+        `Enrolled Students: ${enrolledStudents}`,
+        `Date: ${new Date().toLocaleDateString()}`,
+        'Session Number: 1',
+        `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
+      ].join('\n')
+      appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+    }, [
+      mainTab,
+      testPciSource,
+      loadedTaskId,
+      insightsProps?.liveTasks,
+      insightsProps?.students,
+      courseName,
+      liveClassroomMessages,
+    ])
+
+    // Listen for live task-chat messages and completions, and update the tutor
+    // classroom stream accordingly.
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId || !loadedTaskId) return
+      const socket = insightsProps.socket
+      const handleTaskChatMessage = (msg: TaskChatMessagePayload) => {
+        if (msg.taskId !== loadedTaskId) return
+        setLiveClassroomMessages(prev => ({
+          ...prev,
+          [msg.taskId]: [...(prev[msg.taskId] ?? []), msg],
+        }))
+      }
+      const handleTaskCompleted = (payload: {
+        taskId: string
+        studentId: string
+        studentName?: string
+        answers?: Record<string, string>
+      }) => {
+        if (payload.taskId !== loadedTaskId) return
+        const answers = Object.values(payload.answers ?? {})
+        if (answers.length === 0) return
+        void summarizeLiveClassroom(payload.taskId, payload.studentName || 'A student', answers)
+      }
+      socket.on('task:chat_message', handleTaskChatMessage)
+      socket.on('task:completed', handleTaskCompleted)
+      return () => {
+        socket.off('task:chat_message', handleTaskChatMessage)
+        socket.off('task:completed', handleTaskCompleted)
+      }
+    }, [insightsProps?.socket, insightsProps?.sessionId, loadedTaskId, summarizeLiveClassroom])
 
     const canMirrorToStudents = !!(
       insightsProps?.sessionId &&
@@ -3236,6 +3453,63 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }
 
+    // Live-style deterministic auto-grade preview for a single DMI answer.
+    // This matches the socket `task:complete` grading path used in live sessions.
+    const autoGradeTestDmiItem = async (item: DMIQuestion) => {
+      const key = `${testPciActiveTab}:${item.id}`
+      const answer = (testDmiAnswers[key] || '').trim()
+      if (!answer) return
+      setTestDmiAutoResults(prev => ({
+        ...prev,
+        [key]: {
+          loading: true,
+          score: null,
+          questionResults: null,
+          gradable: 0,
+          correct: 0,
+          needsReview: 0,
+          pointsPossible: 0,
+          pointsEarned: 0,
+        },
+      }))
+      try {
+        const res = await fetchWithCsrf('/api/tutor/auto-grade-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [
+              {
+                id: String(item.id),
+                answer: item.answer || '',
+                marks: item.marks,
+                questionText: item.questionText,
+              },
+            ],
+            answers: { [String(item.id)]: answer },
+          }),
+        })
+        const data = (await res.json().catch(() => ({}))) as AutoGradeResult
+        if (!res.ok)
+          throw new Error((data as unknown as { error?: string }).error || 'Failed to auto-grade')
+        setTestDmiAutoResults(prev => ({ ...prev, [key]: { ...data, loading: false } }))
+      } catch (e) {
+        setTestDmiAutoResults(prev => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            score: null,
+            questionResults: null,
+            gradable: 0,
+            correct: 0,
+            needsReview: 0,
+            pointsPossible: 0,
+            pointsEarned: 0,
+          },
+        }))
+        toast.error(e instanceof Error ? e.message : 'Failed to auto-grade')
+      }
+    }
+
     // Handle Test PCI answer submission with AI scoring
     const handleTestPciSubmit = async () => {
       const currentInput = testPciInputs[testPciActiveTab] || ''
@@ -4024,9 +4298,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
 
-        // Study material: the AI also drafted answers — open the review modal so
-        // the tutor can set marks and vet/approve the answers before deploying.
-        if (isStudyMaterial) {
+        // Open the DMI editor so the tutor can review and edit the AI-prepopulated
+        // answers/rubrics. For study material this also vets the generated questions;
+        // for question papers it vets the inferred answer key before deployment.
+        if (type === 'assessment') {
           setDmiEditor({ source: isTask ? 'task' : 'assessment' })
         }
       } catch (error) {
@@ -10950,6 +11225,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             return (
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
+                                                  taskId={loadedTaskId || undefined}
                                                   pci={
                                                     (previewExt
                                                       ? previewExt.pci
@@ -11019,18 +11295,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ],
                                                       }))
                                                     } else {
-                                                      // Student message → add to classroom view with student name
-                                                      const studentMsg = {
-                                                        ...msg,
-                                                        name: studentTabName,
+                                                      // Only relay actual student messages to the classroom view.
+                                                      // AI/tutor feedback generated for an individual student is
+                                                      // not shown to the tutor, otherwise large classes would
+                                                      // flood the classroom stream with per-student responses.
+                                                      if (msg.role === 'student') {
+                                                        const studentMsg = {
+                                                          ...msg,
+                                                          name: studentTabName,
+                                                        }
+                                                        setClassroomMessages(prev => ({
+                                                          ...prev,
+                                                          [extKey]: [
+                                                            ...(prev[extKey] ?? []),
+                                                            studentMsg,
+                                                          ],
+                                                        }))
                                                       }
-                                                      setClassroomMessages(prev => ({
-                                                        ...prev,
-                                                        [extKey]: [
-                                                          ...(prev[extKey] ?? []),
-                                                          studentMsg,
-                                                        ],
-                                                      }))
                                                     }
                                                   }}
                                                   onReset={() => {
@@ -11058,6 +11339,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     delete testTaskChatStore.current[
                                                       `${extKey}:classroom`
                                                     ]
+                                                    // 4. Clear accumulated student answers used for SAI summaries
+                                                    delete classroomStudentAnswers.current[extKey]
                                                     try {
                                                       localStorage.setItem(
                                                         'tutor-test-chat-store-v1',
@@ -11113,6 +11396,69 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             extensionId: extKey,
                                                             studentName: studentTabName,
                                                           })
+                                                  }
+                                                />
+                                              </div>
+                                            )
+                                          }
+
+                                          // Live classroom chat task: use the same TestTaskChat
+                                          // component as Test mode so the tutor sees identical
+                                          // document popup / avatars / SAI summary behavior.
+                                          const activeLiveChatTask =
+                                            insightsProps?.liveTasks?.find(
+                                              t => t.id === loadedTaskId
+                                            ) ?? null
+                                          if (
+                                            mainTab === 'live' &&
+                                            testPciSource === 'task' &&
+                                            tab.id === 'classroom' &&
+                                            activeLiveChatTask &&
+                                            activeLiveChatTask.source === 'task' &&
+                                            !(
+                                              Array.isArray(activeLiveChatTask.dmiItems) &&
+                                              activeLiveChatTask.dmiItems.length > 0
+                                            )
+                                          ) {
+                                            const taskId = activeLiveChatTask.id
+                                            return (
+                                              <div className="h-full min-h-0 w-full">
+                                                <TestTaskChat
+                                                  taskId={taskId}
+                                                  mode="classroom"
+                                                  pci={activeLiveChatTask.pci}
+                                                  pciSpec={activeLiveChatTask.pciSpec}
+                                                  questionText={`${activeLiveChatTask.title}\n\n${activeLiveChatTask.content}`}
+                                                  sourceDocument={activeLiveChatTask.sourceDocument}
+                                                  incomingMessages={liveClassroomMessages[taskId]}
+                                                  tutorAvatarUrl={tutorAvatarUrl}
+                                                  onBroadcast={msg => {
+                                                    if (
+                                                      !insightsProps?.socket ||
+                                                      !insightsProps?.sessionId
+                                                    )
+                                                      return
+                                                    insightsProps.socket.emit('task:chat_message', {
+                                                      roomId: insightsProps.sessionId,
+                                                      taskId,
+                                                      role: 'tutor',
+                                                      content: msg.content,
+                                                      name: 'Tutor',
+                                                      timestamp: Date.now(),
+                                                    })
+                                                  }}
+                                                  onTutorNote={note =>
+                                                    appendLiveClassroomAiMessage(
+                                                      taskId,
+                                                      note,
+                                                      'SAI'
+                                                    )
+                                                  }
+                                                  onReset={() =>
+                                                    setLiveClassroomMessages(prev => ({
+                                                      ...prev,
+                                                      [taskId]: [],
+                                                    }))
                                                   }
                                                 />
                                               </div>
@@ -11322,11 +11668,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           </p>
                                                         )}
                                                         {mainTab === 'test-pci' &&
-                                                          testPciSource === 'assessment' &&
                                                           canEdit &&
                                                           (() => {
                                                             const ak = `${testPciActiveTab}:${item.id}`
-                                                            const result = testDmiResults[ak]
+                                                            const answer = (
+                                                              testDmiAnswers[ak] || ''
+                                                            ).trim()
+                                                            const autoResult =
+                                                              testDmiAutoResults[ak]
+                                                            const llmResult = testDmiResults[ak]
                                                             return (
                                                               <div className="mt-2 border-t border-gray-200 pt-2">
                                                                 <textarea
@@ -11342,39 +11692,105 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
                                                                   className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
                                                                 />
-                                                                <div className="mt-1 flex items-center gap-2">
+                                                                <div className="mt-1 flex flex-wrap items-center gap-2">
                                                                   <button
                                                                     type="button"
                                                                     disabled={
-                                                                      result?.loading ||
-                                                                      !(
-                                                                        testDmiAnswers[ak] || ''
-                                                                      ).trim()
+                                                                      autoResult?.loading || !answer
                                                                     }
                                                                     onClick={() =>
-                                                                      gradeTestDmiItem(item)
+                                                                      autoGradeTestDmiItem(item)
                                                                     }
-                                                                    aria-label={`Grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                    className="rounded-md bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                                                                    aria-label={`Auto-grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                                                                   >
-                                                                    {result?.loading
-                                                                      ? 'Grading…'
-                                                                      : 'Grade'}
+                                                                    {autoResult?.loading
+                                                                      ? 'Auto-grading…'
+                                                                      : 'Auto-grade'}
                                                                   </button>
-                                                                  {result &&
-                                                                    !result.loading &&
-                                                                    typeof result.score ===
-                                                                      'number' && (
-                                                                      <span className="text-xs font-semibold text-violet-700">
-                                                                        Score: {result.score}%
+                                                                  {testPciSource ===
+                                                                    'assessment' && (
+                                                                    <button
+                                                                      type="button"
+                                                                      disabled={
+                                                                        llmResult?.loading ||
+                                                                        !answer
+                                                                      }
+                                                                      onClick={() =>
+                                                                        gradeTestDmiItem(item)
+                                                                      }
+                                                                      aria-label={`Debug LLM grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                      className="rounded-md bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                                                                    >
+                                                                      {llmResult?.loading
+                                                                        ? 'Grading…'
+                                                                        : 'Debug LLM grade'}
+                                                                    </button>
+                                                                  )}
+                                                                  {autoResult &&
+                                                                    !autoResult.loading &&
+                                                                    autoResult.score !== null && (
+                                                                      <span className="text-xs font-semibold text-emerald-700">
+                                                                        Score: {autoResult.score}%
                                                                       </span>
                                                                     )}
                                                                 </div>
-                                                                {result &&
-                                                                  !result.loading &&
-                                                                  result.feedback && (
+                                                                {autoResult &&
+                                                                  !autoResult.loading &&
+                                                                  Array.isArray(
+                                                                    autoResult.questionResults
+                                                                  ) &&
+                                                                  autoResult.questionResults
+                                                                    .length > 0 && (
+                                                                    <div className="mt-1 space-y-1">
+                                                                      {autoResult.questionResults.map(
+                                                                        r => (
+                                                                          <div
+                                                                            key={r.questionId}
+                                                                            className="flex items-center gap-2 text-xs"
+                                                                          >
+                                                                            {r.correct ? (
+                                                                              <span className="font-medium text-emerald-700">
+                                                                                Correct
+                                                                              </span>
+                                                                            ) : r.needsReview ? (
+                                                                              <span className="font-medium text-amber-700">
+                                                                                Needs review
+                                                                              </span>
+                                                                            ) : (
+                                                                              <span className="font-medium text-red-700">
+                                                                                Incorrect
+                                                                              </span>
+                                                                            )}
+                                                                            {typeof r.pointsEarned ===
+                                                                              'number' &&
+                                                                              typeof r.pointsMax ===
+                                                                                'number' &&
+                                                                              r.pointsMax > 0 && (
+                                                                                <span className="text-slate-600">
+                                                                                  {r.pointsEarned}/
+                                                                                  {r.pointsMax}
+                                                                                </span>
+                                                                              )}
+                                                                          </div>
+                                                                        )
+                                                                      )}
+                                                                    </div>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  typeof llmResult.score ===
+                                                                    'number' && (
+                                                                    <span className="mt-1 block text-xs font-semibold text-violet-700">
+                                                                      Debug LLM score:{' '}
+                                                                      {llmResult.score}%
+                                                                    </span>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  llmResult.feedback && (
                                                                     <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
-                                                                      {result.feedback}
+                                                                      {llmResult.feedback}
                                                                     </p>
                                                                   )}
                                                               </div>
@@ -11920,44 +12336,50 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           // Text-only task: locked 1100 x 620 slide canvas.
                                           // No PDF preview here; the snapshot is generated only when entering Test/Live.
                                           <div className="flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                            <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                              <TaskSlideTextEditor
-                                                ref={taskSlideEditorRef}
-                                                html={
-                                                  taskBuilder.activeExtensionId
-                                                    ? taskBuilder.extensions.find(
-                                                        e => e.id === taskBuilder.activeExtensionId
-                                                      )?.content || ''
-                                                    : taskBuilder.taskContent
-                                                }
-                                                onHtmlChange={(newContent: string) => {
-                                                  if (
-                                                    !loadedTaskId &&
-                                                    !taskBuilder.activeExtensionId
-                                                  ) {
-                                                    autoCreateTask()
+                                            <div className="flex items-center justify-center gap-4">
+                                              <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                                <TaskSlideTextEditor
+                                                  ref={taskSlideEditorRef}
+                                                  html={
+                                                    taskBuilder.activeExtensionId
+                                                      ? taskBuilder.extensions.find(
+                                                          e =>
+                                                            e.id === taskBuilder.activeExtensionId
+                                                        )?.content || ''
+                                                      : taskBuilder.taskContent
                                                   }
-                                                  if (taskBuilder.activeExtensionId) {
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      extensions: prev.extensions.map(ext =>
-                                                        ext.id === prev.activeExtensionId
-                                                          ? { ...ext, content: newContent }
-                                                          : ext
-                                                      ),
-                                                    }))
-                                                  } else {
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      taskContent: newContent,
-                                                    }))
-                                                  }
-                                                }}
-                                                readOnly={!canEdit}
-                                                placeholder="Type the task content here — or load a document above to work from it."
-                                                className="h-full w-full"
-                                                style={{ fontSize: '18px' }}
-                                              />
+                                                  onHtmlChange={(newContent: string) => {
+                                                    if (
+                                                      !loadedTaskId &&
+                                                      !taskBuilder.activeExtensionId
+                                                    ) {
+                                                      autoCreateTask()
+                                                    }
+                                                    if (taskBuilder.activeExtensionId) {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        extensions: prev.extensions.map(ext =>
+                                                          ext.id === prev.activeExtensionId
+                                                            ? { ...ext, content: newContent }
+                                                            : ext
+                                                        ),
+                                                      }))
+                                                    } else {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        taskContent: newContent,
+                                                      }))
+                                                    }
+                                                  }}
+                                                  readOnly={!canEdit}
+                                                  placeholder="Type the task content here — or load a document above to work from it."
+                                                  className="h-full w-full"
+                                                  style={{
+                                                    fontSize: `${slideFontSize}px`,
+                                                    color: slideTextColor,
+                                                  }}
+                                                />
+                                              </div>
                                               <TaskSlideFontEditor
                                                 fontSize={slideFontSize}
                                                 onFontSizeChange={(size: number) => {

@@ -2,7 +2,7 @@ const ALLOWED_TAG = 'SPAN'
 const ALLOWED_STYLES = new Set(['font-size', 'color'])
 
 export function isSlideHtml(value: string): boolean {
-  return /<span[\s>]/i.test(value)
+  return /<[a-z][\s>]/i.test(value)
 }
 
 export function sanitizeSlideHtml(html: string): string {
