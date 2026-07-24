@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -972,6 +973,15 @@ function StudentFeedbackContent() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
   const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
+
+  // Clear restored chat state synchronously when the active task changes so the
+  // TestTaskChat component remounts with a blank slate while the new task's
+  // prior submission is being fetched. Without this, the previous task's messages
+  // can survive into the newly deployed task because TestTaskChat only uses its
+  // initialState prop on first mount.
+  useLayoutEffect(() => {
+    setTaskChatInitial(undefined)
+  }, [activeTaskId])
   const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
   const [sessionContext, setSessionContext] = useState<{
     topic: string | null
