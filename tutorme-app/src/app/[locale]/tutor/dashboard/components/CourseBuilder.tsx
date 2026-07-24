@@ -2281,8 +2281,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [insightsProps?.students])
 
     const activeLiveTask = useMemo(
-      () => (insightsProps?.liveTasks ?? []).find(t => t.id === currentInsightsId) ?? null,
-      [insightsProps?.liveTasks, currentInsightsId]
+      () => (insightsProps?.liveTasks ?? []).find(t => t.id === activeInsightsTaskId) ?? null,
+      [insightsProps?.liveTasks, activeInsightsTaskId]
     )
 
     // Tutor closes a poll/question: server locks it and no more answers land.
@@ -10824,7 +10824,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         return
                                                       const opts = resolvePollOptions()
                                                       insightsProps.onSendPoll({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         question: pollPrompt,
                                                         options: opts,
                                                       })
@@ -10949,7 +10949,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       )
                                                         return
                                                       insightsProps.onSendQuestion({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         prompt: questionPrompt,
                                                       })
                                                       setQuestionPrompt('')
@@ -13701,7 +13701,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   return
                                                 const opts = resolvePollOptions()
                                                 insightsProps.onSendPoll({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   question: pollPrompt,
                                                   options: opts,
                                                 })
@@ -13808,7 +13808,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 )
                                                   return
                                                 insightsProps.onSendQuestion({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   prompt: questionPrompt,
                                                 })
                                                 setQuestionPrompt('')
