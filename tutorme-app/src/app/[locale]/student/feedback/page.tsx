@@ -83,6 +83,29 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 
+/** Group deployed task directory items into base tasks and their extensions. */
+interface GroupableTask {
+  id: string
+  itemId?: string
+  title: string
+  parentId?: string | null
+  isExtension?: boolean
+}
+function groupTasksByParent(tasks: GroupableTask[]) {
+  const baseTasks: GroupableTask[] = []
+  const extMap = new Map<string, GroupableTask[]>()
+  for (const t of tasks) {
+    if (t.parentId && t.isExtension) {
+      const arr = extMap.get(t.parentId) || []
+      arr.push(t)
+      extMap.set(t.parentId, arr)
+    } else {
+      baseTasks.push(t)
+    }
+  }
+  return { baseTasks, extMap }
+}
+
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
 
@@ -2820,35 +2843,76 @@ function StudentFeedbackContent() {
                                             </button>
                                             {foldersOpen.tasks && (
                                               <div className="mt-1 flex flex-col gap-0.5 pl-6">
-                                                {(!courseData.tasks ||
-                                                  courseData.tasks.length === 0) && (
-                                                  <span className="px-2 py-1 text-xs text-slate-500">
-                                                    Empty folder
-                                                  </span>
-                                                )}
-                                                {courseData.tasks &&
-                                                  [...courseData.tasks].reverse().map(task => (
-                                                    <button
-                                                      key={task.id}
-                                                      onClick={() =>
-                                                        handleSelectDirectoryItem(task)
-                                                      }
-                                                      className={cn(
-                                                        'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                                                        activeTaskId === (task.itemId || task.id)
-                                                          ? 'bg-blue-50 font-medium text-blue-700'
-                                                          : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                                      )}
-                                                    >
-                                                      <FileText className="h-3.5 w-3.5 shrink-0" />
-                                                      <span className="truncate">{task.title}</span>
-                                                      {unseenTaskIds.includes(
-                                                        task.itemId || task.id
-                                                      ) && (
-                                                        <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-                                                      )}
-                                                    </button>
-                                                  ))}
+                                                {(() => {
+                                                  const { baseTasks, extMap } = groupTasksByParent(
+                                                    courseData.tasks || []
+                                                  )
+                                                  if (baseTasks.length === 0) {
+                                                    return (
+                                                      <span className="px-2 py-1 text-xs text-slate-500">
+                                                        Empty folder
+                                                      </span>
+                                                    )
+                                                  }
+                                                  return baseTasks
+                                                    .slice()
+                                                    .reverse()
+                                                    .map(task => (
+                                                      <Fragment key={task.id}>
+                                                        <button
+                                                          onClick={() =>
+                                                            handleSelectDirectoryItem(task)
+                                                          }
+                                                          className={cn(
+                                                            'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                                                            activeTaskId ===
+                                                              (task.itemId || task.id)
+                                                              ? 'bg-blue-50 font-medium text-blue-700'
+                                                              : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                          )}
+                                                        >
+                                                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                          <span className="truncate">
+                                                            {task.title}
+                                                          </span>
+                                                          {unseenTaskIds.includes(
+                                                            task.itemId || task.id
+                                                          ) && (
+                                                            <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                          )}
+                                                        </button>
+                                                        {extMap
+                                                          .get(task.itemId || task.id)
+                                                          ?.slice()
+                                                          .reverse()
+                                                          .map(ext => (
+                                                            <button
+                                                              key={ext.id}
+                                                              onClick={() =>
+                                                                handleSelectDirectoryItem(ext)
+                                                              }
+                                                              className={cn(
+                                                                'group flex items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left text-sm transition-colors',
+                                                                activeTaskId ===
+                                                                  (ext.itemId || ext.id)
+                                                                  ? 'bg-blue-50 font-medium text-blue-700'
+                                                                  : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                              )}
+                                                            >
+                                                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                              <span className="truncate">
+                                                                {ext.title}
+                                                              </span>
+                                                              {unseenTaskIds.includes(
+                                                                ext.itemId || ext.id
+                                                              ) && (
+                                                                <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                              )}
+                                                            </button>
+                                                          ))}
+                                                      </Fragment>
+                                                    ))
+                                                })()}
                                               </div>
                                             )}
                                           </div>
