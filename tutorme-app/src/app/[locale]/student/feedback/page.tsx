@@ -2170,116 +2170,110 @@ function StudentFeedbackContent() {
 
                   <div className="flex-1 overflow-hidden p-4 pt-6">
                     {activeTask ? (
-                      <div
-                        className="h-full w-full overflow-y-auto"
-                        style={{ zoom: viewerZoom } as React.CSSProperties}
-                      >
-                        <h3 className="mb-3 text-base font-semibold text-gray-900">
-                          {activeTask.title}
-                        </h3>
+                      isChatTask && activeTaskId ? (
+                        <div className="h-full w-full">
+                          <TestTaskChat
+                            key={activeTaskId}
+                            mode="test-student"
+                            questionText={`${activeTask.title}\n\n${activeTask.content}`}
+                            sourceDocument={activeTask.sourceDocument}
+                            initialState={taskChatInitial}
+                            incomingMessages={taskChatIncoming}
+                            studentAvatarUrl={session?.user?.image}
+                            onGrade={body =>
+                              fetchWithCsrf(`/api/student/assignments/${activeTaskId}/task-chat`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                              })
+                            }
+                            onBroadcast={msg => {
+                              if (!socket || !selectedSessionId) return
+                              socket.emit('task:chat_message', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                role: 'student',
+                                content: msg.content,
+                                name: session?.user?.name || 'Student',
+                                timestamp: Date.now(),
+                              })
+                            }}
+                            onComplete={answers => {
+                              if (!socket || !selectedSessionId || !activeTaskId) return
+                              const record: Record<string, string> = {}
+                              answers.forEach((a, i) => {
+                                record[String(i + 1)] = a
+                              })
+                              socket.emit('task:complete', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                answers: record,
+                                aiHandled: true,
+                              })
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="h-full w-full overflow-y-auto"
+                          style={{ zoom: viewerZoom } as React.CSSProperties}
+                        >
+                          <h3 className="mb-3 text-base font-semibold text-gray-900">
+                            {activeTask.title}
+                          </h3>
 
-                        {activeTask.content && (
-                          <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
-                            {activeTask.content}
-                          </div>
-                        )}
-
-                        {/* For a chat task the document lives inside the chat panel
-                            (it collapses into a pinned card after the first message),
-                            so only render the standalone viewer for non-chat tasks. */}
-                        {!isChatTask && activeTask.sourceDocument && (
-                          // Same renderer the chat flow uses (via TaskDocumentCard),
-                          // in its non-collapsible mode — one code path for the PDF/
-                          // image viewer and the "document unavailable" fallback.
-                          <div className="mb-4 h-[55vh] w-full">
-                            <TaskDocumentCard
-                              sourceDocument={activeTask.sourceDocument}
-                              alwaysOpen
-                            />
-                          </div>
-                        )}
-
-                        {/* The questions + answer inputs live in the right-hand
-                            Assessment tab (single source of truth). Here we just
-                            point the student to it so a question-only task isn't
-                            blank. */}
-                        {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setRightPanelTab('dmi')}
-                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
-                          >
-                            <span>
-                              {activeTask.dmiItems.length} question
-                              {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
-                              Assessment tab
-                            </span>
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          </button>
-                        )}
-
-                        {/* Chat-based task: the student answers by chatting, then
-                            "Task complete" → the AI responds to each answer per the
-                            PCI, then they can ask about what they got wrong. */}
-                        {isChatTask && activeTaskId && (
-                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
-                            <TestTaskChat
-                              key={activeTaskId}
-                              mode="test-student"
-                              questionText={`${activeTask.title}\n\n${activeTask.content}`}
-                              sourceDocument={activeTask.sourceDocument}
-                              initialState={taskChatInitial}
-                              incomingMessages={taskChatIncoming}
-                              studentAvatarUrl={session?.user?.image}
-                              onGrade={body =>
-                                fetchWithCsrf(
-                                  `/api/student/assignments/${activeTaskId}/task-chat`,
-                                  {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(body),
-                                  }
-                                )
-                              }
-                              onBroadcast={msg => {
-                                if (!socket || !selectedSessionId) return
-                                socket.emit('task:chat_message', {
-                                  roomId: selectedSessionId,
-                                  taskId: activeTaskId,
-                                  role: 'student',
-                                  content: msg.content,
-                                  name: session?.user?.name || 'Student',
-                                  timestamp: Date.now(),
-                                })
-                              }}
-                              onComplete={answers => {
-                                if (!socket || !selectedSessionId || !activeTaskId) return
-                                const record: Record<string, string> = {}
-                                answers.forEach((a, i) => {
-                                  record[String(i + 1)] = a
-                                })
-                                socket.emit('task:complete', {
-                                  roomId: selectedSessionId,
-                                  taskId: activeTaskId,
-                                  answers: record,
-                                  aiHandled: true,
-                                })
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {!isChatTask &&
-                          !activeTask.content &&
-                          !activeTask.sourceDocument &&
-                          !(
-                            Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
-                          ) && (
-                            <p className="text-sm text-gray-500">
-                              This task has no content to display.
-                            </p>
+                          {activeTask.content && (
+                            <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
+                              {activeTask.content}
+                            </div>
                           )}
-                      </div>
+
+                          {/* For a chat task the document lives inside the chat panel
+                              (it collapses into a pinned card after the first message),
+                              so only render the standalone viewer for non-chat tasks. */}
+                          {!isChatTask && activeTask.sourceDocument && (
+                            // Same renderer the chat flow uses (via TaskDocumentCard),
+                            // in its non-collapsible mode — one code path for the PDF/
+                            // image viewer and the "document unavailable" fallback.
+                            <div className="mb-4 h-[55vh] w-full">
+                              <TaskDocumentCard
+                                sourceDocument={activeTask.sourceDocument}
+                                alwaysOpen
+                              />
+                            </div>
+                          )}
+
+                          {/* The questions + answer inputs live in the right-hand
+                              Assessment tab (single source of truth). Here we just
+                              point the student to it so a question-only task isn't
+                              blank. */}
+                          {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setRightPanelTab('dmi')}
+                              className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
+                            >
+                              <span>
+                                {activeTask.dmiItems.length} question
+                                {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
+                                Assessment tab
+                              </span>
+                              <ChevronRight className="h-4 w-4 shrink-0" />
+                            </button>
+                          )}
+
+                          {!isChatTask &&
+                            !activeTask.content &&
+                            !activeTask.sourceDocument &&
+                            !(
+                              Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
+                            ) && (
+                              <p className="text-sm text-gray-500">
+                                This task has no content to display.
+                              </p>
+                            )}
+                        </div>
+                      )
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-gray-400">
                         Select a task from the Lessons tab to open it.
