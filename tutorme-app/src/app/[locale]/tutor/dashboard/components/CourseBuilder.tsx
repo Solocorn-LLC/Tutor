@@ -1708,16 +1708,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Tutor's answer-reveal policy applied to deploys: when students may see the
     // correct answers. Default 'instant' preserves the existing live-feedback
     // behaviour; the tutor can switch to reveal-after-submit or hidden.
+    //
+    // Tasks: answer-reveal is derived from the task PCI (free-text instructions or
+    // the structured answerRevealPolicy). We skip the dialog and deploy immediately.
+    // Assessments and homework still show the dialog so the tutor can choose.
     const [deployAnswerReveal, setDeployAnswerReveal] = useState<
       'instant' | 'after_submit' | 'hidden' | 'student_choice'
     >('instant')
-    // When the tutor clicks Deploy, a dialog first asks how/when students see
-    // answers, then runs the actual deploy with the chosen mode.
+    // Dialog state for assessments and homework: the tutor picks the reveal mode
+    // before the actual deploy runs.
     const [deployDialog, setDeployDialog] = useState<{
       run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
     } | null>(null)
-    // Any Deploy action routes through this: it opens the answer-reveal dialog,
-    // then runs the real deploy with the chosen mode applied to the payload.
+    // Any Deploy action routes through this. Tasks deploy immediately using the PCI.
+    // Assessments and homework open the answer-reveal dialog first.
     const deployTaskWithDialog = useCallback(
       (payload: LiveTask) => {
         // Attach the tutor's PCI (free-text `instructions` + finalized structured
@@ -1780,6 +1784,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const basePciSpec = payload.pciSpec ?? src?.pciSpec
         const baseLessonId = payload.lessonId ?? srcLessonId
 
+        // For tasks the answer-reveal mode is derived from the PCI, not chosen in
+        // a dialog. Fall back to 'instant' to preserve existing behavior.
+        const deriveTaskAnswerReveal = (
+          pci?: string | null,
+          pciSpec?: import('@/lib/assessment/pci-spec').PciSpec | null
+        ): 'instant' | 'after_submit' | 'hidden' | 'student_choice' =>
+          revealPolicyToDeployMode(pci ?? undefined) ??
+          revealPolicyToDeployMode(pciSpec?.answerRevealPolicy ?? undefined) ??
+          'instant'
+
         // Legacy single-extension path, or task with no extensions: deploy as a single item.
         const extensions = src?.extensions ?? []
         if (payload.source !== 'task' || payload.isExtension || extensions.length === 0) {
@@ -1802,6 +1816,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             lessonId: baseLessonId,
             isExtension: payload.isExtension ?? false,
           }
+          // Tasks deploy immediately using the PCI-derived reveal mode.
+          if (payload.source === 'task') {
+            insightsProps?.onDeployTask?.({
+              ...enriched,
+              answerReveal: deriveTaskAnswerReveal(basePci, basePciSpec),
+            })
+            return
+          }
+          // Assessments and homework still show the answer-reveal dialog.
           setDeployDialog({
             run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
           })
@@ -1822,6 +1845,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           return
         }
 
+        const taskAnswerReveal = deriveTaskAnswerReveal(basePci, basePciSpec)
+
         const baseTask: LiveTask = {
           ...payload,
           dmiItems: safeDmiItems,
@@ -1831,6 +1856,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           lessonId: baseLessonId,
           parentId: undefined,
           isExtension: false,
+          answerReveal: taskAnswerReveal,
         }
 
         const extensionTasks: LiveTask[] = extensions.map(ext => ({
@@ -1849,15 +1875,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           pci: basePci,
           pciSpec: basePciSpec,
           lessonId: baseLessonId,
+          answerReveal: taskAnswerReveal,
         }))
 
         const deploySet = [baseTask, ...extensionTasks]
-        setDeployDialog({
-          run: reveal =>
-            deploySet.forEach(task =>
-              insightsProps?.onDeployTask?.({ ...task, answerReveal: reveal })
-            ),
-        })
+        deploySet.forEach(task => insightsProps?.onDeployTask?.(task))
       },
       [insightsProps, nodes]
     )
