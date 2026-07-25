@@ -1445,6 +1445,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
           polls: Array.isArray(task.polls) ? task.polls : [],
           questions: Array.isArray(task.questions) ? task.questions : [],
           sourceDocument: refreshedSourceDocument,
+          parentId: task.parentId,
+          isExtension: task.isExtension ?? false,
         }
 
         const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)

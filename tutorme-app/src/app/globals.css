@@ -735,6 +735,17 @@
     box-shadow: none !important;
   }
 
+  /* Belt-and-suspenders: suppress the focus-visible ring on the dropdown trigger itself.
+     The shared DropdownMenuTrigger component also injects these utilities; this rule
+     catches any edge cases where the component-level merge is bypassed. */
+  [data-radix-dropdown-menu-trigger]:focus,
+  [data-radix-dropdown-menu-trigger]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+
   /* Typography Hierarchy - Fira Code for headings */
   h1,
   h2,

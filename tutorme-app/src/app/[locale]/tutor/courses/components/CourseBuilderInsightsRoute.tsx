@@ -1091,23 +1091,29 @@ function CourseBuilderInsightsRouteInner({
                     value={courseStateFilter}
                     onValueChange={(val: CourseStateFilter) => handleCourseStateFilterChange(val)}
                   >
-                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
+                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium transition-none focus-visible:ring-0 focus-visible:ring-offset-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unpublished" className="">
+                      <SelectItem
+                        value="unpublished"
+                        className="transition-none focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
                           Unpublished
                         </div>
                       </SelectItem>
-                      <SelectItem value="published" className="">
+                      <SelectItem
+                        value="published"
+                        className="transition-none focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-blue-500" />
                           Published
                         </div>
                       </SelectItem>
-                      <SelectItem value="creating" className="">
+                      <SelectItem value="creating" className="transition-none focus-visible:ring-0">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-amber-500" />
                           Creating
