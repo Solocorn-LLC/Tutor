@@ -114,7 +114,7 @@ export function TaskSlideFontEditor({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="h-7 w-7 rounded-full border border-slate-300 shadow-sm"
+            className="h-6 w-6 rounded-full border border-slate-300 shadow-sm"
             style={{ backgroundColor: color }}
             title="Text color"
             aria-label="Open text color picker"

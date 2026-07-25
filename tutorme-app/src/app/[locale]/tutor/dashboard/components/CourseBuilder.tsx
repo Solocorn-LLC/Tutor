@@ -12335,68 +12335,66 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         {!hasUploadedTaskDocument ? (
                                           // Text-only task: locked 1100 x 620 slide canvas.
                                           // No PDF preview here; the snapshot is generated only when entering Test/Live.
-                                          <div className="flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                            <div className="flex items-center justify-center gap-4">
-                                              <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                                <TaskSlideTextEditor
-                                                  ref={taskSlideEditorRef}
-                                                  html={
-                                                    taskBuilder.activeExtensionId
-                                                      ? taskBuilder.extensions.find(
-                                                          e =>
-                                                            e.id === taskBuilder.activeExtensionId
-                                                        )?.content || ''
-                                                      : taskBuilder.taskContent
+                                          <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
+                                            <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                              <TaskSlideTextEditor
+                                                ref={taskSlideEditorRef}
+                                                html={
+                                                  taskBuilder.activeExtensionId
+                                                    ? taskBuilder.extensions.find(
+                                                        e => e.id === taskBuilder.activeExtensionId
+                                                      )?.content || ''
+                                                    : taskBuilder.taskContent
+                                                }
+                                                onHtmlChange={(newContent: string) => {
+                                                  if (
+                                                    !loadedTaskId &&
+                                                    !taskBuilder.activeExtensionId
+                                                  ) {
+                                                    autoCreateTask()
                                                   }
-                                                  onHtmlChange={(newContent: string) => {
-                                                    if (
-                                                      !loadedTaskId &&
-                                                      !taskBuilder.activeExtensionId
-                                                    ) {
-                                                      autoCreateTask()
-                                                    }
-                                                    if (taskBuilder.activeExtensionId) {
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        extensions: prev.extensions.map(ext =>
-                                                          ext.id === prev.activeExtensionId
-                                                            ? { ...ext, content: newContent }
-                                                            : ext
-                                                        ),
-                                                      }))
-                                                    } else {
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        taskContent: newContent,
-                                                      }))
-                                                    }
-                                                  }}
-                                                  readOnly={!canEdit}
-                                                  placeholder="Type the task content here — or load a document above to work from it."
-                                                  className="h-full w-full"
-                                                  style={{
-                                                    fontSize: `${slideFontSize}px`,
-                                                    color: slideTextColor,
-                                                  }}
-                                                />
-                                              </div>
-                                              <TaskSlideFontEditor
-                                                fontSize={slideFontSize}
-                                                onFontSizeChange={(size: number) => {
-                                                  setSlideFontSize(size)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    fontSize: size,
-                                                  })
+                                                  if (taskBuilder.activeExtensionId) {
+                                                    setTaskBuilder(prev => ({
+                                                      ...prev,
+                                                      extensions: prev.extensions.map(ext =>
+                                                        ext.id === prev.activeExtensionId
+                                                          ? { ...ext, content: newContent }
+                                                          : ext
+                                                      ),
+                                                    }))
+                                                  } else {
+                                                    setTaskBuilder(prev => ({
+                                                      ...prev,
+                                                      taskContent: newContent,
+                                                    }))
+                                                  }
                                                 }}
-                                                color={slideTextColor}
-                                                onColorChange={(color: string) => {
-                                                  setSlideTextColor(color)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    color,
-                                                  })
+                                                readOnly={!canEdit}
+                                                placeholder="Type the task content here — or load a document above to work from it."
+                                                className="h-full w-full"
+                                                style={{
+                                                  fontSize: `${slideFontSize}px`,
+                                                  color: slideTextColor,
                                                 }}
                                               />
                                             </div>
+                                            <TaskSlideFontEditor
+                                              className="absolute right-2 top-1/2 -translate-y-1/2"
+                                              fontSize={slideFontSize}
+                                              onFontSizeChange={(size: number) => {
+                                                setSlideFontSize(size)
+                                                taskSlideEditorRef.current?.applyFormat({
+                                                  fontSize: size,
+                                                })
+                                              }}
+                                              color={slideTextColor}
+                                              onColorChange={(color: string) => {
+                                                setSlideTextColor(color)
+                                                taskSlideEditorRef.current?.applyFormat({
+                                                  color,
+                                                })
+                                              }}
+                                            />
                                           </div>
                                         ) : (
                                           <div className="flex h-full w-full flex-row">

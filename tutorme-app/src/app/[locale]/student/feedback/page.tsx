@@ -2194,7 +2194,7 @@ function StudentFeedbackContent() {
                   </div>
 
                   {/* Floating zoom controls */}
-                  <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
+                  <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
                     <Button
                       variant="ghost"
                       size="icon"
