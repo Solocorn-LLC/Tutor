@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
           pricePerSeat: body.pricePerSeat,
           currency: tutorProfile.currency || 'USD',
           status: 'OPEN',
-          calendarEventId: event.eventId,
+          calendarEventId: event!.eventId,
           liveSessionId: live.sessionId,
         })
         .returning()

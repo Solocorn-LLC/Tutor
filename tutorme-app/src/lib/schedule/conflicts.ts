@@ -52,12 +52,13 @@ export async function findConflicts(
   const start = new Date(startArg.getTime() - bufferMs)
   const end = new Date(endArg.getTime() + bufferMs)
 
-  // 1. Overlapping live sessions
+  // 1. Overlapping live sessions (exclude schedule-less Go Live demo rooms)
   const liveSessionConditions = [
     eq(liveSession.tutorId, tutorId),
     inArray(liveSession.status, ['scheduled', 'active', 'preparing', 'live', 'paused']),
     // Overlap: session.scheduledAt < end AND (session.scheduledAt + duration) > start
     lt(liveSession.scheduledAt, end),
+    ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
   ]
   if (options.excludeSessionId) {
     liveSessionConditions.push(ne(liveSession.sessionId, options.excludeSessionId))
