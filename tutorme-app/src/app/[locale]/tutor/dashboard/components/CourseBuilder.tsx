@@ -1211,8 +1211,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Builder state for Task and Assessment
     // Task content is always preserved. Extensions have their own content.
-    // When activeExtensionId is null, we show/edit taskContent/taskPci
-    // When activeExtensionId is set, we show/edit that extension's content
+    // The PCI (marking policy) is shared: it always lives on the base task and is
+    // inherited by every extension. Only content changes when an extension is active.
     const [taskBuilder, setTaskBuilder] = useState<{
       title: string
       taskContent: string
@@ -1297,8 +1297,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Which source's guided PCI questionnaire is open ('task' | 'assessment' | null).
     const [pciFormSource, setPciFormSource] = useState<'task' | 'assessment' | null>(null)
     // Directly set the saved PCI (the marking policy used by grading) for the
-    // active context — the active task extension, the base task, or the
-    // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
+    // active context. For tasks, the policy is always stored on the base task so
+    // the base task and every extension share one PCI. Assessments keep their own.
+    // Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
     const setCurrentPci = (
       source: 'task' | 'assessment',
       text: string,
@@ -1306,14 +1307,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     ) => {
       if (source === 'task') {
         setTaskBuilder(prev => {
-          const base = prev.activeExtensionId
-            ? {
-                ...prev,
-                extensions: prev.extensions.map(ext =>
-                  ext.id === prev.activeExtensionId ? { ...ext, pci: text } : ext
-                ),
-              }
-            : { ...prev, taskPci: text }
+          const base = { ...prev, taskPci: text }
           // TASK-18: record the approval (transcript + approved text) on a real
           // "Apply to PCI" — not on a manual edit/clear (which pass no audit).
           // TASK-6: `pciSpec` holds the current approved structured spec.
@@ -1563,8 +1557,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             taskName: ext ? ext.name : taskBuilder.title,
             courseName,
             taskContent: ext ? ext.content : taskBuilder.taskContent,
-            taskPci: ext ? ext.pci : taskBuilder.taskPci,
-            taskPciSpec: ext ? undefined : taskBuilder.pciSpec,
+            taskPci: taskBuilder.taskPci,
+            taskPciSpec: taskBuilder.pciSpec,
             extensionName: ext?.name ?? null,
             enrolledStudents: totalStudents,
             currentDate: new Date().toLocaleDateString(),
@@ -1714,16 +1708,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Tutor's answer-reveal policy applied to deploys: when students may see the
     // correct answers. Default 'instant' preserves the existing live-feedback
     // behaviour; the tutor can switch to reveal-after-submit or hidden.
+    //
+    // Tasks: answer-reveal is derived from the task PCI (free-text instructions or
+    // the structured answerRevealPolicy). We skip the dialog and deploy immediately.
+    // Assessments and homework still show the dialog so the tutor can choose.
     const [deployAnswerReveal, setDeployAnswerReveal] = useState<
       'instant' | 'after_submit' | 'hidden' | 'student_choice'
     >('instant')
-    // When the tutor clicks Deploy, a dialog first asks how/when students see
-    // answers, then runs the actual deploy with the chosen mode.
+    // Dialog state for assessments and homework: the tutor picks the reveal mode
+    // before the actual deploy runs.
     const [deployDialog, setDeployDialog] = useState<{
       run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
     } | null>(null)
-    // Any Deploy action routes through this: it opens the answer-reveal dialog,
-    // then runs the real deploy with the chosen mode applied to the payload.
+    // Any Deploy action routes through this. Tasks deploy immediately using the PCI.
+    // Assessments and homework open the answer-reveal dialog first.
     const deployTaskWithDialog = useCallback(
       (payload: LiveTask) => {
         // Attach the tutor's PCI (free-text `instructions` + finalized structured
@@ -1751,10 +1749,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
           if (srcLessonId) break
         }
-        // Deploy-safety: strip the answer key out of the student-facing dmiItems
-        // and carry it separately as `answerKey` (server-only, for grading). Every
-        // deploy path routes through here, so this is the single guarantee that
-        // answers/rubrics never reach students. Block if anything still leaks.
 
         // ASMT-12 gradability gate (assessment-only): the assessment must be
         // internally consistent and fully gradable before deploy — no duplicate
@@ -1775,34 +1769,117 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
         }
 
+        // Deploy-safety: strip the answer key out of the student-facing dmiItems
+        // and carry it separately as `answerKey` (server-only, for grading). Every
+        // deploy path routes through here, so this is the single guarantee that
+        // answers/rubrics never reach students. Block if anything still leaks.
+        const runSafety = (dmiItems?: LiveTask['dmiItems'], providedKey?: LiveTask['answerKey']) =>
+          buildStudentDeployPayload(
+            dmiItems as unknown as RawDeployDmiItem[] | undefined,
+            providedKey
+          )
+
+        const basePci =
+          payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined)
+        const basePciSpec = payload.pciSpec ?? src?.pciSpec
+        const baseLessonId = payload.lessonId ?? srcLessonId
+
+        // For tasks the answer-reveal mode is derived from the PCI, not chosen in
+        // a dialog. Fall back to 'instant' to preserve existing behavior.
+        const deriveTaskAnswerReveal = (
+          pci?: string | null,
+          pciSpec?: import('@/lib/assessment/pci-spec').PciSpec | null
+        ): 'instant' | 'after_submit' | 'hidden' | 'student_choice' =>
+          revealPolicyToDeployMode(pci ?? undefined) ??
+          revealPolicyToDeployMode(pciSpec?.answerRevealPolicy ?? undefined) ??
+          'instant'
+
+        // Legacy single-extension path, or task with no extensions: deploy as a single item.
+        const extensions = src?.extensions ?? []
+        if (payload.source !== 'task' || payload.isExtension || extensions.length === 0) {
+          const {
+            dmiItems: safeDmiItems,
+            answerKey,
+            leaks,
+          } = runSafety(payload.dmiItems, payload.answerKey)
+          if (leaks.length > 0) {
+            console.error('[deploy] evaluation-layer leak blocked:', leaks)
+            toast.error('Answer data was present in the student view. Deploy blocked.')
+            return
+          }
+          const enriched: LiveTask = {
+            ...payload,
+            dmiItems: safeDmiItems,
+            answerKey,
+            pci: basePci,
+            pciSpec: basePciSpec,
+            lessonId: baseLessonId,
+            isExtension: payload.isExtension ?? false,
+          }
+          // Tasks deploy immediately using the PCI-derived reveal mode.
+          if (payload.source === 'task') {
+            insightsProps?.onDeployTask?.({
+              ...enriched,
+              answerReveal: deriveTaskAnswerReveal(basePci, basePciSpec),
+            })
+            return
+          }
+          // Assessments and homework still show the answer-reveal dialog.
+          setDeployDialog({
+            run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
+          })
+          return
+        }
+
+        // Base task + extensions are deployed as a linked set. The base task's PCI
+        // (policy) is inherited by every extension; each extension keeps its own
+        // content and document.
         const {
           dmiItems: safeDmiItems,
           answerKey,
           leaks,
-        } = buildStudentDeployPayload(
-          payload.dmiItems as unknown as RawDeployDmiItem[] | undefined,
-          payload.answerKey
-        )
+        } = runSafety(payload.dmiItems, payload.answerKey)
         if (leaks.length > 0) {
           console.error('[deploy] evaluation-layer leak blocked:', leaks)
           toast.error('Answer data was present in the student view. Deploy blocked.')
           return
         }
 
-        const enriched: LiveTask = {
+        const taskAnswerReveal = deriveTaskAnswerReveal(basePci, basePciSpec)
+
+        const baseTask: LiveTask = {
           ...payload,
           dmiItems: safeDmiItems,
           answerKey,
-          pci:
-            payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined),
-          pciSpec: payload.pciSpec ?? src?.pciSpec,
-          // The lesson this material was deployed from, so the server tags it with
-          // the real lesson (not "Lesson 1").
-          lessonId: payload.lessonId ?? srcLessonId,
+          pci: basePci,
+          pciSpec: basePciSpec,
+          lessonId: baseLessonId,
+          parentId: undefined,
+          isExtension: false,
+          answerReveal: taskAnswerReveal,
         }
-        setDeployDialog({
-          run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
-        })
+
+        const extensionTasks: LiveTask[] = extensions.map(ext => ({
+          id: ext.id,
+          title: ext.name,
+          content: ext.content || ext.description || ext.name,
+          source: 'task',
+          parentId: payload.id,
+          isExtension: true,
+          sourceDocument: ext.sourceDocument,
+          dmiItems: [],
+          answerKey: [],
+          polls: [],
+          questions: [],
+          deployedAt: Date.now(),
+          pci: basePci,
+          pciSpec: basePciSpec,
+          lessonId: baseLessonId,
+          answerReveal: taskAnswerReveal,
+        }))
+
+        const deploySet = [baseTask, ...extensionTasks]
+        deploySet.forEach(task => insightsProps?.onDeployTask?.(task))
       },
       [insightsProps, nodes]
     )
@@ -2226,8 +2303,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [insightsProps?.students])
 
     const activeLiveTask = useMemo(
-      () => (insightsProps?.liveTasks ?? []).find(t => t.id === currentInsightsId) ?? null,
-      [insightsProps?.liveTasks, currentInsightsId]
+      () => (insightsProps?.liveTasks ?? []).find(t => t.id === activeInsightsTaskId) ?? null,
+      [insightsProps?.liveTasks, activeInsightsTaskId]
     )
 
     // Tutor closes a poll/question: server locks it and no more answers land.
@@ -2532,9 +2609,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
         loadPciMessagesRef.current({ kind: 'task' }, parsePciTranscript(task.instructions || ''))
         for (const ext of task.extensions || []) {
+          // Extensions share the base task's PCI policy; seed the extension thread
+          // with the same transcript so context is consistent everywhere.
           loadPciMessagesRef.current(
             { kind: 'taskExtension', id: ext.id },
-            parsePciTranscript(ext.pci || '')
+            parsePciTranscript(task.instructions || '')
           )
         }
         setLoadedTaskId(task.id)
@@ -3519,14 +3598,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTestPciInputs(prev => ({ ...prev, [testPciActiveTab]: '' }))
       setTestPciLoading(true)
 
-      // Get PCI content from the active item — an active extension uses its own
-      // PCI (empty for a fresh extension), never the parent task's.
-      const pciContent =
-        testPciSource === 'task'
-          ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
-            : taskBuilder.taskPci
-          : assessmentBuilder.taskPci
+      // Get PCI content from the active task. Extensions share the base task's
+      // marking policy, so always read from the base task's PCI.
+      const pciContent = testPciSource === 'task' ? taskBuilder.taskPci : assessmentBuilder.taskPci
 
       // Determine which tabs to update
       const tabsToUpdate: string[] = []
@@ -8138,10 +8212,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
 
     const activeTaskPciMessages = activeTaskThread.messages
-    // The saved PCI (marking policy) for the active context — what grading uses.
-    const activeTaskPci = taskBuilder.activeExtensionId
-      ? (taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ?? '')
-      : taskBuilder.taskPci
+    // The saved PCI (marking policy) for tasks. Extensions share the base task's
+    // policy, so always read from the base task.
+    const activeTaskPci = taskBuilder.taskPci
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
       <div
@@ -9487,36 +9560,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                         </Button>
                                                                       </DropdownMenuTrigger>
                                                                       <DropdownMenuContent align="end">
-                                                                        {insightsProps?.onDeployTask && (
-                                                                          <DropdownMenuItem
-                                                                            className="font-medium text-emerald-600 focus:text-emerald-600"
-                                                                            onClick={e => {
-                                                                              e.stopPropagation()
-                                                                              deployTaskWithDialog({
-                                                                                id: ext.id,
-                                                                                title: ext.name,
-                                                                                content:
-                                                                                  ext.description ||
-                                                                                  ext.name,
-                                                                                source: 'task',
-                                                                                parentId: task.id,
-                                                                                isExtension: true,
-                                                                                // Carry the extension's OWN document so the
-                                                                                // live session shows its content, not the
-                                                                                // parent task's.
-                                                                                sourceDocument:
-                                                                                  ext.sourceDocument,
-                                                                                deployedAt:
-                                                                                  Date.now(),
-                                                                                polls: [],
-                                                                                questions: [],
-                                                                              })
-                                                                            }}
-                                                                          >
-                                                                            <Send className="mr-2 h-4 w-4" />
-                                                                            Deploy
-                                                                          </DropdownMenuItem>
-                                                                        )}
                                                                         <DropdownMenuItem
                                                                           className="text-red-500"
                                                                           onClick={(e: any) => {
@@ -9527,11 +9570,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                               )
                                                                             )
                                                                               return
-                                                                            // The deleted
-                                                                            // extension's PCI
-                                                                            // thread becomes
-                                                                            // unreachable; no
-                                                                            // explicit prune
+                                                                            // The extension is
+                                                                            // removed from the
+                                                                            // directory; its PCI
+                                                                            // was shared with the
+                                                                            // base task, so no
+                                                                            // separate cleanup is
                                                                             // needed.
                                                                             setTaskBuilder(
                                                                               prev => ({
@@ -10802,7 +10846,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         return
                                                       const opts = resolvePollOptions()
                                                       insightsProps.onSendPoll({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         question: pollPrompt,
                                                         options: opts,
                                                       })
@@ -10927,7 +10971,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       )
                                                         return
                                                       insightsProps.onSendQuestion({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         prompt: questionPrompt,
                                                       })
                                                       setQuestionPrompt('')
@@ -11226,14 +11270,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
                                                   taskId={loadedTaskId || undefined}
-                                                  pci={
-                                                    (previewExt
-                                                      ? previewExt.pci
-                                                      : taskBuilder.taskPci) || ''
-                                                  }
-                                                  pciSpec={
-                                                    previewExt ? undefined : taskBuilder.pciSpec
-                                                  }
+                                                  pci={taskBuilder.taskPci || ''}
+                                                  pciSpec={taskBuilder.pciSpec}
                                                   questionText={
                                                     loadedTaskId
                                                       ? `${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`
@@ -11884,17 +11922,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               e => e.id === taskBuilder.activeExtensionId
                                             )
                                           : null
+                                      // The task PCI is shared with every extension.
                                       const pci = (
-                                        activeExt
-                                          ? activeExt.pci
-                                          : isTask
-                                            ? taskBuilder.taskPci
-                                            : assessmentBuilder.taskPci
+                                        isTask ? taskBuilder.taskPci : assessmentBuilder.taskPci
                                       ) as string | undefined
                                       const spec = isTask
-                                        ? activeExt
-                                          ? undefined
-                                          : taskBuilder.pciSpec
+                                        ? taskBuilder.pciSpec
                                         : assessmentBuilder.pciSpec
                                       const testDmi = isTask ? taskDmiItems : assessmentDmiItems
                                       const idOf = (d: DMIQuestion) =>
@@ -12379,7 +12412,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               />
                                             </div>
                                             <TaskSlideFontEditor
-                                              className="absolute right-2 top-1/2 -translate-y-1/2"
                                               fontSize={slideFontSize}
                                               onFontSizeChange={(size: number) => {
                                                 setSlideFontSize(size)
@@ -12394,6 +12426,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   color,
                                                 })
                                               }}
+                                              className="absolute bottom-6 right-6"
                                             />
                                           </div>
                                         ) : (
@@ -13690,7 +13723,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   return
                                                 const opts = resolvePollOptions()
                                                 insightsProps.onSendPoll({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   question: pollPrompt,
                                                   options: opts,
                                                 })
@@ -13797,7 +13830,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 )
                                                   return
                                                 insightsProps.onSendQuestion({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   prompt: questionPrompt,
                                                 })
                                                 setQuestionPrompt('')
@@ -13943,14 +13976,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 : taskBuilder.taskContent
               : assessmentBuilder.taskContent
           }
-          pci={
-            aiAssistContext === 'task'
-              ? taskBuilder.activeExtensionId
-                ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ||
-                  ''
-                : taskBuilder.taskPci
-              : assessmentBuilder.taskPci
-          }
+          pci={aiAssistContext === 'task' ? taskBuilder.taskPci : assessmentBuilder.taskPci}
           title={aiAssistContext === 'task' ? taskBuilder.title : assessmentBuilder.title}
           messages={aiAssistContext === 'task' ? taskAiMessages : assessmentAiMessages}
           setMessages={aiAssistContext === 'task' ? setTaskAiMessages : setAssessmentAiMessages}
@@ -13974,16 +14000,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }}
           onApplyPci={pci => {
             if (aiAssistContext === 'task') {
-              if (taskBuilder.activeExtensionId) {
-                setTaskBuilder(prev => ({
-                  ...prev,
-                  extensions: prev.extensions.map(ext =>
-                    ext.id === prev.activeExtensionId ? { ...ext, pci } : ext
-                  ),
-                }))
-              } else {
-                setTaskBuilder(prev => ({ ...prev, taskPci: pci }))
-              }
+              // Apply the marking policy to the base task so every extension shares it.
+              setTaskBuilder(prev => ({ ...prev, taskPci: pci }))
             } else {
               setAssessmentBuilder(prev => ({ ...prev, taskPci: pci }))
             }

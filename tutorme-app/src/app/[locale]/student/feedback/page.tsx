@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -82,6 +83,29 @@ import {
   type TestTaskChatMsg,
 } from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+
+/** Group deployed task directory items into base tasks and their extensions. */
+interface GroupableTask {
+  id: string
+  itemId?: string
+  title: string
+  parentId?: string | null
+  isExtension?: boolean
+}
+function groupTasksByParent(tasks: GroupableTask[]) {
+  const baseTasks: GroupableTask[] = []
+  const extMap = new Map<string, GroupableTask[]>()
+  for (const t of tasks) {
+    if (t.parentId && t.isExtension) {
+      const arr = extMap.get(t.parentId) || []
+      arr.push(t)
+      extMap.set(t.parentId, arr)
+    } else {
+      baseTasks.push(t)
+    }
+  }
+  return { baseTasks, extMap }
+}
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -949,6 +973,15 @@ function StudentFeedbackContent() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
   const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
+
+  // Clear restored chat state synchronously when the active task changes so the
+  // TestTaskChat component remounts with a blank slate while the new task's
+  // prior submission is being fetched. Without this, the previous task's messages
+  // can survive into the newly deployed task because TestTaskChat only uses its
+  // initialState prop on first mount.
+  useLayoutEffect(() => {
+    setTaskChatInitial(undefined)
+  }, [activeTaskId])
   const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
   const [sessionContext, setSessionContext] = useState<{
     topic: string | null
@@ -1558,7 +1591,13 @@ function StudentFeedbackContent() {
     }
 
     const handleTaskUpdated = (payload: { task: LiveTask }) => {
-      setTasks(prev => prev.map(item => (item.id === payload.task.id ? payload.task : item)))
+      setTasks(prev => {
+        const exists = prev.some(item => item.id === payload.task.id)
+        if (exists) {
+          return prev.map(item => (item.id === payload.task.id ? payload.task : item))
+        }
+        return [...prev, payload.task]
+      })
     }
 
     const handleTaskSequence = (payload: { taskId: string; sequence: number }) => {
@@ -1570,6 +1609,57 @@ function StudentFeedbackContent() {
           return item
         })
       )
+    }
+
+    // Polls and questions are attached to a deployed task. The server emits both
+    // `task:updated` and `insight:sent`; we listen to both so a missed `task:updated`
+    // (or a task that arrived without the latest insight) still surfaces the new poll
+    // in the student's Interact panel.
+    const handleInsightSent = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const exists = task.polls?.some(p => p.id === poll.id)
+          if (exists) return prev
+          const updatedTask = { ...task, polls: [...(task.polls ?? []), poll] }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const exists = task.questions?.some(q => q.id === question.id)
+        if (exists) return prev
+        const updatedTask = { ...task, questions: [...(task.questions ?? []), question] }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
+    }
+
+    const handleInsightResponse = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const updatedPolls = task.polls?.map(p => (p.id === poll.id ? poll : p)) ?? []
+          const updatedTask = { ...task, polls: updatedPolls }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const updatedQuestions =
+          task.questions?.map(q => (q.id === question.id ? question : q)) ?? []
+        const updatedTask = { ...task, questions: updatedQuestions }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
     }
 
     const handleInsightReceived = (payload: {
@@ -1645,6 +1735,8 @@ function StudentFeedbackContent() {
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
+    socket.on('insight:sent', handleInsightSent)
+    socket.on('insight:response', handleInsightResponse)
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
@@ -1655,6 +1747,8 @@ function StudentFeedbackContent() {
       socket.off('task:deployed', handleTaskDeployed)
       socket.off('task:updated', handleTaskUpdated)
       socket.off('task:deployed:sequence', handleTaskSequence)
+      socket.off('insight:sent', handleInsightSent)
+      socket.off('insight:response', handleInsightResponse)
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
@@ -2076,116 +2170,110 @@ function StudentFeedbackContent() {
 
                   <div className="flex-1 overflow-hidden p-4 pt-6">
                     {activeTask ? (
-                      <div
-                        className="h-full w-full overflow-y-auto"
-                        style={{ zoom: viewerZoom } as React.CSSProperties}
-                      >
-                        <h3 className="mb-3 text-base font-semibold text-gray-900">
-                          {activeTask.title}
-                        </h3>
+                      isChatTask && activeTaskId ? (
+                        <div className="h-full w-full">
+                          <TestTaskChat
+                            key={activeTaskId}
+                            mode="test-student"
+                            questionText={`${activeTask.title}\n\n${activeTask.content}`}
+                            sourceDocument={activeTask.sourceDocument}
+                            initialState={taskChatInitial}
+                            incomingMessages={taskChatIncoming}
+                            studentAvatarUrl={session?.user?.image}
+                            onGrade={body =>
+                              fetchWithCsrf(`/api/student/assignments/${activeTaskId}/task-chat`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                              })
+                            }
+                            onBroadcast={msg => {
+                              if (!socket || !selectedSessionId) return
+                              socket.emit('task:chat_message', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                role: 'student',
+                                content: msg.content,
+                                name: session?.user?.name || 'Student',
+                                timestamp: Date.now(),
+                              })
+                            }}
+                            onComplete={answers => {
+                              if (!socket || !selectedSessionId || !activeTaskId) return
+                              const record: Record<string, string> = {}
+                              answers.forEach((a, i) => {
+                                record[String(i + 1)] = a
+                              })
+                              socket.emit('task:complete', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                answers: record,
+                                aiHandled: true,
+                              })
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="h-full w-full overflow-y-auto"
+                          style={{ zoom: viewerZoom } as React.CSSProperties}
+                        >
+                          <h3 className="mb-3 text-base font-semibold text-gray-900">
+                            {activeTask.title}
+                          </h3>
 
-                        {activeTask.content && (
-                          <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
-                            {activeTask.content}
-                          </div>
-                        )}
-
-                        {/* For a chat task the document lives inside the chat panel
-                            (it collapses into a pinned card after the first message),
-                            so only render the standalone viewer for non-chat tasks. */}
-                        {!isChatTask && activeTask.sourceDocument && (
-                          // Same renderer the chat flow uses (via TaskDocumentCard),
-                          // in its non-collapsible mode — one code path for the PDF/
-                          // image viewer and the "document unavailable" fallback.
-                          <div className="mb-4 h-[55vh] w-full">
-                            <TaskDocumentCard
-                              sourceDocument={activeTask.sourceDocument}
-                              alwaysOpen
-                            />
-                          </div>
-                        )}
-
-                        {/* The questions + answer inputs live in the right-hand
-                            Assessment tab (single source of truth). Here we just
-                            point the student to it so a question-only task isn't
-                            blank. */}
-                        {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setRightPanelTab('dmi')}
-                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
-                          >
-                            <span>
-                              {activeTask.dmiItems.length} question
-                              {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
-                              Assessment tab
-                            </span>
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          </button>
-                        )}
-
-                        {/* Chat-based task: the student answers by chatting, then
-                            "Task complete" → the AI responds to each answer per the
-                            PCI, then they can ask about what they got wrong. */}
-                        {isChatTask && activeTaskId && (
-                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
-                            <TestTaskChat
-                              key={activeTaskId}
-                              mode="test-student"
-                              questionText={`${activeTask.title}\n\n${activeTask.content}`}
-                              sourceDocument={activeTask.sourceDocument}
-                              initialState={taskChatInitial}
-                              incomingMessages={taskChatIncoming}
-                              studentAvatarUrl={session?.user?.image}
-                              onGrade={body =>
-                                fetchWithCsrf(
-                                  `/api/student/assignments/${activeTaskId}/task-chat`,
-                                  {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(body),
-                                  }
-                                )
-                              }
-                              onBroadcast={msg => {
-                                if (!socket || !selectedSessionId) return
-                                socket.emit('task:chat_message', {
-                                  roomId: selectedSessionId,
-                                  taskId: activeTaskId,
-                                  role: 'student',
-                                  content: msg.content,
-                                  name: session?.user?.name || 'Student',
-                                  timestamp: Date.now(),
-                                })
-                              }}
-                              onComplete={answers => {
-                                if (!socket || !selectedSessionId || !activeTaskId) return
-                                const record: Record<string, string> = {}
-                                answers.forEach((a, i) => {
-                                  record[String(i + 1)] = a
-                                })
-                                socket.emit('task:complete', {
-                                  roomId: selectedSessionId,
-                                  taskId: activeTaskId,
-                                  answers: record,
-                                  aiHandled: true,
-                                })
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {!isChatTask &&
-                          !activeTask.content &&
-                          !activeTask.sourceDocument &&
-                          !(
-                            Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
-                          ) && (
-                            <p className="text-sm text-gray-500">
-                              This task has no content to display.
-                            </p>
+                          {activeTask.content && (
+                            <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
+                              {activeTask.content}
+                            </div>
                           )}
-                      </div>
+
+                          {/* For a chat task the document lives inside the chat panel
+                              (it collapses into a pinned card after the first message),
+                              so only render the standalone viewer for non-chat tasks. */}
+                          {!isChatTask && activeTask.sourceDocument && (
+                            // Same renderer the chat flow uses (via TaskDocumentCard),
+                            // in its non-collapsible mode — one code path for the PDF/
+                            // image viewer and the "document unavailable" fallback.
+                            <div className="mb-4 h-[55vh] w-full">
+                              <TaskDocumentCard
+                                sourceDocument={activeTask.sourceDocument}
+                                alwaysOpen
+                              />
+                            </div>
+                          )}
+
+                          {/* The questions + answer inputs live in the right-hand
+                              Assessment tab (single source of truth). Here we just
+                              point the student to it so a question-only task isn't
+                              blank. */}
+                          {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setRightPanelTab('dmi')}
+                              className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
+                            >
+                              <span>
+                                {activeTask.dmiItems.length} question
+                                {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
+                                Assessment tab
+                              </span>
+                              <ChevronRight className="h-4 w-4 shrink-0" />
+                            </button>
+                          )}
+
+                          {!isChatTask &&
+                            !activeTask.content &&
+                            !activeTask.sourceDocument &&
+                            !(
+                              Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
+                            ) && (
+                              <p className="text-sm text-gray-500">
+                                This task has no content to display.
+                              </p>
+                            )}
+                        </div>
+                      )
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-gray-400">
                         Select a task from the Lessons tab to open it.
@@ -2820,35 +2908,76 @@ function StudentFeedbackContent() {
                                             </button>
                                             {foldersOpen.tasks && (
                                               <div className="mt-1 flex flex-col gap-0.5 pl-6">
-                                                {(!courseData.tasks ||
-                                                  courseData.tasks.length === 0) && (
-                                                  <span className="px-2 py-1 text-xs text-slate-500">
-                                                    Empty folder
-                                                  </span>
-                                                )}
-                                                {courseData.tasks &&
-                                                  [...courseData.tasks].reverse().map(task => (
-                                                    <button
-                                                      key={task.id}
-                                                      onClick={() =>
-                                                        handleSelectDirectoryItem(task)
-                                                      }
-                                                      className={cn(
-                                                        'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                                                        activeTaskId === (task.itemId || task.id)
-                                                          ? 'bg-blue-50 font-medium text-blue-700'
-                                                          : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                                      )}
-                                                    >
-                                                      <FileText className="h-3.5 w-3.5 shrink-0" />
-                                                      <span className="truncate">{task.title}</span>
-                                                      {unseenTaskIds.includes(
-                                                        task.itemId || task.id
-                                                      ) && (
-                                                        <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-                                                      )}
-                                                    </button>
-                                                  ))}
+                                                {(() => {
+                                                  const { baseTasks, extMap } = groupTasksByParent(
+                                                    courseData.tasks || []
+                                                  )
+                                                  if (baseTasks.length === 0) {
+                                                    return (
+                                                      <span className="px-2 py-1 text-xs text-slate-500">
+                                                        Empty folder
+                                                      </span>
+                                                    )
+                                                  }
+                                                  return baseTasks
+                                                    .slice()
+                                                    .reverse()
+                                                    .map(task => (
+                                                      <Fragment key={task.id}>
+                                                        <button
+                                                          onClick={() =>
+                                                            handleSelectDirectoryItem(task)
+                                                          }
+                                                          className={cn(
+                                                            'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                                                            activeTaskId ===
+                                                              (task.itemId || task.id)
+                                                              ? 'bg-blue-50 font-medium text-blue-700'
+                                                              : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                          )}
+                                                        >
+                                                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                          <span className="truncate">
+                                                            {task.title}
+                                                          </span>
+                                                          {unseenTaskIds.includes(
+                                                            task.itemId || task.id
+                                                          ) && (
+                                                            <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                          )}
+                                                        </button>
+                                                        {extMap
+                                                          .get(task.itemId || task.id)
+                                                          ?.slice()
+                                                          .reverse()
+                                                          .map(ext => (
+                                                            <button
+                                                              key={ext.id}
+                                                              onClick={() =>
+                                                                handleSelectDirectoryItem(ext)
+                                                              }
+                                                              className={cn(
+                                                                'group flex items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left text-sm transition-colors',
+                                                                activeTaskId ===
+                                                                  (ext.itemId || ext.id)
+                                                                  ? 'bg-blue-50 font-medium text-blue-700'
+                                                                  : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                              )}
+                                                            >
+                                                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                              <span className="truncate">
+                                                                {ext.title}
+                                                              </span>
+                                                              {unseenTaskIds.includes(
+                                                                ext.itemId || ext.id
+                                                              ) && (
+                                                                <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                              )}
+                                                            </button>
+                                                          ))}
+                                                      </Fragment>
+                                                    ))
+                                                })()}
                                               </div>
                                             )}
                                           </div>
