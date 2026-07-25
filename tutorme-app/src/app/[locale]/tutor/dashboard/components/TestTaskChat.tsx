@@ -109,6 +109,18 @@ export function TestTaskChat({
   const lastIncomingLen = useRef(0)
   const isClassroom = mode === 'classroom'
 
+  // Re-initialize the chat whenever the parent provides a new initialState. This
+  // prevents a previous task's answers/AI feedback from surviving when the
+  // component remounts for a newly deployed task before the new task's history
+  // has loaded. The parent should clear initialState synchronously on task
+  // change so we reset to an empty state first, then to the fetched history.
+  useEffect(() => {
+    setMessages(initialState?.messages ?? [])
+    setDraft(initialState?.draft ?? '')
+    setCompleted(initialState?.completed ?? false)
+    lastIncomingLen.current = 0
+  }, [initialState])
+
   // In classroom mode, sync messages directly from incomingMessages.
   // This ensures messages persist when switching tabs (component remounts).
   useEffect(() => {
