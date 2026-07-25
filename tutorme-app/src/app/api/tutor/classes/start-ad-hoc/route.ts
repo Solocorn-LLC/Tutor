@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { getPool } from '@/lib/db/drizzle'
 import { user, course, courseEnrollment } from '@/lib/db/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
@@ -14,6 +14,13 @@ const SPECIAL_TOKENS = ['kim.kon#26', 'stephen#26'] // fallback token, should ma
 export const POST = withAuth(
   async (req: NextRequest, { user: currentUser }) => {
     try {
+      // Self-healing schema guard: the LiveSession table may not yet have the
+      // sessionType column in older environments. Add it idempotently before any
+      // query depends on it.
+      await drizzleDb.execute(
+        sql`ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "sessionType" text NOT NULL DEFAULT 'ADHOC'`
+      )
+
       const { type, courseId, title, trainingToken, targetAudience, trainingCategory } =
         await req.json()
 
@@ -191,7 +198,7 @@ export const POST = withAuth(
           category: Array.isArray(courseRecord.categories)
             ? courseRecord.categories[0] || 'General'
             : 'General',
-          type: 'ADHOC',
+          type: 'GO_LIVE_DEMO',
           courseId,
           status: 'active',
           startedAt: new Date(),

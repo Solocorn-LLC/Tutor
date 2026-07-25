@@ -124,7 +124,7 @@ export const POST = withCsrf(
       // Point the booking at the freshly-linked event (mirrors respond).
       await tx
         .update(oneOnOneBookingRequest)
-        .set({ calendarEventId: newEvent.eventId, updatedAt: new Date() })
+        .set({ calendarEventId: newEvent!.eventId, updatedAt: new Date() })
         .where(eq(oneOnOneBookingRequest.requestId, requestId))
 
       return { sessionId: created.sessionId, healed: true }
