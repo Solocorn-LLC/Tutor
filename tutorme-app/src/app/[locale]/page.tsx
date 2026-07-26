@@ -1940,10 +1940,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           fetchTiered('tutors', q, selectedCountryCode),
           fetchWithTimeout('/api/public/live-sessions?type=GO_LIVE_DEMO&status=active', {
             signal: controller.signal,
+            cache: 'no-store',
           })
             .then(async res => {
-              if (!res.ok) return []
+              if (!res.ok) {
+                const body = await res.text().catch(() => '')
+                console.warn('[Landing] live-sessions HTTP error:', res.status, body)
+                return []
+              }
               const json = await res.json()
+              console.log('[Landing] live-sessions response:', json)
               return json.sessions || []
             })
             .catch(err => {
