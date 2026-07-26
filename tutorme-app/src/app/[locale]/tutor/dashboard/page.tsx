@@ -11,7 +11,7 @@ import {
   groupIntoSeries,
 } from '@/components/one-on-one/one-on-one-request-card'
 import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
-import { Card, CardContent, CardTitle } from '@/components/ui/card'
+import { CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -794,7 +794,7 @@ function TutorDashboardContent() {
               { value: 'availability', label: 'My Availability' },
               { value: 'oneOnOne', label: '1-on-1 Requests' },
               { value: 'groupSessions', label: 'Group Sessions' },
-              { value: 'liveDemos', label: 'My Live Demos' },
+              { value: 'liveDemos', label: 'Classes' },
             ]}
             showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
             calendarView={calendarView}
@@ -1158,7 +1158,7 @@ function TutorDashboardContent() {
             >
               <div className="h-full overflow-y-auto">
                 <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
-                  My Live Demos
+                  Classes
                   <span className="text-muted-foreground text-sm font-normal">
                     Demo classes you have created
                   </span>
@@ -1171,54 +1171,55 @@ function TutorDashboardContent() {
                   </div>
                 ) : liveDemos.length === 0 ? (
                   <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                    No live demos yet. Click <strong>Create Class</strong> to start one.
+                    No classes yet. Click <strong>Create Class</strong> to start one.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {liveDemos.map(demo => (
-                      <Card
+                      <div
                         key={demo.id}
-                        className="border-border/30 bg-card hover:border-border/50 transition-all duration-200 hover:bg-white"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/30 bg-emerald-500 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                       >
-                        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-medium text-gray-900">{demo.title}</p>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'text-[10px] uppercase tracking-wide',
-                                  demo.status === 'active'
-                                    ? 'bg-success/15 text-success border-success/25'
-                                    : demo.status === 'ended'
-                                      ? 'bg-muted text-muted-foreground border-border/30'
-                                      : 'bg-info/15 text-info border-info/25'
-                                )}
-                              >
-                                {demo.status}
-                              </Badge>
-                            </div>
-                            <p className="text-muted-foreground text-xs">{demo.subject}</p>
-                            {demo.description && (
-                              <p className="text-muted-foreground truncate text-xs">
-                                {demo.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
-                              }
-                              className="bg-emerald-500 text-white hover:bg-emerald-600"
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-semibold text-white">{demo.title}</p>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] uppercase tracking-wide',
+                                demo.status === 'active'
+                                  ? 'border-white/40 bg-white/20 text-white'
+                                  : demo.status === 'ended'
+                                    ? 'border-black/20 bg-black/20 text-white/80'
+                                    : 'border-white/30 bg-white/15 text-white'
+                              )}
                             >
-                              <Video className="mr-1 h-3 w-3" />
-                              Enter
-                            </Button>
+                              {demo.status}
+                            </Badge>
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-50">
+                            <span>{demo.subject}</span>
+                          </div>
+                          {demo.description && (
+                            <p className="truncate text-xs text-emerald-100/80">
+                              {demo.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
+                            }
+                            className="border-transparent bg-white text-emerald-600 transition-all duration-200 hover:border-transparent hover:bg-emerald-50 hover:text-emerald-700"
+                          >
+                            <Video className="mr-1 h-3 w-3" />
+                            Enter
+                          </Button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
