@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { getCategoryCountryCode, getRegionIdForCountry } from '@/lib/data/category-country'
 import { ArrowLeft, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { sanitizeHtmlWithMax } from '@/lib/security/sanitize'
@@ -216,14 +217,6 @@ export default function TutorCoursePage() {
       .then(data => {
         if (data?.profile) {
           setTutorProfile(data.profile)
-          // Load tutor's categories from profile if available (single category only)
-          if (
-            data.profile.categories &&
-            Array.isArray(data.profile.categories) &&
-            data.profile.categories.length > 0
-          ) {
-            setSelectedCategories([data.profile.categories[0]])
-          }
         }
       })
       .catch(err => console.error('[Course Page] Failed to load profile:', err))
@@ -237,9 +230,17 @@ export default function TutorCoursePage() {
     setIsFree(course.isFree ?? false)
     setPrice(course.isFree ? '' : course.price != null ? String(course.price) : '')
     setSchedule(Array.isArray(course.schedule) ? [...course.schedule] : [])
-    // Load categories from course if available (single category only)
+    // Load categories from course if available; fall back to tutor profile only when
+    // the course has no category set, so the builder's category is never overwritten
+    // by a later profile fetch.
     if (course.categories && Array.isArray(course.categories) && course.categories.length > 0) {
       setSelectedCategories([course.categories[0]])
+    } else if (
+      tutorProfile?.categories &&
+      Array.isArray(tutorProfile.categories) &&
+      tutorProfile.categories.length > 0
+    ) {
+      setSelectedCategories([tutorProfile.categories[0]])
     }
   }, [course, tutorProfile])
 
@@ -362,7 +363,7 @@ export default function TutorCoursePage() {
       <div className="mx-auto w-full max-w-[1400px] px-4 pt-8 sm:px-6">
         <div className="space-y-6">
           <div className="relative">
-            <div className="absolute left-[5px] top-1/2 z-10 -translate-y-1/2">
+            <div className="absolute left-[10px] top-1/2 z-10 -translate-y-1/2">
               <button
                 type="button"
                 onClick={() => router.push(`/tutor/insights?tab=builder&courseId=${id}&mode=edit`)}
@@ -413,111 +414,124 @@ export default function TutorCoursePage() {
                 </div>
               </div>
             </button>
-            {infoOpen ? (
-              <CardContent spacing="default" className="bg-white text-slate-900">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="form-group space-y-2">
-                    <Label className="form-label font-semibold text-slate-700">Course Name</Label>
-                    <Input
-                      value={courseName}
-                      onChange={e => setCourseName(e.target.value)}
-                      placeholder="Course name"
-                      className="bg-white"
-                    />
-                    <div className="mt-3 flex items-center gap-3 text-sm text-slate-700">
-                      <span className="font-semibold">No. of Lessons</span>
-                      <span>{totalLessons}</span>
-                    </div>
-                  </div>
-
-                  <div className="form-group space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="form-label font-semibold text-slate-700">
-                        Course Description
-                      </Label>
-                      <span
-                        className={cn(
-                          'text-xs',
-                          description.length > 200 ? 'font-medium text-red-500' : 'text-slate-400'
-                        )}
-                      >
-                        {description.length}/200
-                      </span>
-                    </div>
-                    <Textarea
-                      value={description}
-                      onChange={e => {
-                        const val = e.target.value
-                        if (val.length <= 200) {
-                          setDescription(val)
-                        }
-                      }}
-                      placeholder="What will students learn in this course?"
-                      rows={2}
-                      maxLength={200}
-                      className="h-full min-h-[80px] resize-none bg-white text-slate-900"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            ) : null}
-          </Card>
-
-          <Card
-            variant="floating"
-            elevation={2}
-            padding="none"
-            className="overflow-hidden rounded-[16px] bg-white"
-          >
-            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <h2 className="text-sm font-semibold text-slate-800">Publish to countries</h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Pick a region, then the countries to publish this course to — each becomes its own
-                variant. Leave it as Global to publish once, worldwide.
-              </p>
-            </div>
-            <CardContent className="space-y-4 bg-white p-6 text-slate-900">
-              <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-700">Region</Label>
-                  <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Select a region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REGIONS.map(r => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-700">Countries</Label>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
-                    {regionCountries.map(c => (
-                      <label
-                        key={c.code}
-                        className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
-                      >
-                        <Checkbox
-                          checked={selectedCountryCodes.includes(c.code)}
-                          onCheckedChange={() => toggleCountry(c.code)}
+            <AnimatePresence initial={false}>
+              {infoOpen ? (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                  className="overflow-hidden"
+                >
+                  <CardContent spacing="default" className="space-y-8 bg-white text-slate-900">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="form-group space-y-2">
+                        <Label className="form-label font-semibold text-slate-700">
+                          Course Name
+                        </Label>
+                        <Input
+                          value={courseName}
+                          onChange={e => setCourseName(e.target.value)}
+                          placeholder="Course name"
+                          className="bg-white"
                         />
-                        {c.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500">
-                Publishing to:{' '}
-                <span className="font-medium text-slate-700">
-                  {selectedCountryCodes.map(countryLabel).join(', ')}
-                </span>
-              </p>
-            </CardContent>
+                        <div className="mt-3 flex items-center gap-3 text-sm text-slate-700">
+                          <span className="font-semibold">No. of Lessons</span>
+                          <span>{totalLessons}</span>
+                        </div>
+                      </div>
+
+                      <div className="form-group space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="form-label font-semibold text-slate-700">
+                            Course Description
+                          </Label>
+                          <span
+                            className={cn(
+                              'text-xs',
+                              description.length > 200
+                                ? 'font-medium text-red-500'
+                                : 'text-slate-400'
+                            )}
+                          >
+                            {description.length}/200
+                          </span>
+                        </div>
+                        <Textarea
+                          value={description}
+                          onChange={e => {
+                            const val = e.target.value
+                            if (val.length <= 200) {
+                              setDescription(val)
+                            }
+                          }}
+                          placeholder="What will students learn in this course?"
+                          rows={2}
+                          maxLength={200}
+                          className="h-full min-h-[80px] resize-none bg-white text-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-3">
+                        <h2 className="text-sm font-semibold text-slate-800">
+                          Publish to countries
+                        </h2>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          Pick a region, then the countries to publish this course to — each becomes
+                          its own variant. Leave it as Global to publish once, worldwide.
+                        </p>
+                      </div>
+                      <div className="space-y-4 rounded-xl border border-slate-100 bg-white p-4 text-slate-900">
+                        <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-slate-700">Region</Label>
+                            <Select value={selectedRegion} onValueChange={handleRegionChange}>
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select a region" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {REGIONS.map(r => (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-slate-700">
+                              Countries
+                            </Label>
+                            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
+                              {regionCountries.map(c => (
+                                <label
+                                  key={c.code}
+                                  className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+                                >
+                                  <Checkbox
+                                    checked={selectedCountryCodes.includes(c.code)}
+                                    onCheckedChange={() => toggleCountry(c.code)}
+                                  />
+                                  {c.name}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Publishing to:{' '}
+                          <span className="font-medium text-slate-700">
+                            {selectedCountryCodes.map(countryLabel).join(', ')}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </Card>
 
           <VariantManager
