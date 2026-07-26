@@ -11,7 +11,7 @@ import {
   groupIntoSeries,
 } from '@/components/one-on-one/one-on-one-request-card'
 import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
-import { CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -244,6 +244,8 @@ function TutorDashboardContent() {
     oneOnOneRequests: 0,
   })
   const [classes, setClasses] = useState<UpcomingClass[]>([])
+  const [liveDemos, setLiveDemos] = useState<UpcomingClass[]>([])
+  const [loadingLiveDemos, setLoadingLiveDemos] = useState(false)
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [allStudents, setAllStudents] = useState<
     Array<{ id: string; name: string; email: string; courseCount: number; classCount: number }>
@@ -386,6 +388,25 @@ function TutorDashboardContent() {
     }
   }, [session?.user?.id])
 
+  // Load live demos (including ended) whenever the My Live Demos tab is active.
+  const fetchLiveDemos = useCallback(async () => {
+    if (!session?.user?.id) return
+    setLoadingLiveDemos(true)
+    try {
+      const res = await fetch('/api/tutor/classes?includeEnded=1', { credentials: 'include' })
+      if (res.ok) {
+        const d = await res.json()
+        setLiveDemos(
+          (d.classes ?? []).filter((c: UpcomingClass) => c.sessionType === 'GO_LIVE_DEMO')
+        )
+      }
+    } catch {
+      // best-effort
+    } finally {
+      setLoadingLiveDemos(false)
+    }
+  }, [session?.user?.id])
+
   useEffect(() => {
     if (session?.user?.id) {
       setLoading(true)
@@ -417,6 +438,11 @@ function TutorDashboardContent() {
       document.removeEventListener('visibilitychange', refresh)
     }
   }, [session?.user?.id, refreshClasses])
+
+  // Load live demos whenever the tab becomes active.
+  useEffect(() => {
+    if (activeTab === 'liveDemos') fetchLiveDemos()
+  }, [activeTab, fetchLiveDemos])
 
   const handleClassCreated = useCallback(
     (classData?: { id: string; [key: string]: unknown }) => {
@@ -768,6 +794,7 @@ function TutorDashboardContent() {
               { value: 'availability', label: 'My Availability' },
               { value: 'oneOnOne', label: '1-on-1 Requests' },
               { value: 'groupSessions', label: 'Group Sessions' },
+              { value: 'liveDemos', label: 'My Live Demos' },
             ]}
             showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
             calendarView={calendarView}
@@ -1123,6 +1150,79 @@ function TutorDashboardContent() {
               className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
               <TutorGroupSessionsPanel embedded />
+            </TabsContent>
+
+            <TabsContent
+              value="liveDemos"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <div className="h-full overflow-y-auto">
+                <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
+                  My Live Demos
+                  <span className="text-muted-foreground text-sm font-normal">
+                    Demo classes you have created
+                  </span>
+                </CardTitle>
+                {loadingLiveDemos ? (
+                  <div className="space-y-3">
+                    {[1, 2].map(i => (
+                      <div key={i} className="bg-muted h-20 animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : liveDemos.length === 0 ? (
+                  <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                    No live demos yet. Click <strong>Create Class</strong> to start one.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {liveDemos.map(demo => (
+                      <Card
+                        key={demo.id}
+                        className="border-border/30 bg-card hover:border-border/50 transition-all duration-200 hover:bg-white"
+                      >
+                        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-medium text-gray-900">{demo.title}</p>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-[10px] uppercase tracking-wide',
+                                  demo.status === 'active'
+                                    ? 'bg-success/15 text-success border-success/25'
+                                    : demo.status === 'ended'
+                                      ? 'bg-muted text-muted-foreground border-border/30'
+                                      : 'bg-info/15 text-info border-info/25'
+                                )}
+                              >
+                                {demo.status}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground text-xs">{demo.subject}</p>
+                            {demo.description && (
+                              <p className="text-muted-foreground truncate text-xs">
+                                {demo.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
+                              }
+                              className="bg-emerald-500 text-white hover:bg-emerald-600"
+                            >
+                              <Video className="mr-1 h-3 w-3" />
+                              Enter
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </SessionCalendarPanel>
         </div>

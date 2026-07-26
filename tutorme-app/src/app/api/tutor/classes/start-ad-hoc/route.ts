@@ -20,7 +20,7 @@ export const POST = withAuth(
         sql`ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "sessionType" text NOT NULL DEFAULT 'ADHOC'`
       )
 
-      const { type, courseId, title, trainingToken, targetAudience, trainingCategory } =
+      const { type, courseId, title, description, trainingToken, targetAudience, trainingCategory } =
         await req.json()
 
       if (type === 'training') {
@@ -179,6 +179,7 @@ export const POST = withAuth(
             : 'General',
           type: 'GO_LIVE_DEMO',
           courseId,
+          description,
           status: 'active',
           startedAt: new Date(),
           existingRoom: room,

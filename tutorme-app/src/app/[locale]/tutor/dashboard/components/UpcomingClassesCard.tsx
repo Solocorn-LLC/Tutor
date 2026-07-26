@@ -41,6 +41,8 @@ export interface UpcomingClass {
   status: string
   sessionNo?: number
   totalSessions?: number
+  sessionType?: string
+  description?: string | null
 }
 
 interface UpcomingClassesCardProps {
