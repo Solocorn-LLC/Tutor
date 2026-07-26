@@ -1938,12 +1938,21 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         const [coursesResults, tutorsResults, goLivesResults] = await Promise.all([
           fetchTiered('courses', q, selectedCountryCode),
           fetchTiered('tutors', q, selectedCountryCode),
-          fetchWithTimeout('/api/public/live-sessions?type=GO_LIVE_DEMO&status=active', {
-            signal: controller.signal,
-          })
+          fetchWithTimeout(
+            `/api/public/live-sessions?type=GO_LIVE_DEMO&status=active&_t=${Date.now()}`,
+            {
+              signal: controller.signal,
+              cache: 'no-store',
+            }
+          )
             .then(async res => {
-              if (!res.ok) return []
+              if (!res.ok) {
+                const body = await res.text().catch(() => '')
+                console.warn('[Landing] live-sessions API returned non-OK:', res.status, body)
+                return []
+              }
               const json = await res.json()
+              console.log('[Landing] live-sessions received:', json.sessions?.length ?? 0)
               return json.sessions || []
             })
             .catch(err => {
