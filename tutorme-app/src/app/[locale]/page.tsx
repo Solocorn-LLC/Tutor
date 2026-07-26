@@ -73,6 +73,7 @@ import {
   DialogTitle,
   DialogPanel,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import './page.css'
@@ -2024,6 +2025,29 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     return `Starts ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear().toString().slice(-2)}`
   }
 
+  const ClampedDescription = ({
+    text,
+    children,
+    className,
+  }: {
+    text: string
+    children: React.ReactNode
+    className?: string
+  }) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn('h-full overflow-hidden', className)}>
+            <div className="line-clamp-4 leading-relaxed">{children}</div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="text-xs">{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+
   const CourseSlot = ({ item }: { item: any }) => (
     <div
       role="button"
@@ -2067,10 +2091,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-200">
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={(item?.description || '').trim() || 'No course description provided yet.'}
+              className="text-[11px] text-slate-200"
+            >
               {(item?.description || '').trim() || 'No course description provided yet.'}
-            </div>
+            </ClampedDescription>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs font-semibold">
             <div className="truncate text-slate-300">
@@ -2124,11 +2151,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          {/* Bio — expands to fill available space */}
-          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-100">
+          {/* Bio — fixed height with clamp + tooltip */}
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={
+                (item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'
+              }
+              className="text-[11px] text-slate-100"
+            >
               {(item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'}
-            </div>
+            </ClampedDescription>
           </div>
 
           {/* Bottom row: courses (left) | country name (right) */}
@@ -2193,10 +2225,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </div>
 
           {/* Description area */}
-          <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <p className="line-clamp-4 text-xs leading-relaxed text-emerald-50/80">
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={item?.description || 'Live demo class'}
+              className="text-xs text-emerald-50/80"
+            >
               {item?.description || 'Live demo class'}
-            </p>
+            </ClampedDescription>
           </div>
 
           {/* Bottom row: country */}
