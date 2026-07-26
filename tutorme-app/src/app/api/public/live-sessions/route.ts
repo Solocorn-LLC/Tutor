@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
 
     const pageSize = Math.min(60, Math.max(1, Number(searchParams.get('pageSize')) || 24))
 
+    console.log('[GET /api/public/live-sessions] params:', {
+      sessionType,
+      statusParam,
+      statuses,
+      pageSize,
+    })
+
     // Self-healing schema guard: the LiveSession table may not yet have the
     // sessionType column in older environments. Add it idempotently before any
     // query depends on it.
@@ -61,6 +68,7 @@ export async function GET(request: NextRequest) {
         tutorCountry: sql<
           string | null
         >`coalesce(${profile.countryOfResidence}, ${profile.nationality})`.as('tutorCountry'),
+        tutorRole: user.role,
         courseName: course.name,
       })
       .from(liveSession)
@@ -76,6 +84,29 @@ export async function GET(request: NextRequest) {
       )
       .orderBy(desc(liveSession.scheduledAt))
       .limit(pageSize)
+
+    console.log(`[GET /api/public/live-sessions] found ${rows.length} session(s)`)
+
+    if (rows.length === 0) {
+      try {
+        const allDemos = await drizzleDb
+          .select({ count: sql<number>`count(*)::int`.as('count') })
+          .from(liveSession)
+          .where(eq(liveSession.sessionType, 'GO_LIVE_DEMO'))
+        const allActive = await drizzleDb
+          .select({ count: sql<number>`count(*)::int`.as('count') })
+          .from(liveSession)
+          .where(
+            inArray(liveSession.status, ['active', 'live', 'scheduled'] as LiveSessionStatus[])
+          )
+        console.log('[GET /api/public/live-sessions] diagnostics:', {
+          totalGoLiveDemoSessions: allDemos[0]?.count ?? 0,
+          totalActiveOrLiveOrScheduledSessions: allActive[0]?.count ?? 0,
+        })
+      } catch (diagErr) {
+        console.warn('[GET /api/public/live-sessions] diagnostic query failed:', diagErr)
+      }
+    }
 
     const sessions = rows.map(row => ({
       id: row.sessionId,
