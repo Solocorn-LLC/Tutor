@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -24,7 +25,7 @@ type GoLiveDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirmTeaching?: () => Promise<void>
-  onConfirmTeachingUnpublished?: (courseId: string) => Promise<void>
+  onConfirmTeachingUnpublished?: (courseId: string, description: string) => Promise<void>
   unpublishedCourses?: { id: string; name: string }[]
   onConfirmTraining: (data: {
     token: string
@@ -46,6 +47,7 @@ export function GoLiveDialog({
 
   // Teaching fields (only used when a dashboard caller provides unpublished courses)
   const [selectedCourseId, setSelectedCourseId] = useState('')
+  const [description, setDescription] = useState('')
 
   // Training fields
   const [token, setToken] = useState('')
@@ -57,7 +59,7 @@ export function GoLiveDialog({
     try {
       if (sessionType === 'teaching') {
         if (unpublishedCourses && unpublishedCourses.length > 0) {
-          await onConfirmTeachingUnpublished?.(selectedCourseId)
+          await onConfirmTeachingUnpublished?.(selectedCourseId, description)
         } else {
           await onConfirmTeaching?.()
         }
@@ -87,7 +89,7 @@ export function GoLiveDialog({
     >
       <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
         <DialogHeader className="text-center">
-          <DialogTitle className="mx-auto text-center text-white">Go Live</DialogTitle>
+          <DialogTitle className="mx-auto text-center text-white">Create a Class</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 px-6 py-4">
@@ -103,10 +105,9 @@ export function GoLiveDialog({
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="teaching" id="teaching" />
                 <Label htmlFor="teaching" className="flex-1 cursor-pointer">
-                  <div className="text-base font-semibold text-gray-900">Start a live session</div>
+                  <div className="text-base font-semibold text-gray-900">Create a demo class</div>
                   <div className="mt-1 text-sm font-normal text-gray-600">
-                    Start a live session to meet new students, conduct a demo lesson, provide a
-                    diagnostic test…
+                    Create a demo lesson for your course.
                   </div>
                 </Label>
               </div>
@@ -127,6 +128,21 @@ export function GoLiveDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="space-y-2 pt-2">
+                      <Label className="text-gray-900">Description</Label>
+                      <Textarea
+                        value={description}
+                        onChange={e => {
+                          const val = e.target.value
+                          if (val.length <= 200) setDescription(val)
+                        }}
+                        placeholder="Describe what this demo will cover"
+                        rows={2}
+                        maxLength={200}
+                        className="resize-none"
+                      />
+                      <p className="text-right text-xs text-gray-500">{description.length}/200</p>
+                    </div>
                   </div>
                 )}
               {sessionType === 'teaching' &&
@@ -145,10 +161,11 @@ export function GoLiveDialog({
                 <RadioGroupItem value="training" id="training" />
                 <Label htmlFor="training" className="flex-1 cursor-pointer">
                   <div className="text-base font-semibold text-gray-900">
-                    Start a training session
+                    Create a Scheduled Class
                   </div>
                   <div className="mt-1 text-sm font-normal text-gray-600">
-                    Training sessions for new tutors
+                    Schedule a single session for single topic classes, practice papers, and other
+                    specialized lessons.
                   </div>
                 </Label>
               </div>
@@ -204,7 +221,7 @@ export function GoLiveDialog({
           </Button>
           <Button variant="modal-primary-dark" onClick={handleConfirm} disabled={confirmDisabled}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Go Live
+            Create Class
           </Button>
         </DialogFooter>
       </DialogContent>

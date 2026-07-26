@@ -2183,8 +2183,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          {/* Empty description area */}
-          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2" />
+          {/* Description area */}
+          <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <p className="line-clamp-4 text-xs leading-relaxed text-emerald-50/80">
+              {item?.description || 'Live demo class'}
+            </p>
+          </div>
 
           {/* Bottom row: country */}
           <div className="mt-3 flex items-center justify-end text-xs font-semibold">
@@ -2386,7 +2390,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   return (
     <section
       id="panel-2-search-results"
-      className="snap-panel relative flex h-screen w-full snap-start flex-col justify-start overflow-hidden"
+      className="snap-panel relative flex h-auto min-h-screen w-full snap-start flex-col justify-start overflow-visible"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
@@ -2461,7 +2465,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </button>
         </div>
 
-        <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto">
+        <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-visible pb-10">
           <CarouselRow
             title="Courses"
             icon={<BookOpen className="h-4 w-4" />}
