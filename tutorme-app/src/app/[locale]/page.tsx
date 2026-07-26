@@ -2027,7 +2027,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       }}
     >
       <div
-        className="h-[280px] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[240px] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
@@ -2082,7 +2082,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const TutorSlot = ({ item }: { item: any }) => (
     <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(190px,16vw,240px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
@@ -2144,7 +2144,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       className="block h-full w-full"
     >
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(190px,16vw,240px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
@@ -2242,7 +2242,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         disabled={disabled}
         className={cn(
           'shrink-0 transition-all duration-300',
-          'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
+          'h-[clamp(152px,12.8vw,192px)] w-[clamp(44px,3.6vw,56px)]',
           'self-center',
           !disabled
             ? cn(
@@ -2284,7 +2284,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     setPage: (next: number) => void
   }) => (
     <div className="w-full">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
         <span className="text-slate-500">{icon}</span>
         <span>{title}</span>
       </div>
@@ -2332,11 +2332,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                     {item?.__skeleton ? (
                       <div
                         className={cn(
-                          kind === 'courses'
-                            ? 'h-[280px]'
-                            : kind === 'go-live'
-                              ? 'h-[clamp(220px,18vw,280px)]'
-                              : 'h-[clamp(220px,18vw,280px)]',
+                          kind === 'courses' ? 'h-[240px]' : 'h-[clamp(190px,16vw,240px)]',
                           'w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]'
                         )}
                       >
@@ -2360,11 +2356,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   <div
                     key={`placeholder-${kind}-${currentPage}-${i}`}
                     className={cn(
-                      kind === 'courses'
-                        ? 'h-[280px]'
-                        : kind === 'go-live'
-                          ? 'h-[clamp(220px,18vw,280px)]'
-                          : 'h-[clamp(220px,18vw,280px)]',
+                      kind === 'courses' ? 'h-[240px]' : 'h-[clamp(190px,16vw,240px)]',
                       'w-[var(--card-width)]'
                     )}
                     aria-hidden="true"
@@ -2398,7 +2390,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         backgroundSize: '36px 36px',
       }}
     >
-      <div className="mx-auto flex h-full w-full max-w-[1536px] flex-col px-8 py-10">
+      <div className="mx-auto flex h-full w-full max-w-[1536px] flex-col px-8 py-8">
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Select
             value={selectedRegion}
@@ -2465,7 +2457,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </button>
         </div>
 
-        <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-visible pb-10">
+        <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-visible pb-8">
           <CarouselRow
             title="Courses"
             icon={<BookOpen className="h-4 w-4" />}
