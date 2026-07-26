@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
 
     const pageSize = Math.min(60, Math.max(1, Number(searchParams.get('pageSize')) || 24))
 
+    // Self-healing schema guard: the LiveSession table may not yet have the
+    // sessionType column in older environments. Add it idempotently before any
+    // query depends on it.
+    await drizzleDb.execute(
+      sql`ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "sessionType" text NOT NULL DEFAULT 'ADHOC'`
+    )
+
     const rows = await drizzleDb
       .select({
         sessionId: liveSession.sessionId,
@@ -64,7 +71,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(liveSession.sessionType, sessionType),
           inArray(liveSession.status, statuses as LiveSessionStatus[]),
-          eq(user.role, 'TUTOR')
+          sql`LOWER(${user.role}) = 'tutor'`
         )
       )
       .orderBy(desc(liveSession.scheduledAt))
